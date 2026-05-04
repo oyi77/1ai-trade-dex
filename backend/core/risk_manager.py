@@ -138,24 +138,16 @@ class RiskManager:
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_slippage")
             return RiskDecision(False, f"slippage {slippage:.4f} > tolerance", 0.0)
 
-        # Per-strategy allocation cap: if BankrollAllocator has assigned a
-        # budget to this strategy, cap the trade to remaining allocation.
+        # Per-strategy allocation: use AGI allocation if available, otherwise equal-weight fallback
         if strategy_name and db is not None:
-            allocation_cap = self._strategy_allocation_cap(
-                strategy_name, db=db, mode=effective_mode
+            strategy_allocation = self._get_strategy_allocation(
+                strategy_name, bankroll, db
             )
-            if allocation_cap is not None and adjusted > allocation_cap:
-                if allocation_cap <= 0:
-                    record_signal(strategy=strategy_name or "unknown", signal_type="rejected_allocation")
-                    return RiskDecision(
-                        False,
-                        f"strategy {strategy_name} allocation exhausted",
-                        0.0,
-                    )
-                logger.info(
-                    f"[risk_manager] Capping {strategy_name} trade from ${adjusted:.2f} to allocation remaining ${allocation_cap:.2f}"
-                )
-                adjusted = allocation_cap
+            # Use the strategy allocation as the base size, but don't exceed the adjusted size
+            adjusted = min(adjusted, strategy_allocation)
+            logger.info(
+                f"[risk_manager] Strategy {strategy_name} allocation: ${strategy_allocation:.2f}, adjusted size: ${adjusted:.2f}"
+            )
 
         return RiskDecision(True, "ok", adjusted)
 
@@ -294,6 +286,52 @@ class RiskManager:
         finally:
             if owns_db:
                 db.close()
+
+    def _count_enabled_strategies(self, db) -> int:
+        """Count the number of enabled strategies in StrategyConfig."""
+        try:
+            from backend.models.database import StrategyConfig
+            enabled_count = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.enabled.is_(True))
+                .count()
+            )
+            return enabled_count
+        except Exception as e:
+            logger.error(f"[risk_manager._count_enabled_strategies] {type(e).__name__}: {e}", exc_info=True)
+            return 0
+
+    def _get_strategy_allocation(self, strategy_name: str, bankroll: float, db) -> float:
+        """Get strategy allocation using AGI allocation if available, otherwise equal-weight fallback."""
+        # Check if AGI bankroll allocation is enabled
+        if getattr(self.s, 'AGI_BANKROLL_ALLOCATION_ENABLED', False):
+            # Try to get AGI allocation from BotState.misc_data
+            try:
+                state = db.query(BotState).first()
+                if state and state.misc_data:
+                    misc = json.loads(state.misc_data)
+                    allocations = misc.get("allocations", {})
+                    if strategy_name in allocations:
+                        allocation = float(allocations[strategy_name])
+                        # Cap at MAX_POSITION_FRACTION
+                        max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+                        return min(allocation, max_position)
+            except Exception as e:
+                logger.error(f"[risk_manager._get_strategy_allocation] Error reading AGI allocation: {type(e).__name__}: {e}", exc_info=True)
+
+        # Fallback: equal-weight allocation
+        enabled_count = self._count_enabled_strategies(db)
+        if enabled_count == 0:
+            # No enabled strategies - use MAX_POSITION_FRACTION
+            return bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+
+        # Calculate equal share
+        max_total_exposure = bankroll * getattr(self.s, 'MAX_TOTAL_EXPOSURE_FRACTION', 0.70)
+        equal_share = max_total_exposure / enabled_count
+        
+        # Cap at MAX_POSITION_FRACTION
+        max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+        return min(equal_share, max_position)
 
     def _strategy_allocation_cap(
         self, strategy_name: str, db, mode: str
