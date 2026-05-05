@@ -1,0 +1,1 @@
+# Genome domain models - Pydantic representations of genetic trading strategies
