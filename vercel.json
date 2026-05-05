@@ -17,15 +17,16 @@
       "dest": "/frontend/docs/$1"
     },
     {
-      "src": "/docs/(.*[^/])$",
-      "headers": {
-        "Location": "/docs/$1/"
-      },
-      "status": 308
+      "src": "/docs/?$",
+      "dest": "/frontend/docs/index.html"
     },
     {
-      "src": "/docs(/.*)?$",
-      "dest": "/frontend/docs$1/index.html"
+      "src": "/docs/(.*[^/])$",
+      "dest": "/frontend/docs/$1.html"
+    },
+    {
+      "src": "/docs/(.*)/$",
+      "dest": "/frontend/docs/$1.html"
     },
     {
       "src": "/(.*)",

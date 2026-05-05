@@ -13,6 +13,7 @@ const config: Config = {
 
   url: 'https://polyedge.aitradepulse.com',
   baseUrl: '/docs/',
+  trailingSlash: false,
 
   organizationName: 'polyedge',
   projectName: 'polyedge',
