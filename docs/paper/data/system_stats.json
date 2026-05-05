@@ -1,0 +1,36 @@
+{
+  "project": "polyedge",
+  "extracted_at": "2026-05-05",
+  "codebase": {
+    "backend_python_files": 489,
+    "frontend_tsx_files": 125,
+    "total_python_lines": 148340,
+    "total_typescript_lines": 536,
+    "strategies": 37,
+    "tests": 97,
+    "adrs": 7,
+    "agi_log_entries": 52
+  },
+  "system": {
+    "api_endpoints": 81,
+    "websocket_streams": 6,
+    "database_tables": 15,
+    "strategies_registered": 9,
+    "risk_profiles": 4
+  },
+  "experiments": {
+    "total": 25,
+    "stages": ["draft", "shadow", "paper", "live", "retired"],
+    "by_status": {"backtest": 12, "draft": 6, "shadow": 7},
+    "strategies_tested": ["general_scanner", "btc_oracle", "unknown"]
+  },
+  "trades": {
+    "total": 162,
+    "markets": 132,
+    "wins": 50,
+    "losses": 90,
+    "pending": 22,
+    "win_rate": 0.357,
+    "total_pnl": -622.04
+  }
+}

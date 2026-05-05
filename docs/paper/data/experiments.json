@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-05-05",
+  "source": "tradingbot.db",
+  "experiments": {
+    "total": 25,
+    "by_status": {
+      "backtest": 12,
+      "draft": 6,
+      "shadow": 7
+    },
+    "by_strategy": {
+      "general_scanner": 9,
+      "unknown": 9,
+      "btc_oracle": 3,
+      "null": 4
+    }
+  },
+  "trades": {
+    "total": 162,
+    "unique_markets": 132,
+    "by_result": {
+      "win": 50,
+      "loss": 90,
+      "pending": 22
+    },
+    "win_rate": 0.357,
+    "total_pnl": -622.04,
+    "avg_pnl_per_trade": -3.84
+  },
+  "backtests": {
+    "passed": 0,
+    "with_sharpe": 0
+  },
+  "dashboard_snapshot": {
+    "health": "healthy",
+    "endpoints": ["/api/health"],
+    "dashboard_url": "https://polyedge.aitradepulse.com"
+  }
+}

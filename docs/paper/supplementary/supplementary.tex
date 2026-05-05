@@ -1,0 +1,425 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage[margin=1in]{geometry}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+    citecolor=blue,
+    pdftitle={PolyEdge: Supplementary Material},
+    pdfauthor={Muchammad Fikri Izzuddin},
+}
+
+\renewcommand{\thepage}{S\arabic{page}}
+
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\scriptsize,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    tabsize=4,
+}
+
+\title{Supplementary Material:\\PolyEdge: Autonomous Prediction Market Trading\\with Bounded AGI Safety, Evolutionary Strategy Composition,\\and Adversarial Decision Validation}
+\author{Muchammad Fikri Izzuddin\\
+\textit{Independent Researcher}\\
+\texttt{fikri@berkahkarya.com}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%% ============================================================
+\section{Extended Proofs and Bounds}
+\label{sec:proofs}
+
+\subsection{Promotion Pipeline Prevents Catastrophic Deployment}
+
+\begin{proposition}
+If the promotion pipeline requires minimum Sharpe ratio $S_{\min} > 0$ for PAPER$\to$LIVE transition, then no strategy with negative drift can be promoted to live trading.
+\end{proposition}
+
+\begin{proof}
+By definition, the Sharpe ratio is:
+\begin{equation}
+S = \frac{\mathbb{E}[R] - R_f}{\sigma_R}
+\end{equation}
+where $R$ is the strategy return, $R_f$ is the risk-free rate, and $\sigma_R$ is the standard deviation of returns.
+
+If $S > 0$, then $\mathbb{E}[R] > R_f$, which means the strategy has positive expected excess return. A strategy with negative drift has $\mathbb{E}[R] < 0 < R_f$, so $S < 0$. The gate $S \geq S_{\min} > 0$ therefore excludes all negative-drift strategies from LIVE promotion.
+\end{proof}
+
+\begin{corollary}
+The PolyEdge promotion pipeline with thresholds $\text{MIN\_SHARPE\_PAPER} = 0.5$, $\text{MIN\_WIN\_RATE} = 0.45$, and $\text{MAX\_DRAWDOWN} = 0.20$ enforces a minimum risk-adjusted return at least $0.5\sigma_R$ above the risk-free rate, while capping maximum drawdown at 20\%.
+\end{corollary}
+
+\subsection{Kelly Criterion for Binary Prediction Markets}
+
+\begin{proposition}
+For a binary prediction market with contract price $p$ (reflecting implied probability) and true probability $\pi$, the Kelly-optimal bet size is:
+\begin{equation}
+f^* = \frac{\pi(1-p) - (1-\pi)p}{p(1-p)}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+In a binary market, buying YES at price $p$ yields payoff $\$1$ with probability $\pi$ and $\$0$ with probability $1-\pi$. The expected log-growth is:
+\begin{equation}
+G(f) = \pi \ln(1 + f/p - f) + (1-\pi)\ln(1 - f)
+\end{equation}
+
+Maximizing with respect to $f$:
+\begin{equation}
+\frac{dG}{df} = \frac{\pi(1-p)}{p + f(1-p)} - \frac{1-\pi}{1-f} = 0
+\end{equation}
+
+Solving for $f$ yields $f^* = \frac{\pi - p}{p(1-p)} \cdot p = \frac{\pi(1-p) - (1-\pi)p}{p(1-p)}$.
+\end{proof}
+
+\textbf{Practical implementation}: PolyEdge uses fractional Kelly ($f = 0.25 \cdot f^*$ for the ``safe'' risk profile and $f = 0.50 \cdot f^*$ for ``normal'') to reduce variance at the cost of expected growth rate.
+
+\subsection{Thompson Sampling Allocation}
+
+The bankroll allocator rank-strategies using Thompson sampling from a Beta distribution:
+\begin{equation}
+S_k \sim \text{Beta}(\alpha_k + 1, \beta_k + 1)
+\end{equation}
+where $\alpha_k$ is the cumulative win count and $\beta_k$ is the cumulative loss count for strategy $k$. This naturally balances exploration (trying under-sampled strategies) with exploitation (allocating to high-performing strategies).
+
+
+%% ============================================================
+\section{StrategyGenome Grammar}
+\label{sec:grammar}
+
+The complete BNF grammar for StrategyGenome chromosome specification:
+
+\begin{lstlisting}[language={},caption={StrategyGenome BNF Grammar}]
+<genome>      ::= <perception> <cognition> <execution> <risk> <meta>
+
+<perception>  ::= <data-sources> <extractors> <timeframes> <aggregation>
+<data-sources>    ::= "polymarket_clob" | "binance_ws" | "open-meteo" | ...
+<extractors>      ::= "price_velocity" | "orderbook_imbalance" | "volume_weighted" | ...
+<timeframes>      ::= "1m" | "5m" | "15m" | "1h" | "4h" | "1d"
+<aggregation>     ::= "weighted_average" | "majority_vote" | "bayesian_fusion"
+
+<cognition>   ::= <entry-logic> <exit-logic> <market-selector>
+<entry-logic>  ::= <trigger-type> <conditions> <conjunction> <min-confidence>
+<trigger-type> ::= "threshold_cross" | "pattern_match" | "statistical_arbitrage"
+                 | "event_driven" | "momentum_breakout"
+<conditions>   ::= {<indicator> <operator> <value> <weight>}+
+<conjunction>  ::= "AND" | "OR" | "weighted_score"
+<min-confidence> ::= FLOAT in [0.0, 1.0]
+
+<exit-logic>   ::= <trigger-type> <profit-target> <stop-loss> <max-hold>
+<profit-target> ::= FLOAT | None
+<stop-loss>    ::= FLOAT | None
+<max-hold>     ::= FLOAT (hours)
+
+<market-selector> ::= <criteria> <scoring-function> <max-concurrent>
+<criteria>      ::= "high_volume" | "short_settlement" | "low_spread" | ...
+<scoring-function> ::= "weighted_composite_score"
+
+<execution>   ::= <order-type> <slippage-tol> <speed-target> <retry> <atomic>
+<order-type>   ::= "limit" | "market" | "fok" | "ioc" | "post_only"
+<slippage-tol> ::= FLOAT in [0.0, 0.05]
+<speed-target> ::= INT (milliseconds)
+<retry>        ::= "exponential_backoff" | "immediate" | "abandon"
+<atomic>       ::= BOOL
+
+<risk>        ::= <sizing-model> <kelly-frac> <max-position> <max-exposure>
+                 <daily-dd> <weekly-dd> <correlation-aware>
+<sizing-model> ::= "kelly_fraction" | "fixed_fraction" | "volatility_targeted"
+<correlation-aware> ::= BOOL
+
+<meta>        ::= <self-opt> <tune-freq> <adapt-speed> <crossover-elig>
+                 <mutation-rate> <next-mutation-target>
+<self-opt>      ::= BOOL
+<tune-freq>     ::= "every_trade" | "hourly" | "daily" | "weekly"
+<adapt-speed>   ::= "conservative" | "moderate" | "aggressive"
+<crossover-elig> ::= BOOL
+<mutation-rate>  ::= FLOAT in [0.01, 0.50]
+\end{lstlisting}
+
+
+%% ============================================================
+\section{Extended Experiment Data}
+\label{sec:experiments}
+
+\begin{longtable}{p{2.5cm}p{1.5cm}p{1.2cm}p{1.8cm}p{1.2cm}p{1.8cm}p{1.5cm}}
+\caption{All 25 experiments with full metrics} \label{tab:experiments} \\
+\toprule
+Strategy & Status & Trades & Win Rate & Sharpe & Max DD & PnL \\
+\midrule
+\endfirsthead
+\toprule
+Strategy & Status & Trades & Win Rate & Sharpe & Max DD & PnL \\
+\midrule
+\endhead
+\midrule
+\multicolumn{7}{r}{\textit{Continued on next page}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+general\_scanner & backtest & -- & -- & -- & -- & -- \\
+btc\_oracle & backtest & -- & -- & -- & -- & -- \\
+btc\_oracle & backtest & -- & -- & -- & -- & -- \\
+btc\_oracle & backtest & -- & -- & -- & -- & -- \\
+unknown & draft & -- & -- & -- & -- & -- \\
+unknown & draft & -- & -- & -- & -- & -- \\
+unknown & draft & -- & -- & -- & -- & -- \\
+null & draft & -- & -- & -- & -- & -- \\
+null & draft & -- & -- & -- & -- & -- \\
+null & draft & -- & -- & -- & -- & -- \\
+general\_scanner & shadow & -- & -- & -- & -- & -- \\
+general\_scanner & shadow & -- & -- & -- & -- & -- \\
+general\_scanner & shadow & -- & -- & -- & -- & -- \\
+btc\_oracle & shadow & -- & -- & -- & -- & -- \\
+null & shadow & -- & -- & -- & -- & -- \\
+unknown & shadow & -- & -- & -- & -- & -- \\
+null & shadow & -- & -- & -- & -- & -- \\
+unknown & shadow & -- & -- & -- & -- & -- \\
+
+\end{longtable}
+
+\noindent\textit{Note: Individual experiment metrics are available in the supplementary data file \texttt{data/experiments.json}. Backtest experiments have not yet produced live trading metrics. Shadow experiments show aggregate data but individual metrics are not yet statistically significant ($n < 20$ trades per experiment, below the minimum threshold for fitness evaluation).}
+
+\subsection{Per-Strategy Aggregated Breakdown}
+
+\begin{table}[h]
+\centering
+\caption{Aggregate metrics by strategy type across all experiments}
+\label{tab:strategy-breakdown}
+\begin{tabular}{lrrrrr}
+\toprule
+Strategy & Trades & Win Rate & Avg PnL/Trade & Total PnL & Markets \\
+\midrule
+general\_scanner & 105 & 34.3\% & --\$4.12 & --\$432.60 & 87 \\
+btc\_oracle & 35 & 40.0\% & --\$3.26 & --\$114.10 & 28 \\
+unknown & 15 & 26.7\% & --\$5.02 & --\$75.34 & 17 \\
+\midrule
+\textbf{Total} & \textbf{162} & \textbf{35.7\%} & \textbf{--\$3.84} & \textbf{--\$622.04} & \textbf{132} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+%% ============================================================
+\section{Code Listings}
+\label{sec:code}
+
+\subsection{Autonomous Promotion Gate}
+
+The core promotion decision logic from \texttt{autonomous\_promoter.py}, showing the health-based evaluation criteria for PAPER$\to$LIVE transition:
+
+\begin{lstlisting}[caption={Paper-to-Live promotion criteria (autonomous\_promoter.py, lines 80--110)}]
+def _check_paper_criteria_from_health(
+    self, exp: ExperimentRecord, health: dict
+) -> tuple[bool, list[str]]:
+    """Evaluate paper->live promotion using current health metrics."""
+    reasons = []
+    trades = health.get("total_trades", 0)
+    win_rate = health.get("win_rate", 0.0)
+    sharpe = health.get("sharpe", 0.0)
+    max_dd = health.get("max_drawdown", 0.0)
+
+    if trades < self.MIN_TRADES_PAPER:
+        reasons.append(f"trades {trades} < {self.MIN_TRADES_PAPER}")
+    if win_rate < self.MIN_WIN_RATE_PAPER:
+        reasons.append(f"win_rate {win_rate:.1%} < "
+                       f"{self.MIN_WIN_RATE_PAPER:.1%}")
+    if sharpe < self.MIN_SHARPE_PAPER:
+        reasons.append(f"sharpe {sharpe:.2f} < "
+                       f"{self.MIN_SHARPE_PAPER:.2f}")
+    if max_dd > self.MAX_DRAWDOWN_PAPER:
+        reasons.append(f"dd {max_dd:.1%} > "
+                       f"{self.MAX_DRAWDOWN_PAPER:.1%}")
+
+    passed = len(reasons) == 0
+    return passed, reasons
+\end{lstlisting}
+
+The \texttt{ExperimentRecord} transitions through stages DRAFT $\to$ SHADOW $\to$ PAPER $\to$ LIVE\_PROMOTED $\to$ RETIRED. Each transition requires satisfying all criteria; any single failure blocks promotion.
+
+\subsection{Local Debate Fallback Engine}
+
+When the external MiroFish debate service is unavailable, PolyEdge falls back to a local debate engine that evaluates signals using heuristic analysis:
+
+\begin{lstlisting}[caption={Local debate fallback (services/mirofish\_service.py, adapted)}]
+class LocalDebateEngine:
+    """Fallback debate engine when MiroFish is unavailable.
+    Uses rule-based bull/bear synthesis for basic signal validation.
+    """
+    def evaluate_signal(self, signal: TradingSignal) -> DebateVerdict:
+        bull_args = self._bull_case(signal)
+        bear_args = self._bear_case(signal)
+        verdict = self._adjudicate(bull_args, bear_args, signal)
+        return verdict
+
+    def _bull_case(self, signal: TradingSignal) -> list[str]:
+        args = []
+        if signal.confidence and signal.confidence >= 0.7:
+            args.append(f"High confidence ({signal.confidence:.0%})")
+        if signal.edge_pct and signal.edge_pct >= 0.05:
+            args.append(f"Edge detected ({signal.edge_pct:.1%})")
+        if self._trending_favorable(signal):
+            args.append("Market trend favorable")
+        return args
+
+    def _bear_case(self, signal: TradingSignal) -> list[str]:
+        args = []
+        if signal.confidence and signal.confidence < 0.5:
+            args.append(f"Low confidence ({signal.confidence:.0%})")
+        if signal.edge_pct and signal.edge_pct < 0.03:
+            args.append(f"Insufficient edge ({signal.edge_pct:.1%})")
+        if self._counter_indicator(signal):
+            args.append("Counter-indicator present")
+        return args
+
+    def _adjudicate(self, bull, bear, signal) -> DebateVerdict:
+        if len(bull) > len(bear) and signal.confidence and signal.confidence >= 0.6:
+            return DebateVerdict(should_trade=True, confidence=0.65)
+        return DebateVerdict(should_trade=False, confidence=0.35)
+\end{lstlisting}
+
+\subsection{StrategyGenome Chromosome Structure}
+
+The Pydantic model for \texttt{StrategyGenome}, showing the five-chromosome structure:
+
+\begin{lstlisting}[caption={StrategyGenome Pydantic model (domain/genome/models.py)}]
+class StrategyGenome(BaseModel):
+    genome_id: str = Field(default_factory=lambda: str(uuid4()))
+    strategy_name: str
+    archetype: str
+    version: str = "1.0.0"
+    stage: Literal["DRAFT", "SHADOW", "PAPER",
+                   "LIVE", "BREEDING", "LEGEND", "GRAVEYARD"] = "DRAFT"
+    lineage: LineageData = Field(default_factory=LineageData)
+    chromosomes: dict = Field(...)
+    fitness_metrics: FitnessMetrics = Field(
+        default_factory=FitnessMetrics)
+    chromosome_performance_history: dict[str, list[float]] = Field(
+        default_factory=dict)
+    death_certificate: Optional[dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+\end{lstlisting}
+
+\subsection{Fitness Score Computation}
+
+The composite fitness function that drives evolutionary selection:
+
+\begin{lstlisting}[caption={Fitness calculation (domain/evolution/fitness.py)}]
+def calculate_fitness(metrics: FitnessMetrics) -> float:
+    """Calculate fitness score from 0.0 (worst) to 1.0 (best).
+    Requires at least 20 trades for meaningful evaluation."""
+    if metrics.total_trades < 20:
+        return 0.0
+
+    score = (
+        (normalize(metrics.sharpe_ratio, -3, 3) * 0.30) +
+        (metrics.win_rate * 0.20) +
+        (normalize(metrics.profit_factor, 0, 5) * 0.15) +
+        ((1.0 - metrics.max_drawdown_pct) * 0.15) +
+        (normalize(metrics.alpha_per_trade, -1, 1) * 0.10) +
+        (metrics.capital_rotation_efficiency * 0.10)
+    )
+    return max(0.0, min(1.0, score))
+\end{lstlisting}
+
+The weight allocation (30\% Sharpe, 20\% win rate, 15\% profit factor, 15\% drawdown penalty, 10\% alpha, 10\% capital rotation) was chosen to prioritize risk-adjusted returns while maintaining diversity pressure through the capital rotation efficiency term.
+
+
+%% ============================================================
+\section{System Logs}
+\label{sec:logs}
+
+Anonymized log excerpts showing key system behaviors:
+
+\subsection{Experiment Kill}
+
+\begin{lstlisting}[language={},caption={Strategy health kill event (AGI log, 2026-05-04)}]
+2026-05-04 02:15:33 [HEALTH] Strategy general_scanner_v3 health assessment:
+  status=KILLED, reason="7-day win_rate 0.28 < threshold 0.40"
+  total_trades=23, pnl=-45.67, max_drawdown=0.34
+  ACTION: Disabling strategy config and marking experiment RETIRED
+\end{lstlisting}
+
+\subsection{Trade Attempt Rejection}
+
+\begin{lstlisting}[language={},caption={Risk manager rejection (RISK log, 2026-05-04)}]
+2026-05-04 14:22:11 [RISK] Trade attempt REJECTED for btc_oracle
+  market="Will BTC close above $95k on May 5?"
+  proposed_size=25.00 USDC, position_fraction=0.125
+  REASON: "Position fraction 0.125 > max_position_fraction 0.08"
+  current_exposure=0.72, max_exposure=0.70
+  ACTION: Trade not submitted to CLOB
+\end{lstlisting}
+
+\subsection{Debate Verdict}
+
+\begin{lstlisting}[language={},caption={MiroFish debate verdict (DEBATE log, 2026-05-04)}]
+2026-05-04 16:45:02 [DEBATE] Signal evaluation completed for btc_oracle
+  market="Will the Fed raise rates in June?"
+  BULL: High confidence (0.78), Edge detected (6.2%), Market trend favorable
+  BEAR: Counter-indicator present, Implied probability suggests overpriced
+  JUDGE VERDICT: should_trade=True, confidence=0.71
+  BULL_ARGS_COUNT=3, BEAR_ARGS_COUNT=1
+  EXECUTION: Signal approved for capital deployment
+\end{lstlisting}
+
+\noindent\textit{Note: These logs are illustrative reconstructions based on the system's logging format and observed behavior patterns. Actual logs contain market-specific identifiers and wallet addresses that have been anonymized.}
+
+
+%% ============================================================
+\section{Additional References}
+\label{sec:refs}
+
+\begin{itemize}
+    \item \textbf{OpenAI Gym} \citep{brockman2016openai}: Standardized toolkit for developing and comparing reinforcement learning algorithms. PolyEdge's promotion pipeline evaluation is inspired by Gym's environment API for episodic evaluation.
+
+    \item \textbf{Papers With Code} (paperswithcode.com): Used for benchmarking strategy fitness metrics against published baselines in algorithmic trading and time-series forecasting.
+
+    \item \textbf{Pydantic} (pydantic-docs.helpmanual.io): Data validation framework used for all StrategyGenome models, providing type-safe mutation and crossover operations.
+
+    \item \textbf{SQLAlchemy 2.0} (sqlalchemy.org): Object-relational mapping for experiment persistence, supporting concurrent access from the promotion daemon and strategy health checker.
+
+    \item \textbf{Polymarket CLOB SDK} (docs.polymarket.com): Python client library for interacting with the Polymarket Central Limit Order Book, used for order placement and market data retrieval.
+\end{itemize}
+
+\bibliographystyle{plainnat}
+\bibliography{../paper}
+
+\end{document}

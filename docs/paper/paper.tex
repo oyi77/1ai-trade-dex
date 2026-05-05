@@ -1,0 +1,130 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{natbib}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+\usepackage{listings}
+% \usepackage{minted}  % requires pygmentize; not used
+% \usepackage{algorithm}  % not installed; not used
+% \usepackage{algpseudocode}  % not installed; not used
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    citecolor=blue,
+    pdftitle={PolyEdge: Autonomous Prediction Market Trading with Bounded AGI Safety, Evolutionary Strategy Composition, and Adversarial Decision Validation},
+    pdfauthor={Muchammad Fikri Izzuddin},
+    pdfsubject={AI Safety in Autonomous Financial Trading Systems},
+}
+
+\title{PolyEdge: Autonomous Prediction Market Trading with Bounded AGI Safety, Evolutionary Strategy Composition, and Adversarial Decision Validation}
+\author{Muchammad Fikri Izzuddin\\
+\textit{Independent Researcher}\\
+\texttt{fikri@berkahkarya.com}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\textbf{Background:} Automated trading systems powered by Large Language Models (LLMs) and autonomous AI agents are increasingly deployed in prediction markets, yet the safety boundaries governing their self-improvement remain underspecified.\\
+\textbf{Methods:} We present PolyEdge, a full-stack autonomous trading system targeting Polymarket and Kalshi, integrating three novel safety mechanisms: (1) bounded AGI autonomy via hard deterministic gates (risk profiles, experiment promotion pipelines, and budget caps), (2) evolutionary strategy composition through chromosomal StrategyGenome mutation and crossover, and (3) dual-debate adversarial validation before capital deployment.\\
+\textbf{Results:} Live deployment metrics demonstrate autonomous experiment lifecycle management across DRAFT $\rightarrow$ SHADOW $\rightarrow$ PAPER $\rightarrow$ LIVE stages with health-based kill checks, strategy genome evolution with per-regime fitness metrics, and bull-bear debate-driven signal validation.\\
+\textbf{Conclusions:} Hard safety boundaries enable autonomous experimentation without sacrificing capital protection. The system is open-sourced with reproducible experimental data.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+Prediction markets have emerged as a powerful mechanism for aggregating information and forecasting real-world events. Platforms such as Polymarket and Kalshi allow participants to trade contracts on binary outcomes, creating market-driven probability estimates that often outperform traditional polling and expert forecasts \citep{hanson2003combinatorial}. As these markets have grown in liquidity and scope, algorithmic trading systems have increasingly entered the arena, seeking to exploit informational edges through automated signal generation and execution.
+
+Recent advances in Large Language Models (LLMs) and autonomous AI agents have opened new frontiers in algorithmic trading. Systems like PolyEdge demonstrate that AI agents can autonomously generate trading strategies, analyze market sentiment, and execute orders without continuous human oversight. However, this autonomy introduces novel safety concerns. Unlike traditional algorithmic trading systems with fixed rules and bounded parameters, LLM-powered agents can generate new code, modify their own strategies, and propose actions that fall outside pre-specified constraints. The risk of runaway behavior---strategies that exceed risk limits, consume excessive API budgets, or corrupt production state---is real and pressing \citep{amodei2016concrete, russell2020human}.
+
+This paper presents PolyEdge, a full-stack autonomous prediction market trading system that addresses these safety concerns through three integrated mechanisms:
+
+\begin{enumerate}
+    \item \textbf{Bounded AGI Autonomy.} We introduce a four-boundary safety framework (ADR-006) that enforces hard constraints on autonomous behavior: risk profiles that cannot be bypassed, a deterministic promotion pipeline for strategy validation, a \$10/day LLM budget cap, and strict experiment isolation from production capital and data.
+    
+    \item \textbf{Evolutionary Strategy Composition.} We propose StrategyGenome, a chromosomal representation of trading strategies with Perception, Cognition, Execution, Risk, and Meta chromosomes. Genetic operators (mutation, crossover) evolve strategies based on composite fitness metrics including Sharpe ratio, win rate, Brier score, and maximum drawdown.
+    
+    \item \textbf{Dual-Debate Decision Validation.} We integrate MiroFish, an adversarial debate system in which Bull and Bear agents argue for and against proposed trades before a Judge agent renders a verdict with confidence score. Failed signals fall back to a local debate engine, ensuring validation persists even when external services are unavailable.
+\end{enumerate}
+
+These three mechanisms operate in concert: the autonomy framework creates a safe sandbox for evolutionary experiments, the genome system produces novel strategies within those bounds, and the debate system validates capital-deployment decisions before execution. All components are open-sourced with reproducible experimental data extracted from live deployment.
+
+\subsection{Motivation}\label{sec:intro:motivation}
+
+The deployment of autonomous AI in financial markets is not hypothetical. Recent work has explored LLM-based trading agents, reinforcement learning for market making, and genetic programming for strategy discovery \citep{lopez2018advances, koza1992genetic, poli2008field}. Yet the safety infrastructure governing these systems remains underspecified. Existing approaches typically rely on post-hoc monitoring or soft limits that can be overridden by the agent itself---a design that proved inadequate in multiple market flash crashes \citep{nygard2018release}.
+
+Prediction markets present unique challenges for autonomous trading. Contract outcomes are binary, liquidity varies dramatically across events, and settlement delays create interim price volatility. A strategy that performs well on high-volume crypto markets may fail catastrophically on niche political events. Without bounded autonomy, an AI system might overcommit capital to illiquid markets, generate excessive trading fees, or produce poorly calibrated probability estimates that erode long-term returns.
+
+Our motivation is therefore twofold: to push the boundaries of what autonomous AI can achieve in prediction markets, and to ensure that such autonomy is fundamentally constrained by hard, deterministic safety gates that no agent---human or artificial---can bypass.
+
+\subsection{Contributions}\label{sec:intro:contributions}
+
+Our contributions are threefold, corresponding to the three sections of the technical body of this paper:
+
+\textbf{Bounded AGI Autonomy Framework (Section~\ref{sec:autonomy}).} We propose and implement a four-boundary safety framework for autonomous trading experiments. Strategy composition is bounded by deterministic RiskManager profiles with non-bypassable position and drawdown limits. All generated code follows a DRAFT $\rightarrow$ SHADOW $\rightarrow$ PAPER $\rightarrow$ LIVE promotion pipeline with statistical gates (minimum trades, Sharpe ratio, win rate, maximum drawdown). LLM spending is hard-capped at \$10/day with automatic fallback to cached analysis. Experiments are isolated from production databases and wallets through separate experiment state and simulated credentials.
+
+\textbf{Evolutionary Strategy Composition (Section~\ref{sec:evolution}).} We introduce StrategyGenome, a chromosomal representation of trading strategies. The Perception chromosome defines data sources and feature extractors; the Cognition chromosome encodes entry logic, exit logic, and market selection criteria; the Execution chromosome specifies order types and execution parameters. Genetic operators include Gaussian mutation for perception parameters and two-point crossover with elitism. Fitness is a composite score combining Sharpe ratio, win rate, Brier score, and drawdown metrics.
+
+\textbf{Dual-Debate Decision Validation (Section~\ref{sec:debate}).} We integrate a bull-bear adversarial debate system that validates trading signals through structured argumentation before capital deployment. The system routes signals to Bull (optimistic) and Bear (pessimistic) debate agents, whose arguments are evaluated by a Judge agent that produces a verdict with confidence score. Signals below the confidence threshold trigger fallback to a local debate engine. All outcomes are recorded in a TradeAttempt ledger for post-hoc analysis.
+
+\subsection{Related Work}\label{sec:related}
+
+\textbf{AI Safety in Autonomous Systems.} The challenge of bounding autonomous AI behavior has received significant attention. \citet{amodei2016concrete} identified five concrete problems in AI safety: avoiding negative side effects, avoiding reward hacking, scalable oversight, safe exploration, and robustness to distributional shift. Our bounded autonomy framework addresses all five: hard risk profiles prevent negative side effects (excessive losses), the promotion pipeline prevents reward hacking (strategies must demonstrate real performance), health monitoring provides scalable oversight, the shadow mode enables safe exploration, and kill checks enforce robustness to performance degradation. \citet{russell2020human} argues for provably beneficial AI through inverse reward design; our approach is complementary, using deterministic engineering controls rather than learned reward functions.
+
+\textbf{Constitutional AI and Debate.} \citet{bai2022constitutional} demonstrated that AI systems can be trained to be harmless through constitutional principles and critique-revision cycles. \citet{irving2018ai} proposed debate as a scalable oversight mechanism, where two agents argue about the correct answer and a human (or superior agent) evaluates the arguments. Our dual-debate system operationalizes this insight for financial trading: Bull and Bear agents serve as adversaries, and the Judge agent evaluates their arguments before capital deployment. This provides automated oversight at a scale impractical for human review of every trade.
+
+\textbf{Genetic Programming in Finance.} \citet{koza1992genetic} introduced genetic programming as a means of evolving computer programs through natural selection. \citet{poli2008field} provided a comprehensive survey of GP applications. In finance, genetic programming has been applied to technical trading rules, portfolio optimization, and market timing \citep{lopez2018advances}. Our StrategyGenome differs from traditional GP in its chromosomal structure: rather than evolving arbitrary program trees, we evolve structured strategy components (perception, cognition, execution) with domain-specific operators and fitness functions tailored to prediction markets.
+
+\textbf{Prediction Market Mechanism Design.} \citet{hanson2003combinatorial} established the theoretical foundations of combinatorial prediction markets. The growth of decentralized prediction markets on blockchain has created new opportunities for algorithmic traders. Our system targets Polymarket (CLOB-based, Polygon L2) and Kalshi (centralized, CFTC-regulated), representing the two dominant architectures in the space.
+
+\textbf{Thompson Sampling and Bayesian Bandits.} \citet{thompson1933likelihood} introduced the Thompson sampling algorithm for balancing exploration and exploitation in multi-armed bandit problems. \citet{chapelle2011empirical} demonstrated its empirical effectiveness in online advertising. Our bankroll allocator uses a strategy ranker that incorporates Thompson sampling principles for capital allocation across competing strategies, though the full Bayesian treatment is left for future work.
+
+\textbf{Kelly Criterion and Risk Management.} \citet{kelly1956new} derived the optimal bet sizing formula for maximizing logarithmic wealth. Modern implementations use fractional Kelly (typically 0.25--0.50 of the full Kelly fraction) to reduce volatility \citep{lopez2018advances}. Our RiskManager enforces fractional Kelly sizing with configurable fractions per risk profile, alongside drawdown circuit breakers and position concentration guards.
+
+\textbf{Calibration and Scoring.} \citet{brier1950verification} introduced the Brier score for evaluating probabilistic forecasts. \citet{sharpe1964capital} developed the Sharpe ratio for risk-adjusted returns. Our fitness function combines both, alongside win rate and drawdown, to create a composite score that rewards calibrated predictions and penalizes excessive risk.
+
+\textbf{Ensemble Methods in Trading.} Recent work has explored ensemble LLM systems for financial prediction. Our AI ensemble combines Claude and Groq providers for sentiment analysis, while the MiroFish debate system adds an adversarial validation layer not present in standard ensemble approaches. The combination of generative ensemble (multiple LLMs) and discriminative ensemble (debate validation) provides redundancy and robustness.
+
+\input{sections/sec3_architecture}
+\input{sections/sec4_autonomy}
+\input{sections/sec5_evolution}
+\input{sections/sec6_debate}
+\input{sections/sec7_results}
+\input{sections/sec8_discussion}
+
+\section{Conclusion}\label{sec:conclusion}
+
+We have presented PolyEdge, a full-stack autonomous prediction market trading system with three integrated safety mechanisms: bounded AGI autonomy through hard deterministic gates, evolutionary strategy composition via chromosomal genomes, and dual-debate adversarial validation before capital deployment.
+
+The bounded autonomy framework demonstrates that autonomous experimentation in financial systems is feasible without sacrificing capital protection. Hard safety boundaries---risk profiles, promotion gates, budget caps, and experiment isolation---are non-bypassable constraints enforced in code, not merely documented in policy.
+
+The StrategyGenome representation provides a modular, interpretable, and domain-specific encoding for evolving trading strategies. Genetic operators mutate and crossover chromosomes while the composite fitness function balances risk-adjusted returns against probability calibration and drawdown minimization.
+
+The dual-debate validation system adds a layer of adversarial reasoning before every trade, with automatic fallback ensuring continuous validation even when external services fail.
+
+Live deployment data demonstrates that the system is operational and autonomously managing 25 experiments, but also reveals its limitations: returns are currently negative (\$--622.04 USDC over 162 trades, 35.7\% win rate), sample sizes are small, and no statistical significance claims are made. These limitations are features, not bugs: the bounded autonomy framework is designed to prevent catastrophic losses during the early experimental phase.
+
+We call on the research community to audit our boundaries, challenge our assumptions, and build better safety mechanisms. The code, data, and experimental records are open-sourced. The only way to make autonomous AI in finance safe is to make it open, bounded, and relentlessly self-critical.
+
+\bibliography{paper}
+\bibliographystyle{plainnat}
+
+\appendix
+\input{sections/sec9_manifesto}
+
+\end{document}

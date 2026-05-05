@@ -1,0 +1,16 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+\begin{document}
+\begin{tikzpicture}[node distance=1.2cm, >={Stealth}, 
+    box/.style={draw, rounded corners, minimum width=2cm, minimum height=0.8cm, align=center, font=\small}]
+    \node[box] (fe) {Data Sources\\CLOB | Kalshi | Crypto};
+    \node[box, above=of fe] (be) {FastAPI Backend\\9 Strategies | Risk | Execution};
+    \node[box, above=of be] (db) {SQLite / Redis\\BotState | Trades};
+    \node[box, right=2cm of be] (ai) {AI Ensemble\\Claude + Groq};
+    \node[box, left=2cm of be] (agi) {AGI Layer\\Promoter | Health | Forensics};
+    \draw[->] (fe) -- (be);
+    \draw[->] (be) -- (db);
+    \draw[->] (be) -- (ai);
+    \draw[->] (agi) -- (be);
+\end{tikzpicture}
+\end{document}

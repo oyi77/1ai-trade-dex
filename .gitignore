@@ -102,6 +102,11 @@ TERMINAL_UI.md
 docs/superpowers/
 archive/
 
+# Linter / type checker caches
+.mypy_cache/
+.ruff_cache/
+.code-review-graph/
+
 # Knowledge graph tool artifacts
 .understand-anything/
 docs/master_prompt.md

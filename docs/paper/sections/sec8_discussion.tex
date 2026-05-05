@@ -1,0 +1,49 @@
+\section{Discussion}\label{sec:discussion}
+
+PolyEdge represents a practical attempt to build autonomous AI for prediction market trading with hard safety boundaries. The system integrates three technical contributions---bounded AGI autonomy, evolutionary strategy composition, and dual-debate decision validation---into a single deployment pipeline. This section discusses the implications, limitations, and future directions of this work.
+
+\subsection{Integration of Contributions}
+
+The three contributions operate as complementary safety layers. The bounded autonomy framework (Section~\ref{sec:autonomy}) creates a sandbox in which experiments can run without risking production capital. Within that sandbox, the evolutionary strategy composition system (Section~\ref{sec:evolution}) generates novel strategies through mutation and crossover. The dual-debate validation system (Section~\ref{sec:debate}) then adversarially scrutinizes proposed trades before live deployment. Each layer reduces the probability of catastrophic errors: autonomy prevents runaway experiments, evolution constrains strategies to domain-specific chromosomes, and debate catches logical errors that numerical risk checks might miss.
+
+This layered architecture mirrors the defense-in-depth approach advocated in safety-critical engineering \citep{nygard2018release}. No single safety mechanism is sufficient; the combination creates redundancy.
+
+\subsection{Limitations}
+
+We acknowledge several important limitations:
+
+\textbf{Limited statistical power.} The 162 trades in the current dataset are insufficient to establish statistical significance for performance claims. The system is operational, but claims about its efficacy remain descriptive rather than inferential.
+
+\textbf{Single deployment.} All data comes from one instance deploying to Polymarket and Kalshi.
+
+\textbf{Rudimentary fitness.} The composite fitness function is linear, while true multi-objective optimization would require non-linear interaction, Pareto fronts, and regime-dependent weights.
+
+\textbf{Static LLM evaluation.} The Judge agent in the debate system uses a fixed prompt and does not learn from historical debate outcomes. Future work could train the Judge on the TradeAttempt ledger.
+
+\textbf{Hard-coded risk profiles.} The four risk profiles (safe, normal, aggressive, extreme) are static. Adaptive risk profiling that responds to market regime could improve capital efficiency.
+
+\textbf{Negative P\&L.} The current deployment shows negative returns. While the bounded autonomy framework prevents catastrophic losses, it does not guarantee profitability.
+
+\subsection{Future Work}
+
+\textbf{Multi-platform expansion.} The current system targets Polymarket and Kalshi. Expansion to other platforms would diversify data sources.
+
+\textbf{On-chain verification.} All trade settlement could be verified on-chain, providing immutable audit trails.
+
+\textbf{Community governance.} The genome repository could become a public marketplace.
+
+\textbf{Adversarial robustness.} Red-teaming the debate system with deliberately deceptive arguments.
+
+\textbf{On-device LLM inference.} Running the debate Judge on-device would reduce latency and API costs.
+
+\textbf{Meta-learning across strategies.} A meta-strategy could learn which strategies perform best in which regimes.
+
+\textbf{Probabilistic safety guarantees.} From deterministic safety gates to probabilistic bounds on failure rates.
+
+\textbf{Cross-institutional deployment.} Multiple instances sharing anonymized experiment results.
+
+\subsection{Broader Implications}
+
+Autonomous AI in financial markets is not a hypothetical future scenario---it is already being deployed. The question is not whether autonomous trading is coming, but whether it will be bounded. Our bounded autonomy framework demonstrates that hard safety boundaries are technically feasible: deterministic gates enforced in code, budget caps with automatic fallback, and experiment isolation. These mechanisms do not solve the full AGI safety problem, but they provide a pragmatic first step for narrow-domain autonomous systems.
+
+The open-sourcing of the PolyEdge codebase, data, and experimental results contributes to the community goal of safe autonomous AI. By sharing both successes and failures (including the current negative P\&L), we hope to encourage a culture of transparency in autonomous trading research.

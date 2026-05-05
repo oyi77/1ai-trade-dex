@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IZZUDDIN // PolyEdge — Pitch Deck</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111111;
+    --accent: #00b4d8;
+    --accent2: #48cae4;
+    --accent3: #90e0ef;
+    --white: #ffffff;
+    --gray: #888888;
+    --gray2: #444444;
+    --red: #ff6b6b;
+    --green: #51cf66;
+    --yellow: #ffd43b;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+
+  .slide {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6vh 8vw;
+    position: relative;
+    border-bottom: 1px solid var(--gray2);
+    page-break-after: always;
+  }
+
+  .slide-number {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    position: absolute;
+    top: 3vh;
+    left: 8vw;
+  }
+
+  .slide-section {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--gray2);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+
+  /* Dashed divider */
+  .divider {
+    width: 100%;
+    border: none;
+    border-top: 1px dashed var(--gray2);
+    margin: 2rem 0;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: clamp(1.8rem, 3.5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  h3 {
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    font-weight: 600;
+  }
+
+  .accent { color: var(--accent); }
+  .red { color: var(--red); }
+  .green { color: var(--green); }
+  .yellow { color: var(--yellow); }
+  .gray { color: var(--gray); }
+  .mono { font-family: var(--font-mono); }
+
+  .subtitle {
+    font-size: clamp(1rem, 1.8vw, 1.4rem);
+    color: var(--gray);
+    margin-top: 1.5rem;
+    line-height: 1.6;
+  }
+
+  .tagline {
+    font-size: clamp(0.9rem, 1.5vw, 1.2rem);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    margin: 2rem 0;
+  }
+
+  .stat-box {
+    background: var(--bg2);
+    border: 1px solid var(--gray2);
+    border-radius: 4px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-value.red { color: var(--red); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+
+  .stat-label {
+    font-size: 0.8rem;
+    color: var(--gray);
+    margin-top: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Three-column layout */
+  .three-col {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+    margin: 2rem 0;
+  }
+
+  .col-card {
+    background: var(--bg2);
+    border: 1px solid var(--gray2);
+    border-radius: 4px;
+    padding: 2rem;
+    position: relative;
+  }
+
+  .col-card .icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .col-card h3 {
+    margin-bottom: 0.75rem;
+  }
+
+  .col-card p {
+    font-size: 0.9rem;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  /* Pipeline flow */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+  }
+
+  .pipeline-stage {
+    background: var(--bg2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 1rem 1.5rem;
+    text-align: center;
+    min-width: 140px;
+  }
+
+  .pipeline-stage .stage-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+
+  .pipeline-stage .stage-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+
+  .pipeline-arrow {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 1.5rem;
+  }
+
+  /* Code block */
+  .code-block {
+    background: var(--bg2);
+    border: 1px solid var(--gray2);
+    border-radius: 4px;
+    padding: 1.5rem 2rem;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .code-block .keyword { color: var(--accent); }
+  .code-block .string { color: var(--green); }
+  .code-block .comment { color: var(--gray2); }
+  .code-block .number { color: var(--yellow); }
+
+  /* Tier cards */
+  .tier-card {
+    background: var(--bg2);
+    border: 1px solid var(--gray2);
+    border-radius: 4px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+
+  .tier-card.primary {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(0, 180, 216, 0.1);
+  }
+
+  .tier-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .tier-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .tier-desc {
+    font-size: 0.9rem;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 0.25rem 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin: 0.25rem;
+  }
+
+  .badge.live {
+    color: var(--green);
+    border-color: var(--green);
+  }
+
+  .badge.red-badge {
+    color: var(--red);
+    border-color: var(--red);
+  }
+
+  /* Live dot */
+  .live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    margin-right: 0.5rem;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* CTA buttons */
+  .cta-row {
+    display: flex;
+    gap: 1rem;
+    margin: 2rem 0;
+    flex-wrap: wrap;
+  }
+
+  .cta-btn {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .cta-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+  }
+
+  .cta-primary:hover { background: var(--accent2); }
+
+  .cta-secondary {
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+
+  .cta-secondary:hover { background: rgba(0,180,216,0.1); }
+
+  /* Footer */
+  .slide-footer {
+    margin-top: 3rem;
+    font-size: 0.75rem;
+    color: var(--gray2);
+    font-family: var(--font-mono);
+    letter-spacing: 0.05em;
+  }
+
+  .slide-footer a {
+    color: var(--gray);
+    text-decoration: none;
+  }
+
+  .slide-footer a:hover { color: var(--accent); }
+
+  /* Paper card */
+  .paper-card {
+    background: var(--bg2);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 2rem;
+    margin: 1.5rem 0;
+    position: relative;
+  }
+
+  .paper-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .paper-doi {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+
+  .paper-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0.75rem 0;
+    line-height: 1.4;
+  }
+
+  .paper-meta {
+    font-size: 0.85rem;
+    color: var(--gray);
+  }
+
+  .paper-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .three-col { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .pipeline { flex-direction: column; }
+    .pipeline-arrow { transform: rotate(90deg); }
+  }
+
+  /* Print styles */
+  @media print {
+    .slide { page-break-after: always; min-height: 100vh; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== SLIDE 1: TITLE ===================== -->
+<div class="slide">
+  <div class="slide-number">∞ IZZUDDIN // PITCH DECK</div>
+  <div class="slide-section">01 / TITLE</div>
+
+  <h1>The market has been<br><span class="red">lying</span> to you.<br>Here's the math that<br><span class="accent">proves it.</span></h1>
+
+  <p class="subtitle">
+    A peer-published hybrid ML framework for systematic trading.<br>
+    Live on-chain. DOI verified. Now with bounded AGI autonomy.
+  </p>
+
+  <div style="margin-top: 2rem;">
+    <span class="badge live">● live</span>
+    <span class="badge">polygon</span>
+    <span class="badge">polymarket</span>
+    <span class="badge">claude-opus</span>
+    <span class="badge">on-chain verified</span>
+    <span class="badge">peer-published</span>
+  </div>
+
+  <div class="stats-grid" style="margin-top: 3rem;">
+    <div class="stat-box">
+      <div class="stat-value">$5.25K</div>
+      <div class="stat-label">Live AUM</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value green">67.9%</div>
+      <div class="stat-label">Win Rate Target</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value accent">+2.14×</div>
+      <div class="stat-label">Sharpe Δ vs Baseline</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value yellow">2019–24</div>
+      <div class="stat-label">Walk-Forward Window</div>
+    </div>
+  </div>
+
+  <div class="footer" style="margin-top: 2rem;">
+    <span class="gray" style="font-family: var(--font-mono); font-size: 0.75rem;">
+      DOI 10.5281/zenodo.16966978 · 162 live trades · 25 autonomous experiments · 9 strategies
+    </span>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 2: THE PROBLEM ===================== -->
+<div class="slide">
+  <div class="slide-number">02 / PROBLEM</div>
+  <div class="slide-section">THE PROBLEM ────────</div>
+
+  <h2>Every trader you know loses<br>to the same <span class="red">three enemies</span>.<br>Fear. Greed. <span class="yellow">Sleep.</span></h2>
+
+  <div class="three-col" style="margin-top: 3rem;">
+    <div class="col-card" style="border-left: 3px solid var(--red);">
+      <div class="icon">Ⅰ</div>
+      <h3 class="red">Emotion taxes the math</h3>
+      <p>Studies show retail traders cut winners 2.3× faster than losers. The edge dies at the trigger finger.</p>
+    </div>
+    <div class="col-card" style="border-left: 3px solid var(--yellow);">
+      <div class="icon">Ⅱ</div>
+      <h3 class="yellow">Sentiment moves before price</h3>
+      <p>By the time a chart confirms, 1,000 wallets have already rotated. Machines read intent. Humans read news.</p>
+    </div>
+    <div class="col-card" style="border-left: 3px solid var(--accent);">
+      <div class="icon">Ⅲ</div>
+      <h3 class="accent">Markets don't sleep. You do</h3>
+      <p>Alpha isn't extracted in business hours. It's harvested at 03:14 AM Sunday, when conviction divides.</p>
+    </div>
+  </div>
+
+  <p style="margin-top: 2rem; font-size: 1.1rem; font-style: italic; color: var(--gray);">
+    "What if the trader was never the bottleneck — only the human inside it?"
+  </p>
+</div>
+
+<!-- ===================== SLIDE 3: BREAKTHROUGH ===================== -->
+<div class="slide">
+  <div class="slide-number">03 / BREAKTHROUGH</div>
+  <div class="slide-section">THE BREAKTHROUGH ────────</div>
+
+  <h2>A trading engine that doesn't<br><span class="red">flinch</span>, doesn't <span class="yellow">hope</span>,<br>and won't <span class="accent">sleep</span>.</h2>
+
+  <p class="subtitle" style="margin-bottom: 1rem;">
+    Four models, one consensus. LightGBM reads structure. LSTM reads memory. Transformers read attention. An LLM reads the world. <span class="accent">They vote. The capital moves. You sleep.</span>
+  </p>
+
+  <div class="code-block">
+    <span class="comment">// SYSTEM SIGNATURE</span><br>
+    engine.<span class="keyword">signal</span> = <span class="keyword">consensus</span>(<br>
+    &nbsp;&nbsp;lgbm(<span class="string">ohlcv + microstructure</span>),<br>
+    &nbsp;&nbsp;lstm(<span class="string">temporal_memory</span>),<br>
+    &nbsp;&nbsp;transformer(<span class="string">cross_asset_attention</span>),<br>
+    &nbsp;&nbsp;llm(<span class="string">global_sentiment_parse</span>)<br>
+    ) → <span class="keyword">regime_switch</span> → <span class="keyword">execute</span>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 4: PROOF ===================== -->
+<div class="slide">
+  <div class="slide-number">04 / PROOF</div>
+  <div class="slide-section">THE PROOF ────────</div>
+
+  <h2>This is not a pitch deck.<br>This is a <span class="accent">published paper</span>.</h2>
+
+  <div class="paper-card">
+    <span class="paper-doi">PEER PUBLISHED · ZENODO</span>
+    <div class="paper-title">
+      A Hybrid Machine Learning Framework for Systematic Trading in Cryptocurrency and FX Markets
+    </div>
+    <div class="paper-meta">Izzuddin, Muchammad Fikri · 2024</div>
+    <div class="paper-tags">
+      <span class="badge">LightGBM</span>
+      <span class="badge">LSTM</span>
+      <span class="badge">Transformer</span>
+      <span class="badge">LLM Sentiment</span>
+      <span class="badge">Regime-Switching</span>
+      <span class="badge">Stacking Ensemble</span>
+    </div>
+  </div>
+
+  <div class="paper-card" style="border-color: var(--green);">
+    <span class="paper-doi" style="color: var(--green);">NEW PAPER · PREPRINT</span>
+    <div class="paper-title">
+      PolyEdge: Autonomous Prediction Market Trading with Bounded AGI Safety, Evolutionary Strategy Composition, and Adversarial Decision Validation
+    </div>
+    <div class="paper-meta">Izzuddin, Muchammad Fikri · 2025</div>
+    <div class="paper-tags">
+      <span class="badge">Bounded Autonomy</span>
+      <span class="badge">StrategyGenome</span>
+      <span class="badge">Dual-Debate</span>
+      <span class="badge">MiroFish</span>
+      <span class="badge">AGI Safety</span>
+      <span class="badge">Evolution</span>
+    </div>
+  </div>
+
+  <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--gray);">
+    DOI <span class="mono" style="color: var(--accent);">10.5281/zenodo.16966978</span> · Walk-forward validation · No look-ahead bias · Reproducible.
+  </p>
+</div>
+
+<!-- ===================== SLIDE 5: MECHANISM ===================== -->
+<div class="slide">
+  <div class="slide-number">05 / MECHANISM</div>
+  <div class="slide-section">THE MECHANISM ────────</div>
+
+  <h2>Four signals.<br>One <span class="accent">decision</span>.<br>Zero hesitation.</h2>
+
+  <div class="three-col" style="margin-top: 2rem;">
+    <div class="col-card" style="border-top: 3px solid var(--accent);">
+      <div class="tagline">L1</div>
+      <h3>LightGBM</h3>
+      <p style="color: var(--accent); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.5rem;">STRUCTURE</p>
+      <p>Gradient-boosted trees over engineered OHLCV + order book microstructure features. Reads the skeleton of price.</p>
+    </div>
+    <div class="col-card" style="border-top: 3px solid var(--accent2);">
+      <div class="tagline">L2</div>
+      <h3>LSTM</h3>
+      <p style="color: var(--accent2); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.5rem;">MEMORY</p>
+      <p>Recurrent network for temporal dependency. Recognizes patterns the moment they begin to rhyme with history.</p>
+    </div>
+    <div class="col-card" style="border-top: 3px solid var(--accent3);">
+      <div class="tagline">L3</div>
+      <h3>Transformer</h3>
+      <p style="color: var(--accent3); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.5rem;">ATTENTION</p>
+      <p>Multi-head attention across cross-asset signals. Sees the correlation before it materializes.</p>
+    </div>
+  </div>
+  <div style="max-width: 33%; margin: 0 auto;">
+    <div class="col-card" style="border-top: 3px solid var(--green);">
+      <div class="tagline">L4</div>
+      <h3>LLM Sentiment</h3>
+      <p style="color: var(--green); font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.5rem;">INTENT</p>
+      <p>Claude-Opus parses news, social, and on-chain top-1% wallet flow in real time. Measurable, statistically significant edge.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 6: NEW — BOUNDED AUTONOMY ===================== -->
+<div class="slide">
+  <div class="slide-number">06 / SAFETY</div>
+  <div class="slide-section">NEW RESEARCH ──────── BOUNDED AGI AUTONOMY</div>
+
+  <h2>What happens when the trader<br>is <span class="accent">fully autonomous</span>?<br><span class="red">You need hard boundaries.</span></h2>
+
+  <p class="subtitle" style="margin-bottom: 2rem;">
+    PolyEdge introduces three novel safety mechanisms for autonomous AI trading systems.
+  </p>
+
+  <div class="three-col">
+    <div class="col-card" style="border-top: 3px solid var(--red);">
+      <h3 class="red">🛡 Bounded Autonomy</h3>
+      <p>Hard deterministic gates. Risk profiles that <span class="red">cannot be bypassed</span>. Promotion pipeline with statistical gates. $10/day LLM budget cap. Experiment isolation.</p>
+      <div style="margin-top: 0.75rem;">
+        <span class="badge red-badge">non-bypassable</span>
+        <span class="badge red-badge">deterministic</span>
+      </div>
+    </div>
+    <div class="col-card" style="border-top: 3px solid var(--green);">
+      <h3 class="green">🧬 StrategyGenome</h3>
+      <p>Chromosomal strategy representation. Five chromosomes: Perception, Cognition, Execution, Risk, Meta. Gaussian mutation + two-point crossover. Composite fitness: Sharpe + win rate + Brier + drawdown.</p>
+      <div style="margin-top: 0.75rem;">
+        <span class="badge" style="color: var(--green); border-color: var(--green);">evolutionary</span>
+        <span class="badge" style="color: var(--green); border-color: var(--green);">interpretable</span>
+      </div>
+    </div>
+    <div class="col-card" style="border-top: 3px solid var(--yellow);">
+      <h3 class="yellow">⚖️ Dual-Debate</h3>
+      <p>Bull vs Bear agents argue before a Judge. Confidence threshold gates capital deployment. Failed signals fall back to local debate engine. Every verdict recorded in TradeAttempt ledger.</p>
+      <div style="margin-top: 0.75rem;">
+        <span class="badge" style="color: var(--yellow); border-color: var(--yellow);">adversarial</span>
+        <span class="badge" style="color: var(--yellow); border-color: var(--yellow);">auditable</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline" style="margin-top: 2rem;">
+    <div class="pipeline-stage">
+      <div class="stage-label">Stage 1</div>
+      <div class="stage-name" style="color: var(--gray);">DRAFT</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage">
+      <div class="stage-label">Stage 2</div>
+      <div class="stage-name" style="color: var(--yellow);">SHADOW</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage">
+      <div class="stage-label">Stage 3</div>
+      <div class="stage-name" style="color: var(--accent);">PAPER</div>
+    </div>
+    <div class="pipeline-arrow">→</div>
+    <div class="pipeline-stage" style="border-color: var(--green);">
+      <div class="stage-label">Stage 4</div>
+      <div class="stage-name" style="color: var(--green);">LIVE</div>
+    </div>
+  </div>
+  <p style="text-align: center; font-family: var(--font-mono); font-size: 0.75rem; color: var(--gray); margin-top: 0.5rem;">
+    Each transition requires: min_trades · min_sharpe · min_win_rate · max_drawdown — no exemptions.
+  </p>
+</div>
+
+<!-- ===================== SLIDE 7: THE NUMBERS ===================== -->
+<div class="slide">
+  <div class="slide-number">07 / NUMBERS</div>
+  <div class="slide-section">THE NUMBERS ────────</div>
+
+  <h2>Backtested. Walk-forward.<br><span class="accent">Slippage-modeled.</span></h2>
+
+  <div class="stats-grid" style="margin-top: 3rem;">
+    <div class="stat-box">
+      <div class="stat-value accent">+2.14×</div>
+      <div class="stat-label">Sharpe Δ vs baseline</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value green">−47%</div>
+      <div class="stat-label">Max drawdown reduction</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value yellow">1.89</div>
+      <div class="stat-label">Profit factor (net of costs)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value accent">5 yr</div>
+      <div class="stat-label">Walk-forward validation</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2 style="font-size: clamp(1.2rem, 2.5vw, 1.8rem);">Honest live deployment numbers:</h2>
+
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="stat-value accent">25</div>
+      <div class="stat-label">Autonomous experiments</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">162</div>
+      <div class="stat-label">Trades across 132 markets</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value red">35.7%</div>
+      <div class="stat-label">Win rate (early phase)</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value red">−$622</div>
+      <div class="stat-label">Total PnL (USDC)</div>
+    </div>
+  </div>
+
+  <p style="text-align: center; font-family: var(--font-mono); font-size: 0.8rem; color: var(--gray); margin-top: 1rem;">
+    These are <span class="red">real numbers</span>. Early research phase. Bounded autonomy is working — losses are capped, not hidden.
+  </p>
+</div>
+
+<!-- ===================== SLIDE 8: ALLIANCE ===================== -->
+<div class="slide">
+  <div class="slide-number">08 / ALLIANCE</div>
+  <div class="slide-section">THE ALLIANCE ────────</div>
+
+  <h2>No profit. No fee.<br>We <span class="red">bleed</span> together.</h2>
+
+  <p class="subtitle" style="max-width: 700px;">
+    High-water mark performance model. The engine eats only after you do. Your downside is our downside. Skin in the game is not optional — <span class="accent">it is the architecture</span>.
+  </p>
+
+  <div class="stats-grid" style="margin-top: 3rem;">
+    <div class="stat-box">
+      <div class="stat-value green">0%</div>
+      <div class="stat-label">Mgmt fee below HWM</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value accent">100%</div>
+      <div class="stat-label">On-chain transparency</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">∞</div>
+      <div class="stat-label">Audit window · any time</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 9: THE POOL ===================== -->
+<div class="slide">
+  <div class="slide-number">09 / POOL</div>
+  <div class="slide-section">THE POOL ────────</div>
+
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+    <span class="live-dot"></span>
+    <span class="tagline">BATCH 05 — OPEN · 88% ALLOCATED</span>
+  </div>
+
+  <h2>This batch <span class="accent">closes</span>.<br>The next one might not open.</h2>
+
+  <div class="tier-card" style="margin-top: 2rem;">
+    <div class="tier-label">TIER I</div>
+    <h3 class="tier-name">The Believer</h3>
+    <p class="tier-desc">Any amount. Immediate. You believe in the work and you say so with capital, not words.</p>
+    <div style="margin-top: 1rem;"><a href="https://www.tip.md/oyi77" class="cta-secondary cta-btn" style="font-size: 0.75rem;">SEND A TIP →</a></div>
+  </div>
+
+  <div class="tier-card" style="margin-top: 1rem;">
+    <div class="tier-label">TIER II</div>
+    <h3 class="tier-name">The Partner</h3>
+    <p class="tier-desc">Acquire a product or service. Indirect funding through real value exchange. Get something. Build something.</p>
+    <div style="margin-top: 1rem;"><a href="https://lynk.id/letscorp" class="cta-secondary cta-btn" style="font-size: 0.75rem;">BROWSE PRODUCTS →</a></div>
+  </div>
+
+  <div class="tier-card primary" style="margin-top: 1rem;">
+    <div class="tier-label">● PRIMARY — TIER III</div>
+    <h3 class="tier-name">The Allocator</h3>
+    <p class="tier-desc">Serious capital. Vetted via Telegram lobby. High-water mark partnership. Pool allocation in active batch.</p>
+    <div style="margin-top: 1rem;"><a href="https://t.me/" class="cta-primary cta-btn" style="font-size: 0.75rem;">SUBMIT APPLICATION →</a></div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 10: THE CALL ===================== -->
+<div class="slide">
+  <div class="slide-number">10 / CALL</div>
+  <div class="slide-section">THE CALL ────────</div>
+
+  <h2 style="font-size: clamp(2rem, 4.5vw, 4rem);">The math is <span class="accent">public</span>.<br>The wallet is <span class="accent">public</span>.<br>The decision is <span class="white">yours</span>.</h2>
+
+  <p class="subtitle" style="margin-top: 2rem; max-width: 600px;">
+    Twelve slots remain in Batch 05. Read the paper. Audit the wallet. Then decide.
+  </p>
+
+  <div class="cta-row" style="margin-top: 3rem;">
+    <a href="#allocate" class="cta-btn cta-primary">APPLY FOR ALLOCATION →</a>
+    <a href="https://zenodo.org/records/16966978" class="cta-btn cta-secondary">READ THE PAPER →</a>
+    <a href="https://polymarket.com/@berkah-karya" class="cta-btn cta-secondary">VIEW LIVE PORTFOLIO →</a>
+  </div>
+
+  <div class="cta-row" style="margin-top: 1rem;">
+    <a href="https://github.com/oyi77/1ai-poly-trader" class="cta-btn cta-secondary" style="font-size: 0.75rem;">GITHUB ENGINE →</a>
+    <a href="https://zapper.xyz/id/account/0xad85c2f3942561afa448cbbd5811a5f7e2e3c6bd" class="cta-btn cta-secondary" style="font-size: 0.75rem;">ON-CHAIN AUDIT →</a>
+    <a href="https://www.aipolymarket.xyz/" class="cta-btn cta-secondary" style="font-size: 0.75rem;">LANDING PAGE →</a>
+  </div>
+
+  <div class="slide-footer" style="margin-top: 4rem;">
+    <div style="display: flex; gap: 3rem; flex-wrap: wrap;">
+      <div>
+        <strong>RESEARCH</strong><br>
+        <a href="https://zenodo.org/records/16966978">Published Paper</a><br>
+        <a href="https://github.com/oyi77/1ai-poly-trader">GitHub Engine</a><br>
+        <a href="https://polymarket.com/@berkah-karya">Live Portfolio</a><br>
+        <a href="https://zapper.xyz/id/account/0xad85c2f3942561afa448cbbd5811a5f7e2e3c6bd">On-Chain Audit</a>
+      </div>
+      <div>
+        <strong>SUPPORT</strong><br>
+        <a href="https://www.tip.md/oyi77">tip.md/oyi77</a><br>
+        <a href="https://lynk.id/letscorp">lynk.id/letscorp</a><br>
+        <a href="#allocate">Pool Allocation</a><br>
+        <a href="https://t.me/">Telegram Lobby</a>
+      </div>
+    </div>
+    <div style="margin-top: 2rem;">
+      © 2024–2025 Muchammad Fikri Izzuddin · @oyi77<br>
+      DOI 10.5281/zenodo.16966978 · Polygon · Polymarket · Claude-Opus
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

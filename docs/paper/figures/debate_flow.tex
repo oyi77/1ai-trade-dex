@@ -1,0 +1,20 @@
+\documentclass[tikz,border=1pt]{standalone}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
+\begin{document}
+\begin{tikzpicture}[node distance=1.2cm, >={Stealth},
+    step/.style={draw, rectangle, rounded corners, minimum width=2cm, minimum height=0.8cm, align=center, font=\small}]
+    \node[step] (s) {Signal};
+    \node[step, above right=1cm and 1.5cm of s, fill=green!10] (b) {Bull};
+    \node[step, below right=1cm and 1.5cm of s, fill=red!10] (be) {Bear};
+    \node[step, right=3cm of s, fill=blue!10] (j) {Judge};
+    \node[step, right=2cm of j, fill=yellow!10] (v) {Verdict};
+    \node[step, below=1.2cm of j, fill=gray!10] (f) {Local Fallback};
+    \draw[->] (s) -- (b);
+    \draw[->] (s) -- (be);
+    \draw[->] (b) -- (j);
+    \draw[->] (be) -- (j);
+    \draw[->] (j) -- node[above, font=\tiny]{conf} (v);
+    \draw[->, dashed, red] (j) -- node[left, font=\tiny]{fail} (f);
+    \draw[->, dashed, red] (f) -- (v);
+\end{tikzpicture}
+\end{document}
