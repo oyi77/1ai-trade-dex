@@ -73,6 +73,17 @@ See `docs/operations/monitoring.md` for monitoring details.
 
 `GET /api/v1/stats` and `GET /api/v1/dashboard` expose paper/testnet `bankroll` as available simulated cash, so those balance fields are never negative. The matching `paper_pnl`/`testnet_pnl` and nested `pnl` fields can be negative because they preserve cumulative learning-ledger drawdown.
 
+`GET /api/v1/dashboard` returns live scan results directly from the in-process scan pipeline. Persistence of generated scan rows to the calibration ledger is best-effort and asynchronous, so temporary SQLite write contention may emit warnings without delaying the dashboard response.
+
+`BotStats` now also includes explicit balance breakdown fields for realtime UI updates:
+- `available_balance`: currently spendable cash for the selected mode
+- `total_balance`: available cash plus marked-to-market open-position value (for live, reconciled total equity)
+- `realized_pnl`: settled/realized P&L only, excluding unrealized position moves
+
+For live mode, `total_pnl` / `account_pnl` follow the public Polymarket account/profile PnL semantics when the upstream profile PnL API is available. `realized_pnl` remains the local settled-trade ledger PnL so realized and account-level PnL are not conflated.
+
+The nested `paper`, `testnet`, and `live` objects expose the same `available_balance`, `total_balance`, `realized_pnl`, and `account_pnl` fields per mode.
+
 ## Trade Control Room Endpoints
 
 These endpoints back the dashboard **Control Room** tab. They are intentionally separate from `Trade` history: `Trade` contains executed positions, while `TradeAttempt` records every candidate execution path that reached the strategy executor, including risk rejections and sizing blockers. For AI-sized strategies, compare `requested_size` with `adjusted_size` and `risk_reason` to see how much autonomy was allowed before deterministic risk mandates clipped or rejected the attempt.
@@ -129,7 +140,7 @@ Returns aggregate operator data for the Control Room header: total attempts, exe
 | `/ws/events` | WS | Trading events (topic: "events") |
 | `/ws/activities` | WS | Activity log (topic: "activities") |
 | `/ws/brain` | WS | AI analysis (topic: "brain") |
-| `/ws/dashboard-data` | WS | Dashboard stats (topic: "stats") |
+| `/ws/dashboard-data` | WS | Dashboard stats incl. realtime balance/P&L breakdown (topic: "stats") |
 
 **Subscription Protocol**:
 ```json
