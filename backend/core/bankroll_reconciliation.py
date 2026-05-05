@@ -184,6 +184,58 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
     return round(cash + float(open_value), 6)
 
 
+async def fetch_pm_profile_pnl(wallet: Optional[str] = None) -> Optional[float]:
+    """Fetch Polymarket profile/account PnL from the public user PnL API.
+
+    This matches the public profile/dashboard series semantics more closely than
+    the local settled-trade ledger. Returns the latest cumulative profile PnL
+    point when available.
+    """
+
+    wallet_address = wallet or get_polymarket_wallet_address()
+    if not wallet_address:
+        return None
+
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                "https://user-pnl-api.polymarket.com/user-pnl",
+                params={
+                    "user_address": wallet_address.lower(),
+                    "interval": "all",
+                    "fidelity": "1d",
+                },
+                headers={"User-Agent": "polyedge-finance"},
+            )
+
+        if resp.status_code != 200:
+            logger.warning(
+                "PM profile PnL fetch returned HTTP %s for wallet %s",
+                resp.status_code,
+                wallet_address[:10],
+            )
+            return None
+
+        data = resp.json()
+        if not isinstance(data, list) or not data:
+            return None
+
+        latest = data[-1]
+        if not isinstance(latest, dict):
+            return None
+
+        pnl_value = latest.get("p")
+        if pnl_value is None:
+            return None
+
+        return round(float(pnl_value), 6)
+    except Exception as exc:
+        logger.warning("PM profile PnL fetch failed: %s", exc)
+        return None
+
+
 def _realized_trade_stats(db: Session, mode: str) -> tuple[int, float, int]:
     """Return count, realized PnL, and win count from settled ledger rows."""
 
@@ -217,6 +269,8 @@ def _initial_bankroll_for_mode(mode: str, state: Optional[BotState] = None) -> f
         return float(state.paper_initial_bankroll)
     if mode == "testnet" and state is not None and state.testnet_initial_bankroll is not None:
         return float(state.testnet_initial_bankroll)
+    if mode == "live" and state is not None and state.live_initial_bankroll is not None:
+        return float(state.live_initial_bankroll)
     if mode == "testnet":
         return 100.0
     return float(settings.INITIAL_BANKROLL)
@@ -373,11 +427,13 @@ def _build_report(
         if pm_portfolio_value is None or pm_portfolio_value <= 0:
             new_bankroll = old_bankroll
             new_total_pnl = old_total_pnl
-            warnings.append("PM total equity unavailable; live financial cache was not changed")
+            warnings.append("PM total equity unavailable; live bankroll cache was not changed")
         else:
             new_bankroll = round(float(pm_portfolio_value), 2)
-            actual_starting_balance = old_bankroll - old_total_pnl
-            new_total_pnl = round(new_bankroll - actual_starting_balance, 2)
+            # Use realized_pnl from settled trades (same as paper/testnet).
+            # Do NOT use (bankroll - live_initial_bankroll): that would count
+            # deposits as profit whenever the user adds funds after the initial deposit.
+            new_total_pnl = realized_pnl
     else:
         derived_bankroll = round(_initial_bankroll_for_mode(mode, state=state) + realized_pnl - open_exposure, 2)
         new_bankroll = round(_available_bankroll_for_mode(mode, derived_bankroll), 2)

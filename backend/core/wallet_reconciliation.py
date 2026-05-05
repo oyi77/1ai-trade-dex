@@ -388,7 +388,8 @@ class WalletReconciler:
                         existing.settlement_source = "activity_api_redeem"
                         existing.blockchain_verified = True
                         if existing.size and existing.size > 0 and existing.entry_price:
-                            existing.pnl = redeem_amount - existing.size
+                            dollar_cost = existing.size * existing.entry_price
+                            existing.pnl = redeem_amount - dollar_cost
                             if existing.pnl > 0:
                                 existing.result = "win"
                             elif existing.pnl < 0:

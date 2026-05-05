@@ -145,7 +145,50 @@ async def test_live_reconciliation_uses_total_equity_not_position_value_only(
     db_session.refresh(state)
     assert reports[0].new_bankroll == pytest.approx(163.56)
     assert state.bankroll == pytest.approx(163.56)
-    assert state.total_pnl == pytest.approx(63.56)
+    # PnL = realized trade ledger (no settled trades in this test → 0.0).
+    # We do NOT use bankroll-delta (new_bankroll - initial_deposit) because
+    # that would count deposits as profit. See ADR-002.
+    assert state.total_pnl == pytest.approx(0.0)
+
+
+@pytest.mark.asyncio
+async def test_live_reconciliation_keeps_realized_ledger_pnl_even_if_profile_pnl_differs(
+    db_session, monkeypatch
+):
+    state = BotState(mode="live", bankroll=125.0, total_pnl=11.0)
+    settled_win = Trade(
+        market_ticker="live-win",
+        direction="up",
+        entry_price=0.5,
+        size=10.0,
+        settled=True,
+        result="win",
+        pnl=5.0,
+        trading_mode="live",
+        settlement_time=datetime.now(timezone.utc),
+    )
+    db_session.add_all([state, settled_win])
+    db_session.commit()
+
+    async def fake_total_equity():
+        return 163.56
+
+    monkeypatch.setattr(
+        "backend.core.bankroll_reconciliation.fetch_pm_total_equity",
+        fake_total_equity,
+    )
+
+    reports = await reconcile_bot_state(
+        db_session,
+        modes=("live",),
+        apply=True,
+        commit=True,
+        source="test",
+    )
+
+    db_session.refresh(state)
+    assert reports[0].realized_pnl == pytest.approx(5.0)
+    assert state.total_pnl == pytest.approx(5.0)
 
 
 @pytest.mark.asyncio

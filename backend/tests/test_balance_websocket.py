@@ -222,3 +222,62 @@ def test_stats_includes_position_metrics(client, db):
     assert "unrealized_pnl" in data
     assert "position_cost" in data
     assert "position_market_value" in data
+
+
+def test_stats_includes_available_and_total_balance_fields(client, db):
+    state = db.query(BotState).filter_by(mode="paper").first()
+    if state:
+        state.bankroll = 9800.0
+        state.paper_bankroll = 9800.0
+        state.total_pnl = -200.0
+        state.paper_pnl = -200.0
+    db.commit()
+
+    response = client.get("/api/v1/stats?mode=paper")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "available_balance" in data
+    assert "total_balance" in data
+    assert "realized_pnl" in data
+    assert "account_pnl" in data
+    assert data["available_balance"] == data["bankroll"]
+    assert data["realized_pnl"] == data["total_pnl"]
+
+
+def test_live_stats_realized_pnl_is_not_forced_to_account_pnl(client, db):
+    live_state = db.query(BotState).filter_by(mode="live").first()
+    db.info["allow_live_financial_update"] = True
+    live_state.bankroll = 140.0
+    live_state.total_pnl = 12.0
+    db.commit()
+    db.info.pop("allow_live_financial_update", None)
+
+    db.add(
+        Trade(
+            market_ticker="live-loss",
+            platform="polymarket",
+            direction="down",
+            entry_price=0.5,
+            size=10.0,
+            settled=True,
+            result="loss",
+            pnl=-3.0,
+            trading_mode="live",
+        )
+    )
+    db.commit()
+
+    from unittest.mock import AsyncMock, patch
+
+    with patch(
+        "backend.api.system.fetch_pm_profile_pnl",
+        AsyncMock(return_value=25.740828),
+    ):
+        response = client.get("/api/v1/stats?mode=live")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_pnl"] == 25.740828
+    assert data["account_pnl"] == 25.740828
+    assert data["realized_pnl"] == -3.0

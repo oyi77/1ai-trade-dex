@@ -148,6 +148,21 @@ describe('useWebSocket', () => {
     );
   });
 
+  it('subscribes to stats topic on connect', async () => {
+    const { result } = renderHook(() =>
+      useWebSocket('ws://test', { topic: 'stats' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('connected');
+    });
+
+    const ws = MockWebSocket.instances[0];
+    expect(ws.send).toHaveBeenCalledWith(
+      JSON.stringify({ action: 'subscribe', topic: 'stats' })
+    );
+  });
+
   it('resubscribes to topic after reconnection', async () => {
     vi.useFakeTimers();
     

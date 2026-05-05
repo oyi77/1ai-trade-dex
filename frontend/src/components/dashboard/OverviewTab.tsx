@@ -114,7 +114,9 @@ export function OverviewTab({
     .filter(t => (t.pnl ?? 0) < 0)
     .sort((a, b) => (a.pnl ?? 0) - (b.pnl ?? 0))
   const sourceStats = stats.stats as BotStats
-  const activeMode = sourceStats.active_mode ?? sourceStats.mode ?? 'paper'
+  const activeMode = Array.isArray(sourceStats.active_mode)
+    ? sourceStats.active_mode.join(', ')
+    : sourceStats.active_mode ?? sourceStats.mode ?? 'paper'
   const liveStats = sourceStats.live
   const paperStats = sourceStats.paper
   const testnetStats = sourceStats.testnet

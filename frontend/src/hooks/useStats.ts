@@ -22,7 +22,13 @@ export function useStats() {
       const wsUrl = getWsUrl('/ws/dashboard-data')
       ws = new WebSocket(wsUrl)
       
-      ws.onopen = () => {}
+      ws.onopen = () => {
+        try {
+          ws?.send(JSON.stringify({ action: 'subscribe', topic: 'stats' }))
+        } catch (e) {
+          console.error('Failed to subscribe to dashboard stats WebSocket:', e)
+        }
+      }
       
       ws.onmessage = (event) => {
         try {
@@ -68,14 +74,18 @@ export function useStats() {
     last_run: null,
     total_trades: 0,
     total_pnl: 0,
+    realized_pnl: 0,
+    account_pnl: 0,
     bankroll: 10000,
+    available_balance: 10000,
+    total_balance: 10000,
     winning_trades: 0,
     win_rate: 0,
     initial_bankroll: 10000,
     mode: 'paper',
-    paper: { pnl: 0, bankroll: 10000, trades: 0, wins: 0, win_rate: 0 },
-    testnet: { pnl: 0, bankroll: 0, trades: 0, wins: 0, win_rate: 0 },
-    live: { pnl: 0, bankroll: 0, trades: 0, wins: 0, win_rate: 0 },
+    paper: { pnl: 0, realized_pnl: 0, account_pnl: 0, bankroll: 10000, available_balance: 10000, total_balance: 10000, trades: 0, wins: 0, win_rate: 0 },
+    testnet: { pnl: 0, realized_pnl: 0, account_pnl: 0, bankroll: 0, available_balance: 0, total_balance: 0, trades: 0, wins: 0, win_rate: 0 },
+    live: { pnl: 0, realized_pnl: 0, account_pnl: 0, bankroll: 0, available_balance: 0, total_balance: 0, trades: 0, wins: 0, win_rate: 0 },
   } as BotStats)
 
   // Use mode-specific stats when available (paper/testnet/live split)
@@ -91,7 +101,10 @@ export function useStats() {
   const trades = active ? active.trades : stats.total_trades
   const bankroll = active ? active.bankroll : stats.bankroll
   const initialBankroll = active?.initial_bankroll ?? stats.initial_bankroll ?? 10000
-  const totalPnl = settledPnl
+  const totalPnl = active?.account_pnl ?? stats.account_pnl ?? settledPnl
+  const realizedPnl = active?.realized_pnl ?? stats.realized_pnl ?? settledPnl
+  const availableBalance = active?.available_balance ?? stats.available_balance ?? bankroll
+  const totalBalance = active?.total_balance ?? stats.total_balance ?? bankroll
   const modeSplits = [stats.paper, stats.testnet, stats.live].filter((mode): mode is NonNullable<typeof mode> => Boolean(mode))
   const aggregateOpenTrades = modeSplits.reduce((sum, mode) => sum + (mode.open_trades ?? 0), 0)
   const aggregateOpenExposure = modeSplits.reduce((sum, mode) => sum + (mode.open_exposure ?? 0), 0)
@@ -108,10 +121,13 @@ export function useStats() {
     error,
 
     pnl: totalPnl,
+    realizedPnl,
     settledPnl,
     wins,
     trades,
     bankroll,
+    availableBalance,
+    totalBalance,
     winRate: trades > 0 ? (wins / trades * 100) : 0,
     returnPercent: initialBankroll > 0 ? (totalPnl / initialBankroll * 100) : 0,
     isRunning: stats.is_running,
@@ -124,7 +140,7 @@ export function useStats() {
     unrealizedPnl: stats.unrealized_pnl ?? 0,
     positionCost: stats.position_cost ?? 0,
     positionMarketValue: stats.position_market_value ?? 0,
-    totalEquity: bankroll,
+    totalEquity: totalBalance,
 
     // Paper/Testnet/Live specific
     paperStats: stats.paper,

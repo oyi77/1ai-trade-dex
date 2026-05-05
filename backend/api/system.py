@@ -26,6 +26,7 @@ from backend.models.database import (
 )
 from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
+from backend.core.bankroll_reconciliation import fetch_pm_profile_pnl
 from backend.api.validation import StrategyConfigRequest as ValidatedStrategyConfigRequest
 import logging
 
@@ -53,10 +54,14 @@ class SyncMetadata(BaseModel):
 
 class BotStats(BaseModel):
     bankroll: float
+    available_balance: float = 0.0
+    total_balance: float = 0.0
     total_trades: int
     winning_trades: int
     win_rate: float
     total_pnl: float
+    realized_pnl: float = 0.0
+    account_pnl: float = 0.0
     is_running: bool
     last_run: Optional[datetime]
     initial_bankroll: float = 10000.0
@@ -76,7 +81,8 @@ class BotStats(BaseModel):
     testnet: dict = {}
     live: dict = {}
     live_ledger_pnl: float = 0.0
-    active_mode: str = "paper"
+    live_profile_pnl: float = 0.0
+    active_mode: List[str] = ["paper"]
     open_exposure: float = 0.0
     open_trades: int = 0
     settled_trades: int = 0
@@ -206,7 +212,10 @@ async def get_stats(
 
     sync_metadata = None
     
-    live_bankroll, live_account_pnl, live_cached_trades, live_cached_wins, live_initial = _live_cache_values(live_state)
+    live_bankroll, live_cached_account_pnl, live_cached_trades, live_cached_wins, live_initial = _live_cache_values(live_state)
+
+    live_profile_pnl = await fetch_pm_profile_pnl() if (effective_mode == "live" or mode is None) else None
+    live_account_pnl = float(live_profile_pnl) if live_profile_pnl is not None else live_cached_account_pnl
 
     # Always query live-mode trades from actual DB for ledger analytics, but do
     # not use that ledger P&L as live account P&L in the dashboard.
@@ -279,7 +288,7 @@ async def get_stats(
                 f"Orphaned={orphaned_count}, External={external_imports_count}"
             )
     else:
-        live_ledger_pnl = live_account_pnl
+        live_ledger_pnl = live_cached_account_pnl
         live_trades = live_cached_trades
         live_wins = live_cached_wins
         live_win_rate = live_wins / live_trades if live_trades > 0 else 0.0
@@ -359,6 +368,13 @@ async def get_stats(
         calculate_mode_unrealized_pnl("testnet"),
         calculate_mode_unrealized_pnl("live"),
     )
+
+    paper_available_balance = round(paper_bankroll, 2)
+    paper_total_balance = round(paper_available_balance + paper_unrealized["position_market_value"], 2)
+    testnet_available_balance = round(testnet_bankroll, 2)
+    testnet_total_balance = round(testnet_available_balance + testnet_unrealized["position_market_value"], 2)
+    live_available_balance = round(max(0.0, live_bankroll - live_unrealized["position_market_value"]), 2)
+    live_total_balance = round(live_bankroll, 2)
     
     # Use effective_mode's values for top-level fields (backward compatibility)
     if effective_mode == "paper":
@@ -423,6 +439,10 @@ async def get_stats(
         display_wins = live_wins
         display_win_rate = live_win_rate
         display_pnl = live_account_pnl
+        display_available_balance = live_available_balance
+        display_total_balance = live_total_balance
+        display_realized_pnl = live_ledger_pnl
+        display_account_pnl = live_account_pnl
         settled_trades_count = (
             db.query(func.count(Trade.id))
             .filter(Trade.settled, Trade.trading_mode == "live")
@@ -440,29 +460,45 @@ async def get_stats(
         position_market_value = live_unrealized["position_market_value"]
     elif effective_mode == "paper":
         display_bankroll = paper_bankroll
+        display_available_balance = paper_available_balance
+        display_total_balance = paper_total_balance
         display_trades = paper_trades
         display_wins = paper_wins
         display_win_rate = paper_win_rate
         display_pnl = paper_pnl
+        display_realized_pnl = paper_pnl
+        display_account_pnl = paper_pnl
     elif effective_mode == "testnet":
         display_bankroll = testnet_bankroll
+        display_available_balance = testnet_available_balance
+        display_total_balance = testnet_total_balance
         display_trades = testnet_trades
         display_wins = testnet_wins
         display_win_rate = testnet_win_rate
         display_pnl = testnet_pnl
+        display_realized_pnl = testnet_pnl
+        display_account_pnl = testnet_pnl
     else:
         display_bankroll = live_bankroll
+        display_available_balance = live_available_balance
+        display_total_balance = live_total_balance
         display_trades = live_trades
         display_wins = live_wins
         display_win_rate = live_win_rate
         display_pnl = live_account_pnl
+        display_realized_pnl = live_ledger_pnl
+        display_account_pnl = live_account_pnl
 
     return BotStats(
         bankroll=display_bankroll,
+        available_balance=display_available_balance,
+        total_balance=display_total_balance,
         total_trades=display_trades,
         winning_trades=display_wins,
         win_rate=display_win_rate,
         total_pnl=display_pnl,
+        realized_pnl=display_realized_pnl,
+        account_pnl=display_account_pnl,
         is_running=state.is_running,
         last_run=state.last_run,
         initial_bankroll=settings.INITIAL_BANKROLL,
@@ -480,7 +516,11 @@ async def get_stats(
         pnl_source=pnl_source,
         paper={
             "pnl": paper_pnl,
+            "realized_pnl": paper_pnl,
+            "account_pnl": paper_pnl,
             "bankroll": paper_bankroll,
+            "available_balance": paper_available_balance,
+            "total_balance": paper_total_balance,
             "trades": paper_trades,
             "wins": paper_wins,
             "win_rate": paper_win_rate,
@@ -492,7 +532,11 @@ async def get_stats(
         },
         testnet={
             "pnl": testnet_pnl,
+            "realized_pnl": testnet_pnl,
+            "account_pnl": testnet_pnl,
             "bankroll": testnet_bankroll,
+            "available_balance": testnet_available_balance,
+            "total_balance": testnet_total_balance,
             "trades": testnet_trades,
             "wins": testnet_wins,
             "win_rate": testnet_win_rate,
@@ -504,7 +548,11 @@ async def get_stats(
         },
         live={
             "pnl": live_account_pnl,
+            "realized_pnl": live_ledger_pnl,
+            "account_pnl": live_account_pnl,
             "bankroll": live_bankroll,
+            "available_balance": live_available_balance,
+            "total_balance": live_total_balance,
             "trades": live_trades,
             "wins": live_wins,
             "win_rate": live_win_rate,
@@ -514,10 +562,12 @@ async def get_stats(
             "position_cost": live_unrealized["position_cost"],
             "position_market_value": live_unrealized["position_market_value"],
             "ledger_pnl": live_ledger_pnl,
+            "profile_pnl": live_account_pnl,
             "initial_bankroll": live_initial,
         },
         live_ledger_pnl=live_ledger_pnl,
-        active_mode=settings.TRADING_MODE,
+        live_profile_pnl=live_account_pnl,
+        active_mode=list(settings.active_modes_set),
         open_exposure=open_exposure_amount,
         open_trades=open_trades_count,
         settled_trades=settled_trades_count,
@@ -1739,7 +1789,8 @@ async def get_audit_logs(
 
 class HealthStatus(BaseModel):
     """Basic health status response."""
-    status: str  # "healthy" or "unhealthy"
+    status: str
+    agi_events: dict = {}  # "healthy" or "unhealthy"
 
 
 class ReadinessStatus(BaseModel):
@@ -1769,7 +1820,20 @@ async def health_check():
     Basic liveness check. Returns 200 OK if service is running.
     No dependencies checked - purely for load balancer/orchestrator.
     """
-    return HealthStatus(status="healthy")
+    agi_health = {}
+    try:
+        from backend.core.agi_event_handlers import check_agi_health
+        agi_health = check_agi_health()
+    except Exception:
+        pass
+    return {"status": "healthy", "agi_events": agi_health}
+
+
+@router.get("/health/agi")
+async def agi_health_check():
+    """Return AGI event handler health status."""
+    from backend.core.agi_event_handlers import check_agi_health
+    return check_agi_health()
 
 
 @router.get("/health/ready", response_model=ReadinessStatus, status_code=200)

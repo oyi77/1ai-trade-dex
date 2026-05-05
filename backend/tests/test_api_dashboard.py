@@ -57,10 +57,13 @@ class TestStatsEndpoint:
         data = resp.json()
         required_keys = {
             "bankroll",
+            "available_balance",
+            "total_balance",
             "total_trades",
             "winning_trades",
             "win_rate",
             "total_pnl",
+            "realized_pnl",
             "is_running",
         }
         for key in required_keys:
@@ -89,6 +92,62 @@ class TestStatsEndpoint:
         assert "live" in data
         assert isinstance(data["paper"], dict)
         assert isinstance(data["live"], dict)
+
+    def test_stats_exposes_explicit_balance_breakdown_fields(self, client):
+        with patch(
+            "backend.api.system.fetch_pm_profile_pnl",
+            AsyncMock(return_value=25.740828),
+        ):
+            resp = client.get("/api/v1/stats")
+            data = resp.json()
+
+        assert isinstance(data["available_balance"], (int, float))
+        assert isinstance(data["total_balance"], (int, float))
+        assert isinstance(data["realized_pnl"], (int, float))
+        assert isinstance(data["account_pnl"], (int, float))
+        assert "available_balance" in data["paper"]
+        assert "total_balance" in data["paper"]
+        assert "realized_pnl" in data["paper"]
+        assert "available_balance" in data["live"]
+        assert "total_balance" in data["live"]
+        assert "realized_pnl" in data["live"]
+        assert "account_pnl" in data["live"]
+
+    def test_stats_live_separates_profile_account_pnl_from_realized_ledger_pnl(self, client, db):
+        live_state = db.query(BotState).filter_by(mode="live").first()
+        db.info["allow_live_financial_update"] = True
+        live_state.bankroll = 130.0
+        live_state.total_pnl = 8.0
+        db.commit()
+        db.info.pop("allow_live_financial_update", None)
+
+        db.add(
+            Trade(
+                market_ticker="LIVE-SETTLED-WIN",
+                platform="polymarket",
+                direction="up",
+                entry_price=0.5,
+                size=10.0,
+                settled=True,
+                result="win",
+                pnl=5.0,
+                trading_mode="live",
+            )
+        )
+        db.commit()
+
+        with patch(
+            "backend.api.system.fetch_pm_profile_pnl",
+            AsyncMock(return_value=25.740828),
+        ):
+            resp = client.get("/api/v1/stats?mode=live")
+
+        data = resp.json()
+        assert data["total_pnl"] == 25.740828
+        assert data["account_pnl"] == 25.740828
+        assert data["realized_pnl"] == 5.0
+        assert data["live"]["account_pnl"] == 25.740828
+        assert data["live"]["realized_pnl"] == 5.0
 
     def test_stats_floors_simulated_bankroll_without_hiding_negative_pnl(self, client, db):
         paper_state = db.query(BotState).filter_by(mode="paper").first()

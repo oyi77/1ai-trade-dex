@@ -19,7 +19,7 @@ export function StatsCards() {
   const pnl = modeData ? modeData.pnl : stats.pnl
   const wins = modeData ? modeData.wins : stats.wins
   const trades = modeData ? modeData.trades : stats.trades
-  const bankroll = modeData ? modeData.bankroll : stats.bankroll
+  const bankroll = modeData ? (modeData.available_balance ?? modeData.bankroll) : stats.availableBalance
   const winRate = modeData && modeData.trades > 0 ? (modeData.wins / modeData.trades * 100) : stats.winRate
   const initialBankroll = modeData?.initial_bankroll ?? stats.stats.initial_bankroll
   const returnPercent = modeData && initialBankroll > 0 ? (modeData.pnl / initialBankroll * 100) : stats.returnPercent
@@ -30,7 +30,7 @@ export function StatsCards() {
   // Show actual per-mode stats regardless of which mode is active
   const openExposure = modeData ? (modeData.open_exposure ?? 0) : stats.openExposure
   const openTrades = modeData ? (modeData.open_trades ?? 0) : stats.openTrades
-  const totalEquity = modeData ? modeData.bankroll : stats.totalEquity
+  const totalEquity = modeData ? (modeData.total_balance ?? modeData.bankroll) : stats.totalEquity
   const settledTrades = modeData ? modeData.trades : stats.settledTrades
   const unrealizedPnl = modeData ? (modeData.unrealized_pnl ?? 0) : stats.unrealizedPnl
 

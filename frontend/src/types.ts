@@ -85,13 +85,18 @@ export interface Trade {
 
 export interface PnlModeStats {
   pnl: number
+  realized_pnl?: number
+  account_pnl?: number
   bankroll: number
+  available_balance?: number
+  total_balance?: number
   trades: number
   wins: number
   win_rate: number
   open_exposure?: number
   open_trades?: number
   unrealized_pnl?: number
+  position_cost?: number
   position_market_value?: number
   ledger_pnl?: number
   initial_bankroll?: number
@@ -99,10 +104,14 @@ export interface PnlModeStats {
 
 export interface BotStats {
   bankroll: number
+  available_balance?: number
+  total_balance?: number
   total_trades: number
   winning_trades: number
   win_rate: number
   total_pnl: number
+  realized_pnl?: number
+  account_pnl?: number
   is_running: boolean
   last_run: string | null
   initial_bankroll: number
@@ -111,7 +120,7 @@ export interface BotStats {
   testnet?: PnlModeStats
   live?: PnlModeStats
   mode?: string
-  active_mode?: string
+  active_mode?: string[] | string
   pnl_source?: string
   open_exposure?: number
   open_trades?: number
@@ -121,6 +130,7 @@ export interface BotStats {
   position_cost?: number
   position_market_value?: number
   live_ledger_pnl?: number
+  live_profile_pnl?: number
 }
 
 export interface EquityPoint {
