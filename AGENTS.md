@@ -48,6 +48,7 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 - Never commit `.env` — it contains live API keys and wallet credentials
 - Environment variables are documented in `.env.example`; always keep that in sync
 - Production deploys to Railway (backend) + Vercel (frontend) — check `railway.json` and `vercel.json`
+- Docusaurus docs deploy inside the Vercel frontend under `/docs/`; extensionless document URLs are redirected to trailing-slash routes before the Vite catch-all so docs pages do not render the dashboard shell.
 - PM2 manages multiple processes in production: API server, queue worker, and scheduler
 - Live `BotState.bankroll`/`total_pnl` are derived caches from CLOB USDC cash + Polymarket Data API open-position value; do not recompute live equity from local ledger/backfill P&L (see `docs/architecture/adr-002-live-equity-source.md`)
 - Paper/testnet PnL may be negative, but available simulated bankroll/balance must never be negative; settlement, reconciliation, and stats/dashboard output floor depleted simulated bankroll at `$0.00` while preserving learning trades and PnL history.

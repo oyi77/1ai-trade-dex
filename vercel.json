@@ -17,6 +17,13 @@
       "dest": "/frontend/docs/$1"
     },
     {
+      "src": "/docs/(.*[^/])$",
+      "headers": {
+        "Location": "/docs/$1/"
+      },
+      "status": 308
+    },
+    {
       "src": "/docs(/.*)?$",
       "dest": "/frontend/docs$1/index.html"
     },
