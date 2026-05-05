@@ -338,10 +338,21 @@ async def scan_for_signals(mode: str = "paper") -> List[TradingSignal]:
             f"    Edge: {signal.edge:+.1%} -> {signal.direction.upper()} @ ${signal.suggested_size:.2f}"
         )
 
-    # Persist signals with non-zero edge to DB for calibration tracking
-    _persist_signals(signals, mode=mode)
+    # Persist signals with non-zero edge to DB for calibration tracking, but do
+    # not let SQLite lock contention stall HTTP responses that only need the
+    # freshly generated signal list.
+    try:
+        asyncio.create_task(_persist_signals_async(signals, mode=mode))
+    except RuntimeError as exc:
+        logger.warning(f"Failed to schedule signal persistence: {exc}")
 
     return signals
+
+
+async def _persist_signals_async(signals: list, mode: str = "paper"):
+    """Persist scan results off the request path."""
+
+    await asyncio.to_thread(_persist_signals, signals, mode)
 
 
 def _persist_signals(signals: list, mode: str = "paper"):

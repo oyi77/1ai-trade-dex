@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
+from sqlalchemy.exc import OperationalError
 
 from backend.config import settings
 from backend.api.connection_limits import connection_limiter
@@ -28,6 +29,20 @@ from backend.scripts.seed_settings import seed_settings
 from backend.core.bankroll_reconciliation import reconcile_bot_state
 
 logger = logging.getLogger("trading_bot")
+
+
+def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
+    """Keep best-effort startup writes from blocking API availability."""
+
+    if "sqlite" not in settings.DATABASE_URL:
+        return
+
+    try:
+        from sqlalchemy import text
+
+        db.execute(text(f"PRAGMA busy_timeout={int(timeout_ms)}"))
+    except Exception as exc:
+        logger.debug(f"Failed to set startup SQLite busy_timeout={timeout_ms}: {exc}")
 
 
 class GracefulShutdownHandler:
@@ -650,45 +665,75 @@ async def _startup_wallet_sync():
 
 
 def _seed_strategy_configs() -> None:
-    """Seed default strategy configurations into the database."""
+    """Seed default strategy configurations into the database.
+
+    API startup must remain available even if the bot process is holding a
+    SQLite write lock. This bootstrap step is therefore best-effort: retry a
+    few times on lock contention, then continue startup with a warning.
+    """
     import json as _json
     logger.info("Seeding strategy configs - START")
-    
-    db = SessionLocal()
-    try:
-        added = 0
-        for name, enabled, interval, params in [            ("copy_trader", True, 60, {"max_wallets": 20, "min_score": 30.0, "poll_interval": 60}),
-            ("whale_frontrun", True, 10, {"min_whale_size": 10000, "max_slippage": 0.02}),
-            ("weather_emos", True, 300, {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
-            ("kalshi_arb", True, 60, {"min_edge": 0.02, "allow_live_execution": False}),
-            ("btc_oracle", False, 30, {"min_edge": 0.03, "max_minutes_to_resolution": 10}),
-            ("btc_5m", False, 60, {}),
-            ("btc_momentum", False, 60, {"max_trade_fraction": 0.03}),
-            ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
-            ("bond_scanner", False, 600, {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
-            ("realtime_scanner", False, 60, {"min_edge": 0.03, "max_position_usd": 100}),
-            ("whale_pnl_tracker", True, 30, {"min_wallet_pnl": 10000, "max_position_usd": 100}),
-            ("market_maker", False, 30, {"spread": 0.02, "max_position_usd": 200}),
-        ]:
-            exists = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
-            if not exists:
-                db.add(StrategyConfig(
-                    strategy_name=name,
-                    enabled=enabled,
-                    interval_seconds=interval,
-                    params=_json.dumps(params),
-                ))
-                added += 1
+
+    strategy_defaults = [
+        ("copy_trader", True, 60, {"max_wallets": 20, "min_score": 30.0, "poll_interval": 60}),
+        ("whale_frontrun", True, 10, {"min_whale_size": 10000, "max_slippage": 0.02}),
+        ("weather_emos", True, 300, {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
+        ("kalshi_arb", True, 60, {"min_edge": 0.02, "allow_live_execution": False}),
+        ("btc_oracle", False, 30, {"min_edge": 0.03, "max_minutes_to_resolution": 10}),
+        ("btc_5m", False, 60, {}),
+        ("btc_momentum", False, 60, {"max_trade_fraction": 0.03}),
+        ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
+        ("bond_scanner", False, 600, {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
+        ("realtime_scanner", False, 60, {"min_edge": 0.03, "max_position_usd": 100}),
+        ("whale_pnl_tracker", True, 30, {"min_wallet_pnl": 10000, "max_position_usd": 100}),
+        ("market_maker", False, 30, {"spread": 0.02, "max_position_usd": 200}),
+    ]
+
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        db = SessionLocal()
+        try:
+            _set_startup_sqlite_busy_timeout(db, 1000)
+            added = 0
+            for name, enabled, interval, params in strategy_defaults:
+                exists = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
+                if not exists:
+                    db.add(StrategyConfig(
+                        strategy_name=name,
+                        enabled=enabled,
+                        interval_seconds=interval,
+                        params=_json.dumps(params),
+                    ))
+                    added += 1
+                else:
+                    exists.enabled = enabled
+                    exists.interval_seconds = interval
+                    exists.params = _json.dumps(params)
+                    added += 1
+            if added:
+                db.commit()
+                logger.info(f"Committed {added} strategy config changes")
+                logger.info(f"Seeded {added} strategy configs into database")
             else:
-                exists.enabled = enabled
-                exists.interval_seconds = interval
-                exists.params = _json.dumps(params)
-                added += 1
-        if added:
-            db.commit()
-            logger.info(f"Committed {added} strategy config changes")
-            logger.info(f"Seeded {added} strategy configs into database")
-        else:
-            logger.info("No strategy config changes needed")
-    finally:
-        db.close()
+                logger.info("No strategy config changes needed")
+            return
+        except OperationalError as exc:
+            db.rollback()
+            if "database is locked" not in str(exc).lower() or attempt == max_attempts:
+                logger.warning(
+                    "Strategy config seeding skipped during startup after %s attempt(s): %s",
+                    attempt,
+                    exc,
+                    exc_info=True,
+                )
+                return
+            backoff = 0.5 * attempt
+            logger.warning(
+                "Strategy config seeding hit SQLite lock on attempt %s/%s; retrying in %.1fs",
+                attempt,
+                max_attempts,
+                backoff,
+            )
+            time.sleep(backoff)
+        finally:
+            db.close()

@@ -21,7 +21,7 @@ from sqlalchemy import (
     Enum,
 )
 from sqlalchemy import event
-from sqlalchemy.orm import Session as SQLAlchemySession, declarative_base
+from sqlalchemy.orm import Session as SQLAlchemySession, declarative_base, relationship
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import inspect
@@ -62,6 +62,18 @@ configure_sqlite_wal(engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def _set_sqlite_busy_timeout(connection_or_session, timeout_ms: int) -> None:
+    """Apply a shorter busy_timeout for best-effort SQLite bootstrap work."""
+
+    if not _is_sqlite:
+        return
+
+    try:
+        connection_or_session.execute(text(f"PRAGMA busy_timeout={int(timeout_ms)}"))
+    except Exception as exc:
+        logger.debug(f"Could not set SQLite busy_timeout={timeout_ms}: {exc}")
 
 try:
     import backend.models.kg_models  # noqa: F401 — registers ExperimentRecord, StrategyProposal with Base.metadata
@@ -151,6 +163,12 @@ class Trade(Base):
     filled_size = Column(
         Float, nullable=True
     )  # actual fill amount, None = assumed full fill
+    fill_price = Column(
+        Float, nullable=True
+    )  # actual fill price, None = assumed entry_price
+    fill_ratio = Column(
+        Float, nullable=True
+    )  # fill_ratio = filled_size / size, None = assumed 1.0
 
     # On-chain order tracking (testnet / live modes)
     clob_order_id = Column(
@@ -173,6 +191,50 @@ class Trade(Base):
     settlement_source = Column(String, nullable=True, default=None)
     last_sync_at = Column(DateTime, nullable=True, default=None, index=True)
     external_import_at = Column(DateTime, nullable=True, default=None)
+
+
+class GenomeRegistry(Base):
+    """Registry of genetic algorithms and their configurations."""
+
+    __tablename__ = "genome_registry"
+
+    genome_id = Column(String, primary_key=True, index=True)  # UUID or identifier
+    strategy_name = Column(String, nullable=False, index=True)
+    archetype = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    stage = Column(String, nullable=False, index=True)  # DRAFT, SHADOW, PAPER, LIVE, GRAVEYARD
+    lineage_json = Column(Text, nullable=False)
+    chromosomes_json = Column(Text, nullable=False)
+    fitness_json = Column(Text, nullable=False)
+    chromosome_perf_json = Column(Text, nullable=True)
+    death_certificate_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+    stage_entered_at = Column(DateTime, nullable=True)  # When stage was entered
+
+    # Relationships
+    evolution_logs = relationship("EvolutionLog", back_populates="genome", cascade="all, delete-orphan")
+
+class ShadowTrade(Base):
+    """Shadow trades for strategy validation without real capital."""
+
+    __tablename__ = "shadow_trade"
+
+    id = Column(Integer, primary_key=True, index=True)
+    market_ticker = Column(String, index=True)
+    direction = Column(String)  # 'up' or 'down'
+    entry_price = Column(Float)
+    size = Column(Float)
+    model_probability = Column(Float)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    strategy = Column(String, index=True)
+    settled = Column(Boolean, default=False)
+    settlement_value = Column(Float, nullable=True)
+    pnl = Column(Float, nullable=True)
+    accuracy_score = Column(Float, nullable=True)
+    genome_id = Column(String, ForeignKey("genome_registry.genome_id", ondelete="SET NULL"), nullable=True, index=True)
+    predicted_outcome = Column(Float, nullable=True)
+    actual_outcome = Column(Float, nullable=True)
 
 
 class BtcPriceSnapshot(Base):
@@ -224,6 +286,13 @@ class BotState(Base):
     testnet_initial_bankroll = Column(Float, nullable=True, default=None,
                                       doc="Effective initial bankroll for testnet mode including top-ups. "
                                           "None means use 100.")
+
+    # Live trading tracking
+    live_initial_bankroll = Column(Float, nullable=True, default=None,
+                                   doc="Effective initial bankroll for live mode. "
+                                       "Set on first sync from settings.INITIAL_BANKROLL. "
+                                       "Deposits do NOT update this — it stays anchored so PnL "
+                                       "reflects only trading performance, never capital injections.")
 
     # Generic JSON blob for strategy heartbeats and ad-hoc state
     misc_data = Column(Text, nullable=True)
@@ -669,6 +738,22 @@ class AuditLog(Base):
     action = Column(String, nullable=True)
     details = Column(JSON, nullable=True)
 
+class EvolutionLog(Base):
+    """Log of genome evolution events and stage transitions."""
+
+    __tablename__ = "evolution_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    genome_id = Column(String, ForeignKey("genome_registry.genome_id"), index=True)
+    event_type = Column(String, index=True)  # promotion, mutation, crossover, auto_killed, etc.
+    from_stage = Column(String, nullable=True)  # Source stage
+    to_stage = Column(String, nullable=True)  # Target stage
+    data = Column(JSON, default=lambda: {})  # Additional event data
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Relationships
+    genome = relationship("GenomeRegistry", back_populates="evolution_logs")
+
 
 class Experiment(Base):
     """Track parameter experiments for each strategy."""
@@ -1057,6 +1142,8 @@ def seed_default_data():
     
     db = SessionLocal()
     try:
+        _set_sqlite_busy_timeout(db, 1000)
+
         for mode in ["paper", "testnet", "live"]:
             existing = db.query(BotState).filter_by(mode=mode).first()
             if not existing:
@@ -1081,9 +1168,25 @@ def seed_default_data():
                     testnet_trades=0,
                     testnet_wins=0,
                     testnet_initial_bankroll=100.0 if mode == "testnet" else None,
+                    live_initial_bankroll=initial_bankroll if mode == "live" else None,
                 )
                 db.add(bot_state)
                 logger.info(f"Seeded BotState for mode: {mode}")
+            else:
+                if mode == "live" and existing.live_initial_bankroll is None:
+                    existing.live_initial_bankroll = app_settings.INITIAL_BANKROLL
+                    db.info["allow_live_financial_update"] = True
+                    logger.info(
+                        f"Backfilled live_initial_bankroll = {app_settings.INITIAL_BANKROLL}"
+                    )
+                if mode == "paper" and existing.paper_initial_bankroll is None:
+                    existing.paper_initial_bankroll = app_settings.INITIAL_BANKROLL
+                    logger.info(
+                        f"Backfilled paper_initial_bankroll = {app_settings.INITIAL_BANKROLL}"
+                    )
+                if mode == "testnet" and existing.testnet_initial_bankroll is None:
+                    existing.testnet_initial_bankroll = 100.0
+                    logger.info("Backfilled testnet_initial_bankroll = 100.0")
         
         from backend.strategies.registry import load_all_strategies, STRATEGY_REGISTRY
         load_all_strategies()
@@ -1386,6 +1489,8 @@ def ensure_schema():
             "ALTER TABLE trades ADD COLUMN clob_order_id TEXT",
             "ALTER TABLE trades ADD COLUMN clob_idempotency_key TEXT",
             "ALTER TABLE trades ADD COLUMN filled_size REAL",
+            "ALTER TABLE trades ADD COLUMN fill_price REAL",
+            "ALTER TABLE trades ADD COLUMN fill_ratio REAL",
         ]:
             col_name = col_def.split("ADD COLUMN ")[1].split()[0]
             if col_name not in existing_cols:
@@ -1569,6 +1674,7 @@ def ensure_schema():
     # Backfill logic for existing trades (preserve data)
     try:
         with engine.connect() as conn:
+            _set_sqlite_busy_timeout(conn, 1000)
             with conn.begin():
                 # Set source="bot" for all existing trades (assume bot-executed)
                 conn.execute(
@@ -1628,6 +1734,39 @@ def log_audit(action: str, actor: str = "system", details: dict = None):
         db.rollback()
     finally:
         db.close()
+
+
+# Knowledge Graph models for Wave 10
+class KgNode(Base):
+    """Knowledge Graph Node - represents entities in the graph."""
+    
+    __tablename__ = "kg_node"
+    
+    node_id = Column(String, primary_key=True, index=True)
+    node_type = Column(String, nullable=False, index=True)  # 'strategy', 'gene', 'market', 'trade', 'regime', 'event'
+    label = Column(String, nullable=False)
+    properties_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class KgEdge(Base):
+    """Knowledge Graph Edge - represents relationships between nodes."""
+    
+    __tablename__ = "kg_edge"
+    
+    edge_id = Column(String, primary_key=True, index=True)
+    from_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
+    to_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
+    relationship = Column(String, nullable=False)  # 'HAS_GENE', 'TRADED_ON', 'MUTATED_FROM', 'KILLED_BY', etc.
+    weight = Column(Float, default=1.0)
+    properties_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# Indexes for Knowledge Graph
+Index('idx_kg_from', KgEdge.from_node_id, KgEdge.relationship)
+Index('idx_kg_to', KgEdge.to_node_id, KgEdge.relationship)
+Index('idx_kg_type', KgNode.node_type)
 
 
 def get_db():
