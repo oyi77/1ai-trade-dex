@@ -4,9 +4,10 @@ import time
 import psutil
 import logging
 from collections import deque
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError, PendingRollbackError
 from backend.models.database import PerformanceMetric
 
 logger = logging.getLogger("trading_bot")
@@ -71,20 +72,34 @@ class PerformanceTracker:
     ):
         """Track HTTP request performance."""
         self.request_tracker.add(duration_ms)
-        
+
         if db:
             try:
-                metric = PerformanceMetric(
-                    metric_type="request",
-                    endpoint=endpoint,
-                    method=method,
-                    status_code=status_code,
-                    duration_ms=duration_ms,
-                    user_agent=user_agent,
-                    error_message=error_message
-                )
-                db.add(metric)
-                db.commit()
+                max_retries = 3
+                base_delay_ms = 200
+                for attempt in range(max_retries):
+                    try:
+                        metric = PerformanceMetric(
+                            metric_type="request",
+                            endpoint=endpoint,
+                            method=method,
+                            status_code=status_code,
+                            duration_ms=duration_ms,
+                            user_agent=user_agent,
+                            error_message=error_message
+                        )
+                        db.add(metric)
+                        db.commit()
+                        break
+                    except (OperationalError, PendingRollbackError) as e:
+                        if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                            db.rollback()
+                            delay_ms = base_delay_ms * (2 ** attempt)
+                            logger.warning(f"PerformanceTracker: Database locked, retrying in {delay_ms}ms (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(delay_ms / 1000)
+                            continue
+                        else:
+                            raise
             except Exception as e:
                 logger.warning(f"Failed to store request metric: {e}")
                 db.rollback()
@@ -97,16 +112,30 @@ class PerformanceTracker:
     ):
         """Track database query performance."""
         self.db_query_tracker.add(duration_ms)
-        
+
         if db:
             try:
-                metric = PerformanceMetric(
-                    metric_type="db_query",
-                    query_type=query_type,
-                    query_duration_ms=duration_ms
-                )
-                db.add(metric)
-                db.commit()
+                max_retries = 3
+                base_delay_ms = 200
+                for attempt in range(max_retries):
+                    try:
+                        metric = PerformanceMetric(
+                            metric_type="db_query",
+                            query_type=query_type,
+                            query_duration_ms=duration_ms
+                        )
+                        db.add(metric)
+                        db.commit()
+                        break
+                    except (OperationalError, PendingRollbackError) as e:
+                        if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                            db.rollback()
+                            delay_ms = base_delay_ms * (2 ** attempt)
+                            logger.warning(f"PerformanceTracker: Database locked, retrying in {delay_ms}ms (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(delay_ms / 1000)
+                            continue
+                        else:
+                            raise
             except Exception as e:
                 logger.warning(f"Failed to store DB query metric: {e}")
                 db.rollback()
@@ -119,16 +148,30 @@ class PerformanceTracker:
     ):
         """Track WebSocket message latency."""
         self.ws_tracker.add(latency_ms)
-        
+
         if db:
             try:
-                metric = PerformanceMetric(
-                    metric_type="websocket",
-                    ws_message_type=message_type,
-                    ws_latency_ms=latency_ms
-                )
-                db.add(metric)
-                db.commit()
+                max_retries = 3
+                base_delay_ms = 200
+                for attempt in range(max_retries):
+                    try:
+                        metric = PerformanceMetric(
+                            metric_type="websocket",
+                            ws_message_type=message_type,
+                            ws_latency_ms=latency_ms
+                        )
+                        db.add(metric)
+                        db.commit()
+                        break
+                    except (OperationalError, PendingRollbackError) as e:
+                        if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                            db.rollback()
+                            delay_ms = base_delay_ms * (2 ** attempt)
+                            logger.warning(f"PerformanceTracker: Database locked, retrying in {delay_ms}ms (attempt {attempt + 1}/{max_retries})")
+                            time.sleep(delay_ms / 1000)
+                            continue
+                        else:
+                            raise
             except Exception as e:
                 logger.warning(f"Failed to store WebSocket metric: {e}")
                 db.rollback()
@@ -140,17 +183,35 @@ class PerformanceTracker:
             memory_mb = memory_info.rss / (1024 * 1024)
             memory_percent = self.process.memory_percent()
             cpu_percent = self.process.cpu_percent(interval=0.1)
-            
+
             if db:
-                metric = PerformanceMetric(
-                    metric_type="system",
-                    memory_usage_mb=memory_mb,
-                    memory_percent=memory_percent,
-                    cpu_percent=cpu_percent
-                )
-                db.add(metric)
-                db.commit()
-            
+                try:
+                    max_retries = 3
+                    base_delay_ms = 200
+                    for attempt in range(max_retries):
+                        try:
+                            metric = PerformanceMetric(
+                                metric_type="system",
+                                memory_usage_mb=memory_mb,
+                                memory_percent=memory_percent,
+                                cpu_percent=cpu_percent
+                            )
+                            db.add(metric)
+                            db.commit()
+                            break
+                        except (OperationalError, PendingRollbackError) as e:
+                            if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                                db.rollback()
+                                delay_ms = base_delay_ms * (2 ** attempt)
+                                logger.warning(f"PerformanceTracker: Database locked, retrying in {delay_ms}ms (attempt {attempt + 1}/{max_retries})")
+                                time.sleep(delay_ms / 1000)
+                                continue
+                            else:
+                                raise
+                except Exception as e:
+                    logger.warning(f"Failed to store system metric: {e}")
+                    db.rollback()
+
             return {
                 "memory_mb": memory_mb,
                 "memory_percent": memory_percent,
@@ -199,13 +260,26 @@ class PerformanceTracker:
     def cleanup_old_metrics(self, db: Session, days: int = 30):
         """Remove metrics older than specified days."""
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-            deleted = db.query(PerformanceMetric).filter(
-                PerformanceMetric.timestamp < cutoff
-            ).delete()
-            db.commit()
-            logger.info(f"Cleaned up {deleted} old performance metrics (older than {days} days)")
-            return deleted
+            max_retries = 3
+            base_delay_ms = 200
+            for attempt in range(max_retries):
+                try:
+                    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+                    deleted = db.query(PerformanceMetric).filter(
+                        PerformanceMetric.timestamp < cutoff
+                    ).delete()
+                    db.commit()
+                    logger.info(f"Cleaned up {deleted} old performance metrics (older than {days} days)")
+                    return deleted
+                except (OperationalError, PendingRollbackError) as e:
+                    if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                        db.rollback()
+                        delay_ms = base_delay_ms * (2 ** attempt)
+                        logger.warning(f"PerformanceTracker: Database locked, retrying in {delay_ms}ms (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay_ms / 1000)
+                        continue
+                    else:
+                        raise
         except Exception as e:
             logger.error(f"Failed to cleanup old metrics: {e}")
             db.rollback()
