@@ -282,11 +282,12 @@ class PolyEdgeBot:
                 if hasattr(signal, "suggested_size")
                 else "—"
             )
-            mode = settings.TRADING_MODE.upper()
-            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(mode, "⚪")
+            mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
+            primary_mode = sorted(settings.active_modes_set)[0].upper() if settings.active_modes_set else "PAPER"
+            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(primary_mode, "⚪")
             executed = "✅ TRADE PLACED" if trade else "📊 SIGNAL (no trade)"
             text = (
-                f"<b>BTC SIGNAL {mode_emoji} {mode}</b>\n"
+                f"<b>BTC SIGNAL {mode_emoji} {mode_str}</b>\n"
                 f"\n"
                 f"<b>{executed}</b>\n"
                 f"Market: <i>{getattr(signal, 'market_ticker', 'N/A')}</i>\n"
@@ -314,8 +315,9 @@ class PolyEdgeBot:
         try:
             from backend.config import settings
 
-            mode = settings.TRADING_MODE.upper()
-            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(mode, "⚪")
+            mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
+            primary_mode = sorted(settings.active_modes_set)[0].upper() if settings.active_modes_set else "PAPER"
+            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(primary_mode, "⚪")
             text = (
                 f"<b>📈 TRADE OPENED {mode_emoji}</b>\n"
                 f"\n"
@@ -498,7 +500,7 @@ class PolyEdgeBot:
         from backend.models.database import SessionLocal, BotState
 
         mode_emoji = {"paper": "🟠 PAPER", "testnet": "🟡 TESTNET", "live": "🔴 LIVE"}
-        mode = mode_emoji.get(settings.TRADING_MODE, "🟠 PAPER")
+        mode_str = ", ".join(mode_emoji.get(m, "🟠 PAPER") for m in sorted(settings.active_modes_set))
         paused = "⏸ PAUSED" if self._paused else "🟢 RUNNING"
 
         bankroll = settings.INITIAL_BANKROLL
@@ -507,13 +509,13 @@ class PolyEdgeBot:
             try:
                 state = db.query(BotState).first()
                 if state:
-                    if settings.TRADING_MODE == "paper":
+                    if settings.is_mode_active("paper"):
                         bankroll = (
                             state.paper_bankroll
                             if state.paper_bankroll is not None
                             else settings.INITIAL_BANKROLL
                         )
-                    elif settings.TRADING_MODE == "testnet":
+                    elif settings.is_mode_active("testnet"):
                         bankroll = (
                             state.testnet_bankroll
                             if state.testnet_bankroll is not None
@@ -532,7 +534,7 @@ class PolyEdgeBot:
 
         await update.message.reply_text(
             f"<b>PolyEdge Status</b>\n\n"
-            f"Mode:     {mode}\n"
+            f"Mode:     {mode_str}\n"
             f"Scanner:  {paused}\n"
             f"Bankroll: ${bankroll:,.2f}\n"
             f"Cities:   {settings.WEATHER_CITIES}\n"
@@ -553,7 +555,7 @@ class PolyEdgeBot:
                 pending = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(False))
-                    .filter(Trade.trading_mode == _s.TRADING_MODE)
+                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .order_by(Trade.timestamp.desc())
                     .all()
                 )
@@ -625,7 +627,7 @@ class PolyEdgeBot:
 
         await update.message.reply_text(
             f"<b>PolyEdge Settings</b>\n\n"
-            f"Trading mode:      {settings.TRADING_MODE}\n"
+            f"Active modes:      {', '.join(sorted(settings.active_modes_set))}\n"
             f"Kelly fraction:    {settings.KELLY_FRACTION}\n"
             f"Max trade size:    ${settings.WEATHER_MAX_TRADE_SIZE}\n"
             f"Edge threshold:    {settings.WEATHER_MIN_EDGE_THRESHOLD:.0%}\n"
@@ -705,7 +707,7 @@ class PolyEdgeBot:
 
                 trades = (
                     db.query(Trade)
-                    .filter(Trade.trading_mode == _s.TRADING_MODE)
+                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .order_by(Trade.timestamp.desc())
                     .limit(n)
                     .all()
@@ -749,17 +751,16 @@ class PolyEdgeBot:
             try:
                 from backend.config import settings as _s
 
-                mode = _s.TRADING_MODE
                 pending = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(False))
-                    .filter(Trade.trading_mode == mode)
+                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .all()
                 )
                 settled = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(True))
-                    .filter(Trade.trading_mode == mode)
+                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .all()
                 )
             finally:
@@ -767,8 +768,9 @@ class PolyEdgeBot:
             total_pnl = sum(t.pnl or 0.0 for t in settled)
             exposure = sum(t.size for t in pending)
             equity = settings.INITIAL_BANKROLL + total_pnl
-            mode = settings.TRADING_MODE.upper()
-            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(mode, "⚪")
+            mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
+            primary_mode = sorted(settings.active_modes_set)[0].upper() if settings.active_modes_set else "PAPER"
+            mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(primary_mode, "⚪")
             await update.message.reply_text(
                 f"<b>💰 Bankroll {mode_emoji}</b>\n"
                 f"\n"
@@ -810,7 +812,7 @@ class PolyEdgeBot:
                 all_trades = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(True))
-                    .filter(Trade.trading_mode == _s.TRADING_MODE)
+                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .all()
                 )
             finally:

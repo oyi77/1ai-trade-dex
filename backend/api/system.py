@@ -799,10 +799,10 @@ async def paper_topup(
             status_code=400,
             detail="Set confirm=true to confirm topup.",
         )
-    if settings.TRADING_MODE != "paper":
+    if not settings.is_mode_active("paper"):
         raise HTTPException(
             status_code=409,
-            detail=f"paper-topup only available in paper mode (current mode: {settings.TRADING_MODE})",
+            detail="paper-topup only available when paper mode is active",
         )
 
     from backend.core.scheduler import log_event
@@ -985,11 +985,12 @@ async def get_events(limit: int = 50):
 async def run_scan(db: Session = Depends(get_db), _: None = Depends(require_admin)):
     from backend.core.scheduler import run_manual_scan, log_event
 
-    mode = settings.TRADING_MODE
-    state = db.query(BotState).filter_by(mode=mode).first()
-    if state:
-        state.last_run = datetime.now(timezone.utc)
-        db.commit()
+    # Iterate over all active modes to update last_run
+    for mode in settings.active_modes_set:
+        state = db.query(BotState).filter_by(mode=mode).first()
+        if state:
+            state.last_run = datetime.now(timezone.utc)
+    db.commit()
 
     log_event("info", "Manual scan triggered (BTC + Weather)")
     await run_manual_scan()

@@ -155,10 +155,10 @@ async def sync_now(
             detail="mode must be 'live' (no separate testnet blockchain exists)"
         )
     
-    if settings.TRADING_MODE == "paper":
+    if not settings.is_mode_active("live") and not settings.is_mode_active("testnet"):
         raise HTTPException(
             status_code=400,
-            detail="Sync not available in paper mode"
+            detail="Sync not available — no live/testnet mode active"
         )
     
     # Need to create a new session for background task since the injected one closes when request finishes

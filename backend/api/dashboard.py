@@ -415,4 +415,5 @@ async def get_dashboard(
         weather_signals=weather_signals_data,
         weather_forecasts=weather_forecasts_data,
         trading_mode=settings.TRADING_MODE,
+        active_modes=sorted(settings.active_modes_set),
     )

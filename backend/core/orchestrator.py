@@ -42,7 +42,7 @@ class Orchestrator:
             self._clob_clients[mode] = clob_client
             logger.info(f"CLOB client initialized for mode: {mode}")
 
-        if settings.TRADING_MODE == "live":
+        if settings.is_mode_active("live"):
             logger.info("Live mode: deriving API credentials from private key...")
             creds = await self._clob_clients["live"].create_or_derive_api_creds()
             if not creds:
@@ -160,7 +160,7 @@ class Orchestrator:
             await self._bot.stop()
 
         if self._clob:
-            if settings.TRADING_MODE == "live":
+            if settings.is_mode_active("live"):
                 await self._clob.cancel_all_orders()
             await self._clob.__aexit__(None, None, None)
 
@@ -220,7 +220,7 @@ class Orchestrator:
                             exc_info=True,
                         )
             else:
-                if settings.TRADING_MODE == "paper":
+                if mode == "paper":
                     await _auto_execute_weather(actionable[:3], clob)
 
             try:

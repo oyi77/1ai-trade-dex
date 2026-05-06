@@ -887,7 +887,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         from backend.strategies.base import StrategyContext
         from backend.config import settings as _settings
 
-        effective_mode = mode or (config.trading_mode if config.trading_mode else _settings.TRADING_MODE)
+        effective_mode = mode or config.trading_mode or _settings.TRADING_MODE
 
         ctx = StrategyContext(
             db=db,

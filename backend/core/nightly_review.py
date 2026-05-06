@@ -72,13 +72,15 @@ class NightlyReviewWriter:
         try:
             from backend.config import settings
 
-            bot = db.query(BotState).filter(
-                BotState.mode == settings.TRADING_MODE
-            ).first()
-            if bot:
-                lines.append(f"- **Bankroll**: ${bot.bankroll or 0:.2f}")
-                lines.append(f"- **Total PnL**: ${bot.total_pnl or 0:.2f}")
-                lines.append(f"- **Total Trades**: {bot.total_trades or 0}")
+            for mode in settings.active_modes_set:
+                bot = db.query(BotState).filter(
+                    BotState.mode == mode
+                ).first()
+                if bot:
+                    lines.append(f"### Mode: {mode}")
+                    lines.append(f"- **Bankroll**: ${bot.bankroll or 0:.2f}")
+                    lines.append(f"- **Total PnL**: ${bot.total_pnl or 0:.2f}")
+                    lines.append(f"- **Total Trades**: {bot.total_trades or 0}")
 
             yesterday = now - timedelta(days=1)
             recent = (

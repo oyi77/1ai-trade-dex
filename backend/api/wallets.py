@@ -285,7 +285,12 @@ async def get_wallet_balance(
         try:
             from backend.data.polymarket_clob import clob_from_settings
 
-            async with clob_from_settings(mode=settings.TRADING_MODE) as clob:
+            # Iterate over active modes that require live wallet sync (live/testnet)
+            active_trading_modes = [m for m in settings.active_modes_set if m in ("live", "testnet")]
+            if not active_trading_modes:
+                active_trading_modes = ["live"]  # Fallback if no active trading modes
+            
+            async with clob_from_settings(mode=active_trading_modes[0]) as clob:
                 balance_data = await clob.get_wallet_balance()
 
                 if balance_data.get("error") is None:

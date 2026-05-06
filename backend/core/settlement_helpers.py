@@ -1191,7 +1191,7 @@ async def reconcile_positions(db: Session) -> List[int]:
     from backend.config import settings
     from backend.models.database import Trade
 
-    if settings.TRADING_MODE == "paper":
+    if trading_mode == "paper":
         logger.debug("Skipping position reconciliation in paper mode")
         return []
 
@@ -1220,7 +1220,7 @@ async def reconcile_positions(db: Session) -> List[int]:
             db.query(Trade)
             .filter(
                 Trade.settled.is_(False),
-                Trade.trading_mode == settings.TRADING_MODE,
+                Trade.trading_mode == trading_mode,
                 Trade.platform == "polymarket",
             )
             .all()

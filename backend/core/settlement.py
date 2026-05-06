@@ -273,7 +273,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             alert_manager.check_failed_settlement(
                 trade_id=0,
                 reason=f"Position reconciliation failed: {e}",
-                mode=settings.TRADING_MODE,
+                mode=trading_mode,
             )
 
         try:
@@ -485,7 +485,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 alert_manager.check_failed_settlement(
                     trade_id=0,
                     reason=f"Failed to commit settlements: {e}",
-                    mode=settings.TRADING_MODE,
+                    mode=trading_mode,
                 )
                 db.rollback()
 

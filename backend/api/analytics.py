@@ -150,13 +150,14 @@ def get_allocations(
     state = db.query(BotState).first()
     bankroll = settings.INITIAL_BANKROLL
     if state:
-        if settings.TRADING_MODE == "paper":
+        primary_mode = settings.TRADING_MODE
+        if primary_mode == "paper":
             bankroll = float(
                 state.paper_bankroll
                 if state.paper_bankroll is not None
                 else settings.INITIAL_BANKROLL
             )
-        elif settings.TRADING_MODE == "testnet":
+        elif primary_mode == "testnet":
             bankroll = float(
                 state.testnet_bankroll
                 if state.testnet_bankroll is not None

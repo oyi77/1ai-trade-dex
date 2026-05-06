@@ -86,7 +86,7 @@ class GracefulShutdownHandler:
 
 async def _refresh_balance_cache():
     """Refresh the cached wallet balance from CLOB."""
-    if settings.TRADING_MODE not in ("live", "testnet"):
+    if not any(m in ("live", "testnet") for m in settings.active_modes_set):
         return
     
     try:
@@ -662,7 +662,7 @@ async def _startup_wallet_sync():
     try:
         from backend.data.polymarket_clob import clob_from_settings
         for mode in ["live"]:
-            if settings.TRADING_MODE in ("live", "paper"):
+            if settings.is_mode_active("live") or settings.is_mode_active("paper"):
                 try:
                     clob = clob_from_settings(mode=mode)
                     reconciler_db = SessionLocal()

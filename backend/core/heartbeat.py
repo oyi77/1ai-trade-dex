@@ -40,18 +40,19 @@ def _flush_heartbeats() -> None:
     conn = sqlite3.connect(db_path, timeout=30.0)
     try:
         conn.execute("PRAGMA journal_mode=WAL")
-        row = conn.execute("SELECT misc_data FROM bot_state WHERE id=1 AND mode=?", (settings.TRADING_MODE,)).fetchone()
-        if not row:
-            return
-        data = {}
-        if row[0]:
-            try:
-                data = json.loads(row[0])
-            except Exception:
-                data = {}
-        for strategy_name, ts in snapshot.items():
-            data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-        conn.execute("UPDATE bot_state SET misc_data=? WHERE id=1 AND mode=?", (json.dumps(data), settings.TRADING_MODE))
+        for mode in settings.active_modes_set:
+            row = conn.execute("SELECT misc_data FROM bot_state WHERE id=1 AND mode=?", (mode,)).fetchone()
+            if not row:
+                continue
+            data = {}
+            if row[0]:
+                try:
+                    data = json.loads(row[0])
+                except Exception:
+                    data = {}
+            for strategy_name, ts in snapshot.items():
+                data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+            conn.execute("UPDATE bot_state SET misc_data=? WHERE id=1 AND mode=?", (json.dumps(data), mode))
         conn.commit()
     except Exception as e:
         logger.warning(f"heartbeat flush failed: {e}")
@@ -70,23 +71,24 @@ def get_strategy_health(db) -> list[dict]:
             db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
         )
         from backend.config import settings
-        state = db.query(BotState).filter_by(mode=settings.TRADING_MODE).first()
-        data = {}
-        if state and state.misc_data:
-            try:
-                data = (
-                    json.loads(state.misc_data)
-                    if isinstance(state.misc_data, str)
-                    else {}
-                )
-            except Exception:
-                logger.warning("Failed to parse misc_data JSON, resetting")
-                data = {}
+        all_data = {}
+        for mode in settings.active_modes_set:
+            state = db.query(BotState).filter_by(mode=mode).first()
+            if state and state.misc_data:
+                try:
+                    mode_data = (
+                        json.loads(state.misc_data)
+                        if isinstance(state.misc_data, str)
+                        else {}
+                    )
+                    all_data.update(mode_data)
+                except Exception:
+                    logger.warning(f"Failed to parse misc_data JSON for mode {mode}, skipping")
 
         now = datetime.now(timezone.utc)
         for cfg in configs:
             key = f"{HEARTBEAT_PREFIX}{cfg.strategy_name}"
-            last_hb_str = data.get(key)
+            last_hb_str = all_data.get(key)
             last_hb = None
             lag = None
             healthy = False
@@ -218,8 +220,9 @@ async def wallet_sync_job() -> None:
     except Exception:
         pass
 
-    if settings.TRADING_MODE in ("live", "testnet"):
-        modes_to_sync.add(settings.TRADING_MODE)
+    for mode in settings.active_modes_set:
+        if mode in ("live", "testnet"):
+            modes_to_sync.add(mode)
 
     if not modes_to_sync:
         return

@@ -607,13 +607,12 @@ async def get_admin_system(
 ):
     """Return system health overview."""
     state = db.query(BotState).first()
-    _mode = settings.TRADING_MODE
     pending_trades = (
         db.query(Trade)
-        .filter(Trade.settled.is_(False), Trade.trading_mode == _mode)
+        .filter(Trade.settled.is_(False), Trade.trading_mode.in_(settings.active_modes_set))
         .count()
     )
-    db_trade_count = db.query(Trade).filter(Trade.trading_mode == _mode).count()
+    db_trade_count = db.query(Trade).filter(Trade.trading_mode.in_(settings.active_modes_set)).count()
     db_signal_count = db.query(Signal).count()
 
     uptime = (

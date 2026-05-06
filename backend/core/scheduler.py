@@ -621,30 +621,30 @@ def start_scheduler():
         disabled = []
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
-            current_mode = settings.TRADING_MODE
-
             for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
                 if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
                     continue
 
-                trades = db.query(Trade).filter(
-                    Trade.strategy == config.strategy_name,
-                    Trade.settled == True,
-                    Trade.timestamp >= since,
-                    Trade.trading_mode == current_mode,
-                ).all()
+                for mode in settings.active_modes_set:
+                    trades = db.query(Trade).filter(
+                        Trade.strategy == config.strategy_name,
+                        Trade.settled == True,
+                        Trade.timestamp >= since,
+                        Trade.trading_mode == mode,
+                    ).all()
 
-                if len(trades) < 3:
-                    continue
+                    if len(trades) < 3:
+                        continue
 
-                wins = sum(1 for t in trades if t.result == 'win')
-                win_rate = wins / len(trades)
-                pnl = sum(t.pnl for t in trades if t.pnl)
+                    wins = sum(1 for t in trades if t.result == 'win')
+                    win_rate = wins / len(trades)
+                    pnl = sum(t.pnl for t in trades if t.pnl)
 
-                if win_rate < 0.30 or pnl < -50.0:
-                    config.enabled = False
-                    disabled.append(f"{config.strategy_name}: win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                    logger.warning(f"Auto-disabled {config.strategy_name}: win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                    if win_rate < 0.30 or pnl < -50.0:
+                        config.enabled = False
+                        disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                        logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                        break
 
             if disabled:
                 db.commit()

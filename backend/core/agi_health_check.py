@@ -98,26 +98,30 @@ class AGIHealthChecker:
         try:
             from backend.config import settings
 
-            bot = db.query(BotState).filter(
-                BotState.mode == settings.TRADING_MODE
-            ).first()
-            if not bot:
-                return {"healthy": False, "reason": "no BotState found"}
+            unhealthy_modes = []
+            for mode in settings.active_modes_set:
+                bot = db.query(BotState).filter(
+                    BotState.mode == mode
+                ).first()
+                if not bot:
+                    unhealthy_modes.append({"mode": mode, "reason": "no BotState found"})
+                    continue
 
-            bankroll = bot.bankroll or 0.0
-            if bankroll <= 0:
-                return {"healthy": False, "reason": "bankroll depleted", "bankroll": bankroll}
+                bankroll = bot.bankroll or 0.0
+                if bankroll <= 0:
+                    unhealthy_modes.append({"mode": mode, "reason": "bankroll depleted", "bankroll": bankroll})
+                    continue
 
-            daily_loss = bot.daily_pnl or 0.0
-            loss_limit = settings.DAILY_LOSS_LIMIT
-            near_limit = abs(daily_loss) > loss_limit * settings.AGI_HEALTH_BUDGET_NEAR_LIMIT_PCT if daily_loss < 0 else False
+                daily_loss = bot.daily_pnl or 0.0
+                loss_limit = settings.DAILY_LOSS_LIMIT
+                near_limit = abs(daily_loss) > loss_limit * settings.AGI_HEALTH_BUDGET_NEAR_LIMIT_PCT if daily_loss < 0 else False
 
-            return {
-                "healthy": not near_limit,
-                "bankroll": bankroll,
-                "daily_pnl": daily_loss,
-                "near_daily_limit": near_limit,
-            }
+                if near_limit:
+                    unhealthy_modes.append({"mode": mode, "reason": "near daily loss limit", "daily_loss": daily_loss})
+
+            if unhealthy_modes:
+                return {"healthy": False, "reason": "budget issues in active modes", "modes": unhealthy_modes}
+            return {"healthy": True}
         except Exception as e:
             return {"healthy": False, "error": str(e)}
 

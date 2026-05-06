@@ -36,40 +36,34 @@ class BankrollAllocator:
         import json
         db = SessionLocal()
         try:
-            # Read current bankroll for the active mode
-            state = db.query(BotState).filter_by(mode=settings.TRADING_MODE).first()
-            if not state:
-                state = db.query(BotState).first()
-            if not state:
-                logger.warning("[BankrollAllocator] No BotState found, skipping allocation")
+            all_allocations = {}
+            for mode in settings.active_modes_set:
+                state = db.query(BotState).filter_by(mode=mode).first()
+                if not state:
+                    continue
+                bankroll = state.bankroll or 0.0
+                if bankroll <= 0:
+                    logger.warning(f"[BankrollAllocator] {mode}: Bankroll ${bankroll:.2f} too low, skipping")
+                    continue
+
+                allocations = self.ranker.auto_allocate(db, bankroll, lookback_days=30, trading_mode=mode)
+
+                try:
+                    misc = json.loads(state.misc_data) if state.misc_data else {}
+                except Exception:
+                    misc = {}
+                misc["allocations"] = allocations
+                misc["last_allocation_ts"] = datetime.now(timezone.utc).isoformat()
+                misc["allocation_bankroll"] = bankroll
+                state.misc_data = json.dumps(misc)
+                db.commit()
+                logger.info(f"[BankrollAllocator] {mode}: Persisted allocations to BotState")
+                all_allocations[mode] = allocations
+
+            if not all_allocations:
+                logger.warning("[BankrollAllocator] No BotState found for any active mode, skipping allocation")
                 return {}
-            bankroll = state.bankroll or 0.0
-            if bankroll <= 0:
-                logger.warning(f"[BankrollAllocator] Bankroll ${bankroll:.2f} too low, skipping")
-                return {}
-
-            # Compute ranked allocations
-            allocations = self.ranker.auto_allocate(db, bankroll, lookback_days=30)
-
-            # Persist allocations into BotState.misc_data for observability and downstream use
-            try:
-                misc = json.loads(state.misc_data) if state.misc_data else {}
-            except Exception:
-                misc = {}
-            misc["allocations"] = allocations
-            misc["last_allocation_ts"] = datetime.now(timezone.utc).isoformat()
-            misc["allocation_bankroll"] = bankroll
-            state.misc_data = json.dumps(misc)
-            db.commit()
-            logger.info(f"[BankrollAllocator] Persisted allocations to BotState")
-
-            self._last_run = datetime.now(timezone.utc)
-            logger.info(
-                f"[BankrollAllocator] Allocated ${bankroll:.2f} across {len(allocations)} strategies: "
-                + ", ".join(f"{s}: ${a:.2f}" for s, a in sorted(allocations.items(), key=lambda x: x[1], reverse=True))
-            )
-            return allocations
-
+            return all_allocations
         except Exception as e:
             logger.error(f"[BankrollAllocator] Run failed: {e}", exc_info=True)
             return {}

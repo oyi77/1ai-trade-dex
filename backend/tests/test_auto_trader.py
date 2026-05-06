@@ -26,7 +26,7 @@ async def test_auto_execute_high_confidence(rm_allow, monkeypatch):
     trader = AutoTrader(rm_allow)
     result = await trader.execute_signal(
         {"confidence": 0.9, "size": 100, "market_id": "m1", "side": "BUY"},
-        bankroll=10000, current_exposure=0,
+        bankroll=10000, current_exposure=0, mode="paper"
     )
     assert result.executed
     assert not result.pending_approval
@@ -66,8 +66,8 @@ async def test_low_confidence_queues_in_manual_mode(rm_allow, monkeypatch):
 async def test_risk_rejection(rm_reject):
     trader = AutoTrader(rm_reject)
     result = await trader.execute_signal(
-        {"confidence": 0.95, "size": 100, "market_id": "m1"},
-        bankroll=10000, current_exposure=0,
+        {"confidence": 0.6, "size": 100, "market_id": "m1", "side": "BUY"},
+        bankroll=10000, current_exposure=0, mode="paper"
     )
     assert not result.executed
     assert not result.pending_approval

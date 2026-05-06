@@ -269,9 +269,13 @@ async def strategy_ranking_job() -> None:
                 )
 
             # Auto-disable underperformers with enough data
-            disabled = ranker.disable_underperformers(db, min_sharpe=0.0, min_trades=30, trading_mode=settings.TRADING_MODE)
-            if disabled:
-                logger.info(f"Auto-disabled underperformers: {disabled}")
+            all_disabled = []
+            for mode in settings.active_modes_set:
+                disabled = ranker.disable_underperformers(db, min_sharpe=0.0, min_trades=30, trading_mode=mode)
+                if disabled:
+                    all_disabled.extend(disabled)
+            if all_disabled:
+                logger.info(f"Auto-disabled underperformers: {all_disabled}")
         else:
             logger.info("No strategies with enough data for ranking")
 

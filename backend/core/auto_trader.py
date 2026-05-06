@@ -28,7 +28,7 @@ class AutoTrader:
         self.clob_factory = clob_factory
 
     async def execute_signal(
-        self, signal: Dict[str, Any], bankroll: float, current_exposure: float
+        self, signal: Dict[str, Any], bankroll: float, current_exposure: float, mode: str
     ) -> ExecutionResult:
         confidence = float(signal.get("confidence", 0.0))
         size = float(signal.get("size", 0.0))
@@ -79,7 +79,7 @@ class AutoTrader:
 
         # High-confidence path
         strategy = signal.get("strategy", "unknown")
-        if settings.TRADING_MODE == "paper" or self.clob_factory is None:
+        if mode == "paper" or self.clob_factory is None:
             record_signal(strategy=strategy, signal_type="auto_approved")
             return ExecutionResult(
                 True,

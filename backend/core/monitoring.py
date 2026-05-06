@@ -77,39 +77,49 @@ class ProductionMonitor:
         }
 
     def check_pnl_accuracy(self) -> Dict[str, Any]:
-        """Verify PNL matches sum of settled trades in database."""
+        """Verify PNL matches sum of settled trades across all active modes."""
         try:
             from backend.models.database import BotState
 
-            bot = self.db.query(BotState).filter(
-                BotState.mode == settings.TRADING_MODE
-            ).first()
-            if not bot:
-                return {"accurate": True, "message": "no BotState to verify"}
+            results = {}
+            all_accurate = True
+            for mode in settings.active_modes_set:
+                bot = self.db.query(BotState).filter(
+                    BotState.mode == mode
+                ).first()
+                if not bot:
+                    results[mode] = {"accurate": True, "message": "no BotState to verify"}
+                    continue
 
-            reported_pnl = bot.total_pnl or 0.0
+                reported_pnl = bot.total_pnl or 0.0
 
-            result = self.db.execute(text("""
-                SELECT COALESCE(SUM(pnl), 0) FROM trades 
-                WHERE settled = 1 AND trading_mode = :mode
-            """), {"mode": settings.TRADING_MODE}).fetchone()
+                result = self.db.execute(text("""
+                    SELECT COALESCE(SUM(pnl), 0) FROM trades 
+                    WHERE settled = 1 AND trading_mode = :mode
+                """), {"mode": mode}).fetchone()
 
-            computed_pnl = float(result[0]) if result else 0.0
+                computed_pnl = float(result[0]) if result else 0.0
 
-            if reported_pnl == 0.0 and computed_pnl == 0.0:
-                return {"accurate": True, "message": "no trades to verify"}
+                if reported_pnl == 0.0 and computed_pnl == 0.0:
+                    results[mode] = {"accurate": True, "message": "no trades to verify"}
+                    continue
 
-            tolerance = settings.MONITORING_PNL_TOLERANCE_PCT
-            diff_pct = abs(reported_pnl - computed_pnl) / abs(reported_pnl) if abs(reported_pnl) > 0 else abs(computed_pnl)
+                tolerance = settings.MONITORING_PNL_TOLERANCE_PCT
+                diff_pct = abs(reported_pnl - computed_pnl) / abs(reported_pnl) if abs(reported_pnl) > 0 else abs(computed_pnl)
 
-            return {
-                "accurate": diff_pct <= tolerance,
-                "reported_pnl": round(reported_pnl, 2),
-                "computed_pnl": round(computed_pnl, 2),
-                "diff_pct": round(diff_pct, 4),
-                "tolerance_pct": tolerance,
-                "message": "PnL verified" if diff_pct <= tolerance else f"PnL mismatch: {diff_pct:.2%} > {tolerance:.2%} tolerance"
-            }
+                accurate = diff_pct <= tolerance
+                if not accurate:
+                    all_accurate = False
+                results[mode] = {
+                    "accurate": accurate,
+                    "reported_pnl": round(reported_pnl, 2),
+                    "computed_pnl": round(computed_pnl, 2),
+                    "diff_pct": round(diff_pct, 4),
+                    "tolerance_pct": tolerance,
+                    "message": "PnL verified" if accurate else f"PnL mismatch: {diff_pct:.2%} > {tolerance:.2%} tolerance"
+                }
+
+            return {"accurate": all_accurate, "modes": results}
         except Exception as e:
             return {"accurate": True, "message": f"verification error: {e}"}
 
