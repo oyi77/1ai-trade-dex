@@ -497,11 +497,49 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             paper_state = db.query(BotState).filter_by(mode="paper").first()
             if paper_state:
                 current = float(paper_state.paper_bankroll or 0)
-                topup_count = getattr(paper_state, "_topup_count", 0) if hasattr(paper_state, "_topup_count") else 0
+                import json as _json
+                try:
+                    misc = _json.loads(paper_state.misc_data) if paper_state.misc_data else {}
+                except (ValueError, TypeError):
+                    misc = {}
+                topup_count = int(misc.get("paper_topup_count", 0))
                 if current < paper_min and topup_count < max_topups:
+                    previous = current
                     paper_state.paper_bankroll = current + paper_topup_amt
                     paper_state._topup_count = topup_count + 1
+                    # Update paper_initial_bankroll so reconciliation
+                    # doesn't treat the topup as phantom PnL drift
+                    prev_initial = float(paper_state.paper_initial_bankroll or settings.INITIAL_BANKROLL)
+                    paper_state.paper_initial_bankroll = prev_initial + paper_topup_amt
+                    # Persist topup count across restarts via misc_data
+                    misc["paper_topup_count"] = topup_count + 1
+                    paper_state.misc_data = _json.dumps(misc)
                     db.commit()
+                    logger.info(
+                        f"Paper bankroll auto-topup: ${paper_topup_amt:,.2f} "
+                        f"(${previous:,.2f} → ${paper_state.paper_bankroll:,.2f}), "
+                        f"topup #{topup_count + 1}/{max_topups}, "
+                        f"initial_bankroll ${prev_initial:,.2f} → ${paper_state.paper_initial_bankroll:,.2f}"
+                    )
+                    # Record TransactionEvent for audit trail (deposit type)
+                    try:
+                        from backend.models.database import TransactionEvent
+                        event = TransactionEvent(
+                            type="deposit",
+                            amount=paper_topup_amt,
+                            balance_after=float(paper_state.paper_bankroll),
+                            context={
+                                "source": "auto_topup",
+                                "topup_number": topup_count + 1,
+                                "max_topups": max_topups,
+                                "trigger": f"bankroll ${previous:.2f} < min ${paper_min:.2f}",
+                            },
+                            note=f"Paper auto-topup #{topup_count + 1}: +${paper_topup_amt:,.2f}",
+                        )
+                        db.add(event)
+                        db.commit()
+                    except Exception as tee:
+                        logger.debug(f"TransactionEvent recording for auto-topup failed: {tee}")
         except Exception as e:
             logger.error(f"Paper bankroll top-up failed: {e}")
 
