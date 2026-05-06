@@ -184,9 +184,8 @@ class TopicWebSocketManager:
         try:
             await websocket.send_json(message)
         except Exception as e:
-            logger.warning(
-                f"Failed to send to client on topic '{topic}': {e}. "
-                f"Removing stale connection."
+            logger.debug(
+                f"WS stale connection removed from '{topic}': {e}"
             )
             # Remove from all topics on send failure
             await self.disconnect(websocket)
