@@ -51,6 +51,7 @@ const SECTION_LABELS: Record<string, string> = {
   ai: 'AI / LLM',
   polymarket: 'Polymarket',
   kalshi: 'Kalshi',
+  paper: 'Paper Trading',
   api_keys: 'API Keys',
   telegram: 'Telegram',
   security: 'Security',

@@ -23,8 +23,26 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
+const registerServiceWorkerIfAvailable = async () => {
+  try {
+    const response = await fetch('/sw.js', {
+      cache: 'no-store',
+      method: 'HEAD',
+    })
+    const contentType = response.headers.get('content-type') ?? ''
+
+    if (!response.ok || !contentType.includes('javascript')) {
+      return
+    }
+
+    await navigator.serviceWorker.register('/sw.js')
+  } catch (error) {
+    console.info('Service worker registration skipped:', error)
+  }
+}
+
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
+    void registerServiceWorkerIfAvailable()
+  })
 }
