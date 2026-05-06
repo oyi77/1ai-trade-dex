@@ -55,10 +55,11 @@ async def get_copy_leaderboard(limit: int = 100, _: None = Depends(require_admin
             for offset in range(0, limit, 50):
                 page_limit = min(50, limit - offset)
                 resp = await client.get(
-                    f"{DATA_API}/leaderboard",
+                    f"{DATA_API}/{settings.DATA_API_VERSION}/leaderboard",
                     params={
                         "timePeriod": "all",
                         "orderBy": "PNL",
+                        "category": "OVERALL",
                         "limit": page_limit,
                         "offset": offset,
                     },
@@ -73,9 +74,9 @@ async def get_copy_leaderboard(limit: int = 100, _: None = Depends(require_admin
 
         result = []
         for t in all_traders:
-            wallet = t.get("address", t.get("wallet", ""))
+            wallet = t.get("proxyWallet", t.get("address", t.get("wallet", "")))
             profit = float(t.get("pnl", t.get("profit", 0)))
-            volume = float(t.get("volume", 0))
+            volume = float(t.get("vol", t.get("volume", 0)))
             markets = int(t.get("numMarkets", t.get("markets_traded", 0)))
             trades = int(t.get("numTrades", t.get("total_trades", 0)))
 

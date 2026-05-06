@@ -130,25 +130,36 @@ class LeaderboardScorer:
 
     async def fetch_and_score(self, top_n: int = 50) -> list[ScoredTrader]:
         entries = []
-        # Try data-api leaderboard first
         try:
             resp = await self._http.get(
-                f"{DATA_HOST}/leaderboard", params={"window": "30d"}
+                f"{DATA_HOST}/{settings.DATA_API_VERSION}/leaderboard",
+                params={"timePeriod": "MONTH", "limit": top_n, "category": "OVERALL", "orderBy": "PNL"},
             )
             resp.raise_for_status()
-            entries = resp.json()
+            raw_entries = resp.json()
+            # Normalize v1 API fields (pnl→profit, vol→volume) to match downstream expectations
+            entries = []
+            for e in raw_entries:
+                entries.append({
+                    "id": e.get("id", ""),
+                    "user": e.get("user", ""),
+                    "proxyWallet": e.get("proxyWallet", e.get("address", "")),
+                    "name": e.get("userName", e.get("name", "")),
+                    "profit": float(e.get("pnl", e.get("profit", 0))),
+                    "pnlPercentage": float(e.get("pnlPercentage", 0)),
+                    "tradesCount": int(e.get("tradesCount", e.get("vol", 0))),
+                    "marketsTraded": int(e.get("marketsTraded", 0)),
+                    "volume": float(e.get("vol", e.get("volume", 0))),
+                })
         except (httpx.HTTPError, Exception) as e:
-            logger.warning(
-                f"[order_executor.fetch_and_score] {type(e).__name__}: Leaderboard data-api unavailable: {e}, trying scraper fallback",
-                exc_info=True,
+            logger.debug(
+                f"[order_executor.fetch_and_score] Leaderboard data-api unavailable ({type(e).__name__}: {e}), trying scraper fallback"
             )
-            # Fallback: try the polymarket_scraper
             try:
                 from backend.data.polymarket_scraper import fetch_real_leaderboard
 
                 scraped = await fetch_real_leaderboard(limit=top_n)
                 if scraped:
-                    # Normalize scraped entries to match expected format
                     entries = [
                         {
                             "proxyWallet": t.get("wallet", t.get("address", "")),
@@ -173,9 +184,8 @@ class LeaderboardScorer:
                         f"[order_executor] Scraper fallback returned {len(entries)} traders"
                     )
             except Exception as scrape_err:
-                logger.warning(
-                    f"[order_executor.fetch_and_score] {type(scrape_err).__name__}: Scraper fallback also failed: {scrape_err}",
-                    exc_info=True
+                logger.debug(
+                    f"[order_executor.fetch_and_score] Scraper fallback also failed ({type(scrape_err).__name__}: {scrape_err})"
                 )
 
         if not entries:

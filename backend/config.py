@@ -406,6 +406,7 @@ class Settings(BaseSettings):
     # External API base URLs
     GAMMA_API_URL: str = "https://gamma-api.polymarket.com"
     DATA_API_URL: str = "https://data-api.polymarket.com"
+    DATA_API_VERSION: str = "v1"
     CLOB_API_URL: str = "https://clob.polymarket.com"
     POLYMARKET_BASE_URL: str = "https://polymarket.com"
     BINANCE_API_URL: str = "https://api.binance.com/api/v3"

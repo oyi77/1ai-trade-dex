@@ -425,15 +425,21 @@ class PolymarketCLOB:
             return None
 
     async def get_leaderboard(self, window: str = "30d") -> list[dict]:
-        """Get Polymarket trader leaderboard."""
-        async def _fetch_leaderboard():
-            resp = await self._http.get(
-                f"{DATA_HOST}/leaderboard", params={"window": window}
-            )
-            resp.raise_for_status()
-            return resp.json()
-        
-        return await polymarket_breaker.call(_fetch_leaderboard)
+        """Get Polymarket trader leaderboard via v1 Data API."""
+        try:
+            time_period = {"1d": "DAY", "7d": "WEEK", "30d": "MONTH", "all": "ALL"}.get(window, "MONTH")
+            async def _fetch_leaderboard():
+                resp = await self._http.get(
+                    f"{DATA_HOST}/{settings.DATA_API_VERSION}/leaderboard",
+                    params={"timePeriod": time_period, "limit": 50, "orderBy": "PNL"},
+                )
+                resp.raise_for_status()
+                return resp.json()
+
+            return await polymarket_breaker.call(_fetch_leaderboard)
+        except Exception as e:
+            logger.debug(f"[polymarket_clob.get_leaderboard] Unavailable ({type(e).__name__}: {e})")
+            return []
 
     async def get_trader_trades(self, wallet: str, limit: int = 100) -> list[dict]:
         """Get recent trades for a wallet address."""
