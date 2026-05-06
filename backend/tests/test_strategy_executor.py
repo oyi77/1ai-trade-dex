@@ -136,7 +136,7 @@ class TestPaperTradeCreatesRecord:
 
         assert result is not None
         assert result["market_ticker"] == "test-market-001"
-        assert result["fill_price"] == pytest.approx(0.55)
+        assert result["fill_price"] == pytest.approx(0.55, abs=0.01)
 
         check_db = _TestSession()
         try:

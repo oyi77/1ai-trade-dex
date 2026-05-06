@@ -41,7 +41,7 @@ async def test_low_confidence_skips_in_auto_mode(rm_allow, monkeypatch):
     trader = AutoTrader(rm_allow)
     result = await trader.execute_signal(
         {"confidence": 0.6, "size": 100, "market_id": "m1", "side": "BUY"},
-        bankroll=10000, current_exposure=0,
+        bankroll=10000, current_exposure=0, mode="paper",
     )
     assert not result.executed
     assert not result.pending_approval  # must skip, not queue
@@ -56,7 +56,7 @@ async def test_low_confidence_queues_in_manual_mode(rm_allow, monkeypatch):
     trader = AutoTrader(rm_allow)
     result = await trader.execute_signal(
         {"confidence": 0.6, "size": 100, "market_id": "m1", "side": "BUY"},
-        bankroll=10000, current_exposure=0,
+        bankroll=10000, current_exposure=0, mode="paper",
     )
     assert not result.executed
     assert result.pending_approval

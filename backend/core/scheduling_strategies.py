@@ -13,7 +13,7 @@ from backend.models.database import (
     PendingApproval,
     StrategyConfig,
 )
-from backend.core.signals import scan_for_signals
+from backend.core.signals import scan_for_signals, scan_universe_markets
 from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
@@ -478,7 +478,7 @@ async def weather_scan_and_trade_job(mode: str):
                 log_event("info", f"[{mode.upper()}] Bot is paused, skipping weather trades")
                 return
 
-            MAX_TRADES_PER_SCAN = 3
+            MAX_TRADES_PER_SCAN = settings.MAX_TRADES_PER_SCAN
             MIN_TRADE_SIZE = 10
             MAX_WEATHER_ALLOCATION = 500.0
 
@@ -730,7 +730,7 @@ async def auto_trader_job(mode: str):
                     Signal.execution_mode == mode,
                 )
                 .order_by(Signal.timestamp.desc())
-                .limit(10)
+                .limit(settings.AUTO_TRADER_BATCH_SIZE)
                 .all()
             )
             if not signals:
@@ -800,6 +800,11 @@ async def auto_trader_job(mode: str):
                 "info",
                 f"AutoTrader cycle: executed={executed} queued={queued} skipped={skipped}",
             )
+            if len(signals) >= 5 and executed == 0 and queued == 0:
+                logger.warning(
+                    "[ALERT] auto_trader processed %d signals but created 0 trade attempts — check filters",
+                    len(signals),
+                )
         finally:
             db.close()
     except Exception as e:
@@ -1090,3 +1095,24 @@ async def verify_settlement_blockchain():
         logger.exception("Error in verify_settlement_blockchain")
     finally:
         db.close()
+
+
+async def market_universe_scan_job() -> None:
+    """Periodic job to refresh the universal market universe cache.
+
+    Scans all available markets across platforms (Polymarket, Kalshi) via
+    DataProvider abstraction and caches results for fast lookup by downstream
+    strategies. Runs every MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
+    """
+    try:
+        markets = await scan_universe_markets(
+            limit=settings.AUTO_TRADER_BATCH_SIZE
+        )
+        log_event(
+            "info",
+            f"Universe scan: {len(markets)} markets cached",
+            {"market_count": len(markets)},
+        )
+    except Exception as e:
+        log_event("error", f"Market universe scan job failed: {e}")
+        logger.exception("Error in market_universe_scan_job")

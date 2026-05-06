@@ -85,8 +85,8 @@ def _state_for_mode(db, mode: str) -> BotState:
 class TestPnlWin:
     def test_up_position_wins_at_settlement_1(self):
         """Bought UP at 0.40, market settled UP (1.0) → profit.
-        size is dollars spent, shares = size / entry_price.
-        Win PnL = (size / entry_price) - size."""
+        size is shares, entry_price is cost per share.
+        Win PnL = (1.0 - entry_price) * size."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
@@ -94,12 +94,14 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        expected = (10.0 / 0.40) - 10.0  # 25 - 10 = $15.00
+        expected = (1.0 - 0.40) * 10.0  # 6.0
         assert pnl == pytest.approx(expected)
         assert pnl > 0.0
 
     def test_down_position_wins_at_settlement_0(self):
-        """Bought DOWN at 0.40, market settled DOWN (0.0) → profit."""
+        """Bought DOWN at 0.40, market settled DOWN (0.0) → profit.
+        size is shares, entry_price is cost per share.
+        Win PnL = (1.0 - entry_price) * size."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
@@ -107,14 +109,16 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = (10.0 / 0.40) - 10.0
+        expected = (1.0 - 0.40) * 10.0  # 6.0
         assert pnl == pytest.approx(expected)
         assert pnl > 0.0
 
 
 class TestPnlLoss:
     def test_up_position_loses_at_settlement_0(self):
-        """Bought UP at 0.40, market settled DOWN (0.0) → loss = -size."""
+        """Bought UP at 0.40, market settled DOWN (0.0) → loss.
+        size is shares, entry_price is cost per share.
+        Loss PnL = -(entry_price * size)."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
@@ -122,12 +126,14 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = -10.0
+        expected = -(0.40 * 10.0)  # -4.0
         assert pnl == pytest.approx(expected)
         assert pnl < 0.0
 
     def test_down_position_loses_at_settlement_1(self):
-        """Bought DOWN at 0.40, market settled UP (1.0) → loss = -size."""
+        """Bought DOWN at 0.40, market settled UP (1.0) → loss.
+        size is shares, entry_price is cost per share.
+        Loss PnL = -(entry_price * size)."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
@@ -135,19 +141,19 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        expected = -10.0
+        expected = -(0.40 * 10.0)  # -4.0
         assert pnl == pytest.approx(expected)
         assert pnl < 0.0
 
     def test_loss_magnitude(self):
-        """Loss magnitude is always the full size (dollars spent)."""
+        """Loss magnitude = entry_price * size (shares * cost per share)."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.55
         trade.size = 20.0
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
-        assert pnl == pytest.approx(-20.0)
+        assert pnl == pytest.approx(-(0.55 * 20.0))  # -11.0
 
 
 class TestPnlPush:
@@ -242,14 +248,14 @@ class TestBankrollUpdate:
         trade = _make_trade(db, direction="up", entry_price=0.40, size=10.0)
         trade.settled = True
         trade.result = "win"
-        trade.pnl = 15.0  # (10/0.40) - 10 = 15
+        trade.pnl = 6.0  # (1.0 - 0.40) * 10.0 = 6.0
         trade.trading_mode = "paper"
         db.flush()
 
         await update_bot_state_with_settlements(db, [trade])
 
         db.refresh(state)
-        # bankroll = (100 - 10) + 10 + 15 = 115
+        # bankroll = (100 - 10) + 10 + 6 = 106
         assert state.paper_bankroll > settings.INITIAL_BANKROLL
         assert state.paper_pnl > 0.0
 
@@ -273,14 +279,14 @@ class TestBankrollUpdate:
         trade = _make_trade(db, direction="up", entry_price=0.40, size=10.0)
         trade.settled = True
         trade.result = "loss"
-        trade.pnl = -10.0  # full size lost
+        trade.pnl = -(0.40 * 10.0)  # -4.0: entry_price * size
         trade.trading_mode = "paper"
         db.flush()
 
         await update_bot_state_with_settlements(db, [trade])
 
         db.refresh(state)
-        # bankroll = (100 - 10) + 10 + (-10) = 90
+        # bankroll = (100 - 10) + 10 + (-4) = 96
         assert state.paper_bankroll < settings.INITIAL_BANKROLL
         assert state.paper_pnl < 0.0
 
@@ -346,7 +352,9 @@ class TestBankrollUpdate:
 
         db.refresh(state)
         assert state.bankroll == pytest.approx(160.73)
-        assert state.total_pnl == pytest.approx(60.73)
+        # total_pnl uses realized trade PnL, not (equity - initial_bankroll)
+        # See ADR-002 and bankroll_reconciliation.py line 433-436
+        assert state.total_pnl == pytest.approx(-40.0)
         assert state.total_trades == 1
         assert state.winning_trades == 0
 

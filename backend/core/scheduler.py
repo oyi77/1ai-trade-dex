@@ -29,6 +29,7 @@ from backend.core.scheduling_strategies import (
     sync_testnet_wallet,
     sync_live_wallet,
     verify_settlement_blockchain,
+    market_universe_scan_job,
 )
 from backend.core.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
@@ -250,6 +251,17 @@ def start_scheduler():
                 max_instances=1,
                 misfire_grace_time=120,
             )
+
+    # Universe scanner: pre-fetch all markets across platforms into cache
+    universe_ttl = getattr(settings, "MARKET_UNIVERSE_CACHE_TTL_SECONDS", 300)
+    scheduler.add_job(
+        market_universe_scan_job,
+        IntervalTrigger(seconds=universe_ttl),
+        id="market_universe_scan",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=60,
+    )
 
     # Watchdog: check strategy heartbeats every 30s
     from backend.core.heartbeat import watchdog_job, wallet_sync_job

@@ -154,6 +154,7 @@ class RiskManager:
         db=None,
         mode: Optional[str] = None,
         strategy_name: Optional[str] = None,
+        direction: Optional[str] = None,
     ) -> RiskDecision:
         effective_mode = mode or self.s.TRADING_MODE
 
@@ -183,7 +184,7 @@ class RiskManager:
                 )
 
         if market_ticker and self._has_unsettled_trade(
-            market_ticker, db=db, mode=effective_mode
+            market_ticker, db=db, mode=effective_mode, direction=direction
         ):
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_unsettled")
             return RiskDecision(
@@ -348,23 +349,22 @@ class RiskManager:
                 db.close()
 
     def _has_unsettled_trade(
-        self, market_ticker: str, db=None, mode: Optional[str] = None
+        self, market_ticker: str, db=None, mode: Optional[str] = None, direction: Optional[str] = None
     ) -> bool:
         owns_db = db is None
         if owns_db:
             db = SessionLocal()
         try:
             effective_mode = mode or self.s.TRADING_MODE
-            count = (
-                db.query(func.count(Trade.id))
-                .filter(
-                    Trade.market_ticker == market_ticker,
-                    Trade.settled.is_(False),
-                    Trade.trading_mode == effective_mode,
-                )
-                .scalar()
-                or 0
+            query = db.query(func.count(Trade.id)).filter(
+                Trade.market_ticker == market_ticker,
+                Trade.settled.is_(False),
+                Trade.trading_mode == effective_mode,
             )
+            # Per-direction check: YES and NO positions can coexist on the same market
+            if direction is not None:
+                query = query.filter(Trade.direction == direction)
+            count = query.scalar() or 0
             return count > 0
         except Exception as e:
             logger.error(f"[risk_manager._has_unsettled_trade] {type(e).__name__}: {e}", exc_info=True)

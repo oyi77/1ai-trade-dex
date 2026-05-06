@@ -26,13 +26,13 @@ class TestLeaderboardScorer:
 
     def test_score_weights_sum_to_one(self):
         """Scoring weights must sum to 1.0."""
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
         total = sum(LeaderboardScorer.WEIGHTS.values())
         assert abs(total - 1.0) < 1e-10, f"Weights sum to {total}, expected 1.0"
 
     def test_diverse_trader_scores_higher_than_single_market(self):
         """Trader with 40/50 unique markets scores higher on diversity than 5/50."""
-        from backend.strategies.copy_trader import ScoredTrader
+        from backend.modules.execution.copy_trader import ScoredTrader
 
         diverse = ScoredTrader(user="test_user", 
             wallet="0xaaa", pseudonym="A",
@@ -49,7 +49,7 @@ class TestLeaderboardScorer:
 
     def test_market_diversity_capped_at_one(self):
         """Diversity never exceeds 1.0 even if unique > total (data anomaly)."""
-        from backend.strategies.copy_trader import ScoredTrader
+        from backend.modules.execution.copy_trader import ScoredTrader
         trader = ScoredTrader(user="test_user", 
             wallet="0x", pseudonym="X",
             profit_30d=0, win_rate=0.5, total_trades=10,
@@ -59,7 +59,7 @@ class TestLeaderboardScorer:
 
     def test_zero_trades_diversity_is_zero(self):
         """Trader with 0 trades has 0 diversity."""
-        from backend.strategies.copy_trader import ScoredTrader
+        from backend.modules.execution.copy_trader import ScoredTrader
         trader = ScoredTrader(user="test_user", 
             wallet="0x", pseudonym="X",
             profit_30d=0, win_rate=0, total_trades=0,
@@ -102,7 +102,7 @@ class TestTradeMirror:
 
     def test_proportional_sizing_reference_example(self):
         """Reference: wallet_bankroll=10000, our=500, trade=200 → size=10."""
-        from backend.strategies.copy_trader import CopyTrader, ScoredTrader, WalletTrade
+        from backend.modules.execution.copy_trader import CopyTrader, ScoredTrader, WalletTrade
         trader = ScoredTrader(user="test_user", 
             wallet="0xtest", pseudonym="T",
             profit_30d=5000, win_rate=0.6, total_trades=30,
@@ -131,7 +131,7 @@ class TestWalletWatcher:
     @pytest.mark.asyncio
     async def test_first_poll_seeds_and_returns_trades(self):
         """First poll seeds seen set AND returns initial trades for copy-trading."""
-        from backend.strategies.copy_trader import WalletWatcher
+        from backend.modules.execution.copy_trader import WalletWatcher
 
         mock_http = AsyncMock()
         mock_resp = MagicMock()
@@ -156,7 +156,7 @@ class TestWalletWatcher:
     @pytest.mark.asyncio
     async def test_second_poll_detects_new_trade(self):
         """Second poll with new trade returns it as new_buy."""
-        from backend.strategies.copy_trader import WalletWatcher
+        from backend.modules.execution.copy_trader import WalletWatcher
 
         mock_http = AsyncMock()
 
@@ -196,7 +196,7 @@ class TestWalletWatcher:
     @pytest.mark.asyncio
     async def test_exit_detection_at_fifty_percent(self):
         """Exit fires when cumulative SELL >= 50% of original BUY size."""
-        from backend.strategies.copy_trader import WalletWatcher
+        from backend.modules.execution.copy_trader import WalletWatcher
 
         mock_http = AsyncMock()
         call_count = [0]
@@ -244,7 +244,7 @@ class TestWalletWatcher:
     @pytest.mark.asyncio
     async def test_no_exit_below_fifty_percent(self):
         """No exit signal when SELL is less than 50% of original entry."""
-        from backend.strategies.copy_trader import WalletWatcher
+        from backend.modules.execution.copy_trader import WalletWatcher
         from unittest.mock import patch
 
         mock_http = AsyncMock()

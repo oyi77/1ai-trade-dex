@@ -9,6 +9,7 @@ import asyncio
 from backend.config import settings
 from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
 from backend.data.crypto import compute_btc_microstructure
+from backend.data.market_universe import MarketUniverseScanner
 from backend.models.database import SessionLocal, Signal
 
 logger = logging.getLogger("trading_bot")
@@ -452,6 +453,23 @@ async def get_actionable_signals(mode: str = "paper") -> List[TradingSignal]:
     """Get only signals that pass the edge threshold."""
     all_signals = await scan_for_signals(mode=mode)
     return [s for s in all_signals if s.passes_threshold]
+
+
+_universe_scanner: Optional[MarketUniverseScanner] = None
+
+
+def get_universe_scanner() -> MarketUniverseScanner:
+    """Lazy-initialized singleton for MarketUniverseScanner."""
+    global _universe_scanner
+    if _universe_scanner is None:
+        _universe_scanner = MarketUniverseScanner()
+    return _universe_scanner
+
+
+async def scan_universe_markets(limit: int = 5000) -> list:
+    """Scan the full market universe (5000+ markets) via MarketUniverseScanner."""
+    scanner = get_universe_scanner()
+    return await scanner.get_active_markets(limit=limit)
 
 
 if __name__ == "__main__":

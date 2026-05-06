@@ -96,10 +96,12 @@ class Settings(BaseSettings):
     SETTLEMENT_INTERVAL_SECONDS: int = 120  # Check settlements every 2 min
     BTC_PRICE_SOURCE: str = "coinbase"
     MIN_EDGE_THRESHOLD: float = (
-        0.30  # 30% edge required - only trade like the WINNERS (cex_pm_leadlag had 40-47% edge)
+        0.03  # 3% edge required - permissive default; BTC strategies typically show 3-6% edge
     )
     MAX_ENTRY_PRICE: float = 0.80  # Allow entries up to 80c for bond-like trades
-    MAX_TRADES_PER_WINDOW: int = 2
+    MAX_TRADES_PER_WINDOW: int = 20
+    MAX_TRADES_PER_SCAN: int = int(os.getenv("MAX_TRADES_PER_SCAN", "10"))  # type: ignore[assignment]
+    AUTO_TRADER_BATCH_SIZE: int = int(os.getenv("AUTO_TRADER_BATCH_SIZE", "100"))  # type: ignore[assignment]
     MAX_TOTAL_PENDING_TRADES: int = 50
     STALE_TRADE_HOURS: int = 48
 
@@ -378,6 +380,7 @@ class Settings(BaseSettings):
     SCANNER_MIN_EDGE: float = 0.02
     SCANNER_STALE_THRESHOLD_SECONDS: float = 5.0
     SCANNER_MAX_MARKETS: int = 10000
+    MARKET_UNIVERSE_CACHE_TTL_SECONDS: int = int(os.getenv("MARKET_UNIVERSE_CACHE_TTL_SECONDS", "300"))
 
     # Order executor thresholds
     ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 50.0

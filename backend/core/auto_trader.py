@@ -39,6 +39,7 @@ class AutoTrader:
             bankroll=bankroll,
             confidence=confidence,
             market_ticker=signal.get("market_ticker"),
+            direction=signal.get("direction"),
         )
         if not decision.allowed:
             strategy = signal.get("strategy", "unknown")

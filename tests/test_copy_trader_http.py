@@ -22,7 +22,7 @@ class TestLeaderboardScorerHTTP:
 
     @pytest.mark.asyncio
     async def test_fetch_returns_sorted_traders(self):
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
 
         entries = [
             {"proxyWallet": "0xlow", "name": "Low", "profit": 1000, "pnlPercentage": 40, "tradesCount": 20, "marketsTraded": 5},
@@ -38,14 +38,14 @@ class TestLeaderboardScorerHTTP:
 
     @pytest.mark.asyncio
     async def test_fetch_empty_leaderboard_returns_empty(self):
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
         scorer = LeaderboardScorer(self._make_http([]))
         traders = await scorer.fetch_and_score()
         assert traders == []
 
     @pytest.mark.asyncio
     async def test_fetch_http_error_returns_empty(self):
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
         from unittest.mock import patch
         mock_http = AsyncMock()
         mock_http.get = AsyncMock(side_effect=Exception("timeout"))
@@ -62,7 +62,7 @@ class TestLeaderboardScorerHTTP:
     @pytest.mark.asyncio
     async def test_win_rate_clamped_to_one(self):
         """pnlPercentage > 100 doesn't produce win_rate > 1.0."""
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
         entries = [
             {"proxyWallet": "0xa", "name": "A", "profit": 5000,
              "pnlPercentage": 150, "tradesCount": 30, "marketsTraded": 20}
@@ -73,7 +73,7 @@ class TestLeaderboardScorerHTTP:
 
     @pytest.mark.asyncio
     async def test_top_n_limit_respected(self):
-        from backend.strategies.copy_trader import LeaderboardScorer
+        from backend.modules.execution.copy_trader import LeaderboardScorer
         entries = [
             {"proxyWallet": f"0x{i}", "name": f"T{i}", "profit": i * 100,
              "pnlPercentage": 50, "tradesCount": 10, "marketsTraded": 5}
@@ -93,7 +93,7 @@ class TestCopyTraderPollOnce:
 
     @pytest.mark.asyncio
     async def test_poll_once_returns_signals_from_new_buys(self):
-        from backend.strategies.copy_trader import (
+        from backend.modules.execution.copy_trader import (
             CopyTrader, ScoredTrader, WalletTrade
         )
 
@@ -128,7 +128,7 @@ class TestCopyTraderPollOnce:
 
     @pytest.mark.asyncio
     async def test_poll_once_returns_exit_signal(self):
-        from backend.strategies.copy_trader import (
+        from backend.modules.execution.copy_trader import (
             CopyTrader, ScoredTrader, WalletTrade
         )
 
@@ -159,7 +159,7 @@ class TestCopyTraderPollOnce:
     @pytest.mark.asyncio
     async def test_poll_once_skips_trader_on_exception(self):
         """A failing wallet poll doesn't crash the whole cycle."""
-        from backend.strategies.copy_trader import CopyTrader, ScoredTrader
+        from backend.modules.execution.copy_trader import CopyTrader, ScoredTrader
 
         ct = CopyTrader(bankroll=500.0)
         ct._running = True
@@ -182,7 +182,7 @@ class TestCopyTraderPollOnce:
     @pytest.mark.asyncio
     async def test_poll_once_triggers_leaderboard_refresh_after_6h(self):
         """poll_once calls _refresh_leaderboard when >6h since last refresh."""
-        from backend.strategies.copy_trader import CopyTrader
+        from backend.modules.execution.copy_trader import CopyTrader
 
         ct = CopyTrader(bankroll=1000.0)
         ct._running = True
@@ -208,7 +208,7 @@ class TestCopyTraderPollOnce:
 
 class TestMirrorBuyEdgeCases:
     def _make_trader(self, bankroll=10000.0, score=75.0):
-        from backend.strategies.copy_trader import ScoredTrader
+        from backend.modules.execution.copy_trader import ScoredTrader
         return ScoredTrader(user="test_user", 
             wallet="0xtest", pseudonym="T",
             profit_30d=5000, win_rate=0.6, total_trades=30,
@@ -216,26 +216,26 @@ class TestMirrorBuyEdgeCases:
         )
 
     def _make_trade(self, size=200.0):
-        from backend.strategies.copy_trader import WalletTrade
+        from backend.modules.execution.copy_trader import WalletTrade
         return WalletTrade(user="test_user", 
             wallet="0xtest", condition_id="cond", outcome="YES",
             side="BUY", price=0.45, size=size, timestamp="t",
         )
 
     def test_zero_bankroll_returns_none(self):
-        from backend.strategies.copy_trader import CopyTrader
+        from backend.modules.execution.copy_trader import CopyTrader
         ct = CopyTrader(bankroll=500.0)
         trader = self._make_trader(bankroll=0.0)
         assert ct._mirror_buy(trader, self._make_trade()) is None
 
     def test_tiny_trade_below_minimum_returns_none(self):
-        from backend.strategies.copy_trader import CopyTrader
+        from backend.modules.execution.copy_trader import CopyTrader
         ct = CopyTrader(bankroll=100.0)
         # 0.1 / 10000 * 100 = 0.001 → below $1 min
         assert ct._mirror_buy(self._make_trader(), self._make_trade(size=0.1)) is None
 
     def test_reasoning_contains_trader_name(self):
-        from backend.strategies.copy_trader import CopyTrader
+        from backend.modules.execution.copy_trader import CopyTrader
         ct = CopyTrader(bankroll=1000.0)
         signal = ct._mirror_buy(self._make_trader(), self._make_trade(200.0))
         assert "T" in signal.reasoning

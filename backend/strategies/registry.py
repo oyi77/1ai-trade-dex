@@ -113,14 +113,14 @@ def load_all_strategies() -> None:
     from backend.config import settings
 
     strategy_modules = [
-        "backend.strategies.copy_trader",
-        "backend.strategies.weather_emos",
-        "backend.strategies.kalshi_arb",
+        "backend.modules.execution.copy_trader",
+        "backend.modules.scanners.weather_emos",
+        "backend.modules.arbitrage.kalshi_arb",
         "backend.strategies.btc_oracle",
         "backend.strategies.btc_momentum",
         "backend.strategies.cex_pm_leadlag",
         "backend.strategies.realtime_scanner",
-        "backend.strategies.whale_pnl_tracker",
+        "backend.modules.data_feeds.whale_pnl_tracker",
         "backend.strategies.market_maker",
         "backend.strategies.bond_scanner",
         "backend.strategies.general_market_scanner",
@@ -128,13 +128,13 @@ def load_all_strategies() -> None:
         "backend.strategies.universal_scanner",
         "backend.strategies.probability_arb",
         "backend.strategies.cross_market_arb",
-        "backend.strategies.whale_frontrun",
+        "backend.modules.data_feeds.whale_frontrun",
         "backend.strategies.agi_meta_strategy",
         "backend.strategies.types_hft",
     ]
     for module in strategy_modules:
         # Skip KalshiArbStrategy if no API key configured
-        if module == "backend.strategies.kalshi_arb" and not settings.KALSHI_API_KEY_ID:
+        if module == "backend.modules.arbitrage.kalshi_arb" and not settings.KALSHI_API_KEY_ID:
             logger.info("Skipping KalshiArbStrategy: KALSHI_API_KEY_ID not configured")
             continue
         try:

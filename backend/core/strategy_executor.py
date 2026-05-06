@@ -241,6 +241,7 @@ async def execute_decision(
                 db=db,
                 mode=mode,
                 strategy_name=strategy_name,
+                direction=direction if direction else None,
             )
             if not risk.allowed:
                 logger.info(

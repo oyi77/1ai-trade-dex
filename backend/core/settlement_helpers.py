@@ -894,7 +894,7 @@ async def _try_calibrate_weather(signal, settlement_value: float) -> None:
 
 
 async def _record_weather_observation(trade, settlement_value: float, db) -> None:
-    from backend.strategies.weather_emos import (
+    from backend.modules.scanners.weather_emos import (
         load_calibration_states,
         save_calibration_states,
         CalibrationState,
@@ -1191,7 +1191,7 @@ async def reconcile_positions(db: Session) -> List[int]:
     from backend.config import settings
     from backend.models.database import Trade
 
-    if trading_mode == "paper":
+    if settings.TRADING_MODE == "paper":
         logger.debug("Skipping position reconciliation in paper mode")
         return []
 
