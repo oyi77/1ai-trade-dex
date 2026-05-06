@@ -219,7 +219,18 @@ async def bulk_update_settings(
 ):
     """Bulk update settings from array of {key, value} pairs."""
     from backend.models.audit_logger import log_audit_event
+
+    # Keys that should be propagated to app_settings at runtime
+    RUNTIME_MUTABLE_KEYS = {
+        "PAPER_SLIPPAGE_BPS", "PAPER_MIN_SLIPPAGE_BPS", "PAPER_SIZE_IMPACT_FACTOR",
+        "PAPER_CLOB_FEE_RATE", "PAPER_MIN_DEPTH_USD", "PAPER_RANDOM_SLIPPAGE",
+        "MIROFISH_ENABLED", "MIROFISH_API_URL", "MIROFISH_API_KEY",
+        "TRADING_MODE", "SIGNAL_APPROVAL_MODE",
+    }
+
     updated = 0
+    mutated_app_settings = []
+
     for item in body.updates:
         key = item.get("key")
         value = item.get("value")
@@ -247,7 +258,36 @@ async def bulk_update_settings(
             db.add(SystemSettings(key=key, value=value))
         updated += 1
 
+        # Propagate to app_settings for runtime effect
+        if key in RUNTIME_MUTABLE_KEYS and hasattr(app_settings, key):
+            try:
+                current_val = getattr(app_settings, key)
+                if isinstance(current_val, bool):
+                    coerced = value in ("true", "True", "1", True) if isinstance(value, str) else bool(value)
+                elif isinstance(current_val, int):
+                    coerced = int(value)
+                elif isinstance(current_val, float):
+                    coerced = float(value)
+                else:
+                    coerced = str(value) if not isinstance(value, str) else value
+                object.__setattr__(app_settings, key, coerced)
+                mutated_app_settings.append((key, coerced))
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to setattr app_settings.{key}={value}: {e}")
+
     db.commit()
+
+    # Clear config_service cache so next reads pick up new values
+    if mutated_app_settings:
+        try:
+            from backend.core.config_service import _settings_cache, _cache_lock
+            with _cache_lock:
+                for key, _ in mutated_app_settings:
+                    _settings_cache.pop(key, None)
+        except ImportError:
+            pass
+        logger.info(f"Runtime settings updated: {mutated_app_settings}")
+
     return {"status": "ok", "message": f"Updated {updated} settings", "updated": updated}
 
 

@@ -20,7 +20,7 @@ from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
 from backend.data.orderbook_cache import get_orderbook_cache
-from backend.models.database import SessionLocal, BotState, MarketWatch, Trade, StrategyConfig
+from backend.models.database import SessionLocal, BotState, MarketWatch, Trade, StrategyConfig, SystemSettings
 from backend.core.mode_context import ModeExecutionContext, register_context
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies
@@ -389,7 +389,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             db.close()
     except Exception as e:
         logger.warning(f"Failed to initialize settings cache: {e}", exc_info=True)
-    
+
+    # Seed slippage settings into SystemSettings so they appear in SettingsEditor UI
+    try:
+        db2 = SessionLocal()
+        try:
+            _PAPER_SLIPPAGE_DEFAULTS = {
+                "PAPER_SLIPPAGE_BPS": 20.0,
+                "PAPER_MIN_SLIPPAGE_BPS": 5.0,
+                "PAPER_SIZE_IMPACT_FACTOR": 0.5,
+                "PAPER_CLOB_FEE_RATE": 0.02,
+                "PAPER_MIN_DEPTH_USD": 0.0,
+                "PAPER_RANDOM_SLIPPAGE": False,
+            }
+            seeded = 0
+            for k, v in _PAPER_SLIPPAGE_DEFAULTS.items():
+                if not db2.query(SystemSettings).filter(SystemSettings.key == k).first():
+                    db2.add(SystemSettings(key=k, value=v))
+                    seeded += 1
+            if seeded:
+                db2.commit()
+                logger.info(f"  - Seeded {seeded} paper slippage settings into SystemSettings")
+        finally:
+            db2.close()
+    except Exception as e:
+        logger.debug(f"Slippage SystemSettings seeding skipped: {e}")
+
     db = SessionLocal()
     try:
         state = db.query(BotState).first()

@@ -31,6 +31,12 @@ DEFAULT_SETTINGS = {
     "KELLY_FRACTION": ("0.15", "Kelly fraction for position sizing"),
     "DAILY_LOSS_LIMIT": ("300.0", "Daily loss limit in USD"),
     "MAX_TRADE_SIZE": ("75.0", "Max single trade size in USD"),
+    "PAPER_SLIPPAGE_BPS": ("20.0", "Paper slippage in basis points (0=disabled, 20=0.2%)"),
+    "PAPER_MIN_SLIPPAGE_BPS": ("5.0", "Minimum slippage in basis points regardless of base"),
+    "PAPER_SIZE_IMPACT_FACTOR": ("0.5", "Size impact factor — larger trades get more slippage"),
+    "PAPER_CLOB_FEE_RATE": ("0.02", "CLOB fee rate applied to paper trade profits (2%)"),
+    "PAPER_MIN_DEPTH_USD": ("0.0", "Minimum orderbook depth in USD for trade to pass (0=no check)"),
+    "PAPER_RANDOM_SLIPPAGE": ("false", "Add random slippage jitter to each trade fill"),
 }
 
 
@@ -52,13 +58,15 @@ def seed_settings():
         
         for key, (value, description) in DEFAULT_SETTINGS.items():
             setting_type = "string"
-            if key in ["INITIAL_BANKROLL", "AI_DAILY_BUDGET_USD", "WEATHER_MIN_EDGE_THRESHOLD", 
+            if key in ["INITIAL_BANKROLL", "AI_DAILY_BUDGET_USD", "WEATHER_MIN_EDGE_THRESHOLD",
                        "WEATHER_MAX_ENTRY_PRICE", "WEATHER_MAX_TRADE_SIZE", "KELLY_FRACTION",
-                       "DAILY_LOSS_LIMIT", "MAX_TRADE_SIZE", "WEBSEARCH_TIMEOUT_SECONDS"]:
+                       "DAILY_LOSS_LIMIT", "MAX_TRADE_SIZE", "WEBSEARCH_TIMEOUT_SECONDS",
+                       "PAPER_SLIPPAGE_BPS", "PAPER_MIN_SLIPPAGE_BPS", "PAPER_SIZE_IMPACT_FACTOR",
+                       "PAPER_CLOB_FEE_RATE", "PAPER_MIN_DEPTH_USD"]:
                 setting_type = "float"
             elif key in ["WEBSEARCH_MAX_RESULTS"]:
                 setting_type = "int"
-            elif key in ["KALSHI_ENABLED", "WEBSEARCH_ENABLED", "WEATHER_ENABLED"]:
+            elif key in ["KALSHI_ENABLED", "WEBSEARCH_ENABLED", "WEATHER_ENABLED", "PAPER_RANDOM_SLIPPAGE"]:
                 setting_type = "bool"
             
             setting = Setting(

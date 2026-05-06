@@ -251,6 +251,14 @@ class Settings(BaseSettings):
     HISTORICAL_DATA_COLLECTOR_ENABLED: bool = True
     PAPER_MIN_BANKROLL: float = 50.0
     PAPER_TOPUP_AMOUNT: float = 500.0
+    
+    # Paper trading slippage simulation (defaults = disabled for backward compatibility)
+    PAPER_SLIPPAGE_BPS: float = 0.0  # Base slippage in basis points (0 = disabled)
+    PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # Minimum slippage even for small orders (0.05%)
+    PAPER_SIZE_IMPACT_FACTOR: float = 0.5  # Slippage scales with order size
+    PAPER_CLOB_FEE_RATE: float = 0.02  # 2% CLOB fee on expected profits
+    PAPER_MIN_DEPTH_USD: float = 0.0  # Minimum orderbook depth required (0 = no check)
+    PAPER_RANDOM_SLIPPAGE: bool = False  # Add random ±20% jitter to slippage
     MAX_TOPUPS: int = 10
     HISTORICAL_DATA_COLLECTOR_INTERVAL_HOURS: int = 6
 
