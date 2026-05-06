@@ -1,0 +1,97 @@
+{
+  "endpoint": {
+    "url": "https://data-api.polymarket.com/v1/leaderboard",
+    "method": "GET",
+    "authentication": "None (public)",
+    "status": "✅ Working (2026-05-06)"
+  },
+  "parameters": {
+    "category": {
+      "type": "string",
+      "default": "OVERALL",
+      "enum": ["OVERALL", "POLITICS", "SPORTS", "CRYPTO", "CULTURE", "MENTIONS", "WEATHER", "ECONOMICS", "TECH", "FINANCE"]
+    },
+    "timePeriod": {
+      "type": "string",
+      "default": "DAY",
+      "enum": ["DAY", "WEEK", "MONTH", "ALL"]
+    },
+    "orderBy": {
+      "type": "string",
+      "default": "PNL",
+      "enum": ["PNL", "VOL"]
+    },
+    "limit": {
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "offset": {
+      "type": "integer",
+      "default": 0,
+      "minimum": 0
+    }
+  },
+  "response": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "fields": {
+        "rank": "string (e.g., '1', '2')",
+        "proxyWallet": "string (0x-prefixed Ethereum address)",
+        "userName": "string (display name or wallet fallback)",
+        "xUsername": "string (Twitter handle or empty)",
+        "verifiedBadge": "boolean",
+        "vol": "number (trading volume in USDC)",
+        "pnl": "number (profit/loss in USDC, can be negative)",
+        "profileImage": "string (S3 URL or empty)"
+      }
+    },
+    "example": [
+      {
+        "rank": "1",
+        "proxyWallet": "0xbddf61af533ff524d27154e589d2d7a81510c684",
+        "userName": "Countryside",
+        "xUsername": "",
+        "verifiedBadge": false,
+        "vol": 11195566.572048,
+        "pnl": 1509979.7499813195,
+        "profileImage": ""
+      }
+    ]
+  },
+  "common_queries": {
+    "top_10_monthly": "https://data-api.polymarket.com/v1/leaderboard?timePeriod=MONTH&limit=10",
+    "top_5_crypto_weekly_by_volume": "https://data-api.polymarket.com/v1/leaderboard?category=CRYPTO&timePeriod=WEEK&orderBy=VOL&limit=5",
+    "all_time_top_50": "https://data-api.polymarket.com/v1/leaderboard?timePeriod=ALL&limit=50",
+    "paginated_all_time": "https://data-api.polymarket.com/v1/leaderboard?timePeriod=ALL&limit=50&offset=50"
+  },
+  "error_handling": {
+    "400_invalid_param": {
+      "example": "?category=INVALID",
+      "response": "{\"error\":\"invalid category parameter\"}"
+    },
+    "404_not_found": "Endpoint unavailable (very rare)",
+    "empty_array": "No traders matching criteria or offset out of range"
+  },
+  "migration_guide": {
+    "old_endpoint": "https://data-api.polymarket.com/leaderboard?window=30d",
+    "new_endpoint": "https://data-api.polymarket.com/v1/leaderboard?timePeriod=MONTH",
+    "breaking_changes": [
+      "Path changed: /leaderboard → /v1/leaderboard",
+      "Parameter changed: window=30d → timePeriod=MONTH",
+      "Parameter changed: window format (string duration) → enum-based",
+      "No more Next.js build ID needed",
+      "Response is direct JSON array (no wrapper)"
+    ]
+  },
+  "implementation_notes": {
+    "caching_recommendation": "1-5 minutes (data updates frequently)",
+    "rate_limiting": "No documented limit; use 1-2 req/sec max",
+    "cors": "Enabled (can call from browsers)",
+    "timezone": "UTC",
+    "empty_fields": "profileImage and xUsername may be empty strings",
+    "pagination": "Use offset parameter for records beyond 50 per request"
+  }
+}
