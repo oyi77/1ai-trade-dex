@@ -14,6 +14,7 @@ from backend.core.mode_context import get_context
 from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
 from backend.core.trade_attempts import TradeAttemptRecorder
+from backend.core.paper_slippage import get_simulator
 from sqlalchemy import or_
 from sqlalchemy.exc import OperationalError
 
@@ -289,6 +290,39 @@ async def execute_decision(
             filled_size = None
             alert_manager = AlertManager(db)
 
+            # Apply paper slippage simulation for more realistic fills
+            if mode == "paper":
+                simulator = get_simulator()
+                simulation_result = simulator.simulate_fill(
+                    entry_price=entry_price,
+                    size=adjusted_size,
+                    direction=direction,
+                    market_ticker=market_ticker,
+                    db=db
+                )
+                
+                if simulation_result["rejected"]:
+                    logger.warning(
+                        f"[PAPER][{strategy_name}] Trade rejected: {simulation_result['rejection_reason']} "
+                        f"for {market_ticker} {direction} ${adjusted_size:.2f}"
+                    )
+                    attempt_recorder.record_rejected(
+                        f"Paper trade rejected: {simulation_result['rejection_reason']}",
+                        phase="execution",
+                        reason_code="REJECTED_LIQUIDITY",
+                        adjusted_size=adjusted_size,
+                    )
+                    db.commit()
+                    return None
+                
+                fill_price = simulation_result["fill_price"]
+                if simulation_result["slippage_bps"] > 0:
+                    logger.info(
+                        f"[PAPER][{strategy_name}] Slippage: {simulation_result['slippage_bps']:.1f}bps, "
+                        f"Fee: ${simulation_result['fee_usd']:.2f}, "
+                        f"Fill: {fill_price:.4f} (was {entry_price:.4f})"
+                    )
+
             if mode in ("testnet", "live"):
                 is_kalshi = market_ticker.startswith("KX") or platform == "kalshi"
 
@@ -392,6 +426,12 @@ async def execute_decision(
 
             slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
             fee = None
+            
+            # Use paper simulation fee if available
+            if mode == "paper" and hasattr(locals().get('simulation_result', None), 'get'):
+                simulation_result = locals().get('simulation_result')
+                if simulation_result and not simulation_result.get("rejected", True):
+                    fee = simulation_result.get("fee_usd", 0.0)
 
             trade_data = {
                 "market_ticker": market_ticker,
