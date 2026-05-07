@@ -222,7 +222,6 @@ class BtcOracleStrategy(BaseStrategy):
                     + sma_signal * 0.20
                 )
                 oracle_implied = 0.50 + composite * 0.10
-                oracle_implied = max(0.40, min(0.60, oracle_implied))
 
                 # Flip for DOWN direction: model prob must reflect chosen side.
                 if direction == "down":
@@ -233,7 +232,7 @@ class BtcOracleStrategy(BaseStrategy):
             edge = abs(oracle_implied - market_mid) - min_edge
 
             decision = "BUY" if edge > 0 else "SKIP"
-            confidence_score = min(1.0, max(0.05, edge + min_edge))
+            confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
 
             record_decision_standalone(
                 self.name,
@@ -314,7 +313,7 @@ class BtcOracleStrategy(BaseStrategy):
             edge = abs(oracle_implied - market_mid) - min_edge
 
             decision = "BUY" if edge > 0 else "SKIP"
-            confidence_score = min(1.0, max(0.0, edge + min_edge))
+            confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
 
             record_decision_standalone(
                 self.name,
@@ -375,7 +374,7 @@ class BtcOracleStrategy(BaseStrategy):
                     if direction in ("yes", "up")
                     else round(1.0 - market_mid, 6)
                 )
-                confidence_score = min(1.0, max(0.0, edge + min_edge))
+                confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
                 suggested_size = calculate_dynamic_size(
                     edge=edge,
                     confidence=confidence_score,

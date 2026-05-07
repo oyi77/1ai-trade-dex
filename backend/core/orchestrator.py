@@ -9,6 +9,7 @@ from cachetools import TTLCache
 
 from backend.config import settings
 from backend.data.polymarket_clob import PolymarketCLOB, clob_from_settings, clob_breaker
+from backend.core.risk_profiles import apply_profile, get_active_profile_name
 
 logger = logging.getLogger("trading_bot")
 
@@ -65,7 +66,6 @@ class Orchestrator:
 
             set_bot(self._bot)
 
-        from backend.core.risk_profiles import apply_profile, get_active_profile_name
         profile_name = get_active_profile_name()
         profile = apply_profile(profile_name)
         logger.info(

@@ -71,6 +71,8 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
     if profit < _cfg("ARB_MIN_PROFIT", 0.02):
         return None
 
+    min_profit = _cfg("ARB_MIN_PROFIT", 0.02)
+
     return ArbOpportunity(
         market_id="",
         yes_price=yes_price,
@@ -79,7 +81,7 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
         profit=1.0 - sum_price,
         fees=fees,
         net_profit=profit,
-        confidence=min(profit * 10.0, 1.0),
+        confidence=min(1.0, profit / min_profit) if min_profit > 0 else 0.0,
     )
 
 

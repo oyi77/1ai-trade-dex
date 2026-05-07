@@ -363,8 +363,14 @@ class OrderExecutor:
         their_pct = trade.size / trader.estimated_bankroll
         our_size = their_pct * self.bankroll
 
-        # Cap at 5% of our bankroll
-        our_size = min(our_size, 0.05 * self.bankroll)
+        # Cap at MAX_POSITION_FRACTION of our bankroll
+        max_position_frac = _cfg("MAX_POSITION_FRACTION", 0.05)
+        our_size = min(our_size, max_position_frac * self.bankroll)
+
+        # Cap at MAX_TRADE_SIZE from risk profile (e.g. $50 extreme)
+        max_trade_size = _cfg("MAX_TRADE_SIZE", 100.0)
+        our_size = min(our_size, max_trade_size)
+
         our_size = max(0.0, our_size)
 
         if our_size < 1.0:  # Below Polymarket minimum
@@ -378,10 +384,14 @@ class OrderExecutor:
         )
 
         record_execution(strategy="copy_trader", side="BUY", status="placed", latency_s=0.0)
+        # Convert trade outcome to valid direction for CLOB
+        # trade.outcome comes from Polymarket API and should be "YES" or "NO"
+        our_side = trade.outcome.upper() if trade.outcome in ("yes", "no") else "YES"
+        
         return CopySignal(
             source_wallet=trader.user,
             source_trade=trade,
-            our_side="BUY",
+            our_side=our_side,
             our_outcome=trade.outcome,
             our_size=our_size,
             market_price=trade.price,
