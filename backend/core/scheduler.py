@@ -14,7 +14,7 @@ import logging
 
 from backend.config import settings
 from backend.job_queue.worker import Worker
-from backend.job_queue.sqlite_queue import AsyncSQLiteQueue
+from backend.job_queue.abstract import AbstractQueue, create_queue
 from backend.core.task_manager import TaskManager
 
 from backend.core.scheduling_strategies import (
@@ -70,7 +70,7 @@ logger = logging.getLogger("trading_bot")
 
 scheduler: Optional[AsyncIOScheduler] = None
 
-queue: Optional[AsyncSQLiteQueue] = None
+queue: Optional[AbstractQueue] = None
 worker: Optional[Worker] = None
 worker_task: Optional[asyncio.Task] = None
 task_manager: Optional[TaskManager] = None
@@ -929,51 +929,61 @@ def start_scheduler():
         logger.info("JOB_WORKER_ENABLED=True - initializing queue worker")
 
         global queue, worker, worker_task, task_manager
-        queue = AsyncSQLiteQueue(max_workers=settings.DB_EXECUTOR_MAX_WORKERS)
+        queue = create_queue()
 
-        loop = asyncio.new_event_loop()
+        if hasattr(queue, "recover_stale_jobs"):
+            loop = asyncio.new_event_loop()
 
-        def _run_recovery():
-            asyncio.set_event_loop(loop)
-            return loop.run_until_complete(queue.recover_stale_jobs(stale_threshold_seconds=600))
+            def _run_recovery():
+                asyncio.set_event_loop(loop)
+                return loop.run_until_complete(queue.recover_stale_jobs(stale_threshold_seconds=600))
 
-        try:
-            recovered = _run_recovery()
-            if recovered > 0:
-                logger.info(f"Recovered {recovered} stale jobs from previous crash")
-        except Exception as e:
-            logger.warning(f"Stale job recovery failed: {e}")
-        
-        from backend.api.main import app
-        if hasattr(app.state, 'task_manager'):
-            task_manager = app.state.task_manager
-            worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
-        else:
-            worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS)
-
-        jobs_to_remove = [f"{mode}_market_scan" for mode in modes] + ["settlement_check"]
-        for job_id in jobs_to_remove:
             try:
-                scheduler.remove_job(job_id)
-                logger.info(
-                    f"Removed APScheduler job '{job_id}' - worker will handle via queue"
-                )
+                recovered = _run_recovery()
+                if recovered > 0:
+                    logger.info(f"Recovered {recovered} stale jobs from previous crash")
             except Exception as e:
-                logger.warning(f"Could not remove job '{job_id}': {e}")
+                logger.warning(f"Stale job recovery failed: {e}")
+            finally:
+                loop.close()
 
-        if task_manager:
-            worker_task = asyncio.create_task(
-                task_manager.create_task(worker.start(), name="queue_worker")
+        use_local_worker = queue.__class__.__name__ != "RedisQueue"
+        if not use_local_worker:
+            logger.warning(
+                "JOB_WORKER_ENABLED with RedisQueue detected; skipping local Worker loop. "
+                "Run arq worker (backend.job_queue.arq_settings:WorkerSettings)."
             )
         else:
-            worker_task = asyncio.create_task(worker.start())
-        logger.info("Queue worker started in background")
+            from backend.api.main import app
+            if hasattr(app.state, 'task_manager'):
+                task_manager = app.state.task_manager
+                worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
+            else:
+                worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS)
+
+            jobs_to_remove = [f"{mode}_market_scan" for mode in modes] + ["settlement_check"]
+            for job_id in jobs_to_remove:
+                try:
+                    scheduler.remove_job(job_id)
+                    logger.info(
+                        f"Removed APScheduler job '{job_id}' - worker will handle via queue"
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not remove job '{job_id}': {e}")
+
+            if task_manager:
+                worker_task = asyncio.create_task(
+                    task_manager.create_task(worker.start(), name="queue_worker")
+                )
+            else:
+                worker_task = asyncio.create_task(worker.start())
+            logger.info("Queue worker started in background")
 
         log_event(
             "success",
             "BTC 5-min trading scheduler started with queue worker",
             {
-                "worker_enabled": True,
+                "worker_enabled": bool(use_local_worker),
                 "scan_interval": f"{scan_seconds}s",
                 "settlement_interval": f"{settle_seconds}s",
                 "min_edge": f"{settings.MIN_EDGE_THRESHOLD:.0%}",

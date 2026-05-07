@@ -3,74 +3,24 @@
 import asyncio
 import logging
 from datetime import datetime, timezone
-import json
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
+from backend.api.auth import authorize_realtime_access
 from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
-from backend.config import settings
-from backend.core.event_bus import event_bus
 
 logger = logging.getLogger("trading_bot")
 
 router = APIRouter(tags=["websockets"])
 
-origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
-
-@router.get("/api/events/stream")
-@router.get("/api/v1/events/stream")
-async def events_stream(request: Request, token: str = ""):
-    """Server-Sent Events stream for real-time trade notifications.
-    
-    Note: Channel-filtered version is available via backend.api.events.sse_router
-    which is registered first and takes precedence. This endpoint is kept for
-    backward compatibility and serves as a fallback.
-    """
-    if settings.ADMIN_API_KEY and token and token != settings.ADMIN_API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
-    event_bus.subscribe(queue)
-
-    async def generate():
-        # Send recent history on connect
-        for event in event_bus.get_history():
-            yield f"data: {json.dumps(event)}\n\n"
-        # Send connected heartbeat immediately
-        yield f"data: {json.dumps({'type': 'connected', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
-        try:
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield f"data: {json.dumps(event)}\n\n"
-                except asyncio.TimeoutError:
-                    # heartbeat keepalive
-                    yield f": keepalive\n\n"
-        finally:
-            event_bus.unsubscribe(queue)
-
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": ", ".join(origins) if origins else "*",
-             "Access-Control-Allow-Headers": "*",
-             "Access-Control-Allow-Methods": "GET, OPTIONS",
-        },
-    )
-
-
 @router.websocket("/ws/markets")
 async def ws_markets(websocket: WebSocket, token: str = Query(None)):
     """WebSocket endpoint for live market price updates."""
-    if settings.ADMIN_API_KEY and token and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
     
@@ -105,7 +55,10 @@ async def ws_markets(websocket: WebSocket, token: str = Query(None)):
 @router.websocket("/ws/whales")
 async def ws_whales(websocket: WebSocket, token: str = Query(None)):
     """WebSocket endpoint for whale trade notifications."""
-    if settings.ADMIN_API_KEY and token and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
     
@@ -139,7 +92,10 @@ async def ws_whales(websocket: WebSocket, token: str = Query(None)):
 
 @router.websocket("/ws/activities")
 async def ws_activities(websocket: WebSocket, token: str = Query(None)):
-    if settings.ADMIN_API_KEY and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
     
@@ -171,7 +127,10 @@ async def ws_activities(websocket: WebSocket, token: str = Query(None)):
 
 @router.websocket("/ws/brain")
 async def ws_brain(websocket: WebSocket, token: str = ""):
-    if settings.ADMIN_API_KEY and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token or None,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
     
@@ -203,7 +162,10 @@ async def ws_brain(websocket: WebSocket, token: str = ""):
 
 @router.websocket("/ws/events")
 async def websocket_events(websocket: WebSocket, token: str = ""):
-    if settings.ADMIN_API_KEY and token and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token or None,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
     
@@ -265,7 +227,10 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
 
 @router.websocket("/ws/dashboard-data")
 async def websocket_stats(websocket: WebSocket, token: str = ""):
-    if settings.ADMIN_API_KEY and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(
+        token=token or None,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
 
@@ -299,6 +264,13 @@ async def websocket_stats(websocket: WebSocket, token: str = ""):
 
 @router.websocket("/ws/livestream")
 async def websocket_livestream(websocket: WebSocket, token: str = ""):
+    if not authorize_realtime_access(
+        token=token or None,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)

@@ -50,7 +50,7 @@ class AbstractQueue(ABC):
     """
 
     @abstractmethod
-    def enqueue(
+    async def enqueue(
         self,
         job_type: str,
         payload: Dict[str, Any],
@@ -75,7 +75,7 @@ class AbstractQueue(ABC):
         pass
 
     @abstractmethod
-    def dequeue(self) -> Optional[Job]:
+    async def dequeue(self) -> Optional[Job]:
         """
         Retrieve the next pending job from the queue.
 
@@ -93,7 +93,7 @@ class AbstractQueue(ABC):
         pass
 
     @abstractmethod
-    def complete(self, job_id: str) -> None:
+    async def complete(self, job_id: str) -> None:
         """
         Mark a job as successfully completed.
 
@@ -106,7 +106,7 @@ class AbstractQueue(ABC):
         pass
 
     @abstractmethod
-    def fail(self, job_id: str, error_message: str) -> None:
+    async def fail(self, job_id: str, error_message: str) -> None:
         """
         Mark a job as failed and optionally retry.
 
@@ -123,7 +123,7 @@ class AbstractQueue(ABC):
         pass
 
     @abstractmethod
-    def get_pending_count(self) -> int:
+    async def get_pending_count(self) -> int:
         """
         Get the number of jobs currently pending (not processing or completed).
 

@@ -133,11 +133,9 @@ class NotificationRouter:
         Telegram and Discord channels are the supported notification methods.
         See IMPLEMENTATION_GAPS.md.
         """
-        logger.debug(
-            "Email notification (de-scoped): to=%s subject=%s",
+        logger.warning(
+            "Email notification channel is de-scoped; dropping message (to=%s subject=%s)",
             config.get("to"),
             config.get("subject", "PolyEdge Alert"),
         )
-        raise NotImplementedError(
-            "Email notifications de-scoped — use Telegram or Discord"
-        )
+        return

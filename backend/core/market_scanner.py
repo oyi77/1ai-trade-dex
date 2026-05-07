@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -37,13 +38,15 @@ async def fetch_all_active_markets(
     """Fetch all active markets from Gamma API with pagination and retry."""
     results: list[MarketInfo] = []
     offset = 0
-    page_size = 100
-    max_pages = 5
+    page_size = max(1, int(getattr(settings, "SCANNER_PAGE_SIZE", 500)))
+    max_markets = int(limit if limit is not None else getattr(settings, "SCANNER_MAX_MARKETS", 10000))
+    max_markets = max(1, max_markets)
+    max_pages = max(1, math.ceil(max_markets / page_size))
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         pages_fetched = 0
         while pages_fetched < max_pages:
-            if limit and len(results) >= limit:
+            if len(results) >= max_markets:
                 break
 
             params: dict[str, Any] = {
@@ -117,7 +120,7 @@ async def fetch_all_active_markets(
             pages_fetched += 1
 
     logger.info(f"market_scanner: fetched {len(results)} active markets")
-    return results[:limit] if limit else results
+    return results[:max_markets]
 
 
 async def fetch_markets_by_keywords(
