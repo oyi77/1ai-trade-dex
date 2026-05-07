@@ -20,7 +20,8 @@ async def store_memory(title: str, content: str, tags: list = None) -> bool:
                 json={"content": content, "title": title, "tags": tags or []},
             )
             return resp.status_code == 200
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to store memory in bk-brain: {e}")
         return False
 
 
@@ -37,6 +38,6 @@ async def search_memory(query: str, limit: int = 5) -> list:
             if resp.status_code == 200:
                 data = resp.json()
                 return data.get("results", [])[:limit]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Failed to search memory in bk-brain: {e}")
     return []
