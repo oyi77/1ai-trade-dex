@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 from contextlib import nullcontext
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import Trade, BotState
+from backend.models.database import Trade, BotState, for_update
 from backend.monitoring.hft_metrics import record_signal
 from sqlalchemy import func, or_
 
@@ -288,7 +288,7 @@ class RiskManager:
                 # Reads DB-backed initial (which includes top-ups) when available.
                 effective_initial = self.s.INITIAL_BANKROLL
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is not None:
                         if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                             effective_initial = float(state.paper_initial_bankroll)
@@ -402,7 +402,7 @@ class RiskManager:
         if getattr(self.s, 'AGI_BANKROLL_ALLOCATION_ENABLED', False):
             # Try to get AGI allocation from BotState.misc_data
             try:
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state and state.misc_data:
                     misc = json.loads(state.misc_data)
                     allocations = misc.get("allocations", {})
@@ -433,7 +433,7 @@ class RiskManager:
     ) -> Optional[float]:
         """Return remaining allocation budget for a strategy, or None if no allocation exists."""
         try:
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if not state or not state.misc_data:
                 return None
             misc = json.loads(state.misc_data)
@@ -524,7 +524,7 @@ class RiskManager:
             # Use the higher of current bankroll or effective initial bankroll
             effective_initial = self.s.INITIAL_BANKROLL
             if db is not None:
-                state = db.query(BotState).filter_by(mode=effective_mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                 if state is not None:
                     if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                         effective_initial = float(state.paper_initial_bankroll)
@@ -540,7 +540,7 @@ class RiskManager:
                 
                 # Store pause timestamp in BotState.misc_data
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)
@@ -569,7 +569,7 @@ class RiskManager:
                 
                 # Store paper mode timestamp in BotState.misc_data
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)

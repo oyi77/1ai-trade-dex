@@ -112,6 +112,7 @@ def client(db):
 
 
 _MODULES_WITH_SESSIONLOCAL = [
+    "backend.db.utils",
     "backend.core.nightly_review",
     "backend.core.decisions",
     "backend.core.signals",
@@ -174,6 +175,8 @@ _MODULES_WITH_SESSIONLOCAL = [
     "backend.ai.self_review",
     "backend.ai.strategy_composer",
     "backend.ai.counterfactual_scorer",
+    "backend.core.proposal_applier",
+    "backend.core.proposal_executor",
 ]
 
 

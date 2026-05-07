@@ -244,7 +244,7 @@ class TestModeIsolation:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute paper trade
@@ -322,7 +322,7 @@ class TestConcurrentExecution:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute 3 trades concurrently (one per mode)
@@ -413,7 +413,7 @@ class TestDatabaseIntegrity:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Create trades in each mode
@@ -508,7 +508,7 @@ class TestModeSpecificRiskLimits:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute trade in paper mode that consumes most of bankroll

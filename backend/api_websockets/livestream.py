@@ -224,7 +224,7 @@ async def broadcast_livestream_snapshot():
 
 async def livestream_broadcaster():
     from backend.api.ws_manager_v2 import topic_manager
-    from backend.models.database import SessionLocal, BotState, Trade, StrategyConfig, TradeAttempt
+    from backend.models.database import SessionLocal, BotState, Trade, StrategyConfig, TradeAttempt, for_update
     import json
     import time
 
@@ -341,7 +341,7 @@ async def livestream_broadcaster():
                 try:
                     db = SessionLocal()
                     try:
-                        bot_state = db.query(BotState).first()
+                        bot_state = for_update(db, db.query(BotState)).first()
                         if bot_state:
                             await topic_manager.broadcast("livestream", {
                                 "type": "bot_state",

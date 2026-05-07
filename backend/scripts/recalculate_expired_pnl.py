@@ -15,7 +15,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.models.database import get_db, Trade, BotState
+from backend.models.database import get_db, Trade, BotState, for_update
 from backend.core.settlement_helpers import calculate_pnl, fetch_polymarket_resolution
 from backend.config import settings
 
@@ -81,7 +81,7 @@ def recalculate_expired_trades(dry_run: bool = False):
 def _reconcile_bot_state(db):
     from sqlalchemy import func, case
 
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     if not state:
         print("No BotState found!")
         return

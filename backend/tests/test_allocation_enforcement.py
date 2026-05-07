@@ -49,7 +49,7 @@ def _make_rm():
 
 
 class TestAllocationEnforcement:
-    @patch("backend.core.risk_manager.SessionLocal")
+    @patch("backend.db.utils.SessionLocal")
     @patch("backend.core.risk_manager.RiskManager._count_enabled_strategies", return_value=1)
     def test_no_allocation_allows_trade(self, mock_count, mock_session_cls):
         mock_db = MagicMock()

@@ -326,7 +326,7 @@ def load_calibration_states(db, strategy_name: str) -> dict[str, CalibrationStat
     try:
         from backend.models.database import BotState
 
-        state = db.query(BotState).first()
+        state = for_update(db, db.query(BotState)).first()
         if state and state.misc_data:
             data = (
                 json.loads(state.misc_data)
@@ -356,7 +356,7 @@ def save_calibration_states(
     try:
         from backend.models.database import BotState
 
-        state = db.query(BotState).first()
+        state = for_update(db, db.query(BotState)).first()
         if not state:
             return
         existing = {}
@@ -672,9 +672,9 @@ class WeatherEMOSStrategy(BaseStrategy):
 
                 bankroll = 100.0
                 try:
-                    from backend.models.database import BotState
+                    from backend.models.database import BotState, for_update
 
-                    state = ctx.db.query(BotState).first()
+                    state = for_update(ctx.db, ctx.db.query(BotState)).first()
                     if state:
                         if ctx.mode == "paper":
                             bankroll = float(

@@ -36,6 +36,7 @@ from backend.models.database import (
     WalletConfig,
     DecisionLog,
     TradeContext,
+    for_update,
 )
 
 # Wallet creation support
@@ -349,7 +350,7 @@ async def health_check(db: Session = Depends(get_db)):
         checks["db_pool"] = {"status": "error", "error": str(e)}
         logger.warning(f"Failed to get pool stats: {e}")
 
-    bot_state = db.query(BotState).first()
+    bot_state = for_update(db, db.query(BotState)).first()
     agi_health = {}
     try:
         from backend.core.agi_event_handlers import check_agi_health

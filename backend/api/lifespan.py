@@ -20,7 +20,7 @@ from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
 from backend.data.orderbook_cache import get_orderbook_cache
-from backend.models.database import SessionLocal, BotState, MarketWatch, Trade, StrategyConfig, SystemSettings
+from backend.models.database import SessionLocal, BotState, MarketWatch, Trade, StrategyConfig, SystemSettings, for_update
 from backend.core.mode_context import ModeExecutionContext, register_context
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies
@@ -406,7 +406,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     from backend.db.utils import get_db_session
     with get_db_session() as db:
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if not state:
                 state = BotState(
                     bankroll=settings.INITIAL_BANKROLL,
@@ -654,7 +654,7 @@ async def _startup_wallet_sync():
                     with get_db_session() as reconciler_db:
                         reconciler = WalletReconciler(clob, reconciler_db, mode)
                         result = await reconciler.full_reconciliation()
-                        state = reconciler_db.query(BotState).first()
+                        state = for_update(reconciler_db, reconciler_db.query(BotState)).first()
                         if state:
                             state.last_sync_at = result.last_sync_at
                             reconciler_db.commit()

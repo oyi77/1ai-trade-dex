@@ -414,34 +414,42 @@ class ProposalExecutor:
             self.logger.error(f"Failed to rollback proposal {proposal_id}: {e}", exc_info=True)
             return False
     
-    def get_executed_proposals(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_executed_proposals(self, limit: int = 20, db=None) -> List[Dict[str, Any]]:
         """Get recently executed proposals for impact monitoring.
         
         Args:
             limit: Maximum number of proposals to return
+            db: Optional database session (creates new if None)
         
         Returns:
             List of proposal dictionaries with execution details
         """
         from backend.db.utils import get_db_session
+
+        if db is not None:
+            return self._get_executed(db, limit)
+
         with get_db_session() as db:
-                proposals = db.query(StrategyProposal).filter(
-                    StrategyProposal.admin_decision == "executed"
-                ).order_by(StrategyProposal.executed_at.desc()).limit(limit).all()
-            
-                result = []
-                for p in proposals:
-                    result.append({
-                        "id": p.id,
-                        "strategy_name": p.strategy_name,
-                        "change_details": p.change_details,
-                        "expected_impact": p.expected_impact,
-                        "executed_at": p.executed_at.isoformat() if p.executed_at else None,
-                        "impact_measured": p.impact_measured,
-                        "admin_user_id": p.admin_user_id
-                    })
-            
-                return result
+            return self._get_executed(db, limit)
+
+    def _get_executed(self, db, limit: int) -> List[Dict[str, Any]]:
+        proposals = db.query(StrategyProposal).filter(
+                StrategyProposal.admin_decision == "executed"
+            ).order_by(StrategyProposal.executed_at.desc()).limit(limit).all()
+        
+        result = []
+        for p in proposals:
+            result.append({
+                "id": p.id,
+                "strategy_name": p.strategy_name,
+                "change_details": p.change_details,
+                "expected_impact": p.expected_impact,
+                "executed_at": p.executed_at.isoformat() if p.executed_at else None,
+                "impact_measured": p.impact_measured,
+                "admin_user_id": p.admin_user_id
+            })
+        
+        return result
     
     def _calculate_sharpe_ratio(self, trades: List[Trade]) -> float:
         """Calculate Sharpe ratio from trades.
