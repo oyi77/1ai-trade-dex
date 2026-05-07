@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.config import settings
-from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState
+from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState, for_update
 
 logger = logging.getLogger("trading_bot.nightly_review")
 
@@ -73,9 +73,9 @@ class NightlyReviewWriter:
             from backend.config import settings
 
             for mode in settings.active_modes_set:
-                bot = db.query(BotState).filter(
+                bot = for_update(db, db.query(BotState).filter(
                     BotState.mode == mode
-                ).first()
+                )).first()
                 if bot:
                     lines.append(f"### Mode: {mode}")
                     lines.append(f"- **Bankroll**: ${bot.bankroll or 0:.2f}")

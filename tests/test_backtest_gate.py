@@ -50,7 +50,13 @@ except Exception:
 
 from backend.core.agi_types import ExperimentStatus  # noqa: E402
 from backend.core.autonomous_promoter import AutonomousPromoter  # noqa: E402
+from backend.core import autonomous_promoter as _promoter_mod  # noqa: E402
+from backend.db import utils as _db_utils_mod  # noqa: E402
 from backend.config import settings  # noqa: E402
+
+# Ensure promoter uses THIS test's SessionLocal (not one cached from a prior test file)
+_promoter_mod.SessionLocal = _TestSession
+_db_utils_mod.SessionLocal = _TestSession
 
 _PROMOTER_KEYS = {
     "AGI_PROMOTER_SHADOW_MIN_TRADES": 5,

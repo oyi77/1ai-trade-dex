@@ -168,6 +168,13 @@ async def test_snapshot_storage(router: OrderbookRouter, sample_update: Orderboo
 
 
 @pytest.mark.asyncio
+async def test_get_snapshot_missing_market(router: OrderbookRouter):
+    """Test that get_snapshot returns None for non-existent market"""
+    snapshot = router.get_snapshot("non_existent_market")
+    assert snapshot is None
+
+
+@pytest.mark.asyncio
 async def test_start_stop(router: OrderbookRouter):
     """Test that start and stop work correctly"""
     assert not router._running

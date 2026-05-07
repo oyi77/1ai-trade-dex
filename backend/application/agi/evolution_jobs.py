@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.config import settings
-from backend.models.database import SessionLocal
+from backend.db.utils import get_db_session as _get_db_session
 from backend.core.event_bus import publish_event
 from backend.domain.evolution.fitness import calculate_fitness
 from backend.domain.evolution.mutation_engine import mutate_genome
@@ -23,11 +23,6 @@ from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.models.database import GenomeRegistry, EvolutionLog
 
 logger = logging.getLogger(__name__)
-
-
-def get_db_session() -> Session:
-    """Get a new database session."""
-    return SessionLocal()
 
 
 def log_evolution_action(action: EvolutionAction, db: Session) -> None:
@@ -56,9 +51,7 @@ def fitness_evaluation_job() -> None:
         return
     
     logger.info("Starting fitness evaluation job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         # Get all active genomes (not in GRAVEYARD stage)
         genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage != "GRAVEYARD"
@@ -88,12 +81,6 @@ def fitness_evaluation_job() -> None:
         
         db.commit()
         logger.info(f"Fitness evaluation completed for {len(genomes)} genomes")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Fitness evaluation job failed: {e}")
-    finally:
-        db.close()
 
 
 def mutation_cycle_job() -> None:
@@ -103,9 +90,7 @@ def mutation_cycle_job() -> None:
         return
     
     logger.info("Starting mutation cycle job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         # Get genomes eligible for mutation (DRAFT stage, fitness > 0.3)
         eligible_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage == "DRAFT",
@@ -141,12 +126,6 @@ def mutation_cycle_job() -> None:
         
         db.commit()
         logger.info(f"Mutation cycle completed for {len(eligible_genomes)} genomes")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Mutation cycle job failed: {e}")
-    finally:
-        db.close()
 
 
 def crossover_cycle_job() -> None:
@@ -156,9 +135,7 @@ def crossover_cycle_job() -> None:
         return
     
     logger.info("Starting crossover cycle job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         # Get elite genomes (fitness > 0.75)
         elite_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.fitness_score > 0.75
@@ -198,12 +175,6 @@ def crossover_cycle_job() -> None:
         
         db.commit()
         logger.info(f"Crossover cycle completed, created {len(elite_genomes) // 2} children")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Crossover cycle job failed: {e}")
-    finally:
-        db.close()
 
 
 def necromancy_analysis_job() -> None:
@@ -213,9 +184,7 @@ def necromancy_analysis_job() -> None:
         return
     
     logger.info("Starting necromancy analysis job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         # Run necromancy analysis
         report = run_necromancy_analysis(db)
         
@@ -234,12 +203,6 @@ def necromancy_analysis_job() -> None:
         log_evolution_action(action, db)
         
         logger.info("Necromancy analysis completed")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Necromancy analysis job failed: {e}")
-    finally:
-        db.close()
 
 
 def regime_rebalancing_job() -> None:
@@ -249,9 +212,7 @@ def regime_rebalancing_job() -> None:
         return
     
     logger.info("Starting regime rebalancing job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         # Detect regime and rebalance
         regime, changes = detect_regime_and_rebalance(db)
         
@@ -268,12 +229,6 @@ def regime_rebalancing_job() -> None:
         log_evolution_action(action, db)
         
         logger.info(f"Regime rebalancing completed, detected regime: {regime}")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Regime rebalancing job failed: {e}")
-    finally:
-        db.close()
 
 
 def shadow_validation_job() -> None:
@@ -284,9 +239,7 @@ def shadow_validation_job() -> None:
         return
     
     logger.info("Starting shadow validation job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         from backend.models.database import ShadowTrade
         shadow_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage == "SHADOW"
@@ -320,12 +273,6 @@ def shadow_validation_job() -> None:
         
         db.commit()
         logger.info(f"Shadow validation completed, promoted {promoted} genomes")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Shadow validation job failed: {e}")
-    finally:
-        db.close()
 
 
 def full_population_review_job() -> None:
@@ -336,9 +283,7 @@ def full_population_review_job() -> None:
         return
     
     logger.info("Starting full population review job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage.in_(["DRAFT", "SHADOW", "PAPER", "LIVE", "BREEDING"])
         ).all()
@@ -363,12 +308,6 @@ def full_population_review_job() -> None:
         
         db.commit()
         logger.info(f"Population review completed: {len(genomes)} genomes, {killed} killed")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Population review job failed: {e}")
-    finally:
-        db.close()
 
 
 def legend_evaluation_job() -> None:
@@ -379,9 +318,7 @@ def legend_evaluation_job() -> None:
         return
     
     logger.info("Starting legend evaluation job")
-    db = get_db_session()
-    
-    try:
+    with _get_db_session() as db:
         from datetime import timedelta
         cutoff = datetime.now(timezone.utc) - timedelta(days=60)
         
@@ -413,12 +350,6 @@ def legend_evaluation_job() -> None:
         
         db.commit()
         logger.info(f"Legend evaluation completed, {legends} new legends")
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Legend evaluation job failed: {e}")
-    finally:
-        db.close()
 
 
 def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:

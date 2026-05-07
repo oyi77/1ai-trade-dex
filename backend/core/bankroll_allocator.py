@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from backend.config import settings
-from backend.models.database import SessionLocal, BotState
+from backend.models.database import BotState, for_update
 from backend.core.strategy_ranker import StrategyRanker
 
 logger = logging.getLogger("trading_bot.bankroll_allocator")
@@ -31,36 +31,38 @@ class BankrollAllocator:
 
         Returns the allocation dict {strategy: amount}.
         """
-        db = SessionLocal()
+        from backend.db.utils import get_db_session
+
         try:
             all_allocations = {}
             for mode in settings.active_modes_set:
-                state = db.query(BotState).filter_by(mode=mode).first()
-                if not state:
-                    continue
-                bankroll = state.bankroll or 0.0
-                if bankroll <= 0:
-                    logger.warning(f"[BankrollAllocator] {mode}: Bankroll ${bankroll:.2f} too low, skipping")
-                    continue
+                with get_db_session() as db:
+                    state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+                    if not state:
+                        continue
+                    bankroll = state.bankroll or 0.0
+                    if bankroll <= 0:
+                        logger.warning(f"[BankrollAllocator] {mode}: Bankroll ${bankroll:.2f} too low, skipping")
+                        continue
 
-                allocations = self.ranker.auto_allocate(db, bankroll, lookback_days=30, trading_mode=mode)
+                    allocations = self.ranker.auto_allocate(db, bankroll, lookback_days=30, trading_mode=mode)
 
-                # Apply feedback adjustments
-                allocations = self.apply_longshot_feedback(allocations)
-                allocations = self.apply_role_feedback(allocations)
-                allocations = self.apply_calibration_feedback(allocations)
+                    # Apply feedback adjustments
+                    allocations = self.apply_longshot_feedback(allocations)
+                    allocations = self.apply_role_feedback(allocations)
+                    allocations = self.apply_calibration_feedback(allocations)
 
-                try:
-                    misc = json.loads(state.misc_data) if state.misc_data else {}
-                except Exception:
-                    misc = {}
-                misc["allocations"] = allocations
-                misc["last_allocation_ts"] = datetime.now(timezone.utc).isoformat()
-                misc["allocation_bankroll"] = bankroll
-                state.misc_data = json.dumps(misc)
-                db.commit()
-                logger.info(f"[BankrollAllocator] {mode}: Persisted allocations to BotState")
-                all_allocations[mode] = allocations
+                    try:
+                        misc = json.loads(state.misc_data) if state.misc_data else {}
+                    except Exception:
+                        misc = {}
+                    misc["allocations"] = allocations
+                    misc["last_allocation_ts"] = datetime.now(timezone.utc).isoformat()
+                    misc["allocation_bankroll"] = bankroll
+                    state.misc_data = json.dumps(misc)
+                    db.commit()
+                    logger.info(f"[BankrollAllocator] {mode}: Persisted allocations to BotState")
+                    all_allocations[mode] = allocations
 
             if not all_allocations:
                 logger.warning("[BankrollAllocator] No BotState found for any active mode, skipping allocation")
@@ -69,8 +71,6 @@ class BankrollAllocator:
         except Exception as e:
             logger.error(f"[BankrollAllocator] Run failed: {e}", exc_info=True)
             return {}
-        finally:
-            db.close()
 
     def apply_longshot_feedback(self, allocations: dict[str, float]) -> dict[str, float]:
         """Reduce allocation for strategies with high longshot bias.
@@ -104,13 +104,13 @@ class BankrollAllocator:
 
     def apply_role_feedback(self, allocations: dict[str, float]) -> dict[str, float]:
         """Boost allocation for strategies where maker trades outperform taker trades."""
-        from backend.models.database import SessionLocal, Trade
+        from backend.models.database import Trade
         from datetime import datetime, timezone, timedelta
+        from backend.db.utils import get_db_session
 
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
                 trades = db.query(Trade).filter(
                     Trade.timestamp >= cutoff,
                     Trade.role.isnot(None),
@@ -146,8 +146,6 @@ class BankrollAllocator:
                         logger.info(f"[BankrollAllocator] Role boost {strat}: +20%")
 
                 return adjusted
-            finally:
-                db.close()
         except Exception as e:
             logger.warning(f"[BankrollAllocator] Role feedback failed: {e}")
             return allocations

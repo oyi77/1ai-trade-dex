@@ -8,7 +8,6 @@ Uses synthetic examples (no network) to exercise:
 """
 import os
 import random
-import tempfile
 
 import pytest
 

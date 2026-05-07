@@ -12,6 +12,7 @@ from backend.models.database import (
     Signal,
     PendingApproval,
     StrategyConfig,
+    for_update,
 )
 from backend.core.signals import scan_for_signals, scan_universe_markets
 from backend.core.decisions import record_decision
@@ -328,7 +329,7 @@ async def scan_and_trade_job(mode: str):
     from backend.db.utils import get_db_session
     try:
         with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not state:
                 log_event("error", f"[{mode.upper()}] Bot state not initialized")
                 return
@@ -466,7 +467,7 @@ async def weather_scan_and_trade_job(mode: str):
 
         from backend.db.utils import get_db_session
         with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not state:
                 log_event("error", f"[{mode.upper()}] Bot state not initialized")
                 return
@@ -710,7 +711,7 @@ async def auto_trader_job(mode: str):
         trader = AutoTrader(RiskManager(), clob_factory=clob_from_settings)
         from backend.db.utils import get_db_session
         with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not state or not state.is_running:
                 return
 
@@ -805,31 +806,28 @@ async def auto_trader_job(mode: str):
 async def heartbeat_job():
     """Periodic heartbeat. Runs every minute."""
     from backend.core.scheduler import log_event
+    from backend.db.utils import get_db_session
 
-    db = None
     try:
-        db = SessionLocal()
-        state = db.query(BotState).first()
-        pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
+        with get_db_session() as db:
+            state = for_update(db, db.query(BotState)).first()
+            pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
 
-        if state is None:
-            log_event("warning", "Heartbeat: Bot state not initialized")
-            return
+            if state is None:
+                log_event("warning", "Heartbeat: Bot state not initialized")
+                return
 
-        log_event(
-            "data",
-            f"Heartbeat: {pending} pending trades, bankroll: ${state.bankroll:.2f}",
-            {
-                "pending_trades": pending,
-                "bankroll": state.bankroll,
-                "is_running": state.is_running,
-            },
-        )
+            log_event(
+                "data",
+                f"Heartbeat: {pending} pending trades, bankroll: ${state.bankroll:.2f}",
+                {
+                    "pending_trades": pending,
+                    "bankroll": state.bankroll,
+                    "is_running": state.is_running,
+                },
+            )
     except Exception as e:
         log_event("warning", f"Heartbeat failed: {str(e)}")
-    finally:
-        if db:
-            db.close()
 
 
 async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
@@ -984,7 +982,7 @@ async def sync_live_wallet():
                 reconciler = WalletReconciler(clob, db, "live")
                 result = await reconciler.full_reconciliation()
 
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if state:
                 state.last_sync_at = result.last_sync_at
                 db.commit()
@@ -1022,7 +1020,7 @@ async def verify_settlement_blockchain():
 
             if not unsettled_trades:
                 log_event("data", "Settlement verification: no unsettled trades")
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state:
                     state.settlement_last_check_at = datetime.now(timezone.utc)
                     db.commit()
@@ -1064,7 +1062,7 @@ async def verify_settlement_blockchain():
                     )
                     continue
 
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if state:
                 state.settlement_last_check_at = datetime.now(timezone.utc)
 

@@ -83,8 +83,7 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal.id)
+    result = applier.apply_proposal_to_config(proposal.id, db=db_session)
     
     assert result is True
     
@@ -143,13 +142,11 @@ async def test_proposal_changes_min_edge_threshold(db_session, strategy_config):
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal.id)
+    result = applier.apply_proposal_to_config(proposal.id, db=db_session)
     
     assert result is True
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        config = applier.get_active_config("test_strategy")
+    config = applier.get_active_config("test_strategy", db=db_session)
     
     assert config["params"]["min_edge_threshold"] == 0.10
 
@@ -171,8 +168,7 @@ async def test_proposal_disables_strategy(db_session, strategy_config):
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal.id)
+    result = applier.apply_proposal_to_config(proposal.id, db=db_session)
     
     assert result is True
     
@@ -202,7 +198,7 @@ async def test_rollback_restores_old_config(db_session, strategy_config):
     
     proposal_id = proposal.id
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         exec_result = executor.execute_proposal(proposal_id)
     
     assert exec_result is True
@@ -257,7 +253,7 @@ async def test_rollback_restores_old_config(db_session, strategy_config):
     
     db_session.commit()
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
     
     assert rolled_back is True
@@ -294,8 +290,7 @@ async def test_proposal_execution_non_blocking(db_session, strategy_config):
     import time
     start_time = time.time()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal.id)
+    result = applier.apply_proposal_to_config(proposal.id, db=db_session)
     
     elapsed = time.time() - start_time
     
@@ -326,8 +321,7 @@ async def test_multiple_concurrent_proposals_fifo(db_session, strategy_config):
     db_session.commit()
     
     for proposal_id in proposal_ids:
-        with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-            result = applier.apply_proposal_to_config(proposal_id)
+        result = applier.apply_proposal_to_config(proposal_id, db=db_session)
         assert result is True
     
     final_config = db_session.query(StrategyConfig).filter(
@@ -357,13 +351,11 @@ async def test_config_timeline_visible(db_session, strategy_config):
     proposal_id = proposal.id
     db_session.commit()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal_id)
+    result = applier.apply_proposal_to_config(proposal_id, db=db_session)
     
     assert result is True
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        timeline = applier.get_config_timeline("test_strategy")
+    timeline = applier.get_config_timeline("test_strategy", db=db_session)
     
     assert len(timeline) == 1
     assert timeline[0]["user_id"] == "admin@example.com"
@@ -378,8 +370,7 @@ async def test_executor_reads_fresh_config_each_cycle(db_session, strategy_confi
     
     applier = ProposalApplier()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        config_before = applier.get_active_config("test_strategy")
+    config_before = applier.get_active_config("test_strategy", db=db_session)
     
     assert config_before["params"]["max_position_usd"] == 100.0
     
@@ -394,12 +385,10 @@ async def test_executor_reads_fresh_config_each_cycle(db_session, strategy_confi
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        result = applier.apply_proposal_to_config(proposal.id)
+    result = applier.apply_proposal_to_config(proposal.id, db=db_session)
     
     assert result is True
     
-    with patch('backend.core.proposal_applier.SessionLocal', return_value=db_session):
-        config_after = applier.get_active_config("test_strategy")
+    config_after = applier.get_active_config("test_strategy", db=db_session)
     
     assert config_after["params"]["max_position_usd"] == 200.0

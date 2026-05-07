@@ -649,8 +649,7 @@ async def restart_mirofish_processes(_: None = Depends(require_admin)):
     if frontend_pid:
         _kill_process(frontend_pid)
 
-    import time
-    time.sleep(1)
+    await asyncio.sleep(1)
 
     # Start both
     results = {"backend": None, "frontend": None}

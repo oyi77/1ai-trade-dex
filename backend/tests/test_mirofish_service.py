@@ -1,5 +1,59 @@
-import pytest
-from unittest.mock import patch
+"""Unit tests for MiroFish service lifecycle management."""
+
+from unittest.mock import MagicMock, patch
+
+from backend.services.mirofish_service import (
+    MiroFishService,
+    ServiceState,
+)
+
+
+@patch("backend.services.mirofish_service.MiroFishService.get_status", return_value={})
+def test_pause_stopped_service(mock_get_status):
+    """Test pausing a stopped service returns appropriate message."""
+    service = MiroFishService()
+    assert service.state == ServiceState.STOPPED
+
+    result = service.pause()
+
+    assert service.state == ServiceState.STOPPED
+    assert result["message"] == "Cannot pause \u2014 service is stopped. Use start first."
+    assert "state" not in result # Since get_status is mocked to return {}
+
+
+@patch("backend.services.mirofish_service.MiroFishService.get_status", return_value={})
+@patch("backend.services.mirofish_monitor.get_monitor")
+def test_pause_running_service(mock_get_monitor, mock_get_status):
+    """Test pausing a running service."""
+    mock_monitor = MagicMock()
+    mock_get_monitor.return_value = mock_monitor
+
+    service = MiroFishService()
+    service.start()
+    assert service.state == ServiceState.RUNNING
+
+    result = service.pause()
+
+    assert service.state == ServiceState.PAUSED
+    assert result["message"] == "Paused (was running)"
+
+
+@patch("backend.services.mirofish_service.MiroFishService.get_status", return_value={})
+@patch("backend.services.mirofish_monitor.get_monitor")
+def test_pause_paused_service(mock_get_monitor, mock_get_status):
+    """Test pausing an already paused service returns appropriate message."""
+    mock_monitor = MagicMock()
+    mock_get_monitor.return_value = mock_monitor
+
+    service = MiroFishService()
+    service.start()
+    service.pause()
+    assert service.state == ServiceState.PAUSED
+
+    result = service.pause()
+
+    assert service.state == ServiceState.PAUSED
+    assert result["message"] == "Already paused"
 
 def test_record_signal_fetch_negative_count():
     from backend.services.mirofish_service import get_mirofish_service

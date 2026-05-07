@@ -234,11 +234,11 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
 
     bankroll = settings.INITIAL_BANKROLL
     try:
-        from backend.models.database import BotState, SessionLocal
+        from backend.models.database import BotState, SessionLocal, for_update
 
         from backend.db.utils import get_db_session
         with get_db_session() as _db:
-            _state = _db.query(BotState).filter_by(mode=mode).first()
+            _state = for_update(_db, _db.query(BotState).filter_by(mode=mode)).first()
             if _state:
                 bankroll = float(
                     _state.bankroll if _state.bankroll is not None else settings.INITIAL_BANKROLL

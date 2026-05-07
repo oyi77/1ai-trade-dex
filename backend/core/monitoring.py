@@ -79,14 +79,14 @@ class ProductionMonitor:
     def check_pnl_accuracy(self) -> Dict[str, Any]:
         """Verify PNL matches sum of settled trades across all active modes."""
         try:
-            from backend.models.database import BotState
+            from backend.models.database import BotState, for_update
 
             results = {}
             all_accurate = True
             for mode in settings.active_modes_set:
-                bot = self.db.query(BotState).filter(
+                bot = for_update(self.db, self.db.query(BotState).filter(
                     BotState.mode == mode
-                ).first()
+                )).first()
                 if not bot:
                     results[mode] = {"accurate": True, "message": "no BotState to verify"}
                     continue

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from backend.config import settings
 from backend.models.audit_logger import log_audit_event
-from backend.models.database import BotState, Trade
+from backend.models.database import BotState, Trade, for_update
 
 logger = logging.getLogger("trading_bot.bankroll_reconciliation")
 
@@ -488,7 +488,7 @@ async def reconcile_bot_state(
     try:
         db.expire_all()
         for mode in mode_list:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not state:
                 logger.warning("No BotState found for mode=%s", mode)
                 continue
