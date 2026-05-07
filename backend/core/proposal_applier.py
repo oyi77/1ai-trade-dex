@@ -165,9 +165,6 @@ class ProposalApplier:
                 exc_info=True
             )
             return False
-        finally:
-            if owns_db:
-                db.close()
     
     def get_active_config(
         self,

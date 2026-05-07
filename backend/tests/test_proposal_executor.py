@@ -392,8 +392,7 @@ def test_auto_rollback_no_audit_log(executor, db_session, sample_strategy_config
 
 
 def test_get_executed_proposals(executor, db_session, executed_proposal):
-    with patch('backend.db.utils.SessionLocal', return_value=db_session):
-        proposals = executor.get_executed_proposals(limit=10)
+    proposals = executor.get_executed_proposals(limit=10, db=db_session)
     
     assert len(proposals) == 1
     assert proposals[0]["id"] == executed_proposal.id

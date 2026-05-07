@@ -263,7 +263,7 @@ class GeneralMarketScanner(BaseStrategy):
         }
 
         # AI is required for this strategy to have any edge
-        if not getattr(ctx.settings, 'AI_GENERATION_ENABLED', False):
+        if not getattr(ctx.settings, 'AI_ENABLED', False):
             ctx.logger.info(
                 "[general_scanner] AI disabled — skipping cycle (AI required for edge)"
             )
