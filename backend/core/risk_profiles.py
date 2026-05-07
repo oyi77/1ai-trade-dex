@@ -7,13 +7,12 @@ Profiles are fully editable at runtime via REST API — no code changes needed.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-from dataclasses import dataclass, asdict
-from typing import Dict, Optional, List
+from dataclasses import dataclass
+from typing import Dict, Optional
 
-from sqlalchemy import Column, String, Float, Boolean, Text
+from sqlalchemy import Column, String, Float, Boolean
 from sqlalchemy.orm import Session
 
 from backend.models.database import Base, SessionLocal

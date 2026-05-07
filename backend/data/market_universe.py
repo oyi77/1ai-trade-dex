@@ -187,7 +187,7 @@ class MarketUniverseScanner:
         from datetime import datetime, timezone
 
         markets = await self._provider.fetch_markets(limit=limit, active_only=True)
-        now_dt = datetime.now(timezone.utc)
+        _now_dt = datetime.now(timezone.utc)
         filtered = [
             m for m in markets
             if m.get("volume_24h", 0) > 0

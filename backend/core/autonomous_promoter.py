@@ -12,18 +12,16 @@ Respects ADR-006 gate but can be overridden via AGI_AUTO_PROMOTE=true.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from backend.config import settings
-from backend.models.database import SessionLocal, StrategyConfig, BotState, Trade
+from backend.models.database import StrategyConfig, Trade
 from backend.models.kg_models import ExperimentRecord
-from backend.core.experiment_runner import ExperimentRunner, EvaluationResult
+from backend.core.experiment_runner import ExperimentRunner
 from backend.core.agi_types import ExperimentStatus
 from backend.core.strategy_health import StrategyHealthMonitor
 from backend.core.event_bus import publish_event
@@ -479,7 +477,7 @@ class AutonomousPromoter:
 
         ref_time = exp.promoted_at or exp.created_at
         if ref_time is None:
-            reasons.append(f"no reference time for paper age check")
+            reasons.append("no reference time for paper age check")
         else:
             if ref_time.tzinfo is None:
                 ref_time = ref_time.replace(tzinfo=timezone.utc)

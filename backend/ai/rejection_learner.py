@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from sqlalchemy.sql import func
 
@@ -92,7 +92,6 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
     try:
         with get_db_session() as db:
             from backend.models.database import DecisionLog
-            from sqlalchemy.sql import func
 
             decisions = (
                 db.query(DecisionLog)

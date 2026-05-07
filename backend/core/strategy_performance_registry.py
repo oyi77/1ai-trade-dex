@@ -12,18 +12,15 @@ This is the source of truth for:
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
 
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, Float, String, DateTime, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, Float, String, DateTime, UniqueConstraint
 
 from backend.models.database import Base, SessionLocal, Trade
-from backend.core.strategy_health import StrategyHealthMonitor
 
 logger = logging.getLogger("trading_bot.performance_registry")
 

@@ -47,7 +47,7 @@ def _should_send_event(event_type: str, requested_channels: Set[str]) -> bool:
     if not requested_channels:
         # No channels specified = send all events (backward compatibility)
         return True
-    
+
     event_channels = _get_channels_for_event(event_type)
     return bool(event_channels & requested_channels)
 
@@ -63,7 +63,7 @@ async def events_stream(
     )
 ):
     """Server-Sent Events stream for real-time trade notifications with channel filtering.
-    
+
     Clients can subscribe to specific channels to receive only relevant events.
     If no channels parameter is provided, all events are sent (backward compatible).
     """
@@ -72,7 +72,7 @@ async def events_stream(
 
     # Parse requested channels
     requested_channels = set(c.strip() for c in channels.split(",") if c.strip()) if channels else set()
-    
+
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
     event_bus.subscribe(queue)
 
@@ -82,10 +82,10 @@ async def events_stream(
             event_type = event.get("type", "")
             if _should_send_event(event_type, requested_channels):
                 yield f"data: {json.dumps(event)}\n\n"
-        
+
         # Send connected heartbeat immediately
         yield f"data: {json.dumps({'type': 'connected', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
-        
+
         try:
             while True:
                 if await request.is_disconnected():
@@ -93,11 +93,11 @@ async def events_stream(
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
                     event_type = event.get("type", "")
-                    
+
                     # Apply channel filtering
                     if _should_send_event(event_type, requested_channels):
                         yield f"data: {json.dumps(event)}\n\n"
-                    
+
                 except asyncio.TimeoutError:
                     # heartbeat keepalive
                     yield ": keepalive\n\n"

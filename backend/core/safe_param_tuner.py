@@ -1,8 +1,7 @@
 import math
 import logging
 import json
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from sqlalchemy.orm import Session
 
 from backend.models.outcome_tables import StrategyOutcome, ParamChange
@@ -110,7 +109,7 @@ class SafeParamTuner:
             db.query(ParamChange)
             .filter(
                 ParamChange.strategy == strategy,
-                ParamChange.reverted_at == None,
+                ParamChange.reverted_at is None,
             )
             .order_by(ParamChange.applied_at.desc())
             .first()

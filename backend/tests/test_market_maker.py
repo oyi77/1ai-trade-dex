@@ -1,6 +1,6 @@
 """Tests for MarketMakerStrategy."""
 import pytest
-from backend.strategies.market_maker import MarketMakerStrategy, Quote
+from backend.strategies.market_maker import MarketMakerStrategy
 from backend.strategies.registry import STRATEGY_REGISTRY
 
 

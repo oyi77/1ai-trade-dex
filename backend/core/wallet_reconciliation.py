@@ -74,7 +74,7 @@ class WalletReconciler:
         self.db = db
         self.mode = mode
         self.alert_manager = AlertManager(db)
-        
+
         # Determine wallet address from CLOB client
         if self.clob.builder_address:
             self.wallet_address = self.clob.builder_address
@@ -85,7 +85,7 @@ class WalletReconciler:
                 "Cannot determine wallet address from CLOB client. "
                 "Ensure POLYMARKET_BUILDER_ADDRESS is set or client is initialized with private_key."
             )
-        
+
         self.logger = logging.getLogger(f"wallet_reconciler[{mode}]")
         self.logger.info(f"Initialized reconciler for wallet {self.wallet_address}")
 
@@ -103,7 +103,7 @@ class WalletReconciler:
             SyncResult with metrics (imported, updated, closed counts)
         """
         result = SyncResult()
-        
+
         try:
             # 1. Import historical trades from blockchain
             self.logger.info("Starting full reconciliation cycle")
@@ -114,13 +114,13 @@ class WalletReconciler:
             activity_imported = await self.import_activity_redeems()
             imported += activity_imported
             result.imported_count = imported
-            
+
             # 2. Sync current open positions
             position_result = await self.sync_current_positions()
             result.updated_count = position_result.updated_count
             result.closed_count = position_result.closed_count
             result.errors.extend(position_result.errors)
-            
+
             # 3. Check for orphaned positions
             orphans = await self.detect_orphaned_positions()
             for orphan in orphans:
@@ -132,7 +132,7 @@ class WalletReconciler:
                     error_msg = f"Failed to close orphan {orphan.market_id}: {e}"
                     self.logger.error(error_msg, exc_info=True)
                     result.errors.append(error_msg)
-            
+
             # 4. Update timestamps
             result.last_sync_at = datetime.now(timezone.utc)
             self.logger.info(
@@ -140,12 +140,12 @@ class WalletReconciler:
                 f"updated={result.updated_count}, closed={result.closed_count}, "
                 f"errors={len(result.errors)}"
             )
-            
+
         except Exception as e:
             error_msg = f"Reconciliation failed: {e}"
             self.logger.error(error_msg, exc_info=True)
             result.errors.append(error_msg)
-        
+
         return result
 
     def _resolve_strategy_for_position(self, market_ticker: str) -> Optional[str]:
@@ -208,24 +208,24 @@ class WalletReconciler:
                 )
                 response.raise_for_status()
                 positions = response.json()
-            
+
             self.logger.info(f"Downloaded {len(positions)} positions from Data API")
-            
+
             imported = 0
             for pos in positions:
                 # Import both open and redeemable (settled) positions
-                is_redeemable = pos.get("redeemable", False)
-                
+                _is_redeemable = pos.get("redeemable", False)
+
                 # Use asset (token_id) as market_ticker (enables CLOB API midpoint lookup)
                 market_slug = pos["asset"]
                 size = pos["initialValue"]
                 avg_price = pos["avgPrice"]
                 outcome = pos["outcome"]
-                
+
                 existing = self.db.query(Trade).filter(
                     Trade.market_ticker == market_slug
                 ).first()
-                
+
                 if existing:
                     if abs(existing.size - size) > 0.01:
                         from backend.models.audit_logger import log_position_updated
@@ -246,7 +246,7 @@ class WalletReconciler:
                     else:
                         self.logger.debug(f"Trade {market_slug} already in DB (id={existing.id})")
                     continue
-                
+
                 new_trade = Trade(
                     market_ticker=market_slug,
                     platform="polymarket",
@@ -266,16 +266,16 @@ class WalletReconciler:
                     market_price_at_entry=avg_price,
                     edge_at_entry=0.0,
                 )
-                
+
                 self.db.add(new_trade)
                 imported += 1
                 self.logger.info(
                     f"Imported orphaned position: {market_slug} "
                     f"({outcome} @ {avg_price}, {size} shares)"
                 )
-            
+
             self.db.commit()
-            
+
             from backend.models.audit_logger import log_wallet_reconciled
             log_wallet_reconciled(
                 db=self.db,
@@ -289,11 +289,11 @@ class WalletReconciler:
                 user_id="system:reconciliation",
             )
             self.db.commit()
-            
+
             self.logger.info(f"Imported {imported} new trades from blockchain")
-            
+
             return imported
-            
+
         except Exception as e:
             self.logger.error(f"Failed to import blockchain history: {e}", exc_info=True)
             self.db.rollback()
@@ -333,14 +333,14 @@ class WalletReconciler:
                 condition_id = record.get("conditionId", "")
                 title = record.get("title", "")
                 redeem_amount = float(record.get("usdcSize", 0))
-                tx_hash = record.get("transactionHash", "")
+                _tx_hash = record.get("transactionHash", "")
                 timestamp_unix = record.get("timestamp", 0)
 
                 if not condition_id:
                     continue
 
                 slug = record.get("slug", "")
-                event_slug = record.get("eventSlug", "")
+                _event_slug = record.get("eventSlug", "")
 
                 existing = None
                 if slug:
@@ -435,30 +435,30 @@ class WalletReconciler:
             SyncResult with updated/closed counts
         """
         self.logger.info("Syncing current positions from blockchain")
-        
+
         result = SyncResult()
-        
+
         try:
             # Fetch open positions from Data API
             blockchain_positions = await self._fetch_open_positions()
-            
+
             # Build map of blockchain positions by asset (token_id)
             blockchain_map = {
                 pos["asset"]: pos
                 for pos in blockchain_positions
             }
-            
+
             self.logger.debug(f"Blockchain has {len(blockchain_map)} open positions")
-            
+
             # Query DB for open trades
             db_open_trades = self.db.query(Trade).filter(
                 (Trade.trading_mode == self.mode) &
                 (Trade.settlement_time.is_(None)) &  # Still open
                 (~Trade.settled)
             ).all()
-            
+
             self.logger.debug(f"DB has {len(db_open_trades)} open trades")
-            
+
             # Compare
             for db_trade in db_open_trades:
                 if db_trade.market_ticker not in blockchain_map:
@@ -508,14 +508,14 @@ class WalletReconciler:
                     blockchain_pos = blockchain_map[db_trade.market_ticker]
                     blockchain_size = blockchain_pos.get("initialValue", 0.0)
                     db_size = db_trade.size or 0.0
-                    
+
                     self.alert_manager.check_position_discrepancy(
                         position_id=db_trade.market_ticker,
                         db_value=db_size,
                         blockchain_value=blockchain_size,
                         mode=self.mode,
                     )
-                    
+
                     db_trade.last_sync_at = datetime.now(timezone.utc)
                     db_trade.blockchain_verified = True
                     result.updated_count += 1
@@ -523,9 +523,9 @@ class WalletReconciler:
                         f"Position {db_trade.market_ticker} (id={db_trade.id}) "
                         f"still open, updated sync timestamp"
                     )
-            
+
             self.db.commit()
-            
+
             from backend.models.audit_logger import log_wallet_reconciled
             log_wallet_reconciled(
                 db=self.db,
@@ -539,17 +539,17 @@ class WalletReconciler:
                 user_id="system:reconciliation",
             )
             self.db.commit()
-            
+
             self.logger.info(
                 f"Position sync: {result.updated_count} updated, {result.closed_count} closed"
             )
-            
+
         except Exception as e:
             error_msg = f"Failed to sync current positions: {e}"
             self.logger.error(error_msg, exc_info=True)
             result.errors.append(error_msg)
             self.db.rollback()
-        
+
         return result
 
     async def detect_orphaned_positions(self) -> list[OrphanedPosition]:
@@ -562,10 +562,10 @@ class WalletReconciler:
             List of OrphanedPosition objects
         """
         self.logger.info("Detecting orphaned positions")
-        
+
         try:
             blockchain_positions = await self._fetch_open_positions()
-            
+
             orphans = []
             for pos in blockchain_positions:
                 # Check if trade exists in DB
@@ -573,10 +573,10 @@ class WalletReconciler:
                     (Trade.market_ticker == pos["asset"]) &
                     (~Trade.settled)
                 ).first()
-                
+
                 if existing:
                     continue  # Found in DB
-                
+
                 # Orphaned!
                 orphan = OrphanedPosition(
                     market_id=pos["asset"],
@@ -589,10 +589,10 @@ class WalletReconciler:
                     f"Orphaned position detected: {orphan.market_id} "
                     f"({orphan.blockchain_size} shares @ {orphan.blockchain_entry_price})"
                 )
-            
+
             self.logger.info(f"Found {len(orphans)} orphaned positions")
             return orphans
-            
+
         except Exception as e:
             self.logger.error(f"Failed to detect orphaned positions: {e}", exc_info=True)
             return []
@@ -610,17 +610,17 @@ class WalletReconciler:
             True if successfully created, False if already exists
         """
         self.logger.info(f"Creating DB record for orphaned position: {orphan.market_id}")
-        
+
         try:
             # Check again if it exists (race condition)
             existing = self.db.query(Trade).filter(
                 Trade.market_ticker == orphan.market_id
             ).first()
-            
+
             if existing:
                 self.logger.debug(f"Orphan {orphan.market_id} already has DB record (id={existing.id})")
                 return False
-            
+
             # Create trade record
             trade = Trade(
                 market_ticker=orphan.market_id,
@@ -630,7 +630,7 @@ class WalletReconciler:
                 size=orphan.blockchain_size,
                 timestamp=orphan.detected_at,
                 trading_mode=self.mode,
-                
+
                 # Reconciliation fields (Task 1)
                 source="orphaned",                    # Position found on-chain, reconstructed
                 strategy="wallet_import",
@@ -638,19 +638,19 @@ class WalletReconciler:
                 blockchain_verified=True,
                 settlement_source="clob_api",
                 external_import_at=orphan.detected_at,
-                
+
                 # Default values for required fields
                 model_probability=0.5,  # Unknown for orphaned positions
                 market_price_at_entry=orphan.blockchain_entry_price,
                 edge_at_entry=0.0,  # Unknown for orphaned positions
             )
-            
+
             self.db.add(trade)
             self.db.commit()
-            
+
             self.logger.info(f"Created orphaned position record: id={trade.id}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Failed to close orphaned position: {e}", exc_info=True)
             self.db.rollback()
@@ -689,16 +689,16 @@ class WalletReconciler:
                 )
                 response.raise_for_status()
                 positions = response.json()
-            
+
             # Filter to only open positions (not redeemable)
             open_positions = [
-                pos for pos in positions 
+                pos for pos in positions
                 if not pos.get("redeemable", False)
             ]
-            
+
             self.logger.debug(f"Found {len(open_positions)} open positions")
             return open_positions
-        
+
         except Exception as e:
             self.logger.error(f"Failed to fetch open positions: {e}", exc_info=True)
             # Return empty list on error (graceful degradation)

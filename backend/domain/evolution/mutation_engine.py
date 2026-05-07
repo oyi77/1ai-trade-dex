@@ -1,9 +1,8 @@
 import random
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any
 from uuid import uuid4
 from backend.domain.genome.models import StrategyGenome, FitnessMetrics
 from pydantic import BaseModel
-from copy import deepcopy
 
 
 def normalize(value: float, min_val: float, max_val: float) -> float:
@@ -15,7 +14,7 @@ def tweak_random_numeric_gene(genome: StrategyGenome, sigma: float = 0.20) -> Tu
     """Randomly tweak a numeric gene by ±sigma%."""
     # Find all numeric fields in the genome
     numeric_fields = []
-    
+
     # Helper to traverse nested structures
     def find_numeric_fields(obj: Any, path: str = ""):
         if isinstance(obj, dict):
@@ -38,23 +37,23 @@ def tweak_random_numeric_gene(genome: StrategyGenome, sigma: float = 0.20) -> Tu
                 elif isinstance(value, list):
                     for i, item in enumerate(value):
                         find_numeric_fields(item, f"{new_path}[{i}]")
-    
+
     # Search through chromosomes
     for chromo_name, chromosome in genome.chromosomes.items():
         find_numeric_fields(chromosome, f"chromosomes.{chromo_name}")
-    
+
     if not numeric_fields:
         return "", 0.0
-    
+
     # Select a random numeric field
     field_path, current_value = random.choice(numeric_fields)
-    
+
     # Apply tweak
     if isinstance(current_value, int):
         new_value = int(current_value * (1 + random.uniform(-sigma, sigma)))
     else:
         new_value = current_value * (1 + random.uniform(-sigma, sigma))
-    
+
     return field_path, new_value
 
 
@@ -67,32 +66,32 @@ def swap_indicator(genome: StrategyGenome, weighted_by_regime: str = "neutral") 
         "volatile": ["atr", "true_range", "volatility_rank", "vix_futures_basis"],
         "neutral": ["orderbook_imbalance", "spread_compression", "volume_spike", "price_velocity"]
     }
-    
+
     # Get current indicators from entry conditions
     current_indicators = []
     if "cognition" in genome.chromosomes:
         for condition in genome.chromosomes["cognition"].entry_logic.conditions:
             current_indicators.append(condition.indicator)
-    
+
     if not current_indicators:
         current_indicators = ["rsi"]
-    
+
     # Select regime-appropriate indicators
     available_indicators = regime_indicators.get(weighted_by_regime, regime_indicators["neutral"])
-    
+
     # Choose a random indicator to replace
     old_indicator = random.choice(current_indicators) if current_indicators else "rsi"
-    
+
     # Choose a new indicator (different from old)
     new_indicator = random.choice([i for i in available_indicators if i != old_indicator])
-    
+
     return old_indicator, new_indicator
 
 
 def shift_timeframe(genome: StrategyGenome, current_volatility: float = 1.0) -> Tuple[str, str]:
     """Shift timeframes based on current volatility."""
-    timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
-    
+    _timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
+
     # Higher volatility = shorter timeframes
     if current_volatility > 1.5:
         preferred = ["1m", "5m"]
@@ -100,37 +99,37 @@ def shift_timeframe(genome: StrategyGenome, current_volatility: float = 1.0) -> 
         preferred = ["1h", "4h", "1d"]
     else:
         preferred = ["5m", "15m", "30m"]
-    
+
     perception = genome.chromosomes.get("perception")
     if perception:
         current_tfs = perception.timeframes if hasattr(perception, 'timeframes') else ["5m"]
     else:
         current_tfs = ["5m"]
-    
+
     old_tf = random.choice(current_tfs) if current_tfs else "5m"
     new_tf = random.choice(preferred)
-    
+
     return old_tf, new_tf
 
 
 def reassign_risk_model(genome: StrategyGenome, drawdown_history: List[float] = None) -> Tuple[str, str]:
     """Reassign risk model based on drawdown history."""
     risk_models = ["kelly_fraction", "fixed_fraction", "volatility_targeted", "optimal_f"]
-    
+
     # If high drawdowns, prefer more conservative models
     if drawdown_history and any(d > 0.2 for d in drawdown_history):
         preferred = ["fixed_fraction", "volatility_targeted"]
     else:
         preferred = risk_models
-    
+
     risk_chromo = genome.chromosomes.get("risk")
     if risk_chromo:
         current_model = risk_chromo.position_sizing_model if hasattr(risk_chromo, 'position_sizing_model') else "kelly_fraction"
     else:
         current_model = "kelly_fraction"
-    
+
     new_model = random.choice([m for m in preferred if m != current_model])
-    
+
     return current_model, new_model
 
 
@@ -156,7 +155,7 @@ def force_mutate_chromosome(genome: StrategyGenome, chromosome_name: str) -> Dic
     chromosome = genome.chromosomes.get(chromosome_name)
     if not chromosome:
         return {"error": "chromosome_not_found"}
-    
+
     # Apply multiple tweaks to this chromosome
     if chromosome_name == "perception":
         return {
@@ -185,14 +184,14 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
     # Create a proper copy with new UUID
     genome_data = genome.model_dump()
     genome_data['genome_id'] = str(uuid4())
-    
+
     # Reconstruct chromosomes as proper Pydantic objects
     chromo_data = genome_data['chromosomes']
     from backend.domain.genome.models import (
-        PerceptionChromosome, CognitionChromosome, 
+        PerceptionChromosome, CognitionChromosome,
         ExecutionChromosome, RiskChromosome, MetaChromosome
     )
-    
+
     reconstructed_chromos = {}
     for name, chromo_dict in chromo_data.items():
         if name == "perception":
@@ -207,22 +206,22 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
             reconstructed_chromos[name] = MetaChromosome(**chromo_dict)
         else:
             reconstructed_chromos[name] = chromo_dict
-    
+
     genome_data['chromosomes'] = reconstructed_chromos
     new_genome = StrategyGenome(**genome_data)
-    
+
     for mutation in mutations:
         mut_type = mutation.get("type")
-        
+
         if mut_type == "hyperparameter":
             # Parse field path and set new value
             field_path = mutation["gene"]
             new_value = mutation["new_value"]
-            
+
             # Navigate to the field
             parts = field_path.split(".")
             obj = new_genome
-            
+
             try:
                 for part in parts[:-1]:
                     if part.startswith("chromosomes."):
@@ -235,7 +234,7 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
                         obj = getattr(obj, list_name, [])[index] if hasattr(obj, list_name) else obj[list_name][index]
                     else:
                         obj = getattr(obj, part, {}) if hasattr(obj, part) else obj.get(part, {})
-                
+
                 # Set the final value
                 final_field = parts[-1]
                 if hasattr(obj, final_field):
@@ -244,7 +243,7 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
                     obj[final_field] = new_value
             except (KeyError, IndexError, AttributeError):
                 pass
-        
+
         elif mut_type == "indicator_swap":
             if "cognition" in new_genome.chromosomes:
                 cognition_chromo = new_genome.chromosomes["cognition"]
@@ -252,7 +251,7 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
                     for condition in cognition_chromo.entry_logic.conditions:
                         if condition.indicator == mutation["old"]:
                             condition.indicator = mutation["new"]
-        
+
         elif mut_type == "timeframe_shift":
             if "perception" in new_genome.chromosomes:
                 perception_chromo = new_genome.chromosomes["perception"]
@@ -261,26 +260,26 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
                     if mutation["old"] in timeframes:
                         index = timeframes.index(mutation["old"])
                         timeframes[index] = mutation["new"]
-        
+
         elif mut_type == "risk_model":
             # Change risk model
             if "risk" in new_genome.chromosomes:
                 risk_chromo = new_genome.chromosomes["risk"]
                 if hasattr(risk_chromo, 'position_sizing_model'):
                     risk_chromo.position_sizing_model = mutation["new"]
-        
+
         elif mut_type == "chromosome_addition":
             # Add new chromosome
             new_chromo_name = f"novel_{len(new_genome.chromosomes)}"
             new_genome.chromosomes[new_chromo_name] = mutation["chromosome"]
-        
+
         elif mut_type == "targeted":
             # Apply targeted mutation
             chromo_name = mutation["chromosome"]
             if chromo_name in new_genome.chromosomes:
                 if "gene" in mutation:
                     setattr(new_genome.chromosomes[chromo_name], mutation["gene"], mutation["new_value"])
-    
+
     return new_genome
 
 

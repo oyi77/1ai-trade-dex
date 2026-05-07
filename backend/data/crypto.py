@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.retry import retry
 from backend.config import settings
 

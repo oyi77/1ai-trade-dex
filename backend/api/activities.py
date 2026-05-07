@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends, WebSocket, WebSock
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from backend.models.database import SessionLocal, ActivityLog
+from backend.models.database import ActivityLog
 from backend.api.auth import require_admin
 from backend.core.activity_logger import activity_logger
 from backend.api_websockets.activity_stream import broadcast_activity
@@ -43,7 +43,7 @@ async def get_activities(
 ):
     """
     Get activity logs with optional filtering.
-    
+
     Query parameters:
     - limit: Maximum records to return (1-1000, default 100)
     - strategy: Filter by strategy name (e.g., 'btc_momentum')
@@ -53,25 +53,25 @@ async def get_activities(
     """
     try:
         query = db.query(ActivityLog)
-        
+
         if strategy:
             query = query.filter(ActivityLog.strategy_name == strategy)
-        
+
         if decision_type:
             query = query.filter(ActivityLog.decision_type == decision_type)
-        
+
         if days:
             from datetime import timedelta
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
             query = query.filter(ActivityLog.timestamp >= cutoff)
-        
+
         if confidence_min is not None:
             query = query.filter(ActivityLog.confidence_score >= confidence_min)
-        
+
         query = query.order_by(ActivityLog.timestamp.desc()).limit(limit)
-        
+
         activities = query.all()
-        
+
         result = []
         for activity in activities:
             result.append({
@@ -84,7 +84,7 @@ async def get_activities(
                 "mode": activity.mode,
                 "trading_mode": activity.mode
             })
-        
+
         return {
             "activities": result,
             "count": len(result),
@@ -103,10 +103,10 @@ async def get_activity_by_id(
     """Get a single activity log by ID."""
     try:
         activity = db.query(ActivityLog).filter(ActivityLog.id == activity_id).first()
-        
+
         if not activity:
             raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
-        
+
         return {
             "id": activity.id,
             "timestamp": activity.timestamp.isoformat(),
@@ -140,12 +140,12 @@ async def create_activity(
             mode=request.mode,
             db=db
         )
-        
+
         if not activity_id:
             raise HTTPException(status_code=500, detail="Failed to create activity log")
-        
+
         activity = db.query(ActivityLog).filter(ActivityLog.id == activity_id).first()
-        
+
         response_data = {
             "id": activity.id,
             "timestamp": activity.timestamp.isoformat(),
@@ -156,9 +156,9 @@ async def create_activity(
             "mode": activity.mode,
             "trading_mode": activity.mode
         }
-        
+
         await broadcast_activity(response_data)
-        
+
         return response_data
     except HTTPException:
         raise
@@ -171,21 +171,21 @@ async def create_activity(
 async def websocket_activities_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint for real-time activity updates.
-    
+
     Connects to /ws/activities (relative to /api/activities prefix = /api/activities/ws)
     Receives activity updates in real-time as they are logged via POST /api/activities.
     """
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "activities")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

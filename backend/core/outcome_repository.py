@@ -1,6 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
-from backend.models.outcome_tables import StrategyOutcome, ParamChange, StrategyHealthRecord
+from backend.models.outcome_tables import StrategyOutcome, ParamChange
 
 
 def compute_reward(trade, recent_sharpe: float = 1.0, recent_drawdown_pct: float = 0.0, mode_weight: float = 1.0) -> float:

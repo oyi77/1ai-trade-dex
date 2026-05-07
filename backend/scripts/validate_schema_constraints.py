@@ -76,40 +76,40 @@ ENUM_DOMAINS = {
     "trades.trading_mode": ["paper", "testnet", "live"],
     "trades.market_type": ["btc", "weather"],
     "trades.source": ["bot", "manual", "import"],
-    
+
     # Signal enums
     "signals.side": ["YES", "NO", "up", "down"],
     "signals.status": ["pending", "filled", "cancelled", "expired"],
-    
+
     # BotState enums
     "bot_state.mode": ["paper", "testnet", "live"],
-    
+
     # TradeAttempt enums
     "trade_attempts.status": ["STARTED", "COMPLETED", "FAILED", "REJECTED"],
     "trade_attempts.phase": ["created", "validated", "executed", "settled", "failed"],
     "trade_attempts.mode": ["paper", "testnet", "live"],
     "trade_attempts.direction": ["up", "down", "YES", "NO"],
     "trade_attempts.decision": ["BUY", "SELL", "HOLD", "SKIP"],
-    
+
     # DecisionLog enums
     "decision_log.decision": ["BUY", "SKIP", "SELL", "HOLD", "ERROR"],
     "decision_log.outcome": ["WIN", "LOSS", "PUSH"],
-    
+
     # StrategyOutcome enums
     "strategy_outcomes.result": ["win", "loss", "push", "pending"],
     "strategy_outcomes.market_type": ["btc", "weather"],
     "strategy_outcomes.trading_mode": ["paper", "testnet", "live"],
     "strategy_outcomes.direction": ["up", "down", "YES", "NO"],
-    
+
     # StrategyHealthRecord enums
     "strategy_health.status": ["active", "degraded", "paused", "retired"],
-    
+
     # ExperimentRecord enums
     "experiment_records.status": ["draft", "shadow", "backtest", "promoted", "retired", "failed"],
-    
+
     # EvolutionLineage enums
     "evolution_lineage.mutation_type": ["perturbation", "crossover", "random", "gradient"],
-    
+
     # StrategyConfig enums
     "strategy_config.mode": ["paper", "testnet", "live"],
     "strategy_config.risk_tier": ["safe", "conservative", "moderate", "aggressive", "extreme", "crazy"],
@@ -135,13 +135,13 @@ STRATEGY_COLUMNS = [
 
 class ValidationReport:
     """Collects and formats validation violations."""
-    
+
     def __init__(self):
         self.fk_violations: List[Dict[str, Any]] = []
         self.enum_violations: List[Dict[str, Any]] = []
         self.total_fk_violations = 0
         self.total_enum_violations = 0
-    
+
     def add_fk_violation(self, table: str, column: str, invalid_value: str, count: int):
         """Record a foreign key violation."""
         self.fk_violations.append({
@@ -151,7 +151,7 @@ class ValidationReport:
             "row_count": count,
         })
         self.total_fk_violations += count
-    
+
     def add_enum_violation(self, table: str, column: str, invalid_value: str, count: int):
         """Record an enum domain violation."""
         self.enum_violations.append({
@@ -161,11 +161,11 @@ class ValidationReport:
             "row_count": count,
         })
         self.total_enum_violations += count
-    
+
     def has_violations(self) -> bool:
         """Check if any violations were found."""
         return len(self.fk_violations) > 0 or len(self.enum_violations) > 0
-    
+
     def format_report(self) -> str:
         """Format the report as structured text."""
         lines = []
@@ -174,7 +174,7 @@ class ValidationReport:
         lines.append(f"Generated: {datetime.utcnow().isoformat()}")
         lines.append("=" * 80)
         lines.append("")
-        
+
         # FK violations section
         lines.append("FOREIGN KEY VIOLATIONS (strategy_name columns)")
         lines.append("-" * 80)
@@ -194,7 +194,7 @@ class ValidationReport:
         else:
             lines.append("✓ No foreign key violations found")
             lines.append("")
-        
+
         # Enum violations section
         lines.append("ENUM DOMAIN VIOLATIONS")
         lines.append("-" * 80)
@@ -214,7 +214,7 @@ class ValidationReport:
         else:
             lines.append("✓ No enum domain violations found")
             lines.append("")
-        
+
         # Summary
         lines.append("=" * 80)
         lines.append("SUMMARY")
@@ -223,7 +223,7 @@ class ValidationReport:
         lines.append(f"Total enum violations: {self.total_enum_violations}")
         lines.append(f"Total violations: {self.total_fk_violations + self.total_enum_violations}")
         lines.append("")
-        
+
         if self.has_violations():
             lines.append("⚠️  VIOLATIONS FOUND - Cleanup required before adding constraints")
             lines.append("")
@@ -235,7 +235,7 @@ class ValidationReport:
             lines.append("5. Once clean, proceed with constraint migrations (Tasks 2-3)")
         else:
             lines.append("✅ NO VIOLATIONS - Safe to proceed with constraint migrations")
-        
+
         lines.append("=" * 80)
         return "\n".join(lines)
 
@@ -243,24 +243,24 @@ class ValidationReport:
 def validate_strategy_fk(db: Session, report: ValidationReport):
     """Validate all strategy_name foreign key references."""
     print("Validating strategy_name foreign key references...")
-    
+
     # Get valid strategy names from strategy_config
     valid_strategies = set(
         row[0] for row in db.query(StrategyConfig.strategy_name).all()
     )
-    
+
     # If no strategies in DB, use hardcoded list
     if not valid_strategies:
         valid_strategies = set(VALID_STRATEGY_NAMES)
         print(f"  Using hardcoded strategy list: {len(valid_strategies)} strategies")
     else:
         print(f"  Found {len(valid_strategies)} strategies in strategy_config")
-    
+
     # Check each strategy column
     for model, column_name in STRATEGY_COLUMNS:
         table_name = model.__tablename__
         column = getattr(model, column_name)
-        
+
         # Query for distinct invalid values
         invalid_values = (
             db.query(column, func.count(column))
@@ -269,18 +269,18 @@ def validate_strategy_fk(db: Session, report: ValidationReport):
             .group_by(column)
             .all()
         )
-        
+
         for invalid_value, count in invalid_values:
             print(f"  ⚠️  {table_name}.{column_name}: '{invalid_value}' ({count} rows)")
             report.add_fk_violation(table_name, column_name, invalid_value, count)
-    
+
     print(f"  Found {report.total_fk_violations} FK violations\n")
 
 
 def validate_enum_domains(db: Session, report: ValidationReport):
     """Validate all enum column domains."""
     print("Validating enum column domains...")
-    
+
     # Map table.column to (Model, column_name)
     enum_checks = {
         "trades.direction": (Trade, "direction"),
@@ -303,15 +303,15 @@ def validate_enum_domains(db: Session, report: ValidationReport):
         "experiment_records.status": (ExperimentRecord, "status"),
         "evolution_lineage.mutation_type": (EvolutionLineage, "mutation_type"),
     }
-    
+
     for table_col, (model, column_name) in enum_checks.items():
         if table_col not in ENUM_DOMAINS:
             continue
-        
+
         valid_values = set(ENUM_DOMAINS[table_col])
         column = getattr(model, column_name)
         table_name = model.__tablename__
-        
+
         # Query for distinct invalid values
         invalid_values = (
             db.query(column, func.count(column))
@@ -320,11 +320,11 @@ def validate_enum_domains(db: Session, report: ValidationReport):
             .group_by(column)
             .all()
         )
-        
+
         for invalid_value, count in invalid_values:
             print(f"  ⚠️  {table_name}.{column_name}: '{invalid_value}' ({count} rows)")
             report.add_enum_violation(table_name, column_name, invalid_value, count)
-    
+
     print(f"  Found {report.total_enum_violations} enum violations\n")
 
 
@@ -334,41 +334,41 @@ def main():
     print("SCHEMA CONSTRAINT VALIDATION AUDIT")
     print("=" * 80)
     print()
-    
+
     db = SessionLocal()
     report = ValidationReport()
-    
+
     try:
         # Run validations
         validate_strategy_fk(db, report)
         validate_enum_domains(db, report)
-        
+
         # Generate report
         report_text = report.format_report()
         print(report_text)
-        
+
         # Save report to evidence directory
         evidence_dir = ".sisyphus/evidence"
         os.makedirs(evidence_dir, exist_ok=True)
         report_path = os.path.join(evidence_dir, "task-1-validation-report.txt")
-        
+
         with open(report_path, "w") as f:
             f.write(report_text)
-        
+
         print(f"\n📄 Report saved to: {report_path}")
-        
+
         # Exit with error code if violations found
         if report.has_violations():
             sys.exit(1)
         else:
             sys.exit(0)
-    
+
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(2)
-    
+
     finally:
         db.close()
 

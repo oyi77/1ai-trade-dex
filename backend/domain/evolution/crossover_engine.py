@@ -1,9 +1,7 @@
 import random
-from typing import Optional
 from copy import deepcopy
-from backend.domain.genome.models import StrategyGenome, FitnessMetrics, LineageData
+from backend.domain.genome.models import StrategyGenome, LineageData
 from backend.domain.evolution.mutation_engine import mutate_genome
-from datetime import datetime
 
 
 def crossover_genomes(

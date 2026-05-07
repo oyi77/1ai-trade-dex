@@ -12,11 +12,11 @@ import json
 import logging
 import random
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 from backend.config import settings
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -68,7 +68,7 @@ async def _fetch_live_market_templates():
                     raise ValueError("Empty response from Gamma API")
                 live_templates = []
                 for m in markets[:6]:
-                    outcomes_str = m.get("outcomes", "[]")
+                    _outcomes_str = m.get("outcomes", "[]")
                     prices_str = m.get("outcomePrices", "[]")
                     try:
                         prices = json.loads(prices_str) if isinstance(prices_str, str) else prices_str
@@ -163,27 +163,27 @@ async def root():
 async def get_signals(market: str = Query(default="polymarket", description="Market type")):
     """
     Get simulated trading signals from MiroFish dual-debate system.
-    
+
     Args:
         market: Market type (polymarket, kalshi, weather, crypto)
-    
+
     Returns:
         List of trading signals with confidence, edge, and reasoning
     """
     logger.info(f"Generating signals for market: {market}")
-    
+
     # Generate 1-3 signals
     num_signals = random.randint(1, 3)
     signals = [generate_signal() for _ in range(num_signals)]
-    
+
     # Filter by market type if specified
     if market != "all":
         signals = [s for s in signals if s["market_type"] == market or market == "polymarket"]
-    
+
     if not signals:
         # Return at least one signal
         signals = [generate_signal()]
-    
+
     response = {
         "signals": signals,
         "count": len(signals),
@@ -191,7 +191,7 @@ async def get_signals(market: str = Query(default="polymarket", description="Mar
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source": "mirofish-mock",
     }
-    
+
     logger.info(f"Returning {len(signals)} signals")
     return response
 
@@ -203,24 +203,24 @@ async def run_debate(
 ):
     """
     Simulate a dual-debate analysis for a specific market.
-    
+
     Args:
         market_id: The market identifier
         question: The market question
-    
+
     Returns:
         Debate result with YES/NO arguments and final recommendation
     """
     logger.info(f"Running debate for market: {market_id}")
-    
+
     # Simulate debate outcome
     yes_confidence = random.uniform(0.55, 0.85)
     no_confidence = random.uniform(0.55, 0.85)
-    
+
     winner = "YES" if yes_confidence > no_confidence else "NO"
     final_confidence = max(yes_confidence, no_confidence)
     edge = abs(yes_confidence - no_confidence) * 0.5
-    
+
     return {
         "market_id": market_id,
         "question": question,

@@ -1,28 +1,5 @@
 """Tests for AGI test fixtures — verify all fixtures load correctly."""
-from datetime import datetime, timezone
 
-from backend.core.agi_types import (
-    AGIGoal,
-    ExperimentStatus,
-    KGEntity,
-    KGRelation,
-    MarketRegime,
-    StrategyBlock,
-)
-from backend.tests.conftest_agi import (
-    regime_data_bull,
-    regime_data_bear,
-    regime_data_sideways,
-    regime_data_crisis,
-    sample_kg_entity,
-    sample_kg_relation,
-    sample_strategy_block,
-    mock_llm_response,
-    mock_market_data,
-    shadow_mode_settings,
-    risk_bounding_settings,
-    agi_db,
-)
 from backend.tests.test_agi_integration_base import AGIIntegrationBase
 
 

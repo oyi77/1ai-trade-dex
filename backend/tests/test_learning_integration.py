@@ -10,7 +10,7 @@ from backend.models.database import Base, StrategyConfig
 from backend.models.outcome_tables import (
     StrategyOutcome, ParamChange, StrategyHealthRecord, TradingCalibrationRecord
 )
-from backend.core.outcome_repository import record_outcome, get_strategy_stats, record_param_change
+from backend.core.outcome_repository import record_outcome, get_strategy_stats
 from backend.core.trading_calibration import TradingCalibration
 from backend.core.thompson_sampler import ThompsonSampler
 from backend.core.strategy_health import StrategyHealthMonitor
@@ -26,7 +26,6 @@ def db():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
-    from backend.models.outcome_tables import StrategyOutcome, ParamChange, StrategyHealthRecord, TradingCalibrationRecord
     StrategyOutcome.__table__.create(bind=engine, checkfirst=True)
     ParamChange.__table__.create(bind=engine, checkfirst=True)
     StrategyHealthRecord.__table__.create(bind=engine, checkfirst=True)

@@ -97,16 +97,16 @@ class RiskManager:
         self.s = settings_obj or settings
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
-    
+
     def _load_safety_rules(self) -> dict:
         """Load immutable safety rules with environment variable overrides."""
         import os
-        
+
         rules = {}
         for rule_name, rule_config in IMMUTABLE_SAFETY_RULES.items():
             # Start with default value
             value = rule_config["default"]
-            
+
             # Check for environment variable override
             env_var = rule_config.get("override_env_var")
             if env_var:
@@ -122,9 +122,9 @@ class RiskManager:
                             value = env_value.lower() in ("true", "1", "yes")
                     except ValueError:
                         logger.warning(f"Invalid value for {env_var}={env_value}, using default {value}")
-            
+
             rules[rule_name] = value
-            
+
         return rules
 
     def _breaker_enabled_for_mode(self, breaker: str, mode: str) -> bool:
@@ -423,7 +423,7 @@ class RiskManager:
         # Calculate equal share
         max_total_exposure = bankroll * getattr(self.s, 'MAX_TOTAL_EXPOSURE_FRACTION', 0.70)
         equal_share = max_total_exposure / enabled_count
-        
+
         # Cap at MAX_POSITION_FRACTION
         max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
         return min(equal_share, max_position)
@@ -463,27 +463,27 @@ class RiskManager:
         base_confidence = getattr(
             self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
         )
-        
+
         # Apply regime multiplier if enabled
         if getattr(self.s, 'REGIME_ROUTING_ENABLED', False):
             regime_multiplier = self._get_regime_multiplier(strategy_name)
             threshold = base_confidence * regime_multiplier
         else:
             threshold = base_confidence
-        
+
         # Cap at 0.95 maximum
         return min(threshold, 0.95)
-        
+
     def check_drawdown_floors(
         self, bankroll: float, db=None, mode: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """Check if daily/weekly loss floors have been breached.
-        
+
         Args:
             bankroll: Current bankroll amount
             db: Database session (optional)
             mode: Trading mode (optional)
-            
+
         Returns:
             Tuple of (floor_breached, action_taken) where action_taken describes what happened
         """
@@ -537,18 +537,18 @@ class RiskManager:
             if daily_pnl < daily_floor:
                 # Pause all strategies for 24 hours
                 pause_until = now + timedelta(hours=24)
-                
+
                 # Store pause timestamp in BotState.misc_data
                 if db is not None:
                     state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)
-                    
+
                     state.misc_data = state.misc_data or {}
                     state.misc_data["pause_until"] = pause_until.isoformat()
                     db.commit()
-                
+
                 # Emit SSE event
                 self._publish_event("daily_loss_floor_triggered", {
                     "bankroll": bankroll,
@@ -558,7 +558,7 @@ class RiskManager:
                     "pause_until": pause_until.isoformat(),
                     "action": "all_strategies_paused"
                 })
-                
+
                 return True, "all_strategies_paused_24h"
 
             # Check weekly loss floor
@@ -566,18 +566,18 @@ class RiskManager:
             if weekly_pnl < weekly_floor:
                 # Revert to PAPER mode for 7 days
                 paper_until = now + timedelta(days=7)
-                
+
                 # Store paper mode timestamp in BotState.misc_data
                 if db is not None:
                     state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)
-                    
+
                     state.misc_data = state.misc_data or {}
                     state.misc_data["paper_until"] = paper_until.isoformat()
                     db.commit()
-                
+
                 # Emit SSE event
                 self._publish_event("weekly_loss_floor_triggered", {
                     "bankroll": bankroll,
@@ -587,11 +587,11 @@ class RiskManager:
                     "paper_until": paper_until.isoformat(),
                     "action": "reverted_to_paper_mode"
                 })
-                
+
                 return True, "reverted_to_paper_mode_7d"
-            
+
             return False, None
-            
+
         except Exception as e:
             logger.error(f"[risk_manager.check_drawdown_floors] {type(e).__name__}: {e}", exc_info=True)
             return False, f"error_during_floor_check: {type(e).__name__}"

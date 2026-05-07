@@ -13,7 +13,7 @@ from backend.core.calibration import get_sigma
 from backend.core.signals import calculate_edge, calculate_kelly_size
 from backend.data.weather import fetch_ensemble_forecast
 from backend.data.weather_markets import WeatherMarket, fetch_polymarket_weather_markets
-from backend.models.database import SessionLocal, Signal
+from backend.models.database import Signal
 
 logger = logging.getLogger("trading_bot")
 
@@ -128,7 +128,7 @@ async def generate_weather_signal(
     bankroll = settings.INITIAL_BANKROLL
     effective_mode = mode or settings.TRADING_MODE
     try:
-        from backend.models.database import BotState, SessionLocal, for_update
+        from backend.models.database import BotState, for_update
 
         from backend.db.utils import get_db_session
         with get_db_session() as _db:

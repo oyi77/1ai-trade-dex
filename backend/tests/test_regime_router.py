@@ -84,7 +84,7 @@ def test_get_current_regime_disabled(regime_router):
     """Test regime detection when REGIME_ROUTING_ENABLED is False."""
     original_value = settings.REGIME_ROUTING_ENABLED
     settings.REGIME_ROUTING_ENABLED = False
-    
+
     try:
         regime = regime_router._get_current_regime()
         assert regime == "sideways"  # Default neutral regime
@@ -96,16 +96,16 @@ def test_get_current_regime_with_detector(regime_router):
     """Test regime detection using regime detector."""
     original_value = settings.REGIME_ROUTING_ENABLED
     settings.REGIME_ROUTING_ENABLED = True
-    
+
     try:
         # Create a mock regime detector
         mock_detector = MagicMock()
         mock_result = MagicMock()
         mock_result.regime = MarketRegime.BULL
         mock_detector.detect_regime.return_value = mock_result
-        
+
         regime_router.regime_detector = mock_detector
-        
+
         regime = regime_router._get_current_regime()
         assert regime == "bull"
         mock_detector.detect_regime.assert_called_once()
@@ -117,7 +117,7 @@ def test_get_current_regime_without_detector(regime_router):
     """Test regime detection without regime detector."""
     original_value = settings.REGIME_ROUTING_ENABLED
     settings.REGIME_ROUTING_ENABLED = True
-    
+
     try:
         regime_router.regime_detector = None
         regime = regime_router._get_current_regime()
@@ -133,7 +133,7 @@ def test_regime_multipliers_structure():
     assert "volatile" in RegimeConfidenceRouter.REGIME_MULTIPLIERS
     assert "sideways" in RegimeConfidenceRouter.REGIME_MULTIPLIERS
     assert "event_dense" in RegimeConfidenceRouter.REGIME_MULTIPLIERS
-    
+
     # Check each regime has __default__
     for regime in RegimeConfidenceRouter.REGIME_MULTIPLIERS.values():
         assert "__default__" in regime

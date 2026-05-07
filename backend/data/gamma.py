@@ -7,7 +7,7 @@ to retrieve active markets from the Polymarket Gamma API.
 
 import logging
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Optional
 
 import httpx

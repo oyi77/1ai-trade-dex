@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from backend.models.database import SessionLocal
 from backend.models.outcome_tables import MetaLearningRecord, ProposalFeedback

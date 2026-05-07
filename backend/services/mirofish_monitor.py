@@ -53,7 +53,7 @@ class CircuitBreakerConfig:
 
 class MiroFishMonitor:
     """Monitors MiroFish API health with circuit breaker protection.
-    
+
     Tracks API call latencies, error rates, and manages circuit breaker state
     to prevent cascading failures when MiroFish is unavailable.
     """
@@ -65,23 +65,23 @@ class MiroFishMonitor:
     ):
         self.client = mirofish_client
         self.config = config or CircuitBreakerConfig()
-        
+
         self._state = CircuitState.CLOSED
         self._consecutive_failures = 0
         self._consecutive_successes = 0
         self._last_failure_time: Optional[float] = None
         self._last_success_time: Optional[float] = None
         self._state_change_time = time.time()
-        
+
         self._total_requests = 0
         self._failed_requests = 0
         self._latencies: deque = deque(maxlen=100)
-        
+
         self._alert_thresholds = {
             "latency_warn_ms": 10000,
             "error_rate_warn_pct": 10.0
         }
-        
+
         logger.info(
             f"MiroFish monitor initialized: "
             f"failure_threshold={self.config.failure_threshold}, "
@@ -94,7 +94,7 @@ class MiroFishMonitor:
 
     def is_mirofish_healthy(self) -> bool:
         """Check if MiroFish is healthy based on circuit breaker state.
-        
+
         Returns:
             True if circuit is CLOSED or HALF_OPEN, False if OPEN
         """
@@ -104,7 +104,7 @@ class MiroFishMonitor:
                 self._transition_to(CircuitState.HALF_OPEN)
                 return True
             return False
-        
+
         return True
 
     async def call_with_circuit_breaker(
@@ -114,12 +114,12 @@ class MiroFishMonitor:
         **kwargs
     ) -> Optional[Any]:
         """Execute operation with circuit breaker protection.
-        
+
         Args:
             operation: Method name to call on mirofish_client
             *args: Positional arguments for the operation
             **kwargs: Keyword arguments for the operation
-            
+
         Returns:
             Operation result or None if circuit is OPEN
         """
@@ -128,43 +128,43 @@ class MiroFishMonitor:
                 f"Circuit breaker OPEN - blocking {operation} call"
             )
             return None
-        
+
         if self._state == CircuitState.HALF_OPEN:
             logger.info(f"Circuit breaker HALF_OPEN - testing recovery with {operation}")
-        
+
         start_time = time.time()
         self._total_requests += 1
-        
+
         try:
             if self.client is None:
                 raise RuntimeError("MiroFish client not initialized")
-            
+
             method = getattr(self.client, operation)
-            
+
             result = await asyncio.wait_for(
                 method(*args, **kwargs),
                 timeout=self.config.request_timeout
             )
-            
+
             latency_ms = (time.time() - start_time) * 1000
             self._latencies.append(latency_ms)
-            
+
             self._record_success(latency_ms)
-            
+
             if latency_ms > self._alert_thresholds["latency_warn_ms"]:
                 logger.warning(
                     f"MiroFish high latency: {latency_ms:.2f}ms "
                     f"(threshold: {self._alert_thresholds['latency_warn_ms']}ms)"
                 )
-            
+
             return result
-            
+
         except asyncio.TimeoutError as e:
             latency_ms = (time.time() - start_time) * 1000
             self._record_failure(f"Timeout after {latency_ms:.2f}ms")
             logger.error(f"MiroFish {operation} timeout: {e}")
             return None
-            
+
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
             self._record_failure(f"{type(e).__name__}: {str(e)}")
@@ -176,12 +176,12 @@ class MiroFishMonitor:
         self._consecutive_failures = 0
         self._consecutive_successes += 1
         self._last_success_time = time.time()
-        
+
         logger.debug(
             f"MiroFish call success: latency={latency_ms:.2f}ms, "
             f"consecutive_successes={self._consecutive_successes}"
         )
-        
+
         if self._state == CircuitState.HALF_OPEN:
             if self._consecutive_successes >= self.config.success_threshold:
                 self._transition_to(CircuitState.CLOSED)
@@ -192,23 +192,23 @@ class MiroFishMonitor:
         self._consecutive_failures += 1
         self._consecutive_successes = 0
         self._last_failure_time = time.time()
-        
+
         logger.warning(
             f"MiroFish call failure: {error_msg}, "
             f"consecutive_failures={self._consecutive_failures}"
         )
-        
+
         error_rate = self.get_error_rate()
         if error_rate > self._alert_thresholds["error_rate_warn_pct"]:
             logger.warning(
                 f"MiroFish high error rate: {error_rate:.2f}% "
                 f"(threshold: {self._alert_thresholds['error_rate_warn_pct']}%)"
             )
-        
+
         if self._state == CircuitState.CLOSED:
             if self._consecutive_failures >= self.config.failure_threshold:
                 self._transition_to(CircuitState.OPEN)
-        
+
         elif self._state == CircuitState.HALF_OPEN:
             self._transition_to(CircuitState.OPEN)
 
@@ -217,16 +217,16 @@ class MiroFishMonitor:
         old_state = self._state
         self._state = new_state
         self._state_change_time = time.time()
-        
+
         timestamp = datetime.now(timezone.utc).isoformat()
-        
+
         logger.warning(
             f"Circuit breaker state transition: {old_state.value} → {new_state.value} "
             f"at {timestamp} "
             f"(consecutive_failures={self._consecutive_failures}, "
             f"consecutive_successes={self._consecutive_successes})"
         )
-        
+
         if new_state == CircuitState.OPEN:
             logger.error(
                 f"MiroFish circuit breaker OPEN - blocking requests for "
@@ -241,21 +241,21 @@ class MiroFishMonitor:
         """Get current health metrics for monitoring endpoint."""
         avg_latency = sum(self._latencies) / len(self._latencies) if self._latencies else 0.0
         error_rate = self.get_error_rate()
-        
+
         last_success = None
         if self._last_success_time:
             last_success = datetime.fromtimestamp(
                 self._last_success_time, tz=timezone.utc
             ).isoformat()
-        
+
         last_failure = None
         if self._last_failure_time:
             last_failure = datetime.fromtimestamp(
                 self._last_failure_time, tz=timezone.utc
             ).isoformat()
-        
+
         status = "healthy" if self.is_mirofish_healthy() else "unhealthy"
-        
+
         return HealthMetrics(
             status=status,
             latency_ms=avg_latency,
@@ -281,13 +281,13 @@ class MiroFishMonitor:
         self._consecutive_failures = 0
         self._consecutive_successes = 0
         self._state_change_time = time.time()
-        
+
         logger.info(f"Circuit breaker manually reset from {old_state.value} to CLOSED")
 
     def get_state_info(self) -> Dict[str, Any]:
         """Get detailed circuit breaker state information."""
         time_in_state = time.time() - self._state_change_time
-        
+
         return {
             "state": self._state.value,
             "time_in_state_seconds": round(time_in_state, 2),
@@ -308,10 +308,10 @@ _monitor_instance: Optional[MiroFishMonitor] = None
 def get_monitor(mirofish_client=None) -> MiroFishMonitor:
     """Get or create singleton MiroFish monitor instance."""
     global _monitor_instance
-    
+
     if _monitor_instance is None:
         _monitor_instance = MiroFishMonitor(mirofish_client=mirofish_client)
-    
+
     return _monitor_instance
 
 

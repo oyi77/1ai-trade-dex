@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from backend.data.feed_aggregator import FeedAggregator, NewsItem
+from backend.data.feed_aggregator import FeedAggregator
 
 
 def _make_fake_parsed(url, entries):

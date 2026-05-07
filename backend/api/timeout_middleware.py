@@ -19,25 +19,25 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         start_time = time.time()
-        
+
         try:
             response = await asyncio.wait_for(
                 call_next(request),
                 timeout=settings.API_REQUEST_TIMEOUT
             )
             return response
-            
+
         except asyncio.TimeoutError:
             elapsed = time.time() - start_time
-            
+
             logger.warning(
                 f"Request timeout: {request.method} {request.url.path} "
                 f"exceeded {settings.API_REQUEST_TIMEOUT}s (elapsed: {elapsed:.2f}s)"
             )
-            
+
             from backend.monitoring.metrics import increment_timeouts
             increment_timeouts(timeout_type="api")
-            
+
             return JSONResponse(
                 status_code=504,
                 content={

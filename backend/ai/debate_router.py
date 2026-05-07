@@ -24,13 +24,13 @@ def _convert_signals_to_debate_result(
     latency_ms: float,
 ) -> DebateResult:
     """Convert MiroFish signals to DebateResult format.
-    
+
     Args:
         signals: List of MiroFish prediction signals
         question: Market question
         market_price: Current market YES price
         latency_ms: API call latency in milliseconds
-        
+
     Returns:
         DebateResult with consensus from MiroFish signals
     """
@@ -45,7 +45,7 @@ def _convert_signals_to_debate_result(
             latency_ms=latency_ms,
             data_sources=["mirofish"],
         )
-    
+
     # Convert signals to SignalVote format
     signal_votes = [
         SignalVote(
@@ -57,7 +57,7 @@ def _convert_signals_to_debate_result(
         )
         for sig in signals
     ]
-    
+
     # Compute weighted consensus
     total_weight = sum(vote.weight for vote in signal_votes)
     if total_weight > 0:
@@ -70,7 +70,7 @@ def _convert_signals_to_debate_result(
     else:
         consensus = market_price
         avg_confidence = 0.0
-    
+
     # Build reasoning summary
     reasoning_parts = [
         f"MiroFish consensus from {len(signals)} signal(s):",
@@ -80,7 +80,7 @@ def _convert_signals_to_debate_result(
             f"- {sig.source}: {sig.prediction:.3f} (conf={sig.confidence:.2f})"
         )
     reasoning = "\n".join(reasoning_parts)
-    
+
     return DebateResult(
         consensus_probability=consensus,
         confidence=avg_confidence,
@@ -105,11 +105,11 @@ async def run_debate_with_routing(
     signal_votes: list[SignalVote] | None = None,
 ) -> DebateResult | None:
     """Run debate with MiroFish routing and local fallback.
-    
+
     Checks the `mirofish_enabled` flag in SystemSettings:
     - If enabled: Attempts to fetch signals from MiroFish API
     - If disabled or MiroFish fails: Falls back to local DebateEngine
-    
+
     Args:
         db: Database session for settings lookup
         question: Market question
@@ -120,15 +120,15 @@ async def run_debate_with_routing(
         max_rounds: Maximum debate rounds (1-2)
         data_sources: List of data source labels
         signal_votes: Optional pre-existing signal votes
-        
+
     Returns:
         DebateResult with consensus probability, or None on total failure
     """
     start_time = time.time()
-    
+
     # Check if MiroFish is enabled
     mirofish_enabled = _get_setting(db, "mirofish_enabled", default=False)
-    
+
     if not mirofish_enabled:
         logger.info(
             "[debate_router] MiroFish disabled - using local DebateEngine"
@@ -146,11 +146,11 @@ async def run_debate_with_routing(
 
     # Try MiroFish first
     logger.info("[debate_router] MiroFish enabled - attempting API call")
-    
+
     try:
         client = MiroFishClient()
         signals = await client.fetch_signals(market="polymarket")
-        
+
         if signals:
             latency_ms = (time.time() - start_time) * 1000
             logger.info(
@@ -168,14 +168,14 @@ async def run_debate_with_routing(
             logger.warning(
                 "[debate_router] MiroFish returned empty signals - falling back to local"
             )
-    
+
     except Exception as exc:
         logger.warning(
             "[debate_router] MiroFish failed (%s: %s) - falling back to local",
             type(exc).__name__,
             exc,
         )
-    
+
     # Fallback to local DebateEngine
     logger.info("[debate_router] Using local DebateEngine fallback")
     return await run_debate(

@@ -106,7 +106,7 @@ class WhaleFrontrun(BaseStrategy):
 
     def detect_and_frontrun(self, activity: WhaleActivity) -> FrontrunResult:
         """Detect whale activity and place front-run order."""
-        start = time.monotonic()
+        _start = time.monotonic()
 
         if activity.size < self.default_params["min_size"]:
             return FrontrunResult(False, 0.0, None, False)

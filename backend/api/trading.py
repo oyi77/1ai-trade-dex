@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 from collections import defaultdict
 
@@ -19,7 +18,6 @@ from backend.models.database import (
 )
 from backend.core.signals import scan_for_signals, TradingSignal
 from backend.core.errors import handle_errors
-from backend.core.event_bus import publish_event
 from backend.api.auth import require_admin
 
 router = APIRouter(tags=["trading"])
@@ -94,7 +92,7 @@ class CreateSignalRequest(BaseModel):
     weight: float = 1.0
 
 
-from backend.api.validation import SignalCreateRequest as ValidatedSignalCreateRequest
+from backend.api.validation import SignalCreateRequest as ValidatedSignalCreateRequest  # noqa: E402
 
 
 # ============================================================================
@@ -194,7 +192,7 @@ async def create_signal(
 ):
     """Create a new trading signal (e.g., from MiroFish debate engine)."""
     from backend.models.database import MiroFishSignal
-    
+
     signal = MiroFishSignal(
         market_id=request.market_id,
         prediction=request.prediction,
@@ -206,7 +204,7 @@ async def create_signal(
     db.add(signal)
     db.commit()
     db.refresh(signal)
-    
+
     return {
         "id": signal.id,
         "market_id": signal.market_id,
@@ -516,17 +514,17 @@ def get_debate_signals(
 ):
     """
     Get all participating signals and vote breakdown for a debate.
-    
+
     Returns debate transcript with signal votes, bull/bear arguments,
     and consensus decision. Shows MiroFish participation with equal weight.
     """
     decision = db.query(DecisionLog).filter(
         DecisionLog.id == int(debate_id)
     ).first()
-    
+
     if not decision:
         raise HTTPException(status_code=404, detail="Debate not found")
-    
+
     if not decision.signal_data:
         return {
             "debate_id": debate_id,
@@ -537,16 +535,16 @@ def get_debate_signals(
             "signal_votes": [],
             "debate_transcript": None,
         }
-    
+
     import json
     try:
         signal_data = json.loads(decision.signal_data) if isinstance(decision.signal_data, str) else decision.signal_data
     except (json.JSONDecodeError, TypeError):
         signal_data = {}
-    
+
     debate_transcript = signal_data.get("debate_transcript", {})
     signal_votes = debate_transcript.get("signal_votes", [])
-    
+
     vote_breakdown = {
         "total_votes": len(signal_votes),
         "positive_votes": sum(1 for v in signal_votes if v.get("prediction", 0) > 0.5),
@@ -554,7 +552,7 @@ def get_debate_signals(
         "avg_prediction": sum(v.get("prediction", 0) for v in signal_votes) / len(signal_votes) if signal_votes else 0,
         "avg_confidence": sum(v.get("confidence", 0) for v in signal_votes) / len(signal_votes) if signal_votes else 0,
     }
-    
+
     return {
         "debate_id": debate_id,
         "market_ticker": decision.market_ticker,

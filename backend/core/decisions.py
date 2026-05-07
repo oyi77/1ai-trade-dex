@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.exc import OperationalError
 
-from backend.models.database import SessionLocal, DecisionLog
+from backend.models.database import DecisionLog
 
 logger = logging.getLogger("trading_bot")
 
@@ -105,9 +105,9 @@ def record_decision_standalone(
     Open own DB session, insert decision, commit immediately, close.
     Use for burst writes (e.g., 6 BTC 5-min markets in a loop)
     to avoid shared-session lock contention.
-    
+
     Retries up to max_retries times on OperationalError (database locked).
-    
+
     Returns:
         The inserted DecisionLog instance, or None on failure.
     """

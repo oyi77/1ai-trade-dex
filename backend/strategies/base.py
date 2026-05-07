@@ -9,7 +9,6 @@ All strategies must subclass BaseStrategy and implement:
 Subclasses are auto-registered in the strategy registry on class creation.
 """
 
-import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod

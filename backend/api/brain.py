@@ -83,13 +83,13 @@ class LearningFeedback(BaseModel):
 
 def _build_graph_structure(db: Session) -> Dict[str, Any]:
     """Build the brain graph node/edge structure.
-    
+
     Returns:
         Dictionary with 'nodes' and 'edges' lists
     """
     nodes = []
     edges = []
-    
+
     # --- Signal Sources ---
     nodes.append(GraphNode(
         id="mirofish",
@@ -98,14 +98,14 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="active",
         metadata={"description": "External signal aggregator"}
     ))
-    
+
     # --- Strategies (9 total) ---
     strategies = [
         "btc_momentum", "btc_oracle", "weather_emos", "copy_trader",
         "market_maker", "kalshi_arb", "bond_scanner", "whale_pnl_tracker",
         "realtime_scanner"
     ]
-    
+
     for strategy in strategies:
         nodes.append(GraphNode(
             id=strategy,
@@ -114,7 +114,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
             status="idle",
             metadata={"strategy_name": strategy}
         ))
-    
+
     # --- Signal Aggregator ---
     nodes.append(GraphNode(
         id="signal_aggregator",
@@ -123,7 +123,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="active",
         metadata={"description": "Aggregates signals from all strategies"}
     ))
-    
+
     # --- AI Agents (Bull/Bear/Judge) ---
     nodes.append(GraphNode(
         id="bull_agent",
@@ -132,7 +132,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="idle",
         metadata={"role": "debate_agent", "stance": "bull"}
     ))
-    
+
     nodes.append(GraphNode(
         id="bear_agent",
         type="ai_agent",
@@ -140,7 +140,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="idle",
         metadata={"role": "debate_agent", "stance": "bear"}
     ))
-    
+
     nodes.append(GraphNode(
         id="judge_agent",
         type="ai_agent",
@@ -148,7 +148,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="idle",
         metadata={"role": "judge"}
     ))
-    
+
     # --- Risk Manager ---
     nodes.append(GraphNode(
         id="risk_manager",
@@ -157,7 +157,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="active",
         metadata={"description": "Validates position sizing and risk limits"}
     ))
-    
+
     # --- Trade Executor ---
     nodes.append(GraphNode(
         id="trade_executor",
@@ -166,7 +166,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="active",
         metadata={"description": "Executes approved trades"}
     ))
-    
+
     # --- Trade Analyzer ---
     nodes.append(GraphNode(
         id="trade_analyzer",
@@ -175,7 +175,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="active",
         metadata={"description": "Analyzes trade outcomes"}
     ))
-    
+
     # --- Proposal Generator ---
     nodes.append(GraphNode(
         id="proposal_generator",
@@ -184,9 +184,9 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         status="idle",
         metadata={"description": "Generates strategy improvement proposals"}
     ))
-    
+
     # --- Edges (Data Flow) ---
-    
+
     # MiroFish → Signal Aggregator
     edges.append(GraphEdge(
         from_node="mirofish",
@@ -195,7 +195,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=True,
         label="external_signals"
     ))
-    
+
     # Strategies → Signal Aggregator
     for strategy in strategies:
         edges.append(GraphEdge(
@@ -205,7 +205,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
             active=False,
             label="strategy_signal"
         ))
-    
+
     # Signal Aggregator → Bull/Bear Agents
     edges.append(GraphEdge(
         from_node="signal_aggregator",
@@ -214,7 +214,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="market_context"
     ))
-    
+
     edges.append(GraphEdge(
         from_node="signal_aggregator",
         to_node="bear_agent",
@@ -222,7 +222,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="market_context"
     ))
-    
+
     # Bull/Bear → Judge
     edges.append(GraphEdge(
         from_node="bull_agent",
@@ -231,7 +231,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="bull_argument"
     ))
-    
+
     edges.append(GraphEdge(
         from_node="bear_agent",
         to_node="judge_agent",
@@ -239,7 +239,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="bear_argument"
     ))
-    
+
     # Judge → Risk Manager
     edges.append(GraphEdge(
         from_node="judge_agent",
@@ -248,7 +248,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="consensus_decision"
     ))
-    
+
     # Risk Manager → Trade Executor
     edges.append(GraphEdge(
         from_node="risk_manager",
@@ -257,7 +257,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="approved_trade"
     ))
-    
+
     # Trade Executor → Trade Analyzer
     edges.append(GraphEdge(
         from_node="trade_executor",
@@ -266,7 +266,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="executed_trade"
     ))
-    
+
     # Trade Analyzer → Proposal Generator (feedback loop)
     edges.append(GraphEdge(
         from_node="trade_analyzer",
@@ -275,7 +275,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         active=False,
         label="performance_analysis"
     ))
-    
+
     # Proposal Generator → Strategies (feedback loop)
     for strategy in strategies[:3]:  # Show feedback to first 3 strategies
         edges.append(GraphEdge(
@@ -285,7 +285,7 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
             active=False,
             label="strategy_update"
         ))
-    
+
     return {"nodes": nodes, "edges": edges}
 
 
@@ -321,18 +321,18 @@ async def get_brain_graph(
     _: None = Depends(require_admin)
 ):
     """Get the brain graph structure with nodes and edges.
-    
+
     Returns the complete decision flow graph showing:
     - Signal sources (MiroFish, strategies)
     - AI agents (Bull, Bear, Judge)
     - Processing nodes (Risk Manager, Trade Executor, Trade Analyzer)
     - Learning feedback (Proposal Generator)
-    
+
     Edge weights represent confidence/importance (0.0-1.0).
     Edge 'active' status shows if data is currently flowing.
     """
     graph_data = _build_graph_structure(db)
-    
+
     return BrainGraphResponse(
         nodes=graph_data["nodes"],
         edges=graph_data["edges"],
@@ -347,31 +347,31 @@ async def get_debate_transcript(
     _: None = Depends(require_admin)
 ):
     """Get the full debate transcript for a decision.
-    
+
     Args:
         decision_id: DecisionLog ID
-    
+
     Returns:
         Complete debate transcript with Bull/Bear arguments and Judge synthesis
-    
+
     Raises:
         404: Decision not found or no debate data available
     """
     decision = db.query(DecisionLog).filter(DecisionLog.id == decision_id).first()
-    
+
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
-    
+
     if not decision.signal_data:
         raise HTTPException(status_code=404, detail="No debate data available for this decision")
-    
+
     # Extract debate transcript from signal_data
     signal_data = decision.signal_data
     debate_data = signal_data.get("debate_transcript", {})
-    
+
     if not debate_data:
         raise HTTPException(status_code=404, detail="No debate transcript in signal data")
-    
+
     return DebateTranscript(
         decision_id=decision.id,
         market_question=signal_data.get("market_question", "Unknown"),
@@ -395,22 +395,22 @@ async def get_learning_feedback(
     _: None = Depends(require_admin)
 ):
     """Get recent learning feedback proposals.
-    
+
     Args:
         limit: Maximum number of proposals to return (default: 20)
-    
+
     Returns:
         List of strategy improvement proposals with approval status
     """
     from backend.models.database import StrategyProposal
-    
+
     proposals = (
         db.query(StrategyProposal)
         .order_by(StrategyProposal.created_at.desc())
         .limit(limit)
         .all()
     )
-    
+
     result = []
     for p in proposals:
         result.append(LearningFeedback(
@@ -423,5 +423,5 @@ async def get_learning_feedback(
             created_at=p.created_at.isoformat() if p.created_at else datetime.now(timezone.utc).isoformat(),
             executed_at=p.executed_at.isoformat() if p.executed_at else None
         ))
-    
+
     return result

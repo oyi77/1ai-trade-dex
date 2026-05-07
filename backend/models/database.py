@@ -110,20 +110,20 @@ except Exception:
 async def execute_with_timeout(db_operation, timeout: float = None):
     """
     Execute a database operation with timeout.
-    
+
     Args:
         db_operation: Callable that performs the database operation
         timeout: Timeout in seconds (defaults to DATABASE_QUERY_TIMEOUT from settings)
-    
+
     Returns:
         Result of the database operation
-        
+
     Raises:
         asyncio.TimeoutError: If operation exceeds timeout
     """
     if timeout is None:
         timeout = settings.DATABASE_QUERY_TIMEOUT
-    
+
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(db_operation),
@@ -771,7 +771,7 @@ class PendingApproval(Base):
 class ActivityLog(Base):
     """Log of all strategy decisions and trading activity."""
     __tablename__ = "activity_log"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     strategy_name = Column(String(100), nullable=False, index=True)
@@ -784,7 +784,7 @@ class ActivityLog(Base):
 class StrategyProposal(Base):
     """Proposed strategy changes awaiting admin approval."""
     __tablename__ = "strategy_proposal"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     strategy_name = Column(String(100), nullable=False, index=True)
     change_details = Column(JSON, nullable=False)
@@ -806,7 +806,7 @@ class StrategyProposal(Base):
 class MiroFishSignal(Base):
     """AI-generated signals from Miro Fish debate engine for prediction markets."""
     __tablename__ = "mirofish_signal"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     market_id = Column(String(256), nullable=False, index=True, unique=True)
     prediction = Column(Float, nullable=False)  # 0.0-1.0
@@ -820,9 +820,9 @@ class MiroFishSignal(Base):
 
 class PerformanceMetric(Base):
     """Performance metrics for request timing, database queries, WebSocket latency, and system resources."""
-    
+
     __tablename__ = "performance_metrics"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
     metric_type = Column(String, nullable=False, index=True)
@@ -839,7 +839,7 @@ class PerformanceMetric(Base):
     cpu_percent = Column(Float, nullable=True)
     user_agent = Column(String, nullable=True)
     error_message = Column(String, nullable=True)
-    
+
     __table_args__ = (
         Index('idx_metrics_type_timestamp', 'metric_type', 'timestamp'),
         Index('idx_metrics_endpoint_timestamp', 'endpoint', 'timestamp'),
@@ -849,7 +849,7 @@ class PerformanceMetric(Base):
 class AuditLog(Base):
     """Comprehensive audit log for all money-related operations."""
     __tablename__ = "audit_log"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     event_type = Column(String, nullable=False, index=True)  # TRADE_CREATED, SETTLEMENT_COMPLETED, POSITION_UPDATED, WALLET_RECONCILED
@@ -858,7 +858,7 @@ class AuditLog(Base):
     old_value = Column(JSON, nullable=True)  # Previous state snapshot
     new_value = Column(JSON, nullable=True)  # New state snapshot
     user_id = Column(String, default="system")  # "system", "admin", "strategy:btc_5min"
-    
+
     # Legacy fields for backward compatibility
     actor = Column(String, default="system")
     action = Column(String, nullable=True)
@@ -944,7 +944,7 @@ class ResearchItemDB(Base):
 
 class Alert(Base):
     __tablename__ = "alerts"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     alert_type = Column(String, nullable=False, index=True)
@@ -954,12 +954,12 @@ class Alert(Base):
     message = Column(String, nullable=False)
     resolved = Column(Boolean, default=False, index=True)
     resolved_at = Column(DateTime, nullable=True)
-    
+
     __table_args__ = (
         Index("idx_alerts_type_severity", "alert_type", "severity"),
         Index("idx_alerts_resolved", "resolved"),
     )
-    
+
     def __repr__(self):
         return (
             f"<Alert(id={self.id}, type={self.alert_type}, severity={self.severity}, "
@@ -969,14 +969,14 @@ class Alert(Base):
 
 class AlertConfig(Base):
     __tablename__ = "alert_config"
-    
+
     id = Column(Integer, primary_key=True)
     alert_type = Column(String, unique=True, nullable=False)
     enabled = Column(Boolean, default=True)
     threshold_value = Column(Float, nullable=True)
     threshold_unit = Column(String, nullable=True)
     severity = Column(String, default="WARNING")
-    
+
     def __repr__(self):
         return (
             f"<AlertConfig(type={self.alert_type}, enabled={self.enabled}, "
@@ -1025,9 +1025,9 @@ class TransactionEvent(Base):
 
 class Setting(Base):
     """Application settings persisted in database."""
-    
+
     __tablename__ = "settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, nullable=False, index=True)
     value = Column(Text, nullable=False)
@@ -1036,30 +1036,30 @@ class Setting(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), index=True)
     updated_by_user_id = Column(String, nullable=True, default="system")
-    
+
     def __repr__(self):
         return f"<Setting(key={self.key}, type={self.type}, value={self.value[:50]}...)>"
 
 
 class SystemSettings(Base):
     """System settings for runtime configuration (MiroFish, strategies, risk params)."""
-    
+
     __tablename__ = "system_settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSON, nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
     def __repr__(self):
         return f"<SystemSettings(key={self.key}, value={self.value})>"
 
 
 class ErrorLog(Base):
     """Centralized error logging with structured context."""
-    
+
     __tablename__ = "error_logs"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
     error_type = Column(String(255), nullable=False, index=True)
@@ -1071,7 +1071,7 @@ class ErrorLog(Base):
     status_code = Column(Integer, nullable=True)
     request_id = Column(String(255), nullable=True, index=True)
     details = Column(Text, nullable=True)
-    
+
     __table_args__ = (
         Index('idx_error_logs_type_timestamp', 'error_type', 'timestamp'),
         Index('idx_error_logs_endpoint_timestamp', 'endpoint', 'timestamp'),
@@ -1133,7 +1133,7 @@ def _attempt_data_recovery(db_path: str) -> dict[str, list[dict]]:
 
 def _restore_recovered_data(recovered: dict[str, list[dict]]):
     """Re-insert recovered data into the fresh database.
-    
+
     Uses per-table sessions with individual commits to isolate failures.
     Skips rows with IDs that already exist (idempotent). Only restores
     columns that exist on the target model to handle schema drift.
@@ -1266,7 +1266,7 @@ def init_db(repair_if_needed: bool = True):
 def seed_default_data():
     """Seed database with default data."""
     from backend.config import settings as app_settings
-    
+
     db = SessionLocal()
     try:
         _set_sqlite_busy_timeout(db, 1000)
@@ -1277,7 +1277,7 @@ def seed_default_data():
                 initial_bankroll = app_settings.INITIAL_BANKROLL
                 if mode == "testnet":
                     initial_bankroll = 100.0
-                
+
                 bot_state = BotState(
                     mode=mode,
                     bankroll=initial_bankroll,
@@ -1314,10 +1314,10 @@ def seed_default_data():
                 if mode == "testnet" and existing.testnet_initial_bankroll is None:
                     existing.testnet_initial_bankroll = 100.0
                     logger.info("Backfilled testnet_initial_bankroll = 100.0")
-        
+
         from backend.strategies.registry import load_all_strategies, STRATEGY_REGISTRY
         load_all_strategies()
-        
+
         for strategy_name in STRATEGY_REGISTRY.keys():
             existing = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
             if not existing:
@@ -1330,7 +1330,7 @@ def seed_default_data():
                 )
                 db.add(strategy_config)
                 logger.info(f"Seeded StrategyConfig for: {strategy_name}")
-        
+
         db.commit()
         logger.info("Database seeding completed")
     except Exception as e:
@@ -1489,7 +1489,7 @@ def ensure_schema():
                         text("SELECT COUNT(*) FROM bot_state")
                     )
                     count = result.scalar()
-                    
+
                     if count == 1:
                         result = conn.execute(
                             text("SELECT id, bankroll, total_trades, winning_trades, total_pnl, "
@@ -1498,17 +1498,17 @@ def ensure_schema():
                                  "FROM bot_state LIMIT 1")
                         )
                         row = result.fetchone()
-                        
+
                         if row:
                             (id_val, bankroll, total_trades, winning_trades, total_pnl,
                              paper_bankroll, paper_pnl, paper_trades, paper_wins,
                              testnet_bankroll, testnet_pnl, testnet_trades, testnet_wins) = row
-                            
+
                             conn.execute(
                                 text("UPDATE bot_state SET bankroll = :bankroll, "
                                      "total_trades = :total_trades, winning_trades = :winning_trades, "
                                      "total_pnl = :total_pnl WHERE id = :id"),
-                                {"bankroll": paper_bankroll or bankroll, 
+                                {"bankroll": paper_bankroll or bankroll,
                                  "total_trades": paper_trades or total_trades,
                                  "winning_trades": paper_wins or winning_trades,
                                  "total_pnl": paper_pnl or total_pnl,
@@ -1868,9 +1868,9 @@ def log_audit(action: str, actor: str = "system", details: dict = None):
 # Knowledge Graph models for Wave 10
 class KgNode(Base):
     """Knowledge Graph Node - represents entities in the graph."""
-    
+
     __tablename__ = "kg_node"
-    
+
     node_id = Column(String, primary_key=True, index=True)
     node_type = Column(String, nullable=False, index=True)  # 'strategy', 'gene', 'market', 'trade', 'regime', 'event'
     label = Column(String, nullable=False)
@@ -1880,9 +1880,9 @@ class KgNode(Base):
 
 class KgEdge(Base):
     """Knowledge Graph Edge - represents relationships between nodes."""
-    
+
     __tablename__ = "kg_edge"
-    
+
     edge_id = Column(String, primary_key=True, index=True)
     from_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
     to_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)

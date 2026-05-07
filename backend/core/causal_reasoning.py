@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.core.agi_types import MarketRegime, KGEntity, KGRelation
+from backend.core.agi_types import MarketRegime
 from backend.models.kg_models import Base, KGEntity as KGEntityModel, KGRelation as KGRelationModel
 
 
@@ -130,7 +129,7 @@ class CausalReasoner:
         )
 
     def what_if(self, regime: MarketRegime, strategy: str) -> Prediction:
-        regime_str = regime.value
+        _regime_str = regime.value
         if regime == MarketRegime.BULL:
             predicted = "profit likely"
             confidence = 0.8

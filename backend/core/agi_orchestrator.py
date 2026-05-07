@@ -90,7 +90,6 @@ class AGIOrchestrator:
 
         try:
             from backend.mesh.health import SourceHealthMonitor
-            from backend.mesh.registry import list_active
             monitor = SourceHealthMonitor()
             source_mult = monitor.global_risk_multiplier()
             if source_mult < 1.0:
@@ -103,7 +102,7 @@ class AGIOrchestrator:
             from backend.core.regime_detector import RegimeDetector
             from backend.data.crypto import fetch_binance_klines
             detector = RegimeDetector()
-            
+
             # Fetch real BTC prices to feed the RegimeDetector
             market_data = {}
             try:
@@ -134,7 +133,7 @@ class AGIOrchestrator:
                         market_data["volume_trend"] = 0.0
             except Exception as e:
                 errors.append(f"Crypto data fetch failed: {e}")
-                
+
             regime = detector.detect_regime(market_data=market_data).regime
             self._current_regime = regime
             actions += 1
@@ -167,7 +166,7 @@ class AGIOrchestrator:
         # --- Populate Knowledge Graph with this cycle's findings ---
         if kg is not None:
             try:
-                cycle_id = f"cycle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{id(self)}"
+                _cycle_id = f"cycle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{id(self)}"
                 kg.add_entity("regime", f"regime:{regime.value}", {
                     "value": regime.value,
                     "detected_at": datetime.now(timezone.utc).isoformat(),

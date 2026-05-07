@@ -30,13 +30,13 @@ class ConnectionLimiter:
         """Initialize in-memory connection tracking."""
         # WebSocket connections: {ip: count}
         self._ws_connections: Dict[str, int] = defaultdict(int)
-        
+
         # HTTP requests: {ip: [(timestamp, endpoint), ...]}
         self._http_requests: Dict[str, list] = defaultdict(list)
-        
+
         # Global WebSocket count
         self._global_ws_count = 0
-        
+
         # Redis support (optional)
         self._redis_enabled = False
         self._redis_client = None
@@ -65,7 +65,7 @@ class ConnectionLimiter:
 
     async def check_ws_limit(self, websocket: WebSocket) -> Tuple[bool, Optional[str]]:
         """Check if WebSocket connection is allowed.
-        
+
         Returns:
             (allowed, error_message)
         """
@@ -137,7 +137,7 @@ class ConnectionLimiter:
 
     def check_http_limit(self, client_ip: str, endpoint: str) -> Tuple[bool, Optional[str]]:
         """Check if HTTP request is allowed (50 per minute per IP).
-        
+
         Returns:
             (allowed, error_message)
         """
@@ -172,7 +172,7 @@ class ConnectionLimiter:
         if self._redis_enabled:
             ws_per_ip = {}
             global_ws = int(await self._redis_client.get("ws:global") or 0)
-            
+
             # Get all per-IP counts
             keys = await self._redis_client.keys("ws:ip:*")
             for key in keys:

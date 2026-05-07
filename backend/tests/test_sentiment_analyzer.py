@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from backend.ai.sentiment_analyzer import SentimentAnalyzer, SentimentResult
 
 POSITIVE_JSON = '{"score": 0.6, "label": "positive", "confidence": 0.9}'

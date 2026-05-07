@@ -7,7 +7,6 @@ necromancy analysis, and regime rebalancing.
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -38,7 +37,7 @@ def log_evolution_action(action: EvolutionAction, db: Session) -> None:
     )
     db.add(evolution_log)
     db.commit()
-    
+
     # Publish event
     publish_event("evolution_action", action.to_dict())
     logger.info(f"Evolution action logged: {action.action_type} for genome {action.genome_id}")
@@ -49,22 +48,22 @@ def fitness_evaluation_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping fitness evaluation")
         return
-    
+
     logger.info("Starting fitness evaluation job")
     with _get_db_session() as db:
         # Get all active genomes (not in GRAVEYARD stage)
         genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage != "GRAVEYARD"
         ).all()
-        
+
         for genome in genomes:
             try:
                 # Calculate fitness
                 fitness_score = calculate_fitness(genome.fitness_metrics)
-                
+
                 genome.fitness_score = fitness_score
                 genome.fitness_updated_at = datetime.now(timezone.utc)
-                
+
                 # Log evolution action
                 action = EvolutionAction(
                     action_type="fitness_eval",
@@ -73,12 +72,12 @@ def fitness_evaluation_job() -> None:
                     details={"fitness_score": fitness_score},
                 )
                 log_evolution_action(action, db)
-                
+
                 logger.debug(f"Fitness evaluated for {genome.strategy_name}: {fitness_score}")
-                
+
             except Exception as e:
                 logger.error(f"Error evaluating fitness for {genome.strategy_name}: {e}")
-        
+
         db.commit()
         logger.info(f"Fitness evaluation completed for {len(genomes)} genomes")
 
@@ -88,7 +87,7 @@ def mutation_cycle_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping mutation cycle")
         return
-    
+
     logger.info("Starting mutation cycle job")
     with _get_db_session() as db:
         # Get genomes eligible for mutation (DRAFT stage, fitness > 0.3)
@@ -96,15 +95,15 @@ def mutation_cycle_job() -> None:
             GenomeRegistry.stage == "DRAFT",
             GenomeRegistry.fitness_score > 0.3
         ).order_by(GenomeRegistry.fitness_score.desc()).limit(5).all()
-        
+
         for genome in eligible_genomes:
             try:
                 # Mutate the genome
                 mutated_genome = mutate_genome(genome)
-                
+
                 # Save mutated genome to registry
                 db.add(mutated_genome)
-                
+
                 # Log evolution action
                 action = EvolutionAction(
                     action_type="mutation",
@@ -118,12 +117,12 @@ def mutation_cycle_job() -> None:
                     to_stage="DRAFT",
                 )
                 log_evolution_action(action, db)
-                
+
                 logger.info(f"Mutated genome {genome.strategy_name} -> {mutated_genome.strategy_name}")
-                
+
             except Exception as e:
                 logger.error(f"Error mutating genome {genome.strategy_name}: {e}")
-        
+
         db.commit()
         logger.info(f"Mutation cycle completed for {len(eligible_genomes)} genomes")
 
@@ -133,26 +132,26 @@ def crossover_cycle_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping crossover cycle")
         return
-    
+
     logger.info("Starting crossover cycle job")
     with _get_db_session() as db:
         # Get elite genomes (fitness > 0.75)
         elite_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.fitness_score > 0.75
         ).order_by(GenomeRegistry.fitness_score.desc()).limit(10).all()
-        
+
         # Pair them up for crossover
         for i in range(0, len(elite_genomes) - 1, 2):
             parent_a = elite_genomes[i]
             parent_b = elite_genomes[i + 1]
-            
+
             try:
                 # Perform crossover
                 child_genome = crossover_genomes(parent_a, parent_b)
-                
+
                 # Save child genome to registry
                 db.add(child_genome)
-                
+
                 # Log evolution action
                 action = EvolutionAction(
                     action_type="crossover",
@@ -167,12 +166,12 @@ def crossover_cycle_job() -> None:
                     to_stage="DRAFT",
                 )
                 log_evolution_action(action, db)
-                
+
                 logger.info(f"Crossover created {child_genome.strategy_name} from {parent_a.strategy_name} x {parent_b.strategy_name}")
-                
+
             except Exception as e:
                 logger.error(f"Error in crossover for {parent_a.strategy_name} x {parent_b.strategy_name}: {e}")
-        
+
         db.commit()
         logger.info(f"Crossover cycle completed, created {len(elite_genomes) // 2} children")
 
@@ -182,12 +181,12 @@ def necromancy_analysis_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping necromancy analysis")
         return
-    
+
     logger.info("Starting necromancy analysis job")
     with _get_db_session() as db:
         # Run necromancy analysis
         report = run_necromancy_analysis(db)
-        
+
         # Log evolution action
         action = EvolutionAction(
             action_type="necromancy",
@@ -201,7 +200,7 @@ def necromancy_analysis_job() -> None:
             },
         )
         log_evolution_action(action, db)
-        
+
         logger.info("Necromancy analysis completed")
 
 
@@ -210,12 +209,12 @@ def regime_rebalancing_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping regime rebalancing")
         return
-    
+
     logger.info("Starting regime rebalancing job")
     with _get_db_session() as db:
         # Detect regime and rebalance
         regime, changes = detect_regime_and_rebalance(db)
-        
+
         # Log evolution action
         action = EvolutionAction(
             action_type="regime_rebalance",
@@ -227,7 +226,7 @@ def regime_rebalancing_job() -> None:
             },
         )
         log_evolution_action(action, db)
-        
+
         logger.info(f"Regime rebalancing completed, detected regime: {regime}")
 
 
@@ -237,27 +236,27 @@ def shadow_validation_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping shadow validation")
         return
-    
+
     logger.info("Starting shadow validation job")
     with _get_db_session() as db:
         from backend.models.database import ShadowTrade
         shadow_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage == "SHADOW"
         ).all()
-        
+
         promoted = 0
         for genome in shadow_genomes:
             trades = db.query(ShadowTrade).filter(
                 ShadowTrade.genome_id == genome.genome_id,
                 ShadowTrade.actual_outcome.isnot(None)
             ).all()
-            
+
             if len(trades) < 10:
                 continue
-            
+
             correct = sum(1 for t in trades if t.accuracy_score is not None and t.accuracy_score < 0.2)
             accuracy = correct / len(trades) if trades else 0.0
-            
+
             if accuracy >= 0.60:
                 genome.stage = "PAPER"
                 action = EvolutionAction(
@@ -270,7 +269,7 @@ def shadow_validation_job() -> None:
                 )
                 log_evolution_action(action, db)
                 promoted += 1
-        
+
         db.commit()
         logger.info(f"Shadow validation completed, promoted {promoted} genomes")
 
@@ -281,18 +280,18 @@ def full_population_review_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping population review")
         return
-    
+
     logger.info("Starting full population review job")
     with _get_db_session() as db:
         genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage.in_(["DRAFT", "SHADOW", "PAPER", "LIVE", "BREEDING"])
         ).all()
-        
+
         killed = 0
         for genome in genomes:
             fitness = calculate_fitness(genome.fitness_metrics) if genome.fitness_metrics else 0.0
             genome.fitness_score = fitness
-            
+
             if fitness < 0.30 and genome.fitness_metrics and genome.fitness_metrics.total_trades >= 20:
                 genome.stage = "GRAVEYARD"
                 action = EvolutionAction(
@@ -305,7 +304,7 @@ def full_population_review_job() -> None:
                 )
                 log_evolution_action(action, db)
                 killed += 1
-        
+
         db.commit()
         logger.info(f"Population review completed: {len(genomes)} genomes, {killed} killed")
 
@@ -316,17 +315,17 @@ def legend_evaluation_job() -> None:
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping legend evaluation")
         return
-    
+
     logger.info("Starting legend evaluation job")
     with _get_db_session() as db:
         from datetime import timedelta
         cutoff = datetime.now(timezone.utc) - timedelta(days=60)
-        
+
         live_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage == "LIVE",
             GenomeRegistry.created_at <= cutoff,
         ).all()
-        
+
         legends = 0
         for genome in live_genomes:
             fitness = calculate_fitness(genome.fitness_metrics) if genome.fitness_metrics else 0.0
@@ -347,17 +346,17 @@ def legend_evaluation_job() -> None:
                     "to": "LEGEND",
                 })
                 legends += 1
-        
+
         db.commit()
         logger.info(f"Legend evaluation completed, {legends} new legends")
 
 
 def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:
     """Apply a targeted mutation to a specific chromosome of a genome.
-    
+
     Invoked reactively when a chromosome is flagged by performance attributor.
     Only mutates the specified chromosome (not the whole genome).
-    
+
     Args:
         genome_id: ID of the genome to mutate
         chrom_name: Name of the chromosome to target
@@ -368,12 +367,12 @@ def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:
         if not genome:
             logger.warning(f"Targeted mutation: genome {genome_id} not found")
             return
-        
+
         # Only mutate the flagged chromosome
         mutated = mutate_genome(genome, market_regime="neutral", targeted_chrom=chrom_name)
         if mutated and mutated.genome_id != genome.genome_id:
             db.add(mutated)
-            
+
             action = EvolutionAction(
                 action_type="targeted_mutation",
                 genome_id=mutated.genome_id,
@@ -387,7 +386,7 @@ def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:
                 to_stage=genome.stage,
             )
             log_evolution_action(action, db)
-            
+
             logger.info(f"Targeted mutation applied: {genome.strategy_name} -> {mutated.strategy_name} (chrom={chrom_name})")
     except Exception as e:
         logger.error(f"Targeted mutation failed for genome {genome_id}: {e}", exc_info=True)

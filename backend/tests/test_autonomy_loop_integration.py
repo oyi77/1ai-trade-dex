@@ -1,6 +1,5 @@
 """Full autonomy loop integration tests — async daemon + DB integration."""
 import pytest
-import pytest_asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -9,7 +8,7 @@ from backend.core.autonomous_promoter import AutonomousPromoter
 from backend.core.bankroll_allocator import BankrollAllocator
 from backend.core.trade_forensics import TradeForensics
 from backend.models import database as _db_mod
-from backend.models.database import StrategyConfig, BotState, Trade
+from backend.models.database import StrategyConfig, Trade
 from backend.models.kg_models import ExperimentRecord
 from backend.core.agi_types import ExperimentStatus
 

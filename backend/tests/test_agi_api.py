@@ -1,17 +1,13 @@
-from datetime import datetime, timezone
-from typing import Optional
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.api.main import app
-from backend.models.kg_models import Base, DecisionAuditLog, ExperimentRecord
 
 
 def get_test_client():
     from backend.api.agi_routes import router
     app.include_router(router)
-    
+
     client = TestClient(app)
     return client
 
@@ -100,7 +96,7 @@ class TestAGIAPIKnowledgeGraph:
         assert resp.status_code in [200, 500]
 
 
-class TestAGIAPIEmergencyStop:
+class TestAGIAPIEmergencyStopNoAuth:
     def test_emergency_stop(self, monkeypatch):
         from backend.config import settings
         monkeypatch.setattr(settings, "ADMIN_API_KEY", None)
@@ -119,7 +115,7 @@ class TestAGIAPIStatus:
             assert "regime" in data or "health" in data
 
 
-class TestAGIAPIGoalOverride:
+class TestAGIAPIGoalOverrideNoAuth:
     def test_override_goal(self, monkeypatch):
         from backend.config import settings
         monkeypatch.setattr(settings, "ADMIN_API_KEY", None)

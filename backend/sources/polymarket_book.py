@@ -1,8 +1,6 @@
 """PolymarketBook DataSource — live order book, Gamma API markets, and whale positions."""
 from __future__ import annotations
 import asyncio
-import hashlib
-import json
 import logging
 import time
 from datetime import datetime, timezone
@@ -63,7 +61,7 @@ class PolymarketBook(DataSource):
             )
 
     async def health_check(self) -> HealthStatus:
-        t0 = time.monotonic()
+        _t0 = time.monotonic()
         try:
             client = await self._get_client()
             resp = await asyncio.wait_for(client.get(f"{GAMMA_URL}/markets?limit=1"), timeout=5.0)

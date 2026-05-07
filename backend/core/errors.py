@@ -9,9 +9,8 @@ import logging
 import functools
 import inspect
 import traceback
-import asyncio
 from typing import Callable, Any
-from fastapi import Request, HTTPException
+from fastapi import HTTPException
 
 
 logger = logging.getLogger(__name__)

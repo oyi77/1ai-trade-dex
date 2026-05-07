@@ -110,7 +110,6 @@ class PredictionEngine:
         if strategy is not None:
             try:
                 from backend.core.outcome_repository import get_strategy_stats
-                from backend.models.database import SessionLocal
                 from backend.db.utils import get_db_session
                 with get_db_session() as db:
                     stats = get_strategy_stats(strategy, None, db)

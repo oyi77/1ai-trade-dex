@@ -14,7 +14,6 @@ NO MOCK DATA - Everything is real!
 import logging
 import asyncio
 from typing import List, Dict, Optional, Any
-from datetime import datetime
 import httpx
 
 from backend.config import settings

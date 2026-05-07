@@ -7,7 +7,6 @@ and inventory skew to manage position risk.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -133,7 +132,6 @@ class MarketMakerStrategy(BaseStrategy):
             # Fetch candidate markets via Gamma API (best-effort)
             markets: list[MarketInfo] = []
             try:
-                from backend.data.polymarket_clob import PolymarketCLOB
 
                 if ctx.clob is not None:
                     raw_markets = await ctx.clob.get_markets(limit=50)

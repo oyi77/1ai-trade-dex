@@ -17,7 +17,6 @@ from backend.core.auto_improve import (
     MAX_PARAM_CHANGE_FRACTION,
     ROLLBACK_TRADE_WINDOW,
     ROLLBACK_PERF_DEGRADATION_THRESHOLD,
-    TUNABLE_PARAMS,
 )
 import backend.core.auto_improve as auto_improve_mod
 

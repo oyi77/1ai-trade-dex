@@ -1,5 +1,4 @@
 """Tests for backend/ai/bayesian_optimizer.py — simplified Bayesian optimizer."""
-import pytest
 
 from backend.ai.bayesian_optimizer import BayesianOptimizer, OptimizationResult
 

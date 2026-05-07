@@ -45,7 +45,7 @@ class TradeAnalyzer:
         db = self._session_factory()
         try:
             trade = db.query(Trade).filter(Trade.id == trade_id).first()
-            
+
             if not trade:
                 self.logger.warning(f"Trade {trade_id} not found")
                 return None
@@ -71,7 +71,7 @@ class TradeAnalyzer:
 
             # Calculate PnL
             pnl = self._calculate_pnl(trade)
-            
+
             # Determine profitability and analyze
             if pnl > 0:
                 analysis = self._analyze_profitable_trade(trade, pnl)
@@ -124,14 +124,14 @@ class TradeAnalyzer:
 
         for trade in trades:
             # Skip trades with missing data
-            if (trade.entry_price is None or 
-                trade.size is None or 
+            if (trade.entry_price is None or
+                trade.size is None or
                 trade.size == 0):
                 self.logger.warning(f"Skipping trade {trade.id} due to missing data")
                 continue
 
             pnl = self._calculate_pnl(trade)
-            
+
             if pnl > 0:
                 winning_trades.append(pnl)
                 analysis = self._analyze_profitable_trade(trade, pnl)
@@ -144,7 +144,7 @@ class TradeAnalyzer:
                 all_edges.append(analysis["edge"])
 
         total_trades = len(winning_trades) + len(losing_trades)
-        
+
         # Edge case: no valid trades after filtering
         if total_trades == 0:
             self.logger.warning("No valid trades after filtering")
@@ -360,13 +360,13 @@ class TradeAnalyzer:
 
         from collections import Counter
         factor_counts = Counter(factors)
-        
+
         # Return factors that appear more than once, sorted by frequency
         common = [
             factor for factor, count in factor_counts.most_common()
             if count > 1
         ]
-        
+
         return common[:5]  # Top 5 most common
 
     def _detect_outliers(self, pnls: List[float]) -> List[int]:

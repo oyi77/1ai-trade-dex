@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
-from backend.core.errors import CircuitOpenError
 from backend.config import settings
 
 logger = logging.getLogger("trading_bot.prob_arb")
@@ -171,7 +170,7 @@ async def _place_order_with_retry(
         )
         return result.order_id if hasattr(result, "order_id") else None
 
-    except Exception as exc:
+    except Exception:
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
             wait = 0.1 * (2 ** retry_count)
             await asyncio.sleep(wait)

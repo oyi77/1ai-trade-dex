@@ -7,10 +7,10 @@ gene performance, and market relationships.
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
 
 from backend.models.database import KgNode, KgEdge
 
@@ -18,7 +18,7 @@ from backend.models.database import KgNode, KgEdge
 class KnowledgeGraph:
     """Knowledge Graph operations for strategy evolution analysis."""
 
-    def add_node(self, node_id: str, node_type: str, label: str, 
+    def add_node(self, node_id: str, node_type: str, label: str,
                  properties: Dict[str, Any] = None, db: Session = None) -> KgNode:
         """Add a node to the knowledge graph."""
         from backend.db.utils import get_db_session
@@ -70,10 +70,10 @@ class KnowledgeGraph:
                     query = query.filter(KgEdge.relationship == relationship)
                 edges = query.all()
                 node_ids = [edge.from_node_id for edge in edges]
-            
+
             if not node_ids:
                 return []
-                
+
             nodes = db.query(KgNode).filter(KgNode.node_id.in_(node_ids)).all()
             return nodes
 
@@ -85,7 +85,7 @@ class KnowledgeGraph:
             query_func = GRAPH_QUERIES.get(query_name)
             if query_func is None:
                 raise ValueError(f"Unknown query: {query_name}")
-            
+
             return query_func(db, params or {})
 
 
@@ -100,7 +100,7 @@ def _query_best_genes_volatile_regime(db: Session, params: Dict[str, Any]) -> Li
             KgNode.properties_json.like('%"regime":"volatile"%')
         )
     ).all()
-    
+
     result = []
     for strategy in volatile_strategies:
         # Find genes associated with this strategy
@@ -113,14 +113,14 @@ def _query_best_genes_volatile_regime(db: Session, params: Dict[str, Any]) -> Li
                 KgNode.node_type == "gene"
             )
         ).all()
-        
+
         for gene in genes:
             result.append({
                 "strategy": strategy.label,
                 "gene": gene.label,
                 "gene_type": gene.properties_json.get("gene_type", "unknown") if gene.properties_json else "unknown"
             })
-    
+
     return result
 
 
@@ -133,17 +133,17 @@ def _query_martingale_lifespan(db: Session, params: Dict[str, Any]) -> List[Dict
             KgNode.properties_json.like('%"risk_chromosome":"martingale"%')
         )
     ).all()
-    
+
     if not martingale_strategies:
         return [{"average_lifespan_days": 0, "count": 0}]
-    
+
     # Calculate lifespan from creation to death (simplified)
     total_lifespan = 0
     for strategy in martingale_strategies:
         # In real implementation, query evolution_log for promotion and death events
         # For now, use a placeholder
         total_lifespan += 30  # 30 days average
-    
+
     avg_lifespan = total_lifespan / len(martingale_strategies)
     return [{"average_lifespan_days": avg_lifespan, "count": len(martingale_strategies)}]
 
@@ -157,7 +157,7 @@ def _query_highest_alpha_by_category(db: Session, params: Dict[str, Any]) -> Lis
             KgNode.label.like('%statistical_arb%')
         )
     ).all()
-    
+
     result = []
     for strategy in stat_arb_strategies:
         # Find markets this strategy traded on
@@ -170,14 +170,14 @@ def _query_highest_alpha_by_category(db: Session, params: Dict[str, Any]) -> Lis
                 KgNode.node_type == "market"
             )
         ).all()
-        
+
         for market in markets:
             result.append({
                 "strategy": strategy.label,
                 "market": market.label,
                 "alpha": strategy.properties_json.get("alpha", 0.0) if strategy.properties_json else 0.0
             })
-    
+
     # Sort by alpha descending
     result.sort(key=lambda x: x["alpha"], reverse=True)
     return result
@@ -192,7 +192,7 @@ def _query_legend_mutation_path(db: Session, params: Dict[str, Any]) -> List[Dic
             KgNode.properties_json.like('%"stage":"LEGEND"%')
         )
     ).all()
-    
+
     result = []
     for strategy in legend_strategies:
         # Find mutation paths
@@ -202,7 +202,7 @@ def _query_legend_mutation_path(db: Session, params: Dict[str, Any]) -> List[Dic
                 KgEdge.relationship == "MUTATED_FROM"
             )
         ).all()
-        
+
         for mutation in mutations:
             # Get parent strategy
             parent = db.query(KgNode).filter(KgNode.node_id == mutation.from_node_id).first()
@@ -212,7 +212,7 @@ def _query_legend_mutation_path(db: Session, params: Dict[str, Any]) -> List[Dic
                     "mutated_from": parent.label,
                     "mutation_weight": mutation.weight
                 })
-    
+
     # Sort by mutation weight descending
     result.sort(key=lambda x: x["mutation_weight"], reverse=True)
     return result

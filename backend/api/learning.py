@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import get_db
 from backend.api.auth import require_admin
 from backend.core.outcome_repository import (
-    get_strategy_stats, get_recent_outcomes, record_param_change
+    get_recent_outcomes, record_param_change
 )
 from backend.core.trading_calibration import TradingCalibration
 from backend.core.thompson_sampler import ThompsonSampler

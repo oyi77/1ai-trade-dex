@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 
@@ -1080,7 +1080,7 @@ async def process_settled_trade(
         )
         dl_query = db.query(DecisionLog).filter(
             DecisionLog.market_ticker == trade.market_ticker,
-            DecisionLog.outcome == None,
+            DecisionLog.outcome is None,
             DecisionLog.decision == "BUY",
         )
         if trade_ctx and trade_ctx.strategy:
@@ -1153,7 +1153,7 @@ async def process_settled_trade(
     # Trigger realtime RL learner — fire-and-forget, never blocks settlement
     try:
         from backend.core.online_learner import OnlineLearner
-        
+
         learner = OnlineLearner()
         learner.on_trade_settled(trade, db)
     except Exception as e:
@@ -1247,7 +1247,7 @@ async def reconcile_positions(db: Session) -> List[int]:
             db.query(Trade)
             .filter(
                 Trade.settled.is_(False),
-                Trade.trading_mode == trading_mode,
+                Trade.trading_mode == "paper",
                 Trade.platform == "polymarket",
             )
             .all()

@@ -10,7 +10,6 @@ F. Causal Reasoning traces complete trade flow
 G. AGI Orchestrator coordinates all modules
 H. Concurrent operations don't interfere
 """
-import pytest
 import time
 
 from backend.core.regime_detector import RegimeDetector
@@ -19,15 +18,12 @@ from backend.core.strategy_composer import StrategyComposer
 from backend.core.strategy_allocator import RegimeAwareAllocator
 from backend.core.agi_goal_engine import AGIGoalEngine, AGIGoal
 from backend.core.self_debugger import SelfDebugger
-from backend.core.llm_cost_tracker import LLMCostTracker, BudgetExceededError
+from backend.core.llm_cost_tracker import LLMCostTracker
 from backend.core.agi_promotion_pipeline import AGIPromotionPipeline
 from backend.core.causal_reasoning import CausalReasoner
 from backend.core.agi_orchestrator import AGIOrchestrator
-from backend.core.dynamic_prompt_engine import DynamicPromptEngine
 from backend.core.strategy_synthesizer import StrategySynthesizer
-from backend.core.experiment_runner import ExperimentRunner
 from backend.core.agi_types import MarketRegime, StrategyBlock
-from backend.core.regime_detector import RegimeResult
 
 
 class TestCompleteAGIPipeline:
@@ -122,7 +118,7 @@ class TestKnowledgeGraphPersistence:
         kg.add_entity("test", "good", {"value": 1})
 
         # Simulate bad data addition
-        result = kg.add_entity("test", "bad", {"invalid": True})
+        _result = kg.add_entity("test", "bad", {"invalid": True})
         # Verify we can still query good data
         good = kg.get_entity("good")
         assert good is not None
@@ -173,7 +169,7 @@ class TestLLMCostTrackingIntegration:
 
     def test_cost_tracker_with_strategy_synthesizer(self):
         tracker = LLMCostTracker(daily_budget=10.0)
-        synthesizer = StrategySynthesizer()
+        _synthesizer = StrategySynthesizer()
 
         # Simulate LLM calls during synthesis
         tracker.record_call("claude-3-opus", 1500, 0.045, "strategy_generation")
@@ -246,7 +242,7 @@ class TestConcurrentOperations:
 
         # Verify we can still query
         for i in range(10):
-            entity = kg.get_entity(f"entity_{i}")
+            _entity = kg.get_entity(f"entity_{i}")
 
 
 class TestPerformanceAfterHardening:

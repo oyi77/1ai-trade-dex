@@ -113,7 +113,7 @@ class PolyEdgeBot:
 
         await self._app.initialize()
         await self._app.start()
-        
+
         from backend.api.main import app
         if hasattr(app.state, 'task_manager'):
             await app.state.task_manager.create_task(
@@ -315,7 +315,7 @@ class PolyEdgeBot:
         try:
             from backend.config import settings
 
-            mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
+            _mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
             primary_mode = sorted(settings.active_modes_set)[0].upper() if settings.active_modes_set else "PAPER"
             mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(primary_mode, "⚪")
             text = (
@@ -768,7 +768,7 @@ class PolyEdgeBot:
             total_pnl = sum(t.pnl or 0.0 for t in settled)
             exposure = sum(t.size for t in pending)
             equity = settings.INITIAL_BANKROLL + total_pnl
-            mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
+            _mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
             primary_mode = sorted(settings.active_modes_set)[0].upper() if settings.active_modes_set else "PAPER"
             mode_emoji = {"PAPER": "🟠", "TESTNET": "🟡", "LIVE": "🔴"}.get(primary_mode, "⚪")
             await update.message.reply_text(

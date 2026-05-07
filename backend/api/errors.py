@@ -39,7 +39,7 @@ async def report_frontend_error(
                 "timestamp": error_report.timestamp,
             },
         )
-        
+
         return {
             "status": "received",
             "timestamp": datetime.now(timezone.utc).isoformat(),

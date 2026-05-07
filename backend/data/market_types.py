@@ -11,7 +11,7 @@ to_unified() method is a simple adapter that converts to a shared API
 response format.
 """
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import datetime
 from typing import Any, Dict
 
 

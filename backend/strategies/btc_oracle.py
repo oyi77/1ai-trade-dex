@@ -182,7 +182,7 @@ class BtcOracleStrategy(BaseStrategy):
         btc_5m_markets = await fetch_active_btc_markets()
 
         now = datetime.now(timezone.utc)
-        
+
         for market in btc_5m_markets:
             end_dt = market.window_end
             if end_dt.tzinfo is None:
@@ -315,7 +315,7 @@ class BtcOracleStrategy(BaseStrategy):
 
             decision = "BUY" if edge > 0 else "SKIP"
             confidence_score = min(1.0, max(0.0, edge + min_edge))
-            
+
             record_decision_standalone(
                 self.name,
                 market.ticker,
@@ -332,7 +332,7 @@ class BtcOracleStrategy(BaseStrategy):
                 reason=f"oracle_edge={edge:.3f} btc=${btc_price:,.0f} t={minutes_remaining:.1f}min",
             )
             result.decisions_recorded += 1
-            
+
             activity_logger.log_entry(
                 strategy_name=self.name,
                 decision_type="entry" if decision == "BUY" else "hold",

@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
-from fastapi.security import HTTPBasicCredentials
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session
 
-from backend.models.database import get_db, Base, engine
+from backend.models.database import get_db
 from backend.api.auth import require_admin
-from backend.core.agi_orchestrator import AGIOrchestrator, AGIStatus
+from backend.core.agi_orchestrator import AGIOrchestrator
 from backend.core.agi_goal_engine import AGIGoalEngine
-from backend.core.strategy_composer import StrategyComposer, ComposedStrategy
+from backend.core.strategy_composer import StrategyComposer
 from backend.core.knowledge_graph import KnowledgeGraph
-from backend.models.kg_models import DecisionAuditLog, ExperimentRecord, KGEntity as KGEntityModel, KGRelation as KGRelationModel
+from backend.models.kg_models import DecisionAuditLog, ExperimentRecord, KGEntity as KGEntityModel
 
 router = APIRouter(tags=["AGI"])
 
@@ -127,7 +125,7 @@ async def query_kg(
     entity_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    kg = KnowledgeGraph(session=db)
+    _kg = KnowledgeGraph(session=db)
     query = db.query(KGEntityModel)
     if entity_type:
         query = query.filter_by(entity_type=entity_type)

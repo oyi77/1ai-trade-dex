@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Optional, AsyncIterator
+from typing import AsyncIterator
 
 from backend.config import settings
 

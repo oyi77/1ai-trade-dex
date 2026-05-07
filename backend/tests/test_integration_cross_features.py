@@ -561,7 +561,7 @@ class TestCrossFeatureDataConsistency:
         assert decision.id is not None
         assert proposal.id is not None
         assert trade.id is not None
-        
+
         assert db.query(ActivityLog).filter_by(id=activity.id).first() is not None
         assert db.query(DecisionLog).filter_by(id=decision.id).first() is not None
         assert db.query(StrategyProposal).filter_by(id=proposal.id).first() is not None

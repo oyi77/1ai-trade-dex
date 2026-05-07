@@ -6,7 +6,7 @@ from typing import Any, Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.core.agi_types import KGEntity, KGRelation
+from backend.core.agi_types import KGEntity
 from backend.models.kg_models import Base, KGEntity as KGEntityModel, KGRelation as KGRelationModel
 
 

@@ -1,9 +1,7 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional
 
-import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.experiment_runner import (
     ExperimentRunner,
@@ -48,7 +46,6 @@ class TestExperimentRunnerRunShadow:
 class TestExperimentRunnerEvaluate:
     def test_evaluate_meets_criteria(self):
         runner, session, _ = make_runner_session()
-        from datetime import timedelta
         experiment = ExperimentRecord(
             name="good_strat",
             strategy_composition={"name": "good"},
@@ -106,7 +103,6 @@ class TestExperimentRunnerEvaluate:
 class TestExperimentRunnerPromote:
     def test_promote_meets_criteria(self):
         runner, session, _ = make_runner_session()
-        from datetime import timedelta
         experiment = ExperimentRecord(
             name="promotable",
             strategy_composition={"name": "promotable"},

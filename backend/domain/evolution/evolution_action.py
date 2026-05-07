@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class EvolutionAction:
     """Represents an evolution event in the system."""
-    
+
     action_type: str  # "mutation", "crossover", "selection", "fitness_eval", "promotion", "auto_kill", "necromancy"
     genome_id: str
     strategy_name: str

@@ -1,5 +1,4 @@
 """Tests for backend/data/goldsky_client.py."""
-import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
