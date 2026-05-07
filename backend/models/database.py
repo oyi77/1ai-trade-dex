@@ -151,7 +151,18 @@ class Trade(Base):
     )
     market_ticker = Column(String, index=True)
     platform = Column(String)
+    strategy = Column(String, nullable=True)
+    trading_mode = Column(String, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+    clob_order_id = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    confidence = Column(Float, nullable=True)
     event_slug = Column(String, nullable=True)
+    market_end_date = Column(DateTime, nullable=True)
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
 
     # Trade details
@@ -199,6 +210,9 @@ class Trade(Base):
         String, default="pending"
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    settlement_source = Column(String, nullable=True)
+    source = Column(String, nullable=False, default="bot", index=True)
 
 
 class HFTExecutionRecord(Base):
@@ -1886,14 +1900,14 @@ class ClobEvent(Base):
     order_id = Column(String, nullable=False)
     maker = Column(String, nullable=False)
     taker = Column(String, nullable=False)
-    market_id = Column(String, nullable=False, index=True)
+    market_id = Column(String, nullable=False)
     side = Column(String, nullable=False)  # "BUY" or "SELL"
     size = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
     fee = Column(Float, nullable=False)
-    block_number = Column(Integer, nullable=False, index=True)
-    tx_hash = Column(String, nullable=False, unique=True, index=True)
-    timestamp = Column(DateTime, nullable=False, index=True)
+    block_number = Column(Integer, nullable=False)
+    tx_hash = Column(String, nullable=False, unique=True)
+    timestamp = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (

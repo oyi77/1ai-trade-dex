@@ -195,7 +195,6 @@ def test_performance_large_dataset(db):
             edge_at_entry=0.10,
             trading_mode="paper",
             strategy="test_strategy",
-            confidence=0.80,
         )
         trades.append(trade)
     
@@ -315,7 +314,6 @@ async def test_concurrent_operations(db):
                 edge_at_entry=0.10,
                 trading_mode="paper",
                 strategy="test_strategy",
-                confidence=0.75,
             )
             trades.append(trade)
         db.bulk_save_objects(trades)
