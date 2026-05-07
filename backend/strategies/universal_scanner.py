@@ -53,6 +53,35 @@ async def _get_market_lock(market_id: str) -> asyncio.Lock:
         return _market_locks[market_id]
 
 
+def _is_market_stale(m: dict) -> bool:
+    """Check if market data is stale based on timestamps."""
+    updated_at = m.get("updated_at") or m.get("created_at") or ""
+    if updated_at:
+        try:
+            updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - updated_dt).total_seconds()
+            if age > _cfg("SCANNER_STALE_THRESHOLD_SECONDS", 5.0):
+                return True
+        except (ValueError, TypeError):
+            pass
+    return False
+
+
+def _parse_prices(m: dict) -> tuple[float, float]:
+    """Parse outcome prices from market dict, returning (yes_price, no_price)."""
+    outcome_prices = m.get("outcomePrices", [])
+    if isinstance(outcome_prices, str):
+        try:
+            import json
+            outcome_prices = json.loads(outcome_prices)
+        except Exception:
+            outcome_prices = ["0.5", "0.5"]
+
+    yes_price = float(outcome_prices[0]) if len(outcome_prices) > 0 else 0.5
+    no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 else 0.5
+    return yes_price, no_price
+
+
 def _parse_market(m: dict) -> Optional[MarketInfo]:
     """
     Parse Gamma API market dict into MarketInfo.
@@ -63,27 +92,10 @@ def _parse_market(m: dict) -> Optional[MarketInfo]:
     """
     try:
         # Validate timestamp - reject stale data (false positive prevention)
-        updated_at = m.get("updated_at") or m.get("created_at") or ""
-        if updated_at:
-            try:
-                updated_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                age = (datetime.now(timezone.utc) - updated_dt).total_seconds()
-                if age > _cfg("SCANNER_STALE_THRESHOLD_SECONDS", 5.0):
-                    return None  # Stale data rejected
-            except (ValueError, TypeError):
-                pass  # If timestamp parse fails, accept the market
+        if _is_market_stale(m):
+            return None
 
-        # Parse outcome prices
-        outcome_prices = m.get("outcomePrices", [])
-        if isinstance(outcome_prices, str):
-            try:
-                import json
-                outcome_prices = json.loads(outcome_prices)
-            except Exception:
-                outcome_prices = ["0.5", "0.5"]
-
-        yes_price = float(outcome_prices[0]) if len(outcome_prices) > 0 else 0.5
-        no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 else 0.5
+        yes_price, no_price = _parse_prices(m)
 
         return MarketInfo(
             ticker=m.get("conditionId", ""),
