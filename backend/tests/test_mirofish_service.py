@@ -16,7 +16,7 @@ def test_pause_stopped_service():
     result = service.pause()
 
     assert service.state == ServiceState.STOPPED
-    assert result["message"] == "Cannot pause — service is stopped. Use start first."
+    assert result["message"] == "Cannot pause \u2014 service is stopped. Use start first."
     assert result["state"] == "stopped"
 
 
