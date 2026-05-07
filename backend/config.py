@@ -15,9 +15,18 @@ DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database (SQLite for development, PostgreSQL for production, MySQL also supported)
+    # Database (supports SQLite for development, PostgreSQL for production, MySQL also supported)
     # Recommended MySQL URL format: mysql+pymysql://user:password@host:3306/mydatabase
+    # Recommended PostgreSQL URL format: postgresql+psycopg2://user:password@host:5432/mydatabase
     DATABASE_URL: str = f"sqlite:///{DB_PATH}"
+
+    @property
+    def is_postgres(self) -> bool:
+        return "postgresql" in self.DATABASE_URL
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.DATABASE_URL
 
     @field_validator("DATABASE_URL")
     @classmethod
@@ -28,6 +37,13 @@ class Settings(BaseSettings):
                 "Consider using 'mysql+pymysql://...' for better compatibility."
             )
         return v
+
+    # PostgreSQL pool settings (used when DATABASE_URL starts with postgresql://)
+    POSTGRES_POOL_SIZE: int = 10
+    POSTGRES_MAX_OVERFLOW: int = 20
+    POSTGRES_POOL_TIMEOUT: int = 30
+    POSTGRES_POOL_RECYCLE: int = 3600
+    POSTGRES_SSL_MODE: str = "prefer"
 
     # Polymarket Token Addresses
     USDC_E_ADDRESS: str = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"

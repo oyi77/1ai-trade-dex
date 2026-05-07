@@ -31,14 +31,28 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=3600,
-    pool_timeout=30,
-)
+_is_postgres = settings.is_postgres
+
+_engine_kwargs = {
+    "pool_pre_ping": True,
+    "pool_timeout": settings.POSTGRES_POOL_TIMEOUT,
+    "pool_recycle": settings.POSTGRES_POOL_RECYCLE,
+}
+
+if _is_postgres:
+    _engine_kwargs.update({
+        "pool_size": settings.POSTGRES_POOL_SIZE,
+        "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
+    })
+else:
+    # SQLite uses smaller default pool
+    _engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 10,
+        "connect_args": {"check_same_thread": False},
+    })
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 
 def configure_sqlite_wal(engine_obj):
@@ -59,6 +73,12 @@ configure_sqlite_wal(engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def for_update(session, query):
+    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL."""
+    if session.get_bind().dialect.name == "postgresql":
+        return query.with_for_update()
+    return query
 
 
 class TradeRole(str, Enum):
