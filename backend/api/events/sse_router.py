@@ -12,6 +12,7 @@ from typing import Set
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+from backend.api.auth import authorize_realtime_access
 from backend.config import settings
 from backend.core.event_bus import event_bus
 
@@ -66,7 +67,7 @@ async def events_stream(
     Clients can subscribe to specific channels to receive only relevant events.
     If no channels parameter is provided, all events are sent (backward compatible).
     """
-    if settings.ADMIN_API_KEY and token and token != settings.ADMIN_API_KEY:
+    if not authorize_realtime_access(token=token or None, admin_session=request.cookies.get("admin_session")):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Parse requested channels

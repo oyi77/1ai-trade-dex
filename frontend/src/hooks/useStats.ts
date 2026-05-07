@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import type { BotStats } from '../types'
 
-import { getWsUrl, getAdminApiKey } from '../api'
+import { getWsUrl } from '../api'
 
 export function useStats() {
   const [wsStats, setWsStats] = useState<BotStats | null>(null)
@@ -13,12 +13,6 @@ export function useStats() {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 
     const connect = () => {
-      const apiKey = getAdminApiKey()
-      if (!apiKey) {
-        reconnectTimeout = setTimeout(connect, 3000)
-        return
-      }
-
       const wsUrl = getWsUrl('/ws/dashboard-data')
       ws = new WebSocket(wsUrl)
       

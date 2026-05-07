@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { API_BASE, getAdminApiKey } from '../api'
+import { API_BASE } from '../api'
 
 export type SSEEvent = {
   event_type: 'trade_executed' | 'settlement_completed' | 'strategy_health_killed'
@@ -47,15 +47,13 @@ export function useSSEEvents(options: UseSSEEventsOptions = {}): UseSSEEventsRes
     const connect = () => {
       setStatus('connecting');
       
-      const key = getAdminApiKey();
       const params = new URLSearchParams();
-      if (key) params.set('token', key);
       if (channels?.length) params.set('channels', channels.join(','));
       
       const qs = params.toString();
       const url = `${API_BASE}/api/events/stream${qs ? '?' + qs : ''}`;
       
-      es = new EventSource(url);
+      es = new EventSource(url, { withCredentials: true });
 
       es.onopen = () => {
         setStatus('connected');

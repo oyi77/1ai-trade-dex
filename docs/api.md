@@ -142,6 +142,12 @@ Returns aggregate operator data for the Control Room header: total attempts, exe
 | `/ws/brain` | WS | AI analysis (topic: "brain") |
 | `/ws/dashboard-data` | WS | Dashboard stats incl. realtime balance/P&L breakdown (topic: "stats") |
 
+Realtime endpoints (`/api/events/stream`, `/api/v1/events/stream`, and `/ws/*`) require the same admin authentication model as REST:
+- Preferred: valid `admin_session` httpOnly cookie (from `/api/v1/admin/auth/login`)
+- Legacy fallback: `token=<ADMIN_API_KEY>` query parameter
+
+When `ADMIN_API_KEY` is unset, realtime endpoints are open for local/dev mode.
+
 **Subscription Protocol**:
 ```json
 // Client sends after connection
@@ -177,4 +183,5 @@ See `docs/operations/scalability.md` for rate limiting details.
 
 ## Authentication
 
-Admin endpoints require authentication via `/api/v1/admin/login`. Set `ADMIN_PASSWORD` in environment or config.
+Admin endpoints require authentication via cookie login (`POST /api/v1/admin/auth/login`) and CSRF for mutating requests.  
+Legacy `Authorization: Bearer <ADMIN_API_KEY>` remains supported for backward compatibility on REST endpoints.

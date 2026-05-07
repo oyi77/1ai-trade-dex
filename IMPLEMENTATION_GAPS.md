@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-04 (Round 9 — configurable per-mode drawdown breaker toggles, fixed MIN_CONFIDENCE bug; ~77 Fixed/Verified, 0 Known Gaps, 10 De-Scoped)
+**Last Updated:** 2026-05-07 (Round 10 — realtime auth hardening, queue contract alignment, scanner coverage, health dedupe; Known Gaps section below remains active)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -13,6 +13,22 @@ Format:
 ---
 
 ## Fixed
+
+~~**SSE/WebSocket auth bypass when token omitted**~~ → **Fixed** (2026-05-07): Realtime auth now requires either a valid admin cookie session or legacy `token=ADMIN_API_KEY`. Added centralized `authorize_realtime_access()` in `backend/api/auth.py`; wired into `backend/api/events/sse_router.py` and all secured WS routes in `backend/api/websockets_routes.py`.
+
+~~**Cookie auth incompatible with realtime query-token contract**~~ → **Fixed** (2026-05-07): Frontend realtime clients now use cookie-authenticated connections (`EventSource(..., { withCredentials: true })`) and no longer append auth tokens to SSE/WS URLs in `frontend/src/hooks/useTradeEvents.ts`, `frontend/src/hooks/useSSEEvents.ts`, `frontend/src/hooks/useStats.ts`, and `frontend/src/api.ts`.
+
+~~**Queue backend contract mismatch (RedisQueue sync methods vs async worker)**~~ → **Fixed** (2026-05-07): `RedisQueue` methods are now async and compatible with `Worker` awaits; `scheduler.py` now uses `create_queue()` and skips local worker loop for Redis/arq mode while preserving APScheduler execution.
+
+~~**Health endpoint duplicated Redis/CLOB/heartbeat checks**~~ → **Fixed** (2026-05-07): De-duplicated `/api/v1/health` in `backend/api/main.py` to perform single-pass dependency checks.
+
+~~**Market scanner hard-coded `max_pages=5`**~~ → **Fixed** (2026-05-07): Scanner pagination now derives from `SCANNER_PAGE_SIZE` + `SCANNER_MAX_MARKETS`/`limit` in `backend/core/market_scanner.py`.
+
+~~**Email notifications throw NotImplementedError at runtime**~~ → **Fixed** (2026-05-07): `notification_router._send_email()` now logs explicit de-scoped warning and safely drops message without raising.
+
+~~**Duplicate SSE endpoint definitions in two routers**~~ → **Fixed** (2026-05-07): Removed fallback SSE endpoint from `backend/api/websockets_routes.py`; channel-aware SSE router remains canonical source.
+
+~~**Kalshi arbitrage scaffold registered despite non-functional run_cycle**~~ → **Fixed** (2026-05-07): Removed `backend.modules.arbitrage.kalshi_arb` from auto-loading registry until implementation is production-ready.
 
 ~~**No autonomous experiment lifecycle** — strategies existed as code but had no automated promotion/demotion pipeline; paper→live required manual intervention every time; no retirement mechanism for losing strategies.~~ → **Fixed** (2026-05-03): Added full autonomy loop: `backend/core/autonomous_promoter.py` implements DRAFT→SHADOW→PAPER→LIVE_PROMOTED→RETIRED lifecycle with promotion thresholds and health-based kill checks; `backend/core/bankroll_allocator.py` computes daily capital allocation via `StrategyRanker.auto_allocate()` and persists to `BotState.misc_data`; `backend/core/trade_forensics.py` analyzes losing trades for root causes; `backend/core/strategy_health.py` (`StrategyHealthMonitor.assess`) computes win rate, Sharpe, drawdown, Brier, PSI and auto-disables killed strategies. Wired into `backend/core/scheduler.py` as `autonomous_promotion_job` (every 6h) and `bankroll_allocation_job` (daily). Integration tests in `backend/tests/test_autonomy_loop_integration.py` validate complete pipeline.
 
@@ -311,7 +327,7 @@ These gaps directly block the vision of unlimited paper experimentation → cont
 
 **Missing CHECK constraints — 0 enum validations defined** — No CHECK constraints enforcing domain values for columns: Trade.direction (BUY/SELL), Trade.result (win/loss/push), Signal.status (pending/executed/rejected), StrategyConfig.phase (DRAFT/SHADOW/PAPER/LIVE), BotState.mode (paper/testnet/live), TransactionEvent.transaction_type. Invalid enum values can slip into DB and break business logic. Severity: Medium — data quality gap. Affects: `backend/models/database.py`, `backend/models/kg_models.py`, `backend/models/outcome_tables.py`.
 
-**API authentication gaps — 2 CRITICAL unauthenticated endpoints + 12 HIGH admin gaps + zero per-endpoint rate limiting** — POST /emergency-stop and POST /goal/override in `backend/api/agi_routes.py` allow system shutdown and AGI goal manipulation without admin auth. Admin endpoints in `backend/api/admin.py`, `backend/api/wallets.py`, `backend/api/system.py`, `backend/api/proposals.py` lack `require_admin` dependency. All 174 API endpoints rely on global 600 req/min in-process middleware only; no per-endpoint decorators, no Redis backing (ineffective in multi-worker). Severity: Critical (2 endpoints) / High (12 endpoints) — unauthorized access and DDoS risk. Affects: `backend/api/agi_routes.py`, `backend/api/admin.py`, `backend/api/wallets.py`, `backend/api/system.py`, `backend/api/proposals.py`, `backend/api/rate_limiter.py`.
+**API authentication/rate-limit hardening still incomplete** — AGI critical endpoints (`/emergency-stop`, `/goal/override`) are now protected, and realtime SSE/WS endpoints now enforce cookie-session-or-token auth. Remaining gap is endpoint-by-endpoint auth/rate-limit consistency audits across the larger API surface (especially multi-worker/Redis-backed rate limiting). Severity: **HIGH** — unauthorized access and DDoS risk still possible on uncovered endpoints. Affects: `backend/api/*`, `backend/api/rate_limiter.py`.
 
 **CircuitBreaker coverage gap — 6 of 7 data-layer HTTP calls unprotected (14% coverage)** — Only `backend/data/kalshi_client.py:80` uses breaker. Unprotected: `backend/data/goldsky_client.py:68` (POST GraphQL), `backend/data/gamma.py:43` (fetch_markets GET), `backend/data/gamma.py:99` (fetch_resolved_markets GET), `backend/core/market_scanner.py:143` (Gamma scan GET), `backend/core/monitoring.py:213` (Slack webhook POST), `backend/core/monitoring.py:239` (Discord webhook POST). Cascade risk during downstream outages. Severity: High — resilience gap. Affects: `backend/data/goldsky_client.py`, `backend/data/gamma.py`, `backend/core/market_scanner.py`, `backend/core/monitoring.py`.
 

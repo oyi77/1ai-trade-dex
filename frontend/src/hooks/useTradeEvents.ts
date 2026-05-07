@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { getAdminApiKey, API_BASE } from '../api'
+import { API_BASE } from '../api'
+import { getCsrfToken } from '../utils/auth'
 
 export type TradeEvent = {
   type: 'trade_opened' | 'trade_settled' | 'signal_found' | 'connected'
@@ -12,25 +13,23 @@ export function useTradeEvents(onEvent: (event: TradeEvent) => void) {
   onEventRef.current = onEvent
 
   // Track the admin key as state so changes cause the effect to re-run
-  const [adminKey, setAdminKey] = useState(() => getAdminApiKey())
+  const [csrfToken, setCsrfToken] = useState(() => getCsrfToken())
 
   // Poll for key changes (e.g. user logs in/out in another tab or on the admin page)
   useEffect(() => {
     const interval = setInterval(() => {
-      const current = getAdminApiKey()
-      setAdminKey(prev => prev !== current ? current : prev)
+      const current = getCsrfToken()
+      setCsrfToken(prev => prev !== current ? current : prev)
     }, 2000)
     return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
-    const key = getAdminApiKey()
-    const tokenParam = key ? `?token=${encodeURIComponent(key)}` : ''
     let es: EventSource | null = null
     let reconnectTimeout: ReturnType<typeof setTimeout>
 
     const connect = () => {
-      es = new EventSource(`${API_BASE}/api/v1/events/stream${tokenParam}`)
+      es = new EventSource(`${API_BASE}/api/v1/events/stream`, { withCredentials: true })
 
       es.onmessage = (e) => {
         try {
@@ -59,5 +58,5 @@ export function useTradeEvents(onEvent: (event: TradeEvent) => void) {
       clearTimeout(reconnectTimeout)
       if (es) es.close()
     }
-  }, [adminKey])
+  }, [csrfToken])
 }

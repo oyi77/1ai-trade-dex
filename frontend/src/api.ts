@@ -25,13 +25,11 @@ const API_TIMEOUT = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 15000
  * In dev (no VITE_API_URL), uses current page host with protocol detection.
  */
 export function getWsUrl(path: string): string {
-  const adminKey = getCsrfToken() || getLegacyApiKey() || ''
-  const queryParam = adminKey ? `?token=${adminKey}` : ''
   if (API_BASE) {
-    return API_BASE.replace(/^http/, 'ws') + path + queryParam
+    return API_BASE.replace(/^http/, 'ws') + path
   }
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${protocol}://${window.location.host}${path}${queryParam}`
+  return `${protocol}://${window.location.host}${path}`
 }
 
 export const api = axios.create({

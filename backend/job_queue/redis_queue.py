@@ -3,7 +3,6 @@ arq-based Redis queue implementation.
 
 RQ-015: arq-based Redis queue
 """
-import asyncio
 import logging
 from typing import Optional, Dict, Any
 
@@ -52,20 +51,7 @@ class RedisQueue(AbstractQueue):
         from arq.connections import RedisSettings
         return RedisSettings.from_dsn(self._redis_url)
 
-    def _run_async(self, coro):
-        """Run an async coroutine synchronously, compatible with Python 3.14."""
-        try:
-            asyncio.get_running_loop()
-            # Already inside a running loop — run in a separate thread
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, coro)
-                return future.result()
-        except RuntimeError:
-            # No running loop — safe to use asyncio.run()
-            return asyncio.run(coro)
-
-    def enqueue(
+    async def enqueue(
         self,
         job_type: str,
         payload: Dict[str, Any],
@@ -92,41 +78,38 @@ class RedisQueue(AbstractQueue):
         queue_name = _PRIORITY_QUEUE_MAP.get(priority, _PRIORITY_QUEUE_MAP["medium"])
         redis_settings = self._get_redis_settings()
 
-        async def _enqueue():
-            from arq import create_pool
-            pool = await create_pool(redis_settings)
-            try:
-                job = await pool.enqueue_job(
-                    job_type,
-                    payload,
-                    _job_id=idempotency_key,
-                    _queue_name=queue_name,
-                )
-            finally:
-                await pool.aclose()
-            if job is None:
-                # Duplicate job (idempotency_key already in queue)
-                return idempotency_key or ""
-            return job.job_id
+        from arq import create_pool
 
-        return self._run_async(_enqueue())
+        pool = await create_pool(redis_settings)
+        try:
+            job = await pool.enqueue_job(
+                job_type,
+                payload,
+                _job_id=idempotency_key,
+                _queue_name=queue_name,
+            )
+        finally:
+            await pool.aclose()
 
-    def dequeue(self) -> Optional[Job]:
+        if job is None:
+            # Duplicate job (idempotency_key already in queue)
+            return idempotency_key or ""
+        return job.job_id
+
+    async def dequeue(self) -> Optional[Job]:
         """
-        Not implemented for arq queues.
+        No-op for arq queues when using this worker abstraction.
 
         arq workers consume jobs internally via the worker process. Callers
         should use the arq CLI or WorkerSettings to start a worker instead.
-
-        Raises:
-            NotImplementedError: Always.
         """
-        raise NotImplementedError(
-            "arq workers consume jobs internally. "
-            "Start an arq worker using backend.job_queue.arq_settings:WorkerSettings."
+        logger.debug(
+            "RedisQueue.dequeue() returns None: use arq worker "
+            "(backend.job_queue.arq_settings:WorkerSettings)"
         )
+        return None
 
-    def complete(self, job_id: str) -> None:
+    async def complete(self, job_id: str) -> None:
         """
         No-op: arq tracks job completion via JobResult automatically.
 
@@ -135,7 +118,7 @@ class RedisQueue(AbstractQueue):
         """
         logger.debug("RedisQueue.complete() called for job %s — no-op (arq manages lifecycle)", job_id)
 
-    def fail(self, job_id: str, error_message: str) -> None:
+    async def fail(self, job_id: str, error_message: str) -> None:
         """
         No-op: arq tracks job failure via JobResult automatically.
 
@@ -148,7 +131,7 @@ class RedisQueue(AbstractQueue):
             error_message,
         )
 
-    def get_pending_count(self) -> int:
+    async def get_pending_count(self) -> int:
         """
         Return the number of jobs currently queued (across all priority queues).
 
@@ -156,17 +139,15 @@ class RedisQueue(AbstractQueue):
         """
         redis_settings = self._get_redis_settings()
 
-        async def _count():
+        try:
             from arq import create_pool
+
             pool = await create_pool(redis_settings)
             try:
                 jobs = await pool.queued_jobs()
                 return len(jobs)
             finally:
                 await pool.aclose()
-
-        try:
-            return self._run_async(_count())
         except Exception as exc:
             logger.warning("RedisQueue.get_pending_count() failed: %s", exc)
             return 0
