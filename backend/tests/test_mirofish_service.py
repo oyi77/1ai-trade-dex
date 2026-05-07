@@ -1,7 +1,44 @@
-import pytest
-from unittest.mock import patch, MagicMock
+"""Unit tests for MiroFish service lifecycle management."""
 
-from backend.services.mirofish_service import MiroFishService, ServiceState
+from unittest.mock import MagicMock, patch
+
+from backend.services.mirofish_service import (
+    MiroFishService,
+    ServiceState,
+    get_mirofish_service,
+)
+
+
+def test_pause_service():
+    """Test pausing the MiroFish service."""
+    service = get_mirofish_service()
+
+    # Ensure starting state
+    service.stop()
+    assert service.state == ServiceState.STOPPED
+
+    # Pausing stopped service should return error message but state should remain STOPPED
+    result = service.pause()
+    assert result["state"] == ServiceState.STOPPED.value
+    assert "Cannot pause" in result["message"]
+    assert service.state == ServiceState.STOPPED
+
+    # Start service
+    service.start()
+    assert service.state == ServiceState.RUNNING
+
+    # Pause running service
+    result = service.pause()
+    assert result["state"] == ServiceState.PAUSED.value
+    assert "Paused" in result["message"]
+    assert service.state == ServiceState.PAUSED
+
+    # Pausing already paused service
+    result = service.pause()
+    assert result["state"] == ServiceState.PAUSED.value
+    assert "Already paused" in result["message"]
+    assert service.state == ServiceState.PAUSED
+
 
 def test_pause_stopped_service():
     """Test pausing a stopped service returns appropriate message."""
@@ -11,8 +48,9 @@ def test_pause_stopped_service():
     result = service.pause()
 
     assert service.state == ServiceState.STOPPED
-    assert result["message"] == "Cannot pause \u2014 service is stopped. Use start first."
+    assert result["message"] == "Cannot pause — service is stopped. Use start first."
     assert result["state"] == "stopped"
+
 
 @patch("backend.services.mirofish_monitor.get_monitor")
 def test_pause_running_service(mock_get_monitor):
@@ -29,6 +67,7 @@ def test_pause_running_service(mock_get_monitor):
     assert service.state == ServiceState.PAUSED
     assert result["message"] == "Paused (was running)"
     assert result["state"] == "paused"
+
 
 @patch("backend.services.mirofish_monitor.get_monitor")
 def test_pause_paused_service(mock_get_monitor):
