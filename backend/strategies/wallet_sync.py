@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 import httpx
 
 from backend.models.database import SessionLocal, CopyTraderEntry
+from backend.db.utils import get_db_session
 from backend.config import settings
 
 logger = logging.getLogger("trading_bot")

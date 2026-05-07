@@ -21,14 +21,8 @@ class KnowledgeGraph:
     def add_node(self, node_id: str, node_type: str, label: str, 
                  properties: Dict[str, Any] = None, db: Session = None) -> KgNode:
         """Add a node to the knowledge graph."""
-        if db is None:
-            from backend.models.database import SessionLocal
-            db = SessionLocal()
-            auto_close = True
-        else:
-            auto_close = False
-            
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             node = KgNode(
                 node_id=node_id or str(uuid.uuid4()),
                 node_type=node_type,
@@ -37,25 +31,15 @@ class KnowledgeGraph:
                 created_at=datetime.now(timezone.utc)
             )
             db.add(node)
-            if auto_close:
-                db.commit()
+            db.commit()
             return node
-        finally:
-            if auto_close:
-                db.close()
 
     def add_edge(self, from_id: str, to_id: str, relationship: str,
                  weight: float = 1.0, properties: Dict[str, Any] = None,
                  db: Session = None) -> KgEdge:
         """Add an edge between two nodes in the knowledge graph."""
-        if db is None:
-            from backend.models.database import SessionLocal
-            db = SessionLocal()
-            auto_close = True
-        else:
-            auto_close = False
-            
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             edge = KgEdge(
                 edge_id=str(uuid.uuid4()),
                 from_node_id=from_id,
@@ -66,24 +50,14 @@ class KnowledgeGraph:
                 created_at=datetime.now(timezone.utc)
             )
             db.add(edge)
-            if auto_close:
-                db.commit()
+            db.commit()
             return edge
-        finally:
-            if auto_close:
-                db.close()
 
     def query_neighbors(self, node_id: str, relationship: str = None,
                         direction: str = "outgoing", db: Session = None) -> List[KgNode]:
         """Query neighbors of a node."""
-        if db is None:
-            from backend.models.database import SessionLocal
-            db = SessionLocal()
-            auto_close = True
-        else:
-            auto_close = False
-            
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             if direction == "outgoing":
                 query = db.query(KgEdge).filter(KgEdge.from_node_id == node_id)
                 if relationship:
@@ -102,29 +76,17 @@ class KnowledgeGraph:
                 
             nodes = db.query(KgNode).filter(KgNode.node_id.in_(node_ids)).all()
             return nodes
-        finally:
-            if auto_close:
-                db.close()
 
     def query_graph(self, query_name: str, params: Dict[str, Any] = None,
                    db: Session = None) -> List[Dict[str, Any]]:
         """Run a pre-built graph query."""
-        if db is None:
-            from backend.models.database import SessionLocal
-            db = SessionLocal()
-            auto_close = True
-        else:
-            auto_close = False
-            
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             query_func = GRAPH_QUERIES.get(query_name)
             if query_func is None:
                 raise ValueError(f"Unknown query: {query_name}")
             
             return query_func(db, params or {})
-        finally:
-            if auto_close:
-                db.close()
 
 
 # Pre-built graph queries

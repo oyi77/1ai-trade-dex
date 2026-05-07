@@ -210,13 +210,13 @@ class CopyTraderStrategy(BaseStrategy):
     @staticmethod
     def _resolve_bankroll(mode: str = None) -> float:
         try:
-            from backend.models.database import SessionLocal, BotState
+            from backend.models.database import SessionLocal, BotState, for_update
             from backend.config import settings as _settings
 
             effective = mode or _settings.TRADING_MODE
             db = SessionLocal()
             try:
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state:
                     if effective == "paper":
                         return float(

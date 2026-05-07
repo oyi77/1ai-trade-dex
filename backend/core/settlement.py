@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import re as _re
 
 from backend.config import settings
-from backend.models.database import Trade, BotState
+from backend.models.database import Trade, BotState, for_update
 from backend.core.alert_manager import AlertManager
 from backend.monitoring.hft_metrics import record_execution
 
@@ -492,7 +492,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             paper_min = settings.PAPER_MIN_BANKROLL
             paper_topup_amt = settings.PAPER_TOPUP_AMOUNT
             max_topups = settings.MAX_TOPUPS
-            paper_state = db.query(BotState).filter_by(mode="paper").first()
+            paper_state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
             if paper_state:
                 current = float(paper_state.paper_bankroll or 0)
                 import json as _json
@@ -562,7 +562,7 @@ async def update_bot_state_with_settlements(
 
             # Route updates to mode-specific fields
             if trading_mode == "paper":
-                state = db.query(BotState).filter_by(mode=trading_mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
                 if not state:
                     logger.warning(f"Bot state not found for mode {trading_mode}")
                     continue
@@ -580,7 +580,7 @@ async def update_bot_state_with_settlements(
                         f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to paper bankroll"
                     )
             elif trading_mode == "testnet":
-                state = db.query(BotState).filter_by(mode=trading_mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
                 if not state:
                     logger.warning(f"Bot state not found for mode {trading_mode}")
                     continue
@@ -598,7 +598,7 @@ async def update_bot_state_with_settlements(
                         f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to testnet bankroll"
                     )
             elif trading_mode == "live":
-                state = db.query(BotState).filter_by(mode=trading_mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
                 if not state:
                     logger.warning(f"Bot state not found for mode {trading_mode}")
                     continue
@@ -648,7 +648,7 @@ async def update_bot_state_with_settlements(
 
         # Log stats for ALL modes that had settlements
         for m in sorted(modes_with_settlements):
-            state = db.query(BotState).filter_by(mode=m).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=m)).first()
             if not state:
                 logger.warning(f"Bot state not found while logging mode {m}")
                 continue

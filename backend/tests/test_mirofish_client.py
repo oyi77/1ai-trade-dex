@@ -16,41 +16,44 @@ from backend.ai.mirofish_client import (
 @pytest.fixture
 def mock_db_settings():
     """Mock database settings for MiroFish client initialization."""
-    with patch("backend.models.database.SessionLocal") as mock_session_class:
-        mock_session = MagicMock()
-        mock_session_class.return_value = mock_session
+    mock_session = MagicMock()
+    
+    settings_map = {
+        "mirofish_api_url": "https://test.mirofish.ai",
+        "mirofish_api_key": "test_key_123",
+        "mirofish_api_timeout": 10.0,
+    }
+    
+    query_count = [0]
+    query_keys = ["mirofish_api_url", "mirofish_api_key", "mirofish_api_timeout"]
+    
+    def mock_query(model):
+        mock_query_obj = MagicMock()
         
-        settings_map = {
-            "mirofish_api_url": "https://test.mirofish.ai",
-            "mirofish_api_key": "test_key_123",
-            "mirofish_api_timeout": 10.0,
-        }
-        
-        query_count = [0]
-        query_keys = ["mirofish_api_url", "mirofish_api_key", "mirofish_api_timeout"]
-        
-        def mock_query(model):
-            mock_query_obj = MagicMock()
+        def mock_filter(condition):
+            mock_filter_obj = MagicMock()
+            current_key = query_keys[query_count[0] % len(query_keys)]
+            query_count[0] += 1
             
-            def mock_filter(condition):
-                mock_filter_obj = MagicMock()
-                current_key = query_keys[query_count[0] % len(query_keys)]
-                query_count[0] += 1
-                
-                def mock_first():
-                    if current_key in settings_map:
-                        result = MagicMock()
-                        result.value = settings_map[current_key]
-                        return result
-                    return None
-                
-                mock_filter_obj.first = mock_first
-                return mock_filter_obj
+            def mock_first():
+                if current_key in settings_map:
+                    result = MagicMock()
+                    result.value = settings_map[current_key]
+                    return result
+                return None
             
-            mock_query_obj.filter = mock_filter
-            return mock_query_obj
+            mock_filter_obj.first = mock_first
+            return mock_filter_obj
         
-        mock_session.query = mock_query
+        mock_query_obj.filter = mock_filter
+        return mock_query_obj
+    
+    mock_session.query = mock_query
+
+    with (
+        patch("backend.models.database.SessionLocal", return_value=mock_session),
+        patch("backend.db.utils.SessionLocal", return_value=mock_session),
+    ):
         yield mock_session
 
 

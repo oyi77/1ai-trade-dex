@@ -11,14 +11,13 @@ Tests the complete sync flow:
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade
-from backend.core.wallet_reconciliation import WalletReconciler, SyncResult
+from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import PolymarketCLOB
 
 
@@ -422,11 +421,11 @@ async def test_full_reconciliation_e2e(db, mock_clob):
         btc_trade = db.query(Trade).filter(Trade.market_ticker == "btc-up-5m").first()
         assert btc_trade is not None
         assert btc_trade.source == "external"
-        
+
         eth_trade = db.query(Trade).filter(Trade.market_ticker == "eth-down-1h").first()
         assert eth_trade is not None
         assert eth_trade.source == "external"
-        
+
         sol_trade = db.query(Trade).filter(Trade.market_ticker == "sol-up-daily").first()
         assert sol_trade is not None
         assert sol_trade.source == "external"

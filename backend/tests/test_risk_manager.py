@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, PropertyMock
 from dataclasses import dataclass
 
 from backend.core.risk_manager import RiskManager
@@ -313,48 +313,56 @@ class TestImmutableSafetyRules:
         
     def test_regime_multiplier_volatile_strategy(self):
         """Test that BTC Momentum strategy gets 1.25x multiplier in volatile regime."""
-        s = MockSettings()
-        s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
-        s.REGIME_ROUTING_ENABLED = True
-        
-        rm = RiskManager(settings_obj=s)
-        
-        # BTC Momentum should get 1.25x multiplier (0.50 * 1.25 = 0.625)
-        threshold = rm._get_confidence_threshold("live", "BTC Momentum")
-        assert threshold == 0.625
-        
+        with patch("backend.application.meta.regime_router.RegimeConfidenceRouter") as MockRouter:
+            MockRouter.return_value.get_multiplier.return_value = 1.25
+            s = MockSettings()
+            s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
+            s.REGIME_ROUTING_ENABLED = True
+
+            rm = RiskManager(settings_obj=s)
+
+            # BTC Momentum should get 1.25x multiplier (0.50 * 1.25 = 0.625)
+            threshold = rm._get_confidence_threshold("live", "BTC Momentum")
+            assert threshold == 0.625
+
     def test_regime_multiplier_sideways_strategy(self):
         """Test that Market Maker strategy gets 0.85x multiplier in sideways regime."""
-        s = MockSettings()
-        s.AUTO_APPROVE_MIN_CONFIDENCE = 0.60
-        s.REGIME_ROUTING_ENABLED = True
-        
-        rm = RiskManager(settings_obj=s)
-        
-        # Market Maker should get 0.85x multiplier (0.60 * 0.85 = 0.51, capped at 0.95)
-        threshold = rm._get_confidence_threshold("live", "Market Maker")
-        assert abs(threshold - 0.51) < 0.001
-        
+        with patch("backend.application.meta.regime_router.RegimeConfidenceRouter") as MockRouter:
+            MockRouter.return_value.get_multiplier.return_value = 0.85
+            s = MockSettings()
+            s.AUTO_APPROVE_MIN_CONFIDENCE = 0.60
+            s.REGIME_ROUTING_ENABLED = True
+
+            rm = RiskManager(settings_obj=s)
+
+            # Market Maker should get 0.85x multiplier (0.60 * 0.85 = 0.51, capped at 0.95)
+            threshold = rm._get_confidence_threshold("live", "Market Maker")
+            assert abs(threshold - 0.51) < 0.001
+
     def test_regime_multiplier_unknown_strategy(self):
         """Test that unknown strategy gets default 1.0x multiplier."""
-        s = MockSettings()
-        s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
-        s.REGIME_ROUTING_ENABLED = True
-        
-        rm = RiskManager(settings_obj=s)
-        
-        # Unknown strategy should get default 1.0x multiplier
-        threshold = rm._get_confidence_threshold("live", "Unknown Strategy")
-        assert threshold == 0.50
-        
+        with patch("backend.application.meta.regime_router.RegimeConfidenceRouter") as MockRouter:
+            MockRouter.return_value.get_multiplier.return_value = 1.0
+            s = MockSettings()
+            s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
+            s.REGIME_ROUTING_ENABLED = True
+
+            rm = RiskManager(settings_obj=s)
+
+            # Unknown strategy should get default 1.0x multiplier
+            threshold = rm._get_confidence_threshold("live", "Unknown Strategy")
+            assert threshold == 0.50
+
     def test_regime_multiplier_capped_at_095(self):
         """Test that regime multiplier is capped at 0.95."""
-        s = MockSettings()
-        s.AUTO_APPROVE_MIN_CONFIDENCE = 0.80
-        s.REGIME_ROUTING_ENABLED = True
-        
-        rm = RiskManager(settings_obj=s)
-        
-        # Even with 1.25x multiplier: 0.80 * 1.25 = 1.00, but should be capped at 0.95
-        threshold = rm._get_confidence_threshold("live", "BTC Momentum")
-        assert threshold == 0.95
+        with patch("backend.application.meta.regime_router.RegimeConfidenceRouter") as MockRouter:
+            MockRouter.return_value.get_multiplier.return_value = 2.0
+            s = MockSettings()
+            s.AUTO_APPROVE_MIN_CONFIDENCE = 0.80
+            s.REGIME_ROUTING_ENABLED = True
+
+            rm = RiskManager(settings_obj=s)
+
+            # Even with 2.0x multiplier: 0.80 * 2.0 = 1.60, but should be capped at 0.95
+            threshold = rm._get_confidence_threshold("live", "BTC Momentum")
+            assert threshold == 0.95

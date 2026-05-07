@@ -497,7 +497,7 @@ class PolyEdgeBot:
 
     async def _cmd_status(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
         from backend.config import settings
-        from backend.models.database import SessionLocal, BotState
+        from backend.models.database import SessionLocal, BotState, for_update
 
         mode_emoji = {"paper": "🟠 PAPER", "testnet": "🟡 TESTNET", "live": "🔴 LIVE"}
         mode_str = ", ".join(mode_emoji.get(m, "🟠 PAPER") for m in sorted(settings.active_modes_set))
@@ -507,7 +507,7 @@ class PolyEdgeBot:
         try:
             db = SessionLocal()
             try:
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state:
                     if settings.is_mode_active("paper"):
                         bankroll = (

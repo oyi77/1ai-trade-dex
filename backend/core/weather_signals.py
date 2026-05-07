@@ -128,11 +128,11 @@ async def generate_weather_signal(
     bankroll = settings.INITIAL_BANKROLL
     effective_mode = mode or settings.TRADING_MODE
     try:
-        from backend.models.database import BotState, SessionLocal
+        from backend.models.database import BotState, SessionLocal, for_update
 
         from backend.db.utils import get_db_session
         with get_db_session() as _db:
-            _state = _db.query(BotState).first()
+            _state = for_update(_db, _db.query(BotState)).first()
             if _state:
                 if effective_mode == "paper":
                     bankroll = float(

@@ -31,14 +31,28 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=3600,
-    pool_timeout=30,
-)
+_is_postgres = settings.is_postgres
+
+_engine_kwargs = {
+    "pool_pre_ping": True,
+    "pool_timeout": settings.POSTGRES_POOL_TIMEOUT,
+    "pool_recycle": settings.POSTGRES_POOL_RECYCLE,
+}
+
+if _is_postgres:
+    _engine_kwargs.update({
+        "pool_size": settings.POSTGRES_POOL_SIZE,
+        "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
+    })
+else:
+    # SQLite uses smaller default pool
+    _engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 10,
+        "connect_args": {"check_same_thread": False},
+    })
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 
 def configure_sqlite_wal(engine_obj):
@@ -59,6 +73,12 @@ configure_sqlite_wal(engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def for_update(session, query):
+    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL."""
+    if session.get_bind().dialect.name == "postgresql":
+        return query.with_for_update()
+    return query
 
 
 class TradeRole(str, Enum):
@@ -118,7 +138,7 @@ async def execute_with_timeout(db_operation, timeout: float = None):
 
 
 class Trade(Base):
-    """Simulated trades for tracking P&L."""
+    """Simulated and live trades for tracking P&L."""
 
     __tablename__ = "trades"
 
@@ -131,14 +151,59 @@ class Trade(Base):
     )
     market_ticker = Column(String, index=True)
     platform = Column(String)
+    strategy = Column(String, nullable=True)
+    trading_mode = Column(String, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+    clob_order_id = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    confidence = Column(Float, nullable=True)
+    blockchain_verified = Column(Boolean, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=True)
     event_slug = Column(String, nullable=True)
+    market_end_date = Column(DateTime, nullable=True)
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
 
     # Trade details
     direction = Column(String)  # "up" or "down"
     entry_price = Column(Float)
     size = Column(Float)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Strategy / signal metadata
+    strategy = Column(String, nullable=True, index=True)
+    signal_source = Column(String, nullable=True)
+    confidence = Column(Float, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    data_quality_flags = Column(Text, nullable=True)
+
+    # Trading mode this trade was placed in
+    trading_mode = Column(String, default="paper", index=True)
+    role = Column(String, default="unknown", index=True)  # maker, taker, unknown
+    source = Column(String, default="bot")
+
+    # CLOB / on-chain tracking
+    clob_order_id = Column(String, nullable=True)
+    clob_idempotency_key = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    fill_price = Column(Float, nullable=True)
+    fill_ratio = Column(Float, nullable=True)
+
+    # Cost tracking
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+
+    # Blockchain verification
+    blockchain_verified = Column(Boolean, default=False)
+    settlement_source = Column(String, nullable=True)
+    last_sync_at = Column(DateTime, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
 
     # Settlement
     settled = Column(Boolean, default=False)
@@ -149,6 +214,9 @@ class Trade(Base):
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    settlement_source = Column(String, nullable=True)
+    source = Column(String, nullable=False, default="bot", index=True)
+    role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
 
 
 class HFTExecutionRecord(Base):
@@ -1154,7 +1222,7 @@ def _publish_corruption_alert(event: str, detail: str, data: dict | None = None)
 
 def init_db(repair_if_needed: bool = True):
     try:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine, checkfirst=True)
         ensure_schema()
         seed_default_data()
     except Exception as e:
@@ -1175,7 +1243,7 @@ def init_db(repair_if_needed: bool = True):
                     os.unlink(db_path)
                     logger.info(f"Removed corrupted database: {db_path}")
 
-                Base.metadata.create_all(bind=engine)
+                Base.metadata.create_all(bind=engine, checkfirst=True)
                 ensure_schema()
                 seed_default_data()
 
@@ -1204,7 +1272,7 @@ def seed_default_data():
         _set_sqlite_busy_timeout(db, 1000)
 
         for mode in ["paper", "testnet", "live"]:
-            existing = db.query(BotState).filter_by(mode=mode).first()
+            existing = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not existing:
                 initial_bankroll = app_settings.INITIAL_BANKROLL
                 if mode == "testnet":
@@ -1521,7 +1589,9 @@ def ensure_schema():
         AuditLog.__table__.create(bind=engine, checkfirst=True)
 
     # Ensure new tables exist (DecisionLog, MarketWatch, WalletConfig, StrategyConfig, TradeContext)
-    Base.metadata.create_all(bind=engine)
+    # checkfirst=True prevents "already exists" errors when ensure_schema is called more than once
+    # on the same database (e.g. during test setup or after a hot-restart).
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
     # Add whale_score column to wallet_config if missing
     try:
@@ -1834,21 +1904,22 @@ class ClobEvent(Base):
     order_id = Column(String, nullable=False)
     maker = Column(String, nullable=False)
     taker = Column(String, nullable=False)
-    market_id = Column(String, nullable=False, index=True)
+    market_id = Column(String, nullable=False)
     side = Column(String, nullable=False)  # "BUY" or "SELL"
     size = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
     fee = Column(Float, nullable=False)
-    block_number = Column(Integer, nullable=False, index=True)
-    tx_hash = Column(String, nullable=False, unique=True, index=True)
-    timestamp = Column(DateTime, nullable=False, index=True)
+    block_number = Column(Integer, nullable=False)
+    tx_hash = Column(String, nullable=False, unique=True)
+    timestamp = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
+        # Only the unique constraint lives here; individual column indexes are
+        # declared via index=True on the Column definitions above to avoid
+        # duplicate index creation errors when create_all() is called more than
+        # once on the same database.
         UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
-        Index('ix_clob_events_block_number', 'block_number'),
-        Index('ix_clob_events_timestamp', 'timestamp'),
-        Index('ix_clob_events_market_id', 'market_id'),
     )
 
 

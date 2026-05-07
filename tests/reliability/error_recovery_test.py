@@ -127,7 +127,7 @@ class TestRedisRecovery:
             redis_queue = RedisQueue(redis_url="redis://localhost:6379")
             
             try:
-                job_id = redis_queue.enqueue("test_job", {"data": "test"})
+                job_id = await redis_queue.enqueue("test_job", {"data": "test"})
                 assert job_id == "test-job-123"
             except RedisConnectionError:
                 pytest.fail("Redis should be available initially")
@@ -137,7 +137,7 @@ class TestRedisRecovery:
             sqlite_queue = AsyncSQLiteQueue()
             
             try:
-                redis_queue.enqueue("test_job", {"data": "test"})
+                await redis_queue.enqueue("test_job", {"data": "test"})
                 pytest.fail("Should have raised RedisConnectionError")
             except (RedisConnectionError, Exception):
                 # Fallback to SQLite
@@ -152,7 +152,7 @@ class TestRedisRecovery:
             
             # Reconnect to Redis
             redis_queue_recovered = RedisQueue(redis_url="redis://localhost:6379")
-            job_id = redis_queue_recovered.enqueue("test_job", {"data": "recovered"})
+            job_id = await redis_queue_recovered.enqueue("test_job", {"data": "recovered"})
             assert job_id == "test-job-123"
             assert redis_recovered
 

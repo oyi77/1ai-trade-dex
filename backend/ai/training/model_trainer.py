@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import pickle
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -60,8 +59,13 @@ class ModelTrainer:
         train_acc = float(model.score(X, y))
 
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
+        # Security: joblib.dump() replaces pickle.dump() — avoids RCE
+        # vulnerability when the model is later loaded. joblib is the
+        # standard serialization format for scikit-learn models.
+        import joblib
+
         with open(self.model_path, "wb") as fh:
-            pickle.dump(
+            joblib.dump(
                 {
                     "model": model,
                     "feature_order": FEATURE_ORDER,
