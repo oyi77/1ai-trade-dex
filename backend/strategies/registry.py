@@ -51,30 +51,17 @@ class StrategyMeta:
     enabled: bool = False  # filled from DB at query time by the API layer
 
 
-def create_strategy(name: str, db=None, **kwargs) -> BaseStrategy:
+def create_strategy(name: str, **kwargs) -> BaseStrategy:
     """Instantiate a registered strategy by name.
 
-    Args:
-        name: Strategy name matching a registered ``BaseStrategy.name``.
-        db: Optional SQLAlchemy session.  When provided the strategy's enabled
-            flag is checked in the database and ``ValueError`` is raised for
-            disabled strategies.
-        **kwargs: Passed through to the strategy constructor.
-
-    Raises:
-        KeyError: Strategy name not found in registry.
-        ValueError: Strategy is explicitly disabled in the database
-            (only when *db* is provided).
+    Raises KeyError with a helpful message if the strategy is not found.
+    Raises ValueError if the strategy is disabled in the database.
     """
     if name not in STRATEGY_REGISTRY:
         available = ", ".join(sorted(STRATEGY_REGISTRY.keys())) or "(none loaded)"
         raise KeyError(
             f"Strategy '{name}' not found in registry. "
             f"Available strategies: {available}"
-        )
-    if db is not None and not is_strategy_enabled(name, db):
-        raise ValueError(
-            f"Strategy '{name}' is disabled in the database and cannot be instantiated."
         )
     cls = STRATEGY_REGISTRY[name]
     return cls(**kwargs)

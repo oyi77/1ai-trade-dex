@@ -114,11 +114,8 @@ class EnsembleSignalGenerator:
         else:
             weighted_avg_conf = agreement
 
-        # Confidence is the higher of the weighted-average component confidence and the
-        # inter-component agreement, then scaled down by the data-quality factor.
-        # Multiplying *after* the max ensures wash-trade contamination always reduces
-        # the final confidence regardless of how tightly the components agree.
-        confidence = max(weighted_avg_conf, agreement) * quality_factor
+        # Confidence is max of weighted-average component confidence and quality-adjusted agreement
+        confidence = max(weighted_avg_conf, agreement * quality_factor)
         confidence = max(0.0, min(1.0, confidence))
 
         component_breakdown["weighted_avg_confidence"] = weighted_avg_conf

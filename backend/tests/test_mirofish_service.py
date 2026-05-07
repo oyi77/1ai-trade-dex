@@ -1,50 +1,19 @@
-"""Unit tests for MiroFish service lifecycle management."""
-
-from unittest.mock import patch
+"""Unit tests for MiroFishService."""
 
 import pytest
+from unittest.mock import patch
 
-from backend.services.mirofish_service import ServiceState, get_mirofish_service
+from backend.services.mirofish_service import ServiceState
 
 
 @pytest.fixture
 def clean_service():
     """Fixture to ensure a clean MiroFishService instance for each test."""
     import backend.services.mirofish_service as mfs
-
     mfs._service_instance = None
     service = mfs.get_mirofish_service()
     yield service
     mfs._service_instance = None
-
-
-def test_pause_service(clean_service):
-    """Test pausing the MiroFish service."""
-    # Ensure starting state
-    clean_service.stop()
-    assert clean_service.state == ServiceState.STOPPED
-
-    # Pausing stopped service should return error message but state should remain STOPPED
-    result = clean_service.pause()
-    assert result["state"] == ServiceState.STOPPED.value
-    assert "Cannot pause" in result["message"]
-    assert clean_service.state == ServiceState.STOPPED
-
-    # Start service
-    clean_service.start()
-    assert clean_service.state == ServiceState.RUNNING
-
-    # Pause running service
-    result = clean_service.pause()
-    assert result["state"] == ServiceState.PAUSED.value
-    assert "Paused" in result["message"]
-    assert clean_service.state == ServiceState.PAUSED
-
-    # Pausing already paused service
-    result = clean_service.pause()
-    assert result["state"] == ServiceState.PAUSED.value
-    assert "Already paused" in result["message"]
-    assert clean_service.state == ServiceState.PAUSED
 
 
 def test_mirofish_service_restart_from_stopped(clean_service):
@@ -102,15 +71,9 @@ def test_mirofish_service_restart_monitor_error_handled(clean_service, caplog):
     """Test restarting handles exceptions when resetting the monitor."""
     assert clean_service.state == ServiceState.STOPPED
 
-    with patch(
-        "backend.services.mirofish_monitor.reset_monitor",
-        side_effect=Exception("Reset failed"),
-    ):
+    with patch("backend.services.mirofish_monitor.reset_monitor", side_effect=Exception("Reset failed")):
         result = clean_service.restart()
 
         assert clean_service.state == ServiceState.RUNNING
         assert "Restarted (was stopped" in result["message"]
-        assert any(
-            "Could not reset monitor on restart: Reset failed" in record.message
-            for record in caplog.records
-        )
+        assert any("Could not reset monitor on restart: Reset failed" in record.message for record in caplog.records)

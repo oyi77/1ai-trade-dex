@@ -4,7 +4,6 @@ Tests for Polymarket WebSocket client and orderbook cache.
 
 import asyncio
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from backend.data.polymarket_websocket import (
     PolymarketWebSocket,
     WebSocketConfig,

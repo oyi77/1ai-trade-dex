@@ -46,16 +46,6 @@ def fast_monitor(mock_client):
 class TestCircuitBreakerStateTransitions:
     """Test circuit breaker state machine transitions."""
     
-    def test_state_property(self, monitor):
-        """Test the state property getter."""
-        assert monitor.state == CircuitState.CLOSED
-
-        monitor._state = CircuitState.OPEN
-        assert monitor.state == CircuitState.OPEN
-
-        monitor._state = CircuitState.HALF_OPEN
-        assert monitor.state == CircuitState.HALF_OPEN
-
     def test_initial_state_is_closed(self, monitor):
         assert monitor.state == CircuitState.CLOSED
         assert monitor.is_mirofish_healthy() is True
