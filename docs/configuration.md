@@ -2,6 +2,46 @@
 
 All settings in `backend/config.py`, overridable via environment variables.
 
+## Database
+
+The Polyedge bot supports multiple database backends to suit different deployment needs, from local development to production environments. SQLAlchemy 2.0 is used for ORM, providing a consistent interface across relational databases.
+
+| Database Type | Use Case | Recommended Driver/URL Format | Notes |
+|---|---|---|---|
+| **SQLite** | Local development, testing, lightweight deployments | `sqlite:///./tradingbot.db` | Default. Simple, file-based, no external server needed. Best for getting started quickly. |
+| **PostgreSQL** | Production environments, high performance, scalability, data integrity | `postgresql+psycopg2://user:password@host:5432/mydatabase` | Recommended for production due to robustness, advanced features, and strong community support. Requires `psycopg2` driver. |
+| **MySQL** | Production environments, widely adopted, good performance | `mysql+pymysql://user:password@host:3306/mydatabase` | Supported for production. Requires `pymysql` driver. **Important**: It is highly recommended to use the `+pymysql` dialect in your `DATABASE_URL` for better compatibility and performance with SQLAlchemy. The application will issue a warning if `mysql://` is used without `+pymysql`. |
+| **MongoDB** | Future integration | N/A | Not currently supported. Integration would require a significant architectural change, including replacing SQLAlchemy with an ODM like MongoEngine and implementing a Repository Pattern due to its non-relational nature. |
+
+### Migration from SQLite to PostgreSQL (Zero Data Loss)
+
+To migrate your data from SQLite (e.g., development setup) to a more robust production database like PostgreSQL using Alembic, follow these steps:
+
+1.  **Ensure Current Schema Accuracy**: Verify that all SQLAlchemy models in `backend/models/database.py` accurately reflect your current SQLite database schema.
+2.  **Generate/Update Alembic Migrations**:
+    *   Ensure your Alembic environment is set up.
+    *   Create an initial migration script if you haven't already: `alembic revision --autogenerate -m "Initial schema migration"`.
+    *   Apply any pending migrations to your SQLite database: `alembic upgrade head`.
+3.  **Dump Data from SQLite**:
+    *   **Recommended (Python Script)**: Write a Python script using SQLAlchemy to connect to your SQLite database, query all data from each table, and save it to a portable format (e.g., CSV or JSON files for each table). This offers greater control over data types and transformations.
+    *   *(Alternative: SQL Dump)*: Use `sqlite3 tradingbot.db .dump > sqlite_data_dump.sql`. Be aware that this dump might require manual editing for PostgreSQL compatibility (e.g., `AUTOINCREMENT` properties, data type declarations).
+4.  **Create New PostgreSQL Database**:
+    *   Manually create an empty PostgreSQL database on your server (e.g., `CREATE DATABASE polyedge_prod;`).
+5.  **Configure Application for PostgreSQL**:
+    *   Update the `DATABASE_URL` environment variable to point to your new, empty PostgreSQL database:
+        `export DATABASE_URL="postgresql+psycopg2://<user>:<password>@<host>:<port>/polyedge_prod"`
+6.  **Run Alembic Migrations on New Database**:
+    *   Initialize the schema in the new PostgreSQL database using Alembic. This will create all tables and apply necessary constraints: `alembic upgrade head`.
+7.  **Import Data into New Database**:
+    *   **If using Python Script (Recommended)**: Write another Python script that connects to the new PostgreSQL database. Read data from your intermediate CSV/JSON files and use SQLAlchemy's ORM or core insert statements to re-insert the data.
+    *   *(If using SQL Dump)*: Execute the carefully reviewed and edited `sqlite_data_dump.sql` on the PostgreSQL database.
+8.  **Verify Data Integrity**:
+    *   Thoroughly compare row counts and spot-check critical data in the PostgreSQL database against your original SQLite data.
+9.  **Switch Application**:
+    *   Once verified, restart your application with the `DATABASE_URL` configured for PostgreSQL.
+
+---
+
 ## Polymarket Settings
 
 | Setting | Default | Description |
@@ -35,165 +75,4 @@ Live `BotState.bankroll`/`total_pnl` are derived caches. The source of truth is 
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `WEATHER_ENABLED` | True | Enable/disable weather trading |
-| `WEATHER_SCAN_INTERVAL_SECONDS` | 300 | Weather scan frequency (5 min) |
-| `WEATHER_MIN_EDGE_THRESHOLD` | 0.08 | Minimum edge (8%) |
-| `WEATHER_MAX_ENTRY_PRICE` | 0.70 | Max entry price (70c) |
-| `WEATHER_MAX_TRADE_SIZE` | 100.0 | Max $ per weather trade |
-| `WEATHER_CITIES` | nyc,chicago,miami,los_angeles,denver | Cities to track |
-
-## Risk Management
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `DAILY_LOSS_LIMIT` | 300.0 | Daily loss circuit breaker |
-| `MAX_TOTAL_PENDING_TRADES` | 20 | Max open positions |
-| `INITIAL_BANKROLL` | 10000.0 | Starting paper bankroll |
-
-## Job Queue
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JOB_WORKER_ENABLED` | `False` | Opt-in worker process |
-| `JOB_QUEUE_URL` | `sqlite:///./job_queue.db` | Queue backend |
-| `JOB_TIMEOUT_SECONDS` | `300` | Per-job timeout |
-| `MAX_CONCURRENT_JOBS` | `1` | Worker concurrency limit |
-| `CACHE_URL` | `sqlite:///./cache.db` | Cache backend |
-
-## Unified State Sync
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SYNC_INTERVAL_TESTNET` | `60` | Testnet sync interval (seconds) |
-| `SYNC_INTERVAL_LIVE` | `30` | Live mode sync interval (seconds) |
-| `SYNC_SETTLEMENT_INTERVAL` | `120` | Settlement verification interval (seconds) |
-
-The bot automatically syncs with the Polymarket blockchain in live and testnet modes to:
-- Import external trades made outside the bot
-- Verify settlement status of open positions
-- Detect orphaned positions (on blockchain but not in database)
-- Update trade metadata with blockchain verification timestamps
-
-## Database Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./polyedge.db` | Database connection URL |
-| `DATABASE_POOL_SIZE` | `20` | Connection pool size |
-| `DATABASE_MAX_OVERFLOW` | `10` | Max overflow connections |
-| `DATABASE_POOL_TIMEOUT` | `30` | Pool timeout (seconds) |
-| `DATABASE_POOL_RECYCLE` | `3600` | Connection recycle time (seconds) |
-| `DATABASE_QUERY_TIMEOUT` | `10.0` | Query timeout (seconds) |
-
-## Redis Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
-| `REDIS_ENABLED` | `True` | Enable Redis pub/sub |
-
-Redis is used for:
-- Multi-instance WebSocket broadcasting
-- Pub/sub messaging across backend instances
-- Falls back to in-process broadcasting if unavailable
-
-## Timeout Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_REQUEST_TIMEOUT` | `30.0` | API request timeout (seconds) |
-| `DATABASE_QUERY_TIMEOUT` | `10.0` | Database query timeout (seconds) |
-| `EXTERNAL_API_TIMEOUT` | `15.0` | External API timeout (seconds) |
-
-## Rate Limiting
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RATE_LIMIT_ENABLED` | `True` | Enable rate limiting |
-| `RATE_LIMIT_HIGH_FREQ` | `100` | High-frequency endpoints (requests/minute) |
-| `RATE_LIMIT_MEDIUM_FREQ` | `50` | Medium-frequency endpoints (requests/minute) |
-| `RATE_LIMIT_LOW_FREQ` | `20` | Low-frequency endpoints (requests/minute) |
-
-## Connection Limits
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MAX_WEBSOCKET_PER_IP` | `10` | Max WebSocket connections per IP |
-| `MAX_HTTP_PER_IP` | `50` | Max HTTP connections per IP |
-| `MAX_HTTP_GLOBAL` | `1000` | Max global HTTP connections |
-
-## Circuit Breaker Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CIRCUIT_BREAKER_ENABLED` | `True` | Enable circuit breakers |
-| `DB_CIRCUIT_FAIL_MAX` | `5` | Database failure threshold |
-| `DB_CIRCUIT_TIMEOUT` | `60` | Database reset timeout (seconds) |
-| `API_CIRCUIT_FAIL_MAX` | `3` | API failure threshold |
-| `API_CIRCUIT_TIMEOUT` | `30` | API reset timeout (seconds) |
-
-## Monitoring Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PROMETHEUS_ENABLED` | `True` | Enable Prometheus metrics |
-| `METRICS_PORT` | `8000` | Metrics endpoint port |
-| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `ERROR_LOG_RETENTION_DAYS` | `30` | Error log retention period |
-
-## Alert Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ALERTS_ENABLED` | `True` | Enable alert system |
-| `ALERT_COOLDOWN_MINUTES` | `5` | Alert cooldown period |
-| `ERROR_RATE_THRESHOLD` | `10` | Error rate threshold (errors/minute) |
-| `MEMORY_USAGE_THRESHOLD` | `80` | Memory usage threshold (%) |
-| `DISK_SPACE_THRESHOLD` | `10` | Disk space threshold (% free) |
-
-## Backup Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BACKUP_ENABLED` | `True` | Enable automated backups |
-| `BACKUP_INTERVAL_HOURS` | `1` | Backup frequency (hours) |
-| `BACKUP_RETENTION_DAYS` | `7` | Backup retention period |
-| `BACKUP_VERIFICATION_ENABLED` | `True` | Enable backup verification |
-
-## MiroFish Integration
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MIROFISH_API_URL` | `https://api.mirofish.example/v1` | MiroFish API endpoint |
-| `MIROFISH_API_KEY` | None | MiroFish authentication key |
-| `MIROFISH_API_TIMEOUT` | `10` | API request timeout (seconds) |
-
-MiroFish provides dual debate system integration:
-- When enabled: Routes debate requests to MiroFish API for AI-powered signal analysis
-- When disabled or on failure: Falls back to local debate engine automatically
-- Credentials stored in database with priority: Database → Environment → Defaults
-- Test connection via Settings UI before enabling
-
-## AGI Autonomy
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AGI_AUTO_PROMOTE` | `false` | Allow paper→live promotion without human approval (safety off for full-auto) |
-| `AGI_AUTO_ENABLE` | `false` | Auto-enable `StrategyConfig` upon promotion to live mode |
-| `AGI_PROMOTION_INTERVAL_HOURS` | `6` | How often (hours) the `autonomous_promotion_job` evaluates experiments |
-| `AGI_STRATEGY_HEALTH_ENABLED` | `true` | Enable `StrategyHealthMonitor` auto-disable for underperforming strategies |
-| `AGI_BANKROLL_ALLOCATION_ENABLED` | `false` | Enable daily bankroll rebalancing across ranked strategies |
-| `AGI_BANKROLL_ALLOCATION_INTERVAL_DAYS` | `1` | Frequency (days) for `bankroll_allocation_job` |
-
-These flags control the autonomous experiment lifecycle:
-- Experiments flow: `DRAFT` → `SHADOW` → `PAPER` → `LIVE_PROMOTED` → `RETIRED`
-- Health-based kill checks run on every cycle (live strategies can be auto-retired)
-- Bankroll allocator writes allocation weights to `BotState.misc_data` for observability
-- See `docs/architecture/adr-006-agi-autonomy-framework.md` for governance boundaries
-
-## Admin Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ADMIN_PASSWORD` | None | Admin panel password (required) |
-| `ADMIN_SESSION_TIMEOUT` | `3600` | Session timeout (seconds) |
+| `WEATHER_ENABLED` | True | Enable/disable weather tr

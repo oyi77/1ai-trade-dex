@@ -1,9 +1,12 @@
 """Configuration settings for the BTC 5-min trading bot."""
 
 import os
+import logging
 from pydantic import model_validator, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # Project root directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,8 +15,19 @@ DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database (SQLite for Phase 1, PostgreSQL for production)
+    # Database (SQLite for development, PostgreSQL for production, MySQL also supported)
+    # Recommended MySQL URL format: mysql+pymysql://user:password@host:3306/mydatabase
     DATABASE_URL: str = f"sqlite:///{DB_PATH}"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_mysql_url(cls, v: str) -> str:
+        if v.startswith("mysql://") and "+pymysql" not in v:
+            logger.warning(
+                "MySQL DATABASE_URL detected without '+pymysql'. "
+                "Consider using 'mysql+pymysql://...' for better compatibility."
+            )
+        return v
 
     # Polymarket Token Addresses
     USDC_E_ADDRESS: str = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"

@@ -31,11 +31,8 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-_is_sqlite = "sqlite" in settings.DATABASE_URL
-
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
     pool_pre_ping=True,
     pool_size=20,
     max_overflow=10,
@@ -73,7 +70,7 @@ class TradeRole(str, Enum):
 def _set_sqlite_busy_timeout(connection_or_session, timeout_ms: int) -> None:
     """Apply a shorter busy_timeout for best-effort SQLite bootstrap work."""
 
-    if not _is_sqlite:
+    if connection_or_session.get_bind().dialect.name != "sqlite":
         return
 
     try:
