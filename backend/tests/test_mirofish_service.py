@@ -1,16 +1,12 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import sys
-import os
 
-# Add the current directory to sys.path so we can import backend
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Mock things that might cause issues during import
+# Stub dependencies
 sys.modules['backend.services.mirofish_monitor'] = MagicMock()
 sys.modules['backend.config'] = MagicMock()
 
-from backend.services.mirofish_service import MiroFishService, ServiceState
+from backend.services.mirofish_service import MiroFishService
 
 class TestMiroFishService(unittest.TestCase):
     def setUp(self):
