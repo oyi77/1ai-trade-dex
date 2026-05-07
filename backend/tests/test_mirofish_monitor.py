@@ -289,6 +289,16 @@ class TestManualReset:
         assert monitor._consecutive_failures == 0
         assert monitor.is_mirofish_healthy() is True
 
+    @pytest.mark.asyncio
+    async def test_reset_from_closed_to_closed(self, monitor):
+        assert monitor.state == CircuitState.CLOSED
+
+        monitor.reset()
+
+        assert monitor.state == CircuitState.CLOSED
+        assert monitor._consecutive_failures == 0
+        assert monitor.is_mirofish_healthy() is True
+
 
 class TestStateInfo:
     """Test state information retrieval."""
