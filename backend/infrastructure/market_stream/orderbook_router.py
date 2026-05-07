@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Awaitable, Optional
@@ -79,8 +78,8 @@ class OrderbookRouter:
                 await self._dispatch_task
             except asyncio.CancelledError:
                 pass
-            except Exception:
-                pass  # Task may have already completed
+            except Exception as e:
+                logger.error(f"Error stopping OrderbookRouter dispatch loop: {e}")
             finally:
                 self._dispatch_task = None
         logger.info("OrderbookRouter dispatch loop stopped")
