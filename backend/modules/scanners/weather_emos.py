@@ -618,7 +618,7 @@ class WeatherEMOSStrategy(BaseStrategy):
             elif decision == "BUY":
                 signal_data["trade_side"] = "YES"
 
-            confidence_score = min(1.0, abs(edge))
+            confidence_score = min(1.0, abs(edge) / min_edge)
 
             record_decision(
                 ctx.db,
@@ -715,7 +715,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                         "market_ticker": market.ticker,
                         "token_id": clob_token_id,
                         "direction": trade_side.lower(),
-                        "confidence": min(1.0, abs(edge)),
+                        "confidence": min(1.0, abs(edge) / min_edge),
                         "edge": edge,
                         "size": trade_size,
                         "entry_price": entry_price,

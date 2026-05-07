@@ -268,7 +268,8 @@ class BondScannerStrategy(BaseStrategy):
 
             trade_direction = str(qualifying_outcome).strip().strip("'\"").lower()
             if trade_direction not in ("yes", "no", "up", "down"):
-                trade_direction = "buy"
+                # If outcome name is not a valid direction, default to YES for prediction markets
+                trade_direction = "yes"
             # entry_price must reflect the cost of the share we're buying.
             # qualifying_price is the YES outcome price.
             # If betting NO, the share cost is (1 - qualifying_price).
