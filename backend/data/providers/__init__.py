@@ -1,2 +1,3 @@
 from backend.data.providers.polymarket import PolymarketProvider
-__all__ = ["PolymarketProvider"]
+from backend.data.providers.kalshi import KalshiProvider
+__all__ = ["PolymarketProvider", "KalshiProvider"]
