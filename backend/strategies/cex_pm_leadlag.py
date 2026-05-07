@@ -162,8 +162,8 @@ class CexPmLeadLagStrategy(BaseStrategy):
                         mode=ctx.mode,
                         db=ctx.db,
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Failed to log activity entry: {e}")
 
                 if decision == "BUY":
                     result.trades_attempted += 1
