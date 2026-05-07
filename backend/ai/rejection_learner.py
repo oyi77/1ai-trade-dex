@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.sql import func
 
-from backend.models.database import SessionLocal, TradeAttempt, StrategyConfig, StrategyProposal
+from backend.models.database import TradeAttempt, StrategyConfig, StrategyProposal
 
 logger = logging.getLogger("trading_bot.rejection_learner")
 
@@ -86,83 +86,83 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
     Checks for: constant probability, always-positive edge, flat confidence.
     Returns list of {root_cause, description, severity}.
     """
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
+
     causes = []
     try:
-        from backend.models.database import DecisionLog
-        from sqlalchemy.sql import func
+        with get_db_session() as db:
+            from backend.models.database import DecisionLog
+            from sqlalchemy.sql import func
 
-        decisions = (
-            db.query(DecisionLog)
-            .filter(DecisionLog.strategy == strategy_name)
-            .order_by(DecisionLog.created_at.desc())
-            .limit(50)
-            .all()
-        )
+            decisions = (
+                db.query(DecisionLog)
+                .filter(DecisionLog.strategy == strategy_name)
+                .order_by(DecisionLog.created_at.desc())
+                .limit(50)
+                .all()
+            )
 
-        if len(decisions) < 5:
+            if len(decisions) < 5:
+                return causes
+
+            probs = []
+            edges = []
+            confs = []
+
+            for d in decisions:
+                data = d.signal_data if d.signal_data else {}
+                if isinstance(data, str):
+                    import json as _json
+                    try:
+                        data = _json.loads(data)
+                    except Exception:
+                        data = {}
+
+                if "model_probability" in data:
+                    probs.append(float(data["model_probability"]))
+                if "edge" in data:
+                    edges.append(float(data["edge"]))
+                if "confidence" in data:
+                    confs.append(float(data["confidence"]))
+
+            if len(probs) >= 5:
+                unique_probs = set(round(p, 4) for p in probs)
+                if len(unique_probs) == 1:
+                    causes.append({
+                        "root_cause": "constant_model_probability",
+                        "value": list(unique_probs)[0],
+                        "description": ROOT_CAUSE_SIGNATURES["constant_model_probability"]["description"],
+                        "severity": "critical",
+                        "sample_size": len(probs),
+                    })
+
+            if len(edges) >= 5:
+                all_positive = all(e > 0 for e in edges)
+                avg_edge = sum(edges) / len(edges)
+                if all_positive and avg_edge > 0.3:
+                    causes.append({
+                        "root_cause": "always_positive_edge",
+                        "value": round(avg_edge, 4),
+                        "description": ROOT_CAUSE_SIGNATURES["always_positive_edge"]["description"],
+                        "severity": "critical",
+                        "sample_size": len(edges),
+                    })
+
+            if len(confs) >= 5:
+                unique_confs = set(round(c, 2) for c in confs)
+                if len(unique_confs) == 1:
+                    causes.append({
+                        "root_cause": "flat_confidence",
+                        "value": list(unique_confs)[0],
+                        "description": ROOT_CAUSE_SIGNATURES["flat_confidence"]["description"],
+                        "severity": "high",
+                        "sample_size": len(confs),
+                    })
+
             return causes
-
-        probs = []
-        edges = []
-        confs = []
-
-        for d in decisions:
-            data = d.signal_data if d.signal_data else {}
-            if isinstance(data, str):
-                import json as _json
-                try:
-                    data = _json.loads(data)
-                except Exception:
-                    data = {}
-
-            if "model_probability" in data:
-                probs.append(float(data["model_probability"]))
-            if "edge" in data:
-                edges.append(float(data["edge"]))
-            if "confidence" in data:
-                confs.append(float(data["confidence"]))
-
-        if len(probs) >= 5:
-            unique_probs = set(round(p, 4) for p in probs)
-            if len(unique_probs) == 1:
-                causes.append({
-                    "root_cause": "constant_model_probability",
-                    "value": list(unique_probs)[0],
-                    "description": ROOT_CAUSE_SIGNATURES["constant_model_probability"]["description"],
-                    "severity": "critical",
-                    "sample_size": len(probs),
-                })
-
-        if len(edges) >= 5:
-            all_positive = all(e > 0 for e in edges)
-            avg_edge = sum(edges) / len(edges)
-            if all_positive and avg_edge > 0.3:
-                causes.append({
-                    "root_cause": "always_positive_edge",
-                    "value": round(avg_edge, 4),
-                    "description": ROOT_CAUSE_SIGNATURES["always_positive_edge"]["description"],
-                    "severity": "critical",
-                    "sample_size": len(edges),
-                })
-
-        if len(confs) >= 5:
-            unique_confs = set(round(c, 2) for c in confs)
-            if len(unique_confs) == 1:
-                causes.append({
-                    "root_cause": "flat_confidence",
-                    "value": list(unique_confs)[0],
-                    "description": ROOT_CAUSE_SIGNATURES["flat_confidence"]["description"],
-                    "severity": "high",
-                    "sample_size": len(confs),
-                })
-
-        return causes
     except Exception as e:
         logger.warning(f"Root cause detection failed for {strategy_name}: {e}")
         return causes
-    finally:
-        db.close()
 
 
 def analyze_rejections(lookback_days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
@@ -226,92 +226,90 @@ def analyze_rejections(lookback_days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
 
 def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[str]:
     """Generate StrategyProposals from systematic rejection patterns + root cause analysis."""
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
+
     created: List[str] = []
     try:
         analysis = analyze_rejections()
 
-        for strategy_name, data in analysis.items():
-            if data["total_rejections"] < min_rejections:
-                continue
+        with get_db_session() as db:
+            for strategy_name, data in analysis.items():
+                if data["total_rejections"] < min_rejections:
+                    continue
 
-            root_causes = detect_root_causes(strategy_name)
-            for rc in root_causes:
-                if rc["severity"] == "critical":
+                root_causes = detect_root_causes(strategy_name)
+                for rc in root_causes:
+                    if rc["severity"] == "critical":
+                        proposal = StrategyProposal(
+                            strategy_name=strategy_name,
+                            change_details={"_root_cause": rc["root_cause"]},
+                            expected_impact=(
+                                f"ROOT CAUSE DETECTED: {rc['description']} "
+                                f"(value={rc['value']}, samples={rc['sample_size']}). "
+                                f"Requires code-level fix, not parameter adjustment."
+                            ),
+                            admin_decision="pending",
+                            status="pending",
+                            auto_promotable=False,
+                            proposed_params={},
+                        )
+                        db.add(proposal)
+                        created.append(f"{strategy_name}: ROOT_CAUSE:{rc['root_cause']}")
+
+                for rej in data["rejections"]:
+                    reason_code = rej["reason_code"]
+                    count = rej["count"]
+                    if count < min_rejections:
+                        continue
+
+                    adjustment = REJECTION_ADJUSTMENTS.get(reason_code)
+                    if not adjustment:
+                        continue
+
+                    param_changes = adjustment["param_adjustments"]
+                    if not param_changes:
+                        continue
+
+                    cfg = db.query(StrategyConfig).filter(
+                        StrategyConfig.strategy_name == strategy_name
+                    ).first()
+
+                    raw_params = cfg.params if cfg and cfg.params else "{}"
+                    try:
+                        import json as _json
+                        current_params = _json.loads(raw_params) if isinstance(raw_params, str) else (raw_params or {})
+                    except Exception:
+                        current_params = {}
+                    proposed = {}
+                    for key, multiplier in param_changes.items():
+                        current_val = current_params.get(key)
+                        if current_val is not None and isinstance(current_val, (int, float)):
+                            proposed[key] = round(float(current_val) * multiplier, 6)
+                        elif current_val is None:
+                            proposed[key] = round(multiplier, 6)
+
+                    if not proposed:
+                        continue
+
                     proposal = StrategyProposal(
                         strategy_name=strategy_name,
-                        change_details={"_root_cause": rc["root_cause"]},
+                        change_details=proposed,
                         expected_impact=(
-                            f"ROOT CAUSE DETECTED: {rc['description']} "
-                            f"(value={rc['value']}, samples={rc['sample_size']}). "
-                            f"Requires code-level fix, not parameter adjustment."
+                            f"{adjustment['description']} "
+                            f"(reason: {reason_code}, occurrences: {count}, "
+                            f"avg_size: {rej['avg_size']:.2f}, avg_conf: {rej['avg_conf']:.2f})"
                         ),
                         admin_decision="pending",
                         status="pending",
-                        auto_promotable=False,
-                        proposed_params={},
+                        auto_promotable=True,
+                        proposed_params=proposed,
                     )
                     db.add(proposal)
-                    created.append(f"{strategy_name}: ROOT_CAUSE:{rc['root_cause']}")
+                    created.append(f"{strategy_name}: {reason_code} → {proposed}")
 
-            for rej in data["rejections"]:
-                reason_code = rej["reason_code"]
-                count = rej["count"]
-                if count < min_rejections:
-                    continue
-
-                adjustment = REJECTION_ADJUSTMENTS.get(reason_code)
-                if not adjustment:
-                    continue
-
-                param_changes = adjustment["param_adjustments"]
-                if not param_changes:
-                    continue
-
-                cfg = db.query(StrategyConfig).filter(
-                    StrategyConfig.strategy_name == strategy_name
-                ).first()
-
-                raw_params = cfg.params if cfg and cfg.params else "{}"
-                try:
-                    import json as _json
-                    current_params = _json.loads(raw_params) if isinstance(raw_params, str) else (raw_params or {})
-                except Exception:
-                    current_params = {}
-                proposed = {}
-                for key, multiplier in param_changes.items():
-                    current_val = current_params.get(key)
-                    if current_val is not None and isinstance(current_val, (int, float)):
-                        proposed[key] = round(float(current_val) * multiplier, 6)
-                    elif current_val is None:
-                        proposed[key] = round(multiplier, 6)
-
-                if not proposed:
-                    continue
-
-                proposal = StrategyProposal(
-                    strategy_name=strategy_name,
-                    change_details=proposed,
-                    expected_impact=(
-                        f"{adjustment['description']} "
-                        f"(reason: {reason_code}, occurrences: {count}, "
-                        f"avg_size: {rej['avg_size']:.2f}, avg_conf: {rej['avg_conf']:.2f})"
-                    ),
-                    admin_decision="pending",
-                    status="pending",
-                    auto_promotable=True,
-                    proposed_params=proposed,
-                )
-                db.add(proposal)
-                created.append(f"{strategy_name}: {reason_code} → {proposed}")
-
-        if created:
-            db.commit()
-            logger.info(f"Rejection learner: created {len(created)} proposals from rejection patterns")
+            if created:
+                logger.info(f"Rejection learner: created {len(created)} proposals from rejection patterns")
     except Exception as e:
         logger.warning(f"Rejection proposal generation failed: {e}")
-        db.rollback()
-    finally:
-        db.close()
 
     return created

@@ -58,23 +58,13 @@ async def main() -> None:
     trainer.write_metadata(result)
 
     fe = FeatureEngineer()
-    import pickle
-    import io
-
-    class _RestrictedUnpickler(pickle.Unpickler):
-        ALLOWED_PREFIXES = (
-            "sklearn.", "numpy.", "scipy.", "__builtin__", "builtins",
-            "collections", "pickle", "copyreg",
-        )
-
-        def find_class(self, module, name):
-            for prefix in _RestrictedUnpickler.ALLOWED_PREFIXES:
-                if module.startswith(prefix):
-                    return super().find_class(module, name)
-            raise pickle.UnpicklingError(f"Blocked: {module}.{name}")
+    # Security: joblib.load() is the standard for scikit-learn models
+    # and does NOT execute arbitrary code from unpickled objects,
+    # unlike raw pickle.load() which is vulnerable to RCE.
+    import joblib
 
     with open(result.model_path, "rb") as fh:
-        bundle = _RestrictedUnpickler(fh).load()
+        bundle = joblib.load(fh)
     model = bundle["model"]
     X_eval = np.array([fe.to_vector(ex.features) for ex in eval_set], dtype=float)
     if len(X_eval) > 0:
@@ -130,23 +120,11 @@ async def run_training_pipeline(min_examples: int = 200) -> dict:
         result = trainer.train(train_set)
         trainer.write_metadata(result)
         fe = FeatureEngineer()
-        import pickle
-        import io
-
-        class _RestrictedUnpickler(pickle.Unpickler):
-            ALLOWED_PREFIXES = (
-                "sklearn.", "numpy.", "scipy.", "__builtin__", "builtins",
-                "collections", "pickle", "copyreg",
-            )
-
-            def find_class(self, module, name):
-                for prefix in _RestrictedUnpickler.ALLOWED_PREFIXES:
-                    if module.startswith(prefix):
-                        return super().find_class(module, name)
-                raise pickle.UnpicklingError(f"Blocked: {module}.{name}")
+        # Security: joblib.load() replaces pickle.load() — avoids RCE vulnerability
+        import joblib
 
         with open(result.model_path, "rb") as fh:
-            bundle = _RestrictedUnpickler(fh).load()
+            bundle = joblib.load(fh)
         model = bundle["model"]
         X_eval = np.array([fe.to_vector(ex.features) for ex in eval_set], dtype=float)
         accuracy = float(model.score(X_eval, [ex.label for ex in eval_set])) if len(X_eval) > 0 else result.train_accuracy

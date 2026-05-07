@@ -81,7 +81,7 @@ async def get_sync_status(
     return SyncStatusAllResponse(testnet=testnet_status, live=live_status)
 
 
-async def _sync_wallet_background(mode: str, db: Session):
+async def _sync_wallet_background(mode: str, db: Session, db_ctx):
     """Background task to perform wallet sync."""
     try:
         from backend.data.polymarket_clob import clob_from_settings
@@ -125,7 +125,7 @@ async def _sync_wallet_background(mode: str, db: Session):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
     finally:
-        db.close()
+        db_ctx.__exit__(None, None, None)
 
 
 @router.post("/admin/sync-now")
@@ -162,11 +162,12 @@ async def sync_now(
         )
     
     # Need to create a new session for background task since the injected one closes when request finishes
-    from backend.models.database import SessionLocal
-    bg_db = SessionLocal()
+    from backend.db.utils import get_db_session
+    bg_db_ctx = get_db_session()
+    bg_db = bg_db_ctx.__enter__()
     
-    # Queue background task
-    background_tasks.add_task(_sync_wallet_background, mode, bg_db)
+    # Queue background task — bg_db_ctx will be cleaned up by the background task
+    background_tasks.add_task(_sync_wallet_background, mode, bg_db, bg_db_ctx)
     
     logger.info(f"Queued background sync for mode={mode}")
     

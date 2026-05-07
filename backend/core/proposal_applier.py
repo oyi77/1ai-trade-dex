@@ -53,10 +53,22 @@ class ProposalApplier:
         Returns:
             True if config was updated successfully, False otherwise
         """
-        owns_db = db is None
-        if owns_db:
-            db = SessionLocal()
-        
+        from backend.db.utils import get_db_session
+
+        if db is not None:
+            return self._apply(db, proposal_id)
+
+        try:
+            with get_db_session() as db:
+                return self._apply(db, proposal_id)
+        except Exception as e:
+            self.logger.error(
+                f"Failed to apply proposal {proposal_id}: {e}",
+                exc_info=True
+            )
+            return False
+
+    def _apply(self, db, proposal_id: int) -> bool:
         try:
             # Load proposal
             proposal = db.query(StrategyProposal).filter(
@@ -174,10 +186,22 @@ class ProposalApplier:
         Returns:
             Config dict with enabled, interval_seconds, and params, or None
         """
-        owns_db = db is None
-        if owns_db:
-            db = SessionLocal()
-        
+        from backend.db.utils import get_db_session
+
+        if db is not None:
+            return self._get_config(db, strategy_name)
+
+        try:
+            with get_db_session() as db:
+                return self._get_config(db, strategy_name)
+        except Exception as e:
+            self.logger.error(
+                f"Failed to get config for '{strategy_name}': {e}",
+                exc_info=True
+            )
+            return None
+
+    def _get_config(self, db, strategy_name: str) -> Optional[Dict[str, Any]]:
         try:
             config = db.query(StrategyConfig).filter(
                 StrategyConfig.strategy_name == strategy_name
@@ -194,16 +218,12 @@ class ProposalApplier:
                 "interval_seconds": config.interval_seconds,
                 "params": params
             }
-            
         except Exception as e:
             self.logger.error(
                 f"Failed to get config for '{strategy_name}': {e}",
                 exc_info=True
             )
             return None
-        finally:
-            if owns_db:
-                db.close()
     
     def get_config_timeline(
         self,
@@ -224,10 +244,22 @@ class ProposalApplier:
         Returns:
             List of config change events with timestamps and details
         """
-        owns_db = db is None
-        if owns_db:
-            db = SessionLocal()
-        
+        from backend.db.utils import get_db_session
+
+        if db is not None:
+            return self._get_timeline(db, strategy_name, limit)
+
+        try:
+            with get_db_session() as db:
+                return self._get_timeline(db, strategy_name, limit)
+        except Exception as e:
+            self.logger.error(
+                f"Failed to get config timeline for '{strategy_name}': {e}",
+                exc_info=True
+            )
+            return []
+
+    def _get_timeline(self, db, strategy_name: str, limit: int) -> list[Dict[str, Any]]:
         try:
             changes = db.query(AuditLog).filter(
                 AuditLog.event_type == "CONFIG_UPDATED",
@@ -245,16 +277,12 @@ class ProposalApplier:
                 })
             
             return timeline
-            
         except Exception as e:
             self.logger.error(
                 f"Failed to get config timeline for '{strategy_name}': {e}",
                 exc_info=True
             )
             return []
-        finally:
-            if owns_db:
-                db.close()
 
 
 # Global instance for easy access
