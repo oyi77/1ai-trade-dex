@@ -11,14 +11,13 @@ Tests the complete sync flow:
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade
-from backend.core.wallet_reconciliation import WalletReconciler, SyncResult
+from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import PolymarketCLOB
 
 

@@ -21,9 +21,9 @@ def redact_sensitive(value: str, visible_chars: int = 4) -> str:
     """
     if not isinstance(value, str):
         value = str(value)
-    
+
     # If string is too short, redact completely
     if len(value) <= visible_chars * 2 + 3:
         return "***"
-    
+
     return f"{value[:visible_chars]}...{value[-visible_chars:]}"
