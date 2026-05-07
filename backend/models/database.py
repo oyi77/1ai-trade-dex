@@ -118,7 +118,7 @@ async def execute_with_timeout(db_operation, timeout: float = None):
 
 
 class Trade(Base):
-    """Simulated trades for tracking P&L."""
+    """Simulated and live trades for tracking P&L."""
 
     __tablename__ = "trades"
 
@@ -138,7 +138,38 @@ class Trade(Base):
     direction = Column(String)  # "up" or "down"
     entry_price = Column(Float)
     size = Column(Float)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Strategy / signal metadata
+    strategy = Column(String, nullable=True, index=True)
+    signal_source = Column(String, nullable=True)
+    confidence = Column(Float, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    data_quality_flags = Column(Text, nullable=True)
+
+    # Trading mode this trade was placed in
+    trading_mode = Column(String, default="paper", index=True)
+    role = Column(String, default="unknown", index=True)  # maker, taker, unknown
+    source = Column(String, default="bot")
+
+    # CLOB / on-chain tracking
+    clob_order_id = Column(String, nullable=True)
+    clob_idempotency_key = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    fill_price = Column(Float, nullable=True)
+    fill_ratio = Column(Float, nullable=True)
+
+    # Cost tracking
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+
+    # Blockchain verification
+    blockchain_verified = Column(Boolean, default=False)
+    settlement_source = Column(String, nullable=True)
+    last_sync_at = Column(DateTime, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
 
     # Settlement
     settled = Column(Boolean, default=False)
@@ -148,7 +179,6 @@ class Trade(Base):
         String, default="pending"
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class HFTExecutionRecord(Base):
@@ -1154,7 +1184,7 @@ def _publish_corruption_alert(event: str, detail: str, data: dict | None = None)
 
 def init_db(repair_if_needed: bool = True):
     try:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine, checkfirst=True)
         ensure_schema()
         seed_default_data()
     except Exception as e:
@@ -1175,7 +1205,7 @@ def init_db(repair_if_needed: bool = True):
                     os.unlink(db_path)
                     logger.info(f"Removed corrupted database: {db_path}")
 
-                Base.metadata.create_all(bind=engine)
+                Base.metadata.create_all(bind=engine, checkfirst=True)
                 ensure_schema()
                 seed_default_data()
 
@@ -1521,7 +1551,9 @@ def ensure_schema():
         AuditLog.__table__.create(bind=engine, checkfirst=True)
 
     # Ensure new tables exist (DecisionLog, MarketWatch, WalletConfig, StrategyConfig, TradeContext)
-    Base.metadata.create_all(bind=engine)
+    # checkfirst=True prevents "already exists" errors when ensure_schema is called more than once
+    # on the same database (e.g. during test setup or after a hot-restart).
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
     # Add whale_score column to wallet_config if missing
     try:
@@ -1845,10 +1877,11 @@ class ClobEvent(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
+        # Only the unique constraint lives here; individual column indexes are
+        # declared via index=True on the Column definitions above to avoid
+        # duplicate index creation errors when create_all() is called more than
+        # once on the same database.
         UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
-        Index('ix_clob_events_block_number', 'block_number'),
-        Index('ix_clob_events_timestamp', 'timestamp'),
-        Index('ix_clob_events_market_id', 'market_id'),
     )
 
 

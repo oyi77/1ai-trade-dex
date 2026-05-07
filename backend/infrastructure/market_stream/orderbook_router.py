@@ -79,8 +79,8 @@ class OrderbookRouter:
                 await self._dispatch_task
             except asyncio.CancelledError:
                 pass
-            except Exception:
-                pass  # Task may have already completed
+            except Exception as e:
+                logger.error(f"Error stopping OrderbookRouter dispatch loop: {e}")
             finally:
                 self._dispatch_task = None
         logger.info("OrderbookRouter dispatch loop stopped")

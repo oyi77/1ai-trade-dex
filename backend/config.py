@@ -536,8 +536,9 @@ class Settings(BaseSettings):
     @field_validator('KELLY_FRACTION')
     @classmethod
     def validate_kelly_fraction(cls, v):
-        if not (0.0 <= v <= 1.0):
-            raise ValueError(f"KELLY_FRACTION must be between 0.0 and 1.0 (inclusive), got {v}")
+        if not (0.0 <= v <= 0.5):
+            raise ValueError(f"KELLY_FRACTION must be between 0.0 and 0.5 (inclusive), got {v}. "
+                             f"Values above 0.5 (half-Kelly) are highly aggressive and unsafe for automated trading.")
         return v
 
     @field_validator('DAILY_DRAWDOWN_LIMIT_PCT')
