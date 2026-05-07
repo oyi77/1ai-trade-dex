@@ -198,6 +198,70 @@ class CalibrationTracker:
 calibration_tracker = CalibrationTracker()
 
 
+def compute_price_bucket_calibration(
+    db: Session,
+    bucket_width: int = 5,
+    window_days: int = 30,
+) -> dict:
+    """Compute realized win rate by price bucket from settled trades.
+
+    Returns dict: {bucket_start: {predicted, actual, error, trades, confidence}}
+    """
+    from backend.models.database import Trade
+    from datetime import timedelta
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    trades = db.query(Trade).filter(
+        Trade.settled == True,
+        Trade.timestamp >= cutoff,
+    ).all()
+
+    buckets: dict = {}
+    for bucket_start in range(0, 100, bucket_width):
+        bucket_trades = [
+            t for t in trades
+            if bucket_start <= (getattr(t, "entry_price", 0.5) or 0.5) * 100 < bucket_start + bucket_width
+        ]
+        if not bucket_trades:
+            continue
+
+        wins = sum(1 for t in bucket_trades if getattr(t, "result", None) == "win")
+        win_rate = wins / len(bucket_trades)
+        predicted = (bucket_start + bucket_width / 2) / 100
+        error = win_rate - predicted
+
+        buckets[bucket_start] = {
+            "predicted": predicted,
+            "actual": win_rate,
+            "error": error,
+            "trades": len(bucket_trades),
+            "confidence": min(len(bucket_trades) / 50, 1.0),
+        }
+
+    return buckets
+
+
+def compute_calibration_adjustment(
+    bucket_calibration: dict,
+    entry_price: float,
+) -> float:
+    """Return adjustment to predicted probability based on calibration error.
+
+    Capped at ±5% to prevent over-correction.
+    Returns 0.0 if insufficient data for the bucket.
+    """
+    bucket_start = int(entry_price * 100) - (int(entry_price * 100) % 5)
+    if bucket_start not in bucket_calibration:
+        return 0.0
+
+    bucket = bucket_calibration[bucket_start]
+    if bucket["confidence"] < 0.3:
+        return 0.0
+
+    adjustment = bucket["error"] * bucket["confidence"] * -1
+    return max(-0.05, min(0.05, adjustment))
+
+
 def get_bucket_calibration(
     strategy: Optional[str] = None,
     days: int = 60,
