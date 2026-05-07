@@ -118,6 +118,9 @@ class MiroFishService:
 
     def record_signal_fetch(self, count: int = 0):
         """Record a signal fetch event."""
+        if count < 0:
+            count = 0
+
         self._last_signal_fetch = time.time()
         self._total_signals_fetched += count
         self._error_message = None
