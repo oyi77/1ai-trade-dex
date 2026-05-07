@@ -216,6 +216,7 @@ class Trade(Base):
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     settlement_source = Column(String, nullable=True)
     source = Column(String, nullable=False, default="bot", index=True)
+    role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
 
 
 class HFTExecutionRecord(Base):
