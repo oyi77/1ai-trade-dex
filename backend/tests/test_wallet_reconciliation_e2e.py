@@ -11,14 +11,13 @@ Tests the complete sync flow:
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade
-from backend.core.wallet_reconciliation import WalletReconciler, SyncResult
+from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import PolymarketCLOB
 
 
@@ -88,7 +87,9 @@ async def test_database_recovery_from_empty(db, mock_clob):
         },
     ]
 
-    with patch("backend.core.wallet_reconciliation.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = mock_positions
@@ -175,7 +176,9 @@ async def test_external_trade_deduplication(db, mock_clob):
         },
     ]
 
-    with patch("backend.core.wallet_reconciliation.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = mock_positions
@@ -256,9 +259,15 @@ async def test_settlement_verification_external_closure(db, mock_clob):
         }
     ]
 
-    with patch("backend.core.wallet_reconciliation.httpx.AsyncClient") as mock_client_class, \
-         patch("backend.core.settlement_helpers.fetch_resolution_for_trade",
-               new=AsyncMock(return_value=(True, 0.0))):
+    with (
+        patch(
+            "backend.core.wallet_reconciliation.httpx.AsyncClient"
+        ) as mock_client_class,
+        patch(
+            "backend.core.settlement_helpers.fetch_resolution_for_trade",
+            new=AsyncMock(return_value=(True, 0.0)),
+        ),
+    ):
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = mock_positions
@@ -275,13 +284,17 @@ async def test_settlement_verification_external_closure(db, mock_clob):
         assert result.closed_count == 1
 
         # Verify: btc-up-5m still open
-        trade1_updated = db.query(Trade).filter(Trade.market_ticker == "btc-up-5m").first()
+        trade1_updated = (
+            db.query(Trade).filter(Trade.market_ticker == "btc-up-5m").first()
+        )
         assert trade1_updated.settled is False
         assert trade1_updated.last_sync_at is not None
         assert trade1_updated.blockchain_verified is True
 
         # Verify: eth-down-1h marked as closed
-        trade2_closed = db.query(Trade).filter(Trade.market_ticker == "eth-down-1h").first()
+        trade2_closed = (
+            db.query(Trade).filter(Trade.market_ticker == "eth-down-1h").first()
+        )
         assert trade2_closed.settled is True
         assert trade2_closed.settlement_time is not None
         assert trade2_closed.settlement_source == "data_api"
@@ -337,7 +350,9 @@ async def test_orphan_detection(db, mock_clob):
         },
     ]
 
-    with patch("backend.core.wallet_reconciliation.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = mock_positions
@@ -395,7 +410,9 @@ async def test_full_reconciliation_e2e(db, mock_clob):
         },
     ]
 
-    with patch("backend.core.wallet_reconciliation.httpx.AsyncClient") as mock_client_class:
+    with patch(
+        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+    ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = mock_positions
@@ -422,11 +439,13 @@ async def test_full_reconciliation_e2e(db, mock_clob):
         btc_trade = db.query(Trade).filter(Trade.market_ticker == "btc-up-5m").first()
         assert btc_trade is not None
         assert btc_trade.source == "external"
-        
+
         eth_trade = db.query(Trade).filter(Trade.market_ticker == "eth-down-1h").first()
         assert eth_trade is not None
         assert eth_trade.source == "external"
-        
-        sol_trade = db.query(Trade).filter(Trade.market_ticker == "sol-up-daily").first()
+
+        sol_trade = (
+            db.query(Trade).filter(Trade.market_ticker == "sol-up-daily").first()
+        )
         assert sol_trade is not None
         assert sol_trade.source == "external"
