@@ -215,7 +215,7 @@ def get_bucket_calibration(
     try:
         with get_db_session() as db:
             query = db.query(CalibrationRecord).filter(
-                CalibrationRecord.actual_outcome != None,
+                CalibrationRecord.actual_outcome.is_not(None),
                 CalibrationRecord.timestamp >= cutoff,
             )
             if strategy:
