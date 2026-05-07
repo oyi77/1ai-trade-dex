@@ -3,12 +3,12 @@
 import pytest
 import time
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.models.database import Base, Trade, Signal, SystemSettings
+from backend.models.database import Base, Trade, SystemSettings
 from backend.core.backtester import BacktestConfig, BacktestEngine
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies, STRATEGY_REGISTRY
