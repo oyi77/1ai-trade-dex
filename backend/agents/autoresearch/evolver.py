@@ -81,8 +81,8 @@ class StrategyEvolver:
             if _owned:
                 try:
                     db.rollback()
-                except Exception:
-                    pass
+                except Exception as rollback_err:
+                    logger.error("[StrategyEvolver] Failed to rollback: %s", rollback_err)
             return created
         finally:
             if _owned:
