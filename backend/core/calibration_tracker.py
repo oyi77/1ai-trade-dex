@@ -9,6 +9,11 @@ from sqlalchemy.orm import Session
 logger = logging.getLogger("trading_bot.calibration")
 
 
+def get_price_bucket(probability: float, num_bins: int = 10) -> int:
+    """Return bucket index (0-indexed) for a probability value."""
+    return min(int(probability * num_bins), num_bins - 1)
+
+
 class CalibrationTracker:
     """Track and analyze prediction calibration across strategies."""
 

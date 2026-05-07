@@ -161,6 +161,9 @@ class Trade(Base):
     clob_order_id = Column(String, nullable=True)
     filled_size = Column(Float, nullable=True)
     confidence = Column(Float, nullable=True)
+    blockchain_verified = Column(Boolean, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=True)
     event_slug = Column(String, nullable=True)
     market_end_date = Column(DateTime, nullable=True)
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"

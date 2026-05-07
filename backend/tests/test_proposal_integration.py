@@ -202,7 +202,7 @@ async def test_rollback_restores_old_config(db_session, strategy_config):
     
     proposal_id = proposal.id
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         exec_result = executor.execute_proposal(proposal_id)
     
     assert exec_result is True
@@ -257,7 +257,7 @@ async def test_rollback_restores_old_config(db_session, strategy_config):
     
     db_session.commit()
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
     
     assert rolled_back is True

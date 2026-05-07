@@ -115,7 +115,7 @@ def executed_proposal(db_session, sample_strategy_config):
 def test_execute_proposal_success(executor, db_session, approved_proposal, sample_strategy_config):
     proposal_id = approved_proposal.id
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal_id)
     
     assert result is True
@@ -139,7 +139,7 @@ def test_execute_proposal_success(executor, db_session, approved_proposal, sampl
 
 
 def test_execute_proposal_not_found(executor, db_session):
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(99999)
     
     assert result is False
@@ -156,7 +156,7 @@ def test_execute_proposal_wrong_status(executor, db_session, sample_strategy_con
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
     
     assert result is False
@@ -174,7 +174,7 @@ def test_execute_proposal_already_executed(executor, db_session, sample_strategy
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
     
     assert result is False
@@ -191,7 +191,7 @@ def test_execute_proposal_config_not_found(executor, db_session):
     db_session.add(proposal)
     db_session.commit()
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
     
     assert result is False
@@ -236,7 +236,7 @@ def test_measure_impact_positive(executor, db_session, executed_proposal):
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
     
     assert result is not None
@@ -261,7 +261,7 @@ def test_measure_impact_negative(executor, db_session, executed_proposal):
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
     
     assert result is not None
@@ -278,14 +278,14 @@ def test_measure_impact_not_enough_trades(executor, db_session, executed_proposa
         [5, 10]
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
     
     assert result is None
 
 
 def test_measure_impact_proposal_not_executed(executor, db_session, approved_proposal):
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(approved_proposal.id)
     
     assert result is None
@@ -309,7 +309,7 @@ def test_auto_rollback_negative_impact(executor, db_session, executed_proposal, 
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
     
     assert rolled_back is True
@@ -348,7 +348,7 @@ def test_auto_rollback_positive_impact(executor, db_session, executed_proposal):
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
     
     assert rolled_back is False
@@ -385,14 +385,14 @@ def test_auto_rollback_no_audit_log(executor, db_session, sample_strategy_config
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal.id)
     
     assert rolled_back is False
 
 
 def test_get_executed_proposals(executor, db_session, executed_proposal):
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         proposals = executor.get_executed_proposals(limit=10)
     
     assert len(proposals) == 1
@@ -465,7 +465,7 @@ def test_calculate_avg_pnl_empty(executor):
 async def test_execute_approved_proposals_job(db_session, approved_proposal, sample_strategy_config):
     proposal_id = approved_proposal.id
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         await execute_approved_proposals_job()
     
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
@@ -491,7 +491,7 @@ async def test_measure_impact_and_rollback_job(db_session, executed_proposal, sa
         after_pnls
     )
     
-    with patch('backend.core.proposal_executor.SessionLocal', return_value=db_session):
+    with patch('backend.db.utils.SessionLocal', return_value=db_session):
         with patch('backend.core.proposal_executor.ProposalExecutor.get_executed_proposals') as mock_get:
             mock_get.return_value = [{
                 "id": proposal_id,
