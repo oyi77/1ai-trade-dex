@@ -255,41 +255,38 @@ class ImpactMeasurer:
             metrics_before: Metrics before proposal execution
             metrics_after: Metrics after proposal execution
         """
-        db = SessionLocal()
+        from backend.db.utils import get_db_session
+
         try:
-            # Update the StrategyProposal record with impact data
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == impact.proposal_id
-            ).first()
-            
-            if not proposal:
-                self.logger.error(f"Proposal {impact.proposal_id} not found in database")
-                return
-            
-            # Store impact as JSON
-            impact_data = {
-                'sharpe_ratio_delta': impact.sharpe_ratio_delta,
-                'win_rate_delta': impact.win_rate_delta,
-                'avg_pnl_delta': impact.avg_pnl_delta,
-                'edge_improvement': impact.edge_improvement,
-                'total_trades_before': impact.total_trades_before,
-                'total_trades_after': impact.total_trades_after,
-                'measured_at': impact.measured_at.isoformat(),
-                'impact_score': impact.impact_score,
-                'metrics_before': metrics_before,
-                'metrics_after': metrics_after
-            }
-            
-            proposal.impact_measured = impact_data
-            db.commit()
-            
-            self.logger.info(f"Stored impact measurement for proposal {impact.proposal_id}")
-            
+            with get_db_session() as db:
+                # Update the StrategyProposal record with impact data
+                proposal = db.query(StrategyProposal).filter(
+                    StrategyProposal.id == impact.proposal_id
+                ).first()
+                
+                if not proposal:
+                    self.logger.error(f"Proposal {impact.proposal_id} not found in database")
+                    return
+                
+                # Store impact as JSON
+                impact_data = {
+                    'sharpe_ratio_delta': impact.sharpe_ratio_delta,
+                    'win_rate_delta': impact.win_rate_delta,
+                    'avg_pnl_delta': impact.avg_pnl_delta,
+                    'edge_improvement': impact.edge_improvement,
+                    'total_trades_before': impact.total_trades_before,
+                    'total_trades_after': impact.total_trades_after,
+                    'measured_at': impact.measured_at.isoformat(),
+                    'impact_score': impact.impact_score,
+                    'metrics_before': metrics_before,
+                    'metrics_after': metrics_after
+                }
+                
+                proposal.impact_measured = impact_data
+                
+                self.logger.info(f"Stored impact measurement for proposal {impact.proposal_id}")
         except Exception as e:
             self.logger.error(f"Failed to store impact: {e}")
-            db.rollback()
-        finally:
-            db.close()
     
     def get_proposal_impact(self, proposal_id: int) -> Optional[Dict[str, Any]]:
         """Retrieve stored impact measurement for a proposal.
@@ -300,16 +297,17 @@ class ImpactMeasurer:
         Returns:
             Impact data dictionary or None if not found
         """
-        db = SessionLocal()
+        from backend.db.utils import get_db_session
+
         try:
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == proposal_id
-            ).first()
-            
-            if not proposal or not proposal.impact_measured:
-                return None
-            
-            return proposal.impact_measured
-            
-        finally:
-            db.close()
+            with get_db_session() as db:
+                proposal = db.query(StrategyProposal).filter(
+                    StrategyProposal.id == proposal_id
+                ).first()
+                
+                if not proposal or not proposal.impact_measured:
+                    return None
+                
+                return proposal.impact_measured
+        except Exception:
+            return None

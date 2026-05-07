@@ -806,31 +806,28 @@ async def auto_trader_job(mode: str):
 async def heartbeat_job():
     """Periodic heartbeat. Runs every minute."""
     from backend.core.scheduler import log_event
+    from backend.db.utils import get_db_session
 
-    db = None
     try:
-        db = SessionLocal()
-        state = for_update(db, db.query(BotState)).first()
-        pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
+        with get_db_session() as db:
+            state = for_update(db, db.query(BotState)).first()
+            pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
 
-        if state is None:
-            log_event("warning", "Heartbeat: Bot state not initialized")
-            return
+            if state is None:
+                log_event("warning", "Heartbeat: Bot state not initialized")
+                return
 
-        log_event(
-            "data",
-            f"Heartbeat: {pending} pending trades, bankroll: ${state.bankroll:.2f}",
-            {
-                "pending_trades": pending,
-                "bankroll": state.bankroll,
-                "is_running": state.is_running,
-            },
-        )
+            log_event(
+                "data",
+                f"Heartbeat: {pending} pending trades, bankroll: ${state.bankroll:.2f}",
+                {
+                    "pending_trades": pending,
+                    "bankroll": state.bankroll,
+                    "is_running": state.is_running,
+                },
+            )
     except Exception as e:
         log_event("warning", f"Heartbeat failed: {str(e)}")
-    finally:
-        if db:
-            db.close()
 
 
 async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
