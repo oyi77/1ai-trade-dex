@@ -66,7 +66,7 @@ export function useStats() {
       const dashboard = await fetchDashboard()
       return dashboard.stats
     },
-    refetchInterval: POLL.NORMAL,
+    refetchInterval: wsStats ? false : POLL.NORMAL,
   })
 
   const stats = wsStats || fallbackData || ({

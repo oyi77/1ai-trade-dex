@@ -27,11 +27,9 @@ class CreateActivityRequest(BaseModel):
 
 
 def get_db():
-    db = SessionLocal()
-    try:
+    from backend.db.utils import get_db_session
+    with get_db_session() as db:
         yield db
-    finally:
-        db.close()
 
 
 @router.get("")

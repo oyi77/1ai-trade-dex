@@ -130,8 +130,8 @@ async def generate_weather_signal(
     try:
         from backend.models.database import BotState, SessionLocal
 
-        _db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as _db:
             _state = _db.query(BotState).first()
             if _state:
                 if effective_mode == "paper":
@@ -152,8 +152,6 @@ async def generate_weather_signal(
                         if _state.bankroll is not None
                         else settings.INITIAL_BANKROLL
                     )
-        finally:
-            _db.close()
     except Exception as _e:
         logger.debug(f"Bankroll read failed, using INITIAL_BANKROLL: {_e}")
     suggested_size = calculate_kelly_size(
@@ -298,59 +296,58 @@ def _persist_weather_signals(signals: list, mode: str = None):
 
     effective_mode = mode or settings.TRADING_MODE
 
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        for signal in to_save:
-            # Dedup: skip if already logged for this market
-            existing = (
-                db.query(Signal)
-                .filter(
-                    Signal.market_ticker == signal.market.market_id,
-                    Signal.timestamp
-                    >= signal.timestamp.replace(second=0, microsecond=0),
+        with get_db_session() as db:
+            for signal in to_save:
+                # Dedup: skip if already logged for this market
+                existing = (
+                    db.query(Signal)
+                    .filter(
+                        Signal.market_ticker == signal.market.market_id,
+                        Signal.timestamp
+                        >= signal.timestamp.replace(second=0, microsecond=0),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if existing:
-                continue
+                if existing:
+                    continue
 
-            db_signal = Signal(
-                market_ticker=signal.market.market_id,
-                platform=signal.market.platform,
-                market_type="weather",
-                timestamp=signal.timestamp,
-                direction=signal.direction,
-                model_probability=signal.model_probability,
-                market_price=signal.market_probability,
-                edge=signal.edge,
-                confidence=signal.confidence,
-                kelly_fraction=signal.kelly_fraction,
-                suggested_size=signal.suggested_size,
-                sources=signal.sources,
-                reasoning=signal.reasoning,
-                execution_mode=effective_mode,
-                executed=False,
-            )
-            db.add(db_signal)
-            try:
-                from backend.core.event_bus import _broadcast_event
-
-                _broadcast_event(
-                    "signal_found",
-                    {
-                        "market_ticker": db_signal.market_ticker,
-                        "direction": db_signal.direction,
-                        "confidence": db_signal.confidence,
-                        "reasoning": db_signal.reasoning,
-                        "suggested_size": db_signal.suggested_size,
-                    },
+                db_signal = Signal(
+                    market_ticker=signal.market.market_id,
+                    platform=signal.market.platform,
+                    market_type="weather",
+                    timestamp=signal.timestamp,
+                    direction=signal.direction,
+                    model_probability=signal.model_probability,
+                    market_price=signal.market_probability,
+                    edge=signal.edge,
+                    confidence=signal.confidence,
+                    kelly_fraction=signal.kelly_fraction,
+                    suggested_size=signal.suggested_size,
+                    sources=signal.sources,
+                    reasoning=signal.reasoning,
+                    execution_mode=effective_mode,
+                    executed=False,
                 )
-            except Exception as e:
-                logger.debug(f"Failed to broadcast signal_found event: {e}")
+                db.add(db_signal)
+                try:
+                    from backend.core.event_bus import _broadcast_event
 
-        db.commit()
+                    _broadcast_event(
+                        "signal_found",
+                        {
+                            "market_ticker": db_signal.market_ticker,
+                            "direction": db_signal.direction,
+                            "confidence": db_signal.confidence,
+                            "reasoning": db_signal.reasoning,
+                            "suggested_size": db_signal.suggested_size,
+                        },
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to broadcast signal_found event: {e}")
+
+            db.commit()
     except Exception as e:
         logger.warning(f"Failed to persist weather signals: {e}")
         db.rollback()
-    finally:
-        db.close()

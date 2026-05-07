@@ -78,8 +78,8 @@ async def cleanup_websocket_messages(max_age_hours: int = 24) -> int:
     try:
         from backend.models.database import SessionLocal, WebSocketMessage
 
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
             
             # Query old messages
@@ -95,8 +95,6 @@ async def cleanup_websocket_messages(max_age_hours: int = 24) -> int:
                 logger.info(f"WebSocket cleanup: removed {count} messages older than {max_age_hours}h")
             
             return count
-        finally:
-            db.close()
     except Exception as e:
         logger.error(f"WebSocket message cleanup failed: {e}")
         return 0

@@ -5,7 +5,7 @@ Combines technical, AI, orderbook, and data-quality signals
 into a single weighted probability with confidence scoring.
 """
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger("trading_bot.ensemble")
 
@@ -32,8 +32,11 @@ class EnsembleSignalGenerator:
     def combine_signals(
         self,
         technical_prob: float,
+        technical_conf: float = 0.0,
         ai_prob: float = None,
+        ai_confidence: float = 0.0,
         orderbook_imbalance: float = 0.0,
+        orderbook_conf: float = 0.0,
         wash_trade_score: int = 0,
         market_price: float = 0.5,
     ) -> EnsembleSignal:
@@ -93,7 +96,30 @@ class EnsembleSignalGenerator:
         else:
             agreement = 0.5
 
-        confidence = agreement * quality_factor
+# Weighted average probability using component confidences as weights
+        components_with_conf = []
+        if technical_conf > 0:
+            components_with_conf.append((technical_prob, technical_conf))
+        if ai_prob is not None and ai_confidence > 0:
+            components_with_conf.append((ai_prob, ai_confidence))
+        if orderbook_conf > 0:
+            components_with_conf.append((orderbook_prob, orderbook_conf))
+
+        if components_with_conf:
+            total_conf = sum(c for _, c in components_with_conf)
+            if total_conf > 0:
+                weighted_avg_conf = sum(p * c / total_conf for p, c in components_with_conf)
+            else:
+                weighted_avg_conf = agreement
+        else:
+            weighted_avg_conf = agreement
+
+        # Confidence is max of weighted-average component confidence and quality-adjusted agreement
+        confidence = max(weighted_avg_conf, agreement * quality_factor)
+        confidence = max(0.0, min(1.0, confidence))
+
+        component_breakdown["weighted_avg_confidence"] = weighted_avg_conf
+        component_breakdown["confidence_source"] = "weighted_average_components"
         confidence = max(0.0, min(1.0, confidence))
 
         edge = abs(combined - market_price)

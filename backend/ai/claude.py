@@ -99,8 +99,8 @@ class ClaudeAnalyzer(BaseAIClient):
                 from backend.models.database import SessionLocal, AILog
                 from datetime import datetime
 
-                db = SessionLocal()
-                try:
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
                     db_record = AILog(
                         timestamp=datetime.fromisoformat(record.timestamp),
                         provider=record.provider,
@@ -114,8 +114,6 @@ class ClaudeAnalyzer(BaseAIClient):
                     )
                     db.add(db_record)
                     db.commit()
-                finally:
-                    db.close()
             except Exception as db_err:
                 logger.debug(f"DB logging skipped: {db_err}")
 
@@ -168,8 +166,8 @@ class ClaudeAnalyzer(BaseAIClient):
                 from backend.models.database import SessionLocal, AILog
                 from datetime import datetime
 
-                db = SessionLocal()
-                try:
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
                     db_record = AILog(
                         timestamp=datetime.fromisoformat(record.timestamp),
                         provider=record.provider,
@@ -183,8 +181,6 @@ class ClaudeAnalyzer(BaseAIClient):
                     )
                     db.add(db_record)
                     db.commit()
-                finally:
-                    db.close()
             except Exception as e:
                 logger.debug(f"Failed to log failed call to database: {e}")
 
@@ -240,8 +236,8 @@ Categories: weather, crypto, politics, economics, sports, other"""
                 from backend.models.database import SessionLocal, AILog
                 from datetime import datetime
 
-                db = SessionLocal()
-                try:
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
                     db_record = AILog(
                         timestamp=datetime.fromisoformat(record.timestamp),
                         provider=record.provider,
@@ -254,8 +250,6 @@ Categories: weather, crypto, politics, economics, sports, other"""
                     )
                     db.add(db_record)
                     db.commit()
-                finally:
-                    db.close()
             except Exception as e:
                 logger.debug(f"Failed to log classification to database: {e}")
 

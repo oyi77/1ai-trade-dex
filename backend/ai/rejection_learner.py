@@ -173,56 +173,55 @@ def analyze_rejections(lookback_days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
     - total rejection count
     - total attempt count (for context)
     """
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        since = datetime.now(timezone.utc) - timedelta(days=lookback_days)
+        with get_db_session() as db:
+            since = datetime.now(timezone.utc) - timedelta(days=lookback_days)
 
-        rejected = db.query(
-            TradeAttempt.strategy,
-            TradeAttempt.reason_code,
-            TradeAttempt.status,
-            func.count(TradeAttempt.id).label("cnt"),
-            func.avg(TradeAttempt.requested_size).label("avg_size"),
-            func.avg(TradeAttempt.confidence).label("avg_conf"),
-            func.avg(TradeAttempt.edge).label("avg_edge"),
-        ).filter(
-            TradeAttempt.status.in_(["BLOCKED", "REJECTED", "FAILED"]),
-            TradeAttempt.created_at >= since,
-        ).group_by(
-            TradeAttempt.strategy,
-            TradeAttempt.reason_code,
-            TradeAttempt.status,
-        ).order_by(func.count(TradeAttempt.id).desc()).all()
+            rejected = db.query(
+                TradeAttempt.strategy,
+                TradeAttempt.reason_code,
+                TradeAttempt.status,
+                func.count(TradeAttempt.id).label("cnt"),
+                func.avg(TradeAttempt.requested_size).label("avg_size"),
+                func.avg(TradeAttempt.confidence).label("avg_conf"),
+                func.avg(TradeAttempt.edge).label("avg_edge"),
+            ).filter(
+                TradeAttempt.status.in_(["BLOCKED", "REJECTED", "FAILED"]),
+                TradeAttempt.created_at >= since,
+            ).group_by(
+                TradeAttempt.strategy,
+                TradeAttempt.reason_code,
+                TradeAttempt.status,
+            ).order_by(func.count(TradeAttempt.id).desc()).all()
 
-        total_attempts = db.query(func.count(TradeAttempt.id)).filter(
-            TradeAttempt.created_at >= since
-        ).scalar() or 1
+            total_attempts = db.query(func.count(TradeAttempt.id)).filter(
+                TradeAttempt.created_at >= since
+            ).scalar() or 1
 
-        strategies: Dict[str, Dict] = {}
-        for row in rejected:
-            strat = row.strategy or "unknown"
-            if strat not in strategies:
-                strategies[strat] = {
-                    "rejections": [],
-                    "total_rejections": 0,
-                    "total_attempts": total_attempts,
-                }
-            strategies[strat]["rejections"].append({
-                "reason_code": row.reason_code,
-                "status": row.status,
-                "count": row.cnt,
-                "avg_size": float(row.avg_size or 0),
-                "avg_conf": float(row.avg_conf or 0),
-                "avg_edge": float(row.avg_edge or 0),
-            })
-            strategies[strat]["total_rejections"] += row.cnt
+            strategies: Dict[str, Dict] = {}
+            for row in rejected:
+                strat = row.strategy or "unknown"
+                if strat not in strategies:
+                    strategies[strat] = {
+                        "rejections": [],
+                        "total_rejections": 0,
+                        "total_attempts": total_attempts,
+                    }
+                strategies[strat]["rejections"].append({
+                    "reason_code": row.reason_code,
+                    "status": row.status,
+                    "count": row.cnt,
+                    "avg_size": float(row.avg_size or 0),
+                    "avg_conf": float(row.avg_conf or 0),
+                    "avg_edge": float(row.avg_edge or 0),
+                })
+                strategies[strat]["total_rejections"] += row.cnt
 
-        return strategies
+            return strategies
     except Exception as e:
         logger.warning(f"Rejection analysis failed: {e}")
         return {}
-    finally:
-        db.close()
 
 
 def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[str]:

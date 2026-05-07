@@ -20,8 +20,8 @@ class WhaleDiscovery:
         Returns: list of {wallet, score, trade_count} dicts ordered by score desc.
         """
         results = []
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             wallets = db.query(WalletConfig).all()
             for w in wallets:
                 history = await self._fetch_history(w.address)
@@ -38,8 +38,6 @@ class WhaleDiscovery:
                     }
                 )
             db.commit()
-        finally:
-            db.close()
         results.sort(key=lambda r: r["score"], reverse=True)
         return results
 

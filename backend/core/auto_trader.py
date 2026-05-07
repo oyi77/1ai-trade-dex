@@ -110,8 +110,8 @@ class AutoTrader:
             return ExecutionResult(False, False, f"clob error: {e}")
 
     def _create_pending(self, signal: Dict[str, Any], size: float) -> Optional[int]:
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             row = PendingApproval(
                 market_id=str(signal.get("market_id", "unknown")),
                 direction=str(signal.get("side", "BUY")),
@@ -124,5 +124,3 @@ class AutoTrader:
             db.commit()
             db.refresh(row)
             return row.id
-        finally:
-            db.close()

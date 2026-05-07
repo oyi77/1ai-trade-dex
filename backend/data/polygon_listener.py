@@ -25,25 +25,38 @@ class PolygonListener:
     async def start(self) -> None:
         import websockets
         self._running = True
-        backoff = 1.0
+        MAX_RETRIES = 10
+        INITIAL_DELAY = 1.0
+        BACKOFF_MULTIPLIER = 2.0
+        MAX_DELAY = 60.0
         while self._running:
-            try:
-                async with websockets.connect(self.ws_url) as ws:
-                    self._ws = ws
-                    backoff = 1.0
-                    sub = {
-                        "jsonrpc": "2.0", "id": 1, "method": "eth_subscribe",
-                        "params": ["logs", {"address": self.contract}],
-                    }
-                    await ws.send(json.dumps(sub))
-                    async for msg in ws:
-                        await self._handle_message(msg)
-            except Exception as e:
-                if not self._running:
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    async with websockets.connect(self.ws_url) as ws:
+                        self._ws = ws
+                        sub = {
+                            "jsonrpc": "2.0", "id": 1, "method": "eth_subscribe",
+                            "params": ["logs", {"address": self.contract}],
+                        }
+                        await ws.send(json.dumps(sub))
+                        async for msg in ws:
+                            await self._handle_message(msg)
                     break
-                logger.warning("polygon ws error, reconnecting in %.0fs: %s", backoff, e)
-                await asyncio.sleep(backoff)
-                backoff = min(backoff * 2, 60.0)
+                except Exception as e:
+                    if not self._running:
+                        break
+                    delay = min(INITIAL_DELAY * (BACKOFF_MULTIPLIER ** (attempt-1)), MAX_DELAY)
+                    logger.warning(
+                        "polygon ws error (attempt %d/%d), reconnecting in %.0fs: %s",
+                        attempt, MAX_RETRIES, delay, e
+                    )
+                    await asyncio.sleep(delay)
+            else:
+                logger.critical(
+                    "Polygon ws repeated failure after %d attempts; giving up until manual restart.",
+                    MAX_RETRIES
+                )
+                raise
 
     async def _handle_message(self, raw: str) -> None:
         try:

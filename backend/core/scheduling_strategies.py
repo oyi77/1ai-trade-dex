@@ -325,114 +325,113 @@ async def scan_and_trade_job(mode: str):
 
     log_event("info", f"[{mode.upper()}] Running market scan...")
 
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        state = db.query(BotState).filter_by(mode=mode).first()
-        if not state:
-            log_event("error", f"[{mode.upper()}] Bot state not initialized")
-            return
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode=mode).first()
+            if not state:
+                log_event("error", f"[{mode.upper()}] Bot state not initialized")
+                return
 
-        if not state.is_running:
-            log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
-            return
+            if not state.is_running:
+                log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
+                return
 
-        ctx = StrategyContext(
-            db=db,
-            clob=None,
-            settings=settings,
-            logger=logger,
-            params={},
-            mode=mode,
-        )
+            ctx = StrategyContext(
+                db=db,
+                clob=None,
+                settings=settings,
+                logger=logger,
+                params={},
+                mode=mode,
+            )
 
-        # Phase 1: Try BTC Oracle
-        strategy = BtcOracleStrategy()
-        result = await strategy.run(ctx)
+            # Phase 1: Try BTC Oracle
+            strategy = BtcOracleStrategy()
+            result = await strategy.run(ctx)
 
-        buy_decisions = [
-            d
-            for d in getattr(result, "decisions", [])
-            if isinstance(d, dict)
-            and d.get("decision") == "BUY"
-            and d.get("market_ticker")
-        ]
+            buy_decisions = [
+                d
+                for d in getattr(result, "decisions", [])
+                if isinstance(d, dict)
+                and d.get("decision") == "BUY"
+                and d.get("market_ticker")
+            ]
 
-        if buy_decisions:
-            try:
-                from backend.core.strategy_executor import execute_decisions
+            if buy_decisions:
+                try:
+                    from backend.core.strategy_executor import execute_decisions
 
-                executed = await execute_decisions(buy_decisions, "btc_oracle", mode=mode, db=db)
-                log_event("success", f"[{mode.upper()}] BTC Oracle: executed {len(executed)} trade(s)")
-            except Exception as exec_err:
-                log_event("error", f"[{mode.upper()}] BTC Oracle execution failed: {exec_err}")
-        else:
-            log_event("info", f"[{mode.upper()}] BTC Oracle: no actionable signals — trying general scanner")
+                    executed = await execute_decisions(buy_decisions, "btc_oracle", mode=mode, db=db)
+                    log_event("success", f"[{mode.upper()}] BTC Oracle: executed {len(executed)} trade(s)")
+                except Exception as exec_err:
+                    log_event("error", f"[{mode.upper()}] BTC Oracle execution failed: {exec_err}")
+            else:
+                log_event("info", f"[{mode.upper()}] BTC Oracle: no actionable signals — trying general scanner")
 
-            # Phase 2: Fallback to General Scanner when BTC Oracle finds nothing
-            try:
-                from backend.models.database import StrategyConfig
+                # Phase 2: Fallback to General Scanner when BTC Oracle finds nothing
+                try:
+                    from backend.models.database import StrategyConfig
 
-                gs_config = db.query(StrategyConfig).filter(
-                    StrategyConfig.strategy_name == "general_scanner",
-                    StrategyConfig.enabled.is_(True),
-                ).first()
+                    gs_config = db.query(StrategyConfig).filter(
+                        StrategyConfig.strategy_name == "general_scanner",
+                        StrategyConfig.enabled.is_(True),
+                    ).first()
 
-                if gs_config and settings.AI_ENABLED:
-                    import json as _json
+                    if gs_config and settings.AI_ENABLED:
+                        import json as _json
 
-                    gs_params = {}
-                    if gs_config.params:
-                        try:
-                            gs_params = _json.loads(gs_config.params)
-                        except Exception:
-                            pass
+                        gs_params = {}
+                        if gs_config.params:
+                            try:
+                                gs_params = _json.loads(gs_config.params)
+                            except Exception:
+                                pass
 
-                    gs_ctx = StrategyContext(
-                        db=db,
-                        clob=None,
-                        settings=settings,
-                        logger=logger,
-                        params=gs_params,
-                        mode=mode,
-                    )
+                        gs_ctx = StrategyContext(
+                            db=db,
+                            clob=None,
+                            settings=settings,
+                            logger=logger,
+                            params=gs_params,
+                            mode=mode,
+                        )
 
-                    from backend.strategies.general_market_scanner import GeneralMarketScanner
+                        from backend.strategies.general_market_scanner import GeneralMarketScanner
 
-                    gs = GeneralMarketScanner()
-                    gs_result = await gs.run(gs_ctx)
+                        gs = GeneralMarketScanner()
+                        gs_result = await gs.run(gs_ctx)
 
-                    gs_buy = [
-                        d
-                        for d in getattr(gs_result, "decisions", [])
-                        if isinstance(d, dict)
-                        and d.get("decision") == "BUY"
-                        and d.get("market_ticker")
-                    ]
+                        gs_buy = [
+                            d
+                            for d in getattr(gs_result, "decisions", [])
+                            if isinstance(d, dict)
+                            and d.get("decision") == "BUY"
+                            and d.get("market_ticker")
+                        ]
 
-                    if gs_buy:
-                        from backend.core.strategy_executor import execute_decisions
+                        if gs_buy:
+                            from backend.core.strategy_executor import execute_decisions
 
-                        executed = await execute_decisions(gs_buy, "general_scanner", mode=mode, db=db)
-                        log_event("success", f"[{mode.upper()}] General Scanner: executed {len(executed)} trade(s)")
+                            executed = await execute_decisions(gs_buy, "general_scanner", mode=mode, db=db)
+                            log_event("success", f"[{mode.upper()}] General Scanner: executed {len(executed)} trade(s)")
+                        else:
+                            log_event("info", f"[{mode.upper()}] General Scanner: no actionable signals (errors={len(gs_result.errors)})")
                     else:
-                        log_event("info", f"[{mode.upper()}] General Scanner: no actionable signals (errors={len(gs_result.errors)})")
-                else:
-                    if not gs_config:
-                        log_event("info", f"[{mode.upper()}] General Scanner disabled in config")
-                    if not settings.AI_ENABLED:
-                        log_event("info", f"[{mode.upper()}] AI_ENABLED=false, skipping general scanner")
-            except Exception as gs_err:
-                log_event("error", f"[{mode.upper()}] General Scanner fallback error: {gs_err}")
-                logger.exception(f"General Scanner fallback error mode={mode}")
+                        if not gs_config:
+                            log_event("info", f"[{mode.upper()}] General Scanner disabled in config")
+                        if not settings.AI_ENABLED:
+                            log_event("info", f"[{mode.upper()}] AI_ENABLED=false, skipping general scanner")
+                except Exception as gs_err:
+                    log_event("error", f"[{mode.upper()}] General Scanner fallback error: {gs_err}")
+                    logger.exception(f"General Scanner fallback error mode={mode}")
 
-        state.last_run = datetime.now(timezone.utc)
-        db.commit()
+            state.last_run = datetime.now(timezone.utc)
+            db.commit()
 
     except Exception as e:
         log_event("error", f"[{mode.upper()}] Market scan error: {str(e)}")
         logger.exception(f"Error in scan_and_trade_job mode={mode}")
-    finally:
-        db.close()
 
 
 async def weather_scan_and_trade_job(mode: str):
@@ -460,15 +459,13 @@ async def weather_scan_and_trade_job(mode: str):
         if not actionable:
             log_event("info", f"[{mode.upper()}] No actionable weather signals")
             # Still update heartbeat so watchdog knows we ran
-            hb_db = SessionLocal()
-            try:
+            from backend.db.utils import get_db_session
+            with get_db_session() as hb_db:
                 _update_hb("weather_emos")
-            finally:
-                hb_db.close()
             return
 
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state:
                 log_event("error", f"[{mode.upper()}] Bot state not initialized")
@@ -578,8 +575,6 @@ async def weather_scan_and_trade_job(mode: str):
 
             _update_hb("weather_emos")
 
-        finally:
-            db.close()
 
     except Exception as e:
         log_event("error", f"[{mode.upper()}] Weather scan error: {str(e)}")
@@ -599,8 +594,8 @@ async def settlement_job():
             reconcile_bot_state,
         )
 
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             pending_count = (
                 db.query(Trade)
                 .filter(
@@ -649,8 +644,6 @@ async def settlement_job():
 
             await reconcile_bot_state(db)
 
-        finally:
-            db.close()
 
     except Exception as e:
         log_event("error", f"Settlement error: {str(e)}")
@@ -715,8 +708,8 @@ async def auto_trader_job(mode: str):
         from backend.data.polymarket_clob import clob_from_settings
 
         trader = AutoTrader(RiskManager(), clob_factory=clob_from_settings)
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
                 return
@@ -805,8 +798,6 @@ async def auto_trader_job(mode: str):
                     "[ALERT] auto_trader processed %d signals but created 0 trade attempts — check filters",
                     len(signals),
                 )
-        finally:
-            db.close()
     except Exception as e:
         log_event("error", f"auto_trader_job error: {e}")
 
@@ -854,118 +845,117 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     from backend.models.database import SessionLocal, StrategyConfig
     import json
 
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        config = (
-            db.query(StrategyConfig)
-            .filter(
-                StrategyConfig.strategy_name == strategy_name,
-                StrategyConfig.enabled.is_(True),
-            )
-            .first()
-        )
-
-        if not config:
-            log_event(
-                "info", f"Strategy {strategy_name} disabled or not configured, skipping"
-            )
-            return
-
-        strategy_cls = STRATEGY_REGISTRY.get(strategy_name)
-        if not strategy_cls:
-            log_event(
-                "warning",
-                f"Strategy {strategy_name} not in registry — updating heartbeat anyway",
-            )
-            from backend.core.heartbeat import update_heartbeat
-
-            update_heartbeat(strategy_name)
-            return
-
-        params = {}
-        if config.params:
-            try:
-                params = json.loads(config.params)
-            except Exception:
-                pass
-
-        from backend.strategies.base import StrategyContext
-        from backend.config import settings as _settings
-
-        effective_mode = mode or config.trading_mode or _settings.TRADING_MODE
-
-        ctx = StrategyContext(
-            db=db,
-            clob=None,
-            settings=_settings,
-            logger=logger,
-            params=params,
-            mode=effective_mode,
-        )
-
-        strategy = strategy_cls()
-        result = await strategy.run(ctx)
-
-        from backend.core.strategy_executor import execute_decisions as _exec_decisions
-
-        buy_decisions = [
-            d
-            for d in getattr(result, "decisions", [])
-            if isinstance(d, dict)
-            and d.get("decision") == "BUY"
-            and d.get("market_ticker")
-        ]
-
-        execution_modes = []
-        if effective_mode == "live":
-            execution_modes = ["paper", "live"]
-            logger.info(
-                f"[{strategy_name}] effective_mode=live, will execute in BOTH paper+live modes"
-            )
-        elif effective_mode in ("paper", "testnet"):
-            execution_modes = [effective_mode]
-            logger.info(
-                f"[{strategy_name}] effective_mode={effective_mode}, will execute in {effective_mode} mode only"
-            )
-        else:
-            execution_modes = sorted(_settings.active_modes_set)
-            logger.info(
-                f"[{strategy_name}] No specific mode, will execute in all active modes: {execution_modes}"
-            )
-
-        for mode in execution_modes:
-            logger.info(
-                f"[{strategy_name}] Preparing to execute {len(buy_decisions)} decisions in {mode} mode"
-            )
-            if buy_decisions:
-                decisions_copy = [d.copy() for d in buy_decisions]
-                for d in decisions_copy:
-                    d["trading_mode"] = mode
-                logger.info(
-                    f"[{strategy_name}] Calling _exec_decisions with {len(decisions_copy)} decisions, mode={mode}"
+        with get_db_session() as db:
+            config = (
+                db.query(StrategyConfig)
+                .filter(
+                    StrategyConfig.strategy_name == strategy_name,
+                    StrategyConfig.enabled.is_(True),
                 )
-                trade_results = await _exec_decisions(
-                    decisions_copy, strategy_name, mode, db=db
+                .first()
+            )
+
+            if not config:
+                log_event(
+                    "info", f"Strategy {strategy_name} disabled or not configured, skipping"
                 )
-                result.trades_placed += len(trade_results)
+                return
+
+            strategy_cls = STRATEGY_REGISTRY.get(strategy_name)
+            if not strategy_cls:
+                log_event(
+                    "warning",
+                    f"Strategy {strategy_name} not in registry — updating heartbeat anyway",
+                )
+                from backend.core.heartbeat import update_heartbeat
+
+                update_heartbeat(strategy_name)
+                return
+
+            params = {}
+            if config.params:
+                try:
+                    params = json.loads(config.params)
+                except Exception:
+                    pass
+
+            from backend.strategies.base import StrategyContext
+            from backend.config import settings as _settings
+
+            effective_mode = mode or config.trading_mode or _settings.TRADING_MODE
+
+            ctx = StrategyContext(
+                db=db,
+                clob=None,
+                settings=_settings,
+                logger=logger,
+                params=params,
+                mode=effective_mode,
+            )
+
+            strategy = strategy_cls()
+            result = await strategy.run(ctx)
+
+            from backend.core.strategy_executor import execute_decisions as _exec_decisions
+
+            buy_decisions = [
+                d
+                for d in getattr(result, "decisions", [])
+                if isinstance(d, dict)
+                and d.get("decision") == "BUY"
+                and d.get("market_ticker")
+            ]
+
+            execution_modes = []
+            if effective_mode == "live":
+                execution_modes = ["paper", "live"]
                 logger.info(
-                    f"[{strategy_name}] PARALLEL: executed {len(trade_results)} trades in {mode} mode (input decisions: {len(decisions_copy)})"
+                    f"[{strategy_name}] effective_mode=live, will execute in BOTH paper+live modes"
+                )
+            elif effective_mode in ("paper", "testnet"):
+                execution_modes = [effective_mode]
+                logger.info(
+                    f"[{strategy_name}] effective_mode={effective_mode}, will execute in {effective_mode} mode only"
                 )
             else:
-                logger.info(f"[{strategy_name}] No buy_decisions to execute")
+                execution_modes = sorted(_settings.active_modes_set)
+                logger.info(
+                    f"[{strategy_name}] No specific mode, will execute in all active modes: {execution_modes}"
+                )
 
-        from backend.core.heartbeat import update_heartbeat
+            for mode in execution_modes:
+                logger.info(
+                    f"[{strategy_name}] Preparing to execute {len(buy_decisions)} decisions in {mode} mode"
+                )
+                if buy_decisions:
+                    decisions_copy = [d.copy() for d in buy_decisions]
+                    for d in decisions_copy:
+                        d["trading_mode"] = mode
+                    logger.info(
+                        f"[{strategy_name}] Calling _exec_decisions with {len(decisions_copy)} decisions, mode={mode}"
+                    )
+                    trade_results = await _exec_decisions(
+                        decisions_copy, strategy_name, mode, db=db
+                    )
+                    result.trades_placed += len(trade_results)
+                    logger.info(
+                        f"[{strategy_name}] PARALLEL: executed {len(trade_results)} trades in {mode} mode (input decisions: {len(decisions_copy)})"
+                    )
+                else:
+                    logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
-        log_event(
-            "info",
-            f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
-        )
+            from backend.core.heartbeat import update_heartbeat
+
+            log_event(
+                "info",
+                f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
+            )
 
     except Exception as e:
         log_event("error", f"Strategy cycle job failed for {strategy_name}: {e}")
         logger.exception(f"strategy_cycle_job({strategy_name})")
-    finally:
-        db.close()
 
     # Heartbeat AFTER db.close() so the pool connection is returned first
     try:
@@ -982,40 +972,39 @@ async def sync_testnet_wallet():
 
 async def sync_live_wallet():
     """Reconcile live wallet every 30 seconds."""
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        from backend.core.wallet_reconciliation import WalletReconciler
-        from backend.data.polymarket_clob import clob_from_settings
+        with get_db_session() as db:
+            from backend.core.wallet_reconciliation import WalletReconciler
+            from backend.data.polymarket_clob import clob_from_settings
 
-        clob = clob_from_settings(mode="live")
-        async with clob:
-            await clob.create_or_derive_api_creds()
-            reconciler = WalletReconciler(clob, db, "live")
-            result = await reconciler.full_reconciliation()
+            clob = clob_from_settings(mode="live")
+            async with clob:
+                await clob.create_or_derive_api_creds()
+                reconciler = WalletReconciler(clob, db, "live")
+                result = await reconciler.full_reconciliation()
 
-        state = db.query(BotState).first()
-        if state:
-            state.last_sync_at = result.last_sync_at
-            db.commit()
+            state = db.query(BotState).first()
+            if state:
+                state.last_sync_at = result.last_sync_at
+                db.commit()
 
-        from backend.core.bankroll_reconciliation import reconcile_bot_state
+            from backend.core.bankroll_reconciliation import reconcile_bot_state
 
-        await reconcile_bot_state(
-            db,
-            modes=("live",),
-            apply=True,
-            commit=True,
-            source="live_wallet_sync_reconcile",
-        )
+            await reconcile_bot_state(
+                db,
+                modes=("live",),
+                apply=True,
+                commit=True,
+                source="live_wallet_sync_reconcile",
+            )
 
-        logger.info(
-            f"Live wallet sync: imported={result.imported_count}, "
-            f"updated={result.updated_count}, closed={result.closed_count}"
-        )
+            logger.info(
+                f"Live wallet sync: imported={result.imported_count}, "
+                f"updated={result.updated_count}, closed={result.closed_count}"
+            )
     except Exception as e:
         logger.error(f"Live wallet sync failed: {e}", exc_info=True)
-    finally:
-        db.close()
 
 
 async def verify_settlement_blockchain():
@@ -1026,75 +1015,74 @@ async def verify_settlement_blockchain():
         calculate_pnl,
     )
 
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        unsettled_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
+        with get_db_session() as db:
+            unsettled_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
 
-        if not unsettled_trades:
-            log_event("data", "Settlement verification: no unsettled trades")
+            if not unsettled_trades:
+                log_event("data", "Settlement verification: no unsettled trades")
+                state = db.query(BotState).first()
+                if state:
+                    state.settlement_last_check_at = datetime.now(timezone.utc)
+                    db.commit()
+                return
+
+            settled_count = 0
+            error_count = 0
+
+            for trade in unsettled_trades:
+                try:
+                    is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
+
+                    if is_resolved and settlement_value is not None:
+                        pnl = calculate_pnl(trade, settlement_value)
+
+                        trade.settled = True
+                        trade.settlement_value = settlement_value
+                        trade.pnl = pnl
+                        trade.settlement_time = datetime.now(timezone.utc)
+                        trade.blockchain_verified = True
+
+                        if pnl is not None and pnl > 0:
+                            trade.result = "win"
+                        elif pnl is not None and pnl < 0:
+                            trade.result = "loss"
+                        else:
+                            trade.result = "push"
+
+                        settled_count += 1
+                        logger.info(
+                            f"Settlement verified: trade_id={trade.id} market={trade.market_ticker} "
+                            f"result={trade.result} pnl=${pnl:.2f}"
+                        )
+
+                except Exception as e:
+                    error_count += 1
+                    logger.warning(
+                        f"Settlement verification failed for trade {trade.id}: {e}"
+                    )
+                    continue
+
             state = db.query(BotState).first()
             if state:
                 state.settlement_last_check_at = datetime.now(timezone.utc)
-                db.commit()
-            return
 
-        settled_count = 0
-        error_count = 0
+            db.commit()
 
-        for trade in unsettled_trades:
-            try:
-                is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
-
-                if is_resolved and settlement_value is not None:
-                    pnl = calculate_pnl(trade, settlement_value)
-
-                    trade.settled = True
-                    trade.settlement_value = settlement_value
-                    trade.pnl = pnl
-                    trade.settlement_time = datetime.now(timezone.utc)
-                    trade.blockchain_verified = True
-
-                    if pnl is not None and pnl > 0:
-                        trade.result = "win"
-                    elif pnl is not None and pnl < 0:
-                        trade.result = "loss"
-                    else:
-                        trade.result = "push"
-
-                    settled_count += 1
-                    logger.info(
-                        f"Settlement verified: trade_id={trade.id} market={trade.market_ticker} "
-                        f"result={trade.result} pnl=${pnl:.2f}"
-                    )
-
-            except Exception as e:
-                error_count += 1
-                logger.warning(
-                    f"Settlement verification failed for trade {trade.id}: {e}"
-                )
-                continue
-
-        state = db.query(BotState).first()
-        if state:
-            state.settlement_last_check_at = datetime.now(timezone.utc)
-
-        db.commit()
-
-        log_event(
-            "success" if settled_count > 0 else "info",
-            f"Settlement verified: {settled_count} trades settled, {error_count} errors",
-            {
-                "settled_count": settled_count,
-                "error_count": error_count,
-                "total_checked": len(unsettled_trades),
-            },
-        )
+            log_event(
+                "success" if settled_count > 0 else "info",
+                f"Settlement verified: {settled_count} trades settled, {error_count} errors",
+                {
+                    "settled_count": settled_count,
+                    "error_count": error_count,
+                    "total_checked": len(unsettled_trades),
+                },
+            )
 
     except Exception as e:
         log_event("error", f"Settlement verification job failed: {e}")
         logger.exception("Error in verify_settlement_blockchain")
-    finally:
-        db.close()
 
 
 async def market_universe_scan_job() -> None:

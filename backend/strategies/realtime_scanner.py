@@ -51,14 +51,14 @@ class PriceHistory:
     )
     last_signal_time: float = 0.0
     last_signal_direction: Optional[str] = None
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
 
-    def add_price(self, mid_price: float, timestamp: float) -> None:
-        with self._lock:
+    async def add_price(self, mid_price: float, timestamp: float) -> None:
+        async with self._lock:
             self.prices.append((timestamp, mid_price))
 
-    def get_velocity(self, window_seconds: float) -> Optional[float]:
-        with self._lock:
+    async def get_velocity(self, window_seconds: float) -> Optional[float]:
+        async with self._lock:
             if len(self.prices) < 2:
                 return None
 
@@ -181,9 +181,9 @@ class RealtimeScannerStrategy(BaseStrategy):
                     window_seconds = ctx.params.get(
                         window_key, self.default_params[window_key]
                     )
-                    velocity = history.get_velocity(window_seconds)
-                    if velocity is not None:
-                        velocities[window_name] = velocity
+                     velocity = await history.get_velocity(window_seconds)
+                     if velocity is not None:
+                         velocities[window_name] = velocity
 
                 if not velocities:
                     continue
@@ -298,7 +298,7 @@ class RealtimeScannerStrategy(BaseStrategy):
             """Handle price updates from WebSocket."""
             history = self._price_history.get(update.token_id)
             if history:
-                history.add_price(update.mid_price, update.timestamp)
+                await history.add_price(update.mid_price, update.timestamp)
 
         self._ws_client = CLOBWebSocket(on_price=on_price)
         self._running = True

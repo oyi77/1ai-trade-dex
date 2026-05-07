@@ -27,6 +27,7 @@ class CalibrationTracker:
             strategy=strategy,
             market_ticker=market_ticker,
             predicted_prob=predicted_prob,
+            price_bucket=get_price_bucket(predicted_prob),
             direction=direction,
             timestamp=datetime.now(timezone.utc),
         )

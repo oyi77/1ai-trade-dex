@@ -309,10 +309,11 @@ def _extract_number(text: str, keywords: list[str]) -> float | None:
     return None
 
 
-def _parse_agent_response(response: str) -> tuple[float, float, str]:
+def _parse_agent_response(response: str) -> tuple[float, float, str] | None:
     """Parse PROBABILITY/CONFIDENCE/REASONING from an agent response.
 
     Tries JSON first, then keyword extraction, then fallback.
+    Returns None if all parse strategies fail.
     """
     # Strategy 1: JSON object
     start = response.find("{")
@@ -356,9 +357,10 @@ def _parse_agent_response(response: str) -> tuple[float, float, str]:
             conf = 0.5
         return (prob, conf, reasoning or response[:500])
 
-    # Strategy 3: Fallback — parse failure, signal unusable
-    logger.warning("[debate_engine._parse_agent_response] All parse strategies failed, returning zero-confidence")
-    return (0.5, 0.0, response[:500])
+    # Strategy 3: Fallback — parse failure, drop the signal
+    logger.warning("[debate_engine] Parse failed, dropping signal")
+    return None
+
 
 
 # --- Core Engine ---
@@ -475,30 +477,34 @@ async def run_debate(
         return None
 
     if bull_response:
-        prob, conf, reasoning = _parse_agent_response(bull_response)
-        bull_args.append(
-            DebateArgument(
-                stance=BULL,
-                round_num=1,
-                probability=prob,
-                confidence=conf,
-                reasoning=reasoning,
-                raw_response=bull_response,
+        parsed = _parse_agent_response(bull_response)
+        if parsed is not None:
+            prob, conf, reasoning = parsed
+            bull_args.append(
+                DebateArgument(
+                    stance=BULL,
+                    round_num=1,
+                    probability=prob,
+                    confidence=conf,
+                    reasoning=reasoning,
+                    raw_response=bull_response,
+                )
             )
-        )
 
     if bear_response:
-        prob, conf, reasoning = _parse_agent_response(bear_response)
-        bear_args.append(
-            DebateArgument(
-                stance=BEAR,
-                round_num=1,
-                probability=prob,
-                confidence=conf,
-                reasoning=reasoning,
-                raw_response=bear_response,
+        parsed = _parse_agent_response(bear_response)
+        if parsed is not None:
+            prob, conf, reasoning = parsed
+            bear_args.append(
+                DebateArgument(
+                    stance=BEAR,
+                    round_num=1,
+                    probability=prob,
+                    confidence=conf,
+                    reasoning=reasoning,
+                    raw_response=bear_response,
+                )
             )
-        )
 
     # --- Rounds 2+: Rebuttals ---
     for round_num in range(2, rounds + 1):
@@ -511,17 +517,19 @@ async def run_debate(
                 bull_rebuttal_prompt, _build_bull_system(), role="debate_agent"
             )
             if bull_resp:
-                prob, conf, reasoning = _parse_agent_response(bull_resp)
-                bull_args.append(
-                    DebateArgument(
-                        stance=BULL,
-                        round_num=round_num,
-                        probability=prob,
-                        confidence=conf,
-                        reasoning=reasoning,
-                        raw_response=bull_resp,
+                parsed = _parse_agent_response(bull_resp)
+                if parsed is not None:
+                    prob, conf, reasoning = parsed
+                    bull_args.append(
+                        DebateArgument(
+                            stance=BULL,
+                            round_num=round_num,
+                            probability=prob,
+                            confidence=conf,
+                            reasoning=reasoning,
+                            raw_response=bull_resp,
+                        )
                     )
-                )
 
         if bull_args:
             latest_bull = bull_args[-1].reasoning
@@ -532,17 +540,19 @@ async def run_debate(
                 bear_rebuttal_prompt, _build_bear_system(), role="debate_agent"
             )
             if bear_resp:
-                prob, conf, reasoning = _parse_agent_response(bear_resp)
-                bear_args.append(
-                    DebateArgument(
-                        stance=BEAR,
-                        round_num=round_num,
-                        probability=prob,
-                        confidence=conf,
-                        reasoning=reasoning,
-                        raw_response=bear_resp,
+                parsed = _parse_agent_response(bear_resp)
+                if parsed is not None:
+                    prob, conf, reasoning = parsed
+                    bear_args.append(
+                        DebateArgument(
+                            stance=BEAR,
+                            round_num=round_num,
+                            probability=prob,
+                            confidence=conf,
+                            reasoning=reasoning,
+                            raw_response=bear_resp,
+                        )
                     )
-                )
 
     rounds_completed = max(
         (a.round_num for a in bull_args + bear_args),
@@ -557,16 +567,24 @@ async def run_debate(
         judge_prompt, _build_judge_system(), role="judge"
     )
 
-    if judge_response:
-        consensus_prob, consensus_conf, consensus_reasoning = _parse_agent_response(
-            judge_response
-        )
+    judge_parsed = (
+        _parse_agent_response(judge_response) if judge_response else None
+    )
+
+    if judge_parsed is not None:
+        consensus_prob, consensus_conf, consensus_reasoning = judge_parsed
     else:
         # Fallback: confidence-weighted average of all arguments
-        logger.warning(
-            "[debate_engine.run_debate] Judge agent failed, "
-            "falling back to weighted average"
-        )
+        if judge_response:
+            logger.warning(
+                "[debate_engine.run_debate] Judge response unparseable, "
+                "falling back to weighted average"
+            )
+        else:
+            logger.warning(
+                "[debate_engine.run_debate] Judge agent failed, "
+                "falling back to weighted average"
+            )
         all_args = bull_args + bear_args
         if not all_args:
             return None
@@ -584,7 +602,7 @@ async def run_debate(
             "Judge unavailable. Consensus derived from weighted average of "
             f"{len(bull_args)} bull and {len(bear_args)} bear arguments."
         )
-        judge_response = ""
+        judge_response = judge_response or ""
 
     consensus_prob = max(0.01, min(0.99, consensus_prob))
     consensus_conf = max(0.0, min(1.0, consensus_conf))

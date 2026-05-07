@@ -54,10 +54,8 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
                         market_state = {"regime": "neutral"}
                         attribute_trade_to_chromosomes(trade, strategy_genome, market_state)
                         logger.info(f"Performance attribution triggered for genome={genome_id}")
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+                    except Exception as e:
+                        logger.error(f"[agi_event_handlers] on_trade_executed inner error: {e}", exc_info=True)
             finally:
                 db.close()
         except Exception as exc:
@@ -239,6 +237,8 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
         db = _get_db()
         try:
             detect_regime_and_rebalance(db)
+        except Exception as e:
+            logger.warning(f"[agi_event_handlers] detect_regime_and_rebalance failed: {e}", exc_info=True)
             db.commit()
         except Exception:
             pass
@@ -264,7 +264,11 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_signal_found(event_type: str, data: Dict[str, Any]) -> None:
-    pass
+    if not _handler_flag("signal_found"):
+        return
+    # If no explicit signal found handler, just log that a signal was found.
+    # This keeps the registry clean but ensures we don't silently drop signals.
+    logger.debug(f"[agi_event_handlers] Signal found: {data.get('market_ticker')} - {data.get('direction')} {data.get('confidence')}")
 
 
 async def on_genome_promoted(event_type: str, data: Dict[str, Any]) -> None:
@@ -324,6 +328,27 @@ async def on_necromancy_report(event_type: str, data: Dict[str, Any]) -> None:
         logger.error(f"Handler necromancy_report failed: {exc}", exc_info=True)
 
 
+async def on_nightly_review_complete(event_type: str, data: Dict[str, Any]) -> None:
+    if not _handler_flag("nightly_review_complete"):
+        return
+    logger.info(f"[NightlyReviewKG] Review complete: {data.get('date')}")
+    try:
+        from backend.core.knowledge_graph import KnowledgeGraph
+        kg = KnowledgeGraph()
+        date_str = data.get("date")
+        review_id = f"review:{date_str}"
+        properties = {
+            "file_path": data.get("file_path"),
+            "date": date_str,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        kg.add_entity("nightly_review", review_id, properties)
+        kg.add_entity("system", "system", {"name": "Polyedge Core"})
+        kg.add_relation("system", review_id, "HAS_REVIEW", 1.0, 1.0)
+    except Exception as exc:
+        logger.error(f"Handler nightly_review_complete failed: {exc}", exc_info=True)
+
+
 async def on_archetype_allocation_changed(event_type: str, data: Dict[str, Any]) -> None:
     if not _handler_flag("archetype_allocation_changed"):
         return
@@ -347,6 +372,7 @@ REGISTRY: Dict[str, Any] = {
     "risk_manager_updated": on_risk_manager_updated,
     "necromancy_report": on_necromancy_report,
     "archetype_allocation_changed": on_archetype_allocation_changed,
+    "nightly_review_complete": on_nightly_review_complete,
 }
 
 

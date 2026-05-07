@@ -17,6 +17,7 @@ from typing import Optional
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
+from backend.core.errors import CircuitOpenError
 
 logger = logging.getLogger("trading_bot.cross_market_arb")
 
@@ -27,6 +28,8 @@ def _cfg(name, default):
 
 _poly_breaker = CircuitBreaker("polymarket", failure_threshold=5, recovery_timeout=60.0)
 _kalshi_breaker = CircuitBreaker("kalshi", failure_threshold=5, recovery_timeout=60.0)
+_consecutive_failures = 0
+_FAILURE_THRESHOLD = 5
 
 
 @dataclass
@@ -200,9 +203,15 @@ class CrossMarketArb(BaseStrategy):
 
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
                         opp.event_id = poly_m.get("conditionId", "")
+                        global _consecutive_failures
+                        if _consecutive_failures >= _FAILURE_THRESHOLD:
+                            raise CircuitOpenError("cross_market_arb")
                         result = await execute_cross_arb(opp, opp.event_id, ctx.clob)
                         if result.get("success"):
                             matched += 1
+                            _consecutive_failures = 0
+                        else:
+                            _consecutive_failures += 1
 
                 except Exception as exc:
                     errors.append(str(exc))

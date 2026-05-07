@@ -216,6 +216,7 @@ def _celsius_to_fahrenheit(c: float) -> float:
     return c * 9.0 / 5.0 + 32.0
 
 
+# WARNING: This function is for prediction purposes only — NOT for settlement resolution.
 async def fetch_ensemble_forecast(city_key: str, target_date: Optional[date] = None) -> Optional[EnsembleForecast]:
     """
     Fetch ensemble forecast from Open-Meteo Ensemble API (free, 31-member GFS).
@@ -359,4 +360,61 @@ async def fetch_nws_observed_temperature(city_key: str, target_date: Optional[da
 
     except Exception as e:
         logger.warning(f"Failed to fetch NWS observations for {city_key}: {e}")
+        return None
+
+
+async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
+    """Fetch METAR observation for a specific station and date from NOAA Aviation Weather.
+
+    Uses the NOAA Aviation Weather public API (no key required).
+    Selects the observation nearest midday to represent the daily condition.
+
+    Args:
+        station_id: 4-char ICAO station code (e.g. "KLGA", "KORD").
+        date: ISO date string "YYYY-MM-DD".
+
+    Returns:
+        dict with keys: station_id, time, temp_c, wind_kt, visibility_mi, weather.
+        Returns None if the API fails or no observations exist for that date.
+    """
+    NOAA_METAR_URL = "https://aviationweather.gov/cgi-bin/data/api/v1/aoaws/metar"
+    params = {
+        "dataSource": "metars",
+        "requestType": "retrieve",
+        "format": "json",
+        "stationString": station_id,
+        "startTime": f"{date}T00:00Z",
+        "endTime": f"{date}T23:59Z",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(NOAA_METAR_URL, params=params)
+            if resp.status_code != 200:
+                logger.warning("METAR fetch HTTP %s for %s on %s", resp.status_code, station_id, date)
+                return None
+            data = resp.json()
+
+        features = data.get("features", [])
+        if not features:
+            return None
+
+        def _nearest_noon_hour(obs: dict) -> int:
+            ts = obs.get("properties", {}).get("timestamp", "")
+            try:
+                return abs(datetime.fromisoformat(ts.replace("Z", "+00:00")).hour - 12)
+            except Exception:
+                return 99
+
+        chosen = min(features, key=_nearest_noon_hour)
+        props = chosen.get("properties", {})
+        return {
+            "station_id": props.get("station"),
+            "time": props.get("timestamp"),
+            "temp_c": props.get("temp_c"),
+            "wind_kt": props.get("wind_speed_kt"),
+            "visibility_mi": props.get("visibility_statute_mi"),
+            "weather": props.get("wx_string"),
+        }
+    except Exception as e:
+        logger.warning("Exception in fetch_noaa_metar(%s, %s): %s", station_id, date, e)
         return None

@@ -22,49 +22,67 @@ ROLLBACK_WR_THRESHOLD = -0.05
 ROLLBACK_SHARPE_THRESHOLD = -1.0
 
 
+def compute_sharpe(returns: list) -> float:
+    """Compute Sharpe-like ratio (mean / stdev) with div-by-zero guards.
+
+    Returns 0.0 for empty input, single-element input, or zero-mean inputs
+    where the ratio is undefined.
+    """
+    import statistics
+    if len(returns) < 2:
+        return 0.0
+    mean_return = statistics.mean(returns)
+    if mean_return == 0:
+        return 0.0
+    std_return = statistics.stdev(returns)
+    if std_return == 0:
+        return 0.0
+    return mean_return / std_return
+
+
 def measure_recent_changes(db: Optional[Session] = None) -> dict:
     """Measure all recently applied proposals that haven't been measured yet."""
-    _owned = db is None
-    db = db or SessionLocal()
+    from backend.db.utils import get_db_session
+    from contextlib import nullcontext
+    owns_db = db is None
+    ctx = get_db_session() if owns_db else nullcontext(db)
     stats = {"measured": 0, "improved": 0, "worse": 0, "rolled_back": 0}
-    try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-        proposals = db.query(StrategyProposal).filter(
-            StrategyProposal.admin_decision == "auto_approved",
-            StrategyProposal.executed_at.isnot(None),
-            StrategyProposal.executed_at >= cutoff,
-        ).all()
+    with ctx as db:
+        try:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+            proposals = db.query(StrategyProposal).filter(
+                StrategyProposal.admin_decision == "auto_approved",
+                StrategyProposal.executed_at.isnot(None),
+                StrategyProposal.executed_at >= cutoff,
+            ).all()
 
-        for proposal in proposals:
-            existing_fb = db.query(ProposalFeedback).filter(
-                ProposalFeedback.proposal_id == proposal.id
-            ).first()
-            if existing_fb and existing_fb.measured_at is not None:
-                continue
+            for proposal in proposals:
+                existing_fb = db.query(ProposalFeedback).filter(
+                    ProposalFeedback.proposal_id == proposal.id
+                ).first()
+                if existing_fb and existing_fb.measured_at is not None:
+                    continue
 
-            result = _measure_proposal(proposal, db)
-            if result is None:
-                continue
+                result = _measure_proposal(proposal, db)
+                if result is None:
+                    continue
 
-            stats["measured"] += 1
-            if result["improved"]:
-                stats["improved"] += 1
-            else:
-                stats["worse"] += 1
-                if result.get("should_rollback", False):
-                    _rollback_proposal(proposal, db)
-                    stats["rolled_back"] += 1
+                stats["measured"] += 1
+                if result["improved"]:
+                    stats["improved"] += 1
+                else:
+                    stats["worse"] += 1
+                    if result.get("should_rollback", False):
+                        _rollback_proposal(proposal, db)
+                        stats["rolled_back"] += 1
 
-        db.commit()
-        return stats
-    except Exception as e:
-        logger.error("[FeedbackTracker] measure failed: %s", e)
-        if _owned:
-            db.rollback()
-        return stats
-    finally:
-        if _owned:
-            db.close()
+            db.commit()
+            return stats
+        except Exception as e:
+            logger.error("[FeedbackTracker] measure failed: %s", e)
+            if owns_db:
+                db.rollback()
+            return stats
 
 
 def _measure_proposal(proposal: StrategyProposal, db: Session) -> Optional[dict]:

@@ -80,8 +80,8 @@ class Orchestrator:
             logger.error(f"Failed to seed strategies: {e}", exc_info=True)
         
         # Single session for backfill + mode context setup (fixes USE-AFTER-CLOSE CORE-1)
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             from backend.core.outcome_repository import backfill_missing_outcomes
             backfilled = backfill_missing_outcomes(db)
             if backfilled > 0:
@@ -120,8 +120,6 @@ class Orchestrator:
                 register_context(mode, context)
                 logger.info(f"Registered ModeExecutionContext for mode: {mode} (client={'SET' if clob_client else 'NONE'})")
                 logger.info(f"ModeExecutionContext registered for mode: {mode} with {len(strategy_configs)} strategies")
-        finally:
-            db.close()
 
         self._patch_weather_job()
 
@@ -426,8 +424,8 @@ async def main() -> None:
 
     try:
         from backend.models.database import SessionLocal, SystemSettings
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             mirofish_enabled = db.query(SystemSettings).filter(
                 SystemSettings.key == "mirofish_enabled"
             ).first()
@@ -437,8 +435,6 @@ async def main() -> None:
                 if not service.is_active():
                     service.start()
                     logger.info("MiroFish service auto-started (enabled in settings)")
-        finally:
-            db.close()
     except Exception as e:
         logger.debug(f"MiroFish auto-start check failed: {e}")
 

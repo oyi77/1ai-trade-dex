@@ -27,37 +27,36 @@ async def run_monitoring_check():
     - Disk space
     - Database connection pool
     """
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        manager = AlertManager(db)
+        with get_db_session() as db:
+            manager = AlertManager(db)
         
-        metrics = get_system_metrics()
+            metrics = get_system_metrics()
         
-        manager.check_memory_usage(metrics["memory_percent"])
-        manager.check_disk_space(metrics["disk_percent_free"])
-        manager.check_connection_pool(
-            metrics["pool_size"],
-            metrics["active_connections"]
-        )
+            manager.check_memory_usage(metrics["memory_percent"])
+            manager.check_disk_space(metrics["disk_percent_free"])
+            manager.check_connection_pool(
+                metrics["pool_size"],
+                metrics["active_connections"]
+            )
         
-        manager.check_circuit_breaker("database", db_breaker.current_state)
-        manager.check_circuit_breaker("polymarket_api", polymarket_breaker.current_state)
-        manager.check_circuit_breaker("kalshi_api", kalshi_breaker.current_state)
-        manager.check_circuit_breaker("redis", redis_breaker.current_state)
+            manager.check_circuit_breaker("database", db_breaker.current_state)
+            manager.check_circuit_breaker("polymarket_api", polymarket_breaker.current_state)
+            manager.check_circuit_breaker("kalshi_api", kalshi_breaker.current_state)
+            manager.check_circuit_breaker("redis", redis_breaker.current_state)
         
-        manager.check_error_rate()
+            manager.check_error_rate()
         
-        logger.debug(
-            f"Monitoring check complete: "
-            f"memory={metrics['memory_percent']:.1f}%, "
-            f"disk_free={metrics['disk_percent_free']:.1f}%, "
-            f"connections={metrics['active_connections']}/{metrics['pool_size']}"
-        )
+            logger.debug(
+                f"Monitoring check complete: "
+                f"memory={metrics['memory_percent']:.1f}%, "
+                f"disk_free={metrics['disk_percent_free']:.1f}%, "
+                f"connections={metrics['active_connections']}/{metrics['pool_size']}"
+            )
         
     except Exception as e:
         logger.error(f"Monitoring check failed: {e}")
         if db:
             manager = AlertManager(db)
             manager.record_error()
-    finally:
-        db.close()

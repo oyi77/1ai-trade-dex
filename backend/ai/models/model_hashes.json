@@ -1,0 +1,4 @@
+{
+  "_comment": "SHA256 hashes of trusted model artifacts. Update when retraining.",
+  "baseline.pkl": "0a9ce102c96e97d2195b53d2b449d023959679d7bf572d8d1f4ddb1c1134808c"
+}

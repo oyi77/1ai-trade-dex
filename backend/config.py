@@ -1,7 +1,7 @@
 """Configuration settings for the BTC 5-min trading bot."""
 
 import os
-from pydantic import model_validator, ConfigDict
+from pydantic import model_validator, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -126,6 +126,21 @@ class Settings(BaseSettings):
     # HFT risk parameters
     HFT_POSITION_SIZE_PCT: float = 0.25
     HFT_MAX_POSITION_USD: float = 1000.0
+
+    @field_validator('HFT_POSITION_SIZE_PCT')
+    @classmethod
+    def validate_hft_position_size_pct(cls, v):
+        if not (0.01 <= v <= 0.25):
+            raise ValueError(f"HFT_POSITION_SIZE_PCT must be between 0.01 and 0.25 (inclusive), got {v}")
+        return v
+
+    @field_validator('HFT_MAX_POSITION_USD')
+    @classmethod
+    def validate_hft_max_position_usd(cls, v):
+        if not (100 <= v <= 100000):
+            raise ValueError(f"HFT_MAX_POSITION_USD must be between 100 and 100000 (inclusive), got {v}")
+        return v
+
 
     # Parameter tuning safeguards (safe_param_tuner)
     SAFE_TUNER_MAX_CHANGE_PCT: float = 0.10  # Max 10% parameter drift per tuning cycle
@@ -257,10 +272,9 @@ class Settings(BaseSettings):
     # Paper trading slippage simulation (defaults = disabled for backward compatibility)
     PAPER_SLIPPAGE_BPS: float = 0.0  # Base slippage in basis points (0 = disabled)
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # Minimum slippage even for small orders (0.05%)
-    PAPER_SIZE_IMPACT_FACTOR: float = 0.5  # Slippage scales with order size
-    PAPER_CLOB_FEE_RATE: float = 0.02  # 2% CLOB fee on expected profits
-    PAPER_MIN_DEPTH_USD: float = 0.0  # Minimum orderbook depth required (0 = no check)
+    HFT_MAX_SLIPPAGE_BPS: float = 20.0
     PAPER_RANDOM_SLIPPAGE: bool = False  # Add random ±20% jitter to slippage
+
     MAX_TOPUPS: int = 10
     HISTORICAL_DATA_COLLECTOR_INTERVAL_HOURS: int = 6
 
@@ -405,6 +419,7 @@ class Settings(BaseSettings):
     # Weather EMOS thresholds
     WEATHER_KELLY_FRACTION: float = 0.15
     WEATHER_MAX_BANKROLL_FRACTION: float = 0.05
+    WEATHER_DB_PERSISTENCE: bool = False
 
     # External API base URLs
     GAMMA_API_URL: str = "https://gamma-api.polymarket.com"
@@ -493,15 +508,31 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_trading_params(self) -> "Settings":
-        if not (0.0 <= self.AI_SIGNAL_WEIGHT <= 0.50):
-            raise ValueError(f"AI_SIGNAL_WEIGHT must be in [0.0, 0.50], got {self.AI_SIGNAL_WEIGHT}")
-        if not (0.0 < self.KELLY_FRACTION <= 1.0):
-            raise ValueError(f"KELLY_FRACTION must be in (0.0, 1.0], got {self.KELLY_FRACTION}")
-        if not (0.0 < self.DAILY_DRAWDOWN_LIMIT_PCT <= 1.0):
-            raise ValueError(f"DAILY_DRAWDOWN_LIMIT_PCT must be in (0.0, 1.0], got {self.DAILY_DRAWDOWN_LIMIT_PCT}")
         if not (0.0 < self.WEEKLY_DRAWDOWN_LIMIT_PCT <= 1.0):
             raise ValueError(f"WEEKLY_DRAWDOWN_LIMIT_PCT must be in (0.0, 1.0], got {self.WEEKLY_DRAWDOWN_LIMIT_PCT}")
         return self
+
+    @field_validator('AI_SIGNAL_WEIGHT')
+    @classmethod
+    def validate_ai_signal_weight(cls, v):
+        if not (0.0 <= v <= 0.5):
+            raise ValueError(f"AI_SIGNAL_WEIGHT must be between 0.0 and 0.5 (inclusive), got {v}")
+        return v
+
+    @field_validator('KELLY_FRACTION')
+    @classmethod
+    def validate_kelly_fraction(cls, v):
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(f"KELLY_FRACTION must be between 0.0 and 1.0 (inclusive), got {v}")
+        return v
+
+    @field_validator('DAILY_DRAWDOWN_LIMIT_PCT')
+    @classmethod
+    def validate_daily_drawdown_limit_pct(cls, v):
+        if not (0.0 <= v <= 0.5):
+            raise ValueError(f"DAILY_DRAWDOWN_LIMIT_PCT must be between 0.0 and 0.5 (inclusive), got {v}")
+        return v
+
 
     model_config = ConfigDict(env_file=".env", extra="ignore")
 

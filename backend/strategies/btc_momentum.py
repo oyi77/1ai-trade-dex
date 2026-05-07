@@ -35,6 +35,7 @@ class BtcMomentumStrategy(BaseStrategy):
         "interval_seconds": 60,
         "max_trades_per_scan": 2,
         "max_trade_fraction": 0.03,
+        "_force_disabled": True,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:

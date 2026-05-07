@@ -102,23 +102,21 @@ class ProposalGenerator:
         Returns:
             Dictionary mapping strategy names to their current configurations
         """
-        db = SessionLocal()
-        try:
-            from backend.models.database import StrategyConfig
-            configs = db.query(StrategyConfig).all()
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+                from backend.models.database import StrategyConfig
+                configs = db.query(StrategyConfig).all()
             
-            result = {}
-            for config in configs:
-                import json
-                result[config.strategy_name] = {
-                    "enabled": config.enabled,
-                    "interval_seconds": config.interval_seconds,
-                    "params": json.loads(config.params) if config.params else {}
-                }
+                result = {}
+                for config in configs:
+                    import json
+                    result[config.strategy_name] = {
+                        "enabled": config.enabled,
+                        "interval_seconds": config.interval_seconds,
+                        "params": json.loads(config.params) if config.params else {}
+                    }
             
-            return result
-        finally:
-            db.close()
+                return result
     
     def _calculate_performance_metrics(self, trades: List[Trade]) -> Dict[str, Any]:
         """Calculate performance metrics from trades.
@@ -393,35 +391,33 @@ Be specific and actionable. Do not suggest vague improvements."""
         Returns:
             Database ID of stored proposal
         """
-        db = SessionLocal()
         try:
-            from backend.models.database import StrategyProposal as DBProposal
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
+                    from backend.models.database import StrategyProposal as DBProposal
             
-            db_proposal = DBProposal(
-                strategy_name=proposal.strategy_name,
-                change_details=proposal.change_details,
-                expected_impact=proposal.expected_impact,
-                admin_decision="pending",
-                status="pending",
-                auto_promotable=proposal.change_type in ("parameter_adjustment", "threshold_change"),
-                created_at=datetime.now(timezone.utc)
-            )
+                    db_proposal = DBProposal(
+                        strategy_name=proposal.strategy_name,
+                        change_details=proposal.change_details,
+                        expected_impact=proposal.expected_impact,
+                        admin_decision="pending",
+                        status="pending",
+                        auto_promotable=proposal.change_type in ("parameter_adjustment", "threshold_change"),
+                        created_at=datetime.now(timezone.utc)
+                    )
             
-            db.add(db_proposal)
-            db.commit()
-            db.refresh(db_proposal)
+                    db.add(db_proposal)
+                    db.commit()
+                    db.refresh(db_proposal)
             
-            proposal_id = db_proposal.id
-            self.logger.info(f"Stored proposal ID {proposal_id} in database")
+                    proposal_id = db_proposal.id
+                    self.logger.info(f"Stored proposal ID {proposal_id} in database")
             
-            return proposal_id
-            
+                    return proposal_id
         except Exception as e:
             db.rollback()
             self.logger.error(f"Failed to store proposal in database: {e}")
             raise
-        finally:
-            db.close()
     
     def get_pending_proposals(self) -> List[Dict[str, Any]]:
         """Retrieve all pending proposals from database.
@@ -429,30 +425,27 @@ Be specific and actionable. Do not suggest vague improvements."""
         Returns:
             List of proposal dictionaries
         """
-        db = SessionLocal()
-        try:
-            from backend.models.database import StrategyProposal as DBProposal
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+                from backend.models.database import StrategyProposal as DBProposal
             
-            proposals = db.query(DBProposal).filter(
-                DBProposal.admin_decision == "pending"
-            ).order_by(DBProposal.created_at.desc()).all()
+                proposals = db.query(DBProposal).filter(
+                    DBProposal.admin_decision == "pending"
+                ).order_by(DBProposal.created_at.desc()).all()
             
-            result = []
-            for p in proposals:
-                result.append({
-                    "id": p.id,
-                    "strategy_name": p.strategy_name,
-                    "change_details": p.change_details,
-                    "expected_impact": p.expected_impact,
-                    "admin_decision": p.admin_decision,
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                    "executed_at": p.executed_at.isoformat() if p.executed_at else None
-                })
+                result = []
+                for p in proposals:
+                    result.append({
+                        "id": p.id,
+                        "strategy_name": p.strategy_name,
+                        "change_details": p.change_details,
+                        "expected_impact": p.expected_impact,
+                        "admin_decision": p.admin_decision,
+                        "created_at": p.created_at.isoformat() if p.created_at else None,
+                        "executed_at": p.executed_at.isoformat() if p.executed_at else None
+                    })
             
-            return result
-            
-        finally:
-            db.close()
+                return result
     
     def approve_proposal(
         self,
@@ -470,37 +463,35 @@ Be specific and actionable. Do not suggest vague improvements."""
         Returns:
             True if approved successfully, False otherwise
         """
-        db = SessionLocal()
         try:
-            from backend.models.database import StrategyProposal as DBProposal
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
+                    from backend.models.database import StrategyProposal as DBProposal
             
-            proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
+                    proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
             
-            if not proposal:
-                self.logger.error(f"Proposal {proposal_id} not found")
-                return False
+                    if not proposal:
+                        self.logger.error(f"Proposal {proposal_id} not found")
+                        return False
             
-            if proposal.admin_decision != "pending":
-                self.logger.warning(f"Proposal {proposal_id} already {proposal.admin_decision}")
-                return False
+                    if proposal.admin_decision != "pending":
+                        self.logger.warning(f"Proposal {proposal_id} already {proposal.admin_decision}")
+                        return False
             
-            proposal.admin_decision = "approved"
-            proposal.admin_user_id = admin_user_id
-            proposal.admin_decision_reason = reason
-            proposal.executed_at = datetime.now(timezone.utc)
+                    proposal.admin_decision = "approved"
+                    proposal.admin_user_id = admin_user_id
+                    proposal.admin_decision_reason = reason
+                    proposal.executed_at = datetime.now(timezone.utc)
             
-            db.commit()
+                    db.commit()
             
-            self.logger.info(f"Proposal {proposal_id} approved by {admin_user_id}: {reason}")
+                    self.logger.info(f"Proposal {proposal_id} approved by {admin_user_id}: {reason}")
             
-            return True
-            
+                    return True
         except Exception as e:
             db.rollback()
             self.logger.error(f"Failed to approve proposal {proposal_id}: {e}")
             return False
-        finally:
-            db.close()
     
     def reject_proposal(
         self,
@@ -518,36 +509,34 @@ Be specific and actionable. Do not suggest vague improvements."""
         Returns:
             True if rejected successfully, False otherwise
         """
-        db = SessionLocal()
         try:
-            from backend.models.database import StrategyProposal as DBProposal
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
+                    from backend.models.database import StrategyProposal as DBProposal
             
-            proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
+                    proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
             
-            if not proposal:
-                self.logger.error(f"Proposal {proposal_id} not found")
-                return False
+                    if not proposal:
+                        self.logger.error(f"Proposal {proposal_id} not found")
+                        return False
             
-            if proposal.admin_decision != "pending":
-                self.logger.warning(f"Proposal {proposal_id} already {proposal.admin_decision}")
-                return False
+                    if proposal.admin_decision != "pending":
+                        self.logger.warning(f"Proposal {proposal_id} already {proposal.admin_decision}")
+                        return False
             
-            proposal.admin_decision = "rejected"
-            proposal.admin_user_id = admin_user_id
-            proposal.admin_decision_reason = reason
+                    proposal.admin_decision = "rejected"
+                    proposal.admin_user_id = admin_user_id
+                    proposal.admin_decision_reason = reason
             
-            db.commit()
+                    db.commit()
             
-            self.logger.info(f"Proposal {proposal_id} rejected by {admin_user_id}: {reason}")
+                    self.logger.info(f"Proposal {proposal_id} rejected by {admin_user_id}: {reason}")
             
-            return True
-            
+                    return True
         except Exception as e:
             db.rollback()
             self.logger.error(f"Failed to reject proposal {proposal_id}: {e}")
             return False
-        finally:
-            db.close()
 
 
 def auto_promote_eligible_proposals():
@@ -559,9 +548,9 @@ def auto_promote_eligible_proposals():
     3. Apply params with adaptive deviation limit (wider for broken strategies)
     """
     try:
-        from backend.models.database import SessionLocal, StrategyProposal as DBProposal, StrategyConfig
-        db = SessionLocal()
-        try:
+        from backend.models.database import StrategyProposal as DBProposal, StrategyConfig
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             eligible = db.query(DBProposal).filter(
                 DBProposal.status == "pending",
                 DBProposal.auto_promotable == True,
@@ -619,8 +608,6 @@ def auto_promote_eligible_proposals():
                             db.commit()
                 except Exception:
                     db.rollback()
-        finally:
-            db.close()
     except Exception as e:
         logger.error(f"auto_promote_eligible_proposals failed: {e}", exc_info=True)
 

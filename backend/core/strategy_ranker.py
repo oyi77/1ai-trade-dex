@@ -252,37 +252,35 @@ class StrategyRanker:
 
 async def strategy_ranking_job() -> None:
     """Scheduled job: rank strategies and log results."""
-    from backend.models.database import SessionLocal
+    from backend.db.utils import get_db_session
 
-    db = SessionLocal()
     try:
-        ranker = StrategyRanker()
-        ranked = ranker.rank_all(db, lookback_days=30, min_trades=5)
+        with get_db_session() as db:
+            ranker = StrategyRanker()
+            ranked = ranker.rank_all(db, lookback_days=30, min_trades=5)
 
-        if ranked:
-            logger.info("=== Strategy Rankings ===")
-            for i, r in enumerate(ranked, 1):
-                logger.info(
-                    f"  #{i} {r.name}: Sharpe={r.sharpe_ratio:.2f}, "
-                    f"WR={r.win_rate:.0%}, PnL=${r.total_pnl:+.2f}, "
-                    f"PF={r.profit_factor:.1f}, trades={r.total_trades}"
-                )
+            if ranked:
+                logger.info("=== Strategy Rankings ===")
+                for i, r in enumerate(ranked, 1):
+                    logger.info(
+                        f"  #{i} {r.name}: Sharpe={r.sharpe_ratio:.2f}, "
+                        f"WR={r.win_rate:.0%}, PnL=${r.total_pnl:+.2f}, "
+                        f"PF={r.profit_factor:.1f}, trades={r.total_trades}"
+                    )
 
-            # Auto-disable underperformers with enough data
-            all_disabled = []
-            for mode in settings.active_modes_set:
-                disabled = ranker.disable_underperformers(db, min_sharpe=0.0, min_trades=30, trading_mode=mode)
-                if disabled:
-                    all_disabled.extend(disabled)
-            if all_disabled:
-                logger.info(f"Auto-disabled underperformers: {all_disabled}")
-        else:
-            logger.info("No strategies with enough data for ranking")
+                # Auto-disable underperformers with enough data
+                all_disabled = []
+                for mode in settings.active_modes_set:
+                    disabled = ranker.disable_underperformers(db, min_sharpe=0.0, min_trades=30, trading_mode=mode)
+                    if disabled:
+                        all_disabled.extend(disabled)
+                if all_disabled:
+                    logger.info(f"Auto-disabled underperformers: {all_disabled}")
+            else:
+                logger.info("No strategies with enough data for ranking")
 
     except Exception as e:
         logger.error(f"Strategy ranking job failed: {e}")
-    finally:
-        db.close()
 
 
 # Module-level singleton

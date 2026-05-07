@@ -31,6 +31,15 @@ class StrategyContext:
     params: dict  # StrategyConfig.params from DB
     mode: str  # "paper" | "testnet" | "live"
 
+    # Providers dict mapping provider name to DataProvider instance
+    if TYPE_CHECKING:
+        from backend.data.provider import DataProvider
+    providers: dict[str, "DataProvider"] = field(default_factory=dict)
+
+    @property
+    def primary_provider(self):
+        return self.providers.get("polymarket")
+
 
 @dataclass
 class MarketInfo:

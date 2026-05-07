@@ -64,6 +64,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class TradeRole(str, Enum):
+    MAKER = "maker"
+    TAKER = "taker"
+    UNKNOWN = "unknown"
+
+
 def _set_sqlite_busy_timeout(connection_or_session, timeout_ms: int) -> None:
     """Apply a shorter busy_timeout for best-effort SQLite bootstrap work."""
 
@@ -145,6 +151,25 @@ class Trade(Base):
         String, default="pending"
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class HFTExecutionRecord(Base):
+    """Audit trail for HFT strategy executions."""
+
+    __tablename__ = "hft_execution_records"
+
+    execution_id = Column(String, primary_key=True)
+    signal_id = Column(String, index=True)
+    order_id = Column(String, nullable=True)
+    side = Column(String)  # "BUY" or "SELL"
+    size = Column(Float)
+    price = Column(Float)
+    execution_latency_ms = Column(Float)
+    status = Column(String)  # "pending", "filled", "failed", "queued", "cancelled"
+    error = Column(String, nullable=True)
+    timestamp = Column(Float)  # unix timestamp
+    created_at = Column(DateTime, server_default=text("(CURRENT_TIMESTAMP)"), index=True)
 
     # Model performance tracking
     model_probability = Column(Float)
@@ -153,6 +178,7 @@ class Trade(Base):
 
     # Trading mode this trade was placed in
     trading_mode = Column(String, default="paper", index=True)
+    role = Column(String, default="unknown", index=True)  # maker, taker, unknown
 
     # Strategy tracking
     strategy = Column(String, nullable=True)
@@ -403,6 +429,14 @@ class AILog(Base):
     error = Column(String, nullable=True)
 
 
+class EMOSCalibrationState(Base):
+    __tablename__ = "emos_calibration_state"
+    city = Column(String, primary_key=True)
+    obs_pairs_json = Column(Text, nullable=False)
+    a = Column(Float, nullable=False)
+    b = Column(Float, nullable=False)
+    last_updated = Column(DateTime, nullable=True)
+
 class ScanLog(Base):
     """Log of each market scan run."""
 
@@ -586,6 +620,33 @@ class TradeContext(Base):
     entry_signal = Column(Text, nullable=True)  # JSON string
     exit_signal = Column(Text, nullable=True)  # JSON string
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class ScheduledJob(Base):
+    """Persistent APScheduler job state for crash recovery.
+
+    Stores the registration metadata of every scheduled job so the scheduler
+    can rebuild its in-memory job table after a restart. The `job_state_json`
+    column captures trigger kwargs (interval, cron, etc.), function id, and
+    execution kwargs needed to re-add the job via APScheduler.
+    """
+
+    __tablename__ = "scheduled_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job_name = Column(String(255), unique=True, nullable=False, index=True)
+    job_state_json = Column(JSON, nullable=False)
+    last_run = Column(DateTime, nullable=True)
+    next_run = Column(DateTime, nullable=True)
+    enabled = Column(Boolean, default=True, nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class JobQueue(Base):
@@ -799,6 +860,7 @@ class CalibrationRecord(Base):
     direction = Column(String, nullable=False)
     actual_outcome = Column(String, nullable=True)  # "win"|"loss"|None (pending)
     settlement_value = Column(Float, nullable=True)
+    price_bucket = Column(String, nullable=True, index=True)  # e.g. "5-10c", "40-50c"
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
@@ -1767,6 +1829,31 @@ class KgEdge(Base):
 Index('idx_kg_from', KgEdge.from_node_id, KgEdge.relationship)
 Index('idx_kg_to', KgEdge.to_node_id, KgEdge.relationship)
 Index('idx_kg_type', KgNode.node_type)
+
+
+class ClobEvent(Base):
+    __tablename__ = "clob_events"
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(String, nullable=False)
+    maker = Column(String, nullable=False)
+    taker = Column(String, nullable=False)
+    market_id = Column(String, nullable=False, index=True)
+    side = Column(String, nullable=False)  # "BUY" or "SELL"
+    size = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    fee = Column(Float, nullable=False)
+    block_number = Column(Integer, nullable=False, index=True)
+    tx_hash = Column(String, nullable=False, unique=True, index=True)
+    timestamp = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
+        Index('ix_clob_events_block_number', 'block_number'),
+        Index('ix_clob_events_timestamp', 'timestamp'),
+        Index('ix_clob_events_market_id', 'market_id'),
+    )
+
 
 
 def get_db():

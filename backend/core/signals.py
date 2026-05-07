@@ -236,15 +236,13 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
     try:
         from backend.models.database import BotState, SessionLocal
 
-        _db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as _db:
             _state = _db.query(BotState).filter_by(mode=mode).first()
             if _state:
                 bankroll = float(
                     _state.bankroll if _state.bankroll is not None else settings.INITIAL_BANKROLL
                 )
-        finally:
-            _db.close()
     except Exception as _e:
         logger.debug(f"Bankroll read failed for mode {mode}, using INITIAL_BANKROLL: {_e}")
     suggested_size = calculate_kelly_size(
@@ -363,90 +361,89 @@ def _persist_signals(signals: list, mode: str = "paper"):
 
     execution_mode = mode
 
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        for signal in to_save:
-            existing = (
-                db.query(Signal)
-                .filter(
-                    Signal.market_ticker == signal.market.market_id,
-                    Signal.timestamp
-                    >= signal.timestamp.replace(second=0, microsecond=0),
+        with get_db_session() as db:
+            for signal in to_save:
+                existing = (
+                    db.query(Signal)
+                    .filter(
+                        Signal.market_ticker == signal.market.market_id,
+                        Signal.timestamp
+                        >= signal.timestamp.replace(second=0, microsecond=0),
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if existing:
-                continue
+                if existing:
+                    continue
 
-            db_signal = Signal(
-                market_ticker=signal.market.market_id,
-                platform="polymarket",
-                timestamp=signal.timestamp,
-                direction=signal.direction,
-                model_probability=signal.model_probability,
-                market_price=signal.market_probability,
-                edge=signal.edge,
-                confidence=signal.confidence,
-                kelly_fraction=signal.kelly_fraction,
-                suggested_size=signal.suggested_size,
-                sources=signal.sources,
-                reasoning=signal.reasoning,
-                execution_mode=execution_mode,
-                executed=False,
-            )
-            db.add(db_signal)
-            try:
-                from backend.core.event_bus import _broadcast_event
+                db_signal = Signal(
+                    market_ticker=signal.market.market_id,
+                    platform="polymarket",
+                    timestamp=signal.timestamp,
+                    direction=signal.direction,
+                    model_probability=signal.model_probability,
+                    market_price=signal.market_probability,
+                    edge=signal.edge,
+                    confidence=signal.confidence,
+                    kelly_fraction=signal.kelly_fraction,
+                    suggested_size=signal.suggested_size,
+                    sources=signal.sources,
+                    reasoning=signal.reasoning,
+                    execution_mode=execution_mode,
+                    executed=False,
+                )
+                db.add(db_signal)
+                try:
+                    from backend.core.event_bus import _broadcast_event
 
-                # Find the original signal to get full context
-                original_signal = next(
-                    (
-                        s
-                        for s in signals
-                        if s.market.market_id == db_signal.market_ticker
-                    ),
-                    None,
-                )
-                market_title = (
-                    f"BTC {original_signal.market.window_start.strftime('%H:%M')} - {original_signal.market.window_end.strftime('%H:%M')} UTC"
-                    if original_signal
-                    else db_signal.market_ticker
-                )
-                _broadcast_event(
-                    "signal_found",
-                    {
-                        "market_ticker": db_signal.market_ticker,
-                        "market_title": market_title,
-                        "direction": db_signal.direction,
-                        "model_probability": db_signal.model_probability,
-                        "market_probability": db_signal.market_price,
-                        "edge": db_signal.edge,
-                        "confidence": db_signal.confidence,
-                        "suggested_size": db_signal.suggested_size,
-                        "reasoning": db_signal.reasoning,
-                        "timestamp": db_signal.timestamp.isoformat(),
-                        "category": "trading",
-                        "btc_price": original_signal.btc_price
+                    # Find the original signal to get full context
+                    original_signal = next(
+                        (
+                            s
+                            for s in signals
+                            if s.market.market_id == db_signal.market_ticker
+                        ),
+                        None,
+                    )
+                    market_title = (
+                        f"BTC {original_signal.market.window_start.strftime('%H:%M')} - {original_signal.market.window_end.strftime('%H:%M')} UTC"
                         if original_signal
-                        else None,
-                        "window_end": original_signal.market.window_end.isoformat()
-                        if original_signal and original_signal.market.window_end
-                        else None,
-                        "actionable": abs(db_signal.edge) >= 0.02,
-                        "event_slug": original_signal.market.slug
-                        if original_signal
-                        else None,
-                    },
-                )
-            except Exception as _e:
-                logger.debug(f"Event broadcast failed for signal: {_e}")
+                        else db_signal.market_ticker
+                    )
+                    _broadcast_event(
+                        "signal_found",
+                        {
+                            "market_ticker": db_signal.market_ticker,
+                            "market_title": market_title,
+                            "direction": db_signal.direction,
+                            "model_probability": db_signal.model_probability,
+                            "market_probability": db_signal.market_price,
+                            "edge": db_signal.edge,
+                            "confidence": db_signal.confidence,
+                            "suggested_size": db_signal.suggested_size,
+                            "reasoning": db_signal.reasoning,
+                            "timestamp": db_signal.timestamp.isoformat(),
+                            "category": "trading",
+                            "btc_price": original_signal.btc_price
+                            if original_signal
+                            else None,
+                            "window_end": original_signal.market.window_end.isoformat()
+                            if original_signal and original_signal.market.window_end
+                            else None,
+                            "actionable": abs(db_signal.edge) >= 0.02,
+                            "event_slug": original_signal.market.slug
+                            if original_signal
+                            else None,
+                        },
+                    )
+                except Exception as _e:
+                    logger.debug(f"Event broadcast failed for signal: {_e}")
 
-        db.commit()
+            db.commit()
     except Exception as e:
         logger.warning(f"Failed to persist signals: {e}")
         db.rollback()
-    finally:
-        db.close()
 
 
 async def get_actionable_signals(mode: str = "paper") -> List[TradingSignal]:

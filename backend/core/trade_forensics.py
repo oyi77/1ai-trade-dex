@@ -14,7 +14,49 @@ from collections import Counter
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.models.database import SessionLocal, Trade
+from backend.models.database import SessionLocal, Trade, TradeRole
+
+def classify_trade_role(
+    order_type: str | None,
+    fill_price: float | None,
+    mid_price: float | None,
+    maker_rebate: float | None,
+    taker_fee: float | None,
+) -> str:
+    """Classify a trade as MAKER, TAKER, or UNKNOWN.
+
+    Args:
+        order_type: 'market' or 'limit'
+        fill_price: actual fill price
+        mid_price: mid price of order book at time of fill (optional)
+        maker_rebate: maker rebate amount (optional, positive = maker)
+        taker_fee: taker fee amount (optional, positive = taker)
+
+    Returns:
+        'maker', 'taker', or 'unknown'
+    """
+    # Market orders are always takers
+    if order_type == "market":
+        return "taker"
+
+    # Positive maker rebate → definitely a maker
+    if maker_rebate is not None and maker_rebate > 0:
+        return "maker"
+
+    # Positive taker fee → definitely a taker
+    if taker_fee is not None and taker_fee > 0:
+        return "taker"
+
+    # Limit order near mid → likely maker
+    if order_type == "limit" and fill_price is not None and mid_price is not None:
+        spread = abs(fill_price - mid_price)
+        # If fill is within 0.5% of mid, call it a maker
+        if mid_price > 0 and spread / mid_price < 0.005:
+            return "maker"
+
+    return "unknown"
+
+
 from backend.models.kg_models import DecisionAuditLog
 from backend.core.signals import TradingSignal
 
@@ -45,48 +87,45 @@ class TradeForensics:
 
         Returns insights: {root_cause, confidence, contributing_factors, suggestions}
         """
-        db = SessionLocal()
-        try:
-            trade = db.query(Trade).filter_by(id=trade_id).first()
-            if not trade or trade.result != "loss":
-                return None
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+                trade = db.query(Trade).filter_by(id=trade_id).first()
+                if not trade or trade.result != "loss":
+                    return None
 
-            # Fetch linked signal and approval decision
-            signal = None
-            if trade.signal_id:
-                from backend.models.database import Signal
-                signal = db.query(Signal).filter_by(id=trade.signal_id).first()
+                # Fetch linked signal and approval decision
+                signal = None
+                if trade.signal_id:
+                    from backend.models.database import Signal
+                    signal = db.query(Signal).filter_by(id=trade.signal_id).first()
 
-            # Gather context
-            context = {
-                "trade_id": trade_id,
-                "strategy": getattr(trade, "strategy", None) or "unknown",
-                "market": trade.market_ticker,
-                "side": trade.direction,
-                "size": trade.size,
-                "entry_price": trade.entry_price,
-                "pnl": trade.pnl,
-                "result": trade.result,
-                "timestamp": trade.timestamp.isoformat() if trade.timestamp else None,
-                "settlement_time": trade.settlement_time.isoformat() if trade.settlement_time else None,
-                "signal_confidence": signal.confidence if signal else None,
-                "signal_edge": getattr(signal, "edge", None) if signal else None,
-            }
+                # Gather context
+                context = {
+                    "trade_id": trade_id,
+                    "strategy": getattr(trade, "strategy", None) or "unknown",
+                    "market": trade.market_ticker,
+                    "side": trade.direction,
+                    "size": trade.size,
+                    "entry_price": trade.entry_price,
+                    "pnl": trade.pnl,
+                    "result": trade.result,
+                    "timestamp": trade.timestamp.isoformat() if trade.timestamp else None,
+                    "settlement_time": trade.settlement_time.isoformat() if trade.settlement_time else None,
+                    "signal_confidence": signal.confidence if signal else None,
+                    "signal_edge": getattr(signal, "edge", None) if signal else None,
+                }
 
-            # Diagnose using heuristics
-            diagnosis = self._diagnose(trade, signal, db)
-            context.update(diagnosis)
+                # Diagnose using heuristics
+                diagnosis = self._diagnose(trade, signal, db)
+                context.update(diagnosis)
 
-            # Cache and log
-            self._analysis_cache[trade_id] = context
-            logger.info(
-                f"[TradeForensics] Analyzed loss trade#{trade_id} ({trade.strategy}): "
-                f"cause={diagnosis.get('root_cause')}, conf={diagnosis.get('confidence', 0):.0%}"
-            )
-            return context
-
-        finally:
-            db.close()
+                # Cache and log
+                self._analysis_cache[trade_id] = context
+                logger.info(
+                    f"[TradeForensics] Analyzed loss trade#{trade_id} ({trade.strategy}): "
+                    f"cause={diagnosis.get('root_cause')}, conf={diagnosis.get('confidence', 0):.0%}"
+                )
+                return context
 
     def _diagnose(
         self,
@@ -124,15 +163,13 @@ class TradeForensics:
 
         # 3. Check if strategy was already warned
         from backend.core.strategy_health import StrategyHealthMonitor
+        from backend.db.utils import get_db_session
         health = StrategyHealthMonitor()
-        db_for_health = SessionLocal()
-        try:
+        with get_db_session() as db_for_health:
             if health.should_warn(trade.strategy, db_for_health):
                 causes.append("strategy_degrading")
                 confidence += 0.2
                 factors.append("strategy in warned state")
-        finally:
-            db_for_health.close()
 
         ts = trade.timestamp or datetime.now(timezone.utc)
         recent_losses = (
@@ -172,46 +209,43 @@ class TradeForensics:
 
         Returns summary: {total_losses, pattern_distribution, top_suggestions}
         """
-        db = SessionLocal()
-        try:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
-            losses = (
-                db.query(Trade)
-                .filter(
-                    Trade.result == "loss",
-                    Trade.settlement_time >= cutoff,
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+                cutoff = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+                losses = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.result == "loss",
+                        Trade.settlement_time >= cutoff,
+                    )
+                    .all()
                 )
-                .all()
-            )
 
-            analyses = []
-            for trade in losses:
-                analysis = await self.analyze_losing_trade(trade.id)
-                if analysis:
-                    analyses.append(analysis)
+                analyses = []
+                for trade in losses:
+                    analysis = await self.analyze_losing_trade(trade.id)
+                    if analysis:
+                        analyses.append(analysis)
 
-            # Aggregate stats
-            total = len(analyses)
-            causes = Counter(a["root_cause"] for a in analyses)
-            all_factors = [f for a in analyses for f in a.get("contributing_factors", [])]
-            top_suggestions = Counter(
-                s for a in analyses for s in a.get("suggestions", [])
-            ).most_common(5)
+                # Aggregate stats
+                total = len(analyses)
+                causes = Counter(a["root_cause"] for a in analyses)
+                all_factors = [f for a in analyses for f in a.get("contributing_factors", [])]
+                top_suggestions = Counter(
+                    s for a in analyses for s in a.get("suggestions", [])
+                ).most_common(5)
 
-            summary = {
-                "lookback_hours": lookback_hours,
-                "total_losses": total,
-                "pattern_distribution": dict(causes.most_common()),
-                "top_contributing_factors": Counter(all_factors).most_common(10),
-                "top_suggestions": top_suggestions,
-                "analyzed_at": datetime.now(timezone.utc).isoformat(),
-            }
+                summary = {
+                    "lookback_hours": lookback_hours,
+                    "total_losses": total,
+                    "pattern_distribution": dict(causes.most_common()),
+                    "top_contributing_factors": Counter(all_factors).most_common(10),
+                    "top_suggestions": top_suggestions,
+                    "analyzed_at": datetime.now(timezone.utc).isoformat(),
+                }
 
-            logger.info(f"[TradeForensics] Summary: {summary}")
-            return summary
-
-        finally:
-            db.close()
+                logger.info(f"[TradeForensics] Summary: {summary}")
+                return summary
 
 
 # Module-level singleton

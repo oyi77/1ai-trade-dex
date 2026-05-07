@@ -108,8 +108,8 @@ async def get_edge_performance(
 @router.get("/whales/transactions")
 async def get_whale_transactions(limit: int = 50, _: None = Depends(require_admin)):
     """Return recent whale transactions from DB."""
-    db = SessionLocal()
-    try:
+    from backend.db.utils import get_db_session
+    with get_db_session() as db:
         rows = (
             db.query(WhaleTransaction)
             .order_by(WhaleTransaction.observed_at.desc())
@@ -129,8 +129,6 @@ async def get_whale_transactions(limit: int = 50, _: None = Depends(require_admi
             }
             for r in rows
         ]
-    finally:
-        db.close()
 
 
 @router.get("/news/feed")

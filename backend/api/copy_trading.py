@@ -148,35 +148,34 @@ async def get_copy_leaderboard(limit: int = 100, _: None = Depends(require_admin
 async def get_copy_signals(limit: int = 20, _: None = Depends(require_admin)):
     """Return recent copy trade signals from the DB."""
     limit = min(limit, 500)
-    db = SessionLocal()
+    from backend.db.utils import get_db_session
     try:
-        signals = (
-            db.query(Signal)
-            .filter(Signal.market_type == "copy")
-            .order_by(Signal.timestamp.desc())
-            .limit(limit)
-            .all()
-        )
-        return [
-            CopySignalResponse(
-                source_wallet=s.sources[0] if s.sources else "",
-                our_side=s.direction,
-                our_outcome="YES",
-                our_size=s.suggested_size,
-                market_price=s.market_price,
-                trader_score=s.confidence * 100,
-                reasoning=s.reasoning,
-                condition_id=s.market_ticker,
-                title=s.market_ticker,
-                timestamp=s.timestamp.isoformat(),
+        with get_db_session() as db:
+            signals = (
+                db.query(Signal)
+                .filter(Signal.market_type == "copy")
+                .order_by(Signal.timestamp.desc())
+                .limit(limit)
+                .all()
             )
-            for s in signals
-        ]
+            return [
+                CopySignalResponse(
+                    source_wallet=s.sources[0] if s.sources else "",
+                    our_side=s.direction,
+                    our_outcome="YES",
+                    our_size=s.suggested_size,
+                    market_price=s.market_price,
+                    trader_score=s.confidence * 100,
+                    reasoning=s.reasoning,
+                    condition_id=s.market_ticker,
+                    title=s.market_ticker,
+                    timestamp=s.timestamp.isoformat(),
+                )
+                for s in signals
+            ]
     except Exception as e:
         logger.warning(f"Copy signals fetch failed: {e}")
         return []
-    finally:
-        db.close()
 
 
 @router.get("/positions")

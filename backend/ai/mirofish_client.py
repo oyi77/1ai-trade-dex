@@ -75,8 +75,8 @@ class MiroFishClient:
         # Try to read from database first
         db_source = None
         try:
-            db = SessionLocal()
-            try:
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
                 # Query database for credentials
                 if not self.api_url:
                     db_url = db.query(SystemSettings).filter(
@@ -103,8 +103,6 @@ class MiroFishClient:
                         self.timeout = float(db_timeout.value)
                         if not db_source:
                             db_source = "database"
-            finally:
-                db.close()
         except Exception as e:
             logger.warning(f"Failed to read MiroFish settings from database: {e}")
         

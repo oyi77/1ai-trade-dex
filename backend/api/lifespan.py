@@ -130,8 +130,8 @@ async def _stats_broadcaster():
                 from backend.api.system import get_stats
                 from backend.models.database import SessionLocal
                 
-                db = SessionLocal()
-                try:
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
                     # Get stats for all 3 modes
                     stats = await get_stats(db=db, mode=None)
                     await topic_manager.broadcast(
@@ -142,8 +142,6 @@ async def _stats_broadcaster():
                             "data": stats.model_dump(mode='json'),
                         }
                     )
-                finally:
-                    db.close()
             else:
                 logger.debug(f"No active WebSocket connections, skipping broadcast")
         except Exception as e:
@@ -164,16 +162,14 @@ async def _startup_polymarket_websocket():
         if settings.POLYMARKET_WS_ENABLED:
             asset_ids = []
             condition_ids = []
-            db = SessionLocal()
-            try:
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
                 active_markets = db.query(MarketWatch).all()
                 for market in active_markets:
                     if market.token_id:
                         asset_ids.append(market.token_id)
                     if market.condition_id:
                         condition_ids.append(market.condition_id)
-            finally:
-                db.close()
             
             if asset_ids:
                 market_ws = await get_market_websocket(asset_ids)
@@ -244,32 +240,31 @@ async def _startup_polymarket_websocket():
                         from backend.core.event_bus import publish_event
                         publish_event("user_trade_fill", event)
                         
-                        db = SessionLocal()
                         try:
-                            trade_id = event.get("id")
-                            status = event.get("status")
+                            from backend.db.utils import get_db_session
+                            with get_db_session() as db:
+                                    trade_id = event.get("id")
+                                    status = event.get("status")
                             
-                            if status == "CONFIRMED":
-                                trade = db.query(Trade).filter(
-                                    Trade.clob_order_id == trade_id
-                                ).first()
-                                if trade and not trade.settled:
-                                    trade.settled = True
-                                    from datetime import timezone
-                                    trade.settlement_time = time.time()
-                                    db.commit()
-                                    logger.info(f"Trade {trade_id} confirmed on-chain")
+                                    if status == "CONFIRMED":
+                                        trade = db.query(Trade).filter(
+                                            Trade.clob_order_id == trade_id
+                                        ).first()
+                                        if trade and not trade.settled:
+                                            trade.settled = True
+                                            from datetime import timezone
+                                            trade.settlement_time = time.time()
+                                            db.commit()
+                                            logger.info(f"Trade {trade_id} confirmed on-chain")
                                     
-                                    async def _refresh_task():
-                                        await _refresh_balance_cache()
-                                    asyncio.create_task(_refresh_task())
+                                            async def _refresh_task():
+                                                await _refresh_balance_cache()
+                                            asyncio.create_task(_refresh_task())
                         except Exception as e:
                             logger.error(
                                 f"[api.main.handle_user_trade] {type(e).__name__}: Error updating trade status: {e}",
                                 exc_info=True
                             )
-                        finally:
-                            db.close()
                     
                     user_ws.on_user_order(lambda e: logger.info(f"Order update: {e.get('id')} - {e.get('status')}"))
                     user_ws.on_user_trade(_handle_user_trade)
@@ -298,8 +293,8 @@ async def _startup_polymarket_websocket():
 async def _startup_bankroll_reconciliation():
     """Perform bankroll reconciliation at startup."""
     try:
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             await reconcile_bot_state(
                 db,
                 modes=("live",),
@@ -307,8 +302,6 @@ async def _startup_bankroll_reconciliation():
                 commit=True,
                 source="api_startup_live_reconcile",
             )
-        finally:
-            db.close()
     except Exception as e:
         logger.warning(
             f"[api.main.lifespan] {type(e).__name__}: Live bankroll startup reconciliation failed: {e}",
@@ -381,19 +374,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("Initializing settings cache...")
     try:
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             count = reload_settings_from_db(db)
             logger.info(f"  - Loaded {count} settings into cache")
-        finally:
-            db.close()
     except Exception as e:
         logger.warning(f"Failed to initialize settings cache: {e}", exc_info=True)
 
     # Seed slippage settings into SystemSettings so they appear in SettingsEditor UI
     try:
-        db2 = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db2:
             _PAPER_SLIPPAGE_DEFAULTS = {
                 "PAPER_SLIPPAGE_BPS": 20.0,
                 "PAPER_MIN_SLIPPAGE_BPS": 5.0,
@@ -410,34 +401,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             if seeded:
                 db2.commit()
                 logger.info(f"  - Seeded {seeded} paper slippage settings into SystemSettings")
-        finally:
-            db2.close()
     except Exception as e:
         logger.debug(f"Slippage SystemSettings seeding skipped: {e}")
 
-    db = SessionLocal()
-    try:
-        state = db.query(BotState).first()
-        if not state:
-            state = BotState(
-                bankroll=settings.INITIAL_BANKROLL,
-                paper_bankroll=settings.INITIAL_BANKROLL,
-                total_trades=0,
-                winning_trades=0,
-                total_pnl=0.0,
-                is_running=True,
-            )
-            db.add(state)
-            db.commit()
-            logger.info(f"Created new bot state with ${settings.INITIAL_BANKROLL:,.2f} bankroll")
-        else:
-            state.is_running = True
-            db.commit()
-            logger.info(
-                f"Loaded bot state: Bankroll ${state.bankroll:,.2f}, P&L ${state.total_pnl:+,.2f}, {state.total_trades} trades"
-            )
-    finally:
-        db.close()
+    from backend.db.utils import get_db_session
+    with get_db_session() as db:
+            state = db.query(BotState).first()
+            if not state:
+                state = BotState(
+                    bankroll=settings.INITIAL_BANKROLL,
+                    paper_bankroll=settings.INITIAL_BANKROLL,
+                    total_trades=0,
+                    winning_trades=0,
+                    total_pnl=0.0,
+                    is_running=True,
+                )
+                db.add(state)
+                db.commit()
+                logger.info(f"Created new bot state with ${settings.INITIAL_BANKROLL:,.2f} bankroll")
+            else:
+                state.is_running = True
+                db.commit()
+                logger.info(
+                    f"Loaded bot state: Bankroll ${state.bankroll:,.2f}, P&L ${state.total_pnl:+,.2f}, {state.total_trades} trades"
+                )
     
     logger.info("")
     logger.info("Configuration:")
@@ -467,14 +454,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             except Exception:
                 clob_client = None
             risk_manager = RiskManager()
-            db = SessionLocal()
-            try:
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
                 configs = db.query(StrategyConfig).filter(
                     (StrategyConfig.mode == mode) | (StrategyConfig.mode == None)
                 ).all()
                 strategy_configs = {c.strategy_name: c for c in configs}
-            finally:
-                db.close()
             context = ModeExecutionContext(
                 mode=mode,
                 clob_client=clob_client,
@@ -665,8 +650,8 @@ async def _startup_wallet_sync():
             if settings.is_mode_active("live") or settings.is_mode_active("paper"):
                 try:
                     clob = clob_from_settings(mode=mode)
-                    reconciler_db = SessionLocal()
-                    try:
+                    from backend.db.utils import get_db_session
+                    with get_db_session() as reconciler_db:
                         reconciler = WalletReconciler(clob, reconciler_db, mode)
                         result = await reconciler.full_reconciliation()
                         state = reconciler_db.query(BotState).first()
@@ -678,8 +663,6 @@ async def _startup_wallet_sync():
                             f"updated={result.updated_count}, closed={result.closed_count}, "
                             f"errors={len(result.errors)}"
                         )
-                    finally:
-                        reconciler_db.close()
                 except Exception as e:
                     logger.warning(
                         f"[api.main.lifespan] {type(e).__name__}: Startup recovery [{mode}] failed: {e}",
@@ -716,34 +699,34 @@ def _seed_strategy_configs() -> None:
 
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
-        db = SessionLocal()
+        from backend.db.utils import get_db_session
         try:
-            _set_startup_sqlite_busy_timeout(db, 1000)
-            added = 0
-            for name, enabled, interval, params in strategy_defaults:
-                exists = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
-                if not exists:
-                    db.add(StrategyConfig(
-                        strategy_name=name,
-                        enabled=enabled,
-                        interval_seconds=interval,
-                        params=_json.dumps(params),
-                    ))
-                    added += 1
+            with get_db_session() as db:
+                _set_startup_sqlite_busy_timeout(db, 1000)
+                added = 0
+                for name, enabled, interval, params in strategy_defaults:
+                    exists = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
+                    if not exists:
+                        db.add(StrategyConfig(
+                            strategy_name=name,
+                            enabled=enabled,
+                            interval_seconds=interval,
+                            params=_json.dumps(params),
+                        ))
+                        added += 1
+                    else:
+                        exists.enabled = enabled
+                        exists.interval_seconds = interval
+                        exists.params = _json.dumps(params)
+                        added += 1
+                if added:
+                    db.commit()
+                    logger.info(f"Committed {added} strategy config changes")
+                    logger.info(f"Seeded {added} strategy configs into database")
                 else:
-                    exists.enabled = enabled
-                    exists.interval_seconds = interval
-                    exists.params = _json.dumps(params)
-                    added += 1
-            if added:
-                db.commit()
-                logger.info(f"Committed {added} strategy config changes")
-                logger.info(f"Seeded {added} strategy configs into database")
-            else:
-                logger.info("No strategy config changes needed")
-            return
+                    logger.info("No strategy config changes needed")
+                return
         except OperationalError as exc:
-            db.rollback()
             if "database is locked" not in str(exc).lower() or attempt == max_attempts:
                 logger.warning(
                     "Strategy config seeding skipped during startup after %s attempt(s): %s",
@@ -760,5 +743,3 @@ def _seed_strategy_configs() -> None:
                 backoff,
             )
             time.sleep(backoff)
-        finally:
-            db.close()

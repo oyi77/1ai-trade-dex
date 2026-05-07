@@ -126,8 +126,8 @@ async def watchdog_job() -> None:
 
     _flush_heartbeats()
 
-    db = SessionLocal()
-    try:
+    from backend.db.utils import get_db_session
+    with get_db_session() as db:
         healths = get_strategy_health(db)
         for h in healths:
             if not h["healthy"] and h["lag_seconds"] is not None:
@@ -168,8 +168,6 @@ async def watchdog_job() -> None:
                         )
                 except Exception as te:
                     logger.debug(f"Watchdog Telegram alert failed: {te}")
-    finally:
-        db.close()
 
 
 def _send_telegram_alert_sync(message: str) -> None:
@@ -206,8 +204,8 @@ async def wallet_sync_job() -> None:
 
     modes_to_sync = set()
     try:
-        _db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as _db:
             configs = (
                 _db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
             )
@@ -215,8 +213,6 @@ async def wallet_sync_job() -> None:
                 cfg_mode = cfg.trading_mode
                 if cfg_mode in ("live", "testnet"):
                     modes_to_sync.add(cfg_mode)
-        finally:
-            _db.close()
     except Exception:
         pass
 

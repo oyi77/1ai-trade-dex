@@ -24,8 +24,8 @@ def set_best_accuracy(value: float) -> None:
 
 async def check_and_trigger_retraining() -> dict:
     try:
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             settled_count = db.query(Trade).filter(Trade.settled == True).count()
             if settled_count < 50:
                 return {"status": "skipped", "reason": f"only {settled_count} settled trades, need 50"}
@@ -44,8 +44,6 @@ async def check_and_trigger_retraining() -> dict:
                 except Exception as e:
                     logger.error(f"Accuracy comparison failed: {e}")
             return result
-        finally:
-            db.close()
     except Exception as e:
         logger.error(f"Retrain trigger failed: {e}")
         return {"status": "error", "reason": str(e)}

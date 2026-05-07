@@ -64,6 +64,7 @@ async def calculate_position_market_value(
             "position_market_value": 0.0,
             "unrealized_pnl": 0.0,
             "telemetry": telemetry,
+            "price_certainty": "actual",
         }
 
     # Extract unique tickers
@@ -80,6 +81,7 @@ async def calculate_position_market_value(
             "position_market_value": 0.0,
             "unrealized_pnl": round(-position_cost, 2),
             "telemetry": telemetry,
+            "price_certainty": "actual",
         }
 
     # Fetch prices with fallback strategy
@@ -188,6 +190,7 @@ async def calculate_position_market_value(
         "position_cost": position_cost,
         "position_market_value": position_market_value,
         "unrealized_pnl": unrealized_pnl,
+        "price_certainty": "estimated" if telemetry["fallbacks_used"] > 0 else "actual",
         "telemetry": telemetry,
     }
 

@@ -1572,8 +1572,8 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
 
         cls = STRATEGY_REGISTRY[name]
         instance = cls()
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             cfg = (
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.strategy_name == name)
@@ -1627,8 +1627,6 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                         d["trading_mode"] = mode
                     await execute_decisions(decisions_copy, name, db=db)
 
-        finally:
-            db.close()
 
         return {
             "status": "ok",

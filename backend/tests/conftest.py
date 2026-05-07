@@ -156,7 +156,6 @@ _MODULES_WITH_SESSIONLOCAL = [
     "backend.application.strategy.shadow_runner",
     "backend.application.agi.evolution_jobs",
     "backend.application.agi.knowledge_graph",
-    "backend.application.strategy.arbitrage.pair_cost_monitor",
     "backend.api.lifespan",
     "backend.api.activities",
     "backend.api.analytics",

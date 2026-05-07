@@ -765,11 +765,38 @@ async def _resolve_markets(
         try:
             platform = trade_platforms.get(ticker, "polymarket") or "polymarket"
             async with _gamma_semaphore:
+                metar_observed = None
+                if is_weather:
+                    try:
+                        from backend.data.weather import CITY_CONFIG, fetch_noaa_metar
+                        city_key = ticker if ticker in CITY_CONFIG else next(
+                            (k for k in CITY_CONFIG if k in (ticker or "").lower()),
+                            None,
+                        )
+                        if city_key and CITY_CONFIG[city_key].get("nws_station"):
+                            station_id = CITY_CONFIG[city_key]["nws_station"]
+                            today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                            metar_observed = await fetch_noaa_metar(station_id, today_str)
+                    except Exception as metar_err:
+                        logger.debug(
+                            f"[settlement_helpers._resolve_one] METAR lookup skipped for {ticker}: {metar_err}"
+                        )
+
                 if is_weather and platform == "kalshi":
                     result = await _fetch_kalshi_resolution(ticker)
                 else:
                     result = await fetch_polymarket_resolution(
                         ticker, event_slug=trade_slugs.get(ticker)
+                    )
+
+                if is_weather and metar_observed:
+                    logger.info(
+                        f"Weather settlement {ticker}: METAR observation used as primary source "
+                        f"(station={metar_observed.get('station_id')}, temp_c={metar_observed.get('temp_c')})"
+                    )
+                elif is_weather:
+                    logger.info(
+                        f"Weather settlement {ticker}: METAR unavailable, falling back to NWS/platform forecast"
                     )
                 await asyncio.sleep(0.1)
             if result and result[0]:

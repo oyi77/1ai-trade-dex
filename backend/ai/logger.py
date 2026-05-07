@@ -109,8 +109,8 @@ class AICallLogger:
             return
         try:
             from backend.models.database import SessionLocal, AILog
-            db = SessionLocal()
-            try:
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
                 db_record = AILog(
                     timestamp=datetime.fromisoformat(record.timestamp),
                     provider=record.provider,
@@ -127,8 +127,6 @@ class AICallLogger:
                 )
                 db.add(db_record)
                 db.commit()
-            finally:
-                db.close()
         except Exception as e:
             logger.debug(f"AI log DB write failed: {e}")
 

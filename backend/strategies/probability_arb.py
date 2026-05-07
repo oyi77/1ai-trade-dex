@@ -11,8 +11,9 @@ Target: <100ms detection + execution.
 import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.core.errors import CircuitOpenError
@@ -22,6 +23,15 @@ logger = logging.getLogger("trading_bot.prob_arb")
 
 _execution_breaker_active = asyncio.Semaphore(1)
 _pending_arbs: dict[str, dict] = {}
+
+
+@asynccontextmanager
+async def execution_breaker() -> AsyncIterator[None]:
+    await _execution_breaker_active.acquire()
+    try:
+        yield
+    finally:
+        _execution_breaker_active.release()
 
 
 def _cfg(name, default):
@@ -92,7 +102,7 @@ async def execute_arb(
     start = time.monotonic()
     idempotency_key = f"{market_id}-{int(start * 1000)}"
 
-    async with _execution_breaker_active:
+    async with execution_breaker():
         try:
             arb_size = _cfg("ARB_DEFAULT_SIZE", 10.0)
             order_yes = await _place_order_with_retry(

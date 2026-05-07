@@ -84,6 +84,8 @@ class CalibrationState:
     b: float = 1.0
     last_updated: str | None = None
     _persistence_path: str | None = None
+    _city: str | None = None
+    use_db_persistence: bool = False
 
     @property
     def n(self) -> int:
@@ -92,7 +94,91 @@ class CalibrationState:
     def set_persistence_path(self, path: str):
         self._persistence_path = path
 
+    def set_city(self, city: str):
+        self._city = city
+
+    def _save_db(self) -> bool:
+        """Save calibration state to DB. Returns True on success."""
+        if not self._city:
+            return False
+        try:
+            from backend.models.database import SessionLocal, EMOSCalibrationState
+            from datetime import datetime as _dt
+
+            db = SessionLocal()
+            try:
+                row = (
+                    db.query(EMOSCalibrationState)
+                    .filter_by(city=self._city)
+                    .first()
+                )
+                payload = json.dumps(self.obs_pairs)
+                last_updated_dt = None
+                if self.last_updated:
+                    try:
+                        last_updated_dt = _dt.fromisoformat(self.last_updated)
+                    except Exception:
+                        last_updated_dt = None
+                if row is None:
+                    row = EMOSCalibrationState(
+                        city=self._city,
+                        obs_pairs_json=payload,
+                        a=self.a,
+                        b=self.b,
+                        last_updated=last_updated_dt,
+                    )
+                    db.add(row)
+                else:
+                    row.obs_pairs_json = payload
+                    row.a = self.a
+                    row.b = self.b
+                    row.last_updated = last_updated_dt
+                db.commit()
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"EMOS DB save failed for {self._city}: {e}")
+            return False
+
+    def _load_db(self) -> bool:
+        """Load calibration state from DB. Returns True on success."""
+        if not self._city:
+            return False
+        try:
+            from backend.models.database import SessionLocal, EMOSCalibrationState
+
+            db = SessionLocal()
+            try:
+                row = (
+                    db.query(EMOSCalibrationState)
+                    .filter_by(city=self._city)
+                    .first()
+                )
+                if row is None:
+                    return False
+                try:
+                    pairs = json.loads(row.obs_pairs_json or "[]")
+                except Exception:
+                    pairs = []
+                self.obs_pairs = [tuple(p) for p in pairs]
+                self.a = row.a if row.a is not None else 0.0
+                self.b = row.b if row.b is not None else 1.0
+                self.last_updated = (
+                    row.last_updated.isoformat() if row.last_updated else None
+                )
+                return True
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"EMOS DB load failed for {self._city}: {e}")
+            return False
+
     def save(self):
+        if self.use_db_persistence:
+            if self._save_db():
+                return
+            # Fall through to filesystem fallback on DB failure
         if self._persistence_path is None:
             return
         import json
@@ -106,6 +192,10 @@ class CalibrationState:
             json.dump(data, f)
 
     def load(self):
+        if self.use_db_persistence:
+            if self._load_db():
+                return
+            # Fall through to filesystem fallback on DB failure / missing row
         if self._persistence_path is None:
             return
         import json
@@ -255,7 +345,7 @@ def load_calibration_states(db, strategy_name: str) -> dict[str, CalibrationStat
                 result[city] = cs
             return result
     except Exception as e:
-        logger.debug(f"Could not load calibration states: {e}")
+        logger.warning(f"Could not load calibration states (using empty state): {e}")
     return {}
 
 
@@ -452,7 +542,13 @@ class WeatherEMOSStrategy(BaseStrategy):
                 continue
 
             # Get or create calibration state
-            cal = cal_states.get(city_name, CalibrationState())
+            cal = cal_states.get(city_name)
+            if cal is None:
+                cal = CalibrationState()
+                cal.set_city(city_name)
+                cal_states[city_name] = cal
+                logger.warning(f"CalibrationState for city '{city_name}' missing, created new.")
+
 
             # Check minimum observations
             if cal.n < min_obs:
@@ -545,7 +641,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                     "calibrated_p": calibrated_p,
                     "market_mid": market_mid,
                     "edge": edge,
-                    "calibration_n": cal_state.n,
+                    "calibration_n": cal.n,
                     "question": market.question,
                 },
                 confidence=confidence_score,

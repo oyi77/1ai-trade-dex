@@ -2,6 +2,11 @@
 
 from prometheus_client import Counter, Histogram, Gauge
 
+hft_latency_ms = Histogram(
+    'hft_latency_ms', 'HFT execution latency',
+    buckets=[5, 10, 25, 50, 100, 250, 500]
+)
+
 hft_signals_total = Counter(
     "hft_signals_total", "Total HFT signals generated",
     ["strategy", "signal_type"]

@@ -53,7 +53,7 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    host: '0.0.0.0',
+    host: process.env.VITE_DEV_EXTERNAL === '1' ? '0.0.0.0' : 'localhost',
     allowedHosts: ['polyedge.aitradepulse.com', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
@@ -68,7 +68,7 @@ export default defineConfig({
     }
   },
   preview: {
-    host: '0.0.0.0',
+    host: process.env.VITE_DEV_EXTERNAL === '1' ? '0.0.0.0' : 'localhost',
     port: 5174,
     allowedHosts: ['polyedge.aitradepulse.com', 'localhost'],
     proxy: {

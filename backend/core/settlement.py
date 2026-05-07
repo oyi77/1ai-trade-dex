@@ -247,8 +247,8 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         try:
                             from backend.core.knowledge_graph import KnowledgeGraph
                             from backend.models.database import SessionLocal as _SessionLocal
-                            kg_db = _SessionLocal()
-                            try:
+                            from backend.db.utils import get_db_session
+                            with get_db_session() as kg_db:
                                 kg = KnowledgeGraph(session=kg_db)
                                 kg.store_trade_memory(
                                     trade_id=trade.id,
@@ -258,8 +258,6 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                     outcome_pnl=trade.pnl or 0.0,
                                     outcome_correct=(trade.result == "win"),
                                 )
-                            finally:
-                                kg_db.close()
                         except Exception as e:
                             logger.error(f"KG write failed for trade {trade.id}: {e}")
 

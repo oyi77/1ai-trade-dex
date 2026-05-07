@@ -68,7 +68,8 @@ async def _fetch_token_id(
                 if isinstance(clob_token_ids, str):
                     try:
                         clob_token_ids = json.loads(clob_token_ids)
-                    except Exception:
+                    except Exception as e:
+                        logger.warning(f"whale pnl tracker: failed to parse clobTokenIds: {e}")
                         clob_token_ids = []
                 if clob_token_ids:
                     return str(clob_token_ids[0])
@@ -100,10 +101,10 @@ async def _fetch_market_prob(
                 if prices_str:
                     return float(str(prices_str).split(",")[0])
         logger.warning(f"_fetch_market_prob: no price data for {condition_id[:20]}...")
-        return 0.50
+        return None
     except Exception as e:
         logger.warning(f"_fetch_market_prob failed for {condition_id[:20]}...: {e}")
-        return 0.50
+        return None
     finally:
         if close_client:
             await http.aclose()
@@ -213,9 +214,11 @@ class WhalePNLTrackerStrategy(BaseStrategy):
                     else:
                         token_id_map[pos.condition_id] = None
                 for pos, price in zip(all_positions, price_results):
-                    market_prob_map[pos.condition_id] = (
-                        price if isinstance(price, float) else 0.50
-                    )
+                    if price is None:
+                        logger.warning(f"WhalePnLTracker: failed to fetch market prob for {pos.condition_id[:20]}...")
+                        market_prob_map[pos.condition_id] = 0.50
+                    else:
+                        market_prob_map[pos.condition_id] = price
 
             # Step 3: Generate signals for new positions
             for position in all_positions:

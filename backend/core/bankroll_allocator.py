@@ -12,8 +12,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy.orm import Session
-
 from backend.config import settings
 from backend.models.database import SessionLocal, BotState
 from backend.core.strategy_ranker import StrategyRanker
@@ -33,7 +31,6 @@ class BankrollAllocator:
 
         Returns the allocation dict {strategy: amount}.
         """
-        import json
         db = SessionLocal()
         try:
             all_allocations = {}
@@ -47,6 +44,11 @@ class BankrollAllocator:
                     continue
 
                 allocations = self.ranker.auto_allocate(db, bankroll, lookback_days=30, trading_mode=mode)
+
+                # Apply feedback adjustments
+                allocations = self.apply_longshot_feedback(allocations)
+                allocations = self.apply_role_feedback(allocations)
+                allocations = self.apply_calibration_feedback(allocations)
 
                 try:
                     misc = json.loads(state.misc_data) if state.misc_data else {}
@@ -69,6 +71,112 @@ class BankrollAllocator:
             return {}
         finally:
             db.close()
+
+    def apply_longshot_feedback(self, allocations: dict[str, float]) -> dict[str, float]:
+        """Reduce allocation for strategies with high longshot bias.
+
+        Bias > 0.05 → skip (no_side). Bias > 0.03 → confidence_discount applied.
+        """
+        from backend.core.longshot_bias import LongshotBiasDetector
+        detector = LongshotBiasDetector()
+        try:
+            category_bias = detector.get_category_bias(days=30)
+            if not category_bias:
+                return allocations
+
+            adjusted = dict(allocations)
+            for strategy, bias in category_bias.items():
+                if bias > 0.05:
+                    # Strong overconfidence — skip entirely
+                    if strategy in adjusted:
+                        adjusted[strategy] = 0.0
+                    logger.info(f"[BankrollAllocator] Longshot skip {strategy}: bias={bias:.4f}")
+                elif bias > 0.03:
+                    # Mild overconfidence — reduce by 30%
+                    if strategy in adjusted:
+                        adjusted[strategy] = adjusted[strategy] * 0.7
+                    logger.info(f"[BankrollAllocator] Longshot discount {strategy}: bias={bias:.4f}")
+
+            return adjusted
+        except Exception as e:
+            logger.warning(f"[BankrollAllocator] Longshot feedback failed: {e}")
+            return allocations
+
+    def apply_role_feedback(self, allocations: dict[str, float]) -> dict[str, float]:
+        """Boost allocation for strategies where maker trades outperform taker trades."""
+        from backend.models.database import SessionLocal, Trade
+        from datetime import datetime, timezone, timedelta
+
+        try:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+            db = SessionLocal()
+            try:
+                trades = db.query(Trade).filter(
+                    Trade.timestamp >= cutoff,
+                    Trade.role.isnot(None),
+                    Trade.pnl.isnot(None),
+                ).all()
+
+                # Group by strategy
+                by_strategy: dict[str, list] = {}
+                for t in trades:
+                    strat = t.strategy or "unknown"
+                    if strat not in by_strategy:
+                        by_strategy[strat] = []
+                    by_strategy[strat].append(t)
+
+                # Compute maker vs taker avg_pnl per strategy
+                maker_boost_strategies = set()
+                for strat, strat_trades in by_strategy.items():
+                    maker_trades = [t for t in strat_trades if t.role == "maker"]
+                    taker_trades = [t for t in strat_trades if t.role == "taker"]
+
+                    if maker_trades and taker_trades:
+                        maker_avg = sum(t.pnl or 0 for t in maker_trades) / len(maker_trades)
+                        taker_avg = sum(t.pnl or 0 for t in taker_trades) / len(taker_trades)
+                        if maker_avg > taker_avg * 1.1:
+                            maker_boost_strategies.add(strat)
+                            logger.info(f"[BankrollAllocator] Maker edge for {strat}: maker={maker_avg:.4f} vs taker={taker_avg:.4f}")
+
+                # Apply +20% boost to maker-edge strategies
+                adjusted = dict(allocations)
+                for strat in maker_boost_strategies:
+                    if strat in adjusted and adjusted[strat] > 0:
+                        adjusted[strat] = adjusted[strat] * 1.2
+                        logger.info(f"[BankrollAllocator] Role boost {strat}: +20%")
+
+                return adjusted
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[BankrollAllocator] Role feedback failed: {e}")
+            return allocations
+
+    def apply_calibration_feedback(self, allocations: dict[str, float]) -> dict[str, float]:
+        """Reduce signal weight for strategies with poorly calibrated price buckets."""
+        from backend.core.calibration_tracker import get_bucket_calibration
+
+        try:
+            buckets = get_bucket_calibration(days=60, min_samples=10)
+            if not buckets:
+                return allocations
+
+            # Find biased buckets (bias_direction == 'overconfident')
+            biased_buckets = {b["bucket"] for b in buckets if b.get("bias_direction") == "overconfident"}
+            if not biased_buckets:
+                return allocations
+
+            # We don't have per-strategy bucket data in the simple version
+            # Just apply a small global discount if there are overconfident buckets
+            if biased_buckets:
+                logger.info(f"[BankrollAllocator] Overconfident buckets detected: {biased_buckets}")
+                adjusted = {k: v * 0.95 for k, v in allocations.items()}
+                return adjusted
+
+            return allocations
+        except Exception as e:
+            logger.warning(f"[BankrollAllocator] Calibration feedback failed: {e}")
+            return allocations
 
 
 # Module-level singleton

@@ -106,8 +106,9 @@ class AutonomousPromoter:
         Returns stats: {promoted_shadow→paper, promoted_paper→live, retired, errors}
         """
         stats = {"shadow_to_paper": 0, "paper_to_live": 0, "retired": 0, "errors": 0}
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+
+        with get_db_session() as db:
             health_mon = StrategyHealthMonitor() if getattr(settings, "AGI_STRATEGY_HEALTH_ENABLED", True) else None
 
             # 0. Evaluate REVIEW experiments → back to BACKTEST after improvement cycle
@@ -411,12 +412,6 @@ class AutonomousPromoter:
             )
             return stats
 
-        except Exception as e:
-            logger.error(f"[AutonomousPromoter] Run failed: {e}", exc_info=True)
-            stats["errors"] += 1
-            return stats
-        finally:
-            db.close()
 
     def _check_shadow_criteria(self, exp: ExperimentRecord, db: Session) -> tuple[bool, list[str]]:
         """Check if experiment meets shadow→paper criteria."""

@@ -31,6 +31,8 @@ from backend.core.scheduling_strategies import (
     verify_settlement_blockchain,
     market_universe_scan_job,
 )
+from backend.models.database import ScheduledJob
+import json
 from backend.core.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
 from backend.core.agi_jobs import (
@@ -111,6 +113,126 @@ def get_recent_events(limit: int = 50) -> List[dict]:
         return list(event_log[-limit:])
 
 
+JOB_FUNCTION_REGISTRY = {
+    "settlement_job": settlement_job,
+    "heartbeat_job": heartbeat_job,
+    "scan_and_trade_job": scan_and_trade_job,
+    "weather_scan_and_trade_job": weather_scan_and_trade_job,
+    "news_feed_scan_job": news_feed_scan_job,
+    "arbitrage_scan_job": arbitrage_scan_job,
+    "auto_trader_job": auto_trader_job,
+    "strategy_cycle_job": strategy_cycle_job,
+    "sync_testnet_wallet": sync_testnet_wallet,
+    "sync_live_wallet": sync_live_wallet,
+    "verify_settlement_blockchain": verify_settlement_blockchain,
+    "market_universe_scan_job": market_universe_scan_job,
+}
+
+
+def _serialize_trigger(trigger) -> dict:
+    if isinstance(trigger, IntervalTrigger):
+        interval = getattr(trigger, "interval", None)
+        seconds = int(interval.total_seconds()) if interval is not None else None
+        return {"type": "interval", "seconds": seconds}
+    return {"type": "unknown", "repr": repr(trigger)}
+
+
+def save_scheduler_state(job_id: str, func_name: str, trigger, kwargs: dict | None,
+                         max_instances: int = 1, misfire_grace_time: int | None = None,
+                         next_run_time=None) -> None:
+    """Persist a single scheduled job's registration metadata to DB."""
+    try:
+        from backend.models.database import SessionLocal  # noqa: F401  (kept for compatibility)
+        from backend.db.utils import get_db_session
+        state = {
+            "func_name": func_name,
+            "trigger": _serialize_trigger(trigger),
+            "kwargs": kwargs or {},
+            "max_instances": max_instances,
+            "misfire_grace_time": misfire_grace_time,
+        }
+        with get_db_session() as db:
+            row = db.query(ScheduledJob).filter(ScheduledJob.job_name == job_id).first()
+            if row is None:
+                row = ScheduledJob(
+                    job_name=job_id,
+                    job_state_json=state,
+                    next_run=next_run_time,
+                    enabled=True,
+                )
+                db.add(row)
+            else:
+                row.job_state_json = state
+                row.next_run = next_run_time
+                row.enabled = True
+    except Exception as exc:
+        logger.warning(f"Failed to persist scheduled job '{job_id}': {exc}")
+
+
+def _persist_and_add_job(sched: AsyncIOScheduler, func, trigger, *, id: str,
+                         kwargs: dict | None = None, replace_existing: bool = True,
+                         max_instances: int = 1, misfire_grace_time: int | None = None):
+    """Persist the job's registration to DB then register it with APScheduler."""
+    func_name = getattr(func, "__name__", str(func))
+    save_scheduler_state(
+        job_id=id,
+        func_name=func_name,
+        trigger=trigger,
+        kwargs=kwargs,
+        max_instances=max_instances,
+        misfire_grace_time=misfire_grace_time,
+    )
+    add_kwargs: dict = {
+        "id": id,
+        "replace_existing": replace_existing,
+        "max_instances": max_instances,
+    }
+    if kwargs is not None:
+        add_kwargs["kwargs"] = kwargs
+    if misfire_grace_time is not None:
+        add_kwargs["misfire_grace_time"] = misfire_grace_time
+    return sched.add_job(func, trigger, **add_kwargs)
+
+
+def load_scheduler_state(sched: AsyncIOScheduler) -> int:
+    """Reload all enabled persisted jobs into the scheduler. Returns count restored."""
+    restored = 0
+    try:
+        from backend.models.database import SessionLocal  # noqa: F401
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            rows = db.query(ScheduledJob).filter(ScheduledJob.enabled == True).all()  # noqa: E712
+            for row in rows:
+                state = row.job_state_json or {}
+                func_name = state.get("func_name")
+                func = JOB_FUNCTION_REGISTRY.get(func_name)
+                if func is None:
+                    logger.debug(f"Skipping persisted job '{row.job_name}': func '{func_name}' not registered")
+                    continue
+                trig_state = state.get("trigger") or {}
+                if trig_state.get("type") != "interval" or trig_state.get("seconds") is None:
+                    continue
+                trigger = IntervalTrigger(seconds=int(trig_state["seconds"]))
+                add_kwargs = {
+                    "id": row.job_name,
+                    "replace_existing": True,
+                    "max_instances": int(state.get("max_instances", 1)),
+                }
+                if state.get("kwargs"):
+                    add_kwargs["kwargs"] = state["kwargs"]
+                grace = state.get("misfire_grace_time")
+                if grace is not None:
+                    add_kwargs["misfire_grace_time"] = int(grace)
+                try:
+                    sched.add_job(func, trigger, **add_kwargs)
+                    restored += 1
+                except Exception as exc:
+                    logger.warning(f"Failed to restore job '{row.job_name}': {exc}")
+    except Exception as exc:
+        logger.warning(f"load_scheduler_state failed: {exc}")
+    return restored
+
+
 def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "paper") -> None:
     """Add or replace a strategy's APScheduler job for a specific mode.
     
@@ -172,11 +294,11 @@ def get_scheduler_jobs() -> list[dict]:
 
 def _load_strategy_jobs() -> None:
     """Read StrategyConfig table and schedule enabled strategies for all modes."""
-    from backend.models.database import SessionLocal, StrategyConfig
+    from backend.models.database import SessionLocal, StrategyConfig  # noqa: F401
+    from backend.db.utils import get_db_session
     from backend.core.mode_context import list_contexts
 
-    db = SessionLocal()
-    try:
+    with get_db_session() as db:
         contexts = list_contexts()
         for mode in contexts.keys():
             configs = (
@@ -189,8 +311,6 @@ def _load_strategy_jobs() -> None:
             )
             for cfg in configs:
                 schedule_strategy(cfg.strategy_name, cfg.interval_seconds or 60, mode)
-    finally:
-        db.close()
 
 
 def start_scheduler():
@@ -202,26 +322,35 @@ def start_scheduler():
         return
 
     scheduler = AsyncIOScheduler()
+    # Restore jobs from DB first
+    try:
+        jobs_restored = load_scheduler_state(scheduler)
+        if jobs_restored:
+            logger.info(f"Restored {jobs_restored} scheduled jobs from DB crash recovery.")
+    except Exception as exc:
+        logger.warning(f"Scheduler state restoration failed: {exc}")
 
     scan_seconds = settings.SCAN_INTERVAL_SECONDS
     settle_seconds = settings.SETTLEMENT_INTERVAL_SECONDS
 
     # Check settlements every 2 minutes
-    scheduler.add_job(
+    _persist_and_add_job(
+        scheduler,
         settlement_job,
         IntervalTrigger(seconds=settle_seconds),
         id="settlement_check",
-        replace_existing=True,
         max_instances=1,
+        replace_existing=True,
     )
 
     # Heartbeat every minute
-    scheduler.add_job(
+    _persist_and_add_job(
+        scheduler,
         heartbeat_job,
         IntervalTrigger(minutes=1),
         id="heartbeat",
-        replace_existing=True,
         max_instances=1,
+        replace_existing=True,
     )
 
     from backend.core.mode_context import list_contexts
@@ -229,7 +358,8 @@ def start_scheduler():
     modes = list(contexts.keys()) if contexts else ["paper", "testnet", "live"]
 
     for mode in modes:
-        scheduler.add_job(
+        _persist_and_add_job(
+            scheduler,
             scan_and_trade_job,
             IntervalTrigger(seconds=scan_seconds),
             kwargs={"mode": mode},
@@ -275,7 +405,8 @@ def start_scheduler():
     )
 
     # Wallet balance sync: fetch live CLOB balance every 60s
-    scheduler.add_job(
+    _persist_and_add_job(
+        scheduler,
         wallet_sync_job,
         IntervalTrigger(seconds=60),
         id="wallet_sync",
@@ -283,7 +414,8 @@ def start_scheduler():
         max_instances=1,
     )
 
-    scheduler.add_job(
+    _persist_and_add_job(
+        scheduler,
         sync_live_wallet,
         IntervalTrigger(seconds=30),
         id="wallet_sync_live",
@@ -291,7 +423,8 @@ def start_scheduler():
         max_instances=1,
     )
 
-    scheduler.add_job(
+    _persist_and_add_job(
+        scheduler,
         verify_settlement_blockchain,
         IntervalTrigger(seconds=120),
         id="settlement_verify",
@@ -333,19 +466,37 @@ def start_scheduler():
 
     # Schedule all enabled strategies from DB
     logger.info("Scheduling enabled strategies from DB...")
-    from backend.models.database import SessionLocal, StrategyConfig
-    db = SessionLocal()
-    try:
-        configs = db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all()
-        logger.info(f"Found {len(configs)} enabled strategies in DB")
-        modes = ["paper", "testnet", "live"]
-        for config in configs:
-            strategy_modes = [config.mode] if config.mode else modes
-            for mode in strategy_modes:
-                logger.info(f"Scheduling {config.strategy_name} for mode {mode}")
-                schedule_strategy(config.strategy_name, config.interval_seconds, mode)
-    finally:
-        db.close()
+    from backend.models.database import SessionLocal, StrategyConfig  # noqa: F401
+    from backend.db.utils import get_db_session
+    from backend.config import settings
+    from datetime import datetime, timezone, timedelta
+
+    disabled = []
+    with get_db_session() as db:
+        since = datetime.now(timezone.utc) - timedelta(hours=1)
+        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
+            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
+                continue
+
+            for mode in settings.active_modes_set:
+                trades = db.query(Trade).filter(
+                    Trade.strategy == config.strategy_name,
+                    Trade.settled == True,
+                    Trade.timestamp >= since,
+                    Trade.trading_mode == mode,
+                ).all()
+
+                if len(trades) < 3:
+                    continue
+
+                wins = sum(1 for t in trades if t.result == 'win')
+                win_rate = wins / len(trades)
+                pnl = sum(t.pnl for t in trades if t.pnl)
+
+                if win_rate < 0.30 or pnl < -50.0:
+                    config.enabled = False
+                    disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                    logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
     logger.info("Done scheduling strategies from DB")
 
     if settings.NEWS_FEED_ENABLED:
