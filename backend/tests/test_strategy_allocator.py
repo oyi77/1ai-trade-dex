@@ -1,6 +1,6 @@
 """Tests for RegimeAwareAllocator — regime-dependent allocation, bounds, rebalancing."""
+
 from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
 
 from backend.core.agi_types import MarketRegime, RegimeTransition
 from backend.core.knowledge_graph import KnowledgeGraph
@@ -25,26 +25,34 @@ class TestAllocation:
     def test_bull_regime_allocates_more_to_momentum(self):
         kg = _kg_with_regime_data()
         allocator = RegimeAwareAllocator(kg, max_per_strategy=0.8)
-        result = allocator.allocate(["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000)
+        result = allocator.allocate(
+            ["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000
+        )
         assert result["btc_momentum"] > result["weather_emos"]
 
     def test_bear_regime_allocates_more_to_defensive(self):
         kg = _kg_with_regime_data()
         allocator = RegimeAwareAllocator(kg)
-        result = allocator.allocate(["btc_momentum", "copy_trader"], MarketRegime.BEAR, 10000)
+        result = allocator.allocate(
+            ["btc_momentum", "copy_trader"], MarketRegime.BEAR, 10000
+        )
         assert result["copy_trader"] > result["btc_momentum"]
 
     def test_unknown_regime_equal_weight(self):
         kg = KnowledgeGraph()
         allocator = RegimeAwareAllocator(kg)
-        result = allocator.allocate(["btc_momentum", "weather_emos", "copy_trader"], MarketRegime.UNKNOWN, 9000)
+        result = allocator.allocate(
+            ["btc_momentum", "weather_emos", "copy_trader"], MarketRegime.UNKNOWN, 9000
+        )
         assert abs(result["btc_momentum"] - result["weather_emos"]) < 1.0
         assert abs(result["weather_emos"] - result["copy_trader"]) < 1.0
 
     def test_allocations_sum_to_at_most_capital(self):
         kg = _kg_with_regime_data()
         allocator = RegimeAwareAllocator(kg)
-        result = allocator.allocate(["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000)
+        result = allocator.allocate(
+            ["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000
+        )
         assert sum(result.values()) <= 10000
 
     def test_empty_strategies_returns_empty(self):
@@ -62,7 +70,9 @@ class TestAllocation:
     def test_max_per_strategy_limit(self):
         kg = _kg_with_regime_data()
         allocator = RegimeAwareAllocator(kg, max_per_strategy=0.3)
-        result = allocator.allocate(["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000)
+        result = allocator.allocate(
+            ["btc_momentum", "weather_emos"], MarketRegime.BULL, 10000
+        )
         for s, v in result.items():
             assert v <= 10000 * 0.3 + 0.01
 

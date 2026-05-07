@@ -2,14 +2,12 @@
 
 import json
 import logging
-import pytest
 
 from backend.monitoring.structured_logger import (
     JSONFormatter,
     configure_logging,
     new_correlation_id,
     get_correlation_id,
-    correlation_id_var,
 )
 
 

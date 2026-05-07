@@ -1,9 +1,6 @@
-from datetime import datetime, timezone
-from typing import Optional
-
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.strategy_synthesizer import (
     StrategySynthesizer,
@@ -62,11 +59,11 @@ class TestStrategySynthesizerValidateSyntax:
 class TestStrategySynthesizerValidateTypes:
     def test_valid_types_pass(self):
         synthesizer, _, _ = make_synthesizer_session()
-        code = '''
+        code = """
 class MyStrategy(BaseStrategy):
     def __init__(self):
         self.risk = RiskManager()
-'''
+"""
         result = synthesizer.validate_types(code)
         assert result.valid
 
@@ -79,10 +76,10 @@ class MyStrategy(BaseStrategy):
 
     def test_missing_riskmanager_fails(self):
         synthesizer, _, _ = make_synthesizer_session()
-        code = '''
+        code = """
 class MyStrategy(BaseStrategy):
     pass
-'''
+"""
         result = synthesizer.validate_types(code)
         assert not result.valid
         assert any("RiskManager" in e for e in result.errors)
@@ -113,11 +110,11 @@ class TestStrategySynthesizerLintCode:
 class TestStrategySynthesizerSafeImport:
     def test_safe_import_succeeds(self):
         synthesizer, _, _ = make_synthesizer_session()
-        code = '''
+        code = """
 class GeneratedStrategy:
     def run(self):
         return []
-'''
+"""
         result = synthesizer.safe_import_test(code)
         assert result.valid
 
@@ -140,7 +137,9 @@ class TestStrategySynthesizerRegister:
         )
         experiment_id = synthesizer.register_generated(generated)
         assert experiment_id is not None
-        record = session.query(ExperimentRecord).filter_by(id=int(experiment_id)).first()
+        record = (
+            session.query(ExperimentRecord).filter_by(id=int(experiment_id)).first()
+        )
         assert record is not None
         assert record.status == "shadow"
 

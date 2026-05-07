@@ -24,8 +24,8 @@ sys.modules["backend.core.scheduler"] = _sched_stub
 # ---------------------------------------------------------------------------
 # In-memory DB wiring (mirrors conftest pattern)
 # ---------------------------------------------------------------------------
-from backend.models import database as _db_mod
-from backend.models.database import Base, BotState
+from backend.models import database as _db_mod  # noqa: E402
+from backend.models.database import Base, BotState  # noqa: E402
 
 _test_engine = create_engine(
     "sqlite:///:memory:",
@@ -56,7 +56,9 @@ except Exception:
 # ---------------------------------------------------------------------------
 
 
-def _seed_state(db, bankroll=1000.0, paper_bankroll=1000.0, is_running=True, mode="paper"):
+def _seed_state(
+    db, bankroll=1000.0, paper_bankroll=1000.0, is_running=True, mode="paper"
+):
     """Insert or reset BotState for a test."""
     state = db.query(BotState).filter_by(mode=mode).first()
     if state:
@@ -116,12 +118,15 @@ class TestPaperTradeCreatesRecord:
 
         mock_clob = AsyncMock()
         mock_rm = RiskManager()
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -196,12 +201,15 @@ class TestRiskRejection:
         )
 
         mock_clob = AsyncMock()
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -262,12 +270,15 @@ class TestAttemptSizingRejection:
             allowed=True, reason="ok", adjusted_size=0.93
         )
 
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=AsyncMock(),
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=AsyncMock(),
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -327,18 +338,23 @@ class TestAttemptUnexpectedFailure:
             allowed=True, reason="ok", adjusted_size=10.0
         )
 
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=AsyncMock(),
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=AsyncMock(),
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.core.strategy_executor.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
-            patch("backend.core.strategy_executor.TradeValidator.validate_trade_data") as validate_trade,
+            patch(
+                "backend.core.strategy_executor.TradeValidator.validate_trade_data"
+            ) as validate_trade,
         ):
             mock_settings.TRADING_MODE = "paper"
             validate_trade.side_effect = RuntimeError("validator exploded")
@@ -363,7 +379,10 @@ class TestAttemptUnexpectedFailure:
             assert len(attempts) == 1
             assert attempts[0].status == "FAILED"
             assert attempts[0].phase == "error"
-            assert attempts[0].reason_code == "FAILED_UNEXPECTED_EXECUTION_ERROR_RUNTIMEERROR_VALIDATOR_EXPLODED"
+            assert (
+                attempts[0].reason_code
+                == "FAILED_UNEXPECTED_EXECUTION_ERROR_RUNTIMEERROR_VALIDATOR_EXPLODED"
+            )
         finally:
             check_db.close()
 
@@ -389,12 +408,15 @@ class TestUpdatesBankroll:
 
         mock_clob = AsyncMock()
         mock_rm = RiskManager()
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -445,12 +467,15 @@ class TestCreatesSignalRecord:
 
         mock_clob = AsyncMock()
         mock_rm = RiskManager()
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -510,12 +535,15 @@ class TestMaxTradesPerCycle:
 
         mock_clob = AsyncMock()
         mock_rm = RiskManager()
-        register_context("paper", ModeExecutionContext(
-            mode="paper",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
@@ -565,12 +593,15 @@ class TestLiveModeCallsCLOB:
         mock_clob.__aexit__ = AsyncMock(return_value=False)
 
         mock_rm = RiskManager()
-        register_context("live", ModeExecutionContext(
-            mode="live",
-            clob_client=mock_clob,
-            risk_manager=mock_rm,
-            strategy_configs={}
-        ))
+        register_context(
+            "live",
+            ModeExecutionContext(
+                mode="live",
+                clob_client=mock_clob,
+                risk_manager=mock_rm,
+                strategy_configs={},
+            ),
+        )
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,

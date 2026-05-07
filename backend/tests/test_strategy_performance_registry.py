@@ -1,6 +1,5 @@
 """Tests for StrategyPerformanceRegistry — strategy metrics aggregation."""
 
-import pytest
 from datetime import datetime, timezone
 
 from backend.models.database import Trade
@@ -56,7 +55,9 @@ def test_strategy_performance_registry_updates_on_settlement(db):
     assert report.consecutive_losses == 0
     # Net profitable but below promotion thresholds (needs 30 trades minimum)
     assert report.total_pnl > 0
-    assert report.is_profitable is False  # promotion thresholds not yet met (only 5 trades)
+    assert (
+        report.is_profitable is False
+    )  # promotion thresholds not yet met (only 5 trades)
 
 
 def test_strategy_performance_registry_snapshot_persisted(db):
