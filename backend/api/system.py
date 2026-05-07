@@ -23,6 +23,7 @@ from backend.models.database import (
     StrategyConfig,
     AuditLog,
     engine,
+    for_update,
 )
 from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
@@ -1568,7 +1569,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
     # Build a proper StrategyContext and run the strategy
     try:
         from backend.strategies.base import StrategyContext
-        from backend.models.database import SessionLocal, BotState, StrategyConfig, for_update
+        from backend.models.database import SessionLocal, BotState, StrategyConfig
 
         cls = STRATEGY_REGISTRY[name]
         instance = cls()
