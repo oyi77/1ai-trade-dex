@@ -67,6 +67,7 @@ _db_mod.engine = test_engine
 _db_mod.SessionLocal = TestSessionLocal
 
 # Create all tables (Base.metadata covers most; ensure_schema covers extras)
+Base.metadata.drop_all(bind=test_engine)
 Base.metadata.create_all(bind=test_engine)
 try:
     _db_mod.ensure_schema()

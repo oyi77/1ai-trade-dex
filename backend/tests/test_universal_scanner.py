@@ -1,9 +1,8 @@
 """Tests for UniversalScanner — HFT market scanner."""
 
 import asyncio
-import time
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -133,7 +132,7 @@ class TestUniversalScanner:
         with patch("backend.strategies.universal_scanner.httpx.AsyncClient"):
             with patch(
                 "backend.strategies.universal_scanner._fetch_page_with_retry",
-                mock_fetch
+                mock_fetch,
             ):
                 markets = await scanner.scan_all()
 
@@ -145,6 +144,7 @@ class TestUniversalScanner:
 
         async def mock_scan_all():
             from backend.strategies.base import MarketInfo
+
             return [
                 MarketInfo(
                     ticker="sig-1",
@@ -188,7 +188,7 @@ class TestStressScenarios:
         with patch("backend.strategies.universal_scanner.httpx.AsyncClient"):
             with patch(
                 "backend.strategies.universal_scanner._fetch_page_with_retry",
-                mock_fetch
+                mock_fetch,
             ):
                 markets = await scanner.scan_all()
 
@@ -207,7 +207,7 @@ class TestStressScenarios:
         with patch("backend.strategies.universal_scanner.httpx.AsyncClient"):
             with patch(
                 "backend.strategies.universal_scanner._fetch_page_with_retry",
-                mock_fetch
+                mock_fetch,
             ):
                 markets = await scanner.scan_all()
 

@@ -4,7 +4,7 @@ Tests for Polymarket WebSocket client and orderbook cache.
 
 import asyncio
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+
 from backend.data.polymarket_websocket import (
     PolymarketWebSocket,
     WebSocketConfig,
@@ -75,9 +75,7 @@ async def test_orderbook_cache_prune():
 
 
 def test_websocket_config_market_channel():
-    config = WebSocketConfig(
-        channel=ChannelType.MARKET, asset_ids=["token_1", "token_2"]
-    )
+    config = WebSocketConfig(channel=ChannelType.MARKET, asset_ids=["token_1", "token_2"])
 
     assert config.channel == ChannelType.MARKET
     assert len(config.asset_ids) == 2
@@ -127,9 +125,7 @@ async def test_websocket_event_handlers():
         timestamp=1234567890,
     )
 
-    trade = TradeEvent(
-        asset_id="token_1", price="0.51", size="50", side="BUY", timestamp=1234567890
-    )
+    trade = TradeEvent(asset_id="token_1", price="0.51", size="50", side="BUY", timestamp=1234567890)
 
     await ws._handle_orderbook(snapshot.__dict__)
     await ws._handle_trade(trade.__dict__)
