@@ -298,70 +298,19 @@ async def health_check(db: Session = Depends(get_db)):
     else:
         checks["redis"] = {"status": "not_configured", "fallback": "sqlite"}
 
+    # Polymarket CLOB connectivity
     try:
         from backend.data.polymarket_clob import clob_from_settings
 
         client = clob_from_settings()
         ok_resp = client.get_ok()
-        if ok_resp:
-            checks["polymarket_clob"] = {"status": "ok"}
-        else:
-            checks["polymarket_clob"] = {
-                "status": "error",
-                "error": "get_ok returned falsy",
-            }
-            if overall_status == "ok":
-                overall_status = "degraded"
-    except Exception as e:
-        checks["polymarket_clob"] = {"status": "error", "error": str(e)}
-        if overall_status == "ok":
-            overall_status = "degraded"
-
-    try:
-        from backend.core.heartbeat import get_strategy_health
-
-        healths = get_strategy_health(db)
-        all_healthy = all(h["healthy"] or h["lag_seconds"] is None for h in healths)
-        if not all_healthy and overall_status == "ok":
-            overall_status = "degraded"
-    except Exception as e:
-        healths = []
-        logger.warning(
-            f"[api.main.health_check] {type(e).__name__}: Failed to get strategy health: {e}",
-            exc_info=True
-        )
-        if overall_status == "ok":
-            overall_status = "degraded"
-
-    # 2. Redis connectivity (optional — falls back to SQLite)
-    redis_url = getattr(settings, "JOB_QUEUE_URL", "")
-    if redis_url.startswith("redis://"):
-        try:
-            from redis import Redis
-
-            r = Redis.from_url(redis_url, socket_connect_timeout=2)
-            r.ping()
-            checks["redis"] = {"status": "ok"}
-            r.close()
-        except Exception as e:
-            checks["redis"] = {"status": "error", "error": str(e)}
-            # Redis failure is non-critical (SQLite fallback exists)
-            if overall_status == "ok":
-                overall_status = "degraded"
-            logger.warning(
-                f"[api.main.health_check] {type(e).__name__}: Redis health check failed (fallback available): {e}",
-                exc_info=True
-            )
-    else:
-        checks["redis"] = {"status": "not_configured", "fallback": "sqlite"}
-
-    # 3. Polymarket CLOB connectivity
-    try:
-        from backend.data.polymarket_clob import clob_from_settings
-
-        client = clob_from_settings()
         balance = client.get_wallet_balance()
-        checks["polymarket_clob"] = {"status": "ok", "balance": str(balance)}
+        if ok_resp:
+            checks["polymarket_clob"] = {"status": "ok", "balance": str(balance)}
+        else:
+            checks["polymarket_clob"] = {"status": "error", "error": "get_ok returned falsy"}
+            if overall_status == "ok":
+                overall_status = "degraded"
     except Exception as e:
         checks["polymarket_clob"] = {"status": "error", "error": str(e)}
         if overall_status == "ok":
@@ -369,6 +318,7 @@ async def health_check(db: Session = Depends(get_db)):
         logger.warning(
             f"[api.main.health_check] {type(e).__name__}: Polymarket CLOB health check failed: {e}",
         )
+
     try:
         from backend.core.heartbeat import get_strategy_health
 

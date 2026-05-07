@@ -161,6 +161,30 @@ def require_csrf(
         raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
 
 
+def _get_valid_session(admin_session: str | None) -> dict | None:
+    """Return session dict when cookie session exists and is not expired."""
+    if not admin_session:
+        return None
+    session = _SESSION_STORE.get(admin_session)
+    if not session:
+        return None
+    if time.time() - session["created_at"] > _SESSION_TTL_SECONDS:
+        del _SESSION_STORE[admin_session]
+        return None
+    return session
+
+
+def authorize_realtime_access(token: str | None = None, admin_session: str | None = None) -> bool:
+    """Authorize SSE/WebSocket access via legacy token OR admin cookie session."""
+    _cleanup_expired_sessions()
+    key = settings.ADMIN_API_KEY
+    if not key:
+        return True
+    if token and secrets.compare_digest(token, key):
+        return True
+    return _get_valid_session(admin_session) is not None
+
+
 def _persist_env_updates(updates: dict[str, str]) -> None:
     """
     Atomic .env file update helper.
