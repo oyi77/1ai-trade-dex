@@ -26,13 +26,13 @@ def get_task_manager() -> TaskManager | None:
 
 async def broadcast_proposal_update(proposal_data: Dict[str, Any]):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "proposal_update",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         **proposal_data
     }
-    
+
     tm = get_task_manager()
     if tm:
         await tm.create_task(topic_manager.broadcast("proposals", message), name="broadcast_proposal_update")

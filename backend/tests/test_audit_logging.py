@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timezone
+from datetime import timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -33,7 +33,7 @@ def test_log_audit_event(test_db):
         new_value={"status": "new"},
         user_id="test_user",
     )
-    
+
     assert entry is not None
     assert entry.event_type == "TEST_EVENT"
     assert entry.entity_type == "TEST_ENTITY"
@@ -57,7 +57,7 @@ def test_log_trade_created(test_db):
         },
         user_id="strategy:btc_5min",
     )
-    
+
     assert entry is not None
     assert entry.event_type == "TRADE_CREATED"
     assert entry.entity_type == "TRADE"
@@ -76,7 +76,7 @@ def test_log_settlement_completed(test_db):
         new_state={"settled": True, "result": "win", "pnl": 35.0},
         user_id="system:settlement",
     )
-    
+
     assert entry is not None
     assert entry.event_type == "SETTLEMENT_COMPLETED"
     assert entry.entity_type == "TRADE"
@@ -95,7 +95,7 @@ def test_log_position_updated(test_db):
         new_state={"size": 150.0},
         user_id="system:reconciliation",
     )
-    
+
     assert entry is not None
     assert entry.event_type == "POSITION_UPDATED"
     assert entry.entity_type == "POSITION"
@@ -115,7 +115,7 @@ def test_log_wallet_reconciled(test_db):
         },
         user_id="system:reconciliation",
     )
-    
+
     assert entry is not None
     assert entry.event_type == "WALLET_RECONCILED"
     assert entry.entity_type == "WALLET"
@@ -129,13 +129,13 @@ def test_audit_log_query_by_event_type(test_db):
     log_trade_created(test_db, 1, {"market": "A"}, "user1")
     log_trade_created(test_db, 2, {"market": "B"}, "user2")
     log_settlement_completed(test_db, 1, {}, {"pnl": 10.0}, "system")
-    
+
     test_db.commit()
-    
+
     trade_events = test_db.query(AuditLog).filter(
         AuditLog.event_type == "TRADE_CREATED"
     ).all()
-    
+
     assert len(trade_events) == 2
     assert all(e.event_type == "TRADE_CREATED" for e in trade_events)
 
@@ -144,13 +144,13 @@ def test_audit_log_query_by_entity_id(test_db):
     log_trade_created(test_db, 42, {"market": "A"}, "user1")
     log_settlement_completed(test_db, 42, {}, {"pnl": 10.0}, "system")
     log_trade_created(test_db, 99, {"market": "B"}, "user2")
-    
+
     test_db.commit()
-    
+
     trade_42_events = test_db.query(AuditLog).filter(
         AuditLog.entity_id == "42"
     ).all()
-    
+
     assert len(trade_42_events) == 2
     assert all(e.entity_id == "42" for e in trade_42_events)
 
@@ -163,7 +163,7 @@ def test_audit_log_preserves_legacy_fields(test_db):
         entity_id="123",
         user_id="test_user",
     )
-    
+
     assert entry.actor == "test_user"
     assert entry.action == "TEST_EVENT"
     assert entry.details is not None
@@ -180,7 +180,7 @@ def test_audit_log_handles_null_values(test_db):
         new_value=None,
         user_id="system",
     )
-    
+
     assert entry is not None
     assert entry.old_value is None
     assert entry.new_value is None
@@ -192,6 +192,6 @@ def test_audit_log_timezone_aware(test_db):
         trade_id=1,
         trade_data={"market": "TEST"},
     )
-    
+
     assert entry.timestamp.tzinfo is not None
     assert entry.timestamp.tzinfo == timezone.utc

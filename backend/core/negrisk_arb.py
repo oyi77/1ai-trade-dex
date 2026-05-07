@@ -5,7 +5,7 @@ Groups markets by event and detects opportunities where the sum of YES
 prices across mutually exclusive outcomes deviates meaningfully from 1.0.
 """
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger("trading_bot.negrisk_arb")
 

@@ -14,13 +14,13 @@ from datetime import datetime, timezone
 def _now() -> datetime:
     """Naive UTC datetime — replacement for deprecated _now()."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any  # noqa: E402
 
-from sqlalchemy import select, case, update, func
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import case, func  # noqa: E402
+from sqlalchemy.exc import SQLAlchemyError  # noqa: E402
 
-from backend.models.database import SessionLocal, JobQueue
-from backend.job_queue.abstract import AbstractQueue, Job
+from backend.models.database import SessionLocal, JobQueue  # noqa: E402
+from backend.job_queue.abstract import AbstractQueue, Job  # noqa: E402
 
 
 class AsyncSQLiteQueue(AbstractQueue):
@@ -68,7 +68,6 @@ class AsyncSQLiteQueue(AbstractQueue):
         def _recover():
             session = SessionLocal()
             try:
-                from sqlalchemy import text
                 cutoff = _now()
                 from datetime import timedelta
                 cutoff = cutoff - timedelta(seconds=stale_threshold_seconds)

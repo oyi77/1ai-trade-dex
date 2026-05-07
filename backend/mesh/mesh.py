@@ -5,8 +5,8 @@ import logging
 import time
 from typing import Dict, List, Optional
 
-from backend.mesh.base import DataQuery, RawPacket, DataSource, Provenance
-from backend.mesh.registry import get, list_active, quarantine, is_quarantined
+from backend.mesh.base import DataQuery, RawPacket, Provenance
+from backend.mesh.registry import get, is_quarantined
 
 logger = logging.getLogger("trading_bot.mesh")
 

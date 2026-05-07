@@ -298,7 +298,7 @@ class Settings(BaseSettings):
     HISTORICAL_DATA_COLLECTOR_ENABLED: bool = True
     PAPER_MIN_BANKROLL: float = 50.0
     PAPER_TOPUP_AMOUNT: float = 500.0
-    
+
     # Paper trading slippage simulation (defaults = disabled for backward compatibility)
     PAPER_SLIPPAGE_BPS: float = 0.0  # Base slippage in basis points (0 = disabled)
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # Minimum slippage even for small orders (0.05%)

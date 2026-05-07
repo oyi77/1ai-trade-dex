@@ -9,6 +9,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Ensure conftest_agi fixtures are always loaded
+pytest_plugins = ["backend.tests.conftest_agi"]
+
 # ---------------------------------------------------------------------------
 # Stub apscheduler and backend.core.scheduler BEFORE any other imports
 # so the startup event doesn't crash on the missing package.
@@ -245,7 +248,7 @@ def cleanup_proposals_between_tests(db):
     db.query(StrategyConfig).delete()
     db.query(ExperimentRecord).delete()
     db.query(ShadowTrade).delete()
-    
+
     db.info["allow_live_financial_update"] = True
     for mode in ["paper", "testnet", "live"]:
         state = db.query(BotState).filter_by(mode=mode).first()
@@ -272,7 +275,7 @@ def cleanup_proposals_between_tests(db):
             state.testnet_pnl = 0.0
             state.testnet_trades = 0
             state.testnet_wins = 0
-    
+
     db.commit()
     db.info.pop("allow_live_financial_update", None)
     yield

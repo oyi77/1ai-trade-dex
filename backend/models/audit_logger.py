@@ -22,7 +22,7 @@ def log_audit_event(
 ) -> Optional[AuditLog]:
     """
     Log an audit event for money-related operations.
-    
+
     Args:
         db: SQLAlchemy session
         event_type: Type of event (TRADE_CREATED, SETTLEMENT_COMPLETED, POSITION_UPDATED, WALLET_RECONCILED)
@@ -31,7 +31,7 @@ def log_audit_event(
         old_value: Previous state (JSON-serializable dict)
         new_value: New state (JSON-serializable dict)
         user_id: User or system identifier (default: "system")
-    
+
     Returns:
         AuditLog entry if successful, None if failed
     """
@@ -56,12 +56,12 @@ def log_audit_event(
         )
         db.add(entry)
         db.flush()  # Don't commit here - let caller control transaction
-        
+
         logger.debug(
             f"Audit log: {event_type} for {entity_type}:{entity_id} by {user_id}"
         )
         return entry
-        
+
     except Exception as e:
         logger.error(f"Failed to create audit log entry: {e}", exc_info=True)
         return None
@@ -75,13 +75,13 @@ def log_trade_created(
 ) -> Optional[AuditLog]:
     """
     Log trade creation event.
-    
+
     Args:
         db: SQLAlchemy session
         trade_id: Trade ID
         trade_data: Trade details (market_ticker, direction, size, entry_price, etc.)
         user_id: User or strategy identifier
-    
+
     Returns:
         AuditLog entry if successful
     """
@@ -105,14 +105,14 @@ def log_settlement_completed(
 ) -> Optional[AuditLog]:
     """
     Log trade settlement event.
-    
+
     Args:
         db: SQLAlchemy session
         trade_id: Trade ID
         old_state: Pre-settlement state (settled=False, pnl=None)
         new_state: Post-settlement state (settled=True, pnl=X, result=Y)
         user_id: User or system identifier
-    
+
     Returns:
         AuditLog entry if successful
     """
@@ -136,14 +136,14 @@ def log_position_updated(
 ) -> Optional[AuditLog]:
     """
     Log position update event (size changes, reconciliation).
-    
+
     Args:
         db: SQLAlchemy session
         position_id: Position identifier (trade_id or market_ticker)
         old_state: Previous position state
         new_state: New position state
         user_id: User or system identifier
-    
+
     Returns:
         AuditLog entry if successful
     """
@@ -166,13 +166,13 @@ def log_wallet_reconciled(
 ) -> Optional[AuditLog]:
     """
     Log wallet reconciliation event.
-    
+
     Args:
         db: SQLAlchemy session
         wallet_address: Wallet address
         reconciliation_data: Reconciliation results (imported_count, updated_count, closed_count)
         user_id: User or system identifier
-    
+
     Returns:
         AuditLog entry if successful
     """

@@ -9,7 +9,7 @@ import json
 import logging
 import random
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 from collections import defaultdict
 
 logger = logging.getLogger("trading_bot.thompson_sampler")

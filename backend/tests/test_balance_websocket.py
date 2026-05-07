@@ -8,7 +8,7 @@ from backend.models.database import BotState, Trade
 def test_stats_endpoint_returns_balance(client, db):
     db.query(Trade).filter_by(trading_mode="paper").delete()
     db.commit()
-    
+
     state = db.query(BotState).filter_by(mode="paper").first()
     if not state:
         state = BotState(
@@ -19,7 +19,7 @@ def test_stats_endpoint_returns_balance(client, db):
         db.add(state)
     else:
         state.bankroll = 2500.0
-    
+
     db.commit()
 
     response = client.get("/api/v1/stats")
@@ -33,14 +33,14 @@ def test_stats_endpoint_returns_balance(client, db):
 def test_stats_endpoint_paper_mode(client, db):
     db.query(Trade).filter_by(trading_mode="paper").delete()
     db.commit()
-    
+
     state = db.query(BotState).filter_by(mode="paper").first()
     if state:
         state.bankroll = 12000.0
         state.total_pnl = 2000.0
         state.total_trades = 10
         state.winning_trades = 6
-    
+
     for i in range(10):
         trade = Trade(
             market_ticker=f"paper-market-{i}",
@@ -58,7 +58,7 @@ def test_stats_endpoint_paper_mode(client, db):
             pnl=200.0 if i < 6 else 0.0,
         )
         db.add(trade)
-    
+
     db.commit()
 
     response = client.get("/api/v1/stats")
@@ -77,14 +77,14 @@ def test_stats_endpoint_includes_mode_specific_data(client, db):
         paper_state.total_pnl = 1000.0
         paper_state.total_trades = 5
         paper_state.winning_trades = 3
-    
+
     testnet_state = db.query(BotState).filter_by(mode="testnet").first()
     if testnet_state:
         testnet_state.bankroll = 200.0
         testnet_state.total_pnl = 50.0
         testnet_state.total_trades = 2
         testnet_state.winning_trades = 1
-    
+
     live_state = db.query(BotState).filter_by(mode="live").first()
     if live_state:
         db.info["allow_live_financial_update"] = True
@@ -110,7 +110,7 @@ def test_stats_endpoint_includes_mode_specific_data(client, db):
 def test_stats_endpoint_calculates_unrealized_pnl(client, db):
     db.query(Trade).filter_by(trading_mode="paper").delete()
     db.commit()
-    
+
     state = db.query(BotState).first()
     if not state:
         state = BotState(
@@ -161,7 +161,7 @@ def test_stats_endpoint_handles_missing_botstate(client, db):
     response = client.get("/api/v1/stats")
     assert response.status_code == 404
     assert "not initialized" in response.json()["detail"]
-    
+
     # Restore BotState for subsequent tests
     for mode in ["paper", "testnet", "live"]:
         if not db.query(BotState).filter_by(mode=mode).first():
@@ -181,7 +181,7 @@ def test_stats_pnl_source_indicator(client, db):
     # Clean up any trades from previous tests to avoid state leakage
     db.query(Trade).filter_by(trading_mode="paper").delete()
     db.commit()
-    
+
     state = db.query(BotState).filter_by(mode="paper").first()
     if state:
         state.bankroll = 10000.0
@@ -189,7 +189,7 @@ def test_stats_pnl_source_indicator(client, db):
         state.total_trades = 0
         state.winning_trades = 0
     db.commit()
-    
+
     response = client.get("/api/v1/stats?mode=paper")
     assert response.status_code == 200
 
@@ -202,7 +202,7 @@ def test_stats_includes_position_metrics(client, db):
     # Clean up any trades from previous tests to avoid state leakage
     db.query(Trade).filter_by(trading_mode="paper").delete()
     db.commit()
-    
+
     state = db.query(BotState).filter_by(mode="paper").first()
     if state:
         state.bankroll = 10000.0
@@ -210,7 +210,7 @@ def test_stats_includes_position_metrics(client, db):
         state.total_trades = 0
         state.winning_trades = 0
     db.commit()
-    
+
     response = client.get("/api/v1/stats?mode=paper")
     assert response.status_code == 200
 

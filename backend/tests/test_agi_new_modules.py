@@ -2,10 +2,10 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from backend.models.database import (
-    Base, SessionLocal, Trade, StrategyConfig, StrategyProposal, BotState,
+    Base, Trade, StrategyConfig, StrategyProposal, BotState,
 )
 from backend.models.outcome_tables import StrategyOutcome
 from backend.models.historical_data import HistoricalCandle, MarketOutcome, WeatherSnapshot

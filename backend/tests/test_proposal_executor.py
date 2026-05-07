@@ -10,13 +10,10 @@ from unittest.mock import Mock, patch
 
 from backend.core.proposal_executor import (
     ProposalExecutor,
-    ExecutionResult,
-    ImpactResult,
     execute_approved_proposals_job,
     measure_impact_and_rollback_job
 )
 from backend.models.database import (
-    SessionLocal,
     StrategyProposal,
     StrategyConfig,
     Trade,
@@ -29,14 +26,14 @@ from backend.models.database import (
 def db_session():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
+
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     yield session
-    
+
     session.close()
 
 
@@ -86,7 +83,7 @@ def executed_proposal(db_session, sample_strategy_config):
     )
     db_session.add(proposal)
     db_session.commit()
-    
+
     audit = AuditLog(
         timestamp=proposal.executed_at,
         event_type="PROPOSAL_EXECUTED",
@@ -108,29 +105,29 @@ def executed_proposal(db_session, sample_strategy_config):
     )
     db_session.add(audit)
     db_session.commit()
-    
+
     return proposal
 
 
 def test_execute_proposal_success(executor, db_session, approved_proposal, sample_strategy_config):
     proposal_id = approved_proposal.id
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal_id)
-    
+
     assert result is True
-    
+
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
     assert updated_proposal.admin_decision == "executed"
     assert updated_proposal.executed_at is not None
-    
+
     updated_config = db_session.query(StrategyConfig).filter(
         StrategyConfig.strategy_name == "test_strategy"
     ).first()
     params = json.loads(updated_config.params)
     assert params["min_edge"] == 0.08
     assert params["max_position_usd"] == 150
-    
+
     audit_log = db_session.query(AuditLog).filter(
         AuditLog.event_type == "PROPOSAL_EXECUTED"
     ).first()
@@ -141,7 +138,7 @@ def test_execute_proposal_success(executor, db_session, approved_proposal, sampl
 def test_execute_proposal_not_found(executor, db_session):
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(99999)
-    
+
     assert result is False
 
 
@@ -155,10 +152,10 @@ def test_execute_proposal_wrong_status(executor, db_session, sample_strategy_con
     )
     db_session.add(proposal)
     db_session.commit()
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
-    
+
     assert result is False
 
 
@@ -173,10 +170,10 @@ def test_execute_proposal_already_executed(executor, db_session, sample_strategy
     )
     db_session.add(proposal)
     db_session.commit()
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
-    
+
     assert result is False
 
 
@@ -190,10 +187,10 @@ def test_execute_proposal_config_not_found(executor, db_session):
     )
     db_session.add(proposal)
     db_session.commit()
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.execute_proposal(proposal.id)
-    
+
     assert result is False
 
 
@@ -221,10 +218,10 @@ def create_trades(db_session, strategy_name, count, base_time, pnl_values):
 
 def test_measure_impact_positive(executor, db_session, executed_proposal):
     execution_time = executed_proposal.executed_at
-    
+
     before_pnls = [-5, -3, 2, 3, 4]
     after_pnls = [8, 10, 12, 9, 11]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -235,10 +232,10 @@ def test_measure_impact_positive(executor, db_session, executed_proposal):
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
-    
+
     assert result is not None
     assert result.sharpe_ratio_delta > 0
     assert result.trade_count == 5
@@ -246,10 +243,10 @@ def test_measure_impact_positive(executor, db_session, executed_proposal):
 
 def test_measure_impact_negative(executor, db_session, executed_proposal):
     execution_time = executed_proposal.executed_at
-    
+
     before_pnls = [8, 10, 12, 9, 11]
     after_pnls = [-5, -3, -8, -2, -4]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -260,10 +257,10 @@ def test_measure_impact_negative(executor, db_session, executed_proposal):
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
-    
+
     assert result is not None
     assert result.sharpe_ratio_delta < 0
     assert result.pnl_delta < 0
@@ -271,33 +268,33 @@ def test_measure_impact_negative(executor, db_session, executed_proposal):
 
 def test_measure_impact_not_enough_trades(executor, db_session, executed_proposal):
     execution_time = executed_proposal.executed_at
-    
+
     create_trades(
         db_session, "test_strategy", 2,
         execution_time + timedelta(hours=1),
         [5, 10]
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(executed_proposal.id)
-    
+
     assert result is None
 
 
 def test_measure_impact_proposal_not_executed(executor, db_session, approved_proposal):
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         result = executor.measure_impact(approved_proposal.id)
-    
+
     assert result is None
 
 
 def test_auto_rollback_negative_impact(executor, db_session, executed_proposal, sample_strategy_config):
     execution_time = executed_proposal.executed_at
     proposal_id = executed_proposal.id
-    
+
     before_pnls = [8, 10, 12, 9, 11]
     after_pnls = [-10, -12, -15, -8, -11]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -308,22 +305,22 @@ def test_auto_rollback_negative_impact(executor, db_session, executed_proposal, 
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
-    
+
     assert rolled_back is True
-    
+
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
     assert updated_proposal.admin_decision == "rolled_back"
-    
+
     updated_config = db_session.query(StrategyConfig).filter(
         StrategyConfig.strategy_name == "test_strategy"
     ).first()
     params = json.loads(updated_config.params)
     assert params["min_edge"] == 0.05
     assert params["max_position_usd"] == 100
-    
+
     rollback_log = db_session.query(AuditLog).filter(
         AuditLog.event_type == "PROPOSAL_ROLLED_BACK"
     ).first()
@@ -333,10 +330,10 @@ def test_auto_rollback_negative_impact(executor, db_session, executed_proposal, 
 def test_auto_rollback_positive_impact(executor, db_session, executed_proposal):
     execution_time = executed_proposal.executed_at
     proposal_id = executed_proposal.id
-    
+
     before_pnls = [-5, -3, 2, 3, 4]
     after_pnls = [8, 10, 12, 9, 11]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -347,12 +344,12 @@ def test_auto_rollback_positive_impact(executor, db_session, executed_proposal):
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal_id)
-    
+
     assert rolled_back is False
-    
+
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
     assert updated_proposal.admin_decision == "executed"
 
@@ -368,12 +365,12 @@ def test_auto_rollback_no_audit_log(executor, db_session, sample_strategy_config
     )
     db_session.add(proposal)
     db_session.commit()
-    
+
     execution_time = proposal.executed_at
-    
+
     before_pnls = [8, 10, 12, 9, 11]
     after_pnls = [-10, -12, -15, -8, -11]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -384,16 +381,16 @@ def test_auto_rollback_no_audit_log(executor, db_session, sample_strategy_config
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         rolled_back = executor.auto_rollback_if_negative(proposal.id)
-    
+
     assert rolled_back is False
 
 
 def test_get_executed_proposals(executor, db_session, executed_proposal):
     proposals = executor.get_executed_proposals(limit=10, db=db_session)
-    
+
     assert len(proposals) == 1
     assert proposals[0]["id"] == executed_proposal.id
     assert proposals[0]["strategy_name"] == "test_strategy"
@@ -407,7 +404,7 @@ def test_calculate_sharpe_ratio(executor):
         Mock(pnl=8.0),
         Mock(pnl=2.0)
     ]
-    
+
     sharpe = executor._calculate_sharpe_ratio(trades)
     assert isinstance(sharpe, float)
     assert sharpe != 0.0
@@ -432,7 +429,7 @@ def test_calculate_win_rate(executor):
         Mock(pnl=-2.0),
         Mock(pnl=10.0)
     ]
-    
+
     win_rate = executor._calculate_win_rate(trades)
     assert win_rate == 0.6
 
@@ -450,7 +447,7 @@ def test_calculate_avg_pnl(executor):
         Mock(pnl=8.0),
         Mock(pnl=2.0)
     ]
-    
+
     avg_pnl = executor._calculate_avg_pnl(trades)
     assert avg_pnl == 4.4
 
@@ -463,10 +460,10 @@ def test_calculate_avg_pnl_empty(executor):
 @pytest.mark.asyncio
 async def test_execute_approved_proposals_job(db_session, approved_proposal, sample_strategy_config):
     proposal_id = approved_proposal.id
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         await execute_approved_proposals_job()
-    
+
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
     assert updated_proposal.admin_decision == "executed"
 
@@ -475,10 +472,10 @@ async def test_execute_approved_proposals_job(db_session, approved_proposal, sam
 async def test_measure_impact_and_rollback_job(db_session, executed_proposal, sample_strategy_config):
     execution_time = executed_proposal.executed_at
     proposal_id = executed_proposal.id
-    
+
     before_pnls = [8, 10, 12, 9, 11]
     after_pnls = [-10, -12, -15, -8, -11]
-    
+
     create_trades(
         db_session, "test_strategy", 5,
         execution_time - timedelta(hours=10),
@@ -489,7 +486,7 @@ async def test_measure_impact_and_rollback_job(db_session, executed_proposal, sa
         execution_time + timedelta(hours=1),
         after_pnls
     )
-    
+
     with patch('backend.db.utils.SessionLocal', return_value=db_session):
         with patch('backend.core.proposal_executor.ProposalExecutor.get_executed_proposals') as mock_get:
             mock_get.return_value = [{
@@ -497,8 +494,8 @@ async def test_measure_impact_and_rollback_job(db_session, executed_proposal, sa
                 "strategy_name": "test_strategy",
                 "executed_at": execution_time.isoformat()
             }]
-            
+
             await measure_impact_and_rollback_job()
-    
+
     updated_proposal = db_session.get(StrategyProposal, proposal_id)
     assert updated_proposal.admin_decision == "rolled_back"

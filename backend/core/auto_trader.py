@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from backend.config import settings
-from backend.models.database import SessionLocal, PendingApproval
+from backend.models.database import PendingApproval
 from backend.monitoring.hft_metrics import record_signal
 
 logger = logging.getLogger("trading_bot.auto_trader")

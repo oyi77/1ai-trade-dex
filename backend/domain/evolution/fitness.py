@@ -15,7 +15,7 @@ def calculate_fitness(metrics: FitnessMetrics) -> float:
     """
     if metrics.total_trades < 20:
         return 0.0
-    
+
     score = (
         (normalize(metrics.sharpe_ratio, -3, 3) * 0.30) +
         (metrics.win_rate * 0.20) +

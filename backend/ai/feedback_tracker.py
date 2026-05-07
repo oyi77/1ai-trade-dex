@@ -10,9 +10,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
-from backend.models.database import SessionLocal, StrategyProposal, StrategyConfig, Trade
+from backend.models.database import StrategyProposal, StrategyConfig, Trade
 from backend.models.outcome_tables import ProposalFeedback, ParamChange
 
 logger = logging.getLogger("trading_bot.feedback_tracker")

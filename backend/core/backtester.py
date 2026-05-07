@@ -2,7 +2,7 @@
 
 import logging
 import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, date
 from typing import Optional, Any
 
@@ -436,7 +436,7 @@ class BacktestEngine:
         if _owned:
             db = SessionLocal()
         try:
-            from backend.models.historical_data import MarketOutcome, HistoricalCandle
+            from backend.models.historical_data import MarketOutcome
 
             query = db.query(MarketOutcome).filter(
                 MarketOutcome.resolution_time >= self.config.start_date,
@@ -563,7 +563,7 @@ class BacktestEngine:
         if not is_btc:
             return "up", 0.5, 0.0
 
-        resolution_ts = resolution_dt.timestamp() if resolution_dt else 0
+        _resolution_ts = resolution_dt.timestamp() if resolution_dt else 0
         candle = (
             db.query(HistoricalCandle)
             .filter(

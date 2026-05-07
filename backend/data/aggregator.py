@@ -7,7 +7,7 @@ provides stale data when all sources are unavailable.
 """
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Any, Callable, Awaitable
 
 from backend.core.errors import DataQualityError

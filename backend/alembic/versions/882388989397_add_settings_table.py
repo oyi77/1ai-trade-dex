@@ -1,7 +1,7 @@
 """add_settings_table
 
 Revision ID: 882388989397
-Revises: 
+Revises:
 Create Date: 2026-04-20 08:22:15.738000
 
 """

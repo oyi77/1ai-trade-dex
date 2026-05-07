@@ -47,7 +47,7 @@ async def test_convert_signals_empty_list():
         market_price=0.55,
         latency_ms=150.0,
     )
-    
+
     assert result.consensus_probability == 0.55
     assert result.confidence == 0.0
     assert "No MiroFish signals" in result.reasoning
@@ -67,14 +67,14 @@ async def test_convert_signals_single_signal():
             source="model_x",
         )
     ]
-    
+
     result = _convert_signals_to_debate_result(
         signals=signals,
         question="Test question",
         market_price=0.50,
         latency_ms=100.0,
     )
-    
+
     assert result.consensus_probability == 0.75
     assert result.confidence == 0.9
     assert "model_x" in result.reasoning
@@ -90,10 +90,10 @@ async def test_convert_signals_weighted_consensus(sample_mirofish_signals):
         market_price=0.50,
         latency_ms=200.0,
     )
-    
+
     expected_consensus = (0.65 * 0.8 + 0.70 * 0.75) / (0.8 + 0.75)
     expected_confidence = (0.8 * 0.8 + 0.75 * 0.75) / (0.8 + 0.75)
-    
+
     assert abs(result.consensus_probability - expected_consensus) < 0.001
     assert abs(result.confidence - expected_confidence) < 0.001
     assert len(result.signal_votes) == 2
@@ -104,7 +104,7 @@ async def test_convert_signals_weighted_consensus(sample_mirofish_signals):
 @pytest.mark.asyncio
 async def test_routing_mirofish_disabled(mock_db):
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
         mock_run_debate.return_value = DebateResult(
             consensus_probability=0.60,
@@ -113,14 +113,14 @@ async def test_routing_mirofish_disabled(mock_db):
             market_question="Test",
             market_price=0.55,
         )
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test question",
             market_price=0.55,
             volume=10000.0,
         )
-        
+
         assert result is not None
         assert result.consensus_probability == 0.60
         assert result.reasoning == "Local debate result"
@@ -131,18 +131,18 @@ async def test_routing_mirofish_disabled(mock_db):
 async def test_routing_mirofish_enabled_success(mock_db, sample_mirofish_signals):
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient:
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=sample_mirofish_signals)
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test question",
             market_price=0.55,
             volume=10000.0,
         )
-        
+
         assert result is not None
         assert result.consensus_probability > 0.60
         assert "mirofish_model_a" in result.reasoning
@@ -154,13 +154,13 @@ async def test_routing_mirofish_enabled_success(mock_db, sample_mirofish_signals
 async def test_routing_mirofish_empty_signals_fallback(mock_db):
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=[])
-        
+
         mock_run_debate.return_value = DebateResult(
             consensus_probability=0.58,
             confidence=0.80,
@@ -168,13 +168,13 @@ async def test_routing_mirofish_empty_signals_fallback(mock_db):
             market_question="Test",
             market_price=0.55,
         )
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test question",
             market_price=0.55,
         )
-        
+
         assert result is not None
         assert result.reasoning == "Local fallback"
         mock_run_debate.assert_called_once()
@@ -184,13 +184,13 @@ async def test_routing_mirofish_empty_signals_fallback(mock_db):
 async def test_routing_mirofish_exception_fallback(mock_db):
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(side_effect=Exception("API timeout"))
-        
+
         mock_run_debate.return_value = DebateResult(
             consensus_probability=0.62,
             confidence=0.78,
@@ -198,13 +198,13 @@ async def test_routing_mirofish_exception_fallback(mock_db):
             market_question="Test",
             market_price=0.55,
         )
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test question",
             market_price=0.55,
         )
-        
+
         assert result is not None
         assert result.reasoning == "Exception fallback"
         mock_run_debate.assert_called_once()
@@ -213,7 +213,7 @@ async def test_routing_mirofish_exception_fallback(mock_db):
 @pytest.mark.asyncio
 async def test_routing_preserves_parameters(mock_db):
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
         mock_run_debate.return_value = DebateResult(
             consensus_probability=0.60,
@@ -222,7 +222,7 @@ async def test_routing_preserves_parameters(mock_db):
             market_question="Test",
             market_price=0.55,
         )
-        
+
         signal_votes = [
             SignalVote(
                 source="test",
@@ -231,7 +231,7 @@ async def test_routing_preserves_parameters(mock_db):
                 reasoning="test",
             )
         ]
-        
+
         await run_debate_with_routing(
             db=mock_db,
             question="Test question",
@@ -243,7 +243,7 @@ async def test_routing_preserves_parameters(mock_db):
             data_sources=["coinbase", "kraken"],
             signal_votes=signal_votes,
         )
-        
+
         call_kwargs = mock_run_debate.call_args.kwargs
         assert call_kwargs["question"] == "Test question"
         assert call_kwargs["market_price"] == 0.55

@@ -1,9 +1,6 @@
-from datetime import datetime, timezone
-from typing import Optional
 
-import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.self_debugger import (
     SelfDebugger,
@@ -98,9 +95,9 @@ class TestSelfDebuggerRecovery:
             recoverable=True,
             suggestion="Retry",
         )
-        result1 = debugger.attempt_recovery(diagnosis)
-        result2 = debugger.attempt_recovery(diagnosis)
-        result3 = debugger.attempt_recovery(diagnosis)
+        _result1 = debugger.attempt_recovery(diagnosis)
+        _result2 = debugger.attempt_recovery(diagnosis)
+        _result3 = debugger.attempt_recovery(diagnosis)
         result4 = debugger.attempt_recovery(diagnosis)
         assert result4.success is False
         assert result4.action_taken == "escalated_to_human"

@@ -108,7 +108,7 @@ class AICallLogger:
         if not self.log_to_db:
             return
         try:
-            from backend.models.database import SessionLocal, AILog
+            from backend.models.database import AILog
             from backend.db.utils import get_db_session
             with get_db_session() as db:
                 db_record = AILog(

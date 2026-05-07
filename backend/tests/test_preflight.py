@@ -1,10 +1,9 @@
 """Tests for backend.core.preflight — geoblock and connectivity checks."""
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 
-from backend.core.preflight import check_geoblock, run_preflight_checks
+from backend.core.preflight import check_geoblock
 
 
 # ---------------------------------------------------------------------------

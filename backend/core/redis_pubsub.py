@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class RedisPublisher:
     """Publishes WebSocket messages to Redis for cross-instance broadcasting.
-    
+
     Usage:
         publisher = RedisPublisher(redis_url="redis://localhost:6379")
         await publisher.connect()
@@ -27,7 +27,7 @@ class RedisPublisher:
 
     def __init__(self, redis_url: str):
         """Initialize Redis publisher.
-        
+
         Args:
             redis_url: Redis connection URL (e.g., redis://localhost:6379)
         """
@@ -37,7 +37,7 @@ class RedisPublisher:
 
     async def connect(self) -> bool:
         """Connect to Redis server.
-        
+
         Returns:
             True if connected successfully, False otherwise
         """
@@ -51,7 +51,7 @@ class RedisPublisher:
             )
             await self.client.ping()
             return True
-        
+
         try:
             await redis_breaker.call(_connect)
             self.connected = True
@@ -64,11 +64,11 @@ class RedisPublisher:
 
     async def publish(self, topic: str, message: Dict[str, Any]) -> bool:
         """Publish a message to a Redis channel.
-        
+
         Args:
             topic: Topic/channel name (e.g., "signals", "trades")
             message: JSON-serializable message to publish
-            
+
         Returns:
             True if published successfully, False otherwise
         """
@@ -104,11 +104,11 @@ class RedisPublisher:
 
 class RedisSubscriber:
     """Subscribes to Redis channels and forwards messages to callback handlers.
-    
+
     Usage:
         async def handle_message(topic: str, message: dict):
             print(f"Received on {topic}: {message}")
-        
+
         subscriber = RedisSubscriber(redis_url="redis://localhost:6379")
         await subscriber.connect()
         await subscriber.subscribe("signals", handle_message)
@@ -118,7 +118,7 @@ class RedisSubscriber:
 
     def __init__(self, redis_url: str):
         """Initialize Redis subscriber.
-        
+
         Args:
             redis_url: Redis connection URL (e.g., redis://localhost:6379)
         """
@@ -132,7 +132,7 @@ class RedisSubscriber:
 
     async def connect(self) -> bool:
         """Connect to Redis server.
-        
+
         Returns:
             True if connected successfully, False otherwise
         """
@@ -147,7 +147,7 @@ class RedisSubscriber:
             await self.client.ping()
             self.pubsub = self.client.pubsub()
             return True
-        
+
         try:
             await redis_breaker.call(_connect)
             self.connected = True
@@ -160,7 +160,7 @@ class RedisSubscriber:
 
     async def subscribe(self, topic: str, handler: Callable[[str, Dict[str, Any]], None]):
         """Subscribe to a Redis channel with a message handler.
-        
+
         Args:
             topic: Topic/channel name (e.g., "signals", "trades")
             handler: Async callback function(topic, message)
@@ -179,7 +179,7 @@ class RedisSubscriber:
 
     async def unsubscribe(self, topic: str):
         """Unsubscribe from a Redis channel.
-        
+
         Args:
             topic: Topic/channel name
         """
@@ -196,7 +196,7 @@ class RedisSubscriber:
 
     async def listen(self):
         """Start listening for messages (blocking until stopped).
-        
+
         Call this after subscribing to topics. Runs until stop() is called.
         """
         if not self.connected or not self.pubsub:
@@ -214,18 +214,18 @@ class RedisSubscriber:
                         self.pubsub.get_message(ignore_subscribe_messages=True),
                         timeout=1.0
                     )
-                    
+
                     if message and message["type"] == "message":
                         channel = message["channel"]
                         data = message["data"]
-                        
+
                         # Parse JSON payload
                         try:
                             payload = json.loads(data)
                         except json.JSONDecodeError as e:
                             logger.error(f"Invalid JSON from Redis channel '{channel}': {e}")
                             continue
-                        
+
                         # Call handler
                         handler = self.handlers.get(channel)
                         if handler:
@@ -240,7 +240,7 @@ class RedisSubscriber:
                                 logger.error(f"Error in handler for '{channel}': {e}")
                         else:
                             logger.warning(f"No handler for Redis channel '{channel}'")
-                
+
                 except asyncio.TimeoutError:
                     # Normal timeout, continue loop
                     continue
@@ -255,14 +255,14 @@ class RedisSubscriber:
 
     def start_listening(self):
         """Start listening in background task.
-        
+
         Returns:
             The asyncio Task running the listener
         """
         if self._listen_task and not self._listen_task.done():
             logger.warning("Listener already running")
             return self._listen_task
-        
+
         self._listen_task = asyncio.create_task(self.listen())
         return self._listen_task
 
@@ -283,7 +283,7 @@ class RedisSubscriber:
     async def close(self):
         """Close Redis connection."""
         await self.stop()
-        
+
         if self.pubsub:
             try:
                 await self.pubsub.aclose()
@@ -291,7 +291,7 @@ class RedisSubscriber:
                 logger.warning(f"Error closing Redis pubsub: {e}")
             finally:
                 self.pubsub = None
-        
+
         if self.client:
             try:
                 await self.client.aclose()

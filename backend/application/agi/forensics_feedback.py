@@ -106,7 +106,7 @@ FORENSIC_MUTATION_RULES: Dict[str, Callable[[StrategyConfig], Optional[StrategyC
 
 class ForensicsFeedbackApplicator:
     """Applies forensics-driven mutations to strategy configurations."""
-    
+
     MAX_MUTATIONS_PER_STRATEGY_PER_DAY = 1
 
     def _propose_mutation(self, strategy_name: str, root_cause: str) -> None:
@@ -131,13 +131,13 @@ class ForensicsFeedbackApplicator:
         db
     ) -> Optional[StrategyConfigMutation]:
         """Apply forensics-driven mutation to strategy configuration.
-        
+
         Args:
             strategy_name: Name of strategy to mutate
             root_cause: Failure pattern root cause code
             market_ticker: Market ticker for context
             db: Database session
-            
+
         Returns:
             StrategyConfigMutation if applied, None if skipped
         """

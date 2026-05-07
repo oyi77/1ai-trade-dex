@@ -24,8 +24,8 @@ sys.modules["backend.core.scheduler"] = _sched_stub
 # ---------------------------------------------------------------------------
 # In-memory DB wiring (mirrors conftest pattern)
 # ---------------------------------------------------------------------------
-from backend.models import database as _db_mod
-from backend.models.database import Base, BotState
+from backend.models import database as _db_mod  # noqa: E402
+from backend.models.database import Base, BotState  # noqa: E402
 
 _test_engine = create_engine(
     "sqlite:///:memory:",

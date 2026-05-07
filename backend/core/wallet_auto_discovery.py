@@ -5,8 +5,8 @@ Scans leaderboard, ranks by P&L, and suggests wallets to copy.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta, timezone
+from typing import List, Dict, Any
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,6 @@ async def scan_leaderboard_for_profitable_wallets(
         List of profitable wallets with stats from Polymarket leaderboard
     """
     from backend.data.polymarket_scraper import fetch_real_leaderboard
-    from backend.config import settings
 
     # Fetch REAL leaderboard data from Polymarket
     traders = await fetch_real_leaderboard(limit=limit)

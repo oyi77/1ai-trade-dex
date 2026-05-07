@@ -26,7 +26,6 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import httpx
@@ -36,6 +35,7 @@ from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
+from backend.models.database import for_update
 
 
 def _cfg(name, default):
@@ -619,7 +619,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                 signal_data["trade_side"] = "YES"
 
             confidence_score = min(1.0, abs(edge))
-            
+
             record_decision(
                 ctx.db,
                 self.name,
@@ -630,7 +630,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                 reason=f"EMOS: calibrated_p={calibrated_p:.3f} market={market_mid:.3f} edge={edge:+.3f}",
             )
             result.decisions_recorded += 1
-            
+
             activity_logger.log_entry(
                 strategy_name=self.name,
                 decision_type="entry" if decision == "BUY" else "hold",

@@ -36,10 +36,10 @@ async def _fetch_pm_portfolio_value() -> float | None:
 
 async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
     """Settle a BTC 5-min UP/DOWN market trade whose window has expired.
-    
+
     Resolution strategy (in order of reliability):
     1. Polymarket API via fetch_btc_market_for_settlement (if market is closed)
-    2. CEX BTC price at window end (Binance/Coinbase 1m klines) — determine if BTC 
+    2. CEX BTC price at window end (Binance/Coinbase 1m klines) — determine if BTC
        went UP or DOWN relative to window start
     3. If both fail, mark as expired_unresolved instead of push (zero PnL misreports wins)
     """
@@ -131,7 +131,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 )
                 return trade
             elif end_price is not None or start_price is not None:
-                reference_price = end_price or start_price
+                _reference_price = end_price or start_price
                 for k in klines:
                     k_ts_ms = int(float(k[0])) if isinstance(k[0], (int, float, str)) else 0
                     k_ts_s = k_ts_ms // 1000
@@ -190,7 +190,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
     async with _settlement_lock:
         alert_manager = AlertManager(db)
-        
+
         try:
             from backend.core.settlement_helpers import reconcile_positions
 
@@ -204,7 +204,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     trade = db.query(Trade).filter(Trade.id == trade_id).first()
                     if trade and (not trade.settled or trade.pnl is None):
                         is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
-                        
+
                         if is_resolved and settlement_value is not None:
                             pnl = calculate_pnl(trade, settlement_value)
                             await process_settled_trade(
@@ -220,7 +220,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                 f"Position reconciliation: trade {trade.id} position gone but resolution unavailable — "
                                 f"leaving unsettled for next cycle (market={trade.market_ticker})"
                             )
-                        
+
                         closed_count += 1
 
                         try:
@@ -246,7 +246,6 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         # Store trade memory in Knowledge Graph
                         try:
                             from backend.core.knowledge_graph import KnowledgeGraph
-                            from backend.models.database import SessionLocal as _SessionLocal
                             from backend.db.utils import get_db_session
                             with get_db_session() as kg_db:
                                 kg = KnowledgeGraph(session=kg_db)
@@ -271,7 +270,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             alert_manager.check_failed_settlement(
                 trade_id=0,
                 reason=f"Position reconciliation failed: {e}",
-                mode=trading_mode,
+                mode="paper",
             )
 
         try:
@@ -483,7 +482,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 alert_manager.check_failed_settlement(
                     trade_id=0,
                     reason=f"Failed to commit settlements: {e}",
-                    mode=trading_mode,
+                    mode="paper",
                 )
                 db.rollback()
 

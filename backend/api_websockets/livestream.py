@@ -2,8 +2,8 @@ import logging
 import asyncio
 from typing import Dict, Any, List
 from datetime import datetime, timezone
+from backend.core.signals import TradingSignal
 
-from backend.core.task_manager import TaskManager
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +68,7 @@ async def broadcast_signal_detected(signal: Any):
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
+    from backend.api.ws_manager_v2 import topic_manager
     tm = get_task_manager()
     if tm:
         await tm.create_task(
@@ -299,15 +300,15 @@ async def livestream_broadcaster():
                             sig_data = json.loads(recent_attempt.signal_data) if recent_attempt.signal_data else {}
                             if sig_data and "reasoning" in sig_data:
                                 reason = sig_data["reasoning"]
-                                
+
                             dir_bias = recent_attempt.direction or "unknown"
                             market = recent_attempt.market_ticker or "Unknown"
                             conf = getattr(recent_attempt, "confidence", 0) or 0
                             edge = getattr(recent_attempt, "edge", 0) or 0
-                            
+
                             bull_text = f"Analyzing market {market}...\nDirectional bias: {dir_bias.upper()}\n"
                             bear_text = f"Risk checks...\nConfidence: {conf*100:.1f}%\nEdge: {edge*100:.1f}%\n"
-                            
+
                             for part in reason.split():
                                 if "=" in part:
                                     k, v = part.split("=", 1)
@@ -317,17 +318,17 @@ async def livestream_broadcaster():
                                         bear_text += f"Time window: {v}\n"
                                     else:
                                         bull_text += f"Metric {k}: {v}\n"
-                            
-                            bull_text += f"\nConclusion: Market supports signal."
+
+                            bull_text += "\nConclusion: Market supports signal."
                             bear_text += f"\nRisk check: {'Passed' if recent_attempt.status == 'executed' else 'Blocked'}"
-                            
+
                             await broadcast_debate_update(
                                 bull_text=bull_text,
                                 bear_text=bear_text,
                                 verdict=dir_bias.lower() if dir_bias.lower() in ["bull", "bear", "up", "down"] else None,
                                 is_debating=False
                             )
-                            
+
                             await broadcast_thought_log(f"Analyzed {market} (bias: {dir_bias.upper()}). Confidence: {conf*100:.1f}%, Edge: {edge*100:.1f}%. Result: {recent_attempt.status.upper()}")
                             if reason:
                                 await broadcast_thought_log(f"Reasoning keys: {reason}")

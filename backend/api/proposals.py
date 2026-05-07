@@ -55,17 +55,17 @@ async def list_proposals(
     db: Session = Depends(get_db)
 ):
     """List strategy proposals filtered by status.
-    
+
     Query params:
         status: Filter by admin_decision status (pending, approved, rejected)
     """
     query = db.query(DBProposal)
-    
+
     if status:
         query = query.filter(DBProposal.admin_decision == status)
-    
+
     proposals = query.order_by(DBProposal.created_at.desc()).all()
-    
+
     return [
         ProposalResponse(
             id=p.id,
@@ -94,7 +94,7 @@ async def create_proposal(
 ):
     """Create a new strategy proposal."""
     from datetime import datetime, timezone
-    
+
     proposal = DBProposal(
         strategy_name=request.strategy_name,
         change_details=request.change_details,
@@ -105,7 +105,7 @@ async def create_proposal(
     db.add(proposal)
     db.commit()
     db.refresh(proposal)
-    
+
     return ProposalResponse(
         id=proposal.id,
         strategy_name=proposal.strategy_name,
@@ -125,23 +125,23 @@ async def approve_proposal(
     _admin: dict = Depends(require_admin)
 ):
     """Approve a strategy proposal (admin only).
-    
+
     Requires admin authentication. Returns 403 if called by non-admin.
     """
     generator = ProposalGenerator()
-    
+
     success = generator.approve_proposal(
-        proposal_id, 
+        proposal_id,
         request.admin_user_id,
         request.reason
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Proposal {proposal_id} not found or already processed"
         )
-    
+
     proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
     if proposal:
         await broadcast_proposal_update({
@@ -150,7 +150,7 @@ async def approve_proposal(
             "admin_decision": proposal.admin_decision,
             "admin_user_id": proposal.admin_user_id,
         })
-    
+
     return {"status": "approved", "proposal_id": proposal_id}
 
 
@@ -162,23 +162,23 @@ async def reject_proposal(
     _admin: dict = Depends(require_admin)
 ):
     """Reject a strategy proposal (admin only).
-    
+
     Requires admin authentication. Returns 403 if called by non-admin.
     """
     generator = ProposalGenerator()
-    
+
     success = generator.reject_proposal(
-        proposal_id, 
+        proposal_id,
         request.admin_user_id,
         request.reason
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Proposal {proposal_id} not found or already processed"
         )
-    
+
     proposal = db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
     if proposal:
         await broadcast_proposal_update({
@@ -187,7 +187,7 @@ async def reject_proposal(
             "admin_decision": proposal.admin_decision,
             "admin_user_id": proposal.admin_user_id,
         })
-    
+
     return {"status": "rejected", "proposal_id": proposal_id}
 
 
@@ -197,26 +197,26 @@ async def generate_proposal(
     _admin: dict = Depends(require_admin)
 ):
     """Generate a new strategy proposal from recent trades (admin only).
-    
+
     Analyzes the last 20 trades and uses Claude API to generate improvement proposal.
     """
     recent_trades = db.query(Trade).order_by(Trade.timestamp.desc()).limit(20).all()
-    
+
     if not recent_trades:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No trades available for analysis"
         )
-    
+
     generator = ProposalGenerator()
     proposal = await generator.generate_proposal(recent_trades)
-    
+
     if not proposal:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate proposal"
         )
-    
+
     return {
         "status": "created",
         "strategy_name": proposal.strategy_name,
@@ -233,13 +233,13 @@ async def get_proposal_impact(
     """Get impact metrics for an executed proposal."""
     measurer = ImpactMeasurer()
     impact_data = measurer.get_proposal_impact(proposal_id)
-    
+
     if not impact_data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No impact data found for proposal {proposal_id}"
         )
-    
+
     return impact_data
 
 
@@ -251,21 +251,21 @@ async def rollback_proposal(
 ):
     """Rollback a proposal to restore previous strategy config (admin only)."""
     rollback_mgr = RollbackManager()
-    
+
     if not rollback_mgr.can_rollback(proposal_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Proposal {proposal_id} cannot be rolled back (not approved or no snapshot)"
         )
-    
+
     success = rollback_mgr.rollback_proposal(proposal_id)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rollback proposal {proposal_id}"
         )
-    
+
     return {
         "status": "rolled_back",
         "proposal_id": proposal_id,
@@ -277,16 +277,16 @@ async def rollback_proposal(
 async def proposals_websocket(websocket: WebSocket):
     """WebSocket endpoint for real-time proposal updates."""
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "proposals")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:

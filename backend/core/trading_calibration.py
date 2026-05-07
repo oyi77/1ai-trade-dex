@@ -3,9 +3,7 @@ Per-strategy Brier score tracker with online beta calibration.
 Extends calibration_tracker.py pattern for trading predictions.
 No new dependencies — uses stdlib math only.
 """
-import math
 from typing import Optional, Dict, List, Tuple
-from datetime import datetime
 from collections import defaultdict
 
 

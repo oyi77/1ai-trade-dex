@@ -3,10 +3,9 @@
 Handles leaderboard scoring, trader selection, and order mirroring logic.
 """
 
-import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -15,6 +14,7 @@ from backend.strategies.wallet_sync import WalletTrade
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.monitoring.hft_metrics import record_execution
+from backend.utils.redaction import redact_sensitive
 
 logger = logging.getLogger("trading_bot")
 

@@ -100,7 +100,7 @@ class AGIGoalEngine:
         return GoalPerformance(goal=goal, trades=total, wins=wins, pnl=pnl)
 
     def handle_regime_change(self, transition: dict[str, Any]) -> AGIGoal:
-        from_regime = transition.get("from_regime")
+        _from_regime = transition.get("from_regime")
         to_regime = transition.get("to_regime")
         if isinstance(to_regime, str):
             try:

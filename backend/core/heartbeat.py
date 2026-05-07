@@ -5,7 +5,7 @@ import logging
 import threading
 from datetime import datetime, timezone, timedelta
 
-from backend.models.database import SessionLocal, BotState, StrategyConfig, for_update
+from backend.models.database import BotState, StrategyConfig, for_update
 
 logger = logging.getLogger("trading_bot")
 
@@ -200,7 +200,7 @@ async def wallet_sync_job() -> None:
     Syncs ALL modes that need real wallet balance (live, testnet).
     """
     from backend.config import settings
-    from backend.models.database import SessionLocal, StrategyConfig
+    from backend.models.database import StrategyConfig
 
     modes_to_sync = set()
     try:

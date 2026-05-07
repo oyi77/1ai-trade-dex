@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 class ActivityLogger:
     """Thread-safe activity logger for strategy decisions."""
-    
+
     def __init__(self):
         """Initialize the activity logger."""
         pass
-    
+
     def log_entry(
         self,
         strategy_name: str,
@@ -39,7 +39,7 @@ class ActivityLogger:
     ) -> Optional[int]:
         """
         Log a strategy decision to the database.
-        
+
         Args:
             strategy_name: Name of the strategy (e.g., 'btc_momentum', 'btc_oracle')
             decision_type: Type of decision ('entry', 'exit', 'hold', 'adjustment')
@@ -47,7 +47,7 @@ class ActivityLogger:
             confidence: Confidence score (0.0-1.0)
             mode: Trading mode ('paper' or 'live')
             db: Optional database session (creates new if None)
-        
+
         Returns:
             Activity log ID if successful, None otherwise
         """
@@ -55,12 +55,12 @@ class ActivityLogger:
         if db is None:
             db = SessionLocal()
             should_close = True
-        
+
         try:
             # Retry with exponential backoff for cross-process database lock contention
             max_retries = 3
             base_delay_ms = 200
-            
+
             for attempt in range(max_retries):
                 try:
                     activity = ActivityLog(
@@ -103,7 +103,7 @@ class ActivityLogger:
         finally:
             if should_close:
                 db.close()
-    
+
     def get_activities(
         self,
         limit: int = 100,
@@ -113,13 +113,13 @@ class ActivityLogger:
     ) -> List[Dict[str, Any]]:
         """
         Retrieve activity logs with optional filtering.
-        
+
         Args:
             limit: Maximum number of records to return (default 100)
             strategy: Filter by strategy name (optional)
             days: Filter to last N days (optional)
             db: Optional database session (creates new if None)
-        
+
         Returns:
             List of activity log dictionaries
         """
@@ -127,26 +127,26 @@ class ActivityLogger:
         if db is None:
             db = SessionLocal()
             should_close = True
-        
+
         try:
             query = db.query(ActivityLog)
-            
+
             # Apply filters
             if strategy:
                 query = query.filter(ActivityLog.strategy_name == strategy)
-            
+
             if days:
                 cutoff = datetime.now(timezone.utc) - timedelta(days=days)
                 query = query.filter(ActivityLog.timestamp >= cutoff)
-            
+
             # Order by timestamp descending (newest first)
             query = query.order_by(ActivityLog.timestamp.desc())
-            
+
             # Apply limit
             query = query.limit(limit)
-            
+
             activities = query.all()
-            
+
             # Convert to dictionaries
             result = []
             for activity in activities:
@@ -159,7 +159,7 @@ class ActivityLogger:
                     "confidence_score": activity.confidence_score,
                     "mode": activity.mode
                 })
-            
+
             return result
         except Exception as e:
             logger.error(f"ActivityLogger: Failed to retrieve activities: {e}", exc_info=True)
@@ -167,14 +167,14 @@ class ActivityLogger:
         finally:
             if should_close:
                 db.close()
-    
+
     def cleanup_old_activities(self, db: Optional[Session] = None) -> int:
         """
         Delete activity logs older than ACTIVITY_LOG_RETENTION_DAYS.
-        
+
         Args:
             db: Optional database session (creates new if None)
-        
+
         Returns:
             Number of records deleted
         """
@@ -182,7 +182,7 @@ class ActivityLogger:
         if db is None:
             db = SessionLocal()
             should_close = True
-        
+
         try:
             # Get retention policy from settings (default 90 days)
             retention_days = get_setting("ACTIVITY_LOG_RETENTION_DAYS", default=90, db=db)
@@ -192,7 +192,7 @@ class ActivityLogger:
             # Retry with exponential backoff for cross-process database lock contention
             max_retries = 3
             base_delay_ms = 200
-            
+
             for attempt in range(max_retries):
                 try:
                     deleted = db.query(ActivityLog).filter(

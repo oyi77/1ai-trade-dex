@@ -20,7 +20,6 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 
 from backend.models.database import (
-    SessionLocal,
     StrategyConfig,
     StrategyProposal,
     AuditLog
@@ -31,25 +30,25 @@ logger = logging.getLogger(__name__)
 
 class ProposalApplier:
     """Applies approved proposals to live strategy configs."""
-    
+
     def __init__(self):
         """Initialize the ProposalApplier."""
         self.logger = logging.getLogger(__name__)
-    
+
     def apply_proposal_to_config(
-        self, 
+        self,
         proposal_id: int,
         db: Optional[Any] = None
     ) -> bool:
         """Apply an approved proposal to the strategy config.
-        
+
         This is called after admin approval to update the live config.
         The strategy executor will read the updated config on its next cycle.
-        
+
         Args:
             proposal_id: Database ID of the approved proposal
             db: Optional database session (creates new if None)
-        
+
         Returns:
             True if config was updated successfully, False otherwise
         """
@@ -74,32 +73,32 @@ class ProposalApplier:
             proposal = db.query(StrategyProposal).filter(
                 StrategyProposal.id == proposal_id
             ).first()
-            
+
             if not proposal:
                 self.logger.error(f"Proposal {proposal_id} not found")
                 return False
-            
+
             if proposal.admin_decision != "approved":
                 self.logger.error(
                     f"Proposal {proposal_id} not approved (status: {proposal.admin_decision})"
                 )
                 return False
-            
+
             strategy_name = proposal.strategy_name
             change_details = proposal.change_details
-            
+
             # Load current config
             config = db.query(StrategyConfig).filter(
                 StrategyConfig.strategy_name == strategy_name
             ).first()
-            
+
             if not config:
                 self.logger.error(f"Strategy config not found for '{strategy_name}'")
                 return False
-            
+
             # Parse current params
             current_params = json.loads(config.params) if config.params else {}
-            
+
             # Create snapshot before applying changes
             old_snapshot = {
                 "strategy_name": config.strategy_name,
@@ -107,7 +106,7 @@ class ProposalApplier:
                 "interval_seconds": config.interval_seconds,
                 "params": current_params.copy()
             }
-            
+
             # Apply changes from proposal
             new_params = current_params.copy()
             for key, value in change_details.items():
@@ -118,10 +117,10 @@ class ProposalApplier:
                 else:
                     # Update params JSON
                     new_params[key] = value
-            
+
             # Save updated params
             config.params = json.dumps(new_params)
-            
+
             # Create new snapshot
             new_snapshot = {
                 "strategy_name": config.strategy_name,
@@ -129,7 +128,7 @@ class ProposalApplier:
                 "interval_seconds": config.interval_seconds,
                 "params": new_params
             }
-            
+
             # Log config change to audit log
             audit_entry = AuditLog(
                 timestamp=datetime.now(timezone.utc),
@@ -148,16 +147,16 @@ class ProposalApplier:
                 }
             )
             db.add(audit_entry)
-            
+
             # Commit changes
             db.commit()
-            
+
             self.logger.info(
                 f"Applied proposal {proposal_id} to strategy '{strategy_name}': {change_details}"
             )
-            
+
             return True
-            
+
         except Exception as e:
             db.rollback()
             self.logger.error(
@@ -165,21 +164,21 @@ class ProposalApplier:
                 exc_info=True
             )
             return False
-    
+
     def get_active_config(
         self,
         strategy_name: str,
         db: Optional[Any] = None
     ) -> Optional[Dict[str, Any]]:
         """Get the current active config for a strategy.
-        
+
         This is called by the strategy executor to read the latest config
         from the database before each execution cycle.
-        
+
         Args:
             strategy_name: Name of the strategy
             db: Optional database session
-        
+
         Returns:
             Config dict with enabled, interval_seconds, and params, or None
         """
@@ -203,12 +202,12 @@ class ProposalApplier:
             config = db.query(StrategyConfig).filter(
                 StrategyConfig.strategy_name == strategy_name
             ).first()
-            
+
             if not config:
                 return None
-            
+
             params = json.loads(config.params) if config.params else {}
-            
+
             return {
                 "strategy_name": config.strategy_name,
                 "enabled": config.enabled,
@@ -221,7 +220,7 @@ class ProposalApplier:
                 exc_info=True
             )
             return None
-    
+
     def get_config_timeline(
         self,
         strategy_name: str,
@@ -229,15 +228,15 @@ class ProposalApplier:
         db: Optional[Any] = None
     ) -> list[Dict[str, Any]]:
         """Get the config change timeline for a strategy.
-        
+
         Returns a list of config changes from the audit log, showing
         when proposals were applied and what changed.
-        
+
         Args:
             strategy_name: Name of the strategy
             limit: Maximum number of changes to return
             db: Optional database session
-        
+
         Returns:
             List of config change events with timestamps and details
         """
@@ -262,7 +261,7 @@ class ProposalApplier:
                 AuditLog.event_type == "CONFIG_UPDATED",
                 AuditLog.entity_id == strategy_name
             ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
-            
+
             timeline = []
             for change in changes:
                 timeline.append({
@@ -272,7 +271,7 @@ class ProposalApplier:
                     "new_value": change.new_value,
                     "details": change.details
                 })
-            
+
             return timeline
         except Exception as e:
             self.logger.error(

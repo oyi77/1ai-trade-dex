@@ -25,12 +25,11 @@ from py_clob_client_v2.client import ClobClient
 from py_clob_client_v2.clob_types import (
     ApiCreds,
     OrderArgsV2 as OrderArgs,
-    OrderType,
     BalanceAllowanceParams,
     AssetType,
 )
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.circuit_breaker_pybreaker import polymarket_breaker
 from backend.config import settings
 
@@ -43,9 +42,9 @@ def _cfg(key: str, default=None):
 
 def ensure_token_id(token_id: str) -> str:
     """Ensure token_id is a decimal string for CLOB API.
-    
-    Polymarket CLOB exchange_order_builder expects tokenId to be 
-    convertible to int via int(tokenId). Gamma/Data APIs return 
+
+    Polymarket CLOB exchange_order_builder expects tokenId to be
+    convertible to int via int(tokenId). Gamma/Data APIs return
     token IDs as decimal strings.
     """
     if not token_id:
@@ -86,7 +85,7 @@ async def _check_and_claim_idempotency(key: str) -> bool:
     from backend.models.database import SessionLocal, Trade
 
     from backend.core.circuit_breaker_pybreaker import db_breaker
-    
+
     def _db_query():
         db = SessionLocal()
         try:
@@ -94,7 +93,7 @@ async def _check_and_claim_idempotency(key: str) -> bool:
             return existing
         finally:
             db.close()
-    
+
     try:
         existing = db_breaker.call(_db_query)
         if existing is not None:
@@ -226,13 +225,13 @@ class PolymarketCLOB:
                     api_secret=api_secret,
                     api_passphrase=api_passphrase,
                 )
-            
+
             builder_config = None
             if builder_api_key and builder_secret and builder_passphrase:
                 try:
                     from py_clob_client_v2.clob_types import BuilderConfig
 
-                    # Builder code must be a hex string (bytes32). 
+                    # Builder code must be a hex string (bytes32).
                     # If it's a UUID, remove hyphens and pad to 64 chars.
                     builder_code = (builder_api_key or "").replace("-", "").lower()
                     if builder_code and len(builder_code) < 64:
@@ -414,7 +413,7 @@ class PolymarketCLOB:
             resp.raise_for_status()
             data = resp.json()
             return data[0] if data else None
-        
+
         try:
             return await polymarket_breaker.call(_fetch_market)
         except Exception as e:
@@ -476,13 +475,13 @@ class PolymarketCLOB:
         if not self._clob_client:
             logger.error("ClobClient not initialised — private_key required")
             return None
-            
+
         if self._clob_client.creds and self._clob_client.creds.api_key and self._clob_client.creds.api_secret:
             self.api_key = self._clob_client.creds.api_key
             self.api_secret = self._clob_client.creds.api_secret
             self.api_passphrase = self._clob_client.creds.api_passphrase
             return self._clob_client.creds
-            
+
         try:
             creds = await asyncio.to_thread(
                 self._clob_client.derive_api_key
@@ -609,7 +608,7 @@ class PolymarketCLOB:
             # In CLOB V2, OrderArgsV2.size is shares.
             # In PolyEdge, size argument is USDC to spend.
             shares = size / price if side == "BUY" else size
-            
+
             order_args = OrderArgs(
                 token_id=clean_token_id,
                 price=price,
@@ -689,7 +688,7 @@ class PolymarketCLOB:
             logger.error("Cancel all requires ClobClient with API credentials")
             return False
         try:
-            resp = await asyncio.to_thread(self._clob_client.cancel_all)
+            _resp = await asyncio.to_thread(self._clob_client.cancel_all)
             logger.info("Cancelled all open orders")
             return True
         except Exception as e:
@@ -721,19 +720,19 @@ class PolymarketCLOB:
             # First attempt RPC for USDC.e since it handles proxy wallets natively
             # without requiring py-clob-client authentication that is often flawed for builders
             import httpx
-            
+
             wallet_address = self.builder_address if self.builder_address else self._account.address
             from backend.config import settings
-            
+
             tokens = {
                 "USDC.e": settings.USDC_E_ADDRESS,
                 "USDC Native": settings.USDC_NATIVE_ADDRESS,
                 "pUSD": settings.PUSD_ADDRESS
             }
-            
+
             rpc_url = settings.POLYGON_RPC_URL
             total_balance = 0.0
-            
+
             async with httpx.AsyncClient(timeout=10.0) as client:
                 for name, addr in tokens.items():
                     data = "0x70a08231000000000000000000000000" + wallet_address.lower()[2:]
@@ -750,11 +749,12 @@ class PolymarketCLOB:
                         )
                         if res.status_code == 200 and "result" in res.json():
                             hex_val = res.json()["result"]
-                            if hex_val == "0x" or not hex_val: hex_val = "0x0"
+                            if hex_val == "0x" or not hex_val:
+                                hex_val = "0x0"
                             total_balance += int(hex_val, 16) / 1e6
                     except Exception as e:
                         logger.warning(f"Failed to fetch {name} balance: {e}")
-            
+
             return {
                 "usdc_balance": total_balance,
                 "token_balances": {},
@@ -968,10 +968,10 @@ class PolymarketCLOB:
 
 def clob_from_settings(mode: Optional[str] = None) -> PolymarketCLOB:
     """Create PolymarketCLOB from app settings.
-    
+
     Args:
         mode: Trading mode override (paper/testnet/live). If None, uses settings.TRADING_MODE.
-    
+
     Returns:
         PolymarketCLOB instance configured for the specified mode.
     """

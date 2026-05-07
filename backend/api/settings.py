@@ -82,7 +82,7 @@ async def get_settings(db: Session = Depends(get_db)):
             "max_total_pending": app_settings.MAX_TOTAL_PENDING_TRADES,
         })
         trading_mode = _get_setting(db, "trading_mode", app_settings.TRADING_MODE)
-        
+
         return SettingsResponse(
             mirofish_enabled=mirofish_enabled,
             mirofish_api_url=mirofish_api_url,
@@ -103,43 +103,43 @@ async def update_settings(
     _: None = Depends(require_admin)
 ):
     from backend.models.audit_logger import log_audit_event
-    
+
     try:
         # Track changes for audit logging
         changes = {}
-        
+
         if updates.mirofish_enabled is not None:
             old_value = _get_setting(db, "mirofish_enabled", False)
             _set_setting(db, "mirofish_enabled", updates.mirofish_enabled)
             changes["mirofish_enabled"] = {"old": old_value, "new": updates.mirofish_enabled}
-        
+
         if updates.mirofish_api_url is not None:
             old_value = _get_setting(db, "mirofish_api_url", None)
             _set_setting(db, "mirofish_api_url", updates.mirofish_api_url)
             changes["mirofish_api_url"] = {"old": old_value, "new": "[REDACTED]"}
-        
+
         if updates.mirofish_api_key is not None:
             old_value = _get_setting(db, "mirofish_api_key", None)
             _set_setting(db, "mirofish_api_key", updates.mirofish_api_key)
             changes["mirofish_api_key"] = {"old": "[REDACTED]", "new": "[REDACTED]"}
-        
+
         if updates.strategies is not None:
             old_value = _get_setting(db, "strategies_enabled", {})
             _set_setting(db, "strategies_enabled", updates.strategies)
             changes["strategies_enabled"] = {"old": old_value, "new": updates.strategies}
-        
+
         if updates.risk_params is not None:
             old_value = _get_setting(db, "risk_params", {})
             _set_setting(db, "risk_params", updates.risk_params)
             changes["risk_params"] = {"old": old_value, "new": updates.risk_params}
-        
+
         if updates.trading_mode is not None:
             if updates.trading_mode not in ["paper", "testnet", "live"]:
                 raise HTTPException(status_code=400, detail="Invalid trading mode")
             old_value = _get_setting(db, "trading_mode", app_settings.TRADING_MODE)
             _set_setting(db, "trading_mode", updates.trading_mode)
             changes["trading_mode"] = {"old": old_value, "new": updates.trading_mode}
-        
+
         # Log audit event for configuration changes
         if changes:
             log_audit_event(
@@ -151,12 +151,12 @@ async def update_settings(
                 new_value={"changes": {k: v["new"] for k, v in changes.items()}},
                 user_id="admin",
             )
-        
+
         db.commit()
         logger.info("Settings updated successfully")
-        
+
         return {"status": "ok", "message": "Settings updated successfully"}
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -218,7 +218,6 @@ async def bulk_update_settings(
     _: None = Depends(require_admin)
 ):
     """Bulk update settings from array of {key, value} pairs."""
-    from backend.models.audit_logger import log_audit_event
 
     # Keys that should be propagated to app_settings at runtime
     RUNTIME_MUTABLE_KEYS = {
@@ -297,14 +296,14 @@ async def toggle_mirofish(
     _: None = Depends(require_admin)
 ):
     from backend.models.audit_logger import log_audit_event
-    
+
     try:
         current = _get_setting(db, "mirofish_enabled", False)
         new_state = not current
         _set_setting(db, "mirofish_enabled", new_state)
 
         object.__setattr__(app_settings, "MIROFISH_ENABLED", new_state)
-        
+
         log_audit_event(
             db=db,
             event_type="MIROFISH_TOGGLE",
@@ -314,11 +313,11 @@ async def toggle_mirofish(
             new_value={"enabled": new_state},
             user_id="admin",
         )
-        
+
         db.commit()
-        
+
         logger.info(f"MiroFish toggled: {current} -> {new_state}")
-        
+
         return ToggleResponse(
             enabled=new_state,
             message=f"MiroFish {'enabled' if new_state else 'disabled'}"
@@ -336,14 +335,14 @@ async def toggle_strategy(
     _: None = Depends(require_admin)
 ):
     from backend.models.audit_logger import log_audit_event
-    
+
     try:
         strategies = _get_setting(db, "strategies_enabled", {})
         current = strategies.get(name, False)
         new_state = not current
         strategies[name] = new_state
         _set_setting(db, "strategies_enabled", strategies)
-        
+
         log_audit_event(
             db=db,
             event_type="STRATEGY_TOGGLE",
@@ -353,11 +352,11 @@ async def toggle_strategy(
             new_value={"enabled": new_state},
             user_id="admin",
         )
-        
+
         db.commit()
-        
+
         logger.info(f"Strategy '{name}' toggled: {current} -> {new_state}")
-        
+
         return ToggleResponse(
             enabled=new_state,
             message=f"Strategy '{name}' {'enabled' if new_state else 'disabled'}"
@@ -375,35 +374,35 @@ async def test_mirofish(
     _: None = Depends(require_admin)
 ):
     """Test MiroFish API connection with provided credentials.
-    
+
     Validates that the provided API URL and key can successfully fetch signals.
     Does not save credentials to database.
     """
     try:
         from backend.ai.mirofish_client import MiroFishClient
-        
+
         logger.info(f"Testing MiroFish connection: {request.api_url}")
-        
+
         client = MiroFishClient(
             api_url=request.api_url,
             api_key=request.api_key
         )
-        
+
         # Test fetch_signals with timeout
         try:
             signals = await asyncio.wait_for(
                 client.fetch_signals(market="polymarket"),
                 timeout=10.0
             )
-            
+
             logger.info(f"MiroFish test successful: {len(signals)} signals fetched")
-            
+
             return TestMiroFishResponse(
                 success=True,
                 message=f"Connection successful. Fetched {len(signals)} signals.",
                 signals_count=len(signals)
             )
-            
+
         except asyncio.TimeoutError:
             logger.warning("MiroFish test timed out after 10 seconds")
             return TestMiroFishResponse(
@@ -414,7 +413,7 @@ async def test_mirofish(
         except Exception as e:
             error_msg = str(e)
             logger.error(f"MiroFish test failed: {error_msg}", exc_info=True)
-            
+
             # Determine error type without exposing sensitive details
             if "401" in error_msg or "unauthorized" in error_msg.lower():
                 return TestMiroFishResponse(
@@ -465,7 +464,6 @@ async def get_mirofish_service_status():
 @router.post("/mirofish/start", response_model=ServiceActionResponse)
 async def mirofish_service_start(_: None = Depends(require_admin)):
     from backend.services.mirofish_service import get_mirofish_service
-    from backend.models.audit_logger import log_audit_event
 
     service = get_mirofish_service()
     result = service.start()

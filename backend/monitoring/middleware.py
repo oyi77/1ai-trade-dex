@@ -63,7 +63,7 @@ def _schedule_request_metrics_persistence(**kwargs) -> None:
 async def metrics_middleware(request: Request, call_next):
     """
     Middleware to track API request latency and errors.
-    
+
     Automatically records:
     - Request duration (for latency monitoring)
     - Error counts (4xx and 5xx responses)
@@ -71,10 +71,10 @@ async def metrics_middleware(request: Request, call_next):
     """
     start_time = perf_counter()
     error_message = None
-    
+
     try:
         response = await call_next(request)
-        
+
         # Record latency in milliseconds
         duration_ms = (perf_counter() - start_time) * 1000
         record_api_latency(duration_ms)
@@ -86,14 +86,14 @@ async def metrics_middleware(request: Request, call_next):
             status_code=response.status_code,
             user_agent=request.headers.get("user-agent"),
         )
-        
+
         # Track errors
         if response.status_code >= 400:
             increment_api_errors()
             logger.warning(f"API error: {request.method} {request.url.path} -> {response.status_code}")
-        
+
         return response
-        
+
     except Exception as e:
         # Record failed requests
         duration_ms = (perf_counter() - start_time) * 1000
@@ -108,6 +108,6 @@ async def metrics_middleware(request: Request, call_next):
             status_code=500,
             error_message=error_message,
         )
-        
+
         logger.error(f"API exception: {request.method} {request.url.path} -> {error_message}")
         raise

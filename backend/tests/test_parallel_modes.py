@@ -61,11 +61,11 @@ except Exception:
 def test_db():
     """Fresh DB session per test."""
     db = _TestSession()
-    
+
     # Clear all trades before each test for isolation
     db.query(Trade).delete()
     db.commit()
-    
+
     yield db
     db.close()
 
@@ -310,7 +310,7 @@ class TestConcurrentExecution:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(
@@ -401,7 +401,7 @@ class TestDatabaseIntegrity:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(
@@ -496,7 +496,7 @@ class TestModeSpecificRiskLimits:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(

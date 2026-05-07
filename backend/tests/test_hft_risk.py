@@ -2,7 +2,6 @@
 
 import random
 import logging
-from typing import Callable
 
 logger = logging.getLogger("trading_bot.hft_risk_test")
 

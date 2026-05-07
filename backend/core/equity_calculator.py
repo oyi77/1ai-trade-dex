@@ -6,7 +6,6 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from backend.models.app_state import AppState
-from backend.models.database import Trade, BotState
 
 
 class EquityPoint:

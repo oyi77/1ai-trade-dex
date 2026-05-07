@@ -23,7 +23,7 @@ async def query_knowledge_graph(
     db: Session = Depends(get_db),
 ) -> dict:
     """Run a pre-built graph query.
-    
+
     Available queries:
     - best_genes_volatile_regime: Genes performing best during volatile regimes
     - martingale_lifespan: Average lifespan of martingale strategies
@@ -31,14 +31,14 @@ async def query_knowledge_graph(
     - legend_mutation_path: Mutation paths that produced LEGEND strategies
     """
     kg = KnowledgeGraph()
-    
+
     try:
         # Parse params if provided
         params_dict = json.loads(params) if params else {}
-        
+
         # Execute query
         result = kg.query_graph(query_name, params_dict, db)
-        
+
         return {
             "success": True,
             "query": query_name,
@@ -60,10 +60,10 @@ async def get_node_neighbors(
     """Get neighbors of a node in the knowledge graph."""
     if direction not in ["outgoing", "incoming"]:
         raise HTTPException(status_code=400, detail="direction must be 'outgoing' or 'incoming'")
-    
+
     kg = KnowledgeGraph()
     neighbors = kg.query_neighbors(node_id, relationship, direction, db)
-    
+
     return {
         "success": True,
         "node_id": node_id,
@@ -91,7 +91,7 @@ async def create_node(
     """Create a new node in the knowledge graph."""
     kg = KnowledgeGraph()
     node = kg.add_node(None, node_type, label, properties, db)
-    
+
     return {
         "success": True,
         "node_id": node.node_id,
@@ -112,7 +112,7 @@ async def create_edge(
     """Create a new edge in the knowledge graph."""
     kg = KnowledgeGraph()
     edge = kg.add_edge(from_id, to_id, relationship, weight, properties, db)
-    
+
     return {
         "success": True,
         "edge_id": edge.edge_id,

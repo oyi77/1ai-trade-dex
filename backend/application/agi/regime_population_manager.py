@@ -5,7 +5,6 @@ Fixes Gap G2 by dynamically adjusting strategy allocations based on market regim
 """
 
 from typing import Dict, Any
-from sqlalchemy.orm import Session
 
 from backend.core.event_bus import publish_event
 from backend.core.regime_detector import RegimeDetector
@@ -107,13 +106,13 @@ def get_live_genomes(db) -> list:
 
 def detect_regime_and_rebalance(db) -> str:
     """Detect current market regime and rebalance strategy allocations.
-    
+
     Analyzes market conditions to determine regime, then adjusts capital
     allocation weights for strategy archetypes based on regime preferences.
-    
+
     Args:
         db: Database session
-        
+
     Returns:
         Detected regime name
     """
@@ -125,32 +124,32 @@ def detect_regime_and_rebalance(db) -> str:
         "spread_distribution": get_cross_platform_spreads(),
         "news_variance": get_news_sentiment_variance()
     }).regime.value if hasattr(RegimeDetector(), 'detect_regime') else "neutral"
-    
+
     # Check if regime changed
     if regime_changed(regime, db):
         # Get preferences for this regime
         prefs = REGIME_STRATEGY_PREFERENCES.get(regime, {})
-        
+
         # Adjust capital allocation weights
         for archetype in prefs.get("boost", []):
             increase_archetype_allocation(archetype, factor=1.50, db=db)
-        
+
         for archetype in prefs.get("suppress", []):
             decrease_archetype_allocation(archetype, factor=0.50, db=db)
-        
+
         # Trigger mutation with risk-chromosome target
         for genome in get_live_genomes(db):
             if "meta" not in genome.chromosomes:
                 genome.chromosomes["meta"] = {}
             genome.chromosomes["meta"]["next_mutation_target"] = "risk_chromosome"
-        
+
         # Publish regime shift event
         publish_event("regime_shift", {
             "from": get_last_regime(db),
             "to": regime
         })
-        
+
         # Save new regime
         save_regime(regime, db)
-    
+
     return regime

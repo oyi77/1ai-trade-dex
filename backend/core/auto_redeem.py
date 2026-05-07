@@ -17,7 +17,6 @@ For standard binary markets: indexSets = [1, 2], parentCollectionId = bytes32(0)
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -132,7 +131,6 @@ def _encode_redeem_call(
             try:
                 provider = Web3(Web3.HTTPProvider(POLYGON_RPC))
                 ctf = provider.eth.contract(address=CTF_ADDRESS, abi=CTF_ABI)
-                from backend.models.database import SessionLocal
                 from web3 import Web3 as _W3
 
                 condition_bytes = _W3.to_bytes(hexstr=condition_id_hex)

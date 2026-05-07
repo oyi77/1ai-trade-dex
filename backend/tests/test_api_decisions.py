@@ -1,6 +1,5 @@
 """Tests for /api/v1/decisions list, filter, and export endpoints."""
 
-import pytest
 from backend.config import settings
 
 
@@ -31,7 +30,6 @@ class TestDecisionsList:
     def test_decisions_filter_by_strategy(self, client, db):
         """Seed a decision and filter by strategy."""
         from backend.models.database import DecisionLog
-        from datetime import datetime
 
         # Seed a record
         rec = DecisionLog(
@@ -53,7 +51,6 @@ class TestDecisionsList:
 
     def test_decisions_filter_by_decision(self, client, db):
         """Filter by decision type BUY returns only BUY decisions."""
-        from backend.models.database import DecisionLog
 
         resp = client.get("/api/v1/decisions?decision=BUY")
         data = resp.json()

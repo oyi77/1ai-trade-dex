@@ -1,12 +1,10 @@
 """Tests for backend/core/attribution.py — strategy metrics, max drawdown, and edge cases."""
 
-import math
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 from backend.core.attribution import (
-    StrategyAttribution,
     compute_attribution,
     compute_strategy_metrics,
     _compute_max_drawdown,

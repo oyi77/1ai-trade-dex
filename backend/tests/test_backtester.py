@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.models.database import Base, Trade, Signal, BotState
+from backend.models.database import Base, Trade
 from backend.core.backtester import BacktestConfig, BacktestEngine, BacktestResult
 
 

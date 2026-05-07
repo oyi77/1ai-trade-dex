@@ -1,10 +1,8 @@
 """HFT Paper Trading Validation — simulate HFT strategies over 30 days."""
 
-import asyncio
 import random
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 
 logger = logging.getLogger("trading_bot.hft_paper")
 

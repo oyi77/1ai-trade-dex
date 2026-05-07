@@ -17,7 +17,6 @@ from typing import Optional
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
-from backend.core.errors import CircuitOpenError
 
 logger = logging.getLogger("trading_bot.cross_market_arb")
 
@@ -149,7 +148,7 @@ async def _place_order_retry(clob, token_id: str, side: str, price: float,
 
         return await breaker.call(_do_order)
 
-    except Exception as exc:
+    except Exception:
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
             wait = 0.1 * (2 ** retry_count)
             await asyncio.sleep(wait)

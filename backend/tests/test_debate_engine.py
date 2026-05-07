@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from backend.ai.debate_engine import (
     DebateArgument,

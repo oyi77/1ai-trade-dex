@@ -48,9 +48,9 @@ class BankrollReconciliationReport:
     @property
     def has_drift(self) -> bool:
         return (
-            self.drift_bankroll > 0.01 
-            or self.drift_pnl > 0.01 
-            or self.old_trade_count != self.new_trade_count 
+            self.drift_bankroll > 0.01
+            or self.drift_pnl > 0.01
+            or self.old_trade_count != self.new_trade_count
             or self.old_win_count != self.new_win_count
         )
 
@@ -131,15 +131,15 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
     try:
         import httpx
         from backend.config import settings
-        
+
         tokens = {
             "USDC.e": settings.USDC_E_ADDRESS,
             "USDC Native": settings.USDC_NATIVE_ADDRESS,
             "pUSD": settings.PUSD_ADDRESS
         }
-        
+
         rpc_url = settings.QUICKNODE_RPC_URL
-        
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             for name, addr in tokens.items():
                 data = "0x70a08231000000000000000000000000" + wallet_address.lower()[2:]
@@ -155,11 +155,12 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
                     )
                     if res.status_code == 200 and "result" in res.json():
                         hex_val = res.json()["result"]
-                        if hex_val == "0x" or not hex_val: hex_val = "0x0"
+                        if hex_val == "0x" or not hex_val:
+                            hex_val = "0x0"
                         cash += int(hex_val, 16) / 1e6
                 except Exception as e:
                     logger.warning(f"Failed to fetch {name} balance in reconciliation: {e}")
-        
+
         logger.info("Total cash balance from RPC: %.2f", cash)
     except Exception as exc:
         logger.warning("Polygon RPC cash fetch failed, falling back to CLOB: %s", exc)

@@ -18,21 +18,21 @@ async def execute_external_api_with_timeout(
 ) -> Any:
     """
     Execute an external API call with timeout.
-    
+
     Args:
         api_call: Async callable that performs the API call
         timeout: Timeout in seconds (defaults to EXTERNAL_API_TIMEOUT)
         operation_name: Name of the operation for logging
-    
+
     Returns:
         Result of the API call
-        
+
     Raises:
         asyncio.TimeoutError: If operation exceeds timeout
     """
     if timeout is None:
         timeout = settings.EXTERNAL_API_TIMEOUT
-    
+
     try:
         result = await asyncio.wait_for(api_call(), timeout=timeout)
         return result

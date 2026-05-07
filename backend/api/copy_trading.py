@@ -3,10 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List
-from sqlalchemy import String, func, cast
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from backend.models.database import get_db, Signal, SessionLocal, CopyTraderEntry
+from backend.models.database import get_db, Signal, CopyTraderEntry
 from backend.api.auth import require_admin
 from backend.config import settings
 import logging

@@ -109,7 +109,7 @@ def _reconcile_bot_state(db):
         settings.INITIAL_BANKROLL + realized_pnl - open_exposure, 2
     )
 
-    print(f"\nBotState reconciliation:")
+    print("\nBotState reconciliation:")
     print(f"  paper_bankroll: {state.paper_bankroll} -> {correct_bankroll}")
     print(f"  paper_pnl: {state.paper_pnl} -> {realized_pnl}")
     print(f"  paper_trades: {state.paper_trades} -> {trade_count}")
@@ -193,7 +193,7 @@ async def recover_expired_trades(dry_run: bool = False):
 
         recovered += 1
 
-    print(f"\nRecovery summary:")
+    print("\nRecovery summary:")
     print(f"  Recovered:    {recovered}")
     print(f"  Unresolved:   {still_unresolved}")
     print(f"  API errors:   {api_errors}")

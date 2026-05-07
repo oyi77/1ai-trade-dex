@@ -6,7 +6,6 @@ from sqlalchemy import func
 
 from backend.config import settings
 from backend.models.database import (
-    SessionLocal,
     Trade,
     BotState,
     Signal,
@@ -14,7 +13,7 @@ from backend.models.database import (
     StrategyConfig,
     for_update,
 )
-from backend.core.signals import scan_for_signals, scan_universe_markets
+from backend.core.signals import scan_universe_markets
 from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
@@ -461,7 +460,7 @@ async def weather_scan_and_trade_job(mode: str):
             log_event("info", f"[{mode.upper()}] No actionable weather signals")
             # Still update heartbeat so watchdog knows we ran
             from backend.db.utils import get_db_session
-            with get_db_session() as hb_db:
+            with get_db_session() as _hb_db:
                 _update_hb("weather_emos")
             return
 
@@ -832,7 +831,7 @@ async def heartbeat_job():
 
 async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     """Generic strategy dispatcher — called by APScheduler for each enabled strategy.
-    
+
     Args:
         strategy_name: Name of the strategy to run.
         mode: Trading mode (paper, testnet, live).
@@ -840,7 +839,6 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     from backend.core.scheduler import log_event
 
     from backend.strategies.registry import STRATEGY_REGISTRY
-    from backend.models.database import SessionLocal, StrategyConfig
     import json
 
     from backend.db.utils import get_db_session
@@ -1090,6 +1088,7 @@ async def market_universe_scan_job() -> None:
     DataProvider abstraction and caches results for fast lookup by downstream
     strategies. Runs every MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
     """
+    from backend.core.scheduler import log_event
     try:
         markets = await scan_universe_markets(
             limit=settings.AUTO_TRADER_BATCH_SIZE

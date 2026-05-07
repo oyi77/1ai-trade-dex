@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger("trading_bot.hft_backtester")
 
@@ -81,7 +80,7 @@ class HFTBacktester:
                 - (sig.get("size", 0) * self._kalshi_fee)
                 - (sig.get("size", 0) * (self._slippage_bps / 10000.0))
                 for sig in signals]
-        
+
         if len(pnls) > 1:
             import statistics
             pnl_stdev = statistics.stdev(pnls)

@@ -79,7 +79,7 @@ def upgrade() -> None:
         else:
             logger.error(f"Unexpected error adding 'event_type' column: {e}")
             raise
-    
+
     try:
         op.add_column('audit_log', sa.Column('entity_type', sa.String(), nullable=True))
         logger.info("Successfully added 'entity_type' column to audit_log")
@@ -89,7 +89,7 @@ def upgrade() -> None:
         else:
             logger.error(f"Unexpected error adding 'entity_type' column: {e}")
             raise
-    
+
     try:
         op.add_column('audit_log', sa.Column('entity_id', sa.String(), nullable=True))
         logger.info("Successfully added 'entity_id' column to audit_log")
@@ -99,7 +99,7 @@ def upgrade() -> None:
         else:
             logger.error(f"Unexpected error adding 'entity_id' column: {e}")
             raise
-    
+
     try:
         op.add_column('audit_log', sa.Column('old_value', sa.JSON(), nullable=True))
         logger.info("Successfully added 'old_value' column to audit_log")
@@ -109,7 +109,7 @@ def upgrade() -> None:
         else:
             logger.error(f"Unexpected error adding 'old_value' column: {e}")
             raise
-    
+
     try:
         op.add_column('audit_log', sa.Column('new_value', sa.JSON(), nullable=True))
         logger.info("Successfully added 'new_value' column to audit_log")
@@ -119,7 +119,7 @@ def upgrade() -> None:
         else:
             logger.error(f"Unexpected error adding 'new_value' column: {e}")
             raise
-    
+
     try:
         op.add_column('audit_log', sa.Column('user_id', sa.String(), nullable=True, server_default='system'))
         logger.info("Successfully added 'user_id' column to audit_log")

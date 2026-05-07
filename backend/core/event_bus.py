@@ -7,7 +7,6 @@ to backend handler callbacks. It replaces the module-level globals
 _event_subscribers and _event_history that were in main.py.
 """
 import asyncio
-import json
 import logging
 from collections import defaultdict, deque
 from datetime import datetime, timezone

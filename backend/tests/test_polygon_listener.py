@@ -1,6 +1,5 @@
 import json
 import pytest
-from unittest.mock import patch, MagicMock
 from backend.data.polygon_listener import PolygonListener
 
 

@@ -1,8 +1,7 @@
 """Auto-retraining trigger — fires after sufficient settled trades or Brier degradation."""
-import asyncio
 import logging
 import threading
-from backend.models.database import SessionLocal, Trade
+from backend.models.database import Trade
 
 logger = logging.getLogger("trading_bot.retrain")
 

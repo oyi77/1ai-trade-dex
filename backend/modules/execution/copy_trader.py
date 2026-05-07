@@ -63,8 +63,8 @@ async def _fetch_token_id(
 
 
 # Import from extracted modules
-from backend.strategies.wallet_sync import WalletWatcher, WalletTrade
-from backend.strategies.order_executor import (
+from backend.strategies.wallet_sync import WalletWatcher  # noqa: E402
+from backend.strategies.order_executor import (  # noqa: E402
     LeaderboardScorer,
     ScoredTrader,
     CopySignal,
@@ -381,7 +381,7 @@ class CopyTraderStrategy(BaseStrategy):
                 copy_entry_price = signal.market_price
                 if copy_direction in ("no", "down") and signal.market_price:
                     copy_entry_price = round(1.0 - signal.market_price, 6)
-                
+
                 activity_logger.log_entry(
                     strategy_name="copy_trader",
                     decision_type="entry",
@@ -398,7 +398,7 @@ class CopyTraderStrategy(BaseStrategy):
                     mode=ctx.mode,
                     db=ctx.db
                 )
-                
+
                 result.decisions.append(
                     {
                         "decision": "BUY",

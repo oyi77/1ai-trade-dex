@@ -31,8 +31,7 @@ from backend.core.scheduling_strategies import (
     verify_settlement_blockchain,
     market_universe_scan_job,
 )
-from backend.models.database import ScheduledJob
-import json
+from backend.models.database import ScheduledJob, Trade
 from backend.core.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
 from backend.core.agi_jobs import (
@@ -235,7 +234,7 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
 
 def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "paper") -> None:
     """Add or replace a strategy's APScheduler job for a specific mode.
-    
+
     Args:
         strategy_name: Name of the strategy to schedule.
         interval_seconds: Interval between job executions.
@@ -305,7 +304,7 @@ def _load_strategy_jobs() -> None:
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
                 .filter(
-                    (StrategyConfig.mode == mode) | (StrategyConfig.mode == None)
+                    (StrategyConfig.mode == mode) | (StrategyConfig.mode is None)
                 )
                 .all()
             )
@@ -436,12 +435,12 @@ def start_scheduler():
     if settings.POLYMARKET_WS_ENABLED:
         from backend.infrastructure.market_stream.orderbook_router import OrderbookRouter
         from backend.data.polymarket_websocket import PolymarketWebSocket, WebSocketConfig, ChannelType
-        
+
         orderbook_router = OrderbookRouter()
-        
+
         # Start the router dispatch loop
         asyncio.create_task(orderbook_router.start())
-        
+
         # Connect to WebSocket and register router as handler
         if settings.POLYMARKET_WS_CLOB_URL:
             ws_config = WebSocketConfig(
@@ -451,11 +450,11 @@ def start_scheduler():
             ws_client = PolymarketWebSocket(ws_config)
             orderbook_router.register_with_websocket(ws_client)
             asyncio.create_task(ws_client.connect())
-            
+
             logger.info("OrderbookRouter initialized with WebSocket connection")
         else:
             logger.warning("POLYMARKET_WS_CLOB_URL not configured, OrderbookRouter running in fallback mode")
-    
+
     # Start the scheduler
     scheduler.start()
     for job in scheduler.get_jobs():
@@ -468,7 +467,6 @@ def start_scheduler():
     logger.info("Scheduling enabled strategies from DB...")
     from backend.models.database import SessionLocal, StrategyConfig  # noqa: F401
     from backend.db.utils import get_db_session
-    from backend.config import settings
     from datetime import datetime, timezone, timedelta
 
     disabled = []
@@ -635,7 +633,6 @@ def start_scheduler():
         logger.info("Scheduled AGI health check every %d minute(s)", health_interval)
 
     if getattr(settings, "AGI_NIGHTLY_REVIEW_ENABLED", True):
-        from apscheduler.triggers.date import DateTrigger
         from datetime import datetime as _dt, timedelta as _td
 
         review_hour = getattr(settings, "AGI_NIGHTLY_REVIEW_HOUR", 2)
@@ -712,7 +709,7 @@ def start_scheduler():
         execute_approved_proposals_job,
         measure_impact_and_rollback_job
     )
-    
+
     scheduler.add_job(
         execute_approved_proposals_job,
         IntervalTrigger(minutes=30),
@@ -721,7 +718,7 @@ def start_scheduler():
         max_instances=1,
     )
     logger.info("Scheduled proposal execution job every 30 minutes")
-    
+
     scheduler.add_job(
         measure_impact_and_rollback_job,
         IntervalTrigger(hours=2),
@@ -776,7 +773,7 @@ def start_scheduler():
     logger.info("Scheduled source performance audit job at 03:00 UTC")
 
     def auto_disable_losing_strategies():
-        from backend.models.database import SessionLocal, Trade, StrategyConfig
+        from backend.models.database import Trade, StrategyConfig
         from backend.config import settings
         from datetime import datetime, timezone, timedelta
 
@@ -853,7 +850,7 @@ def start_scheduler():
     # Evolution engine jobs (guarded by EVOLUTION_ENGINE_ENABLED flag)
     if settings.EVOLUTION_ENGINE_ENABLED:
         logger.info("EVOLUTION_ENGINE_ENABLED=True - scheduling evolution jobs")
-        
+
         # Fitness evaluation — every 60 seconds
         scheduler.add_job(
             fitness_evaluation_job,
@@ -1147,7 +1144,7 @@ async def monitoring_job():
     """Run production monitoring checks"""
     from backend.core.monitoring import run_monitoring_check
     from backend.models.database import get_db
-    
+
     db = next(get_db())
     try:
         health = await run_monitoring_check(db)

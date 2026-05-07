@@ -1,9 +1,8 @@
 """Tests for RegimeDetector — regime classification, hysteresis, and event emission."""
-from datetime import datetime, timezone
 from unittest.mock import patch
 
 from backend.core.agi_types import MarketRegime, RegimeTransition
-from backend.core.regime_detector import RegimeDetector, RegimeResult, HYSTERESIS_THRESHOLD
+from backend.core.regime_detector import RegimeDetector
 
 
 def _bull_data(**overrides):

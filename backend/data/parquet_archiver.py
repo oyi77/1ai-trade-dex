@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -27,7 +26,6 @@ class TradeArchiver:
             return None
 
         from backend.models.database import Trade
-        from sqlalchemy import func
 
         start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         from sqlalchemy import and_

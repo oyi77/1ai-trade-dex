@@ -6,7 +6,7 @@ from typing import Any, Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.core.agi_types import StrategyBlock, MarketRegime
+from backend.core.agi_types import MarketRegime
 from backend.models.kg_models import Base, ExperimentRecord
 
 

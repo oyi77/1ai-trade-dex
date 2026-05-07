@@ -15,10 +15,10 @@ import logging
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from backend.models.database import Trade, Signal, BotState
+from backend.models.database import Trade, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ class BacktestEngine:
 
         # Simulate slippage
         slippage = self.config.slippage_bps / 10000.0
-        entry_price = signal.market_price * (1 + slippage)
+        _entry_price = signal.market_price * (1 + slippage)
 
         # Find matching trade in history
         historical_trade = (

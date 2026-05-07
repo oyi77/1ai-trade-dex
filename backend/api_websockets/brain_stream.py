@@ -32,7 +32,7 @@ def get_task_manager() -> TaskManager | None:
 
 async def broadcast_signal_received(signal_data: Dict[str, Any]):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "signal_received",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -49,7 +49,7 @@ async def broadcast_signal_received(signal_data: Dict[str, Any]):
 
 async def broadcast_debate_started(market_id: str, nodes: list):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "debate_started",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -66,7 +66,7 @@ async def broadcast_debate_started(market_id: str, nodes: list):
 
 async def broadcast_debate_ended(market_id: str, consensus: float, confidence: float):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "debate_ended",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -84,7 +84,7 @@ async def broadcast_debate_ended(market_id: str, consensus: float, confidence: f
 
 async def broadcast_trade_executed(trade_data: Dict[str, Any]):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "trade_executed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -101,7 +101,7 @@ async def broadcast_trade_executed(trade_data: Dict[str, Any]):
 
 async def broadcast_proposal_generated(proposal_data: Dict[str, Any]):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "proposal_generated",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -118,7 +118,7 @@ async def broadcast_proposal_generated(proposal_data: Dict[str, Any]):
 
 async def broadcast_node_status_change(node_id: str, status: str):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "node_status_change",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -135,7 +135,7 @@ async def broadcast_node_status_change(node_id: str, status: str):
 
 async def broadcast_edge_activation(from_node: str, to_node: str, active: bool):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "edge_activation",
         "timestamp": datetime.now(timezone.utc).isoformat(),

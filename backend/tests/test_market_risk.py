@@ -81,7 +81,7 @@ def test_warnings_generated(grader):
         "category": "geopolitical",
         "time_to_resolution_hours": 48,
     })
-    warning_text = " ".join(result.warnings)
+    _warning_text = " ".join(result.warnings)
     assert any("Subjective" in w for w in result.warnings)
     assert any("liquidity" in w.lower() for w in result.warnings)
     assert any("spread" in w.lower() for w in result.warnings)

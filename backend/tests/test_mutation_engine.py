@@ -1,11 +1,10 @@
-import pytest
 from backend.domain.evolution.mutation_engine import (
-    mutate_genome, tweak_random_numeric_gene, swap_indicator, 
+    mutate_genome, tweak_random_numeric_gene, swap_indicator,
     shift_timeframe, reassign_risk_model, normalize
 )
 from backend.domain.genome.models import (
-    StrategyGenome, PerceptionChromosome, CognitionChromosome, 
-    EntryLogic, EntryCondition, ExitLogic, MarketSelector, 
+    StrategyGenome, PerceptionChromosome, CognitionChromosome,
+    EntryLogic, EntryCondition, ExitLogic, MarketSelector,
     ExecutionChromosome, RiskChromosome, MetaChromosome
 )
 
@@ -34,7 +33,7 @@ def test_tweak_random_numeric_gene():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome()
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -46,7 +45,7 @@ def test_tweak_random_numeric_gene():
             'meta': meta
         }
     )
-    
+
     gene, new_value = tweak_random_numeric_gene(genome, sigma=0.1)
     assert gene != ""
     assert isinstance(new_value, (int, float))
@@ -66,7 +65,7 @@ def test_swap_indicator():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome()
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -78,7 +77,7 @@ def test_swap_indicator():
             'meta': meta
         }
     )
-    
+
     old, new = swap_indicator(genome, weighted_by_regime="trending")
     assert old != new
     assert old in ["rsi", "orderbook_imbalance"]
@@ -98,7 +97,7 @@ def test_shift_timeframe():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome()
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -110,7 +109,7 @@ def test_shift_timeframe():
             'meta': meta
         }
     )
-    
+
     old, new = shift_timeframe(genome, current_volatility=1.0)
     assert old in ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
     assert new in ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
@@ -130,7 +129,7 @@ def test_reassign_risk_model():
     execution = ExecutionChromosome()
     risk = RiskChromosome(position_sizing_model="kelly_fraction")
     meta = MetaChromosome()
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -142,7 +141,7 @@ def test_reassign_risk_model():
             'meta': meta
         }
     )
-    
+
     old, new = reassign_risk_model(genome, drawdown_history=[0.1, 0.05])
     assert old in ["kelly_fraction", "fixed_fraction", "volatility_targeted", "optimal_f"]
     assert new in ["kelly_fraction", "fixed_fraction", "volatility_targeted", "optimal_f"]
@@ -163,7 +162,7 @@ def test_mutate_genome_basic():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome()
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -175,9 +174,9 @@ def test_mutate_genome_basic():
             'meta': meta
         }
     )
-    
+
     new_genome, mutations = mutate_genome(genome, 'neutral', 0.5)
-    
+
     # Verify new genome properties
     assert new_genome.genome_id != genome.genome_id
     assert new_genome.stage == "DRAFT"
@@ -200,7 +199,7 @@ def test_mutate_genome_high_fitness():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome(mutation_rate=0.20)
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -212,10 +211,10 @@ def test_mutate_genome_high_fitness():
             'meta': meta
         }
     )
-    
+
     # High fitness should result in fewer mutations
     new_genome, mutations = mutate_genome(genome, 'neutral', 0.9)
-    
+
     assert new_genome.stage == "DRAFT"
     assert new_genome.lineage.creator == "mutation"
 
@@ -234,7 +233,7 @@ def test_mutate_genome_low_fitness():
     execution = ExecutionChromosome()
     risk = RiskChromosome()
     meta = MetaChromosome(mutation_rate=0.10)
-    
+
     genome = StrategyGenome(
         strategy_name='test',
         archetype='test',
@@ -246,9 +245,9 @@ def test_mutate_genome_low_fitness():
             'meta': meta
         }
     )
-    
+
     # Low fitness should result in more mutations
     new_genome, mutations = mutate_genome(genome, 'neutral', 0.2)
-    
+
     assert new_genome.stage == "DRAFT"
     assert new_genome.lineage.creator == "mutation"

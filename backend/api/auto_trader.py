@@ -2,9 +2,8 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
 
-from backend.models.database import get_db, PendingApproval
+from backend.models.database import PendingApproval
 from backend.api.auth import require_admin
 import logging
 

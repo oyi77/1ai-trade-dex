@@ -7,7 +7,7 @@ import json
 import math
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from sqlalchemy.orm import Session
 
 from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord
@@ -278,7 +278,7 @@ class StrategyHealthMonitor:
     def _run_postmortem(self, strategy: str, db: Session) -> None:
         """Analyze killed strategy decision records for root cause anomalies."""
         try:
-            from backend.models.database import DecisionLog, Trade, StrategyProposal
+            from backend.models.database import DecisionLog, StrategyProposal
             decisions = (
                 db.query(DecisionLog)
                 .filter(DecisionLog.strategy == strategy)

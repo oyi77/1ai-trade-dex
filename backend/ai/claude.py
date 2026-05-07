@@ -96,7 +96,7 @@ class ClaudeAnalyzer(BaseAIClient):
             )
             # Persist to database synchronously
             try:
-                from backend.models.database import SessionLocal, AILog
+                from backend.models.database import AILog
                 from datetime import datetime
 
                 from backend.db.utils import get_db_session
@@ -163,7 +163,7 @@ class ClaudeAnalyzer(BaseAIClient):
                     success=False,
                     error=str(e),
                 )
-                from backend.models.database import SessionLocal, AILog
+                from backend.models.database import AILog
                 from datetime import datetime
 
                 from backend.db.utils import get_db_session
@@ -233,7 +233,7 @@ Categories: weather, crypto, politics, economics, sports, other"""
                     call_type="classification",
                     success=True,
                 )
-                from backend.models.database import SessionLocal, AILog
+                from backend.models.database import AILog
                 from datetime import datetime
 
                 from backend.db.utils import get_db_session

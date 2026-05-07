@@ -1,6 +1,5 @@
 """Tests for /api/v1/trades, /api/v1/settlements, /api/v1/signals, /api/v1/stats endpoints."""
 
-import pytest
 from backend.config import settings
 
 
@@ -19,8 +18,6 @@ class TestTrades:
 
     def test_trades_with_seeded_data(self, client, db):
         """Seeded trade appears in results. Skip if patch fails."""
-        from backend.models.database import Trade
-        from datetime import datetime
         from unittest.mock import patch
 
         try:
