@@ -137,6 +137,7 @@ class Settings(BaseSettings):
 
     # Risk management — tuned for $100 bankroll
     DAILY_LOSS_LIMIT: float = 5.0
+    DAILY_LOSS_LIMIT_PCT: float = 0.10  # Percentage of bankroll for daily loss limit (overrides flat DAILY_LOSS_LIMIT when set)
     MAX_TRADE_SIZE: float = 8.0
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
@@ -246,7 +247,7 @@ class Settings(BaseSettings):
         "live": True,
     }
 
-    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.50  # Auto-approve 50%+ (winners had 40-90% distribution)
+    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5
     AUTO_TRADER_ENABLED: bool = True
 
     # Signal approval mode: "manual", "auto_approve", "auto_deny"
