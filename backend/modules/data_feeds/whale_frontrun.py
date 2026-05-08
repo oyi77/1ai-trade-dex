@@ -14,6 +14,8 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
+import httpx
+
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
@@ -82,27 +84,15 @@ class WhaleFrontrun(BaseStrategy):
         self._state_lock = asyncio.Lock()  # protects _ws, _running, _reconnect_count, _activity_buffer
 
     async def start(self, ctx: StrategyContext) -> None:
-        """Start the whale front-runner - connect WebSocket on first cycle."""
+        """Start the whale front-runner — connect WebSocket on first cycle."""
         if not self._ws_initialized:
-            self._running = True
             self._ws_initialized = True
-            asyncio.create_task(self._ws_loop())
-            logger.info("[whale_frontrun] Started with WebSocket background loop")
-
-    async def _ws_loop(self) -> None:
-        """Background loop to keep WebSocket alive for real-time whale activity."""
-        while self._running:
-            try:
-                if not hasattr(self, '_ws') or self._ws is None:
-                    await asyncio.sleep(5)
-                    continue
-                # Keep alive - send ping every 25s
-                await asyncio.sleep(25)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"[whale_frontrun] WS loop error: {e}")
-                await asyncio.sleep(5)
+            self._running = True
+            ws_ok = await self.connect_ws()
+            if ws_ok:
+                logger.info("[whale_frontrun] WebSocket connected, streaming whale activity")
+            else:
+                logger.info("[whale_frontrun] WebSocket unavailable, will use REST polling fallback")
 
     def detect_and_frontrun(self, activity: WhaleActivity) -> FrontrunResult:
         """Detect whale activity and place front-run order."""
@@ -128,40 +118,63 @@ class WhaleFrontrun(BaseStrategy):
         start = time.monotonic()
         frontruns = 0
         errors = []
+        decisions: list[dict] = []
 
         if not self._ws_initialized:
             await self.start(ctx)
 
-        try:
-            async with self._state_lock:
-                buffered = list(self._activity_buffer)
-                self._activity_buffer.clear()
+        async with self._state_lock:
+            buffered = list(self._activity_buffer)
+            self._activity_buffer.clear()
 
-                for activity in buffered:
-                    try:
-                        result = self.detect_and_frontrun(activity)
-                        if result.frontrun_placed:
-                            frontruns += 1
-
-                            if result.sell_scheduled:
-                                asyncio.create_task(
-                                    self._delayed_sell(activity, result.profit)
-                                )
-
-                    except Exception as exc:
-                        errors.append(str(exc))
-
+        if not buffered:
+            ws_connected = self._ws is not None and self._running
+            if not ws_connected:
+                buffered = await self._poll_recent_large_trades()
+            if not buffered:
+                logger.debug("[whale_frontrun] No whale activity found this cycle")
                 elapsed_ms = (time.monotonic() - start) * 1000
                 return CycleResult(
-                    decisions_recorded=frontruns,
-                    trades_attempted=frontruns,
-                    trades_placed=frontruns,
-                    errors=errors,
+                    decisions_recorded=0,
+                    trades_attempted=0,
+                    trades_placed=0,
+                    errors=[],
+                    decisions=[],
                     cycle_duration_ms=elapsed_ms,
                 )
-        except Exception as exc:
-            logger.exception(f"[whale_frontrun] Cycle failed: {exc}")
-            return CycleResult(0, 0, 0, errors=[str(exc)])
+
+        for activity in buffered:
+            try:
+                result = self.detect_and_frontrun(activity)
+                if result.frontrun_placed:
+                    frontruns += 1
+                    decisions.append({
+                        "decision": "BUY",
+                        "market_ticker": activity.market,
+                        "confidence": activity.score,
+                        "edge": activity.score * 0.1,
+                        "size": min(10.0, activity.size * 0.001),
+                        "strategy_name": "whale_frontrun",
+                        "reasoning": f"frontrun whale {activity.wallet[:8]}... size=${activity.size:.0f}",
+                    })
+
+                    if result.sell_scheduled:
+                        asyncio.create_task(
+                            self._delayed_sell(activity, result.profit)
+                        )
+
+            except Exception as exc:
+                errors.append(str(exc))
+
+        elapsed_ms = (time.monotonic() - start) * 1000
+        return CycleResult(
+            decisions_recorded=frontruns,
+            trades_attempted=frontruns,
+            trades_placed=frontruns,
+            errors=errors,
+            decisions=decisions,
+            cycle_duration_ms=elapsed_ms,
+        )
 
     async def _delayed_sell(self, activity: WhaleActivity, profit: Optional[float]) -> None:
         """Sell 1 second after whale's order to capture momentum."""
@@ -169,6 +182,48 @@ class WhaleFrontrun(BaseStrategy):
         logger.debug(
             f"[whale_frontrun] Selling after whale order on {activity.market}"
         )
+
+    async def _poll_recent_large_trades(self) -> list[WhaleActivity]:
+        """REST polling fallback — fetch recent large positions from Polymarket Data API."""
+        data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
+        min_size = self.default_params["min_size"]
+        min_score = self.default_params["min_score"]
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{data_url}/positions", params={"limit": 50})
+                resp.raise_for_status()
+                positions = resp.json()
+
+            activities: list[WhaleActivity] = []
+            for pos in positions:
+                size = float(pos.get("size", 0) or 0)
+                if size < min_size:
+                    continue
+
+                wallet = str(pos.get("user", pos.get("wallet", "")))
+                market = str(pos.get("market", pos.get("condition_id", pos.get("asset", ""))))
+                score = min(1.0, size / (min_size * 10))
+                if score < min_score:
+                    continue
+
+                activities.append(WhaleActivity(
+                    wallet=wallet,
+                    action=pos.get("side", "BUY"),
+                    size=size,
+                    market=market,
+                    score=score,
+                    timestamp=time.time(),
+                ))
+
+            if activities:
+                logger.debug(f"[whale_frontrun] REST fallback found {len(activities)} large positions")
+
+            return activities
+
+        except Exception as exc:
+            logger.debug(f"[whale_frontrun] REST polling failed: {exc}")
+            return []
 
     async def connect_ws(self) -> bool:
         """Connect to whale activity WebSocket with auto-reconnect."""
@@ -210,7 +265,13 @@ class WhaleFrontrun(BaseStrategy):
         wait = 0.1 * (2 ** (self._reconnect_count - 1))
         await asyncio.sleep(wait)
 
-        await self.connect_ws()
+        try:
+            from backend.data.whale_monitor_ws import WhaleMonitorWS
+
+            self._ws = WhaleMonitorWS()
+            logger.info("[whale_frontrun] Reconnected, loop will resume streaming")
+        except Exception as exc:
+            logger.warning(f"[whale_frontrun] Reconnect failed: {exc}")
 
     def _parse_whale_message(self, message: dict) -> Optional[WhaleActivity]:
         """Parse WebSocket message into WhaleActivity."""

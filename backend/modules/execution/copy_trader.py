@@ -26,17 +26,62 @@ from backend.config import settings
 logger = logging.getLogger("trading_bot")
 
 GAMMA_HOST = settings.GAMMA_API_URL
+CLOB_HOST = settings.CLOB_API_URL
+DATA_HOST = settings.DATA_API_URL
+
+
+def _extract_clob_token_id(market_data: dict) -> Optional[str]:
+    """Extract the first clobTokenId from a market data dict.
+
+    Handles both string-encoded JSON and native list formats for
+    the ``clobTokenIds`` field.  Also checks ``tokens`` array and
+    ``clob_token_id`` scalar as fallback keys seen in some Gamma
+    responses.
+    """
+    clob_token_ids = market_data.get("clobTokenIds")
+    if clob_token_ids:
+        if isinstance(clob_token_ids, str):
+            try:
+                clob_token_ids = json.loads(clob_token_ids)
+            except Exception:
+                clob_token_ids = []
+        if isinstance(clob_token_ids, list) and clob_token_ids:
+            return str(clob_token_ids[0])
+
+    tokens = market_data.get("tokens")
+    if isinstance(tokens, list) and tokens:
+        first = tokens[0]
+        if isinstance(first, dict):
+            tid = first.get("token_id") or first.get("clob_token_id")
+            if tid:
+                return str(tid)
+
+    scalar = market_data.get("clob_token_id")
+    if scalar:
+        return str(scalar)
+
+    return None
 
 
 async def _fetch_token_id(
     condition_id: str, http: Optional[httpx.AsyncClient] = None
 ) -> Optional[str]:
-    """Fetch clobTokenIds[0] for a condition_id from Gamma API."""
+    """Fetch clobTokenIds[0] for a condition_id via multiple API fallbacks.
+
+    Resolution order:
+      1. Gamma /markets?conditionId=... (query param — original path)
+      2. Gamma /markets/{condition_id}   (path segment)
+      3. CLOB /markets/{condition_id}    (CLOB markets endpoint)
+    """
     close_client = False
     if http is None:
         http = httpx.AsyncClient(timeout=10.0)
         close_client = True
+    attempts: list[str] = []
+
     try:
+        # --- Attempt 1: Gamma query-param (original approach) ---
+        attempts.append("gamma-query")
         resp = await http.get(
             f"{GAMMA_HOST}/markets",
             params={"conditionId": condition_id},
@@ -44,18 +89,43 @@ async def _fetch_token_id(
         if resp.status_code == 200:
             markets = resp.json()
             if markets and isinstance(markets, list) and len(markets) > 0:
-                clob_token_ids = markets[0].get("clobTokenIds") or []
-                if isinstance(clob_token_ids, str):
-                    try:
-                        clob_token_ids = json.loads(clob_token_ids)
-                    except Exception as e:
-                        logger.debug(f"Failed to parse clobTokenIds JSON: {e}")
-                        clob_token_ids = []
-                if clob_token_ids:
-                    return str(clob_token_ids[0])
+                token_id = _extract_clob_token_id(markets[0])
+                if token_id:
+                    return token_id
+
+        # --- Attempt 2: Gamma path-segment ---
+        attempts.append("gamma-path")
+        resp = await http.get(f"{GAMMA_HOST}/markets/{condition_id}")
+        if resp.status_code == 200:
+            data = resp.json()
+            # May be a single market dict or a list with one element
+            market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+            if market:
+                token_id = _extract_clob_token_id(market)
+                if token_id:
+                    return token_id
+
+        # --- Attempt 3: CLOB markets endpoint ---
+        attempts.append("clob-markets")
+        resp = await http.get(f"{CLOB_HOST}/markets/{condition_id}")
+        if resp.status_code == 200:
+            data = resp.json()
+            market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+            if market:
+                token_id = _extract_clob_token_id(market)
+                if token_id:
+                    return token_id
+
+        logger.warning(
+            f"CopyTrader: token_id fetch failed for condition_id={condition_id[:20]}... "
+            f"— tried: {', '.join(attempts)}"
+        )
         return None
     except Exception as e:
-        logger.warning(f"Failed to fetch token_id for {condition_id[:20]}...: {e}")
+        logger.warning(
+            f"CopyTrader: token_id fetch error for condition_id={condition_id[:20]}... "
+            f"(tried: {', '.join(attempts)}): {e}"
+        )
         return None
     finally:
         if close_client:
