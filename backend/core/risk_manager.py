@@ -98,6 +98,12 @@ class RiskManager:
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
 
+    def _get_bankroll(self, db, mode: str) -> float:
+        state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+        if state and state.bankroll is not None:
+            return float(state.bankroll)
+        return self.s.INITIAL_BANKROLL
+
     def _load_safety_rules(self) -> dict:
         """Load immutable safety rules with environment variable overrides."""
         import os
@@ -349,7 +355,15 @@ class RiskManager:
                     .scalar()
                     or 0.0
                 )
-                return daily_pnl <= -self.s.DAILY_LOSS_LIMIT
+                # Percentage-based daily loss limit: scales with bankroll.
+                # Falls back to flat DAILY_LOSS_LIMIT if DAILY_LOSS_LIMIT_PCT is not set.
+                daily_loss_limit_pct = getattr(self.s, 'DAILY_LOSS_LIMIT_PCT', None)
+                if daily_loss_limit_pct:
+                    bankroll = self._get_bankroll(db, effective_mode)
+                    daily_limit = bankroll * daily_loss_limit_pct
+                else:
+                    daily_limit = self.s.DAILY_LOSS_LIMIT
+                return daily_pnl <= -daily_limit
         except Exception as e:
                 logger.error(f"[risk_manager._daily_loss_exceeded] {type(e).__name__}: {e}", exc_info=True)
                 return True
