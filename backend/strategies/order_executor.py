@@ -387,7 +387,7 @@ class OrderExecutor:
         # Convert trade outcome to valid direction for CLOB
         # trade.outcome comes from Polymarket API and should be "YES" or "NO"
         our_side = trade.outcome.upper() if trade.outcome in ("yes", "no") else "YES"
-        
+
         return CopySignal(
             source_wallet=trader.user,
             source_trade=trade,

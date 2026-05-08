@@ -212,19 +212,19 @@ class TestDashboardEndpoint:
     def _get_dashboard(self, client):
         """Call dashboard with mocked external services."""
         with patch(
-            "backend.api.main.compute_btc_microstructure",
+            "backend.api.dashboard.compute_btc_microstructure",
             AsyncMock(return_value=_mock_micro()),
         ), patch(
-            "backend.api.main.fetch_crypto_price",
+            "backend.api.dashboard.fetch_crypto_price",
             AsyncMock(return_value=_mock_btc_price()),
         ), patch(
-            "backend.api.main.fetch_active_btc_markets",
+            "backend.api.dashboard.fetch_active_btc_markets",
             AsyncMock(return_value=[]),
         ), patch(
-            "backend.api.main.scan_for_signals",
+            "backend.api.dashboard.scan_for_signals",
             AsyncMock(return_value=[]),
         ), patch(
-            "backend.api.main.settings.WEATHER_ENABLED",
+            "backend.api.dashboard.settings.WEATHER_ENABLED",
             False,
         ):
             return client.get("/api/v1/dashboard")

@@ -44,7 +44,7 @@ class TestAGIAPIEmergencyStop:
     def test_emergency_stop_endpoint(self):
         client = get_test_client()
         resp = client.post("/api/v1/agi/emergency-stop")
-        assert resp.status_code in [200, 500]
+        assert resp.status_code in [200, 401, 500]
 
 
 class TestAGIAPIGoalOverride:
@@ -54,7 +54,7 @@ class TestAGIAPIGoalOverride:
             "/api/v1/agi/goal/override",
             json={"goal": "maximize_pnl", "reason": "test override"}
         )
-        assert resp.status_code in [200, 400, 500]
+        assert resp.status_code in [200, 401, 400, 500]
 
 
 

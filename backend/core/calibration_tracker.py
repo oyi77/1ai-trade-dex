@@ -57,7 +57,7 @@ class CalibrationTracker:
             db.query(CalibrationRecord)
             .filter(
                 CalibrationRecord.market_ticker == market_ticker,
-                CalibrationRecord.actual_outcome is None,
+                CalibrationRecord.actual_outcome.is_(None),
             )
             .all()
         )
@@ -95,7 +95,7 @@ class CalibrationTracker:
         from backend.models.database import CalibrationRecord
 
         query = db.query(CalibrationRecord).filter(
-            CalibrationRecord.actual_outcome is not None,
+            CalibrationRecord.actual_outcome.isnot(None),
         )
         if strategy:
             query = query.filter(CalibrationRecord.strategy == strategy)
@@ -147,7 +147,7 @@ class CalibrationTracker:
         from backend.models.database import CalibrationRecord
 
         query = db.query(CalibrationRecord).filter(
-            CalibrationRecord.actual_outcome is not None,
+            CalibrationRecord.actual_outcome.isnot(None),
         )
         if strategy:
             query = query.filter(CalibrationRecord.strategy == strategy)
@@ -172,7 +172,7 @@ class CalibrationTracker:
         from backend.models.database import CalibrationRecord
 
         query = db.query(CalibrationRecord).filter(
-            CalibrationRecord.actual_outcome is not None,
+            CalibrationRecord.actual_outcome.isnot(None),
         )
         if strategy:
             query = query.filter(CalibrationRecord.strategy == strategy)
