@@ -321,13 +321,16 @@ class UniversalScanner(BaseStrategy):
                 "confidence": min(abs(edge) * 5.0, 1.0),
             }
 
+    _MAX_DECISION_SIZE = 10.0
+
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """
         Execute one scanning cycle.
 
         1. Scan all markets (parallel, paginated)
         2. Analyze each for edge >= min_edge
-        3. Return CycleResult with signal count
+        3. Convert qualifying signals into BUY decision dicts
+        4. Return CycleResult with populated decisions list
         """
         start = time.monotonic()
 
@@ -343,11 +346,35 @@ class UniversalScanner(BaseStrategy):
                 if signal:
                     signals.append(signal)
 
+            decisions = []
+            for sig in signals:
+                edge = sig["edge"]
+                confidence = sig["confidence"]
+                size = min(abs(edge) * 100.0, self._MAX_DECISION_SIZE)
+                size = max(size, 1.0)
+                side = "YES" if edge > 0 else "NO"
+
+                decisions.append({
+                    "decision": "BUY",
+                    "market_ticker": sig["ticker"],
+                    "size": round(size, 2),
+                    "confidence": round(confidence, 4),
+                    "edge": round(edge, 4),
+                    "side": side,
+                    "strategy": self.name,
+                    "reason": f"Edge {edge:+.4f} on {sig['question'][:60]}",
+                })
+
             elapsed_ms = (time.monotonic() - start) * 1000
+            logger.info(
+                f"[universal_scanner] {len(decisions)} BUY decisions from "
+                f"{len(markets)} markets in {elapsed_ms:.0f}ms"
+            )
             return CycleResult(
-                decisions_recorded=len(signals),
-                trades_attempted=len(signals),
+                decisions_recorded=len(decisions),
+                trades_attempted=len(decisions),
                 trades_placed=0,
+                decisions=decisions,
                 cycle_duration_ms=elapsed_ms,
             )
 
