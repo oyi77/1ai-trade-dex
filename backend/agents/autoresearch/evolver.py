@@ -305,9 +305,16 @@ class StrategyEvolver:
         promoted = db.query(ExperimentRecord).filter(
             ExperimentRecord.status == ExperimentStatus.LIVE_PROMOTED.value,
         ).all()
+        if not promoted:
+            return
+
+        exp_ids = [exp.id for exp in promoted]
+        lineages = db.query(EvolutionLineage).filter(
+            EvolutionLineage.child_experiment_id.in_(exp_ids)
+        ).all()
+        lineage_map = {lin.child_experiment_id: lin for lin in lineages}
+
         for exp in promoted:
-            existing = db.query(EvolutionLineage).filter(
-                EvolutionLineage.child_experiment_id == exp.id
-            ).first()
+            existing = lineage_map.get(exp.id)
             if existing and existing.child_fitness is None:
                 existing.child_fitness = exp.shadow_win_rate or 0.0
