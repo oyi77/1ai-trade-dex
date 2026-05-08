@@ -104,9 +104,17 @@ class KnowledgeGraph:
         if relation_type:
             query = query.filter(KGRelationModel.relation_type == relation_type)
         relations = query.all()
+
+        to_entity_ids = [rel.to_entity_id for rel in relations]
+        if not to_entity_ids:
+            return []
+
+        related_entities = self._session.query(KGEntityModel).filter(KGEntityModel.id.in_(to_entity_ids)).all()
+        related_dict = {entity.id: entity for entity in related_entities}
+
         results = []
         for rel in relations:
-            related = self._session.query(KGEntityModel).filter(KGEntityModel.id == rel.to_entity_id).first()
+            related = related_dict.get(rel.to_entity_id)
             if related:
                 results.append(KGEntityType(
                     entity_type=related.entity_type,

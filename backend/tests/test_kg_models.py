@@ -114,7 +114,7 @@ def test_decision_audit_log():
             agent_name="test_agent",
             decision_type="trade_execution",
             input_data={"edge": 0.15, "confidence": 0.8},
-            output_data={"action": "buy", "size": 50.0},
+            output_data={"action": "buy", "size": 5.0},
             reasoning="Strong momentum signal",
             confidence=0.85,
         )

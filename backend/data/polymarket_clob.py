@@ -21,10 +21,10 @@ import httpx
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 
-from py_clob_client_v2.client import ClobClient
-from py_clob_client_v2.clob_types import (
+from py_clob_client.client import ClobClient
+from py_clob_client.clob_types import (
     ApiCreds,
-    OrderArgsV2 as OrderArgs,
+    OrderArgs,
     BalanceAllowanceParams,
     AssetType,
 )
@@ -229,7 +229,7 @@ class PolymarketCLOB:
             builder_config = None
             if builder_api_key and builder_secret and builder_passphrase:
                 try:
-                    from py_clob_client_v2.clob_types import BuilderConfig
+                    from py_clob_client.clob_types import BuilderConfig
 
                     # Builder code must be a hex string (bytes32).
                     # If it's a UUID, remove hyphens and pad to 64 chars.
@@ -249,7 +249,7 @@ class PolymarketCLOB:
                     )
                 except ImportError:
                     logger.warning(
-                        "[polymarket_clob.__init__] py_clob_client_v2 BuilderConfig unavailable"
+                        "[polymarket_clob.__init__] py_clob_client BuilderConfig unavailable"
                     )
             try:
                 self._clob_client = ClobClient(
