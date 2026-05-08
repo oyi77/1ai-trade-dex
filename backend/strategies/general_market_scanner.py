@@ -341,7 +341,7 @@ class GeneralMarketScanner(BaseStrategy):
                         else ctx.settings.INITIAL_BANKROLL
                     )
         except Exception as e:
-            ctx.logger.error(f"[general_scanner] Failed to fetch bot state bankroll: {e}")
+            ctx.logger.error(f"[general_scanner] Bankroll fetch failed: {e}")
 
         ai_calls_this_cycle = 0
         existing_tickers: set = set()
@@ -357,7 +357,7 @@ class GeneralMarketScanner(BaseStrategy):
             existing_tickers = {t.market_ticker for t in open_trades if t.market_ticker}
             open_trade_count = len(open_trades)
         except Exception as e:
-            ctx.logger.error(f"[general_scanner] Failed to fetch open trades: {e}")
+            ctx.logger.error(f"[general_scanner] Open trades fetch failed: {e}")
 
         if max_concurrent > 0 and open_trade_count >= max_concurrent:
             ctx.logger.info(
