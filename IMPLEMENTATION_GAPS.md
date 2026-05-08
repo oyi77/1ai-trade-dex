@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-07 (Round 10 — realtime auth hardening, queue contract alignment, scanner coverage, health dedupe; Known Gaps section below remains active)
+**Last Updated:** 2026-05-08 (Round 11 — SQLite concurrency PRAGMAs and BotState mutex; Known Gaps section below remains active)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -25,6 +25,8 @@ Format:
 ~~**Market scanner hard-coded `max_pages=5`**~~ → **Fixed** (2026-05-07): Scanner pagination now derives from `SCANNER_PAGE_SIZE` + `SCANNER_MAX_MARKETS`/`limit` in `backend/core/market_scanner.py`.
 
 ~~**Email notifications throw NotImplementedError at runtime**~~ → **Fixed** (2026-05-07): `notification_router._send_email()` now logs explicit de-scoped warning and safely drops message without raising.
+
+~~**SQLite BotState race condition — concurrent read-modify-write lost updates**~~ → **Fixed** (2026-05-08): Added `botstate_mutex = asyncio.Lock()` in `backend/models/database.py` exported alongside `for_update()`. `strategy_executor.py` now re-reads fresh BotState inside the mutex before bankroll mutation. `settlement.py:update_bot_state_with_settlements()` fully wrapped in mutex. Also added performance PRAGMAs: `cache_size=-64000` (64MB), `mmap_size=268435456` (256MB), `wal_autocheckpoint=1000`, `temp_store=MEMORY`, `foreign_keys=ON`. Addresses the BotState race from THREAD_ASYNC_SAFETY_AUDIT.md P0 finding.
 
 ~~**Duplicate SSE endpoint definitions in two routers**~~ → **Fixed** (2026-05-07): Removed fallback SSE endpoint from `backend/api/websockets_routes.py`; channel-aware SSE router remains canonical source.
 
