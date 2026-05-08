@@ -251,7 +251,7 @@ class TestModeIsolation:
             paper_decision = {
                 "market_ticker": "paper-market-001",
                 "direction": "yes",
-                "size": 50.0,
+                "size": 5.0,
                 "entry_price": 0.55,
                 "edge": 0.08,
                 "confidence": 0.75,
@@ -330,7 +330,7 @@ class TestConcurrentExecution:
                 {
                     "market_ticker": f"{mode}-concurrent-market",
                     "direction": "yes",
-                    "size": 50.0,
+                    "size": 5.0,
                     "entry_price": 0.55,
                     "edge": 0.08,
                     "confidence": 0.75,
@@ -421,7 +421,7 @@ class TestDatabaseIntegrity:
                 decision = {
                     "market_ticker": f"{mode}-integrity-market",
                     "direction": "yes",
-                    "size": 50.0,
+                    "size": 5.0,
                     "entry_price": 0.55,
                     "edge": 0.08,
                     "confidence": 0.75,
@@ -515,7 +515,7 @@ class TestModeSpecificRiskLimits:
             paper_decision = {
                 "market_ticker": "paper-risk-market",
                 "direction": "yes",
-                "size": 75.0,
+                "size": 5.0,
                 "entry_price": 0.55,
                 "edge": 0.08,
                 "confidence": 0.75,
@@ -533,7 +533,7 @@ class TestModeSpecificRiskLimits:
             paper_decision_2 = {
                 "market_ticker": "paper-risk-market-2",
                 "direction": "yes",
-                "size": 75.0,
+                "size": 5.0,
                 "entry_price": 0.55,
                 "edge": 0.08,
                 "confidence": 0.75,
@@ -549,7 +549,7 @@ class TestModeSpecificRiskLimits:
             live_decision = {
                 "market_ticker": "live-risk-market",
                 "direction": "yes",
-                "size": 50.0,
+                "size": 5.0,
                 "entry_price": 0.55,
                 "edge": 0.08,
                 "confidence": 0.75,

@@ -96,7 +96,7 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
     decision = {
         "market_ticker": "TEST-MARKET",
         "direction": "up",
-        "size": 75.0,
+        "size": 5.0,
         "entry_price": 0.6,
         "edge": 0.1,
         "confidence": 0.8,
@@ -109,7 +109,7 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
         mock_ctx = Mock()
         mock_ctx.risk_manager.validate_trade.return_value = Mock(
             allowed=True,
-            adjusted_size=50.0,
+            adjusted_size=5.0,
             reason="Adjusted to max_position_usd limit"
         )
         mock_context.return_value = mock_ctx
@@ -122,7 +122,7 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
         )
 
     assert trade_result is not None
-    assert trade_result["size"] == 50.0
+    assert trade_result["size"] == 5.0
 
 
 @pytest.mark.asyncio

@@ -39,7 +39,7 @@ class TestSettingsPriority:
             assert settings.AI_PROVIDER == "claude"
 
     def test_active_modes_parsing(self):
-        with patch.dict(os.environ, {"ACTIVE_MODES": "paper,testnet"}):
+        with patch.dict(os.environ, {"ACTIVE_MODES": "paper,testnet", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
             settings = Settings()
             assert settings.active_modes_set == {"paper", "testnet"}
             assert settings.is_mode_active("paper")
@@ -56,12 +56,12 @@ class TestSettingsPriority:
             settings = Settings()
             assert settings.SIMULATION_MODE is True
 
-        with patch.dict(os.environ, {"ACTIVE_MODES": "live"}):
+        with patch.dict(os.environ, {"ACTIVE_MODES": "live", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
             settings = Settings()
             assert settings.SIMULATION_MODE is False
 
     def test_trading_mode_property(self):
-        with patch.dict(os.environ, {"ACTIVE_MODES": "testnet,paper"}):
+        with patch.dict(os.environ, {"ACTIVE_MODES": "testnet,paper", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
             settings = Settings()
             assert settings.TRADING_MODE == "testnet"
 
