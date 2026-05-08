@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-10 | Updated: 2026-05-08 -->
+<!-- Generated: 2026-04-10 | Updated: 2026-05-09 -->
 
 # polyedge
 
@@ -71,7 +71,7 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 - All sensitive operations guarded by circuit breakers and risk limits
 - Redis optional — falls back to SQLite queue when unavailable
 - `backend/modules/` is for infrastructure modules (data feeds, execution helpers, arbitrage, scanners) — NOT alpha strategies. Alpha strategies go in `backend/strategies/`.
-- **Strategy Governance**: AGI health check (`AGI_HEALTH_CHECK_ENABLED`, every 15 min via `AGI_HEALTH_CHECK_INTERVAL_MINUTES`) auto-kills strategies with <30% win rate after sufficient trades. Killed strategies are disabled in `StrategyConfig` and should NOT be manually re-enabled. Current active strategies: `agi_orchestrator`, `copy_trader`, `universal_scanner`, `weather_emos`, `whale_frontrun`, `whale_pnl_tracker`. Disabled: `btc_oracle` (killed, 27.3% WR), `general_scanner` (warned, 10% WR), `btc_momentum` (deprecated), `realtime_scanner`, `probability_arb`.
+- **Strategy Governance**: AGI health check (`AGI_HEALTH_CHECK_ENABLED`, every 15 min via `AGI_HEALTH_CHECK_INTERVAL_MINUTES`) auto-kills strategies with <30% win rate after sufficient trades. Killed strategies are disabled in `StrategyConfig` and should NOT be manually re-enabled. Current active strategies: `agi_orchestrator`, `btc_oracle` (re-enabled, 52.1% WR, +$161 PnL), `copy_trader`, `universal_scanner`, `weather_emos`, `whale_frontrun`, `whale_pnl_tracker`. Disabled: `general_scanner` (warned, 10% WR), `btc_momentum` (deprecated), `realtime_scanner`, `probability_arb`.
 - **Trade Attribution**: `auto_trader` (`backend/core/auto_trader.py`) is an execution router, NOT a strategy. It routes pending signals through risk validation. Trade attribution uses `Signal.track_name` to preserve the originating strategy name. Historical trades attributed to "auto_trader" actually came from various signal sources routed through the auto-execute path.
 
 ## Dependencies
