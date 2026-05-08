@@ -115,6 +115,7 @@ class NightlyReviewWriter:
                         Trade.strategy == cfg.strategy_name,
                         Trade.timestamp >= week_ago,
                         Trade.settled.is_(True),
+                        Trade.trading_mode == "live",
                     )
                     .all()
                 )

@@ -241,9 +241,10 @@ class StrategyPerformanceRegistry:
                 equity += p
                 if equity > peak:
                     peak = equity
-                dd = (peak - equity) / max(abs(peak), 1e-9)
-                if dd > max_dd:
-                    max_dd = dd
+                if peak > 0:
+                    dd = (peak - equity) / peak
+                    if dd > max_dd:
+                        max_dd = dd
 
             # Consecutive losses (from most recent backwards)
             consec = 0
