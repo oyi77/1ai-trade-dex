@@ -163,6 +163,7 @@ class RiskManager:
         mode: Optional[str] = None,
         strategy_name: Optional[str] = None,
         direction: Optional[str] = None,
+        category: Optional[str] = None,
     ) -> RiskDecision:
         effective_mode = mode or self.s.TRADING_MODE
 
@@ -177,6 +178,25 @@ class RiskManager:
         if confidence < min_confidence:
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_confidence")
             return RiskDecision(False, f"confidence {confidence:.2f} below {min_confidence}", 0.0)
+
+        bias_weight = getattr(self.s, 'LONGSHOT_NO_BIAS_WEIGHT', 0.0)
+        if bias_weight > 0 and direction:
+            original_conf = confidence
+            if direction.upper() == 'NO':
+                confidence = min(1.0, confidence * (1 + bias_weight))
+            elif direction.upper() == 'YES':
+                confidence = confidence * (1 - bias_weight * 0.5)
+            if confidence != original_conf:
+                logger.info("[risk_manager] Applied NO-bias: %s -> %.2f -> %.2f", direction, original_conf, confidence)
+
+        cat_enabled = getattr(self.s, 'CATEGORY_CONFIDENCE_ENABLED', False)
+        if cat_enabled and category:
+            cat_multipliers = getattr(self.s, 'CATEGORY_CONFIDENCE_MULTIPLIER', {})
+            multiplier = cat_multipliers.get(category.lower(), 1.0)
+            if multiplier != 1.0:
+                pre_cat = confidence
+                confidence = min(1.0, confidence * multiplier)
+                logger.info("[risk_manager] Applied category multiplier: %s %.2f x%.2f -> %.2f", category, pre_cat, multiplier, confidence)
 
         if not self._breaker_enabled_for_mode("daily_loss", effective_mode):
             logger.debug(

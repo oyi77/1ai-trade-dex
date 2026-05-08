@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     KELLY_FRACTION: float = 0.30  # 30% Kelly - more aggressive (winners used bigger positions)
 
     # BTC 5-min specific settings
-    SCAN_INTERVAL_SECONDS: int = 60  # Scan every minute
+    SCAN_INTERVAL_SECONDS: int = 10  # Scan every 10 seconds
     SETTLEMENT_INTERVAL_SECONDS: int = 120  # Check settlements every 2 min
     BTC_PRICE_SOURCE: str = "coinbase"
     MIN_EDGE_THRESHOLD: float = (
@@ -138,6 +138,17 @@ class Settings(BaseSettings):
     # Risk management — tuned for $100 bankroll
     DAILY_LOSS_LIMIT: float = 5.0
     DAILY_LOSS_LIMIT_PCT: float = 0.10  # Percentage of bankroll for daily loss limit (overrides flat DAILY_LOSS_LIMIT when set)
+    LONGSHOT_NO_BIAS_WEIGHT: float = 0.10
+    HFT_ENABLED: bool = True
+    CATEGORY_CONFIDENCE_ENABLED: bool = True
+    CATEGORY_CONFIDENCE_MULTIPLIER: dict = {
+        "finance": 0.85,
+        "politics": 0.95,
+        "sports": 1.10,
+        "crypto": 1.10,
+        "weather": 1.15,
+        "entertainment": 1.15,
+    }
     MAX_TRADE_SIZE: float = 8.0
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
@@ -178,7 +189,7 @@ class Settings(BaseSettings):
     SAFE_TUNER_MIN_TRADES_FOR_TUNING: int = 20  # Require at least 20 trades before tuning
     SAFE_TUNER_REVERT_SIGMA_THRESHOLD: float = 2.0  # Degrade >2σ triggers parameter revert
     WEATHER_ENABLED: bool = True
-    WEATHER_SCAN_INTERVAL_SECONDS: int = 300  # 5 min
+    WEATHER_SCAN_INTERVAL_SECONDS: int = 60  # 1 min
     WEATHER_SETTLEMENT_INTERVAL_SECONDS: int = 1800  # 30 min
     WEATHER_MIN_EDGE_THRESHOLD: float = 0.05
     WEATHER_MAX_ENTRY_PRICE: float = 0.70
@@ -358,7 +369,7 @@ class Settings(BaseSettings):
     ARBITRAGE_DETECTOR_ENABLED: bool = False
     SSE_EVENT_TYPE_FILTER_ENABLED: bool = True
     NEWS_FEED_INTERVAL_SECONDS: int = 600
-    ARBITRAGE_SCAN_INTERVAL_SECONDS: int = 120
+    ARBITRAGE_SCAN_INTERVAL_SECONDS: int = 30
 
     # Cache Settings
     CACHE_URL: str = "sqlite:///./cache.db"  # or "redis://localhost:6379/0"

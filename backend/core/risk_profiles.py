@@ -56,6 +56,7 @@ class RiskProfile:
     daily_loss_limit_pct: float = 0.10
     daily_loss_floor_pct: float = -0.10
     weekly_loss_floor_pct: float = -0.20
+    longshot_no_bias_weight: float = 0.10
     is_preset: bool = False
 
     def to_row(self) -> RiskProfileRow:
@@ -86,6 +87,7 @@ PRESETS: Dict[str, RiskProfile] = {
         weekly_drawdown_limit_pct=0.10, slippage_tolerance=0.01,
         auto_approve_min_confidence=0.70,
         daily_loss_limit_pct=0.05,
+        longshot_no_bias_weight=0.05,
     ),
     "normal": RiskProfile(
         name="normal", display_name="Normal", is_preset=True,
@@ -95,6 +97,7 @@ PRESETS: Dict[str, RiskProfile] = {
         weekly_drawdown_limit_pct=0.20, slippage_tolerance=0.02,
         auto_approve_min_confidence=0.50,
         daily_loss_limit_pct=0.10,
+        longshot_no_bias_weight=0.10,
     ),
     "aggressive": RiskProfile(
         name="aggressive", display_name="Aggressive", is_preset=True,
@@ -104,6 +107,7 @@ PRESETS: Dict[str, RiskProfile] = {
         weekly_drawdown_limit_pct=0.35, slippage_tolerance=0.03,
         auto_approve_min_confidence=0.35,
         daily_loss_limit_pct=0.20,
+        longshot_no_bias_weight=0.12,
     ),
     "extreme": RiskProfile(
         name="extreme", display_name="Extreme", is_preset=True,
@@ -114,6 +118,7 @@ PRESETS: Dict[str, RiskProfile] = {
         auto_approve_min_confidence=0.20,
         daily_loss_limit_pct=0.40,
         daily_loss_floor_pct=-0.40, weekly_loss_floor_pct=-0.60,
+        longshot_no_bias_weight=0.15,
     ),
 }
 
@@ -270,6 +275,7 @@ def apply_profile(name: Optional[str] = None, db: Optional[Session] = None) -> R
     settings.AUTO_APPROVE_MIN_CONFIDENCE = profile.auto_approve_min_confidence
     settings.DAILY_LOSS_FLOOR_PCT = profile.daily_loss_floor_pct
     settings.WEEKLY_LOSS_FLOOR_PCT = profile.weekly_loss_floor_pct
+    settings.LONGSHOT_NO_BIAS_WEIGHT = profile.longshot_no_bias_weight
 
     _persist_profile_name(profile.name)
 
