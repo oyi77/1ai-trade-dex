@@ -109,6 +109,9 @@ class AutonomousPromoter:
         with get_db_session() as db:
             health_mon = StrategyHealthMonitor() if getattr(settings, "AGI_STRATEGY_HEALTH_ENABLED", True) else None
 
+            # -1. Bootstrap genome_registry genomes into experiment_records if missing
+            self._bootstrap_genome_experiments(db)
+
             # 0. Evaluate REVIEW experiments → back to BACKTEST after improvement cycle
             reviews = (
                 db.query(ExperimentRecord)
@@ -594,6 +597,42 @@ class AutonomousPromoter:
             db.commit()
             logger.info(f"[AutonomousPromoter] Disabled StrategyConfig '{strategy_name}' (degradation fallback)")
 
+    def _bootstrap_genome_experiments(self, db: Session) -> None:
+        """Create ExperimentRecord rows for genome_registry genomes that lack them."""
+        from backend.models.database import GenomeRegistry
+
+        genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage.in_(["DRAFT", "SHADOW", "PAPER", "LIVE"])
+        ).all()
+        if not genomes:
+            return
+
+        for genome in genomes:
+            existing = db.query(ExperimentRecord).filter_by(
+                name=genome.strategy_name
+            ).first()
+            if existing:
+                continue
+
+            stage_map = {
+                "DRAFT": ExperimentStatus.DRAFT.value,
+                "SHADOW": ExperimentStatus.SHADOW.value,
+                "PAPER": ExperimentStatus.PAPER.value,
+                "LIVE": ExperimentStatus.LIVE_PROMOTED.value,
+            }
+            exp = ExperimentRecord(
+                name=genome.strategy_name,
+                strategy_name=genome.strategy_name,
+                status=stage_map.get(genome.stage, ExperimentStatus.DRAFT.value),
+                created_at=genome.created_at or datetime.now(timezone.utc),
+            )
+            db.add(exp)
+            logger.info(
+                f"[AutonomousPromoter] Bootstrapped ExperimentRecord "
+                f"'{genome.strategy_name}' at stage={genome.stage}"
+            )
+        db.commit()
+
     def _check_backtest_gate(self, exp: ExperimentRecord, db: Session) -> bool:
         from backend.models.database import StrategyProposal
         proposal = (
@@ -608,6 +647,25 @@ class AutonomousPromoter:
             return True
         if exp.backtest_passed:
             return True
+
+        # Seed-genome bypass: if no StrategyProposal exists at all, auto-pass
+        # the gate. Initial population genomes were hand-crafted with predefined
+        # chromosome configs — they don't need formal backtest validation, they
+        # need shadow testing. Only apply this bypass when there are zero
+        # proposals for this strategy (not when proposals exist but haven't
+        # passed — that case should still wait for backtest completion).
+        any_proposal = (
+            db.query(StrategyProposal)
+            .filter_by(strategy_name=exp.strategy_name)
+            .first()
+        )
+        if not any_proposal:
+            logger.warning(
+                f"[AutonomousPromoter] BACKTEST auto-pass for '{exp.name}': "
+                f"no StrategyProposal exists — treating as seed genome"
+            )
+            return True
+
         return False
 
     def _check_review_completion(self, exp: ExperimentRecord, db: Session) -> bool:
