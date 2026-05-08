@@ -3,9 +3,8 @@
 Wave 10: Evolution Scheduler — Part 9
 """
 
-import pytest
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from backend.domain.evolution.evolution_action import EvolutionAction
 
@@ -20,7 +19,7 @@ def test_evolution_action_creation():
         from_stage="DRAFT",
         to_stage="DRAFT"
     )
-    
+
     assert action.action_type == "mutation"
     assert action.genome_id == "genome_123"
     assert action.strategy_name == "test_strategy"
@@ -33,19 +32,19 @@ def test_evolution_action_creation():
 def test_evolution_action_to_dict():
     """Test EvolutionAction.to_dict() method."""
     timestamp = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-    
+
     with patch('backend.domain.evolution.evolution_action.datetime') as mock_datetime:
         mock_datetime.now.return_value = timestamp
-        
+
         action = EvolutionAction(
             action_type="fitness_eval",
             genome_id="genome_456",
             strategy_name="fitness_test",
             details={"fitness_score": 0.85}
         )
-        
+
         action_dict = action.to_dict()
-        
+
         assert action_dict["action_type"] == "fitness_eval"
         assert action_dict["genome_id"] == "genome_456"
         assert action_dict["strategy_name"] == "fitness_test"
@@ -62,7 +61,7 @@ def test_evolution_action_defaults():
         genome_id="genome_789",
         strategy_name="selection_test"
     )
-    
+
     assert action.details == {}
     assert action.from_stage is None
     assert action.to_stage is None

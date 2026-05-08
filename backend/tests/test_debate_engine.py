@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from backend.ai.debate_engine import (
     DebateArgument,
@@ -51,10 +51,8 @@ def test_parse_json_embedded_in_prose():
 
 
 def test_parse_malformed_returns_fallback():
-    prob, conf, reasoning = _parse_agent_response("random gibberish !@#$")
-    assert prob == pytest.approx(0.5)
-    assert conf == pytest.approx(0.0)
-    assert isinstance(reasoning, str)
+    result = _parse_agent_response("random gibberish !@#$")
+    assert result is None
 
 
 def test_parse_clamps_probability_bounds():

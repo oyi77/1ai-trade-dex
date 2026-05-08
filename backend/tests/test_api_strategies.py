@@ -1,5 +1,4 @@
 """Tests for /api/v1/strategies CRUD endpoints (admin-protected)."""
-import pytest
 from backend.config import settings
 
 

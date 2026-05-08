@@ -1,18 +1,14 @@
 """Market intelligence routes - news, predictions, whales, edge performance."""
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from typing import List, Optional
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
-from backend.config import settings
 from backend.models.database import (
     get_db,
     Signal,
     Trade,
-    SessionLocal,
     WhaleTransaction,
 )
 from backend.api.auth import require_admin

@@ -26,11 +26,6 @@ from typing import Optional, Callable, Dict, List, Any
 from enum import Enum
 
 import websockets
-try:
-    from websockets.exceptions import ConnectionClosed, WebSocketException
-except ImportError:
-    # websockets v12+ moved exceptions
-    from api_websockets import ConnectionClosed, WebSocketException
 
 logger = logging.getLogger("trading_bot.websocket")
 

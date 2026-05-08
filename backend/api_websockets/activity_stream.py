@@ -26,13 +26,13 @@ def get_task_manager() -> TaskManager | None:
 
 async def broadcast_activity(activity_data: Dict[str, Any]):
     from backend.api.ws_manager_v2 import topic_manager
-    
+
     message = {
         "type": "activity_update",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         **activity_data
     }
-    
+
     tm = get_task_manager()
     if tm:
         await tm.create_task(topic_manager.broadcast("activities", message), name="broadcast_activity")

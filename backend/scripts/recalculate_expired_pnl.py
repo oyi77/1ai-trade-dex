@@ -15,7 +15,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.models.database import get_db, Trade, BotState
+from backend.models.database import get_db, Trade, BotState, for_update
 from backend.core.settlement_helpers import calculate_pnl, fetch_polymarket_resolution
 from backend.config import settings
 
@@ -81,7 +81,7 @@ def recalculate_expired_trades(dry_run: bool = False):
 def _reconcile_bot_state(db):
     from sqlalchemy import func, case
 
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     if not state:
         print("No BotState found!")
         return
@@ -109,7 +109,7 @@ def _reconcile_bot_state(db):
         settings.INITIAL_BANKROLL + realized_pnl - open_exposure, 2
     )
 
-    print(f"\nBotState reconciliation:")
+    print("\nBotState reconciliation:")
     print(f"  paper_bankroll: {state.paper_bankroll} -> {correct_bankroll}")
     print(f"  paper_pnl: {state.paper_pnl} -> {realized_pnl}")
     print(f"  paper_trades: {state.paper_trades} -> {trade_count}")
@@ -193,7 +193,7 @@ async def recover_expired_trades(dry_run: bool = False):
 
         recovered += 1
 
-    print(f"\nRecovery summary:")
+    print("\nRecovery summary:")
     print(f"  Recovered:    {recovered}")
     print(f"  Unresolved:   {still_unresolved}")
     print(f"  API errors:   {api_errors}")

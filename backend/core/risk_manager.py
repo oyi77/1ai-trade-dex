@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 from contextlib import nullcontext
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import Trade, BotState
+from backend.models.database import Trade, BotState, for_update
 from backend.monitoring.hft_metrics import record_signal
 from sqlalchemy import func, or_
 
@@ -97,16 +97,22 @@ class RiskManager:
         self.s = settings_obj or settings
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
-    
+
+    def _get_bankroll(self, db, mode: str) -> float:
+        state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+        if state and state.bankroll is not None:
+            return float(state.bankroll)
+        return self.s.INITIAL_BANKROLL
+
     def _load_safety_rules(self) -> dict:
         """Load immutable safety rules with environment variable overrides."""
         import os
-        
+
         rules = {}
         for rule_name, rule_config in IMMUTABLE_SAFETY_RULES.items():
             # Start with default value
             value = rule_config["default"]
-            
+
             # Check for environment variable override
             env_var = rule_config.get("override_env_var")
             if env_var:
@@ -122,9 +128,9 @@ class RiskManager:
                             value = env_value.lower() in ("true", "1", "yes")
                     except ValueError:
                         logger.warning(f"Invalid value for {env_var}={env_value}, using default {value}")
-            
+
             rules[rule_name] = value
-            
+
         return rules
 
     def _breaker_enabled_for_mode(self, breaker: str, mode: str) -> bool:
@@ -288,7 +294,7 @@ class RiskManager:
                 # Reads DB-backed initial (which includes top-ups) when available.
                 effective_initial = self.s.INITIAL_BANKROLL
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is not None:
                         if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                             effective_initial = float(state.paper_initial_bankroll)
@@ -349,7 +355,15 @@ class RiskManager:
                     .scalar()
                     or 0.0
                 )
-                return daily_pnl <= -self.s.DAILY_LOSS_LIMIT
+                # Percentage-based daily loss limit: scales with bankroll.
+                # Falls back to flat DAILY_LOSS_LIMIT if DAILY_LOSS_LIMIT_PCT is not set.
+                daily_loss_limit_pct = getattr(self.s, 'DAILY_LOSS_LIMIT_PCT', None)
+                if daily_loss_limit_pct:
+                    bankroll = self._get_bankroll(db, effective_mode)
+                    daily_limit = bankroll * daily_loss_limit_pct
+                else:
+                    daily_limit = self.s.DAILY_LOSS_LIMIT
+                return daily_pnl <= -daily_limit
         except Exception as e:
                 logger.error(f"[risk_manager._daily_loss_exceeded] {type(e).__name__}: {e}", exc_info=True)
                 return True
@@ -402,7 +416,7 @@ class RiskManager:
         if getattr(self.s, 'AGI_BANKROLL_ALLOCATION_ENABLED', False):
             # Try to get AGI allocation from BotState.misc_data
             try:
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state and state.misc_data:
                     misc = json.loads(state.misc_data)
                     allocations = misc.get("allocations", {})
@@ -423,7 +437,7 @@ class RiskManager:
         # Calculate equal share
         max_total_exposure = bankroll * getattr(self.s, 'MAX_TOTAL_EXPOSURE_FRACTION', 0.70)
         equal_share = max_total_exposure / enabled_count
-        
+
         # Cap at MAX_POSITION_FRACTION
         max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
         return min(equal_share, max_position)
@@ -433,7 +447,7 @@ class RiskManager:
     ) -> Optional[float]:
         """Return remaining allocation budget for a strategy, or None if no allocation exists."""
         try:
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if not state or not state.misc_data:
                 return None
             misc = json.loads(state.misc_data)
@@ -463,27 +477,27 @@ class RiskManager:
         base_confidence = getattr(
             self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
         )
-        
+
         # Apply regime multiplier if enabled
         if getattr(self.s, 'REGIME_ROUTING_ENABLED', False):
             regime_multiplier = self._get_regime_multiplier(strategy_name)
             threshold = base_confidence * regime_multiplier
         else:
             threshold = base_confidence
-        
+
         # Cap at 0.95 maximum
         return min(threshold, 0.95)
-        
+
     def check_drawdown_floors(
         self, bankroll: float, db=None, mode: Optional[str] = None
     ) -> Tuple[bool, Optional[str]]:
         """Check if daily/weekly loss floors have been breached.
-        
+
         Args:
             bankroll: Current bankroll amount
             db: Database session (optional)
             mode: Trading mode (optional)
-            
+
         Returns:
             Tuple of (floor_breached, action_taken) where action_taken describes what happened
         """
@@ -524,7 +538,7 @@ class RiskManager:
             # Use the higher of current bankroll or effective initial bankroll
             effective_initial = self.s.INITIAL_BANKROLL
             if db is not None:
-                state = db.query(BotState).filter_by(mode=effective_mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                 if state is not None:
                     if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                         effective_initial = float(state.paper_initial_bankroll)
@@ -537,18 +551,18 @@ class RiskManager:
             if daily_pnl < daily_floor:
                 # Pause all strategies for 24 hours
                 pause_until = now + timedelta(hours=24)
-                
+
                 # Store pause timestamp in BotState.misc_data
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)
-                    
+
                     state.misc_data = state.misc_data or {}
                     state.misc_data["pause_until"] = pause_until.isoformat()
                     db.commit()
-                
+
                 # Emit SSE event
                 self._publish_event("daily_loss_floor_triggered", {
                     "bankroll": bankroll,
@@ -558,7 +572,7 @@ class RiskManager:
                     "pause_until": pause_until.isoformat(),
                     "action": "all_strategies_paused"
                 })
-                
+
                 return True, "all_strategies_paused_24h"
 
             # Check weekly loss floor
@@ -566,18 +580,18 @@ class RiskManager:
             if weekly_pnl < weekly_floor:
                 # Revert to PAPER mode for 7 days
                 paper_until = now + timedelta(days=7)
-                
+
                 # Store paper mode timestamp in BotState.misc_data
                 if db is not None:
-                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
                     if state is None:
                         state = BotState(mode=effective_mode, misc_data={})
                         db.add(state)
-                    
+
                     state.misc_data = state.misc_data or {}
                     state.misc_data["paper_until"] = paper_until.isoformat()
                     db.commit()
-                
+
                 # Emit SSE event
                 self._publish_event("weekly_loss_floor_triggered", {
                     "bankroll": bankroll,
@@ -587,11 +601,11 @@ class RiskManager:
                     "paper_until": paper_until.isoformat(),
                     "action": "reverted_to_paper_mode"
                 })
-                
+
                 return True, "reverted_to_paper_mode_7d"
-            
+
             return False, None
-            
+
         except Exception as e:
             logger.error(f"[risk_manager.check_drawdown_floors] {type(e).__name__}: {e}", exc_info=True)
             return False, f"error_during_floor_check: {type(e).__name__}"

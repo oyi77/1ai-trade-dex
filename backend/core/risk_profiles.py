@@ -7,13 +7,12 @@ Profiles are fully editable at runtime via REST API — no code changes needed.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-from dataclasses import dataclass, asdict
-from typing import Dict, Optional, List
+from dataclasses import dataclass
+from typing import Dict, Optional
 
-from sqlalchemy import Column, String, Float, Boolean, Text
+from sqlalchemy import Column, String, Float, Boolean
 from sqlalchemy.orm import Session
 
 from backend.models.database import Base, SessionLocal
@@ -32,6 +31,7 @@ class RiskProfileRow(Base):
     max_position_fraction = Column(Float, nullable=False, default=0.08)
     max_total_exposure_fraction = Column(Float, nullable=False, default=0.7)
     daily_loss_limit = Column(Float, nullable=False, default=5.0)
+    daily_loss_limit_pct = Column(Float, nullable=False, default=0.10)
     daily_drawdown_limit_pct = Column(Float, nullable=False, default=0.1)
     weekly_drawdown_limit_pct = Column(Float, nullable=False, default=0.2)
     slippage_tolerance = Column(Float, nullable=False, default=0.02)
@@ -53,6 +53,9 @@ class RiskProfile:
     weekly_drawdown_limit_pct: float
     slippage_tolerance: float
     auto_approve_min_confidence: float
+    daily_loss_limit_pct: float = 0.10
+    daily_loss_floor_pct: float = -0.10
+    weekly_loss_floor_pct: float = -0.20
     is_preset: bool = False
 
     def to_row(self) -> RiskProfileRow:
@@ -65,6 +68,7 @@ class RiskProfile:
             max_position_fraction=self.max_position_fraction,
             max_total_exposure_fraction=self.max_total_exposure_fraction,
             daily_loss_limit=self.daily_loss_limit,
+            daily_loss_limit_pct=self.daily_loss_limit_pct,
             daily_drawdown_limit_pct=self.daily_drawdown_limit_pct,
             weekly_drawdown_limit_pct=self.weekly_drawdown_limit_pct,
             slippage_tolerance=self.slippage_tolerance,
@@ -81,6 +85,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit=2.0, daily_drawdown_limit_pct=0.05,
         weekly_drawdown_limit_pct=0.10, slippage_tolerance=0.01,
         auto_approve_min_confidence=0.70,
+        daily_loss_limit_pct=0.05,
     ),
     "normal": RiskProfile(
         name="normal", display_name="Normal", is_preset=True,
@@ -89,6 +94,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit=5.0, daily_drawdown_limit_pct=0.10,
         weekly_drawdown_limit_pct=0.20, slippage_tolerance=0.02,
         auto_approve_min_confidence=0.50,
+        daily_loss_limit_pct=0.10,
     ),
     "aggressive": RiskProfile(
         name="aggressive", display_name="Aggressive", is_preset=True,
@@ -97,6 +103,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit=15.0, daily_drawdown_limit_pct=0.20,
         weekly_drawdown_limit_pct=0.35, slippage_tolerance=0.03,
         auto_approve_min_confidence=0.35,
+        daily_loss_limit_pct=0.20,
     ),
     "extreme": RiskProfile(
         name="extreme", display_name="Extreme", is_preset=True,
@@ -105,6 +112,8 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit=40.0, daily_drawdown_limit_pct=0.40,
         weekly_drawdown_limit_pct=0.60, slippage_tolerance=0.05,
         auto_approve_min_confidence=0.20,
+        daily_loss_limit_pct=0.40,
+        daily_loss_floor_pct=-0.40, weekly_loss_floor_pct=-0.60,
     ),
 }
 
@@ -254,10 +263,13 @@ def apply_profile(name: Optional[str] = None, db: Optional[Session] = None) -> R
     settings.MAX_POSITION_FRACTION = profile.max_position_fraction
     settings.MAX_TOTAL_EXPOSURE_FRACTION = profile.max_total_exposure_fraction
     settings.DAILY_LOSS_LIMIT = profile.daily_loss_limit
+    settings.DAILY_LOSS_LIMIT_PCT = profile.daily_loss_limit_pct
     settings.DAILY_DRAWDOWN_LIMIT_PCT = profile.daily_drawdown_limit_pct
     settings.WEEKLY_DRAWDOWN_LIMIT_PCT = profile.weekly_drawdown_limit_pct
     settings.SLIPPAGE_TOLERANCE = profile.slippage_tolerance
     settings.AUTO_APPROVE_MIN_CONFIDENCE = profile.auto_approve_min_confidence
+    settings.DAILY_LOSS_FLOOR_PCT = profile.daily_loss_floor_pct
+    settings.WEEKLY_LOSS_FLOOR_PCT = profile.weekly_loss_floor_pct
 
     _persist_profile_name(profile.name)
 
@@ -275,6 +287,7 @@ def _row_to_profile(row: RiskProfileRow) -> RiskProfile:
         max_position_fraction=row.max_position_fraction,
         max_total_exposure_fraction=row.max_total_exposure_fraction,
         daily_loss_limit=row.daily_loss_limit,
+        daily_loss_limit_pct=row.daily_loss_limit_pct,
         daily_drawdown_limit_pct=row.daily_drawdown_limit_pct,
         weekly_drawdown_limit_pct=row.weekly_drawdown_limit_pct,
         slippage_tolerance=row.slippage_tolerance,

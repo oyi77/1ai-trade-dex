@@ -73,7 +73,7 @@ class DebateArgument:
 @dataclass
 class SignalVote:
     """A signal's vote in the debate (advisory only)."""
-    
+
     source: str
     prediction: float
     confidence: float
@@ -390,23 +390,23 @@ def update_debate_with_signals(
 ) -> DebateResult:
     """
     Integrate external signal votes into debate result (advisory only).
-    
+
     Signals participate as advisory votes with equal weight (1.0).
     They do NOT override the debate consensus - they are added to the transcript
     for transparency and logged for audit purposes.
-    
+
     Args:
         debate_result: Original debate result from run_debate()
         signal_votes: List of external signal votes (e.g., MiroFish)
-    
+
     Returns:
         Updated DebateResult with signal_votes appended
     """
     if not signal_votes:
         return debate_result
-    
+
     debate_result.signal_votes = signal_votes
-    
+
     for sig in signal_votes:
         source_label = sig.source or "unknown"
         logger.info(
@@ -416,7 +416,7 @@ def update_debate_with_signals(
             sig.confidence,
             sig.weight,
         )
-    
+
     return debate_result
 
 
@@ -636,5 +636,5 @@ async def run_debate(
         data_sources=data_sources or [],
         signal_votes=signal_votes or [],
     )
-    
+
     return result

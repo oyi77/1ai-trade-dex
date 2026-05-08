@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import random
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Awaitable, Optional
@@ -53,7 +52,7 @@ class OrderbookRouter:
         self._queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
         self._dispatch_task: Optional[asyncio.Task] = None
         self._running = False
-        
+
         self._circuit_breaker = CircuitBreaker(
             name="polymarket_ws",
             failure_threshold=5,
@@ -79,15 +78,15 @@ class OrderbookRouter:
                 await self._dispatch_task
             except asyncio.CancelledError:
                 pass
-            except Exception:
-                pass  # Task may have already completed
+            except Exception as e:
+                logger.error(f"Error stopping OrderbookRouter dispatch loop: {e}")
             finally:
                 self._dispatch_task = None
         logger.info("OrderbookRouter dispatch loop stopped")
 
     async def subscribe(
-        self, 
-        market_id: str, 
+        self,
+        market_id: str,
         handler: Callable[[OrderbookUpdate], Awaitable[None]]
     ) -> None:
         """Register handler for market updates"""
@@ -95,11 +94,11 @@ class OrderbookRouter:
         total_handlers = sum(len(handlers) for handlers in self._handlers.values())
         if total_handlers >= settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT:
             logger.warning(
-                "ws_subscription_limit_reached: limit=%d", 
+                "ws_subscription_limit_reached: limit=%d",
                 settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
             )
             return
-        
+
         if market_id not in self._handlers:
             self._handlers[market_id] = []
         self._handlers[market_id].append(handler)
@@ -111,23 +110,23 @@ class OrderbookRouter:
             try:
                 update: OrderbookUpdate = await self._queue.get()
                 handlers = self._handlers.get(update.market_id, [])
-                
+
                 for handler in handlers:
                     try:
                         await asyncio.wait_for(
-                            handler(update), 
+                            handler(update),
                             timeout=settings.WS_HANDLER_TIMEOUT_MS / 1000.0
                         )
                     except asyncio.TimeoutError:
                         logger.warning(
-                            "ws_handler_timeout", 
-                            market_id=update.market_id, 
+                            "ws_handler_timeout",
+                            market_id=update.market_id,
                             timeout_ms=settings.WS_HANDLER_TIMEOUT_MS
                         )
                     except Exception as e:
                         logger.error(
-                            "ws_handler_error: market_id=%s error=%s", 
-                            update.market_id, 
+                            "ws_handler_error: market_id=%s error=%s",
+                            update.market_id,
                             str(e)
                         )
             except asyncio.CancelledError:
@@ -140,11 +139,11 @@ class OrderbookRouter:
         """Callback from PolymarketWebSocket - queue the update"""
         try:
             self._snapshots[update.market_id] = update.to_snapshot()
-            
+
             # Drop oldest item if queue is full
             if self._queue.full():
                 self._queue.get_nowait()
-            
+
             await self._queue.put(update)
         except Exception as e:
             logger.error("queue_orderbook_update_error", error=str(e))

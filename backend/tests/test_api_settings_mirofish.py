@@ -1,8 +1,6 @@
 """Tests for /api/v1/settings/test-mirofish API endpoint."""
-import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock
-from fastapi.testclient import TestClient
 
 
 class TestMiroFishEndpointAuth:

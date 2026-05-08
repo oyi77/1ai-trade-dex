@@ -1,10 +1,9 @@
 import inspect
 """Tests for AGI scheduler job wiring (self-review, research pipeline)."""
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
 
-import pytest
+import pytest  # noqa: E402
 
 
 class TestSelfReviewJob:

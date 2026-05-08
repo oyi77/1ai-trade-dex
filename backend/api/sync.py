@@ -12,7 +12,7 @@ from backend.api.auth import require_admin
 from backend.config import settings
 from backend.core.event_bus import publish_event
 from backend.core.wallet_reconciliation import WalletReconciler
-from backend.models.database import BotState, get_db
+from backend.models.database import BotState, get_db, for_update
 
 logger = logging.getLogger("trading_bot")
 
@@ -40,16 +40,16 @@ async def get_sync_status(
 ):
     """
     Get wallet sync status for testnet and live modes.
-    
+
     Returns:
     - last_synced_at: Timestamp of last successful sync
     - next_sync_at: Estimated next sync time (if scheduled)
     - last_result: Result of last sync ("success" or error message)
     - status: "healthy" if last sync < 2 min ago, else "stale"
     """
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     now = datetime.now(timezone.utc)
-    
+
     # Helper to compute status
     def compute_status(last_sync_at: Optional[datetime]) -> str:
         if not last_sync_at:
@@ -59,7 +59,7 @@ async def get_sync_status(
             last_sync_at = last_sync_at.replace(tzinfo=timezone.utc)
         elapsed = (now - last_sync_at).total_seconds()
         return "healthy" if elapsed < 120 else "stale"
-    
+
     # For now, use the single last_sync_at from BotState for both modes
     # In future, could track per-mode sync times
     testnet_status = SyncStatusResponse(
@@ -69,7 +69,7 @@ async def get_sync_status(
         last_result=None,
         status=compute_status(state.last_sync_at if state else None),
     )
-    
+
     live_status = SyncStatusResponse(
         mode="live",
         last_synced_at=state.last_sync_at if state else None,
@@ -77,11 +77,11 @@ async def get_sync_status(
         last_result=None,
         status=compute_status(state.last_sync_at if state else None),
     )
-    
+
     return SyncStatusAllResponse(testnet=testnet_status, live=live_status)
 
 
-async def _sync_wallet_background(mode: str, db: Session):
+async def _sync_wallet_background(mode: str, db: Session, db_ctx):
     """Background task to perform wallet sync."""
     try:
         from backend.data.polymarket_clob import clob_from_settings
@@ -93,7 +93,7 @@ async def _sync_wallet_background(mode: str, db: Session):
         result = await reconciler.full_reconciliation()
 
         # Update BotState with sync result
-        state = db.query(BotState).first()
+        state = for_update(db, db.query(BotState)).first()
         if state:
             state.last_sync_at = result.last_sync_at
             db.commit()
@@ -125,7 +125,7 @@ async def _sync_wallet_background(mode: str, db: Session):
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
     finally:
-        db.close()
+        db_ctx.__exit__(None, None, None)
 
 
 @router.post("/admin/sync-now")
@@ -137,13 +137,13 @@ async def sync_now(
 ):
     """
     Trigger an immediate wallet sync in the background.
-    
+
     Args:
         mode: "testnet" or "live" (default: "live")
-    
+
     Returns:
         202 Accepted with status "syncing"
-    
+
     Note:
         - Does not block the API response
         - Sync completion is published via WebSocket events
@@ -154,22 +154,23 @@ async def sync_now(
             status_code=400,
             detail="mode must be 'live' (no separate testnet blockchain exists)"
         )
-    
+
     if not settings.is_mode_active("live") and not settings.is_mode_active("testnet"):
         raise HTTPException(
             status_code=400,
             detail="Sync not available — no live/testnet mode active"
         )
-    
+
     # Need to create a new session for background task since the injected one closes when request finishes
-    from backend.models.database import SessionLocal
-    bg_db = SessionLocal()
-    
-    # Queue background task
-    background_tasks.add_task(_sync_wallet_background, mode, bg_db)
-    
+    from backend.db.utils import get_db_session
+    bg_db_ctx = get_db_session()
+    bg_db = bg_db_ctx.__enter__()
+
+    # Queue background task — bg_db_ctx will be cleaned up by the background task
+    background_tasks.add_task(_sync_wallet_background, mode, bg_db, bg_db_ctx)
+
     logger.info(f"Queued background sync for mode={mode}")
-    
+
     return {
         "status": "syncing",
         "mode": mode,

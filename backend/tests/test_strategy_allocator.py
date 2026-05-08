@@ -1,6 +1,5 @@
 """Tests for RegimeAwareAllocator — regime-dependent allocation, bounds, rebalancing."""
 from datetime import datetime, timezone
-from unittest.mock import patch, MagicMock
 
 from backend.core.agi_types import MarketRegime, RegimeTransition
 from backend.core.knowledge_graph import KnowledgeGraph

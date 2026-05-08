@@ -108,7 +108,7 @@ class MiroFishService:
         self._last_signal_fetch = None
 
         try:
-            from backend.services.mirofish_monitor import get_monitor, reset_monitor
+            from backend.services.mirofish_monitor import reset_monitor
             reset_monitor()
         except Exception as e:
             logger.warning(f"Could not reset monitor on restart: {e}")

@@ -24,29 +24,29 @@ _RETRY_DELAY_S = 0.1
 
 class PercentileTracker:
     """Track metrics with rolling window for percentile calculations."""
-    
+
     def __init__(self, window_size: int = 1000):
         self.window_size = window_size
         self.values = deque(maxlen=window_size)
-    
+
     def add(self, value: float):
         """Add a value to the tracker."""
         self.values.append(value)
-    
+
     def get_percentiles(self) -> Dict[str, float]:
         """Calculate p50, p95, p99 percentiles."""
         if not self.values:
             return {"p50": 0.0, "p95": 0.0, "p99": 0.0, "count": 0}
-        
+
         sorted_values = sorted(self.values)
         count = len(sorted_values)
-        
+
         def percentile(p: float) -> float:
             idx = int(count * p)
             if idx >= count:
                 idx = count - 1
             return sorted_values[idx]
-        
+
         return {
             "p50": percentile(0.50),
             "p95": percentile(0.95),
@@ -84,7 +84,7 @@ def _best_effort_write(db: Session, metric: PerformanceMetric) -> None:
 
 class PerformanceTracker:
     """Central performance tracking with database persistence."""
-    
+
     def __init__(self):
         self.request_tracker = PercentileTracker(window_size=1000)
         self.db_query_tracker = PercentileTracker(window_size=1000)
@@ -92,7 +92,7 @@ class PerformanceTracker:
         self.process = psutil.Process()
         self._last_cleanup = time.time()
         self._cleanup_interval = 3600  # 1 hour
-    
+
     def track_request(
         self,
         duration_ms: float,
@@ -119,7 +119,7 @@ class PerformanceTracker:
                 ))
             except Exception as e:
                 logger.debug("Failed to store request metric: %s", e)
-    
+
     def track_db_query(
         self,
         duration_ms: float,
@@ -138,7 +138,7 @@ class PerformanceTracker:
                 ))
             except Exception as e:
                 logger.debug("Failed to store DB query metric: %s", e)
-    
+
     def track_websocket(
         self,
         latency_ms: float,
@@ -157,7 +157,7 @@ class PerformanceTracker:
                 ))
             except Exception as e:
                 logger.debug("Failed to store WebSocket metric: %s", e)
-    
+
     def track_system_resources(self, db: Optional[Session] = None):
         """Track memory and CPU usage."""
         try:
@@ -185,14 +185,14 @@ class PerformanceTracker:
         except Exception as e:
             logger.debug("Failed to track system resources: %s", e)
             return None
-    
+
     def get_metrics_summary(self) -> Dict:
         """Get current metrics summary with percentiles."""
         request_stats = self.request_tracker.get_percentiles()
         db_stats = self.db_query_tracker.get_percentiles()
         ws_stats = self.ws_tracker.get_percentiles()
         system_stats = self.track_system_resources()
-        
+
         return {
             "request_duration": {
                 "p50_ms": round(request_stats["p50"], 2),
@@ -221,7 +221,7 @@ class PerformanceTracker:
                 "cpu_percent": 0
             }
         }
-    
+
     def cleanup_old_metrics(self, db: Session, days: int = 30):
         """Remove metrics older than specified days."""
         try:
@@ -236,7 +236,7 @@ class PerformanceTracker:
             logger.debug("Failed to cleanup old metrics: %s", e)
             db.rollback()
             return 0
-    
+
     def maybe_cleanup(self, db: Session):
         """Periodically cleanup old metrics."""
         now = time.time()

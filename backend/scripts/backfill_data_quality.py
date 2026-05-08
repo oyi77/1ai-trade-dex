@@ -7,7 +7,7 @@ def backfill_data():
     # Create a new DB session
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         # Ensure single-threaded locking for SQLite backfills
         with session.begin():

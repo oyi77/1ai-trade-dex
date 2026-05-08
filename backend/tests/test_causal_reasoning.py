@@ -1,9 +1,6 @@
-from datetime import datetime, timezone
-from typing import Optional
 
-import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.causal_reasoning import (
     CausalReasoner,

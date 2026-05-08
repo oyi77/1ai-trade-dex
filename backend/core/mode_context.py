@@ -16,18 +16,18 @@ from backend.models.database import StrategyConfig
 @dataclass
 class ModeExecutionContext:
     """Encapsulates per-mode state for independent trading execution.
-    
+
     Holds the CLOB client, risk manager, and strategy configurations
     for a specific trading mode (paper, testnet, or live). Enables
     isolated execution contexts without global state coupling.
-    
+
     Attributes:
         mode: Trading mode identifier ("paper", "testnet", or "live").
         clob_client: Polymarket CLOB client for order placement/cancellation.
         risk_manager: Risk validator for trade proposals.
         strategy_configs: Dict mapping strategy name to StrategyConfig ORM model.
     """
-    
+
     mode: str
     clob_client: PolymarketCLOB
     risk_manager: RiskManager
@@ -40,13 +40,13 @@ _contexts: Dict[str, ModeExecutionContext] = {}
 
 def get_context(mode: str) -> ModeExecutionContext:
     """Retrieve execution context for a given mode.
-    
+
     Args:
         mode: Trading mode identifier ("paper", "testnet", or "live").
-    
+
     Returns:
         ModeExecutionContext for the requested mode.
-    
+
     Raises:
         KeyError: If mode context has not been registered.
     """
@@ -57,7 +57,7 @@ def get_context(mode: str) -> ModeExecutionContext:
 
 def register_context(mode: str, context: ModeExecutionContext) -> None:
     """Register an execution context for a given mode.
-    
+
     Args:
         mode: Trading mode identifier.
         context: ModeExecutionContext instance to register.
@@ -67,7 +67,7 @@ def register_context(mode: str, context: ModeExecutionContext) -> None:
 
 def list_contexts() -> Dict[str, ModeExecutionContext]:
     """List all registered execution contexts.
-    
+
     Returns:
         Dict mapping mode names to ModeExecutionContext instances.
     """

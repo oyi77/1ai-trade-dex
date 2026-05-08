@@ -9,6 +9,7 @@ from cachetools import TTLCache
 
 from backend.config import settings
 from backend.data.polymarket_clob import PolymarketCLOB, clob_from_settings, clob_breaker
+from backend.core.risk_profiles import apply_profile, get_active_profile_name
 
 logger = logging.getLogger("trading_bot")
 
@@ -29,7 +30,7 @@ class Orchestrator:
         """Start all subsystems."""
         self._running = True
         logger.info("Orchestrator starting...")
-        
+
         # Reset CLOB circuit breaker to ensure we start in CLOSED state
         clob_breaker.reset()
 
@@ -65,11 +66,20 @@ class Orchestrator:
 
             set_bot(self._bot)
 
+        profile_name = get_active_profile_name()
+        profile = apply_profile(profile_name)
+        logger.info(
+            "Applied risk profile '%s': drawdown=%d%%, confidence=%s, edge=%s",
+            profile.name,
+            int(profile.daily_drawdown_limit_pct * 100),
+            profile.auto_approve_min_confidence,
+            profile.min_edge_threshold,
+        )
+
         from backend.strategies.registry import load_all_strategies
-        from backend.models.database import SessionLocal
 
         load_all_strategies()  # trigger auto-registration
-        
+
         logger.info("About to seed strategies...")
         try:
             from backend.api.lifespan import _seed_strategy_configs
@@ -78,7 +88,7 @@ class Orchestrator:
             logger.info("Seed function completed")
         except Exception as e:
             logger.error(f"Failed to seed strategies: {e}", exc_info=True)
-        
+
         # Single session for backfill + mode context setup (fixes USE-AFTER-CLOSE CORE-1)
         from backend.db.utils import get_db_session
         with get_db_session() as db:
@@ -95,19 +105,19 @@ class Orchestrator:
             from backend.core.mode_context import ModeExecutionContext, register_context
             from backend.core.risk_manager import RiskManager
             from backend.models.database import StrategyConfig
-            
+
             for mode in ["paper", "testnet", "live"]:
                 # Create RiskManager instance for this mode
                 risk_manager = RiskManager()
-                
+
                 # Load StrategyConfig rows filtered by mode
                 strategy_configs = {}
                 configs = db.query(StrategyConfig).filter(
-                    (StrategyConfig.mode == mode) | (StrategyConfig.mode == None)
+                    (StrategyConfig.mode == mode) | (StrategyConfig.mode is None)
                 ).all()
                 for config in configs:
                     strategy_configs[config.strategy_name] = config
-                
+
                 # Create ModeExecutionContext
                 context = ModeExecutionContext(
                     mode=mode,
@@ -115,7 +125,7 @@ class Orchestrator:
                     risk_manager=risk_manager,
                     strategy_configs=strategy_configs
                 )
-                
+
                 # Register context
                 register_context(mode, context)
                 logger.info(f"Registered ModeExecutionContext for mode: {mode} (client={'SET' if clob_client else 'NONE'})")
@@ -126,7 +136,7 @@ class Orchestrator:
         from backend.core.scheduler import start_scheduler
 
         start_scheduler()
-        
+
         from backend.core.agi_event_handlers import register_agi_event_handlers
         register_agi_event_handlers()
 
@@ -423,7 +433,7 @@ async def main() -> None:
     await orchestrator.start()
 
     try:
-        from backend.models.database import SessionLocal, SystemSettings
+        from backend.models.database import SystemSettings
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             mirofish_enabled = db.query(SystemSettings).filter(

@@ -1,8 +1,6 @@
 """AGI Integration Tests — End-to-end tests for the full AGI system."""
-import pytest
-from datetime import datetime, timezone
 
-from backend.core.agi_types import MarketRegime, AGIGoal, ExperimentStatus, StrategyBlock
+from backend.core.agi_types import MarketRegime, AGIGoal, StrategyBlock
 from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.core.strategy_allocator import RegimeAwareAllocator
@@ -49,7 +47,7 @@ class TestFullAGICycle:
         allocator = RegimeAwareAllocator(kg)
 
         bull_goal = goal_engine.get_current_goal(MarketRegime.BULL)
-        bull_alloc = allocator.allocate(
+        _bull_alloc = allocator.allocate(
             strategies=["btc_momentum", "whale_tracker", "weather_emos"],
             regime=MarketRegime.BULL,
             capital=10000.0,
@@ -57,7 +55,7 @@ class TestFullAGICycle:
 
         goal_engine.handle_regime_change({"from_regime": "bull", "to_regime": "bear", "confidence": 0.85})
         bear_goal = goal_engine.get_current_goal(MarketRegime.BEAR)
-        bear_alloc = allocator.allocate(
+        _bear_alloc = allocator.allocate(
             strategies=["btc_momentum", "whale_tracker", "weather_emos"],
             regime=MarketRegime.BEAR,
             capital=10000.0,

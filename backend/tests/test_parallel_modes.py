@@ -61,11 +61,11 @@ except Exception:
 def test_db():
     """Fresh DB session per test."""
     db = _TestSession()
-    
+
     # Clear all trades before each test for isolation
     db.query(Trade).delete()
     db.commit()
-    
+
     yield db
     db.close()
 
@@ -244,7 +244,7 @@ class TestModeIsolation:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute paper trade
@@ -310,7 +310,7 @@ class TestConcurrentExecution:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(
@@ -322,7 +322,7 @@ class TestConcurrentExecution:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute 3 trades concurrently (one per mode)
@@ -401,7 +401,7 @@ class TestDatabaseIntegrity:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(
@@ -413,7 +413,7 @@ class TestDatabaseIntegrity:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Create trades in each mode
@@ -496,7 +496,7 @@ class TestModeSpecificRiskLimits:
             mock_result.fill_price = 0.55
             mock_result.filled_size = None
             mock_clob.__aenter__.return_value.place_limit_order.return_value = mock_result
-            
+
             register_context(
                 mode,
                 ModeExecutionContext(
@@ -508,7 +508,7 @@ class TestModeSpecificRiskLimits:
             )
 
         with (
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             # Execute trade in paper mode that consumes most of bankroll

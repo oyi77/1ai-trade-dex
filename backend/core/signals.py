@@ -10,7 +10,7 @@ from backend.config import settings
 from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
 from backend.data.crypto import compute_btc_microstructure
 from backend.data.market_universe import MarketUniverseScanner
-from backend.models.database import SessionLocal, Signal
+from backend.models.database import Signal
 
 logger = logging.getLogger("trading_bot")
 
@@ -234,11 +234,11 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
 
     bankroll = settings.INITIAL_BANKROLL
     try:
-        from backend.models.database import BotState, SessionLocal
+        from backend.models.database import BotState, for_update
 
         from backend.db.utils import get_db_session
         with get_db_session() as _db:
-            _state = _db.query(BotState).filter_by(mode=mode).first()
+            _state = for_update(_db, _db.query(BotState).filter_by(mode=mode)).first()
             if _state:
                 bankroll = float(
                     _state.bankroll if _state.bankroll is not None else settings.INITIAL_BANKROLL

@@ -161,7 +161,7 @@ async def calculate_position_market_value(
         telemetry["errors"].append(
             {"type": "validation", "message": warning_msg, "timestamp": time.time()}
         )
-        
+
         alert_manager.check_position_discrepancy(
             position_id=f"{mode}_portfolio",
             db_value=position_cost,
@@ -238,7 +238,7 @@ async def _fetch_prices_with_fallback(
                     "yes_price": mid,
                     "no_price": mid,
                 }
-                
+
                 # Update cache
                 _ticker_price_cache[ticker] = price_data
                 _ticker_price_cache_timestamps[ticker] = now

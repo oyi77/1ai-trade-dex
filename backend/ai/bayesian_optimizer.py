@@ -6,7 +6,7 @@ exploitation around the best-known point. No scipy dependency required.
 """
 import logging
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger("trading_bot.optimizer")
 

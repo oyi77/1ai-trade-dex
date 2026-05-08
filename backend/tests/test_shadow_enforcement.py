@@ -11,7 +11,6 @@ Tests that:
 - Goal changes are audit-logged
 """
 import pytest
-from datetime import datetime, timezone, timedelta
 
 from backend.core.agi_types import MarketRegime, AGIGoal, ExperimentStatus, StrategyBlock
 from backend.core.strategy_composer import StrategyComposer

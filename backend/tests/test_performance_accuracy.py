@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.models.database import Base, Trade, Signal
+from backend.models.database import Base, Trade
 from backend.core.backtester import BacktestConfig, BacktestEngine
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies, STRATEGY_REGISTRY
@@ -64,7 +64,7 @@ def _add_settled_trade(db, *, ticker: str = "TEST", direction: str = "up",
 
 def test_database_performance(db):
     start_time = time.time()
-    
+
     trades = []
     for i in range(1000):
         trade = Trade(
@@ -81,20 +81,20 @@ def test_database_performance(db):
             confidence=0.80,
         )
         trades.append(trade)
-    
+
     db.bulk_save_objects(trades)
     db.commit()
-    
+
     end_time = time.time()
     duration = end_time - start_time
-    
+
     assert duration < 2.0
-    
+
     start_time = time.time()
     count = db.query(Trade).count()
     end_time = time.time()
     query_duration = end_time - start_time
-    
+
     assert count == 1000
     assert query_duration < 0.1
 
@@ -104,14 +104,14 @@ def test_strategy_registration_performance():
     load_all_strategies()
     end_time = time.time()
     duration = end_time - start_time
-    
+
     assert duration < 1.0
     assert len(STRATEGY_REGISTRY) > 0
 
 
 def test_risk_manager_performance(db):
     risk_manager = RiskManager()
-    
+
     start_time = time.time()
     for i in range(100):
         decision = risk_manager.validate_trade(
@@ -124,7 +124,7 @@ def test_risk_manager_performance(db):
         assert decision is not None
     end_time = time.time()
     duration = end_time - start_time
-    
+
     # Allow slightly more time since this is a complex validation
     assert duration < 0.5
 
@@ -142,17 +142,17 @@ async def test_backtest_accuracy_winning(db):
             pnl=4.0,
             ts=datetime(2024, 1, 10 + (i % 10)),
         )
-    
+
     config = BacktestConfig(
         strategy_name="test_strategy",
         start_date=datetime(2024, 1, 1),
         end_date=datetime(2024, 1, 31),
         initial_bankroll=1000.0
     )
-    
+
     engine = BacktestEngine(config)
     result = await engine.run_from_trades(db)
-    
+
     assert result.total_trades == 50
     assert result.winning_trades == 50
     assert result.win_rate == 1.0
@@ -173,7 +173,7 @@ async def test_backtest_accuracy_mixed(db):
             pnl=4.0,
             ts=datetime(2024, 1, 10 + (i % 10)),
         )
-    
+
     for i in range(20):
         _add_settled_trade(
             db,
@@ -185,17 +185,17 @@ async def test_backtest_accuracy_mixed(db):
             pnl=-6.0,
             ts=datetime(2024, 1, 10 + (i % 10)),
         )
-    
+
     config = BacktestConfig(
         strategy_name="test_strategy",
         start_date=datetime(2024, 1, 1),
         end_date=datetime(2024, 1, 31),
         initial_bankroll=1000.0
     )
-    
+
     engine = BacktestEngine(config)
     result = await engine.run_from_trades(db)
-    
+
     assert result.total_trades == 50
     assert result.winning_trades == 30
     assert abs(result.win_rate - 0.6) < 0.01
@@ -205,9 +205,9 @@ async def test_backtest_accuracy_mixed(db):
 
 def test_full_system_performance(db):
     start_time = time.time()
-    
+
     load_all_strategies()
-    
+
     for i in range(50):
         _add_settled_trade(
             db,
@@ -220,7 +220,7 @@ def test_full_system_performance(db):
             strategy="general_scanner",
             ts=datetime(2024, 1, 10 + (i % 10)),
         )
-    
+
     for i in range(50):
         _add_settled_trade(
             db,
@@ -233,24 +233,23 @@ def test_full_system_performance(db):
             strategy="general_scanner",
             ts=datetime(2024, 1, 10 + (i % 10)),
         )
-    
+
     config = BacktestConfig(
         strategy_name="general_scanner",
         start_date=datetime(2024, 1, 1),
         end_date=datetime(2024, 1, 31),
         initial_bankroll=1000.0
     )
-    
+
     engine = BacktestEngine(config)
-    
-    import asyncio
+
     result = asyncio.run(engine.run_from_trades(db))
-    
+
     end_time = time.time()
     duration = end_time - start_time
-    
+
     assert duration < 5.0
-    
+
     assert result.total_trades == 100
     assert 40 <= result.winning_trades <= 60
     assert abs(result.win_rate - 0.5) < 0.1
@@ -290,13 +289,13 @@ def test_large_dataset_bulk_insert_performance(db):
     assert count == 5000
 
     start_time = time.time()
-    filtered = db.query(Trade).filter(Trade.strategy == "btc_5min").count()
+    _filtered = db.query(Trade).filter(Trade.strategy == "btc_5min").count()
     query_duration = time.time() - start_time
     assert query_duration < 0.2, f"Filtered query took {query_duration:.3f}s"
 
     start_time = time.time()
     from sqlalchemy import func
-    avg_pnl = db.query(func.avg(Trade.pnl)).filter(Trade.strategy == "btc_5min").scalar()
+    _avg_pnl = db.query(func.avg(Trade.pnl)).filter(Trade.strategy == "btc_5min").scalar()
     agg_duration = time.time() - start_time
     assert agg_duration < 0.2, f"Aggregation query took {agg_duration:.3f}s"
 

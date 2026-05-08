@@ -8,14 +8,13 @@ import logging
 from typing import Dict
 
 from backend.config import settings
-from backend.core.agi_types import MarketRegime
 
 logger = logging.getLogger("trading_bot.regime")
 
 
 class RegimeConfidenceRouter:
     """Routes confidence thresholds based on current market regime.
-    
+
     Each strategy has regime-specific multipliers that adjust its
     base confidence threshold. This allows strategies to be more
     aggressive in favorable regimes and more conservative in unfavorable ones.
@@ -58,10 +57,10 @@ class RegimeConfidenceRouter:
 
     def get_multiplier(self, strategy_name: str) -> float:
         """Get regime multiplier for a specific strategy.
-        
+
         Args:
             strategy_name: Name of the strategy
-            
+
         Returns:
             Multiplier to apply to base confidence threshold
         """
@@ -71,34 +70,34 @@ class RegimeConfidenceRouter:
 
     def get_adjusted_threshold(self, strategy_name: str, base_threshold: float) -> float:
         """Calculate regime-adjusted confidence threshold.
-        
+
         Args:
             strategy_name: Name of the strategy
             base_threshold: Base confidence threshold (0-1)
-            
+
         Returns:
             Adjusted threshold capped at 0.95 maximum
         """
         multiplier = self.get_multiplier(strategy_name)
         adjusted = base_threshold * multiplier
-        
+
         # Cap at 0.95 to prevent overconfidence
         return min(adjusted, 0.95)
 
     def _get_current_regime(self) -> str:
         """Get current market regime from detector or settings.
-        
+
         Returns:
             Current regime as string (e.g., 'bull', 'bear', 'sideways')
         """
         # If regime routing is disabled, return a neutral default
         if not settings.REGIME_ROUTING_ENABLED:
             return "sideways"
-        
+
         # Use regime detector if available
         if self.regime_detector is not None:
             result = self.regime_detector.detect_regime({})
             return result.regime.value if result.regime else "unknown"
-        
+
         # Fallback to unknown
         return "unknown"

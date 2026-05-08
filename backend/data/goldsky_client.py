@@ -1,7 +1,6 @@
 """Goldsky GraphQL client for ingesting historical Polymarket order-filled events."""
 import json
 import logging
-import time
 from pathlib import Path
 from typing import Optional
 

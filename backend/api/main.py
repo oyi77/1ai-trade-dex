@@ -3,39 +3,21 @@
 from fastapi import (
     FastAPI,
     Depends,
-    HTTPException,
     WebSocket,
-    WebSocketDisconnect,
-    Header,
     Request,
-    Query,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from typing import List, Optional, AsyncGenerator
-import asyncio
-from contextlib import asynccontextmanager
-import os
+from typing import List
 
-import sys
-from collections import deque
 
 from backend.config import settings
 from backend.models.database import (
     get_db,
-    init_db,
-    SessionLocal,
-    Signal,
-    Trade,
     BotState,
-    AILog,
-    StrategyConfig,
-    MarketWatch,
-    WalletConfig,
-    DecisionLog,
-    TradeContext,
+    for_update,
 )
 
 # Wallet creation support
@@ -48,29 +30,16 @@ except ImportError:
     logging.getLogger("trading_bot").warning(
         "eth_account not available - wallet creation disabled"
     )
-from backend.core.signals import scan_for_signals, TradingSignal
-from backend.data.btc_markets import fetch_active_btc_markets
-from backend.data.crypto import fetch_crypto_price, compute_btc_microstructure
-from backend.core.errors import handle_errors
-from backend.core.event_bus import event_bus, publish_event
-from backend.api.ws_manager_v2 import topic_manager
-from backend.api.connection_limits import connection_limiter
-from backend.api.auth import router as auth_router, require_admin
-from backend.api.markets import router as markets_router, _weather_signal_to_response
+from backend.api.auth import router as auth_router
+from backend.api.markets import router as markets_router
 from backend.api.trading import (
     router as trading_router,
-    _signal_to_response,
-    _compute_calibration_summary,
-    CalibrationSummary,
-    CalibrationBucket,
-    SignalResponse,
-    TradeResponse,
 )
 from backend.api.copy_trading import router as copy_trading_router
 from backend.api.arbitrage import router as arbitrage_router
 from backend.api.market_intel import router as market_intel_router
 from backend.api.auto_trader import router as auto_trader_router
-from backend.api.system import router as system_router, get_stats, BotStats
+from backend.api.system import router as system_router
 from backend.api.backtest import router as backtest_router
 from backend.api.wallets import router as wallets_router
 from backend.api.analytics import router as analytics_router
@@ -83,7 +52,6 @@ from backend.api.brain import router as brain_router
 from backend.api.errors import router as errors_router
 from backend.api.metrics_endpoint import router as metrics_router
 from backend.api.alerts import router as alerts_router
-from backend.core.wallet_reconciliation import WalletReconciler
 
 # HFT shared data service
 from backend.data.shared_service import router as shared_data_router
@@ -91,7 +59,6 @@ from backend.api.learning import router as learning_router
 
 from backend.api.lifespan import lifespan
 from pydantic import BaseModel
-from fastapi import BackgroundTasks
 import logging
 
 logger = logging.getLogger("trading_bot")
@@ -109,7 +76,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse  # noqa: E402
 
 @app.exception_handler(Exception)
 async def production_exception_handler(request: Request, exc: Exception):
@@ -132,9 +99,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from backend.api.rate_limiter import RateLimiterMiddleware
-from backend.api.versioning import APIVersionMiddleware
-from backend.api.timeout_middleware import TimeoutMiddleware
+from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402
+from backend.api.versioning import APIVersionMiddleware  # noqa: E402
+from backend.api.timeout_middleware import TimeoutMiddleware  # noqa: E402
 
 app.add_middleware(TimeoutMiddleware)
 app.add_middleware(RateLimiterMiddleware, requests_per_minute=100)
@@ -170,17 +137,17 @@ app.include_router(learning_router, prefix="/api/v1")
 app.include_router(agi_router, prefix="/api/v1/agi")
 
 # Knowledge Graph router for Wave 10
-from backend.api.agi.kg_router import kg_router
+from backend.api.agi.kg_router import kg_router  # noqa: E402
 app.include_router(kg_router)
 
-from backend.api.dashboard import router as dashboard_router
+from backend.api.dashboard import router as dashboard_router  # noqa: E402
 app.include_router(dashboard_router, prefix="/api/v1")
 
-from backend.api.sync import router as sync_router
+from backend.api.sync import router as sync_router  # noqa: E402
 app.include_router(sync_router, prefix="/api/v1")
 
-from backend.api.websockets_routes import router as websockets_router
-from backend.api.events.sse_router import router as sse_events_router
+from backend.api.websockets_routes import router as websockets_router  # noqa: E402
+from backend.api.events.sse_router import router as sse_events_router  # noqa: E402
 
 app.include_router(sse_events_router)
 app.include_router(websockets_router)
@@ -349,7 +316,7 @@ async def health_check(db: Session = Depends(get_db)):
         checks["db_pool"] = {"status": "error", "error": str(e)}
         logger.warning(f"Failed to get pool stats: {e}")
 
-    bot_state = db.query(BotState).first()
+    bot_state = for_update(db, db.query(BotState)).first()
     agi_health = {}
     try:
         from backend.core.agi_event_handlers import check_agi_health

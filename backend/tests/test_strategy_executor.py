@@ -24,8 +24,8 @@ sys.modules["backend.core.scheduler"] = _sched_stub
 # ---------------------------------------------------------------------------
 # In-memory DB wiring (mirrors conftest pattern)
 # ---------------------------------------------------------------------------
-from backend.models import database as _db_mod
-from backend.models.database import Base, BotState
+from backend.models import database as _db_mod  # noqa: E402
+from backend.models.database import Base, BotState  # noqa: E402
 
 _test_engine = create_engine(
     "sqlite:///:memory:",
@@ -125,7 +125,7 @@ class TestPaperTradeCreatesRecord:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", _TestSession),
+            patch("backend.db.utils.SessionLocal", _TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -205,7 +205,7 @@ class TestRiskRejection:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -271,7 +271,7 @@ class TestAttemptSizingRejection:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -336,7 +336,7 @@ class TestAttemptUnexpectedFailure:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
             patch("backend.core.strategy_executor.TradeValidator.validate_trade_data") as validate_trade,
         ):
@@ -398,7 +398,7 @@ class TestUpdatesBankroll:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -454,7 +454,7 @@ class TestCreatesSignalRecord:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -519,7 +519,7 @@ class TestMaxTradesPerCycle:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -574,7 +574,7 @@ class TestLiveModeCallsCLOB:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
-            patch("backend.core.strategy_executor.SessionLocal", TestSession),
+            patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "live"

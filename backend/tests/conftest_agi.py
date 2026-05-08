@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.core.agi_types import (
+from backend.core.agi_types import (  # noqa: F401
     AGIGoal,
     DecisionAuditEntry,
     ExperimentStatus,

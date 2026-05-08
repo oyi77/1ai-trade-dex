@@ -1,7 +1,7 @@
 """HFT Database Models — signals, executions, and performance tracking."""
 
 from datetime import datetime
-from sqlalchemy import Column, String, Float, Boolean, Integer, DateTime, JSON, Index, Text
+from sqlalchemy import Column, String, Float, Integer, DateTime, Index, Text
 
 try:
     from backend.models.database import Base

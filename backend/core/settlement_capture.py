@@ -14,12 +14,12 @@ logger = logging.getLogger("trading_bot")
 async def capture_closing_position(trade: Trade, cashPnl: float, db: Session) -> bool:
     """
     Capture position data BEFORE it closes and disappears from API
-    
+
     Args:
         trade: Trade object to capture
         cashPnl: Final PNL from Polymarket
         db: Database session
-    
+
     Returns:
         True if captured successfully
     """
@@ -28,20 +28,20 @@ async def capture_closing_position(trade: Trade, cashPnl: float, db: Session) ->
         trade.settled = True
         trade.pnl = cashPnl
         trade.settlement_time = datetime.now(timezone.utc)
-        
+
         if cashPnl > 0:
             trade.result = 'win'
         elif cashPnl < 0:
             trade.result = 'loss'
         else:
             trade.result = 'push'
-        
+
         # Commit to database FIRST
         db.commit()
-        
+
         logger.info(f"✅ Captured closing position: {trade.market_ticker} PNL=${cashPnl:.2f}")
         return True
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to capture closing position: {e}")
         db.rollback()
@@ -51,11 +51,11 @@ async def capture_closing_position(trade: Trade, cashPnl: float, db: Session) ->
 async def ensure_position_captured(market_ticker: str, db: Session) -> Optional[Trade]:
     """
     Ensure a position is captured in database before it disappears
-    
+
     Args:
         market_ticker: Market ticker to check
         db: Database session
-    
+
     Returns:
         Trade object if found, None otherwise
     """
@@ -63,9 +63,9 @@ async def ensure_position_captured(market_ticker: str, db: Session) -> Optional[
         Trade.market_ticker == market_ticker,
         Trade.settled == False
     ).first()
-    
+
     if not trade:
         logger.warning(f"⚠️  Position {market_ticker} not found in database")
         return None
-    
+
     return trade

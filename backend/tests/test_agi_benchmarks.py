@@ -8,13 +8,12 @@ Benchmarks:
 - Full AGI cycle < 10 seconds
 - LLM cost tracking < 1ms overhead per call
 """
-import pytest
 import time
 
 from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.core.strategy_composer import StrategyComposer
-from backend.core.agi_types import StrategyBlock, MarketRegime
+from backend.core.agi_types import StrategyBlock
 from backend.core.causal_reasoning import CausalReasoner
 from backend.core.agi_orchestrator import AGIOrchestrator
 from backend.core.llm_cost_tracker import LLMCostTracker
@@ -87,7 +86,7 @@ class TestPerformanceBenchmarks:
             ),
         ]
         start = time.perf_counter()
-        result = composer.compose("benchmark_strategy", blocks)
+        _result = composer.compose("benchmark_strategy", blocks)
         elapsed = time.perf_counter() - start
         assert elapsed < 0.5, f"Strategy composition took {elapsed:.3f}s (limit: 500ms)"
 
@@ -95,14 +94,14 @@ class TestPerformanceBenchmarks:
         reasoner = CausalReasoner()
         start = time.perf_counter()
         for _ in range(10):
-            explanation = reasoner.trace_causation("trade_001")
+            _explanation = reasoner.trace_causation("trade_001")
         elapsed = time.perf_counter() - start
         assert elapsed < 2.0, f"Causal reasoning for 10 traces took {elapsed:.3f}s (limit: 2s)"
 
     def test_full_agi_cycle_under_10s(self):
         orchestrator = AGIOrchestrator()
         start = time.perf_counter()
-        status = orchestrator.get_status()
+        _status = orchestrator.get_status()
         elapsed = time.perf_counter() - start
         assert elapsed < 10.0, f"Full AGI cycle took {elapsed:.3f}s (limit: 10s)"
 

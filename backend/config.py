@@ -15,9 +15,18 @@ DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database (SQLite for development, PostgreSQL for production, MySQL also supported)
+    # Database (supports SQLite for development, PostgreSQL for production, MySQL also supported)
     # Recommended MySQL URL format: mysql+pymysql://user:password@host:3306/mydatabase
+    # Recommended PostgreSQL URL format: postgresql+psycopg2://user:password@host:5432/mydatabase
     DATABASE_URL: str = f"sqlite:///{DB_PATH}"
+
+    @property
+    def is_postgres(self) -> bool:
+        return "postgresql" in self.DATABASE_URL
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.DATABASE_URL
 
     @field_validator("DATABASE_URL")
     @classmethod
@@ -28,6 +37,13 @@ class Settings(BaseSettings):
                 "Consider using 'mysql+pymysql://...' for better compatibility."
             )
         return v
+
+    # PostgreSQL pool settings (used when DATABASE_URL starts with postgresql://)
+    POSTGRES_POOL_SIZE: int = 10
+    POSTGRES_MAX_OVERFLOW: int = 20
+    POSTGRES_POOL_TIMEOUT: int = 30
+    POSTGRES_POOL_RECYCLE: int = 3600
+    POSTGRES_SSL_MODE: str = "prefer"
 
     # Polymarket Token Addresses
     USDC_E_ADDRESS: str = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
@@ -121,6 +137,7 @@ class Settings(BaseSettings):
 
     # Risk management — tuned for $100 bankroll
     DAILY_LOSS_LIMIT: float = 5.0
+    DAILY_LOSS_LIMIT_PCT: float = 0.10  # Percentage of bankroll for daily loss limit (overrides flat DAILY_LOSS_LIMIT when set)
     MAX_TRADE_SIZE: float = 8.0
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
@@ -230,7 +247,7 @@ class Settings(BaseSettings):
         "live": True,
     }
 
-    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.50  # Auto-approve 50%+ (winners had 40-90% distribution)
+    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5
     AUTO_TRADER_ENABLED: bool = True
 
     # Signal approval mode: "manual", "auto_approve", "auto_deny"
@@ -282,7 +299,7 @@ class Settings(BaseSettings):
     HISTORICAL_DATA_COLLECTOR_ENABLED: bool = True
     PAPER_MIN_BANKROLL: float = 50.0
     PAPER_TOPUP_AMOUNT: float = 500.0
-    
+
     # Paper trading slippage simulation (defaults = disabled for backward compatibility)
     PAPER_SLIPPAGE_BPS: float = 0.0  # Base slippage in basis points (0 = disabled)
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # Minimum slippage even for small orders (0.05%)
@@ -536,8 +553,9 @@ class Settings(BaseSettings):
     @field_validator('KELLY_FRACTION')
     @classmethod
     def validate_kelly_fraction(cls, v):
-        if not (0.0 <= v <= 1.0):
-            raise ValueError(f"KELLY_FRACTION must be between 0.0 and 1.0 (inclusive), got {v}")
+        if not (0.0 <= v <= 0.5):
+            raise ValueError(f"KELLY_FRACTION must be between 0.0 and 0.5 (inclusive), got {v}. "
+                             f"Values above 0.5 (half-Kelly) are highly aggressive and unsafe for automated trading.")
         return v
 
     @field_validator('DAILY_DRAWDOWN_LIMIT_PCT')

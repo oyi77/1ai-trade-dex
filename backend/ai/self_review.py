@@ -507,8 +507,10 @@ class SelfReview:
         except Exception as e:
             logger.warning(f"Self-review proposal generation failed: {e}")
             if close:
-                try: session.rollback()
-                except Exception as e: logger.warning(f"self-review rollback failed: {e}")
+                try:
+                    session.rollback()
+                except Exception as e:
+                    logger.warning(f"self-review rollback failed: {e}")
         finally:
             if close:
                 session.close()

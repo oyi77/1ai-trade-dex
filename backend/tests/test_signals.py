@@ -193,7 +193,6 @@ class TestEdgeCalculation:
 class TestKellySizing:
     def test_kelly_positive_edge_up(self):
         """Positive edge UP → positive suggested size."""
-        from backend.config import settings
 
         size = calculate_kelly_size(
             edge=0.10,

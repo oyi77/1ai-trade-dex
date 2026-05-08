@@ -12,9 +12,8 @@ from typing import Optional, Dict, Any, List
 from collections import Counter
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
-from backend.models.database import SessionLocal, Trade, TradeRole
+from backend.models.database import Trade, Signal
 
 def classify_trade_role(
     order_type: str | None,
@@ -57,8 +56,6 @@ def classify_trade_role(
     return "unknown"
 
 
-from backend.models.kg_models import DecisionAuditLog
-from backend.core.signals import TradingSignal
 
 logger = logging.getLogger("trading_bot.trade_forensics")
 

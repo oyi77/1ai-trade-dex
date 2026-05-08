@@ -1,5 +1,4 @@
 """Tests for backend.core.alert_engine."""
-import time
 
 import pytest
 

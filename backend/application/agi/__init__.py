@@ -3,8 +3,9 @@
 
 __all__ = [
     "attribute_trade_to_chromosomes",
-    "ForensicsFeedbackApplicator", 
+    "ForensicsFeedbackApplicator",
     "run_necromancy_analysis",
+    "NecromancyReport",
     "detect_regime_and_rebalance",
 ]
 

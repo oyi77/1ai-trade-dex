@@ -1,10 +1,9 @@
 """Wash trade detection for Polymarket markets."""
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
-from collections import Counter, defaultdict
+from collections import Counter
 
 logger = logging.getLogger("trading_bot.wash_trade")
 

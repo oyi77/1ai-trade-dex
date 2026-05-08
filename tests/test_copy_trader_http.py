@@ -121,7 +121,7 @@ class TestCopyTraderPollOnce:
         signals = await ct.poll_once()
 
         assert len(signals) == 1
-        assert signals[0].our_side == "BUY"
+        assert signals[0].our_side == "YES"
         assert signals[0].our_outcome == "YES"
         # 500/20000 * 1000 = 25.0, capped at 5% of 1000 = 50.0 → 25.0
         assert abs(signals[0].our_size - 25.0) < 0.01

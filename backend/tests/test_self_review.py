@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from sqlalchemy.orm import Session
 
 from backend.ai.self_review import (
@@ -14,7 +14,6 @@ from backend.ai.self_review import (
     _bucket_confidence,
     _settled_trades,
     _format_trade_summary,
-    DEGRADATION_THRESHOLD,
 )
 from backend.models.database import Trade
 

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.exc import OperationalError
 
-from backend.models.database import SessionLocal, DecisionLog
+from backend.models.database import DecisionLog
 
 logger = logging.getLogger("trading_bot")
 
@@ -105,32 +105,29 @@ def record_decision_standalone(
     Open own DB session, insert decision, commit immediately, close.
     Use for burst writes (e.g., 6 BTC 5-min markets in a loop)
     to avoid shared-session lock contention.
-    
+
     Retries up to max_retries times on OperationalError (database locked).
-    
+
     Returns:
         The inserted DecisionLog instance, or None on failure.
     """
+    from backend.db.utils import get_db_session
+
     for attempt in range(max_retries):
-        db = SessionLocal()
         try:
-            row = record_decision(db, strategy, market_ticker, decision, confidence, signal_data, reason)
-            db.commit()
-            return row
+            with get_db_session() as db:
+                row = record_decision(db, strategy, market_ticker, decision, confidence, signal_data, reason)
+                return row
         except OperationalError as e:
             logger.warning(
                 f"record_decision_standalone: OperationalError on attempt {attempt+1}/{max_retries} "
                 f"for {strategy}/{market_ticker}: {e}"
             )
-            db.rollback()
             if attempt < max_retries - 1:
                 time.sleep(retry_delay * (attempt + 1))
                 continue
             return None
         except Exception as e:
             logger.error(f"record_decision_standalone failed for {strategy}/{market_ticker}: {e}")
-            db.rollback()
             return None
-        finally:
-            db.close()
     return None

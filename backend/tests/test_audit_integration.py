@@ -13,11 +13,11 @@ def test_db():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     state = BotState(mode="paper", paper_bankroll=1000.0, is_running=True)
     session.add(state)
     session.commit()
-    
+
     yield session
     session.close()
 
@@ -28,7 +28,7 @@ async def test_trade_creation_logs_audit_event(test_db):
     from backend.core.mode_context import register_context, ModeExecutionContext
     from backend.core.risk_manager import RiskManager
     from unittest.mock import AsyncMock
-    
+
     # Register execution context for paper mode
     register_context(
         "paper",
@@ -39,7 +39,7 @@ async def test_trade_creation_logs_audit_event(test_db):
             strategy_configs={},
         ),
     )
-    
+
     decision = {
         "market_ticker": "BTC-UP-5M",
         "direction": "up",
@@ -52,20 +52,20 @@ async def test_trade_creation_logs_audit_event(test_db):
         "reasoning": "Test trade",
         "market_type": "btc",
     }
-    
+
     result = await execute_decision(
         decision=decision,
         strategy_name="test_strategy",
         mode="paper",
         db=test_db,
     )
-    
+
     assert result is not None
-    
+
     audit_entries = test_db.query(AuditLog).filter(
         AuditLog.event_type == "TRADE_CREATED"
     ).all()
-    
+
     assert len(audit_entries) == 1
     entry = audit_entries[0]
     assert entry.entity_type == "TRADE"
@@ -91,12 +91,12 @@ async def test_settlement_logs_audit_event(test_db):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     trade.settled = True
     trade.result = "win"
     trade.pnl = 35.0
     trade.settlement_time = datetime.now(timezone.utc)
-    
+
     log_settlement_completed(
         db=test_db,
         trade_id=trade.id,
@@ -110,11 +110,11 @@ async def test_settlement_logs_audit_event(test_db):
         user_id="system:settlement",
     )
     test_db.commit()
-    
+
     audit_entries = test_db.query(AuditLog).filter(
         AuditLog.event_type == "SETTLEMENT_COMPLETED"
     ).all()
-    
+
     assert len(audit_entries) == 1
     entry = audit_entries[0]
     assert entry.entity_type == "TRADE"
@@ -132,13 +132,13 @@ def test_audit_log_tracks_all_modes(test_db):
             trade_data={"trading_mode": mode, "market": "TEST"},
             user_id=f"strategy:test_{mode}",
         )
-    
+
     test_db.commit()
-    
+
     entries = test_db.query(AuditLog).filter(
         AuditLog.event_type == "TRADE_CREATED"
     ).all()
-    
+
     assert len(entries) == 3
     modes = [e.new_value["trading_mode"] for e in entries]
     assert set(modes) == {"paper", "testnet", "live"}
@@ -146,7 +146,7 @@ def test_audit_log_tracks_all_modes(test_db):
 
 def test_audit_log_chronological_order(test_db):
     import time
-    
+
     for i in range(5):
         log_trade_created(
             db=test_db,
@@ -155,11 +155,11 @@ def test_audit_log_chronological_order(test_db):
             user_id="system",
         )
         time.sleep(0.01)
-    
+
     test_db.commit()
-    
+
     entries = test_db.query(AuditLog).order_by(AuditLog.timestamp).all()
-    
+
     assert len(entries) == 5
     for i, entry in enumerate(entries):
         assert entry.new_value["sequence"] == i

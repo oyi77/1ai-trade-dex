@@ -1,5 +1,4 @@
 """Tests for /api/v1/health, /api/v1/stats, /api/v1/dashboard endpoints."""
-import pytest
 
 
 class TestHealth:

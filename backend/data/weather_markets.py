@@ -1,5 +1,4 @@
 """Weather temperature market fetcher from Polymarket."""
-import json
 import re
 import logging
 from dataclasses import dataclass

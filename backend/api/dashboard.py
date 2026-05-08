@@ -22,7 +22,7 @@ from backend.config import settings
 from backend.core.signals import scan_for_signals
 from backend.data.btc_markets import fetch_active_btc_markets
 from backend.data.crypto import compute_btc_microstructure, fetch_crypto_price
-from backend.models.database import BotState, Trade, TradeContext, get_db
+from backend.models.database import BotState, Trade, TradeContext, get_db, for_update
 
 logger = logging.getLogger("trading_bot")
 
@@ -154,7 +154,7 @@ def _build_account_equity_curve(db: Session, curve_mode: str = "live") -> list[d
     """Build dashboard equity points without letting historical backfills redefine live equity."""
     equity_curve: list[dict] = []
     initial_bankroll = 100.0 if curve_mode == "testnet" else float(settings.INITIAL_BANKROLL)
-    mode_state = db.query(BotState).filter_by(mode=curve_mode).first()
+    mode_state = for_update(db, db.query(BotState).filter_by(mode=curve_mode)).first()
 
     if curve_mode == "live":
         historical_trades = (

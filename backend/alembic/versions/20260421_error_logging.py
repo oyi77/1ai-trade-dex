@@ -17,7 +17,7 @@ depends_on = None
 
 def upgrade() -> None:
     """Create error_logs table with indexes for error tracking and aggregation."""
-    
+
     try:
         op.create_table(
             'error_logs',

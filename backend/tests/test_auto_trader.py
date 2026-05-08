@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from backend.core.auto_trader import AutoTrader
 from backend.core.risk_manager import RiskDecision
 

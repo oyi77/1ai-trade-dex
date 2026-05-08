@@ -14,11 +14,10 @@ Circuit breaker states:
 """
 
 import logging
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 from functools import wraps
 
 import pybreaker
-from sqlalchemy.exc import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +119,7 @@ def with_redis_breaker(func: Callable) -> Callable:
 def get_breaker_status() -> dict[str, dict[str, Any]]:
     """
     Get status of all circuit breakers for health check endpoint.
-    
+
     Returns:
         Dictionary with breaker name as key and status dict as value.
         Status includes: state, fail_counter, reset_timeout, fail_max
@@ -131,7 +130,7 @@ def get_breaker_status() -> dict[str, dict[str, Any]]:
         "kalshi_api": kalshi_breaker,
         "redis": redis_breaker,
     }
-    
+
     status = {}
     for name, breaker in breakers.items():
         status[name] = {
@@ -140,5 +139,5 @@ def get_breaker_status() -> dict[str, dict[str, Any]]:
             "reset_timeout": breaker.reset_timeout,
             "fail_max": breaker.fail_max,
         }
-    
+
     return status

@@ -1,19 +1,17 @@
 """Authentication and admin routes."""
 
 import secrets
-import hashlib
 import time
 from fastapi import Depends, HTTPException, Header, APIRouter, Request, Response, Cookie
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 import logging
 import os
 
 from backend.config import settings
-from backend.models.database import get_db, BotState, Trade, Signal
+from backend.models.database import get_db, BotState, Trade, Signal, for_update
 from backend.api.validation import CredentialsUpdateRequest as ValidatedCredentialsUpdate
-from backend.utils.redaction import redact_sensitive
 
 logger = logging.getLogger("trading_bot")
 
@@ -575,7 +573,6 @@ async def update_credentials(body: ValidatedCredentialsUpdate, _: None = Depends
 
     # Restart polyedge-bot to pick up new credentials
     import asyncio as _asyncio
-    import subprocess as _subprocess
 
     try:
         _proc = await _asyncio.create_subprocess_exec(
@@ -630,7 +627,7 @@ async def get_admin_system(
     request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     """Return system health overview."""
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     pending_trades = (
         db.query(Trade)
         .filter(Trade.settled.is_(False), Trade.trading_mode.in_(settings.active_modes_set))

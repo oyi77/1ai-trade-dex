@@ -1,10 +1,8 @@
 """Tests for arb_executor detection functions."""
-import pytest
 from backend.strategies.arb_executor import (
     detect_intra_market_arb,
     detect_cross_platform_arb,
     detect_negrisk_arb,
-    ArbOpportunity,
 )
 
 

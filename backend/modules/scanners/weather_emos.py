@@ -26,7 +26,6 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import httpx
@@ -36,6 +35,7 @@ from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
+from backend.models.database import for_update
 
 
 def _cfg(name, default):
@@ -326,7 +326,7 @@ def load_calibration_states(db, strategy_name: str) -> dict[str, CalibrationStat
     try:
         from backend.models.database import BotState
 
-        state = db.query(BotState).first()
+        state = for_update(db, db.query(BotState)).first()
         if state and state.misc_data:
             data = (
                 json.loads(state.misc_data)
@@ -356,7 +356,7 @@ def save_calibration_states(
     try:
         from backend.models.database import BotState
 
-        state = db.query(BotState).first()
+        state = for_update(db, db.query(BotState)).first()
         if not state:
             return
         existing = {}
@@ -618,8 +618,8 @@ class WeatherEMOSStrategy(BaseStrategy):
             elif decision == "BUY":
                 signal_data["trade_side"] = "YES"
 
-            confidence_score = min(1.0, abs(edge))
-            
+            confidence_score = min(1.0, abs(edge) / min_edge)
+
             record_decision(
                 ctx.db,
                 self.name,
@@ -630,7 +630,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                 reason=f"EMOS: calibrated_p={calibrated_p:.3f} market={market_mid:.3f} edge={edge:+.3f}",
             )
             result.decisions_recorded += 1
-            
+
             activity_logger.log_entry(
                 strategy_name=self.name,
                 decision_type="entry" if decision == "BUY" else "hold",
@@ -672,9 +672,9 @@ class WeatherEMOSStrategy(BaseStrategy):
 
                 bankroll = 100.0
                 try:
-                    from backend.models.database import BotState
+                    from backend.models.database import BotState, for_update
 
-                    state = ctx.db.query(BotState).first()
+                    state = for_update(ctx.db, ctx.db.query(BotState)).first()
                     if state:
                         if ctx.mode == "paper":
                             bankroll = float(
@@ -715,7 +715,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                         "market_ticker": market.ticker,
                         "token_id": clob_token_id,
                         "direction": trade_side.lower(),
-                        "confidence": min(1.0, abs(edge)),
+                        "confidence": min(1.0, abs(edge) / min_edge),
                         "edge": edge,
                         "size": trade_size,
                         "entry_price": entry_price,

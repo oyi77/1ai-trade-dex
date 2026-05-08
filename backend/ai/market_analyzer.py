@@ -1,6 +1,5 @@
 """AI market analyzer with multi-provider routing for prediction markets."""
 
-import asyncio
 import json
 import logging
 import re

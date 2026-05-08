@@ -11,7 +11,7 @@ logger = logging.getLogger("trading_bot.mesh.auditor")
 
 def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
     """Query trades grouped by source_id, return per-source PnL and win_rate.
-    
+
     Sources with avg_pnl < 0 and count > min_trades get weight reduced 50%.
     Sources with avg_pnl > 0 and win_rate > 60% get weight increased.
     """

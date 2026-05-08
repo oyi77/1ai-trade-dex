@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ async def get_system_metrics(
 ):
     """
     Get current system performance metrics.
-    
+
     Returns:
     - Request duration: p50, p95, p99 percentiles
     - Database query time: p50, p95, p99 percentiles
@@ -51,7 +51,7 @@ async def get_system_metrics(
     """
     tracker = get_performance_tracker()
     summary = tracker.get_metrics_summary()
-    
+
     return MetricsSummary(
         request_duration=summary["request_duration"],
         db_query_time=summary["db_query_time"],
@@ -70,15 +70,15 @@ async def get_historical_metrics(
 ):
     """
     Get historical performance metrics.
-    
+
     Query parameters:
     - metric_type: Type of metric (request, db_query, websocket, system)
     - hours: Number of hours of history (1-168, default 24)
-    
+
     Returns aggregated metrics over time.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
-    
+
     try:
         if metric_type == "request":
             # Aggregate request metrics
@@ -92,7 +92,7 @@ async def get_historical_metrics(
                 PerformanceMetric.metric_type == "request",
                 PerformanceMetric.timestamp >= cutoff
             ).group_by(PerformanceMetric.endpoint).all()
-            
+
             metrics = {
                 "endpoints": [
                     {
@@ -105,7 +105,7 @@ async def get_historical_metrics(
                     for r in results
                 ]
             }
-            
+
         elif metric_type == "db_query":
             # Aggregate DB query metrics
             results = db.query(
@@ -118,7 +118,7 @@ async def get_historical_metrics(
                 PerformanceMetric.metric_type == "db_query",
                 PerformanceMetric.timestamp >= cutoff
             ).group_by(PerformanceMetric.query_type).all()
-            
+
             metrics = {
                 "query_types": [
                     {
@@ -131,7 +131,7 @@ async def get_historical_metrics(
                     for r in results
                 ]
             }
-            
+
         elif metric_type == "websocket":
             # Aggregate WebSocket metrics
             results = db.query(
@@ -144,7 +144,7 @@ async def get_historical_metrics(
                 PerformanceMetric.metric_type == "websocket",
                 PerformanceMetric.timestamp >= cutoff
             ).group_by(PerformanceMetric.ws_message_type).all()
-            
+
             metrics = {
                 "message_types": [
                     {
@@ -157,7 +157,7 @@ async def get_historical_metrics(
                     for r in results
                 ]
             }
-            
+
         elif metric_type == "system":
             # Get system resource metrics over time
             results = db.query(
@@ -169,7 +169,7 @@ async def get_historical_metrics(
                 PerformanceMetric.metric_type == "system",
                 PerformanceMetric.timestamp >= cutoff
             ).order_by(PerformanceMetric.timestamp.desc()).limit(100).all()
-            
+
             metrics = {
                 "samples": [
                     {
@@ -183,16 +183,16 @@ async def get_historical_metrics(
             }
         else:
             metrics = {"error": f"Unknown metric type: {metric_type}"}
-        
+
         data_points = len(metrics.get("endpoints", metrics.get("query_types", metrics.get("message_types", metrics.get("samples", [])))))
-        
+
         return HistoricalMetrics(
             metric_type=metric_type,
             period_hours=hours,
             data_points=data_points,
             metrics=metrics
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to fetch historical metrics: {e}", exc_info=True)
         return HistoricalMetrics(
@@ -211,13 +211,13 @@ async def cleanup_old_metrics(
 ):
     """
     Manually trigger cleanup of old performance metrics.
-    
+
     Query parameters:
     - days: Delete metrics older than this many days (default: 30)
     """
     tracker = get_performance_tracker()
     deleted = tracker.cleanup_old_metrics(db, days=days)
-    
+
     return {
         "status": "ok",
         "deleted_count": deleted,

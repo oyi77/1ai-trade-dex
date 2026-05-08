@@ -1,12 +1,10 @@
 """Tests for LLM Cost Tracker — budget enforcement, cost tracking, daily reset."""
 import pytest
-from datetime import datetime, timezone, timedelta
 
 from backend.core.llm_cost_tracker import (
     LLMCostTracker,
     BudgetExceededError,
     COST_LIMITS,
-    DAILY_BUDGET_DEFAULT,
 )
 
 

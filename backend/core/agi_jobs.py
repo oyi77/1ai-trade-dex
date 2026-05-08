@@ -10,7 +10,7 @@ logger = logging.getLogger("trading_bot")
 def _get_active_market_queries() -> list[str]:
     """Extract market topic queries from recent trades and signals."""
     try:
-        from backend.models.database import SessionLocal, Trade, Signal
+        from backend.models.database import SessionLocal, Trade
 
         with SessionLocal() as db:
             tickers = (

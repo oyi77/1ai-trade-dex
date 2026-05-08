@@ -1,6 +1,5 @@
 """Seed initial settings from .env.example defaults."""
 
-import os
 from datetime import datetime, timezone
 from backend.models.database import SessionLocal, Setting, engine
 from sqlalchemy import inspect
@@ -43,19 +42,19 @@ DEFAULT_SETTINGS = {
 def seed_settings():
     """Seed initial settings from defaults if table is empty."""
     inspector = inspect(engine)
-    
+
     if "settings" not in inspector.get_table_names():
         return False
-    
+
     db = SessionLocal()
     try:
         existing_count = db.query(Setting).count()
         if existing_count > 0:
             return False
-        
+
         now = datetime.now(timezone.utc)
         settings_to_add = []
-        
+
         for key, (value, description) in DEFAULT_SETTINGS.items():
             setting_type = "string"
             if key in ["INITIAL_BANKROLL", "AI_DAILY_BUDGET_USD", "WEATHER_MIN_EDGE_THRESHOLD",
@@ -68,7 +67,7 @@ def seed_settings():
                 setting_type = "int"
             elif key in ["KALSHI_ENABLED", "WEBSEARCH_ENABLED", "WEATHER_ENABLED", "PAPER_RANDOM_SLIPPAGE"]:
                 setting_type = "bool"
-            
+
             setting = Setting(
                 key=key,
                 value=value,
@@ -79,7 +78,7 @@ def seed_settings():
                 updated_by_user_id="system"
             )
             settings_to_add.append(setting)
-        
+
         db.add_all(settings_to_add)
         db.commit()
         return True

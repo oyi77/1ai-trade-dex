@@ -29,10 +29,10 @@ def test_trade_model_has_fee_and_slippage_fields(test_db):
         fee=2.0,
         slippage=0.002,
     )
-    
+
     test_db.add(trade)
     test_db.commit()
-    
+
     retrieved = test_db.query(Trade).filter_by(market_ticker="BTC-UP-5M").first()
     assert retrieved is not None
     assert retrieved.fee == 2.0
@@ -51,10 +51,10 @@ def test_trade_model_nullable_fee_and_slippage(test_db):
         edge_at_entry=0.25,
         trading_mode="paper",
     )
-    
+
     test_db.add(trade)
     test_db.commit()
-    
+
     retrieved = test_db.query(Trade).filter_by(market_ticker="BTC-DOWN-5M").first()
     assert retrieved is not None
     assert retrieved.fee is None
@@ -96,10 +96,10 @@ def test_fee_tracking_paper_mode(test_db):
         fee=None,
         slippage=None,
     )
-    
+
     test_db.add(trade)
     test_db.commit()
-    
+
     retrieved = test_db.query(Trade).filter_by(market_ticker="WEATHER-TEMP-NYC").first()
     assert retrieved.fee is None
     assert retrieved.slippage is None
@@ -120,10 +120,10 @@ def test_fee_tracking_live_mode(test_db):
         fee=2.0,
         slippage=0.005,
     )
-    
+
     test_db.add(trade)
     test_db.commit()
-    
+
     retrieved = test_db.query(Trade).filter_by(clob_order_id="order_123").first()
     assert retrieved.fee == 2.0
     assert retrieved.slippage == 0.005
@@ -146,11 +146,11 @@ def test_multiple_trades_with_different_fees(test_db):
         )
         for i in range(1, 4)
     ]
-    
+
     for trade in trades:
         test_db.add(trade)
     test_db.commit()
-    
+
     all_trades = test_db.query(Trade).filter(Trade.market_ticker.like("MARKET-%")).order_by(Trade.id).all()
     assert len(all_trades) == 3
     assert abs(all_trades[0].fee - 0.2) < 1e-9
@@ -185,11 +185,11 @@ def test_query_trades_by_slippage_threshold(test_db):
             slippage=0.05,
         ),
     ]
-    
+
     for trade in trades:
         test_db.add(trade)
     test_db.commit()
-    
+
     high_slippage = test_db.query(Trade).filter(Trade.slippage > 0.01).all()
     assert len(high_slippage) == 1
     assert high_slippage[0].market_ticker == "HIGH-SLIP"
