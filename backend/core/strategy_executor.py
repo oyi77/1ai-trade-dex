@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from backend.config import settings
-from backend.models.database import Trade, Signal, BotState, StrategyConfig
+from backend.models.database import Trade, Signal, BotState, StrategyConfig, for_update
 from backend.core.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
@@ -141,7 +141,7 @@ async def execute_decision(
                     db.commit()
                     return None
 
-                state = db.query(BotState).filter_by(mode=mode).first()
+                state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
                 if not state or not state.is_running:
                     logger.info(
                         f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
@@ -303,7 +303,7 @@ async def execute_decision(
                         market_ticker=market_ticker,
                         db=db
                     )
-                
+
                     if simulation_result["rejected"]:
                         logger.warning(
                             f"[PAPER][{strategy_name}] Trade rejected: {simulation_result['rejection_reason']} "
@@ -317,7 +317,7 @@ async def execute_decision(
                         )
                         db.commit()
                         return None
-                
+
                     fill_price = simulation_result["fill_price"]
                     if simulation_result["slippage_bps"] > 0:
                         logger.info(
@@ -365,7 +365,7 @@ async def execute_decision(
                                 clob_order_id = result.order_id
                                 if result.fill_price:
                                     fill_price = result.fill_price
-                                
+
                                     alert_manager.check_high_slippage(
                                         trade_id=0,
                                         expected_price=entry_price,
@@ -429,7 +429,7 @@ async def execute_decision(
 
                 slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
                 fee = None
-            
+
                 # Use paper simulation fee if available
                 if mode == "paper" and hasattr(locals().get('simulation_result', None), 'get'):
                     simulation_result = locals().get('simulation_result')
@@ -449,7 +449,7 @@ async def execute_decision(
                     "confidence": confidence,
                     "result": "pending",
                 }
-            
+
                 try:
                     TradeValidator.validate_trade_data(trade_data)
                 except ValidationError as e:
@@ -530,7 +530,7 @@ async def execute_decision(
                     "kelly_fraction": 0.0,
                     "suggested_size": adjusted_size,
                 }
-            
+
                 try:
                     SignalValidator.validate_signal_data(signal_data)
                 except ValidationError as e:

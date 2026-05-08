@@ -34,7 +34,7 @@ def sample_proposal(db):
 def test_list_pending_proposals(client, admin_headers, sample_proposal):
     """Test listing pending proposals."""
     response = client.get("/api/proposals?status=pending", headers=admin_headers)
-    
+
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -50,12 +50,12 @@ def test_approve_proposal_as_admin(client, admin_headers, sample_proposal, db):
         json={"admin_user_id": "admin123", "reason": "Good improvement based on recent data"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "approved"
     assert data["proposal_id"] == sample_proposal.id
-    
+
     db.refresh(sample_proposal)
     assert sample_proposal.admin_decision == "approved"
     assert sample_proposal.admin_user_id == "admin123"
@@ -70,12 +70,12 @@ def test_reject_proposal_as_admin(client, admin_headers, sample_proposal, db):
         json={"admin_user_id": "admin123", "reason": "Not enough data to support this change"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "rejected"
     assert data["proposal_id"] == sample_proposal.id
-    
+
     db.refresh(sample_proposal)
     assert sample_proposal.admin_decision == "rejected"
     assert sample_proposal.admin_user_id == "admin123"
@@ -88,7 +88,7 @@ def test_approve_proposal_without_admin_auth(client, sample_proposal):
         f"/api/proposals/{sample_proposal.id}/approve",
         json={"admin_user_id": "user123", "reason": "Looks good"}
     )
-    
+
     if settings.ADMIN_API_KEY:
         assert response.status_code == 401
     else:
@@ -101,7 +101,7 @@ def test_reject_proposal_without_admin_auth(client, sample_proposal):
         f"/api/proposals/{sample_proposal.id}/reject",
         json={"admin_user_id": "user123", "reason": "Not good"}
     )
-    
+
     if settings.ADMIN_API_KEY:
         assert response.status_code == 401
     else:
@@ -115,7 +115,7 @@ def test_approve_nonexistent_proposal(client, admin_headers):
         json={"admin_user_id": "admin123", "reason": "Test"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 404
 
 
@@ -126,7 +126,7 @@ def test_reject_nonexistent_proposal(client, admin_headers):
         json={"admin_user_id": "admin123", "reason": "Test"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 404
 
 
@@ -135,13 +135,13 @@ def test_approve_already_approved_proposal(client, admin_headers, sample_proposa
     sample_proposal.admin_decision = "approved"
     sample_proposal.admin_user_id = "admin123"
     db.commit()
-    
+
     response = client.post(
         f"/api/proposals/{sample_proposal.id}/approve",
         json={"admin_user_id": "admin456", "reason": "Approve again"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 404
 
 
@@ -150,13 +150,13 @@ def test_reject_already_rejected_proposal(client, admin_headers, sample_proposal
     sample_proposal.admin_decision = "rejected"
     sample_proposal.admin_user_id = "admin123"
     db.commit()
-    
+
     response = client.post(
         f"/api/proposals/{sample_proposal.id}/reject",
         json={"admin_user_id": "admin456", "reason": "Reject again"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 404
 
 
@@ -172,17 +172,17 @@ def test_proposal_workflow_state_transitions(client, admin_headers, db):
     db.add(proposal)
     db.commit()
     db.refresh(proposal)
-    
+
     assert proposal.admin_decision == "pending"
-    
+
     response = client.post(
         f"/api/proposals/{proposal.id}/approve",
         json={"admin_user_id": "admin123", "reason": "Approved after review"},
         headers=admin_headers
     )
-    
+
     assert response.status_code == 200
-    
+
     db.refresh(proposal)
     assert proposal.admin_decision == "approved"
     assert proposal.admin_user_id == "admin123"
@@ -196,7 +196,7 @@ def test_approval_requires_reason(client, admin_headers, sample_proposal):
         json={"admin_user_id": "admin123", "reason": ""},
         headers=admin_headers
     )
-    
+
     assert response.status_code in [400, 422]
 
 
@@ -207,7 +207,7 @@ def test_rejection_requires_reason(client, admin_headers, sample_proposal):
         json={"admin_user_id": "admin123", "reason": ""},
         headers=admin_headers
     )
-    
+
     assert response.status_code in [400, 422]
 
 
@@ -229,13 +229,13 @@ def test_list_proposals_filters_by_status(client, admin_headers, db):
     )
     db.add_all([pending_proposal, approved_proposal])
     db.commit()
-    
+
     response = client.get("/api/proposals?status=pending", headers=admin_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["admin_decision"] == "pending"
-    
+
     response = client.get("/api/proposals?status=approved", headers=admin_headers)
     assert response.status_code == 200
     data = response.json()

@@ -162,7 +162,7 @@ class HFTExecutor:
                     idempotency_key=idempotency_key,
                 )
                 return getattr(result, "order_id", None)
-            except Exception as exc:
+            except Exception:
                 if attempt < 2:
                     wait = 0.01 * (2 ** attempt)
                     await asyncio.sleep(wait)

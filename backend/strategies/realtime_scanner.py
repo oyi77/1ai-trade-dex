@@ -24,7 +24,6 @@ Track Configuration:
 import asyncio
 import logging
 import time
-import threading
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, Optional
@@ -147,12 +146,11 @@ class RealtimeScannerStrategy(BaseStrategy):
 
         try:
             # Get current markets to track
-            from backend.data.polymarket_clob import PolymarketCLOB
             from backend.data.gamma import fetch_markets
 
             # Fetch active markets
             markets = await fetch_markets(limit=100)
-            filtered = await self.market_filter(
+            await self.market_filter(
                 [
                     MarketInfo(
                         ticker=m.get("ticker", m.get("question", "")[:50]),
@@ -181,9 +179,9 @@ class RealtimeScannerStrategy(BaseStrategy):
                     window_seconds = ctx.params.get(
                         window_key, self.default_params[window_key]
                     )
-                     velocity = await history.get_velocity(window_seconds)
-                     if velocity is not None:
-                         velocities[window_name] = velocity
+                    velocity = await history.get_velocity(window_seconds)
+                    if velocity is not None:
+                        velocities[window_name] = velocity
 
                 if not velocities:
                     continue

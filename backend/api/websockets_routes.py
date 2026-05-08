@@ -23,21 +23,21 @@ async def ws_markets(websocket: WebSocket, token: str = Query(None)):
     ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)
         return
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "markets")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await asyncio.sleep(30)
             await websocket.send_json({"type": "heartbeat"})
@@ -61,21 +61,21 @@ async def ws_whales(websocket: WebSocket, token: str = Query(None)):
     ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)
         return
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "whales")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await asyncio.sleep(30)
             await websocket.send_json({"type": "heartbeat"})
@@ -98,21 +98,21 @@ async def ws_activities(websocket: WebSocket, token: str = Query(None)):
     ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)
         return
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "activities")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await asyncio.sleep(30)
             await websocket.send_json({"type": "heartbeat"})
@@ -133,21 +133,21 @@ async def ws_brain(websocket: WebSocket, token: str = ""):
     ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)
         return
-    
+
     await websocket.accept()
-    
+
     try:
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "brain")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await asyncio.sleep(30)
             await websocket.send_json({"type": "heartbeat"})
@@ -168,12 +168,12 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
     ):
         await websocket.close(code=1008, reason="Unauthorized")
         return
-    
+
     allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
     if not allowed:
         await websocket.close(code=1008, reason=error_msg)
         return
-    
+
     await websocket.accept()
 
     try:
@@ -181,7 +181,7 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
         if data.get("action") == "subscribe":
             topic = data.get("topic", "events")
             await topic_manager.subscribe(websocket, topic)
-            
+
             await websocket.send_json(
                 {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -247,7 +247,7 @@ async def websocket_stats(websocket: WebSocket, token: str = ""):
             topic = data.get("topic", "stats")
             await topic_manager.subscribe(websocket, topic)
             await websocket.send_json({"type": "subscribed", "topic": topic})
-        
+
         while True:
             await asyncio.sleep(60)
     except WebSocketDisconnect:

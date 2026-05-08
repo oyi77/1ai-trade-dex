@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import json as _json
 import logging
 
-from backend.models.database import get_db, WalletConfig, BotState, SessionLocal
+from backend.models.database import get_db, WalletConfig, BotState, for_update
 from backend.api.auth import require_admin
 from backend.config import settings
 from backend.api.validation import (
@@ -190,7 +190,7 @@ async def get_active_wallet(
     _: None = Depends(require_admin),
 ):
     """Get the currently active wallet address."""
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     return {"active_wallet": state.active_wallet if state else None}
 
 
@@ -208,7 +208,7 @@ async def set_active_wallet(
             status_code=404, detail=f"Wallet {body.address} not configured"
         )
 
-    state = db.query(BotState).first()
+    state = for_update(db, db.query(BotState)).first()
     if not state:
         raise HTTPException(status_code=404, detail="Bot state not initialized")
 
@@ -289,7 +289,7 @@ async def get_wallet_balance(
             active_trading_modes = [m for m in settings.active_modes_set if m in ("live", "testnet")]
             if not active_trading_modes:
                 active_trading_modes = ["live"]  # Fallback if no active trading modes
-            
+
             async with clob_from_settings(mode=active_trading_modes[0]) as clob:
                 balance_data = await clob.get_wallet_balance()
 

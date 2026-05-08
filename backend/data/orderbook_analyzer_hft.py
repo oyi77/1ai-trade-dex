@@ -99,11 +99,11 @@ class OrderbookAnalyzerHFT:
         mid_price = (best_bid + best_ask) / 2.0
         spread_pct = (spread / mid_price) * 100.0 if mid_price > 0 else 0.0
 
-        depth_10 = sum(l.size for l in self._bids[:10]) + sum(l.size for l in self._asks[:10])
-        depth_50 = sum(l.size for l in self._bids[:50]) + sum(l.size for l in self._asks[:50])
+        depth_10 = sum(lvl.size for lvl in self._bids[:10]) + sum(lvl.size for lvl in self._asks[:10])
+        depth_50 = sum(lvl.size for lvl in self._bids[:50]) + sum(lvl.size for lvl in self._asks[:50])
 
-        bid_depth = sum(l.size for l in self._bids[:10])
-        ask_depth = sum(l.size for l in self._asks[:10])
+        bid_depth = sum(lvl.size for lvl in self._bids[:10])
+        ask_depth = sum(lvl.size for lvl in self._asks[:10])
         total_depth = bid_depth + ask_depth
         imbalance = (bid_depth - ask_depth) / total_depth if total_depth > 0 else 0.0
 

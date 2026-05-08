@@ -17,7 +17,6 @@ from typing import Optional
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
-from backend.core.errors import CircuitOpenError
 
 logger = logging.getLogger("trading_bot.cross_market_arb")
 
@@ -76,6 +75,8 @@ def detect_cross_arb(poly_yes: float, kalshi_yes: float) -> Optional[CrossMarket
     cheaper = "polymarket" if poly_yes < kalshi_yes else "kalshi"
     expensive = "kalshi" if cheaper == "polymarket" else "polymarket"
 
+    min_profit = _cfg("ARB_MIN_PROFIT", 0.02)
+
     return CrossMarketOpportunity(
         event_id="",
         poly_price=poly_yes,
@@ -85,7 +86,7 @@ def detect_cross_arb(poly_yes: float, kalshi_yes: float) -> Optional[CrossMarket
         profit=profit,
         fees=fees,
         net_profit=net_profit,
-        confidence=min(net_profit * 10.0, 1.0),
+        confidence=min(1.0, net_profit / min_profit) if min_profit > 0 else 0.0,
     )
 
 
@@ -149,7 +150,7 @@ async def _place_order_retry(clob, token_id: str, side: str, price: float,
 
         return await breaker.call(_do_order)
 
-    except Exception as exc:
+    except Exception:
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
             wait = 0.1 * (2 ** retry_count)
             await asyncio.sleep(wait)

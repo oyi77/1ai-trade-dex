@@ -8,7 +8,6 @@ from sqlalchemy.orm import sessionmaker
 from backend.core.agi_types import MarketRegime
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.models.database import Base
-from backend.models.kg_models import KGEntity as KGEntityModel, KGRelation as KGRelationModel
 
 
 @pytest.fixture
@@ -120,7 +119,7 @@ class TestPatternMatching:
 
 class TestRollback:
     def test_rollback_removes_entities_after_timestamp(self, kg):
-        before = datetime.now(timezone.utc)
+        _before = datetime.now(timezone.utc)
         kg.add_entity("strategy", "btc_momentum")
         kg.add_entity("strategy", "weather_emos")
         after = datetime.now(timezone.utc) + timedelta(hours=1)

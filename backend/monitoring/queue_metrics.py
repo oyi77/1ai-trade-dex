@@ -5,7 +5,6 @@ and error rate. Metrics are computed over a rolling window in memory and exposed
 get_metrics_snapshot() for monitoring/logging.
 """
 import time
-import statistics
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field

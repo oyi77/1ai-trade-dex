@@ -80,7 +80,7 @@ class KalshiClient:
                 response = await client.get(url, headers=headers, params=params)
                 response.raise_for_status()
                 return response.json()
-        
+
         return await kalshi_breaker.call(_fetch)
 
     async def get_markets(self, params: Optional[Dict[str, Any]] = None) -> dict:

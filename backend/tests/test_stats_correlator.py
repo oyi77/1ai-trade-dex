@@ -5,8 +5,8 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.models.database import Base, ActivityLog, Trade, Signal, StrategyProposal, BotState
-from backend.core.stats_correlator import StatsCorrelator, FeatureImpact, TimelineCorrelation
+from backend.models.database import Base, ActivityLog, Trade, Signal, StrategyProposal
+from backend.core.stats_correlator import StatsCorrelator, TimelineCorrelation
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def correlator():
 @pytest.fixture
 def sample_activities(test_db):
     now = datetime.now(timezone.utc)
-    
+
     activities = [
         ActivityLog(
             timestamp=now - timedelta(days=10),
@@ -54,10 +54,10 @@ def sample_activities(test_db):
             mode="paper"
         )
     ]
-    
+
     for activity in activities:
         test_db.add(activity)
-    
+
     test_db.commit()
     return activities
 
@@ -65,7 +65,7 @@ def sample_activities(test_db):
 @pytest.fixture
 def sample_trades(test_db):
     now = datetime.now(timezone.utc)
-    
+
     trades = [
         Trade(
             market_ticker="BTC_UP",
@@ -128,10 +128,10 @@ def sample_trades(test_db):
             trading_mode="paper"
         )
     ]
-    
+
     for trade in trades:
         test_db.add(trade)
-    
+
     test_db.commit()
     return trades
 
@@ -139,7 +139,7 @@ def sample_trades(test_db):
 @pytest.fixture
 def sample_signals(test_db):
     now = datetime.now(timezone.utc)
-    
+
     signals = [
         Signal(
             market_ticker="BTC_UP",
@@ -178,10 +178,10 @@ def sample_signals(test_db):
             settled_at=now - timedelta(days=3)
         )
     ]
-    
+
     for signal in signals:
         test_db.add(signal)
-    
+
     test_db.commit()
     return signals
 
@@ -189,7 +189,7 @@ def sample_signals(test_db):
 @pytest.fixture
 def sample_proposals(test_db):
     now = datetime.now(timezone.utc)
-    
+
     proposals = [
         StrategyProposal(
             strategy_name="btc_momentum",
@@ -208,20 +208,20 @@ def sample_proposals(test_db):
             created_at=now - timedelta(days=7)
         )
     ]
-    
+
     for proposal in proposals:
         test_db.add(proposal)
-    
+
     test_db.commit()
     return proposals
 
 
 def test_feature_2_activity_to_trade_correlation(test_db, correlator, sample_activities, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_2")
-    
+
     assert len(impacts) == 1
     impact = impacts[0]
-    
+
     assert impact.feature_id == "feature_2"
     assert impact.feature_name == "Activity Timeline"
     assert impact.event_count == 3
@@ -234,10 +234,10 @@ def test_feature_2_activity_to_trade_correlation(test_db, correlator, sample_act
 
 def test_feature_3_debate_to_signal_accuracy(test_db, correlator, sample_activities, sample_signals, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_3")
-    
+
     assert len(impacts) == 1
     impact = impacts[0]
-    
+
     assert impact.feature_id == "feature_3"
     assert impact.feature_name == "Debate Engine"
     assert impact.event_count >= 0
@@ -247,10 +247,10 @@ def test_feature_3_debate_to_signal_accuracy(test_db, correlator, sample_activit
 
 def test_feature_4_proposal_to_strategy_pnl(test_db, correlator, sample_proposals, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_4")
-    
+
     assert len(impacts) == 1
     impact = impacts[0]
-    
+
     assert impact.feature_id == "feature_4"
     assert impact.feature_name == "Proposal System"
     assert impact.event_count == 2
@@ -261,7 +261,7 @@ def test_feature_4_proposal_to_strategy_pnl(test_db, correlator, sample_proposal
 
 def test_win_rate_delta_calculation(test_db, correlator, sample_activities, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_2")
-    
+
     if impacts:
         impact = impacts[0]
         expected_delta = impact.win_rate_after - impact.win_rate_before
@@ -270,7 +270,7 @@ def test_win_rate_delta_calculation(test_db, correlator, sample_activities, samp
 
 def test_sharpe_ratio_calculation(test_db, correlator, sample_activities, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_2")
-    
+
     if impacts:
         impact = impacts[0]
         if impact.sharpe_ratio_before is not None and impact.sharpe_ratio_after is not None:
@@ -281,7 +281,7 @@ def test_sharpe_ratio_calculation(test_db, correlator, sample_activities, sample
 
 def test_pnl_impact_timeline(test_db, correlator, sample_activities, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_2")
-    
+
     if impacts:
         impact = impacts[0]
         assert impact.pnl_before is not None
@@ -293,13 +293,13 @@ def test_date_range_filtering(test_db, correlator, sample_activities, sample_tra
     now = datetime.now(timezone.utc)
     start_date = now - timedelta(days=7)
     end_date = now - timedelta(days=3)
-    
+
     impacts = correlator.get_feature_impact(
         db=test_db,
         feature_id="feature_2",
         date_range=(start_date, end_date)
     )
-    
+
     assert isinstance(impacts, list)
 
 
@@ -309,15 +309,15 @@ def test_metric_type_filtering(test_db, correlator, sample_activities, sample_tr
         feature_id="feature_2",
         metric_type="win_rate"
     )
-    
+
     assert isinstance(impacts, list)
 
 
 def test_activity_correlations_basic(test_db, correlator, sample_activities, sample_trades):
     correlations = correlator.get_activity_correlations(db=test_db)
-    
+
     assert isinstance(correlations, list)
-    
+
     for corr in correlations:
         assert isinstance(corr, TimelineCorrelation)
         assert corr.activity_id > 0
@@ -335,22 +335,22 @@ def test_activity_correlations_strategy_filter(test_db, correlator, sample_activ
         db=test_db,
         strategy_name="btc_momentum"
     )
-    
+
     assert isinstance(correlations, list)
-    
+
     for corr in correlations:
         assert corr.strategy_name == "btc_momentum"
 
 
 def test_activity_correlations_limit(test_db, correlator, sample_activities, sample_trades):
     correlations = correlator.get_activity_correlations(db=test_db, limit=2)
-    
+
     assert len(correlations) <= 2
 
 
 def test_correlation_score_range(test_db, correlator, sample_activities, sample_trades):
     correlations = correlator.get_activity_correlations(db=test_db)
-    
+
     for corr in correlations:
         assert 0.0 <= corr.correlation_score <= 1.0
 
@@ -358,18 +358,18 @@ def test_correlation_score_range(test_db, correlator, sample_activities, sample_
 def test_empty_database(test_db, correlator):
     impacts = correlator.get_feature_impact(db=test_db)
     assert impacts == []
-    
+
     correlations = correlator.get_activity_correlations(db=test_db)
     assert correlations == []
 
 
 def test_confidence_level_calculation(test_db, correlator, sample_activities, sample_trades):
     impacts = correlator.get_feature_impact(db=test_db, feature_id="feature_2")
-    
+
     if impacts:
         impact = impacts[0]
         assert 0.0 <= impact.confidence_level <= 1.0
-        
+
         total_samples = impact.sample_size_before + impact.sample_size_after
         if total_samples < 10:
             assert impact.confidence_level <= 0.5
@@ -379,10 +379,10 @@ def test_confidence_level_calculation(test_db, correlator, sample_activities, sa
 
 def test_all_features_impact(test_db, correlator, sample_activities, sample_trades, sample_signals, sample_proposals):
     impacts = correlator.get_feature_impact(db=test_db)
-    
+
     assert isinstance(impacts, list)
     assert len(impacts) <= 3
-    
+
     feature_ids = [impact.feature_id for impact in impacts]
     for fid in feature_ids:
         assert fid in ["feature_2", "feature_3", "feature_4"]

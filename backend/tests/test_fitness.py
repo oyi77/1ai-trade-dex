@@ -1,4 +1,3 @@
-import pytest
 from backend.domain.evolution.fitness import calculate_fitness, normalize
 from backend.domain.genome.models import FitnessMetrics
 
@@ -82,13 +81,13 @@ def test_calculate_fitness_balanced_metrics():
         total_trades=100
     )
     fitness = calculate_fitness(metrics)
-    
+
     # Calculate expected score
     expected = (
-        (0.75 * 0.30) + (0.6 * 0.20) + (0.4 * 0.15) + 
+        (0.75 * 0.30) + (0.6 * 0.20) + (0.4 * 0.15) +
         (0.75 * 0.15) + (0.55 * 0.10) + (0.6 * 0.10)
     )
-    
+
     assert abs(fitness - expected) < 0.01
 
 
@@ -106,7 +105,7 @@ def test_calculate_fitness_edge_cases():
     )
     fitness1 = calculate_fitness(metrics1)
     assert 0.0 < fitness1 < 1.0
-    
+
     # Test with negative sharpe
     metrics2 = FitnessMetrics(
         sharpe_ratio=-1.0,
@@ -135,7 +134,7 @@ def test_fitness_clamping():
     )
     fitness_high = calculate_fitness(metrics_high)
     assert fitness_high == 1.0  # Should be clamped
-    
+
     # Test lower bound clamping
     metrics_low = FitnessMetrics(
         sharpe_ratio=-10.0,  # Way below min

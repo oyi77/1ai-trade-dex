@@ -16,7 +16,7 @@ Tests cover:
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import httpx
 
 from sqlalchemy import create_engine
@@ -38,7 +38,7 @@ def test_db():
     from backend.core import position_valuation
     position_valuation._ticker_price_cache.clear()
     position_valuation._ticker_price_cache_timestamps.clear()
-    
+
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -70,14 +70,14 @@ async def test_empty_positions_returns_zeros(test_db, mock_http_client):
     Expected: All values return 0.0, no API calls made.
     """
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     assert result["position_cost"] == 0.0
     assert result["position_market_value"] == 0.0
     assert result["unrealized_pnl"] == 0.0
     assert result["telemetry"]["prices_fetched"] == 0
     assert result["telemetry"]["prices_cached"] == 0
     assert result["telemetry"]["fallbacks_used"] == 0
-    
+
     mock_http_client.get.assert_not_called()
 
 
@@ -103,12 +103,12 @@ async def test_api_failure_fallback_to_midprice(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     # Mock API failure
     mock_http_client.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # entry_price=0 is invalid, so calculation uses size as mkt_val
     assert result["position_cost"] == 100.0
     assert result["position_market_value"] == 100.0
@@ -137,27 +137,27 @@ async def test_cache_hit_same_ticker(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     # Mock Gamma API response
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get = AsyncMock(return_value=mock_response)
-    
+
     # First call - should fetch from API
     result1 = await calculate_position_market_value("paper", test_db, mock_http_client)
-    first_fetched = result1["telemetry"]["prices_fetched"]
+    _first_fetched = result1["telemetry"]["prices_fetched"]
     first_cached = result1["telemetry"]["prices_cached"]
-    
+
     # Second call - should use cache
     result2 = await calculate_position_market_value("paper", test_db, mock_http_client)
-    second_fetched = result2["telemetry"]["prices_fetched"]
+    _second_fetched = result2["telemetry"]["prices_fetched"]
     second_cached = result2["telemetry"]["prices_cached"]
-    
+
     # Second call should have more cached and fewer fetched
     assert second_cached > first_cached or (second_cached == 1 and first_cached == 0)
-    
+
     # Values should be identical
     assert result1["position_market_value"] == result2["position_market_value"]
 
@@ -196,7 +196,7 @@ async def test_cache_miss_different_ticker(test_db, mock_http_client):
     for t in trades:
         test_db.add(t)
     test_db.commit()
-    
+
     # Mock Gamma API responses
     async def mock_get(url, timeout=None):
         response = MagicMock()
@@ -207,11 +207,11 @@ async def test_cache_miss_different_ticker(test_db, mock_http_client):
         elif "ETH_UP_1H" in url:
             response.json = MagicMock(return_value=[{"yes_price": 0.55, "no_price": 0.45}])
         return response
-    
+
     mock_http_client.get = AsyncMock(side_effect=mock_get)
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # Both tickers should be fetched
     assert result["telemetry"]["prices_fetched"] >= 1
     total_prices = result["telemetry"]["prices_fetched"] + result["telemetry"]["prices_cached"]
@@ -240,16 +240,16 @@ async def test_zero_entry_price_edge_case(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     # Mock Gamma API response
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get = AsyncMock(return_value=mock_response)
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     assert result["position_cost"] == 100.0
     # entry_price=0 becomes 0.5 via fallback, then shares=100/0.5=200, mkt_val=200*0.65=130
     assert result["position_market_value"] == 130.0
@@ -277,16 +277,16 @@ async def test_zero_size_position(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     # Mock Gamma API response
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get = AsyncMock(return_value=mock_response)
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     assert result["position_cost"] == 0.0
     assert result["position_market_value"] == 0.0
     assert result["unrealized_pnl"] == 0.0
@@ -318,15 +318,15 @@ async def test_circuit_breaker_high_failure_rate(test_db, mock_http_client):
     for t in trades:
         test_db.add(t)
     test_db.commit()
-    
+
     # Mock all API calls to fail
     mock_http_client.get = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # All 3 tickers should fail
     assert len(result["telemetry"]["failures"]) == 3
-    
+
     # Circuit breaker should trigger (>50% failure rate)
     circuit_breaker_errors = [
         e for e in result["telemetry"]["errors"] if e.get("type") == "circuit_breaker"
@@ -359,7 +359,7 @@ async def test_all_three_modes(test_db, mock_http_client):
         )
         test_db.add(trade)
     test_db.commit()
-    
+
     # Mock Gamma API response
     async def mock_get(url, timeout=None):
         response = MagicMock()
@@ -367,13 +367,13 @@ async def test_all_three_modes(test_db, mock_http_client):
         response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
         response.raise_for_status = MagicMock()
         return response
-    
+
     mock_http_client.get = AsyncMock(side_effect=mock_get)
-    
+
     # Test each mode separately
     for mode in modes:
         result = await calculate_position_market_value(mode, test_db, mock_http_client)
-        
+
         # Each mode should have exactly 1 trade
         assert result["position_cost"] == 100.0
         assert result["position_market_value"] == 130.0
@@ -402,14 +402,14 @@ async def test_missing_market_ticker(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # Cost calculated, but no market value
     assert result["position_cost"] == 100.0
     assert result["position_market_value"] == 0.0
     assert result["unrealized_pnl"] == -100.0
-    
+
     # No API calls made
     mock_http_client.get.assert_not_called()
 
@@ -424,7 +424,7 @@ async def test_down_direction_pricing(test_db, mock_http_client):
     """
     Scenario: Trade with direction='down' should use 1 - no_price.
     Expected: Market value calculated with yes_price (1 - no_price).
-    
+
     This test verifies the fix for the bug where down positions
     were incorrectly using no_price directly instead of 1 - no_price.
     """
@@ -439,16 +439,16 @@ async def test_down_direction_pricing(test_db, mock_http_client):
     )
     test_db.add(trade)
     test_db.commit()
-    
+
     # Mock Gamma API response
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get = AsyncMock(return_value=mock_response)
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # For down direction: current_price = 1 - no_price = 1 - 0.35 = 0.65
     # shares = 100 / 0.50 = 200
     # market_value = 200 * 0.65 = 130.0
@@ -486,7 +486,7 @@ async def test_up_and_down_mixed_positions(test_db, mock_http_client):
     for t in trades:
         test_db.add(t)
     test_db.commit()
-    
+
     # Mock Gamma API responses
     async def mock_get(url, timeout=None):
         response = MagicMock()
@@ -497,11 +497,11 @@ async def test_up_and_down_mixed_positions(test_db, mock_http_client):
         elif "BTC_DOWN_5M" in url:
             response.json = MagicMock(return_value=[{"yes_price": 0.65, "no_price": 0.35}])
         return response
-    
+
     mock_http_client.get = AsyncMock(side_effect=mock_get)
-    
+
     result = await calculate_position_market_value("paper", test_db, mock_http_client)
-    
+
     # UP: shares=200, mkt_val=200*0.65=130
     # DOWN: shares=200, mkt_val=200*(1-0.35)=200*0.65=130
     # Total: 260.0

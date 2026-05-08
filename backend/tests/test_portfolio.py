@@ -1,5 +1,4 @@
 """Tests for portfolio optimizer and strategy attribution."""
-import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
@@ -9,9 +8,7 @@ from backend.core.portfolio_optimizer import (
     StrategyMetrics,
 )
 from backend.core.attribution import (
-    StrategyAttribution,
     compute_attribution,
-    compute_strategy_metrics,
 )
 
 

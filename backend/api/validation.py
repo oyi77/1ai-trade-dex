@@ -79,7 +79,7 @@ def validate_ethereum_address(address: str) -> str:
 
 class TradeCreateRequest(BaseModel):
     """Request model for creating a new trade."""
-    
+
     market_ticker: str = Field(
         ...,
         min_length=1,
@@ -122,7 +122,7 @@ class TradeCreateRequest(BaseModel):
         max_length=5000,
         description="Trade reasoning or notes"
     )
-    
+
     @field_validator('market_ticker', 'strategy_name', 'reasoning')
     @classmethod
     def sanitize_text_fields(cls, v: Optional[str]) -> Optional[str]:
@@ -130,7 +130,7 @@ class TradeCreateRequest(BaseModel):
         if v is None:
             return v
         return sanitize_string(v)
-    
+
     @model_validator(mode='after')
     def validate_price_for_direction(self):
         """Ensure price is reasonable for the direction."""
@@ -151,7 +151,7 @@ class TradeCreateRequest(BaseModel):
 
 class SignalCreateRequest(BaseModel):
     """Request model for creating a trading signal."""
-    
+
     market_id: str = Field(
         ...,
         min_length=1,
@@ -188,13 +188,13 @@ class SignalCreateRequest(BaseModel):
         le=10.0,
         description="Signal weight for ensemble (0.0-10.0)"
     )
-    
+
     @field_validator('market_id', 'reasoning', 'source')
     @classmethod
     def sanitize_text_fields(cls, v: str) -> str:
         """Sanitize text fields to prevent XSS."""
         return sanitize_string(v)
-    
+
     @model_validator(mode='after')
     def validate_confidence_prediction_relationship(self):
         """Ensure confidence is reasonable given prediction."""
@@ -215,7 +215,7 @@ class SignalCreateRequest(BaseModel):
 
 class StrategyConfigRequest(BaseModel):
     """Request model for updating strategy configuration."""
-    
+
     enabled: Optional[bool] = Field(
         None,
         description="Enable or disable the strategy"
@@ -234,14 +234,14 @@ class StrategyConfigRequest(BaseModel):
         None,
         description="Strategy-specific parameters"
     )
-    
+
     @field_validator('params')
     @classmethod
     def validate_params(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Validate and sanitize strategy parameters."""
         if v is None:
             return v
-        
+
         # Limit nested depth to prevent DoS
         def check_depth(obj, depth=0):
             if depth > 5:
@@ -252,9 +252,9 @@ class StrategyConfigRequest(BaseModel):
             elif isinstance(obj, list):
                 for item in obj:
                     check_depth(item, depth + 1)
-        
+
         check_depth(v)
-        
+
         # Sanitize string values
         def sanitize_dict(obj):
             if isinstance(obj, dict):
@@ -264,7 +264,7 @@ class StrategyConfigRequest(BaseModel):
             elif isinstance(obj, str):
                 return sanitize_string(obj, max_length=1000)
             return obj
-        
+
         return sanitize_dict(v)
 
 
@@ -275,7 +275,7 @@ class StrategyConfigRequest(BaseModel):
 
 class WalletConfigCreateRequest(BaseModel):
     """Request model for creating wallet configuration."""
-    
+
     address: str = Field(
         ...,
         min_length=42,
@@ -301,13 +301,13 @@ class WalletConfigCreateRequest(BaseModel):
         default=True,
         description="Enable wallet for trading"
     )
-    
+
     @field_validator('address')
     @classmethod
     def validate_address(cls, v: str) -> str:
         """Validate Ethereum address format."""
         return validate_ethereum_address(v)
-    
+
     @field_validator('pseudonym', 'source')
     @classmethod
     def sanitize_text_fields(cls, v: Optional[str]) -> Optional[str]:
@@ -315,7 +315,7 @@ class WalletConfigCreateRequest(BaseModel):
         if v is None:
             return v
         return sanitize_string(v, max_length=100)
-    
+
     @field_validator('tags')
     @classmethod
     def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
@@ -329,7 +329,7 @@ class WalletConfigCreateRequest(BaseModel):
 
 class WalletConfigUpdateRequest(BaseModel):
     """Request model for updating wallet configuration."""
-    
+
     pseudonym: Optional[str] = Field(
         None,
         max_length=100,
@@ -349,7 +349,7 @@ class WalletConfigUpdateRequest(BaseModel):
         max_length=2000,
         description="Wallet notes"
     )
-    
+
     @field_validator('pseudonym', 'notes')
     @classmethod
     def sanitize_text_fields(cls, v: Optional[str]) -> Optional[str]:
@@ -358,7 +358,7 @@ class WalletConfigUpdateRequest(BaseModel):
             return v
         max_len = 2000 if v == 'notes' else 100
         return sanitize_string(v, max_length=max_len)
-    
+
     @field_validator('tags')
     @classmethod
     def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
@@ -377,7 +377,7 @@ class WalletConfigUpdateRequest(BaseModel):
 
 class BacktestRunRequest(BaseModel):
     """Request model for running a backtest."""
-    
+
     strategy_name: str = Field(
         ...,
         min_length=1,
@@ -428,13 +428,13 @@ class BacktestRunRequest(BaseModel):
         le=100000,
         description="Daily loss limit ($0-$100K)"
     )
-    
+
     @field_validator('strategy_name')
     @classmethod
     def sanitize_strategy_name(cls, v: str) -> str:
         """Sanitize strategy name."""
         return sanitize_string(v, max_length=100)
-    
+
     @field_validator('start_date', 'end_date')
     @classmethod
     def validate_dates(cls, v: Optional[str]) -> Optional[str]:
@@ -446,7 +446,7 @@ class BacktestRunRequest(BaseModel):
         except ValueError:
             raise ValueError('Invalid date format. Use ISO 8601 format (YYYY-MM-DDTHH:MM:SS)')
         return v
-    
+
     @model_validator(mode='after')
     def validate_date_range(self):
         """Ensure start_date is before end_date."""
@@ -465,7 +465,7 @@ class BacktestRunRequest(BaseModel):
 
 class ProposalCreateRequest(BaseModel):
     """Request model for creating a strategy proposal."""
-    
+
     strategy_name: str = Field(
         ...,
         min_length=1,
@@ -482,20 +482,20 @@ class ProposalCreateRequest(BaseModel):
         le=1.0,
         description="Expected impact on performance (-1.0 to 1.0)"
     )
-    
+
     @field_validator('strategy_name')
     @classmethod
     def sanitize_strategy_name(cls, v: str) -> str:
         """Sanitize strategy name."""
         return sanitize_string(v, max_length=100)
-    
+
     @field_validator('change_details')
     @classmethod
     def validate_change_details(cls, v: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and sanitize change details."""
         if not v:
             raise ValueError('change_details cannot be empty')
-        
+
         # Limit nested depth
         def check_depth(obj, depth=0):
             if depth > 5:
@@ -506,9 +506,9 @@ class ProposalCreateRequest(BaseModel):
             elif isinstance(obj, list):
                 for item in obj:
                     check_depth(item, depth + 1)
-        
+
         check_depth(v)
-        
+
         # Sanitize string values
         def sanitize_dict(obj):
             if isinstance(obj, dict):
@@ -518,13 +518,13 @@ class ProposalCreateRequest(BaseModel):
             elif isinstance(obj, str):
                 return sanitize_string(obj, max_length=1000)
             return obj
-        
+
         return sanitize_dict(v)
 
 
 class ProposalApprovalRequest(BaseModel):
     """Request model for approving/rejecting a proposal."""
-    
+
     admin_user_id: str = Field(
         ...,
         min_length=1,
@@ -537,7 +537,7 @@ class ProposalApprovalRequest(BaseModel):
         max_length=2000,
         description="Approval/rejection reason"
     )
-    
+
     @field_validator('admin_user_id', 'reason')
     @classmethod
     def sanitize_text_fields(cls, v: str) -> str:
@@ -555,7 +555,7 @@ class ProposalApprovalRequest(BaseModel):
 
 class CredentialsUpdateRequest(BaseModel):
     """Request model for updating trading credentials."""
-    
+
     private_key: Optional[str] = Field(
         None,
         min_length=64,
@@ -577,7 +577,7 @@ class CredentialsUpdateRequest(BaseModel):
         max_length=500,
         description="API passphrase"
     )
-    
+
     @field_validator('private_key')
     @classmethod
     def validate_private_key(cls, v: Optional[str]) -> Optional[str]:
@@ -592,7 +592,7 @@ class CredentialsUpdateRequest(BaseModel):
         if not re.match(r'^[a-fA-F0-9]{64}$', key):
             raise ValueError('Invalid private key format (must be 64 hex characters)')
         return '0x' + key.lower()
-    
+
     @model_validator(mode='after')
     def validate_at_least_one_field(self):
         """Ensure at least one credential field is provided."""

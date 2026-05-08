@@ -1,6 +1,5 @@
 """Tests for AGI Promotion Pipeline — manual approval gate, promotion, retirement."""
-import pytest
-from backend.core.agi_promotion_pipeline import AGIPromotionPipeline, PromotionResult
+from backend.core.agi_promotion_pipeline import AGIPromotionPipeline
 from backend.core.experiment_runner import ExperimentRunner
 
 

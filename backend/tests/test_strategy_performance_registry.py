@@ -1,6 +1,5 @@
 """Tests for StrategyPerformanceRegistry — strategy metrics aggregation."""
 
-import pytest
 from datetime import datetime, timezone
 
 from backend.models.database import Trade

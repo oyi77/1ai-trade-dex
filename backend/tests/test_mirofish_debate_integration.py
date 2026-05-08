@@ -252,7 +252,7 @@ async def test_debate_history_shows_mirofish_participation():
     transcript = result.to_transcript_dict()
     assert "signal_votes" in transcript["debate_transcript"]
     assert len(transcript["debate_transcript"]["signal_votes"]) == 1
-    
+
     sig_vote = transcript["debate_transcript"]["signal_votes"][0]
     assert sig_vote["source"] == "mirofish"
     assert sig_vote["prediction"] == 0.65
@@ -390,10 +390,10 @@ async def test_debate_transcript_serializable_with_signals():
 
     assert result is not None
     transcript = result.to_transcript_dict()
-    
+
     serialized = json.dumps(transcript)
     parsed = json.loads(serialized)
-    
+
     assert "signal_votes" in parsed["debate_transcript"]
     assert len(parsed["debate_transcript"]["signal_votes"]) == 1
 

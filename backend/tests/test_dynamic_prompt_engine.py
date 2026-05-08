@@ -1,16 +1,12 @@
-from datetime import datetime, timezone
-from typing import Optional
 
-import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.dynamic_prompt_engine import (
     DynamicPromptEngine,
     PromptVersion,
     PromptComparison,
 )
-from backend.core.agi_types import KGEntity
 from backend.models.kg_models import Base, KGEntity as KGEntityModel
 
 

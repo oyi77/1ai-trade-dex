@@ -1,6 +1,5 @@
 """Prometheus-style metrics tracking for PolyEdge trading bot."""
 
-from collections import Counter
 from time import time
 from typing import Dict, Any
 import threading
@@ -14,11 +13,11 @@ _metrics: Dict[str, Any] = {
     "trades_losing": 0,
     "signals_total": 0,
     "signals_executed": 0,
-    
+
     # Financial metrics (in cents)
     "pnl_total_cents": 0,
     "bankroll_cents": 1000000,  # Default $10,000
-    
+
     # System metrics
     "api_requests_total": 0,
     "api_errors_total": 0,
@@ -27,11 +26,11 @@ _metrics: Dict[str, Any] = {
     "external_api_timeouts_total": 0,
     "scans_total": 0,
     "settlements_total": 0,
-    
+
     # Timing metrics (in milliseconds)
     "avg_api_latency_ms": 0,
     "last_scan_timestamp": 0,
-    
+
     # Strategy status
     "strategies_active": 0,
     "strategies_paused": 0,
@@ -83,7 +82,7 @@ def update_bankroll(bankroll_cents: int) -> None:
 def record_api_latency(duration_ms: float) -> None:
     """Record API request latency."""
     _increment_metric("api_requests_total")
-    
+
     # Update moving average
     with _metrics_lock:
         current_avg = _metrics["avg_api_latency_ms"]
@@ -129,13 +128,13 @@ def update_strategy_status(active: int, paused: int) -> None:
 def get_metrics() -> str:
     """
     Export all metrics in Prometheus text format.
-    
+
     Returns:
         Metrics in Prometheus exposition format
     """
     with _metrics_lock:
         lines = []
-        
+
         # HELP and TYPE for each metric
         lines.extend([
             "# HELP polyedge_trades_total Total number of trades executed",
@@ -210,5 +209,5 @@ def get_metrics() -> str:
             "# TYPE polyedge_strategies_paused gauge",
             f"polyedge_strategies_paused {_metrics['strategies_paused']}",
         ])
-        
+
         return "\n".join(lines)

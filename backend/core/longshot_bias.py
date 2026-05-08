@@ -47,7 +47,7 @@ class LongshotBiasDetector:
 
             query = db.query(CalibrationRecord).filter(
                 CalibrationRecord.timestamp >= cutoff,
-                CalibrationRecord.actual_outcome != None,
+                CalibrationRecord.actual_outcome is not None,
                 CalibrationRecord.predicted_prob < PRICE_CUTOFF,
             )
 
@@ -95,7 +95,7 @@ class LongshotBiasDetector:
 
             records = db.query(CalibrationRecord).filter(
                 CalibrationRecord.timestamp >= cutoff,
-                CalibrationRecord.actual_outcome != None,
+                CalibrationRecord.actual_outcome is not None,
                 CalibrationRecord.predicted_prob < PRICE_CUTOFF,
             ).all()
 

@@ -116,7 +116,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 edge = (implied_prob - target_mid) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"
-                confidence = min(1.0, max(0.05, edge + min_edge))
+                confidence = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
                 projected_price = micro.price * (1.0 + micro.momentum_1m)
 
                 signal_data = {

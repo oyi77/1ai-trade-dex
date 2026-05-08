@@ -31,14 +31,28 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=3600,
-    pool_timeout=30,
-)
+_is_postgres = settings.is_postgres
+
+_engine_kwargs = {
+    "pool_pre_ping": True,
+    "pool_timeout": settings.POSTGRES_POOL_TIMEOUT,
+    "pool_recycle": settings.POSTGRES_POOL_RECYCLE,
+}
+
+if _is_postgres:
+    _engine_kwargs.update({
+        "pool_size": settings.POSTGRES_POOL_SIZE,
+        "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
+    })
+else:
+    # SQLite uses smaller default pool
+    _engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 10,
+        "connect_args": {"check_same_thread": False},
+    })
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 
 def configure_sqlite_wal(engine_obj):
@@ -59,6 +73,12 @@ configure_sqlite_wal(engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def for_update(session, query):
+    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL."""
+    if session.get_bind().dialect.name == "postgresql":
+        return query.with_for_update()
+    return query
 
 
 class TradeRole(str, Enum):
@@ -90,20 +110,20 @@ except Exception:
 async def execute_with_timeout(db_operation, timeout: float = None):
     """
     Execute a database operation with timeout.
-    
+
     Args:
         db_operation: Callable that performs the database operation
         timeout: Timeout in seconds (defaults to DATABASE_QUERY_TIMEOUT from settings)
-    
+
     Returns:
         Result of the database operation
-        
+
     Raises:
         asyncio.TimeoutError: If operation exceeds timeout
     """
     if timeout is None:
         timeout = settings.DATABASE_QUERY_TIMEOUT
-    
+
     try:
         result = await asyncio.wait_for(
             asyncio.to_thread(db_operation),
@@ -118,7 +138,7 @@ async def execute_with_timeout(db_operation, timeout: float = None):
 
 
 class Trade(Base):
-    """Simulated trades for tracking P&L."""
+    """Simulated and live trades for tracking P&L."""
 
     __tablename__ = "trades"
 
@@ -131,14 +151,59 @@ class Trade(Base):
     )
     market_ticker = Column(String, index=True)
     platform = Column(String)
+    strategy = Column(String, nullable=True)
+    trading_mode = Column(String, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+    clob_order_id = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    confidence = Column(Float, nullable=True)
+    blockchain_verified = Column(Boolean, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=True)
     event_slug = Column(String, nullable=True)
+    market_end_date = Column(DateTime, nullable=True)
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
 
     # Trade details
     direction = Column(String)  # "up" or "down"
     entry_price = Column(Float)
     size = Column(Float)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    # Strategy / signal metadata
+    strategy = Column(String, nullable=True, index=True)
+    signal_source = Column(String, nullable=True)
+    confidence = Column(Float, nullable=True)
+    model_probability = Column(Float, nullable=True)
+    market_price_at_entry = Column(Float, nullable=True)
+    edge_at_entry = Column(Float, nullable=True)
+    data_quality_flags = Column(Text, nullable=True)
+
+    # Trading mode this trade was placed in
+    trading_mode = Column(String, default="paper", index=True)
+    role = Column(String, default="unknown", index=True)  # maker, taker, unknown
+    source = Column(String, default="bot")
+
+    # CLOB / on-chain tracking
+    clob_order_id = Column(String, nullable=True)
+    clob_idempotency_key = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    fill_price = Column(Float, nullable=True)
+    fill_ratio = Column(Float, nullable=True)
+
+    # Cost tracking
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+
+    # Blockchain verification
+    blockchain_verified = Column(Boolean, default=False)
+    settlement_source = Column(String, nullable=True)
+    last_sync_at = Column(DateTime, nullable=True)
+    external_import_at = Column(DateTime, nullable=True)
 
     # Settlement
     settled = Column(Boolean, default=False)
@@ -149,6 +214,9 @@ class Trade(Base):
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    settlement_source = Column(String, nullable=True)
+    source = Column(String, nullable=False, default="bot", index=True)
+    role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
 
 
 class HFTExecutionRecord(Base):
@@ -703,7 +771,7 @@ class PendingApproval(Base):
 class ActivityLog(Base):
     """Log of all strategy decisions and trading activity."""
     __tablename__ = "activity_log"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     strategy_name = Column(String(100), nullable=False, index=True)
@@ -716,7 +784,7 @@ class ActivityLog(Base):
 class StrategyProposal(Base):
     """Proposed strategy changes awaiting admin approval."""
     __tablename__ = "strategy_proposal"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     strategy_name = Column(String(100), nullable=False, index=True)
     change_details = Column(JSON, nullable=False)
@@ -738,7 +806,7 @@ class StrategyProposal(Base):
 class MiroFishSignal(Base):
     """AI-generated signals from Miro Fish debate engine for prediction markets."""
     __tablename__ = "mirofish_signal"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     market_id = Column(String(256), nullable=False, index=True, unique=True)
     prediction = Column(Float, nullable=False)  # 0.0-1.0
@@ -752,9 +820,9 @@ class MiroFishSignal(Base):
 
 class PerformanceMetric(Base):
     """Performance metrics for request timing, database queries, WebSocket latency, and system resources."""
-    
+
     __tablename__ = "performance_metrics"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
     metric_type = Column(String, nullable=False, index=True)
@@ -771,7 +839,7 @@ class PerformanceMetric(Base):
     cpu_percent = Column(Float, nullable=True)
     user_agent = Column(String, nullable=True)
     error_message = Column(String, nullable=True)
-    
+
     __table_args__ = (
         Index('idx_metrics_type_timestamp', 'metric_type', 'timestamp'),
         Index('idx_metrics_endpoint_timestamp', 'endpoint', 'timestamp'),
@@ -781,7 +849,7 @@ class PerformanceMetric(Base):
 class AuditLog(Base):
     """Comprehensive audit log for all money-related operations."""
     __tablename__ = "audit_log"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     event_type = Column(String, nullable=False, index=True)  # TRADE_CREATED, SETTLEMENT_COMPLETED, POSITION_UPDATED, WALLET_RECONCILED
@@ -790,7 +858,7 @@ class AuditLog(Base):
     old_value = Column(JSON, nullable=True)  # Previous state snapshot
     new_value = Column(JSON, nullable=True)  # New state snapshot
     user_id = Column(String, default="system")  # "system", "admin", "strategy:btc_5min"
-    
+
     # Legacy fields for backward compatibility
     actor = Column(String, default="system")
     action = Column(String, nullable=True)
@@ -876,7 +944,7 @@ class ResearchItemDB(Base):
 
 class Alert(Base):
     __tablename__ = "alerts"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     alert_type = Column(String, nullable=False, index=True)
@@ -886,12 +954,12 @@ class Alert(Base):
     message = Column(String, nullable=False)
     resolved = Column(Boolean, default=False, index=True)
     resolved_at = Column(DateTime, nullable=True)
-    
+
     __table_args__ = (
         Index("idx_alerts_type_severity", "alert_type", "severity"),
         Index("idx_alerts_resolved", "resolved"),
     )
-    
+
     def __repr__(self):
         return (
             f"<Alert(id={self.id}, type={self.alert_type}, severity={self.severity}, "
@@ -901,14 +969,14 @@ class Alert(Base):
 
 class AlertConfig(Base):
     __tablename__ = "alert_config"
-    
+
     id = Column(Integer, primary_key=True)
     alert_type = Column(String, unique=True, nullable=False)
     enabled = Column(Boolean, default=True)
     threshold_value = Column(Float, nullable=True)
     threshold_unit = Column(String, nullable=True)
     severity = Column(String, default="WARNING")
-    
+
     def __repr__(self):
         return (
             f"<AlertConfig(type={self.alert_type}, enabled={self.enabled}, "
@@ -957,9 +1025,9 @@ class TransactionEvent(Base):
 
 class Setting(Base):
     """Application settings persisted in database."""
-    
+
     __tablename__ = "settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, nullable=False, index=True)
     value = Column(Text, nullable=False)
@@ -968,30 +1036,30 @@ class Setting(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), index=True)
     updated_by_user_id = Column(String, nullable=True, default="system")
-    
+
     def __repr__(self):
         return f"<Setting(key={self.key}, type={self.type}, value={self.value[:50]}...)>"
 
 
 class SystemSettings(Base):
     """System settings for runtime configuration (MiroFish, strategies, risk params)."""
-    
+
     __tablename__ = "system_settings"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSON, nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    
+
     def __repr__(self):
         return f"<SystemSettings(key={self.key}, value={self.value})>"
 
 
 class ErrorLog(Base):
     """Centralized error logging with structured context."""
-    
+
     __tablename__ = "error_logs"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
     error_type = Column(String(255), nullable=False, index=True)
@@ -1003,7 +1071,7 @@ class ErrorLog(Base):
     status_code = Column(Integer, nullable=True)
     request_id = Column(String(255), nullable=True, index=True)
     details = Column(Text, nullable=True)
-    
+
     __table_args__ = (
         Index('idx_error_logs_type_timestamp', 'error_type', 'timestamp'),
         Index('idx_error_logs_endpoint_timestamp', 'endpoint', 'timestamp'),
@@ -1065,7 +1133,7 @@ def _attempt_data_recovery(db_path: str) -> dict[str, list[dict]]:
 
 def _restore_recovered_data(recovered: dict[str, list[dict]]):
     """Re-insert recovered data into the fresh database.
-    
+
     Uses per-table sessions with individual commits to isolate failures.
     Skips rows with IDs that already exist (idempotent). Only restores
     columns that exist on the target model to handle schema drift.
@@ -1154,7 +1222,7 @@ def _publish_corruption_alert(event: str, detail: str, data: dict | None = None)
 
 def init_db(repair_if_needed: bool = True):
     try:
-        Base.metadata.create_all(bind=engine)
+        Base.metadata.create_all(bind=engine, checkfirst=True)
         ensure_schema()
         seed_default_data()
     except Exception as e:
@@ -1175,7 +1243,7 @@ def init_db(repair_if_needed: bool = True):
                     os.unlink(db_path)
                     logger.info(f"Removed corrupted database: {db_path}")
 
-                Base.metadata.create_all(bind=engine)
+                Base.metadata.create_all(bind=engine, checkfirst=True)
                 ensure_schema()
                 seed_default_data()
 
@@ -1198,18 +1266,18 @@ def init_db(repair_if_needed: bool = True):
 def seed_default_data():
     """Seed database with default data."""
     from backend.config import settings as app_settings
-    
+
     db = SessionLocal()
     try:
         _set_sqlite_busy_timeout(db, 1000)
 
         for mode in ["paper", "testnet", "live"]:
-            existing = db.query(BotState).filter_by(mode=mode).first()
+            existing = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if not existing:
                 initial_bankroll = app_settings.INITIAL_BANKROLL
                 if mode == "testnet":
                     initial_bankroll = 100.0
-                
+
                 bot_state = BotState(
                     mode=mode,
                     bankroll=initial_bankroll,
@@ -1246,10 +1314,10 @@ def seed_default_data():
                 if mode == "testnet" and existing.testnet_initial_bankroll is None:
                     existing.testnet_initial_bankroll = 100.0
                     logger.info("Backfilled testnet_initial_bankroll = 100.0")
-        
+
         from backend.strategies.registry import load_all_strategies, STRATEGY_REGISTRY
         load_all_strategies()
-        
+
         for strategy_name in STRATEGY_REGISTRY.keys():
             existing = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
             if not existing:
@@ -1262,7 +1330,7 @@ def seed_default_data():
                 )
                 db.add(strategy_config)
                 logger.info(f"Seeded StrategyConfig for: {strategy_name}")
-        
+
         db.commit()
         logger.info("Database seeding completed")
     except Exception as e:
@@ -1421,7 +1489,7 @@ def ensure_schema():
                         text("SELECT COUNT(*) FROM bot_state")
                     )
                     count = result.scalar()
-                    
+
                     if count == 1:
                         result = conn.execute(
                             text("SELECT id, bankroll, total_trades, winning_trades, total_pnl, "
@@ -1430,17 +1498,17 @@ def ensure_schema():
                                  "FROM bot_state LIMIT 1")
                         )
                         row = result.fetchone()
-                        
+
                         if row:
                             (id_val, bankroll, total_trades, winning_trades, total_pnl,
                              paper_bankroll, paper_pnl, paper_trades, paper_wins,
                              testnet_bankroll, testnet_pnl, testnet_trades, testnet_wins) = row
-                            
+
                             conn.execute(
                                 text("UPDATE bot_state SET bankroll = :bankroll, "
                                      "total_trades = :total_trades, winning_trades = :winning_trades, "
                                      "total_pnl = :total_pnl WHERE id = :id"),
-                                {"bankroll": paper_bankroll or bankroll, 
+                                {"bankroll": paper_bankroll or bankroll,
                                  "total_trades": paper_trades or total_trades,
                                  "winning_trades": paper_wins or winning_trades,
                                  "total_pnl": paper_pnl or total_pnl,
@@ -1521,7 +1589,9 @@ def ensure_schema():
         AuditLog.__table__.create(bind=engine, checkfirst=True)
 
     # Ensure new tables exist (DecisionLog, MarketWatch, WalletConfig, StrategyConfig, TradeContext)
-    Base.metadata.create_all(bind=engine)
+    # checkfirst=True prevents "already exists" errors when ensure_schema is called more than once
+    # on the same database (e.g. during test setup or after a hot-restart).
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
     # Add whale_score column to wallet_config if missing
     try:
@@ -1798,9 +1868,9 @@ def log_audit(action: str, actor: str = "system", details: dict = None):
 # Knowledge Graph models for Wave 10
 class KgNode(Base):
     """Knowledge Graph Node - represents entities in the graph."""
-    
+
     __tablename__ = "kg_node"
-    
+
     node_id = Column(String, primary_key=True, index=True)
     node_type = Column(String, nullable=False, index=True)  # 'strategy', 'gene', 'market', 'trade', 'regime', 'event'
     label = Column(String, nullable=False)
@@ -1810,9 +1880,9 @@ class KgNode(Base):
 
 class KgEdge(Base):
     """Knowledge Graph Edge - represents relationships between nodes."""
-    
+
     __tablename__ = "kg_edge"
-    
+
     edge_id = Column(String, primary_key=True, index=True)
     from_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
     to_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
@@ -1834,21 +1904,22 @@ class ClobEvent(Base):
     order_id = Column(String, nullable=False)
     maker = Column(String, nullable=False)
     taker = Column(String, nullable=False)
-    market_id = Column(String, nullable=False, index=True)
+    market_id = Column(String, nullable=False)
     side = Column(String, nullable=False)  # "BUY" or "SELL"
     size = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
     fee = Column(Float, nullable=False)
-    block_number = Column(Integer, nullable=False, index=True)
-    tx_hash = Column(String, nullable=False, unique=True, index=True)
-    timestamp = Column(DateTime, nullable=False, index=True)
+    block_number = Column(Integer, nullable=False)
+    tx_hash = Column(String, nullable=False, unique=True)
+    timestamp = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
+        # Only the unique constraint lives here; individual column indexes are
+        # declared via index=True on the Column definitions above to avoid
+        # duplicate index creation errors when create_all() is called more than
+        # once on the same database.
         UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
-        Index('ix_clob_events_block_number', 'block_number'),
-        Index('ix_clob_events_timestamp', 'timestamp'),
-        Index('ix_clob_events_market_id', 'market_id'),
     )
 
 

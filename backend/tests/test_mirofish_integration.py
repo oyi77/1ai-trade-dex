@@ -72,11 +72,11 @@ async def test_e2e_mirofish_enabled_success(mock_db, sample_mirofish_signals):
     # Setup: MiroFish enabled in settings
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient:
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=sample_mirofish_signals)
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Will BTC hit $100k by EOY?",
@@ -85,17 +85,17 @@ async def test_e2e_mirofish_enabled_success(mock_db, sample_mirofish_signals):
             category="crypto",
             context="Recent ETF approvals driving momentum",
         )
-        
+
         # Verify MiroFish was called
         assert result is not None
         assert result.data_sources == ["mirofish"]
         assert "mirofish_ensemble_v1" in result.reasoning
         assert "mirofish_sentiment_v1" in result.reasoning
-        
+
         # Verify weighted consensus calculation
         expected_consensus = (0.68 * 0.85 + 0.72 * 0.80) / (0.85 + 0.80)
         assert abs(result.consensus_probability - expected_consensus) < 0.001
-        
+
         # Verify API was called with correct market
         mock_client.fetch_signals.assert_called_once_with(market="polymarket")
 
@@ -105,22 +105,22 @@ async def test_e2e_mirofish_disabled_local_debate(mock_db, sample_debate_result)
     """E2E: MiroFish disabled → local debate used."""
     # Setup: MiroFish disabled in settings
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Will BTC hit $100k by EOY?",
             market_price=0.55,
             volume=50000.0,
         )
-        
+
         # Verify local debate was called
         assert result is not None
         assert result.data_sources == ["local_debate"]
         assert "Local debate" in result.reasoning
-        
+
         # Verify debate parameters passed correctly
         call_kwargs = mock_run_debate.call_args.kwargs
         assert call_kwargs["question"] == "Will BTC hit $100k by EOY?"
@@ -138,20 +138,20 @@ async def test_fallback_mirofish_empty_signals(mock_db, sample_debate_result):
     """Fallback: MiroFish returns empty signals → local debate used."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=[])  # Empty signals
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify fallback to local debate
         assert result is not None
         assert result.data_sources == ["local_debate"]
@@ -163,20 +163,20 @@ async def test_fallback_mirofish_api_timeout(mock_db, sample_debate_result):
     """Fallback: MiroFish API timeout → local debate used."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(side_effect=TimeoutError("API timeout"))
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify graceful fallback
         assert result is not None
         assert result.data_sources == ["local_debate"]
@@ -188,22 +188,22 @@ async def test_fallback_mirofish_connection_error(mock_db, sample_debate_result)
     """Fallback: MiroFish connection error → local debate used."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(
             side_effect=ConnectionError("Failed to connect to MiroFish API")
         )
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify graceful fallback
         assert result is not None
         assert result.data_sources == ["local_debate"]
@@ -215,22 +215,22 @@ async def test_fallback_mirofish_auth_error(mock_db, sample_debate_result):
     """Fallback: MiroFish auth error (401) → local debate used."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch("backend.ai.debate_router.run_debate") as mock_run_debate:
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(
             side_effect=Exception("401 Unauthorized: Invalid API key")
         )
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify graceful fallback
         assert result is not None
         assert result.data_sources == ["local_debate"]
@@ -247,15 +247,15 @@ async def test_credential_priority_database_over_env(mock_db, sample_mirofish_si
     """Credential priority: Database credentials override env vars."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     # Mock database credentials
     db_url_setting = SystemSettings(key="mirofish_api_url", value="https://db.mirofish.ai")
     db_key_setting = SystemSettings(key="mirofish_api_key", value="db_key_12345")
-    
+
     def mock_query_side_effect(*args):
         mock_query = MagicMock()
         mock_filter = MagicMock()
-        
+
         def mock_first():
             # Return different settings based on filter call
             if hasattr(mock_filter, '_key'):
@@ -266,25 +266,25 @@ async def test_credential_priority_database_over_env(mock_db, sample_mirofish_si
                 elif mock_filter._key == "mirofish_api_key":
                     return db_key_setting
             return None
-        
+
         mock_filter.first = mock_first
         mock_query.filter = lambda x: setattr(mock_filter, '_key', x.right.value) or mock_filter
         return mock_query
-    
+
     mock_db.query.side_effect = mock_query_side_effect
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient, \
          patch.dict("os.environ", {"MIROFISH_API_URL": "https://env.mirofish.ai", "MIROFISH_API_KEY": "env_key"}):
-        
+
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=sample_mirofish_signals)
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify MiroFish was called (credentials from DB should be used)
         assert result is not None
         assert result.data_sources == ["mirofish"]
@@ -300,23 +300,23 @@ async def test_validation_toggle_requires_credentials(mock_db):
     """Validation: Cannot enable MiroFish without valid credentials."""
     # This test verifies the API endpoint validation logic
     # The actual validation happens in backend/api/settings.py
-    
+
     # Setup: No credentials in database
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     # Attempt to enable MiroFish without credentials should fail at API level
     # (This is tested in API tests, but we verify router behavior here)
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient:
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(
             side_effect=Exception("Missing API credentials")
         )
-        
+
         # Even if enabled flag is set, missing credentials cause fallback
         setting = SystemSettings(key="mirofish_enabled", value=True)
         mock_db.query.return_value.filter.return_value.first.return_value = setting
-        
+
         with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
             mock_run_debate.return_value = DebateResult(
                 consensus_probability=0.50,
@@ -325,13 +325,13 @@ async def test_validation_toggle_requires_credentials(mock_db):
                 market_question="Test",
                 market_price=0.50,
             )
-            
+
             result = await run_debate_with_routing(
                 db=mock_db,
                 question="Test market",
                 market_price=0.50,
             )
-            
+
             # Verify fallback occurred
             assert result is not None
             mock_run_debate.assert_called_once()
@@ -346,9 +346,9 @@ async def test_validation_toggle_requires_credentials(mock_db):
 async def test_parameter_preservation_all_fields(mock_db, sample_debate_result):
     """Verify all debate parameters preserved through routing."""
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     from backend.ai.debate_engine import SignalVote
-    
+
     signal_votes = [
         SignalVote(
             source="test_source",
@@ -358,10 +358,10 @@ async def test_parameter_preservation_all_fields(mock_db, sample_debate_result):
             weight=0.80,
         )
     ]
-    
+
     with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
         mock_run_debate.return_value = sample_debate_result
-        
+
         await run_debate_with_routing(
             db=mock_db,
             question="Complex market question",
@@ -373,7 +373,7 @@ async def test_parameter_preservation_all_fields(mock_db, sample_debate_result):
             data_sources=["polls", "betting_markets", "expert_forecasts"],
             signal_votes=signal_votes,
         )
-        
+
         # Verify all parameters passed to local debate
         call_kwargs = mock_run_debate.call_args.kwargs
         assert call_kwargs["question"] == "Complex market question"
@@ -396,17 +396,17 @@ async def test_latency_tracking_mirofish(mock_db, sample_mirofish_signals):
     """Verify latency tracking for MiroFish API calls."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient:
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=sample_mirofish_signals)
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Test market",
             market_price=0.50,
         )
-        
+
         # Verify latency is tracked
         assert result is not None
         assert result.latency_ms >= 0.0
@@ -434,11 +434,11 @@ async def test_edge_case_extreme_market_price(mock_db, sample_mirofish_signals):
     """Edge case: Extreme market prices (0.01, 0.99) handled correctly."""
     setting = SystemSettings(key="mirofish_enabled", value=True)
     mock_db.query.return_value.filter.return_value.first.return_value = setting
-    
+
     with patch("backend.ai.debate_router.MiroFishClient") as MockClient:
         mock_client = MockClient.return_value
         mock_client.fetch_signals = AsyncMock(return_value=sample_mirofish_signals)
-        
+
         # Test extreme low price
         result_low = await run_debate_with_routing(
             db=mock_db,
@@ -447,7 +447,7 @@ async def test_edge_case_extreme_market_price(mock_db, sample_mirofish_signals):
         )
         assert result_low is not None
         assert 0.0 <= result_low.consensus_probability <= 1.0
-        
+
         # Test extreme high price
         result_high = await run_debate_with_routing(
             db=mock_db,
@@ -462,17 +462,17 @@ async def test_edge_case_extreme_market_price(mock_db, sample_mirofish_signals):
 async def test_edge_case_zero_volume(mock_db, sample_debate_result):
     """Edge case: Zero volume markets handled correctly."""
     mock_db.query.return_value.filter.return_value.first.return_value = None
-    
+
     with patch("backend.ai.debate_router.run_debate") as mock_run_debate:
         mock_run_debate.return_value = sample_debate_result
-        
+
         result = await run_debate_with_routing(
             db=mock_db,
             question="Low liquidity market",
             market_price=0.50,
             volume=0.0,
         )
-        
+
         assert result is not None
         call_kwargs = mock_run_debate.call_args.kwargs
         assert call_kwargs["volume"] == 0.0

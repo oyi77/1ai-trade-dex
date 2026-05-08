@@ -80,7 +80,7 @@ async def test_worker_processes_job(queue, monkeypatch):
 
     task = asyncio.create_task(worker.start())
     # Wait until the job leaves the pending state (processing or completed)
-    reached_zero = await _wait_for_pending_zero(q, timeout=5.0)
+    _reached_zero = await _wait_for_pending_zero(q, timeout=5.0)
     # Give a moment for _process_job to finish after dequeue
     await asyncio.sleep(0.3)
     await worker.stop()
@@ -158,7 +158,7 @@ async def test_worker_continues_after_timeout(queue, monkeypatch):
             call_log.append(job.job_id)
             return {"success": True, "message": "fast done"}
 
-    slow_id = await q.enqueue("market_scan", {"slow": True}, priority="high")
+    _slow_id = await q.enqueue("market_scan", {"slow": True}, priority="high")
     fast_id = await q.enqueue("market_scan", {"slow": False}, priority="low")
 
     worker = Worker(q, max_concurrent=2)

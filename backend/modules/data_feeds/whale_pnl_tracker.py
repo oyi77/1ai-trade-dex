@@ -40,7 +40,6 @@ from backend.strategies.base import (
 )
 from backend.core.decisions import record_decision
 from backend.core.whale_discovery import WhaleDiscovery
-from backend.models.database import SessionLocal, WalletConfig, CopyTraderEntry
 from backend.config import settings
 
 logger = logging.getLogger("trading_bot")

@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.core.experiment_tracker import ExperimentTracker
-from backend.models.database import Base, Experiment, StrategyConfig
+from backend.models.database import Base, Experiment
 
 
 @pytest.fixture()

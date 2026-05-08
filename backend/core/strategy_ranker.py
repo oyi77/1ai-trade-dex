@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
 
 from backend.config import settings
 
@@ -51,7 +50,7 @@ class StrategyRanker:
                 Trade.settled.is_(True),
                 Trade.result.in_(("win", "loss")),
                 Trade.timestamp >= cutoff,
-                Trade.strategy != None,
+                Trade.strategy is not None,
             )
             .distinct()
             .all()

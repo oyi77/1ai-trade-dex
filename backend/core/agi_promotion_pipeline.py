@@ -8,7 +8,6 @@ from typing import Optional
 from dataclasses import dataclass, field
 
 from backend.core.experiment_runner import ExperimentRunner
-from backend.core.agi_types import ExperimentStatus
 
 
 @dataclass

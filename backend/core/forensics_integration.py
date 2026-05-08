@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from backend.models.database import SessionLocal, StrategyProposal, Trade
+from backend.models.database import SessionLocal, StrategyProposal
 
 logger = logging.getLogger("trading_bot.forensics_integration")
 
@@ -23,7 +22,6 @@ def generate_forensics_proposals(
     db = db or SessionLocal()
     created_ids = []
     try:
-        from backend.core.trade_forensics import trade_forensics
         from backend.models.outcome_tables import StrategyOutcome
 
         cutoff = datetime.now(timezone.utc)

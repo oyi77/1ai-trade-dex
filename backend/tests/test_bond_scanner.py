@@ -1,5 +1,4 @@
 """Tests for BondScannerStrategy."""
-import json
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -99,7 +98,7 @@ class TestBondScannerFilters:
         """Edge should equal 1.0 - price."""
         from backend.strategies.bond_scanner import BondScannerStrategy
 
-        strategy = BondScannerStrategy()
+        _strategy = BondScannerStrategy()
 
         test_cases = [
             (0.95, 0.05),

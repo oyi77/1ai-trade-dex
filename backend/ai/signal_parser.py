@@ -15,7 +15,7 @@ Key Features:
 
 import logging
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class SignalParser:
     def __init__(self):
         """Initialize signal parser."""
         from backend.core.config_service import get_setting
-        
+
         self.mirofish_signal_weight = get_setting("MIROFISH_SIGNAL_WEIGHT", 1.0)
         logger.info(
             f"SignalParser initialized with MiroFish weight={self.mirofish_signal_weight}"
@@ -140,7 +140,7 @@ class SignalParser:
             List of valid Signal objects (skips invalid ones)
         """
         parsed_signals = []
-        
+
         for raw_signal in signals:
             signal = self.parse_mirofish_signal(raw_signal)
             if signal:

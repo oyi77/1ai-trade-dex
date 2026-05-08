@@ -27,7 +27,7 @@ class RegimeDetector:
 
     def detect_regime(self, market_data: dict[str, Any]) -> RegimeResult:
         prices = market_data.get("prices", [])
-        volumes = market_data.get("volumes", [])
+        _volumes = market_data.get("volumes", [])
         sma_50 = market_data.get("sma_50")
         sma_200 = market_data.get("sma_200")
         atr = market_data.get("atr", 0.0)

@@ -1,6 +1,6 @@
 """Arbitrage detection routes."""
 from fastapi import APIRouter, Depends
-from typing import List, Dict
+from typing import Dict
 import time as _time
 import logging
 

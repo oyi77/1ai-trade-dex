@@ -3,8 +3,9 @@ Real API Integration Tests - Testing actual FastAPI endpoints with live requests
 No mocks, no placeholders. All endpoints tested against real database.
 """
 
+import pytest
 from fastapi.testclient import TestClient
-from backend.api.main import app, get_db
+from backend.api.main import app
 
 
 def test_client():
@@ -26,10 +27,10 @@ class TestFeature2StatsAPI:
             "confidence_score": 0.85,
             "mode": "paper_trading"
         }
-        
+
         response = client.post("/api/v1/activities", json=payload)
         assert response.status_code in [200, 201, 404, 429], f"API returned: {response.status_code}, body: {response.text}"
-        
+
         if response.status_code == 200 or response.status_code == 201:
             data = response.json()
             assert "id" in data or "strategy_name" in data
@@ -62,7 +63,7 @@ class TestFeature3MiroFishAPI:
             "source": "debate_engine",
             "weight": 1.0
         }
-        
+
         response = client.post("/api/v1/signals", json=payload)
         assert response.status_code in [200, 201, 404, 429, 500]
         print(f"✅ MiroFish signal endpoint reachable: {response.status_code}")
@@ -86,7 +87,7 @@ class TestFeature4ProposalAPI:
             "change_details": {"new_rsi_threshold": 70},
             "expected_impact": 0.10
         }
-        
+
         response = client.post("/api/v1/proposals", json=payload)
         assert response.status_code in [200, 201, 404, 429, 500]
         print(f"✅ Proposal submit endpoint reachable: {response.status_code}")
@@ -115,7 +116,7 @@ class TestFullWorkflowViaAPI:
 
     def test_complete_workflow(self):
         """Test the complete workflow through actual API"""
-        
+
         # Step 1: Create activity
         activity_payload = {
             "strategy_name": "weather_emos",
@@ -124,29 +125,29 @@ class TestFullWorkflowViaAPI:
             "confidence_score": 0.92,
             "mode": "live"
         }
-        
+
         activity_response = client.post("/api/v1/activities", json=activity_payload)
         print(f"Step 1 - Create Activity: {activity_response.status_code}")
-        
+
         # Step 2: Get activities
         activities_response = client.get("/api/v1/activities")
         print(f"Step 2 - Get Activities: {activities_response.status_code}")
-        
+
         # Step 3: Create proposal (note: proposal endpoints might need authentication)
         proposal_payload = {
             "strategy_name": "weather_emos",
             "change_details": {"model_version": "v2"},
             "expected_impact": 0.15
         }
-        
+
         proposal_response = client.post("/api/v1/proposals", json=proposal_payload)
         print(f"Step 3 - Create Proposal: {proposal_response.status_code}")
-        
+
         # All endpoints should be reachable (even if not fully implemented)
         assert activity_response.status_code in [200, 201, 404, 429, 500]
         assert activities_response.status_code in [200, 404, 429, 500]
         assert proposal_response.status_code in [200, 201, 404, 429, 500]
-        
+
         print("✅ Complete workflow API calls successful")
 
 

@@ -2,10 +2,9 @@
 
 import json
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.core.risk_manager import RiskManager
@@ -49,7 +48,7 @@ def _make_rm():
 
 
 class TestAllocationEnforcement:
-    @patch("backend.core.risk_manager.SessionLocal")
+    @patch("backend.db.utils.SessionLocal")
     @patch("backend.core.risk_manager.RiskManager._count_enabled_strategies", return_value=1)
     def test_no_allocation_allows_trade(self, mock_count, mock_session_cls):
         mock_db = MagicMock()

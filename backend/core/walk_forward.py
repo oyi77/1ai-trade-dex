@@ -249,8 +249,8 @@ class WalkForwardEngine:
         return results
 
 
-import math
-from dataclasses import dataclass
+import math  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
 
 
 @dataclass

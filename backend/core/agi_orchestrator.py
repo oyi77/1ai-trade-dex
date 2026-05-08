@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
@@ -89,7 +90,6 @@ class AGIOrchestrator:
 
         try:
             from backend.mesh.health import SourceHealthMonitor
-            from backend.mesh.registry import list_active
             monitor = SourceHealthMonitor()
             source_mult = monitor.global_risk_multiplier()
             if source_mult < 1.0:
@@ -102,7 +102,7 @@ class AGIOrchestrator:
             from backend.core.regime_detector import RegimeDetector
             from backend.data.crypto import fetch_binance_klines
             detector = RegimeDetector()
-            
+
             # Fetch real BTC prices to feed the RegimeDetector
             market_data = {}
             try:
@@ -133,7 +133,7 @@ class AGIOrchestrator:
                         market_data["volume_trend"] = 0.0
             except Exception as e:
                 errors.append(f"Crypto data fetch failed: {e}")
-                
+
             regime = detector.detect_regime(market_data=market_data).regime
             self._current_regime = regime
             actions += 1
@@ -166,7 +166,7 @@ class AGIOrchestrator:
         # --- Populate Knowledge Graph with this cycle's findings ---
         if kg is not None:
             try:
-                cycle_id = f"cycle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{id(self)}"
+                _cycle_id = f"cycle_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{id(self)}"
                 kg.add_entity("regime", f"regime:{regime.value}", {
                     "value": regime.value,
                     "detected_at": datetime.now(timezone.utc).isoformat(),
@@ -297,6 +297,53 @@ class ErrorType(Enum):
     TRANSIENT = "TRANSIENT"
     PERMANENT = "PERMANENT"
 
+
+TRANSIENT_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    TimeoutError,
+    ConnectionError,
+    OSError,
+)
+# Lazy-import httpx exceptions only when needed (avoids hard dependency).
+_httpx_transient: tuple[type[BaseException], ...] = ()
+_httpx_checked: bool = False
+
+
+def _get_httpx_transient() -> tuple[type[BaseException], ...]:
+    """Return httpx transient exception types, importing lazily."""
+    global _httpx_transient, _httpx_checked
+    if not _httpx_checked:
+        try:
+            import httpx
+            _httpx_transient = (httpx.TimeoutException, httpx.HTTPStatusError)
+        except ImportError:
+            _httpx_transient = ()
+        _httpx_checked = True
+    return _httpx_transient
+
+
+PERMANENT_EXCEPTIONS: tuple[type[BaseException], ...] = (
+    TypeError,
+    ValueError,
+    ImportError,
+    AttributeError,
+    KeyError,
+)
+
+
+def classify_exception(exc: BaseException) -> ErrorType:
+    """Classify an exception as TRANSIENT, PERMANENT, or BENIGN.
+
+    TRANSIENT — network timeouts, rate limits, service unavailable (retry-safe).
+    PERMANENT — programming errors, bad data, missing config (must raise).
+    BENIGN    — anything that doesn't match the above (log and continue).
+    """
+    if isinstance(exc, TRANSIENT_EXCEPTIONS + _get_httpx_transient()):
+        return ErrorType.TRANSIENT
+    if isinstance(exc, PERMANENT_EXCEPTIONS):
+        return ErrorType.PERMANENT
+    return ErrorType.BENIGN
+
+
 logger = __import__("logging").getLogger("trading_bot.agi_orchestrator")
 
 
@@ -304,6 +351,7 @@ logger = __import__("logging").getLogger("trading_bot.agi_orchestrator")
 _consecutive_failures: int = 0
 _circuit_open: bool = False
 _TRANSIENT_FAILURE_THRESHOLD: int = 3
+_STATS_REPORT_CRITICAL_ERRORS: bool = os.getenv("STATS_REPORT_CRITICAL_ERRORS", "false").lower() in ("true", "1", "yes")
 
 
 def _open_circuit() -> None:
@@ -347,12 +395,14 @@ def _reset_circuit() -> None:
 async def agi_improvement_cycle_job() -> None:
     """Scheduled job: runs the full closed-loop AGI improvement cycle.
 
-    Errors are classified via :class:`ErrorType`:
+    Errors are classified via :func:`classify_exception`:
       * BENIGN    — log a warning and continue running remaining stages.
-      * TRANSIENT — re-raise after logging; track consecutive failures and trip
-                    the circuit breaker after :data:`_TRANSIENT_FAILURE_THRESHOLD`
-                    consecutive failures so the scheduler stops invoking the cycle.
-      * PERMANENT — reserved for future use.
+      * TRANSIENT — log a warning, track consecutive failures, and re-raise
+                    so the scheduler notes the failure; trips the circuit
+                    breaker after :data:`_TRANSIENT_FAILURE_THRESHOLD`
+                    consecutive failures.
+      * PERMANENT — log at CRITICAL and re-raise immediately so the cycle
+                    fails visibly (programming errors, missing modules, etc.).
     """
     global _consecutive_failures
 
@@ -377,6 +427,17 @@ async def agi_improvement_cycle_job() -> None:
         result = measure_recent_changes()
         stats["feedback_measured"] = result.get("measured", 0)
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] feedback stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"feedback: {e}")
+            raise
+        elif etype == ErrorType.TRANSIENT:
+            _record_transient_failure("feedback", e)
+            stats["errors"].append(f"feedback: {e}")
+            raise
         logger.warning(
             "[agi_improvement_cycle] feedback stage failed (BENIGN): %s", e, exc_info=True,
         )
@@ -386,6 +447,17 @@ async def agi_improvement_cycle_job() -> None:
         from backend.ai.meta_learner import MetaLearner
         stats["meta_learned"] = MetaLearner().update_from_feedback()
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] meta_learn stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"meta_learn: {e}")
+            raise
+        elif etype == ErrorType.TRANSIENT:
+            _record_transient_failure("meta_learn", e)
+            stats["errors"].append(f"meta_learn: {e}")
+            raise
         logger.warning(
             "[agi_improvement_cycle] meta_learn stage failed (BENIGN): %s", e, exc_info=True,
         )
@@ -395,12 +467,22 @@ async def agi_improvement_cycle_job() -> None:
         from backend.agents.autoresearch.evolver import StrategyEvolver
         stats["evolution_variants"] = len(StrategyEvolver().run_evolution_cycle())
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] evolution stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"evolution: {e}")
+            raise
+        elif etype == ErrorType.TRANSIENT:
+            _record_transient_failure("evolution", e)
+            stats["errors"].append(f"evolution: {e}")
+            raise
         logger.warning(
             "[agi_improvement_cycle] evolution stage failed (BENIGN): %s", e, exc_info=True,
         )
         stats["errors"].append(f"evolution: {e}")
 
-    # TRANSIENT: proposals — let circuit breaker handle repeated failures
     try:
         from backend.ai.proposal_generator import auto_promote_eligible_proposals
         auto_promote_eligible_proposals()
@@ -411,6 +493,13 @@ async def agi_improvement_cycle_job() -> None:
                 StrategyProposal.admin_decision == "auto_approved"
             ).count()
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] proposals stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"proposals: {e}")
+            raise
         _record_transient_failure("proposals", e)
         stats["errors"].append(f"proposals: {e}")
         raise
@@ -433,6 +522,13 @@ async def agi_improvement_cycle_job() -> None:
             if killed:
                 db.commit()
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] replacement stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"replacement: {e}")
+            raise
         _record_transient_failure("replacement", e)
         stats["errors"].append(f"replacement: {e}")
         raise
@@ -442,6 +538,13 @@ async def agi_improvement_cycle_job() -> None:
         composed = await StrategyComposer().compose_new_strategy()
         stats["strategies_composed"] = 1 if composed else 0
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] composition stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"composition: {e}")
+            raise
         _record_transient_failure("composition", e)
         stats["errors"].append(f"composition: {e}")
         raise
@@ -452,16 +555,46 @@ async def agi_improvement_cycle_job() -> None:
         stats["counterfactual_scored"] = cf_result.get("scoring", {}).get("scored", 0)
         stats["counterfactual_insights"] = cf_result.get("insights", {}).get("insights", 0)
     except Exception as e:
+        etype = classify_exception(e)
+        if etype == ErrorType.PERMANENT:
+            logger.critical(
+                "[agi_improvement_cycle] counterfactual stage PERMANENT failure: %s", e, exc_info=True,
+            )
+            stats["errors"].append(f"counterfactual: {e}")
+            raise
+        elif etype == ErrorType.TRANSIENT:
+            _record_transient_failure("counterfactual", e)
+            stats["errors"].append(f"counterfactual: {e}")
+            raise
         logger.warning(
             "[agi_improvement_cycle] counterfactual stage failed (BENIGN): %s", e, exc_info=True,
         )
         stats["errors"].append(f"counterfactual: {e}")
+
+    if not stats["errors"]:
+        _reset_circuit()
+    else:
+        logger.warning(
+            "[agi_improvement_cycle] cycle completed with %d error(s)", len(stats["errors"]),
+        )
 
     if len(stats["errors"]) >= 4:
         logger.critical(
             "[agi_improvement_cycle] %d/7 stages failed — AGI cycle may be non-functional",
             len(stats["errors"]),
         )
+        if _STATS_REPORT_CRITICAL_ERRORS:
+            try:
+                from backend.core.monitoring import ProductionMonitor
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
+                    ProductionMonitor(db).send_alert(
+                        severity="critical",
+                        message=f"AGI cycle critical: {len(stats['errors'])}/7 stages failed",
+                        details={"errors": stats["errors"]},
+                    )
+            except Exception:
+                pass
 
     logger.info(
         "[agi_improvement_cycle] feedback=%d meta=%d evolved=%d promoted=%d composed=%d replaced=%d cf_scored=%d errors=%d",

@@ -7,7 +7,6 @@ that share the same on-disk database file.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, JobQueue
 from backend.job_queue.sqlite_queue import AsyncSQLiteQueue

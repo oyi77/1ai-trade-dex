@@ -1,16 +1,14 @@
-from datetime import datetime, timezone
-from typing import Optional
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
 
 from backend.core.agi_goal_engine import (
     AGIGoalEngine,
     GoalPerformance,
     REGIME_GOAL_MAP,
 )
-from backend.core.agi_types import AGIGoal, MarketRegime, DecisionAuditEntry
+from backend.core.agi_types import AGIGoal, MarketRegime
 from backend.models.kg_models import Base, DecisionAuditLog
 
 

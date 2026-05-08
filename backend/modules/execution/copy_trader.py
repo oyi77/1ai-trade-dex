@@ -63,8 +63,8 @@ async def _fetch_token_id(
 
 
 # Import from extracted modules
-from backend.strategies.wallet_sync import WalletWatcher, WalletTrade
-from backend.strategies.order_executor import (
+from backend.strategies.wallet_sync import WalletWatcher, WalletTrade  # noqa: E402, F401
+from backend.strategies.order_executor import (  # noqa: E402
     LeaderboardScorer,
     ScoredTrader,
     CopySignal,
@@ -210,13 +210,13 @@ class CopyTraderStrategy(BaseStrategy):
     @staticmethod
     def _resolve_bankroll(mode: str = None) -> float:
         try:
-            from backend.models.database import SessionLocal, BotState
+            from backend.models.database import SessionLocal, BotState, for_update
             from backend.config import settings as _settings
 
             effective = mode or _settings.TRADING_MODE
             db = SessionLocal()
             try:
-                state = db.query(BotState).first()
+                state = for_update(db, db.query(BotState)).first()
                 if state:
                     if effective == "paper":
                         return float(
@@ -381,7 +381,7 @@ class CopyTraderStrategy(BaseStrategy):
                 copy_entry_price = signal.market_price
                 if copy_direction in ("no", "down") and signal.market_price:
                     copy_entry_price = round(1.0 - signal.market_price, 6)
-                
+
                 activity_logger.log_entry(
                     strategy_name="copy_trader",
                     decision_type="entry",
@@ -398,7 +398,7 @@ class CopyTraderStrategy(BaseStrategy):
                     mode=ctx.mode,
                     db=ctx.db
                 )
-                
+
                 result.decisions.append(
                     {
                         "decision": "BUY",

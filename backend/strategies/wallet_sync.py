@@ -4,7 +4,7 @@ Handles DB operations for tracking wallet positions and polling for new trades.
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Tuple
 
 import httpx
 

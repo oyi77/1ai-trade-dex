@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 import hashlib
-import json
 
 
 class SourceState(str, Enum):

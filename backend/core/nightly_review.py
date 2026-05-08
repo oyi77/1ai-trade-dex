@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -11,7 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.config import settings
-from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState
+from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState, for_update
 
 logger = logging.getLogger("trading_bot.nightly_review")
 
@@ -48,7 +47,7 @@ class NightlyReviewWriter:
                 f.write(content)
 
             logger.info("[NightlyReview] Written to %s", path)
-            
+
             # TODO: Wire NightlyReview output into KnowledgeGraph (Wave 10)
             # Publish event for KnowledgeGraph integration
             from backend.core.event_bus import publish_event
@@ -56,7 +55,7 @@ class NightlyReviewWriter:
                 "date": date_str,
                 "file_path": path
             })
-            
+
             return path
         except Exception as e:
             logger.error("[NightlyReview] Failed: %s", e)
@@ -73,9 +72,9 @@ class NightlyReviewWriter:
             from backend.config import settings
 
             for mode in settings.active_modes_set:
-                bot = db.query(BotState).filter(
+                bot = for_update(db, db.query(BotState).filter(
                     BotState.mode == mode
-                ).first()
+                )).first()
                 if bot:
                     lines.append(f"### Mode: {mode}")
                     lines.append(f"- **Bankroll**: ${bot.bankroll or 0:.2f}")

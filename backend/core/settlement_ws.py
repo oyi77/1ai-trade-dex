@@ -83,7 +83,7 @@ class SettlementWebSocketHandler:
                 task = asyncio.create_task(self._ws.subscribe(token_id))
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
-    
+
     async def _create_subscribe_task(self, token_id: str) -> None:
         task = await self._task_manager.create_task(
             self._ws.subscribe(token_id), name=f"settlement_ws_subscribe_{token_id}"
@@ -108,7 +108,7 @@ class SettlementWebSocketHandler:
             )
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
-    
+
     async def _create_settle_task(self, token_id: str, ticker: str, outcome: str) -> None:
         task = await self._task_manager.create_task(
             self._settle_trade(token_id, ticker, outcome),

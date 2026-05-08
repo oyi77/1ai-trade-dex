@@ -23,6 +23,7 @@ from backend.models.database import (
     StrategyConfig,
     AuditLog,
     engine,
+    for_update,
 )
 from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
@@ -146,10 +147,10 @@ async def get_stats(
     mode: Optional[str] = Query(None)
 ):
     # Query all 3 mode states
-    paper_state = db.query(BotState).filter_by(mode="paper").first()
-    testnet_state = db.query(BotState).filter_by(mode="testnet").first()
-    live_state = db.query(BotState).filter_by(mode="live").first()
-    
+    paper_state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
+    testnet_state = for_update(db, db.query(BotState).filter_by(mode="testnet")).first()
+    live_state = for_update(db, db.query(BotState).filter_by(mode="live")).first()
+
     # Use provided mode or current mode as primary
     effective_mode = mode or settings.TRADING_MODE
     if effective_mode == "all":
@@ -160,7 +161,7 @@ async def get_stats(
         state = testnet_state
     else:
         state = live_state
-    
+
     if not state:
         raise HTTPException(status_code=404, detail="Bot state not initialized")
 
@@ -192,7 +193,7 @@ async def get_stats(
         .scalar()
         or 0.0
     )
-    
+
     paper_open_trades = (
         db.query(func.count(Trade.id))
         .filter(
@@ -202,7 +203,7 @@ async def get_stats(
         .scalar()
         or 0
     )
-    
+
     paper_trades = paper_settled_trades + paper_open_trades
     paper_bankroll = _available_simulated_bankroll(
         paper_state.bankroll if paper_state else None,
@@ -211,7 +212,7 @@ async def get_stats(
     paper_win_rate = paper_wins / paper_trades if paper_trades > 0 else 0.0
 
     sync_metadata = None
-    
+
     live_bankroll, live_cached_account_pnl, live_cached_trades, live_cached_wins, live_initial = _live_cache_values(live_state)
 
     live_profile_pnl = await fetch_pm_profile_pnl() if (effective_mode == "live" or mode is None) else None
@@ -248,7 +249,7 @@ async def get_stats(
             .scalar()
             or 0.0
         )
-        
+
         live_open_trades_count = (
             db.query(func.count(Trade.id))
             .filter(
@@ -258,11 +259,11 @@ async def get_stats(
             .scalar()
             or 0
         )
-        
+
         live_trades = live_settled_trades + live_open_trades_count
-        
+
         live_win_rate = live_wins / live_trades if live_trades > 0 else 0.0
-        
+
         orphaned_count = (
             db.query(func.count(Trade.id))
             .filter(Trade.trading_mode == (effective_mode if mode is not None else "live"), Trade.result == "orphaned")
@@ -275,13 +276,13 @@ async def get_stats(
             .scalar()
             or 0
         )
-        
+
         sync_metadata = SyncMetadata(
             last_synced_at=live_state.last_sync_at if live_state else None,
             orphaned_count=orphaned_count,
             external_imports_count=external_imports_count,
         )
-        
+
         if live_state and round(live_ledger_pnl, 2) != round(live_account_pnl, 2):
             logger.warning(
                 f"Stat change detected for {effective_mode}: ledger PnL={live_ledger_pnl} vs live account PnL={live_account_pnl}. "
@@ -322,7 +323,7 @@ async def get_stats(
         .scalar()
         or 0.0
     )
-    
+
     testnet_open_trades = (
         db.query(func.count(Trade.id))
         .filter(
@@ -332,7 +333,7 @@ async def get_stats(
         .scalar()
         or 0
     )
-    
+
     testnet_trades = testnet_settled_trades + testnet_open_trades
     testnet_bankroll = _available_simulated_bankroll(
         testnet_state.bankroll if testnet_state else None,
@@ -341,20 +342,20 @@ async def get_stats(
     testnet_win_rate = testnet_wins / testnet_trades if testnet_trades > 0 else 0.0
 
     from backend.core.position_valuation import calculate_position_market_value
-    
+
     async def calculate_mode_unrealized_pnl(mode: str):
         """Calculate unrealized PnL for a specific mode."""
         result = await calculate_position_market_value(mode, db)
-        
+
         mode_trades = (
             db.query(Trade)
             .filter(~Trade.settled, Trade.trading_mode == mode)
             .all()
         )
-        
+
         open_trades_count = len(mode_trades)
         open_exposure_amount = sum((t.size or 0.0) for t in mode_trades)
-        
+
         return {
             "open_trades": open_trades_count,
             "open_exposure": open_exposure_amount,
@@ -362,7 +363,7 @@ async def get_stats(
             "position_cost": result["position_cost"],
             "position_market_value": result["position_market_value"],
         }
-    
+
     paper_unrealized, testnet_unrealized, live_unrealized = await asyncio.gather(
         calculate_mode_unrealized_pnl("paper"),
         calculate_mode_unrealized_pnl("testnet"),
@@ -375,7 +376,7 @@ async def get_stats(
     testnet_total_balance = round(testnet_available_balance + testnet_unrealized["position_market_value"], 2)
     live_available_balance = round(max(0.0, live_bankroll - live_unrealized["position_market_value"]), 2)
     live_total_balance = round(live_bankroll, 2)
-    
+
     # Use effective_mode's values for top-level fields (backward compatibility)
     if effective_mode == "paper":
         mode_unrealized = paper_unrealized
@@ -383,13 +384,13 @@ async def get_stats(
         mode_unrealized = testnet_unrealized
     else:
         mode_unrealized = live_unrealized
-    
+
     open_trades_count = mode_unrealized["open_trades"]
     open_exposure_amount = mode_unrealized["open_exposure"]
     unrealized_pnl = mode_unrealized["unrealized_pnl"]
     position_cost = mode_unrealized["position_cost"]
     position_market_value = mode_unrealized["position_market_value"]
-    
+
     settled_trades_count = (
         db.query(func.count(Trade.id))
         .filter(
@@ -665,10 +666,10 @@ async def get_ai_status(
 async def toggle_ai(db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Toggle AI-enhanced signals on/off."""
     from backend.models.audit_logger import log_audit_event
-    
+
     old_value = settings.AI_ENABLED
     settings.AI_ENABLED = not settings.AI_ENABLED
-    
+
     log_audit_event(
         db=db,
         event_type="AI_TOGGLE",
@@ -679,7 +680,7 @@ async def toggle_ai(db: Session = Depends(get_db), _: None = Depends(require_adm
         user_id="admin",
     )
     db.commit()
-    
+
     logger.info("AI signals %s", "ENABLED" if settings.AI_ENABLED else "DISABLED")
     return {"enabled": settings.AI_ENABLED}
 
@@ -698,7 +699,7 @@ async def start_bot(
     from backend.core.scheduler import start_scheduler, log_event, is_scheduler_running
 
     mode = (body or {}).get("mode", settings.TRADING_MODE)
-    state = db.query(BotState).filter_by(mode=mode).first()
+    state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
     if state and state.is_running:
         raise HTTPException(
             status_code=409, detail={"error": "already_running", "is_running": True}
@@ -724,7 +725,7 @@ async def stop_bot(
     from backend.core.scheduler import log_event
 
     mode = (body or {}).get("mode", settings.TRADING_MODE)
-    state = db.query(BotState).filter_by(mode=mode).first()
+    state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
     if state and not state.is_running:
         raise HTTPException(
             status_code=409, detail={"error": "already_stopped", "is_running": False}
@@ -755,9 +756,9 @@ async def reset_bot(
 
     try:
         trades_deleted = db.query(Trade).delete()
-        
+
         for mode in ["paper", "testnet", "live"]:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if state:
                 state.bankroll = settings.INITIAL_BANKROLL
                 state.total_trades = 0
@@ -808,7 +809,7 @@ async def paper_topup(
     from backend.core.scheduler import log_event
     from backend.models.audit_logger import log_audit_event
 
-    state = db.query(BotState).filter_by(mode="paper").first()
+    state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
     if state is None:
         raise HTTPException(status_code=404, detail="Paper bot state not found")
 
@@ -987,7 +988,7 @@ async def run_scan(db: Session = Depends(get_db), _: None = Depends(require_admi
 
     # Iterate over all active modes to update last_run
     for mode in settings.active_modes_set:
-        state = db.query(BotState).filter_by(mode=mode).first()
+        state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
         if state:
             state.last_run = datetime.now(timezone.utc)
     db.commit()
@@ -1491,7 +1492,7 @@ async def update_strategy(
         raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
 
     cfg = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
-    
+
     old_state = None
     if cfg:
         old_state = {
@@ -1568,7 +1569,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
     # Build a proper StrategyContext and run the strategy
     try:
         from backend.strategies.base import StrategyContext
-        from backend.models.database import SessionLocal, BotState, StrategyConfig
+        from backend.models.database import BotState, StrategyConfig
 
         cls = STRATEGY_REGISTRY[name]
         instance = cls()
@@ -1582,8 +1583,8 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
             strategy_mode = (
                 cfg.trading_mode if cfg and cfg.trading_mode else None
             ) or settings.TRADING_MODE
-            
-            state = db.query(BotState).filter_by(mode=strategy_mode).first()
+
+            state = for_update(db, db.query(BotState).filter_by(mode=strategy_mode)).first()
             if not state:
                 raise HTTPException(status_code=404, detail="Bot state not initialized")
             cfg = (
@@ -1649,11 +1650,11 @@ async def get_mirofish_health():
     """Get MiroFish service health status with circuit breaker state."""
     try:
         from backend.services.mirofish_monitor import get_monitor
-        
+
         monitor = get_monitor()
         metrics = monitor.get_health_metrics()
         state_info = monitor.get_state_info()
-        
+
         return {
             "status": metrics.status,
             "latency_ms": round(metrics.latency_ms, 2),
@@ -1678,11 +1679,10 @@ async def get_mirofish_health():
 @router.get("/system/db-pool-stats")
 async def get_db_pool_stats(_: None = Depends(require_admin)):
     """Get database connection pool statistics."""
-    from backend.models.database import engine
-    
+
     try:
         pool = engine.pool
-        
+
         return {
             "pool_size": pool.size(),
             "checked_out": pool.checkedout(),
@@ -1726,40 +1726,40 @@ async def get_audit_logs(
 ):
     """
     Retrieve audit logs for configuration changes and system events.
-    
+
     Returns audit trail entries with filtering and pagination support.
     """
     try:
         query = db.query(AuditLog)
-        
+
         if event_type:
             query = query.filter(AuditLog.event_type == event_type)
-        
+
         if entity_type:
             query = query.filter(AuditLog.entity_type == entity_type)
-        
+
         if entity_id:
             query = query.filter(AuditLog.entity_id == entity_id)
-        
+
         if user_id:
             query = query.filter(AuditLog.user_id == user_id)
-        
+
         if since:
             try:
                 since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
                 query = query.filter(AuditLog.timestamp >= since_dt)
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid timestamp format")
-        
-        total = query.count()
-        
+
+        _total = query.count()
+
         logs = (
             query.order_by(AuditLog.timestamp.desc())
             .offset(offset)
             .limit(limit)
             .all()
         )
-        
+
         return [
             AuditLogResponse(
                 id=log.id,
@@ -1773,7 +1773,7 @@ async def get_audit_logs(
             )
             for log in logs
         ]
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1844,7 +1844,7 @@ async def readiness_check(db: Session = Depends(get_db)):
     """
     database_status = "disconnected"
     redis_status = None
-    
+
     # Check database connectivity
     try:
         db.execute(text("SELECT 1"))
@@ -1856,7 +1856,7 @@ async def readiness_check(db: Session = Depends(get_db)):
             database=database_status,
             redis=redis_status
         )
-    
+
     # Check Redis if configured
     if settings.REDIS_URL:
         try:
@@ -1872,7 +1872,7 @@ async def readiness_check(db: Session = Depends(get_db)):
                 database=database_status,
                 redis=redis_status
             )
-    
+
     return ReadinessStatus(
         status="ready",
         database=database_status,
@@ -1888,10 +1888,10 @@ async def detailed_health_check(db: Session = Depends(get_db)):
     Checks: database, Redis, disk space, memory usage, circuit breakers.
     """
     from backend.core.circuit_breaker_pybreaker import get_breaker_status
-    
+
     timestamp = datetime.now(timezone.utc).isoformat()
     is_healthy = True
-    
+
     # Database check
     database_info = {
         "status": "disconnected",
@@ -1910,7 +1910,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         database_info["status"] = "disconnected"
         database_info["error"] = str(e)
         is_healthy = False
-    
+
     # Redis check (if configured)
     redis_info = None
     if settings.REDIS_URL:
@@ -1932,10 +1932,10 @@ async def detailed_health_check(db: Session = Depends(get_db)):
             logger.warning(f"Redis health check failed: {e}")
             redis_info["status"] = "disconnected"
             redis_info["error"] = str(e)
-    
+
     # Circuit breaker status
     circuit_breakers = get_breaker_status()
-    
+
     # Disk space check
     disk_info = {
         "status": "ok",
@@ -1951,7 +1951,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         disk_info["used_gb"] = round(disk_usage.used / (1024**3), 2)
         disk_info["free_gb"] = round(disk_usage.free / (1024**3), 2)
         disk_info["percent_used"] = disk_usage.percent
-        
+
         if disk_usage.percent > 90:
             disk_info["status"] = "critical"
             disk_info["warning"] = "Disk usage above 90%"
@@ -1963,7 +1963,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         logger.warning(f"Disk space check failed: {e}")
         disk_info["status"] = "unknown"
         disk_info["error"] = str(e)
-    
+
     # Memory check
     memory_info = {
         "status": "ok",
@@ -1979,7 +1979,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         memory_info["used_gb"] = round(mem.used / (1024**3), 2)
         memory_info["available_gb"] = round(mem.available / (1024**3), 2)
         memory_info["percent_used"] = mem.percent
-        
+
         if mem.percent > 90:
             memory_info["status"] = "critical"
             memory_info["warning"] = "Memory usage above 90%"
@@ -1991,7 +1991,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         logger.warning(f"Memory check failed: {e}")
         memory_info["status"] = "unknown"
         memory_info["error"] = str(e)
-    
+
     # Uptime (if available from process)
     uptime_seconds = None
     try:
@@ -1999,9 +1999,9 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         uptime_seconds = time.time() - process.create_time()
     except Exception:
         pass
-    
+
     status = "healthy" if is_healthy else "unhealthy"
-    status_code = 200 if is_healthy else 503
+    _status_code = 200 if is_healthy else 503
 
     avg_signal_time_ms = None
     signals_24h = None
@@ -2018,7 +2018,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         ).count() if db else 0
     except Exception:
         pass
-    
+
     return DetailedHealthStatus(
         status=status,
         timestamp=timestamp,
@@ -2038,7 +2038,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
 async def get_connection_limits(db: Session = Depends(get_db)):
     """Get current connection limits and usage metrics."""
     from backend.api.connection_limits import connection_limiter
-    
+
     metrics = await connection_limiter.get_metrics()
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),

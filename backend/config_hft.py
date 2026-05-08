@@ -1,7 +1,6 @@
 """HFT Configuration — feature flags and performance settings for HFT strategies."""
 
 from pydantic import BaseModel, Field
-from typing import Literal
 
 
 class HFTScannerConfig(BaseModel):

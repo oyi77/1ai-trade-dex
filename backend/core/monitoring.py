@@ -31,10 +31,10 @@ class ProductionMonitor:
         issues = []
 
         duplicates = self.db.execute(text("""
-            SELECT market_ticker, COUNT(*) as count 
-            FROM trades 
-            WHERE trading_mode = 'live' 
-            GROUP BY market_ticker 
+            SELECT market_ticker, COUNT(*) as count
+            FROM trades
+            WHERE trading_mode = 'live'
+            GROUP BY market_ticker
             HAVING count > 1
         """)).fetchall()
 
@@ -57,8 +57,8 @@ class ProductionMonitor:
             })
 
         missing_pnl = self.db.execute(text("""
-            SELECT COUNT(*) 
-            FROM trades 
+            SELECT COUNT(*)
+            FROM trades
             WHERE settled = 1 AND pnl IS NULL
         """)).fetchone()[0]
 
@@ -79,14 +79,14 @@ class ProductionMonitor:
     def check_pnl_accuracy(self) -> Dict[str, Any]:
         """Verify PNL matches sum of settled trades across all active modes."""
         try:
-            from backend.models.database import BotState
+            from backend.models.database import BotState, for_update
 
             results = {}
             all_accurate = True
             for mode in settings.active_modes_set:
-                bot = self.db.query(BotState).filter(
+                bot = for_update(self.db, self.db.query(BotState).filter(
                     BotState.mode == mode
-                ).first()
+                )).first()
                 if not bot:
                     results[mode] = {"accurate": True, "message": "no BotState to verify"}
                     continue
@@ -94,7 +94,7 @@ class ProductionMonitor:
                 reported_pnl = bot.total_pnl or 0.0
 
                 result = self.db.execute(text("""
-                    SELECT COALESCE(SUM(pnl), 0) FROM trades 
+                    SELECT COALESCE(SUM(pnl), 0) FROM trades
                     WHERE settled = 1 AND trading_mode = :mode
                 """), {"mode": mode}).fetchone()
 

@@ -1,10 +1,9 @@
 """Dynamic whale discovery — seeds candidates and computes scores."""
 
 import logging
-from typing import List, Optional
-from datetime import datetime, timedelta
+from typing import List
 
-from backend.models.database import SessionLocal, WalletConfig
+from backend.models.database import WalletConfig
 from backend.core.whale_scoring import calculate_whale_score
 from backend.config import settings
 

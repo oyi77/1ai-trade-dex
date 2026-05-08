@@ -7,9 +7,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.models.database import SessionLocal, Trade
-from backend.models.app_state import AppState
-from backend.core.equity_calculator import get_historical_equity
+from backend.models.database import SessionLocal, Trade, EquitySnapshot
 from backend.core.strategy_ranker import strategy_ranker
 from backend.core.calibration_tracker import get_bucket_calibration
 from backend.db.utils import get_db_session
@@ -62,26 +60,30 @@ def get_equity_curve(
     limit: int = Query(90, ge=1, le=365),
     db: Session = Depends(get_db),
 ):
-    """Get historical equity curve data points."""
-    latest_state = db.query(AppState).order_by(AppState.timestamp.desc()).first()
-    if not latest_state:
+    """Get historical equity curve data points from EquitySnapshot records."""
+    snapshots = (
+        db.query(EquitySnapshot)
+        .order_by(EquitySnapshot.timestamp.asc())
+        .limit(limit)
+        .all()
+    )
+    if not snapshots:
         return {"equity_curve": []}
-
-    equity_points = get_historical_equity(db, limit)
-    # Ensure points are ordered chronologically
-    equity_points.sort(key=lambda x: x.timestamp)
 
     return {
         "lookback_limit": limit,
         "equity_curve": [
             {
-                "timestamp": point.timestamp.isoformat(),
-                "total_equity": round(point.total_equity, 2),
-                "total_pnl": round(point.total_pnl, 2),
-                "closed_pnl": round(point.closed_pnl, 2),
-                "open_pnl": round(point.open_pnl, 2),
+                "timestamp": snap.timestamp.isoformat() if snap.timestamp else None,
+                # bankroll is the live equity (cash + open positions)
+                "total_equity": round(snap.bankroll, 2),
+                # total_pnl is net realised + unrealised PnL
+                "total_pnl": round(snap.total_pnl or 0.0, 2),
+                # closed_pnl approximated as total_pnl minus unrealised exposure
+                "closed_pnl": round((snap.total_pnl or 0.0) - (snap.open_exposure or 0.0), 2),
+                "open_pnl": round(snap.open_exposure or 0.0, 2),
             }
-            for point in equity_points
+            for snap in snapshots
         ],
     }
 

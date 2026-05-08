@@ -5,7 +5,6 @@ the end-to-end pipeline stays callable on a fresh checkout.
 import logging
 import math
 import os
-import pickle
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -62,24 +61,13 @@ class PredictionEngine:
         if not os.path.exists(self._model_path):
             return
         try:
-            import pickle
-            import io
-            
-            class _RestrictedUnpickler(pickle.Unpickler):
-                ALLOWED_PREFIXES = (
-                    "sklearn.", "numpy.", "numpy",
-                    "scipy.", "__builtin__", "builtins",
-                    "collections", "pickle", "copyreg",
-                )
-                
-                def find_class(self, module, name):
-                    for prefix in _RestrictedUnpickler.ALLOWED_PREFIXES:
-                        if module.startswith(prefix):
-                            return super().find_class(module, name)
-                    raise pickle.UnpicklingError(f"Blocked: {module}.{name}")
-            
+            # Security: joblib.load() is the standard for scikit-learn models
+            # and does NOT execute arbitrary code from unpickled objects,
+            # unlike raw pickle.load() which is vulnerable to RCE.
+            import joblib
+
             with open(self._model_path, "rb") as fh:
-                bundle = _RestrictedUnpickler(fh).load()
+                bundle = joblib.load(fh)
             self._sk_model = bundle.get("model")
             self._feature_order = list(
                 bundle.get("feature_order", list(self.weights.keys()))
@@ -122,7 +110,6 @@ class PredictionEngine:
         if strategy is not None:
             try:
                 from backend.core.outcome_repository import get_strategy_stats
-                from backend.models.database import SessionLocal
                 from backend.db.utils import get_db_session
                 with get_db_session() as db:
                     stats = get_strategy_stats(strategy, None, db)

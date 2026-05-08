@@ -11,12 +11,12 @@ logger = logging.getLogger("trading_bot.ratelimit")
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     """
     In-process rate limiter with per-endpoint limits using sliding window.
-    
+
     Supports:
     - Per-endpoint rate limits (e.g., /api/trades: 100/min, /api/signals: 50/min)
     - Rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
     - 429 Too Many Requests with Retry-After header
-    
+
     LIMITATION: State is stored in-process memory and resets on every restart.
     In multi-worker deployments, each worker maintains its own counter.
     For production, use Redis-backed slowapi instead.
@@ -28,10 +28,10 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         "/api/signals": 50,
         "/api/strategies": 20,
     }
-    
+
     # Default limit for other endpoints
     DEFAULT_LIMIT = 600
-    
+
     # Per-IP HTTP request limit (requests per minute)
     HTTP_LIMIT_PER_IP = 300
 
@@ -56,19 +56,19 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
     def _check_http_per_ip_limit(self, client_id: str, now: float) -> tuple[bool, int]:
         """Check per-IP HTTP request limit (50 per minute).
-        
+
         Returns:
             (allowed, remaining_requests)
         """
         window_start = now - 60
         self._http_per_ip[client_id] = [t for t in self._http_per_ip[client_id] if t > window_start]
-        
+
         request_count = len(self._http_per_ip[client_id])
         remaining = max(0, self.HTTP_LIMIT_PER_IP - request_count)
-        
+
         if request_count >= self.HTTP_LIMIT_PER_IP:
             return False, remaining
-        
+
         self._http_per_ip[client_id].append(now)
         return True, remaining - 1
 
@@ -81,7 +81,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         now = time.time()
-        
+
         http_allowed, http_remaining = self._check_http_per_ip_limit(client_id, now)
         if not http_allowed:
             logger.warning(
@@ -99,7 +99,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 },
                 media_type="application/json",
             )
-        
+
         limit = self._get_limit_for_path(request.url.path)
         window_start = now - 60
 

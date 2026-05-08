@@ -5,7 +5,7 @@ import logging
 import threading
 from datetime import datetime, timezone, timedelta
 
-from backend.models.database import SessionLocal, BotState, StrategyConfig
+from backend.models.database import BotState, StrategyConfig, for_update
 
 logger = logging.getLogger("trading_bot")
 
@@ -73,7 +73,7 @@ def get_strategy_health(db) -> list[dict]:
         from backend.config import settings
         all_data = {}
         for mode in settings.active_modes_set:
-            state = db.query(BotState).filter_by(mode=mode).first()
+            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if state and state.misc_data:
                 try:
                     mode_data = (
@@ -200,7 +200,7 @@ async def wallet_sync_job() -> None:
     Syncs ALL modes that need real wallet balance (live, testnet).
     """
     from backend.config import settings
-    from backend.models.database import SessionLocal, StrategyConfig
+    from backend.models.database import StrategyConfig
 
     modes_to_sync = set()
     try:

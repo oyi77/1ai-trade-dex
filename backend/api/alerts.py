@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 
 from backend.models.database import get_db
 from backend.api.auth import require_admin
@@ -21,7 +21,7 @@ async def get_alerts(
 ) -> Dict[str, Any]:
     """
     Get recent system alerts with optional filtering.
-    
+
     Query Parameters:
     - limit: Maximum number of alerts to return (1-1000, default 100)
     - alert_type: Filter by alert type (CIRCUIT_BREAKER, ERROR_RATE, MEMORY_USAGE, DISK_SPACE, CONNECTION_POOL)
@@ -35,10 +35,10 @@ async def get_alerts(
         severity=severity,
         resolved=resolved
     )
-    
+
     stats = manager.get_alert_stats()
     metrics = get_system_metrics()
-    
+
     return {
         "alerts": alerts,
         "stats": stats,
@@ -63,7 +63,7 @@ async def resolve_alert(
     """Mark an alert as resolved."""
     manager = AlertManager(db)
     success = manager.resolve_alert(alert_id)
-    
+
     if success:
         return {"success": True, "message": f"Alert {alert_id} resolved"}
     else:

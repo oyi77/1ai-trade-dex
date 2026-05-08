@@ -10,16 +10,14 @@ Tests:
 - Concurrent AGI cycles → no race conditions in KG updates
 - Memory pressure (large KG) → pagination, no OOM
 """
-import pytest
-from unittest.mock import MagicMock, patch
 
 from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.core.self_debugger import SelfDebugger
-from backend.core.strategy_composer import StrategyComposer, ValidationResult
+from backend.core.strategy_composer import StrategyComposer
 from backend.core.agi_types import MarketRegime, StrategyBlock
 from backend.core.experiment_runner import ExperimentRunner
-from backend.core.llm_cost_tracker import LLMCostTracker, BudgetExceededError
+from backend.core.llm_cost_tracker import LLMCostTracker
 
 
 class TestFailureInjection:

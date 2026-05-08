@@ -9,7 +9,6 @@ import logging
 import os
 import sys
 import textwrap
-from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -112,9 +111,9 @@ class StrategyComposer:
 
         loss_patterns = []
         losses = [o for o in outcomes if o.result != "win"][-20:]
-        for l in losses:
+        for loss in losses:
             loss_patterns.append(
-                f"  {l.strategy} on {l.market_ticker}: edge={l.edge_at_entry}, conf={l.confidence}, dir={l.direction}"
+                f"  {loss.strategy} on {loss.market_ticker}: edge={loss.edge_at_entry}, conf={loss.confidence}, dir={loss.direction}"
             )
 
         categories = set(o.market_type for o in outcomes if o.market_type)
@@ -162,7 +161,7 @@ class StrategyComposer:
             category = cat.group(1).strip()
             default_params = json.loads(params.group(1).strip())
             market_filter = filt.group(1).strip()
-            strategy_body = textwrap.indent(body.group(1).strip(), "            ")
+            _strategy_body = textwrap.indent(body.group(1).strip(), "            ")
 
             class_name = "".join(w.capitalize() for w in strategy_name.split("_"))
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 import logging
-from backend.models.database import get_db, SessionLocal, Trade, Signal
+from backend.models.database import get_db, Signal
 from backend.models.backtest import BacktestRun, BacktestTrade
 from backend.strategies.registry import (
     BaseStrategy,

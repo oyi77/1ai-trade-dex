@@ -13,7 +13,7 @@ _source_weights: Dict[str, float] = {}
 
 def update_source_weights_from_outcomes() -> Dict[str, float]:
     """Query recent settled trades, compute per-source win rate, update weights.
-    
+
     Sources with no data start at 1.0. Weight decays proportionally to loss rate.
     Return updated weights dict.
     """

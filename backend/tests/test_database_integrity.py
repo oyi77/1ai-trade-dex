@@ -7,10 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade, BotState, init_db, SessionLocal, engine
-from backend.config import settings
 
 
 def _make_isolated_engine(db_path: str):

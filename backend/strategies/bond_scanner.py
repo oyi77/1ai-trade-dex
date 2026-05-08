@@ -209,9 +209,9 @@ class BondScannerStrategy(BaseStrategy):
             # We have a qualifying market
             bankroll = 100.0
             try:
-                from backend.models.database import BotState
+                from backend.models.database import BotState, for_update
 
-                state = ctx.db.query(BotState).first()
+                state = for_update(ctx.db, ctx.db.query(BotState)).first()
                 if state:
                     if ctx.mode == "paper":
                         bankroll = float(
@@ -268,7 +268,8 @@ class BondScannerStrategy(BaseStrategy):
 
             trade_direction = str(qualifying_outcome).strip().strip("'\"").lower()
             if trade_direction not in ("yes", "no", "up", "down"):
-                trade_direction = "buy"
+                # If outcome name is not a valid direction, default to YES for prediction markets
+                trade_direction = "yes"
             # entry_price must reflect the cost of the share we're buying.
             # qualifying_price is the YES outcome price.
             # If betting NO, the share cost is (1 - qualifying_price).

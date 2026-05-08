@@ -20,7 +20,7 @@ from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
 from backend.data.orderbook_cache import get_orderbook_cache
-from backend.models.database import SessionLocal, BotState, MarketWatch, Trade, StrategyConfig, SystemSettings
+from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig, SystemSettings, for_update
 from backend.core.mode_context import ModeExecutionContext, register_context
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies
@@ -47,26 +47,26 @@ def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
 
 class GracefulShutdownHandler:
     """Handles graceful shutdown on SIGTERM/SIGINT with timeout."""
-    
+
     def __init__(self, app: FastAPI):
         self.app = app
         self.shutdown_event = asyncio.Event()
         self.shutdown_timeout = 30.0
         self.start_time = None
-        
+
     def _signal_handler(self, signum, frame):
         """Signal handler for SIGTERM and SIGINT."""
         sig_name = signal.Signals(signum).name
         logger.info(f"Received {sig_name} signal, initiating graceful shutdown...")
         self.start_time = time.time()
         self.shutdown_event.set()
-    
+
     def register_handlers(self):
         """Register signal handlers for SIGTERM and SIGINT."""
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
         logger.info("Signal handlers registered for SIGTERM and SIGINT")
-    
+
     async def wait_for_shutdown(self):
         """Wait for shutdown signal or timeout."""
         try:
@@ -76,7 +76,7 @@ class GracefulShutdownHandler:
             )
         except asyncio.TimeoutError:
             logger.warning(f"Shutdown timeout ({self.shutdown_timeout}s) reached")
-    
+
     def get_elapsed_time(self) -> float:
         """Get elapsed time since shutdown started."""
         if self.start_time is None:
@@ -88,14 +88,14 @@ async def _refresh_balance_cache():
     """Refresh the cached wallet balance from CLOB."""
     if not any(m in ("live", "testnet") for m in settings.active_modes_set):
         return
-    
+
     try:
         clob = clob_from_settings()
         async with clob:
             await clob.create_or_derive_api_creds()
             balance_data = await clob.get_wallet_balance()
             clob_balance = balance_data.get("usdc_balance", 0.0)
-            
+
             if clob_balance >= 0:
                 # Use local _balance_cache
                 _balance_cache["balance"] = clob_balance
@@ -112,24 +112,23 @@ async def _refresh_balance_cache():
 async def _stats_broadcaster():
     """Background task that periodically broadcasts stats to WebSocket subscribers."""
     logger.info("Stats broadcaster task started")
-    
+
     await _refresh_balance_cache()
-    
+
     BALANCE_REFRESH_INTERVAL = 30
-    
+
     while True:
         try:
             connection_count = topic_manager.get_topic_subscriber_count("stats")
             if connection_count > 0:
                 logger.info(f"Broadcasting stats to {connection_count} clients")
-                
+
                 now = time.time()
                 if now - _balance_cache["timestamp"] > BALANCE_REFRESH_INTERVAL:
                     await _refresh_balance_cache()
-                
+
                 from backend.api.system import get_stats
-                from backend.models.database import SessionLocal
-                
+
                 from backend.db.utils import get_db_session
                 with get_db_session() as db:
                     # Get stats for all 3 modes
@@ -143,7 +142,7 @@ async def _stats_broadcaster():
                         }
                     )
             else:
-                logger.debug(f"No active WebSocket connections, skipping broadcast")
+                logger.debug("No active WebSocket connections, skipping broadcast")
         except Exception as e:
             logger.error(
                 f"[api.main.stats_broadcaster] {type(e).__name__}: Stats broadcaster error: {e}",
@@ -157,7 +156,7 @@ async def _startup_polymarket_websocket():
     logger.info("Starting Polymarket WebSocket for real-time market data...")
     market_ws_task = None
     user_ws_task = None
-    
+
     try:
         if settings.POLYMARKET_WS_ENABLED:
             asset_ids = []
@@ -170,14 +169,14 @@ async def _startup_polymarket_websocket():
                         asset_ids.append(market.token_id)
                     if market.condition_id:
                         condition_ids.append(market.condition_id)
-            
+
             if asset_ids:
                 market_ws = await get_market_websocket(asset_ids)
                 orderbook_cache = get_orderbook_cache()
-                
+
                 def handle_orderbook(snapshot):
                     logger.debug(f"Orderbook update: {snapshot.asset_id}")
-                    
+
                     async def update_orderbook():
                         await _get_app().state.task_manager.create_task(
                             orderbook_cache.update(
@@ -185,7 +184,7 @@ async def _startup_polymarket_websocket():
                             ),
                             name=f"orderbook_update_{snapshot.asset_id}"
                         )
-                    
+
                     asyncio.create_task(update_orderbook())
                     from backend.core.event_bus import publish_event
                     publish_event(
@@ -197,7 +196,7 @@ async def _startup_polymarket_websocket():
                             "timestamp": snapshot.timestamp,
                         },
                     )
-                
+
                 def handle_trade(trade):
                     logger.debug(f"Trade: {trade.side} {trade.size} @ {trade.price}")
                     from backend.core.event_bus import publish_event
@@ -211,17 +210,17 @@ async def _startup_polymarket_websocket():
                             "timestamp": trade.timestamp,
                         },
                     )
-                
+
                 market_ws.on_orderbook(handle_orderbook)
                 market_ws.on_trade(handle_trade)
-                
+
                 market_ws_task = await _get_app().state.task_manager.create_task(
                     market_ws.connect(), name="polymarket_market_ws"
                 )
                 logger.info(f"Polymarket WebSocket started for {len(asset_ids)} markets")
             else:
                 logger.info("No active markets found - WebSocket not started")
-            
+
             if settings.POLYMARKET_USER_WS_ENABLED and condition_ids:
                 if all([
                     settings.POLYMARKET_API_KEY,
@@ -234,29 +233,28 @@ async def _startup_polymarket_websocket():
                         api_secret=settings.POLYMARKET_API_SECRET,
                         api_passphrase=settings.POLYMARKET_API_PASSPHRASE,
                     )
-                    
+
                     def _handle_user_trade(event):
                         logger.info(f"Trade fill: {event.get('id')} - {event.get('status')}")
                         from backend.core.event_bus import publish_event
                         publish_event("user_trade_fill", event)
-                        
+
                         try:
                             from backend.db.utils import get_db_session
                             with get_db_session() as db:
                                     trade_id = event.get("id")
                                     status = event.get("status")
-                            
+
                                     if status == "CONFIRMED":
                                         trade = db.query(Trade).filter(
                                             Trade.clob_order_id == trade_id
                                         ).first()
                                         if trade and not trade.settled:
                                             trade.settled = True
-                                            from datetime import timezone
                                             trade.settlement_time = time.time()
                                             db.commit()
                                             logger.info(f"Trade {trade_id} confirmed on-chain")
-                                    
+
                                             async def _refresh_task():
                                                 await _refresh_balance_cache()
                                             asyncio.create_task(_refresh_task())
@@ -265,10 +263,10 @@ async def _startup_polymarket_websocket():
                                 f"[api.main.handle_user_trade] {type(e).__name__}: Error updating trade status: {e}",
                                 exc_info=True
                             )
-                    
+
                     user_ws.on_user_order(lambda e: logger.info(f"Order update: {e.get('id')} - {e.get('status')}"))
                     user_ws.on_user_trade(_handle_user_trade)
-                    
+
                     user_ws_task = await _get_app().state.task_manager.create_task(
                         user_ws.connect(), name="polymarket_user_ws"
                     )
@@ -284,7 +282,7 @@ async def _startup_polymarket_websocket():
             f"[api.main.lifespan] {type(e).__name__}: Failed to start Polymarket WebSocket: {e}",
             exc_info=True
         )
-    
+
     # Use local _polymarket_ws_tasks
     _polymarket_ws_tasks["market"] = market_ws_task
     _polymarket_ws_tasks["user"] = user_ws_task
@@ -327,36 +325,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan context manager - handles startup and shutdown."""
     global _app_ref
     _app_ref = app
-    
+
     # --- Startup ---
     from datetime import datetime, timezone as _tz
-    
+
     app.state.start_time = datetime.now(_tz.utc)
     app.state.task_manager = TaskManager()
-    
+
     logger.info("Initializing connection limiter...")
     await connection_limiter.initialize_redis(settings.REDIS_URL if settings.REDIS_ENABLED else None)
     app.state.connection_limiter = connection_limiter
-    
+
     # Initialize graceful shutdown handler
     shutdown_handler = GracefulShutdownHandler(app)
     shutdown_handler.register_handlers()
     app.state.shutdown_handler = shutdown_handler
-    
+
     # Set WebSocket task managers
     brain_stream.set_task_manager(app.state.task_manager)
     activity_stream.set_task_manager(app.state.task_manager)
     proposals.set_task_manager(app.state.task_manager)
     livestream.set_task_manager(app.state.task_manager)
-    
+
     logger.info("=" * 60)
     logger.info("BTC 5-MIN TRADING BOT v3.0")
     logger.info("=" * 60)
     logger.info("Initializing database...")
-    
+
     from backend.models.database import init_db
     init_db()
-    
+
     logger.info("Seeding initial settings...")
     try:
         if seed_settings():
@@ -406,7 +404,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     from backend.db.utils import get_db_session
     with get_db_session() as db:
-            state = db.query(BotState).first()
+            state = for_update(db, db.query(BotState)).first()
             if not state:
                 state = BotState(
                     bankroll=settings.INITIAL_BANKROLL,
@@ -425,7 +423,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info(
                     f"Loaded bot state: Bankroll ${state.bankroll:,.2f}, P&L ${state.total_pnl:+,.2f}, {state.total_trades} trades"
                 )
-    
+
     logger.info("")
     logger.info("Configuration:")
     logger.info(f"  - Simulation mode: {settings.SIMULATION_MODE}")
@@ -434,16 +432,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"  - Scan interval: {settings.SCAN_INTERVAL_SECONDS}s")
     logger.info(f"  - Settlement interval: {settings.SETTLEMENT_INTERVAL_SECONDS}s")
     logger.info("")
-    
+
     # Load all strategies BEFORE starting scheduler
     logger.info("Loading trading strategies...")
     load_all_strategies()
     logger.info(
         f"  - Strategies loaded: {', '.join(sorted(__import__('backend.strategies.registry', fromlist=['STRATEGY_REGISTRY']).STRATEGY_REGISTRY.keys()))}"
     )
-    
+
     _seed_strategy_configs()
-    
+
     # Register ModeExecutionContext for each active mode
     try:
         for mode in ["paper", "testnet", "live"]:
@@ -457,7 +455,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             from backend.db.utils import get_db_session
             with get_db_session() as db:
                 configs = db.query(StrategyConfig).filter(
-                    (StrategyConfig.mode == mode) | (StrategyConfig.mode == None)
+                    (StrategyConfig.mode == mode) | (StrategyConfig.mode is None)
                 ).all()
                 strategy_configs = {c.strategy_name: c for c in configs}
             context = ModeExecutionContext(
@@ -470,7 +468,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info(f"ModeExecutionContext registered for mode: {mode} with {len(strategy_configs)} strategies")
     except Exception as e:
         logger.warning(f"Failed to register mode contexts: {e}", exc_info=True)
-    
+
     logger.info("Starting wallet reconciliation recovery...")
     try:
         asyncio.create_task(_startup_wallet_sync())
@@ -479,13 +477,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             f"[api.main.lifespan] {type(e).__name__}: Wallet reconciliation startup failed: {e}",
             exc_info=True,
         )
-    
+
     if __import__("os").getenv("DISABLE_TRADING_SCHEDULER") != "true":
         start_scheduler()
     else:
         logger.info("Trading scheduler disabled for this process (DISABLE_TRADING_SCHEDULER=true)")
     log_event("success", "BTC 5-min trading bot initialized")
-    
+
     logger.info("Bot is now running!")
     logger.info(
         f"  - BTC scan: every {settings.SCAN_INTERVAL_SECONDS}s (edge >= {settings.MIN_EDGE_THRESHOLD:.0%})"
@@ -499,48 +497,48 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("  - Weather trading: DISABLED")
     logger.info("=" * 60)
-    
+
     # Use local caches
     global _balance_cache, _polymarket_ws_tasks
     _balance_cache = {"balance": None, "timestamp": 0, "mode": settings.TRADING_MODE}
     _polymarket_ws_tasks = {"market": None, "user": None}
-    
+
     logger.info("Initializing Redis pub/sub for WebSocket...")
     await topic_manager.initialize_redis()
-    
+
     logger.info("Creating stats broadcaster background task...")
-    stats_task = await app.state.task_manager.create_task(
+    _stats_task = await app.state.task_manager.create_task(
         _stats_broadcaster(), name="stats_broadcaster"
     )
     logger.info("Stats broadcaster task created")
-    
+
     logger.info("Creating livestream broadcaster background task...")
-    livestream_task = await app.state.task_manager.create_task(
+    _livestream_task = await app.state.task_manager.create_task(
         livestream.livestream_broadcaster(), name="livestream_broadcaster"
     )
     logger.info("Livestream broadcaster task created")
-    
+
     # Start Polymarket WebSocket
     asyncio.create_task(_startup_polymarket_websocket())
-    
+
     # Start bankroll reconciliation
     asyncio.create_task(_startup_bankroll_reconciliation())
-    
+
     yield
-    
+
     # --- Shutdown ---
     shutdown_handler = getattr(app.state, 'shutdown_handler', None)
     shutdown_start = time.time()
-    
+
     logger.info("=" * 60)
     logger.info("GRACEFUL SHUTDOWN SEQUENCE INITIATED")
     logger.info("=" * 60)
-    
+
     try:
         logger.info("1. Stopping new request acceptance...")
         app.state.shutting_down = True
         logger.info("   ✓ New requests blocked")
-        
+
         logger.info("2. Waiting for active requests to complete (max 5s)...")
         active_requests = getattr(app.state, 'active_requests', 0)
         wait_start = time.time()
@@ -551,7 +549,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.warning(f"   ⚠ {active_requests} active requests still pending after 5s")
         else:
             logger.info("   ✓ All active requests completed")
-        
+
         logger.info("3. Closing WebSocket connections...")
         from backend.api.ws_manager_v2 import ws_manager
         ws_count = len(ws_manager.active_connections)
@@ -561,21 +559,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             except Exception as e:
                 logger.debug(f"Error closing WebSocket: {e}")
         logger.info(f"   ✓ Closed {ws_count} WebSocket connections")
-        
+
         logger.info("4. Shutting down Redis pub/sub...")
         try:
             await topic_manager.shutdown_redis()
             logger.info("   ✓ Redis pub/sub shut down")
         except Exception as e:
             logger.warning(f"   ⚠ Error shutting down Redis: {e}")
-        
+
         logger.info("5. Shutting down connection limiter...")
         try:
             await connection_limiter.shutdown()
             logger.info("   ✓ Connection limiter shut down")
         except Exception as e:
             logger.warning(f"   ⚠ Error shutting down connection limiter: {e}")
-        
+
         logger.info("6. Shutting down Polymarket WebSocket...")
         # Use local _polymarket_ws_tasks
         if _polymarket_ws_tasks.get("market"):
@@ -589,7 +587,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info("   ✓ Polymarket market WebSocket shut down")
             except Exception as e:
                 logger.warning(f"   ⚠ Error shutting down market WebSocket: {e}")
-        
+
         if _polymarket_ws_tasks.get("user"):
             try:
                 await shutdown_user_websocket()
@@ -601,7 +599,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info("   ✓ Polymarket user WebSocket shut down")
             except Exception as e:
                 logger.warning(f"   ⚠ Error shutting down user WebSocket: {e}")
-        
+
         logger.info("7. Shutting down TaskManager...")
         try:
             task_count = len(app.state.task_manager.tasks)
@@ -609,7 +607,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info(f"   ✓ TaskManager shut down ({task_count} tasks cancelled)")
         except Exception as e:
             logger.warning(f"   ⚠ Error shutting down TaskManager: {e}")
-        
+
         logger.info("8. Stopping scheduler...")
         try:
             from backend.core.scheduler import stop_scheduler
@@ -617,11 +615,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("   ✓ Scheduler stopped")
         except Exception as e:
             logger.warning(f"   ⚠ Error stopping scheduler: {e}")
-        
+
         logger.info("9. Waiting for in-flight jobs (max 3s)...")
         await asyncio.sleep(3.0)
         logger.info("   ✓ Grace period complete")
-        
+
         logger.info("10. Closing database connections...")
         try:
             from backend.models.database import engine
@@ -629,13 +627,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("   ✓ Database connections closed")
         except Exception as e:
             logger.warning(f"   ⚠ Error closing database: {e}")
-    
+
     except Exception as e:
         logger.error(
             f"[api.main.lifespan] {type(e).__name__}: Error during shutdown sequence: {e}",
             exc_info=True,
         )
-    
+
     elapsed = time.time() - shutdown_start
     logger.info("=" * 60)
     logger.info(f"SHUTDOWN COMPLETE (took {elapsed:.1f}s)")
@@ -654,7 +652,7 @@ async def _startup_wallet_sync():
                     with get_db_session() as reconciler_db:
                         reconciler = WalletReconciler(clob, reconciler_db, mode)
                         result = await reconciler.full_reconciliation()
-                        state = reconciler_db.query(BotState).first()
+                        state = for_update(reconciler_db, reconciler_db.query(BotState)).first()
                         if state:
                             state.last_sync_at = result.last_sync_at
                             reconciler_db.commit()

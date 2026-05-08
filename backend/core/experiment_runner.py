@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Optional
 import logging
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
-from backend.core.agi_types import MarketRegime
 from backend.models.kg_models import Base, ExperimentRecord, DecisionAuditLog
 
 
@@ -156,7 +155,6 @@ class ExperimentRunner:
         now = datetime.now(timezone.utc)
         created = experiment.created_at
         if created.tzinfo is None:
-            from datetime import timedelta
             created = created.replace(tzinfo=timezone.utc)
         days_running = (now - created).days
         if days_running < self.MIN_DAYS:
