@@ -7,8 +7,11 @@ ThreadPoolExecutor to run synchronous SQLAlchemy operations in async context.
 RQ-003: AsyncSQLiteQueue implementation
 """
 import asyncio
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+
+logger = logging.getLogger("trading_bot.sqlite_queue")
 
 
 def _now() -> datetime:
@@ -76,12 +79,24 @@ class AsyncSQLiteQueue(AbstractQueue):
                     JobQueue.started_at < cutoff,
                 ).all()
                 count = 0
+                dead = 0
                 for job in updated:
-                    job.status = "pending"
-                    job.started_at = None
                     job.retry_count += 1
-                    count += 1
+                    if job.retry_count >= job.max_retries:
+                        job.status = "dead_letter"
+                        job.started_at = None
+                        dead += 1
+                        logger.error(
+                            "Job %s moved to dead_letter after %d retries",
+                            job.id, job.retry_count,
+                        )
+                    else:
+                        job.status = "pending"
+                        job.started_at = None
+                        count += 1
                 session.commit()
+                if dead > 0:
+                    logger.warning("Moved %d jobs to dead_letter queue", dead)
                 return count
             except SQLAlchemyError as e:
                 session.rollback()

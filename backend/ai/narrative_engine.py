@@ -1,6 +1,8 @@
 """Narrative market classifier — penalizes hype/narrative markets where base rate for 'Yes' is extremely low."""
 import logging
 
+from backend.ai.probability_utils import clamp_probability
+
 logger = logging.getLogger("trading_bot.narrative")
 
 NARRATIVE_KEYWORDS = [
@@ -29,4 +31,4 @@ def apply_narrative_penalty(raw_probability: float, market_type: str) -> float:
         return raw_probability
     penalty = 0.40
     adjusted = raw_probability - penalty
-    return max(0.01, min(0.99, adjusted))
+    return clamp_probability(adjusted)

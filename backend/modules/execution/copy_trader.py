@@ -115,9 +115,10 @@ class CopyTrader:
     async def _refresh_leaderboard(self):
         """Refresh tracked wallets from leaderboard."""
         scored = await self._scorer.fetch_and_score(top_n=50)
-        self._tracked = [t for t in scored if t.score >= self.min_score][
-            : self.max_wallets
-        ]
+        async with self._tracked_lock:
+            self._tracked = [t for t in scored if t.score >= self.min_score][
+                : self.max_wallets
+            ]
         self._last_refresh = asyncio.get_running_loop().time()
         logger.info(f"Tracking {len(self._tracked)} wallets after leaderboard refresh")
 

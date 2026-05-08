@@ -68,6 +68,22 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  grafana:
+    profiles: ["monitoring"]
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - ./backend/monitoring/grafana:/etc/grafana/provisioning/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   redis_data:
   postgres_data:
+  grafana_data:

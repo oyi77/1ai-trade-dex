@@ -22,6 +22,7 @@ const BrainGraph = lazy(() => import('../components/BrainGraph'))
 const HFTTab = lazy(() => import('../components/hft').then(m => ({ default: m.default })))
 const ControlRoomTab = lazy(() => import('../components/dashboard/ControlRoomTab').then(m => ({ default: m.ControlRoomTab })))
 const KanbanTab = lazy(() => import('../components/dashboard/KanbanTab').then(m => ({ default: m.KanbanTab })))
+const GlobeView = lazy(() => import('../components/GlobeView').then(m => ({ default: m.GlobeView })))
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ function RefreshBar({ interval }: { interval: number }) {
 
 // ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 
-const DASHBOARD_TABS = ['Overview', 'Control Room', 'AGI Pipeline', 'Performance', 'Brain', 'Trades', 'Markets', 'HFT'] as const
+const DASHBOARD_TABS = ['Overview', 'Control Room', 'AGI Pipeline', 'Performance', 'Brain', 'Trades', 'Markets', 'Globe', 'HFT'] as const
 type DashboardTab = typeof DASHBOARD_TABS[number]
 
 export default function Dashboard() {
@@ -271,6 +272,11 @@ export default function Dashboard() {
             {activeTab === 'Brain' && <BrainGraph />}
             {activeTab === 'Trades' && <TradesTab />}
             {activeTab === 'Markets' && <MarketsTab />}
+            {activeTab === 'Globe' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full text-neutral-500 animate-pulse bg-gray-800/50 rounded-lg">Loading Globe...</div>}>
+                <GlobeView forecasts={weatherForecasts} signals={weatherSignals} />
+              </Suspense>
+            )}
             {activeTab === 'HFT' && <HFTTab />}
           </Suspense>
         </div>

@@ -343,7 +343,21 @@ class WalletReconciler:
                 _event_slug = record.get("eventSlug", "")
 
                 existing = None
-                if slug:
+                if condition_id:
+                    token_id_trades = self.db.query(Trade).filter(
+                        (Trade.market_ticker.contains(condition_id[:32])) &
+                        (Trade.trading_mode == self.mode)
+                    ).all()
+                    if len(token_id_trades) == 1:
+                        existing = token_id_trades[0]
+                    elif len(token_id_trades) > 1:
+                        for mt in token_id_trades:
+                            market_ticker = mt.market_ticker or ""
+                            if condition_id in market_ticker:
+                                existing = mt
+                                break
+
+                if existing is None and slug:
                     slug_prefix = slug[:min(len(slug), 40)]
                     matching_trades = self.db.query(Trade).filter(
                         (Trade.market_ticker.contains(slug_prefix)) &
@@ -351,7 +365,7 @@ class WalletReconciler:
                     ).all()
                     if len(matching_trades) == 1:
                         existing = matching_trades[0]
-                    elif len(matching_trades) > 1 and condition_id:
+                    elif len(matching_trades) > 1:
                         for mt in matching_trades:
                             market_ticker = mt.market_ticker or ""
                             if slug in market_ticker or market_ticker in slug:
@@ -366,20 +380,12 @@ class WalletReconciler:
                     ).all()
                     if len(matching_trades) == 1:
                         existing = matching_trades[0]
-                    elif len(matching_trades) > 1 and condition_id:
+                    elif len(matching_trades) > 1:
                         for mt in matching_trades:
                             market_ticker = mt.market_ticker or ""
                             if title in market_ticker or market_ticker in title:
                                 existing = mt
                                 break
-
-                if existing is None and condition_id:
-                    token_id_trades = self.db.query(Trade).filter(
-                        (Trade.market_ticker.contains(condition_id[:32])) &
-                        (Trade.trading_mode == self.mode)
-                    ).all()
-                    if len(token_id_trades) == 1:
-                        existing = token_id_trades[0]
 
                 if existing:
                     if not existing.settled:
@@ -410,9 +416,9 @@ class WalletReconciler:
                     continue
 
                 if redeem_amount > 0:
-                    self.logger.debug(
-                        f"REDEEM for unmatched position: {title} "
-                        f"(conditionId={condition_id[:16]}..., amount={redeem_amount})"
+                    self.logger.warning(
+                        f"Orphaned REDEEM: conditionId={condition_id[:16] if condition_id else 'N/A'}..., "
+                        f"amount={redeem_amount}, title={title[:60] if title else 'N/A'}"
                     )
 
             self.db.commit()

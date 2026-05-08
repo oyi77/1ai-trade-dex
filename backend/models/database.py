@@ -681,6 +681,7 @@ class StrategyConfig(Base):
     mode = Column(String, nullable=True, default=None)  # "paper", "testnet", "live" - NULL = applies to all modes
     time_horizon = Column(String, nullable=True, default="mid")  # "short", "mid", "long"
     risk_tier = Column(String, nullable=True, default="moderate")  # "safe", "conservative", "moderate", "aggressive", "extreme", "crazy"
+    disabled_at = Column(DateTime, nullable=True, default=None)
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -1847,6 +1848,17 @@ def ensure_schema():
                     logger.info("Added 'mode' column to strategy_config")
         except Exception as e:
             logger.warning(f"Schema migration: could not add strategy_config.mode: {e}")
+
+    if strategy_config_columns and "disabled_at" not in strategy_config_columns:
+        try:
+            with engine.connect() as conn:
+                with conn.begin():
+                    conn.execute(
+                        text("ALTER TABLE strategy_config ADD COLUMN disabled_at DATETIME")
+                    )
+                    logger.info("Added 'disabled_at' column to strategy_config")
+        except Exception as e:
+            logger.warning(f"Schema migration: could not add strategy_config.disabled_at: {e}")
 
     # Add strategy_proposal columns for auto-promotion (v2 learning loop)
     try:

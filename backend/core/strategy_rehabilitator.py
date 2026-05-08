@@ -38,6 +38,7 @@ class StrategyRehabilitator:
                 if self._is_candidate(cfg, db):
                     if self._passes_validation(cfg, db):
                         cfg.enabled = True
+                        cfg.disabled_at = None
                         rehabilitated.append(cfg.strategy_name)
                         logger.info(
                             "[Rehabilitation] Re-enabled strategy '%s'",

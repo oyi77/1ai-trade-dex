@@ -5,9 +5,21 @@ Combines technical, AI, orderbook, and data-quality signals
 into a single weighted probability with confidence scoring.
 """
 import logging
+import math
+import numpy as np
 from dataclasses import dataclass
 
+from backend.ai.probability_utils import clamp_probability
+
 logger = logging.getLogger("trading_bot.ensemble")
+
+
+def platt_scale(raw_prob: float, a: float = 1.0, b: float = 0.0) -> float:
+    return 1.0 / (1.0 + math.exp(-(a * raw_prob + b)))
+
+
+def extremize(prob: float, factor: float = 1.2) -> float:
+    return clamp_probability(0.5 + (prob - 0.5) * factor)
 
 
 @dataclass
@@ -83,46 +95,20 @@ class EnsembleSignalGenerator:
 
         component_breakdown["data_quality"] = weights["data_quality"] * quality_factor
 
-        combined = max(0.01, min(0.99, combined))
+        combined = clamp_probability(combined)
 
         active_probs = [technical_prob, orderbook_prob]
         if ai_prob is not None:
             active_probs.append(ai_prob)
 
-        if len(active_probs) > 1:
-            prob_mean = sum(active_probs) / len(active_probs)
-            prob_var = sum((p - prob_mean) ** 2 for p in active_probs) / len(active_probs)
-            agreement = 1.0 - min(1.0, prob_var * 4.0)
+        if len(active_probs) < 2:
+            confidence = active_probs[0] if active_probs else 0.0
         else:
-            agreement = 0.5
+            std = float(np.std(active_probs))
+            confidence = 1.0 - (std / 0.5)  # Normalized inverse variance
+            confidence = max(0.0, min(1.0, confidence))
 
-# Weighted average probability using component confidences as weights
-        components_with_conf = []
-        if technical_conf > 0:
-            components_with_conf.append((technical_prob, technical_conf))
-        if ai_prob is not None and ai_confidence > 0:
-            components_with_conf.append((ai_prob, ai_confidence))
-        if orderbook_conf > 0:
-            components_with_conf.append((orderbook_prob, orderbook_conf))
-
-        if components_with_conf:
-            total_conf = sum(c for _, c in components_with_conf)
-            if total_conf > 0:
-                weighted_avg_conf = sum(p * c / total_conf for p, c in components_with_conf)
-            else:
-                weighted_avg_conf = agreement
-        else:
-            weighted_avg_conf = agreement
-
-        # Confidence is the higher of the weighted-average component confidence and the
-        # inter-component agreement, then scaled down by the data-quality factor.
-        # Multiplying *after* the max ensures wash-trade contamination always reduces
-        # the final confidence regardless of how tightly the components agree.
-        confidence = max(weighted_avg_conf, agreement) * quality_factor
-        confidence = max(0.0, min(1.0, confidence))
-
-        component_breakdown["weighted_avg_confidence"] = weighted_avg_conf
-        component_breakdown["confidence_source"] = "weighted_average_components"
+        confidence *= quality_factor  # Scale down by data-quality factor
         confidence = max(0.0, min(1.0, confidence))
 
         edge = abs(combined - market_price)

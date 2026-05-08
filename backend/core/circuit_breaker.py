@@ -9,6 +9,8 @@ from backend.core.errors import CircuitOpenError
 
 logger = logging.getLogger(__name__)
 
+_STATE_VALUES = {0: 0, 1: 1, 2: 2}
+
 
 class State(str, Enum):
     CLOSED = "CLOSED"
@@ -136,6 +138,13 @@ class CircuitBreaker:
         old_state = self._state
         self._state = new_state
         self.last_state_change = time.monotonic()
+
+        try:
+            from backend.monitoring.metrics import set_circuit_breaker_state
+            state_value = {State.OPEN: 0, State.HALF_OPEN: 1, State.CLOSED: 2}.get(new_state, 0)
+            set_circuit_breaker_state(self.name, state_value)
+        except Exception:
+            pass
 
         if new_state == State.CLOSED:
             self.failure_count = 0

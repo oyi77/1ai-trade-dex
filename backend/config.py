@@ -289,6 +289,9 @@ class Settings(BaseSettings):
     AGI_AUTO_ENABLE: bool = False  # Auto-enable strategies upon promotion to live
     AGI_PROMOTION_INTERVAL_HOURS: int = 6  # How often to evaluate experiments for promotion
     AGI_STRATEGY_HEALTH_ENABLED: bool = True  # Auto-disable underperforming strategies
+
+    REGISTRY_MIN_WIN_RATE: float = 0.30
+    REGISTRY_MIN_ROI: float = -0.30
     AGI_BANKROLL_ALLOCATION_ENABLED: bool = False  # Auto-reallocate capital by strategy rank
     AGI_BANKROLL_ALLOCATION_INTERVAL_DAYS: int = 1  # Rebalance frequency
     REGIME_ROUTING_ENABLED: bool = True  # Enable regime-adjusted confidence thresholds
@@ -296,6 +299,7 @@ class Settings(BaseSettings):
     MIN_ARB_SPREAD: float = 0.005  # Minimum arbitrage spread (0.5%) to trigger
     TAKER_FEE_RATE: float = 0.02  # Polymarket taker fee rate (2%)
     SHADOW_VALIDATE_ENABLED: bool = True  # Validate shadow genomes every 5 minutes
+    SHADOW_USES_REAL_SIGNALS: bool = True  # Shadow experiments use real trade data, never fabricate
 
     AGI_HEALTH_CHECK_ENABLED: bool = True
     AGI_HEALTH_CHECK_INTERVAL_MINUTES: int = 15
@@ -339,11 +343,16 @@ class Settings(BaseSettings):
     AGI_NIGHTLY_REVIEW_LOOKBACK_DAYS: int = 7
     AGI_REHAB_COOLDOWN_DAYS: int = 7
     AGI_REHAB_MIN_TRADES: int = 10
+    AGI_REHAB_WIN_RATE_THRESHOLD: float = 0.50
+    # Lite rehabilitation (T7): lighter path for auto-disabled strategies
+    AGI_REHAB_LITE_COOLDOWN_HOURS: int = 1       # re-enable after 1h in paper mode
+    AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4      # re-disable for 4h if still bad
+    AGI_REHAB_LITE_WIN_RATE_THRESHOLD: float = 0.30  # keep enabled if WR >= 30%
+    AGI_AUTO_DISABLE_MIN_TRADES: int = 10          # exempt strategies with <10 trades
     AGI_LIVE_TRIAL_BANKROLL_PCT: float = 0.01  # 1% bankroll during live trial
     AGI_LIVE_TRIAL_DAYS: int = 7  # minimum trial period before full promotion
     AGI_LIVE_TRIAL_MIN_TRADES: int = 10
     AGI_DEMOTION_RETRY_LIMIT: int = 3  # max improvement cycles before permanent retirement
-    AGI_REHAB_WIN_RATE_THRESHOLD: float = 0.50
     AGI_FRONTTEST_MIN_WIN_RATE: float = 0.40
     AGI_PROMOTER_SHADOW_MIN_TRADES: int = 100
     AGI_PROMOTER_SHADOW_MIN_DAYS: int = 7
@@ -406,6 +415,7 @@ class Settings(BaseSettings):
 
     # Polygon RPC (for on-chain balance checks)
     POLYGON_RPC_URL: str = "https://polygon-bor-rpc.publicnode.com"
+    POLYGON_PRIVATE_MEMPOOL_URL: str = "https://polygon-bor-rpc.publicnode.com"
 
     # Brain / BK-Hub integration
     BRAIN_API_URL: str = "http://localhost:9099"
@@ -422,6 +432,10 @@ class Settings(BaseSettings):
     ARB_KALSHI_FEE: float = 0.01
     ARB_DEFAULT_FEE_RATE: float = 0.02
     ARB_DEFAULT_MIN_SPREAD: float = 0.03
+    SPREAD_MODE: str = "static"  # "static" | "lmsr"
+    GEMINI_API_KEY: str = ""
+    GEMINI_ENABLED: bool = False
+    GEMINI_MODEL: str = "gemini-1.5-pro"
 
     # Whale frontrun thresholds
     WHALE_FRONTRUN_MIN_SIZE: float = 10000.0

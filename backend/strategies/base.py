@@ -150,6 +150,22 @@ class BaseStrategy(ABC):
         """
         start = time.monotonic()
         try:
+            from backend.models.database import StrategyConfig
+            config = ctx.db.query(StrategyConfig).filter(
+                StrategyConfig.strategy_name == self.name
+            ).first()
+            if config is not None and not config.enabled:
+                return CycleResult(
+                    decisions_recorded=0,
+                    trades_attempted=0,
+                    trades_placed=0,
+                    errors=[],
+                    cycle_duration_ms=0.0,
+                )
+        except Exception:
+            pass
+
+        try:
             result = await self.run_cycle(ctx)
         except Exception as exc:
             duration_ms = (time.monotonic() - start) * 1000

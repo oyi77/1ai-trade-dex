@@ -465,6 +465,12 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             )
         )
         resolved_count = len(settled_trades) - unresolved_count
+        try:
+            from backend.monitoring.metrics import increment_settlement_by_status
+            increment_settlement_by_status("resolved")
+            increment_settlement_by_status("unresolved")
+        except Exception:
+            pass
         if resolved_count:
             logger.info(f"Settled {resolved_count} trades with market resolution")
         if unresolved_count:

@@ -112,6 +112,16 @@ class StrategyHealthMonitor:
 
         if not readonly:
             self._persist_health(health, db)
+
+        try:
+            from backend.monitoring.metrics import set_strategy_health
+            set_strategy_health(strategy, "win_rate", win_rate)
+            set_strategy_health(strategy, "sharpe", sharpe)
+            set_strategy_health(strategy, "max_drawdown", max_dd)
+            set_strategy_health(strategy, "brier_score", brier)
+        except Exception:
+            pass
+
         return health
 
     def should_kill(self, strategy: str, db: Session) -> bool:
@@ -259,11 +269,13 @@ class StrategyHealthMonitor:
         """Set strategy_config.enabled = False for the given strategy."""
         try:
             from backend.models.database import StrategyConfig
+            from datetime import datetime, timezone
             config = db.query(StrategyConfig).filter(
                 StrategyConfig.strategy_name == strategy
             ).first()
             if config:
                 config.enabled = False
+                config.disabled_at = datetime.now(timezone.utc)
                 db.commit()
                 logger.info(f"[HealthMonitor] Disabled strategy '{strategy}' in config")
                 self._run_postmortem(strategy, db)

@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 from backend.config import settings
 from backend.models.database import PendingApproval
 from backend.monitoring.hft_metrics import record_signal
+from backend.monitoring.metrics import increment_trade_execution
 
 logger = logging.getLogger("trading_bot.auto_trader")
 
@@ -82,6 +83,7 @@ class AutoTrader:
         strategy = signal.get("strategy", "unknown")
         if mode == "paper" or self.clob_factory is None:
             record_signal(strategy=strategy, signal_type="auto_approved")
+            increment_trade_execution(strategy=strategy, result="paper")
             return ExecutionResult(
                 True,
                 False,
@@ -99,6 +101,7 @@ class AutoTrader:
                 )
             if result.success:
                 record_signal(strategy=strategy, signal_type="auto_approved")
+                increment_trade_execution(strategy=strategy, result="live")
                 return ExecutionResult(
                     True, False, "live auto-execute", order_id=result.order_id
                 )

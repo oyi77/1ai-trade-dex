@@ -1,4 +1,7 @@
+import json
 import logging
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
 
 from backend.core.outcome_repository import record_outcome
@@ -23,6 +26,70 @@ def _health_enabled() -> bool:
         return True
 
 
+def _load_persisted_weights(strategy: str, db: Session) -> None:
+    try:
+        from backend.models.database import StrategyConfig
+        config = db.query(StrategyConfig).filter(
+            StrategyConfig.strategy_name == strategy
+        ).first()
+        if config is None or not config.params:
+            return
+        params = json.loads(config.params) if isinstance(config.params, str) else config.params
+        learned = params.get("learned_weights")
+        if not learned:
+            return
+        ts_data = learned.get("thompson")
+        if ts_data and isinstance(ts_data, list) and len(ts_data) == 2:
+            _sampler._posteriors[strategy] = (float(ts_data[0]), float(ts_data[1]))
+        cal_data = learned.get("calibration")
+        if cal_data and isinstance(cal_data, list) and len(cal_data) == 2:
+            bd = _calibration._betas.get(strategy)
+            if bd is None:
+                from backend.core.trading_calibration import BetaDistribution
+                bd = BetaDistribution()
+                _calibration._betas[strategy] = bd
+            bd.alpha = float(cal_data[0])
+            bd.beta = float(cal_data[1])
+        logger.info("[OnlineLearner] Loaded persisted weights for '%s'", strategy)
+    except Exception as e:
+        logger.debug("[OnlineLearner] Could not load weights for '%s': %s", strategy, e)
+
+
+def _persist_weights(strategy: str, db: Session) -> None:
+    try:
+        from backend.models.database import StrategyConfig
+        config = db.query(StrategyConfig).filter(
+            StrategyConfig.strategy_name == strategy
+        ).first()
+        if config is None:
+            return
+        params = json.loads(config.params) if isinstance(config.params, str) else (config.params or {})
+        if isinstance(config.params, str):
+            params = json.loads(config.params)
+        elif config.params:
+            params = dict(config.params)
+        else:
+            params = {}
+
+        ts_alpha, ts_beta = _sampler._posteriors.get(strategy, (1.0, 1.0))
+        cal_bd = _calibration._betas.get(strategy)
+        cal_data = [cal_bd.alpha, cal_bd.beta] if cal_bd else [1.0, 1.0]
+
+        params["learned_weights"] = {
+            "thompson": [ts_alpha, ts_beta],
+            "calibration": cal_data,
+            "last_persisted_ts": datetime.now(timezone.utc).isoformat(),
+        }
+        config.params = json.dumps(params)
+        db.commit()
+        logger.info(
+            "[OnlineLearner] Persisted weights for '%s': thompson=(%.1f,%.1f) cal=(%.1f,%.1f)",
+            strategy, ts_alpha, ts_beta, cal_data[0], cal_data[1],
+        )
+    except Exception as e:
+        logger.warning("[OnlineLearner] Failed to persist weights for '%s': %s", strategy, e)
+
+
 class OnlineLearner:
     def on_trade_settled(self, trade, db: Session) -> None:
         strategy = getattr(trade, "strategy", None)
@@ -36,6 +103,8 @@ class OnlineLearner:
                 pass
         strategy = strategy or "general_scanner"
 
+        _load_persisted_weights(strategy, db)
+
         outcome = record_outcome(trade, db)
         if outcome is None:
             logger.warning(f"[OnlineLearner] Failed to record outcome for trade {getattr(trade, 'id', '?')}")
@@ -48,6 +117,8 @@ class OnlineLearner:
             _calibration.record(strategy, prob, actual)
             _sampler.update(strategy, won=(result == "win"))
 
+        _persist_weights(strategy, db)
+
         if _health_enabled():
             health = _health_monitor.assess(strategy, db)
             if health.get("status") == "killed":
@@ -57,6 +128,8 @@ class OnlineLearner:
         _param_tuner.revert_if_degraded(strategy, db)
 
     def run_cycle(self, strategy: str, db: Session) -> None:
+        _load_persisted_weights(strategy, db)
+
         if _health_enabled():
             health = _health_monitor.assess(strategy, db)
             if health.get("status") == "killed":

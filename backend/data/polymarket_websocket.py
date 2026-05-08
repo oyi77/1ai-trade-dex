@@ -203,6 +203,13 @@ class PolymarketWebSocket:
             self.ws = ws
             logger.info(f"Connected to {self.config.channel.value} channel")
 
+            if self._reconnect_count > 0:
+                logger.warning(
+                    "WebSocket reconnected after %d attempts, clearing stale caches",
+                    self._reconnect_count,
+                )
+                self._cache.clear() if hasattr(self, '_cache') else None
+
             # Send subscription message
             await self._send_subscription()
 

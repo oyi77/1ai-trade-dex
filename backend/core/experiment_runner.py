@@ -111,11 +111,6 @@ class ExperimentRunner:
         except Exception as e:
             logging.getLogger(__name__).warning(f"[ExperimentRunner] Shadow query failed for {strategy_name}: {e}")
 
-        if trades == 0:
-            trades = duration_days * 10
-            wins = trades // 2
-            total_pnl = 0.0
-
         win_rate = wins / trades if trades > 0 else 0.0
 
         experiment.shadow_trades = trades

@@ -56,6 +56,11 @@ class PolygonListener:
                     "Polygon ws repeated failure after %d attempts; giving up until manual restart.",
                     MAX_RETRIES
                 )
+                try:
+                    from backend.bot.notification_router import send_alert
+                    await send_alert("Polygon listener permanently disconnected after %d retries" % MAX_RETRIES)
+                except Exception:
+                    pass
                 raise
 
     async def _handle_message(self, raw: str) -> None:

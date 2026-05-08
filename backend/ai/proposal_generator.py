@@ -564,7 +564,8 @@ def auto_promote_eligible_proposals():
                     proposal.backtest_win_rate = bt_result.get("win_rate", 0.0)
                     proposal.backtest_passed = bt_result.get("passed", False)
                     db.commit()
-                except Exception:
+                except (AttributeError, KeyError, ValueError) as e:
+                    logger.error("Backtest failed for proposal %s: %s", proposal.id, e)
                     db.rollback()
 
             promotable = db.query(DBProposal).filter(
@@ -606,7 +607,8 @@ def auto_promote_eligible_proposals():
                             proposal.admin_decision = "auto_approved"
                             proposal.executed_at = datetime.now(timezone.utc)
                             db.commit()
-                except Exception:
+                except (AttributeError, KeyError, ValueError) as e:
+                    logger.error("Auto-promote failed for proposal %s: %s", proposal.id, e)
                     db.rollback()
     except Exception as e:
         logger.error(f"auto_promote_eligible_proposals failed: {e}", exc_info=True)

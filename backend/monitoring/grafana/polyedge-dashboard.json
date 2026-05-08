@@ -1,0 +1,79 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Live P&L",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "polyedge_bot_state_gauge{field=\"bankroll\"}", "legendFormat": "Bankroll" },
+        { "expr": "polyedge_bot_state_gauge{field=\"total_pnl\"}", "legendFormat": "Total P&L" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" }
+      }
+    },
+    {
+      "title": "Circuit Breakers",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "polyedge_circuit_breaker_state", "legendFormat": "{{breaker_name}}" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "OPEN", "color": "red" }, "1": { "text": "HALF-OPEN", "color": "yellow" }, "2": { "text": "CLOSED", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "title": "Order Latency",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "polyedge_order_latency_seconds_avg", "legendFormat": "Avg Latency" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Strategy Health",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "polyedge_strategy_health_gauge", "legendFormat": "{{strategy}}/{{metric}}", "format": "table" }
+      ]
+    },
+    {
+      "title": "Risk Rejections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        { "expr": "rate(polyedge_risk_rejection_total[5m])", "legendFormat": "{{reason}}" }
+      ]
+    },
+    {
+      "title": "Signal Counts",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        { "expr": "rate(polyedge_signals_total[5m])", "legendFormat": "Signals/min" },
+        { "expr": "rate(polyedge_trade_execution_total[5m])", "legendFormat": "Executions/min" }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["polyedge", "trading"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "PolyEdge Trading Dashboard",
+  "uid": "polyedge-main"
+}

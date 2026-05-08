@@ -34,6 +34,17 @@ _metrics: Dict[str, Any] = {
     # Strategy status
     "strategies_active": 0,
     "strategies_paused": 0,
+
+    # Trade execution pipeline metrics
+    "trade_execution_total": 0,
+    "risk_rejection_total": 0,
+    "order_latency_ms_total": 0.0,
+    "order_latency_count": 0,
+    "settlement_by_status": {},
+    "circuit_breaker_states": {},
+    "strategy_health_metrics": {},
+    "bot_state_fields": {},
+    "maker_edge_capture_rate": 0.0,
 }
 
 
@@ -118,10 +129,54 @@ def increment_settlements() -> None:
 
 
 def update_strategy_status(active: int, paused: int) -> None:
-    """Update strategy counts."""
     with _metrics_lock:
         _metrics["strategies_active"] = active
         _metrics["strategies_paused"] = paused
+
+
+def increment_trade_execution(strategy: str = "", result: str = "") -> None:
+    _increment_metric("trade_execution_total")
+
+
+def increment_risk_rejection(strategy: str = "", reason: str = "") -> None:
+    _increment_metric("risk_rejection_total")
+
+
+def observe_order_latency(latency_ms: float) -> None:
+    with _metrics_lock:
+        total = _metrics["order_latency_ms_total"] + latency_ms
+        count = _metrics["order_latency_count"] + 1
+        _metrics["order_latency_ms_total"] = total
+        _metrics["order_latency_count"] = count
+
+
+def increment_settlement_by_status(status: str) -> None:
+    with _metrics_lock:
+        by_status = _metrics.get("settlement_by_status", {})
+        by_status[status] = by_status.get(status, 0) + 1
+        _metrics["settlement_by_status"] = by_status
+
+
+def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
+    with _metrics_lock:
+        states = _metrics.get("circuit_breaker_states", {})
+        states[breaker_name] = state
+        _metrics["circuit_breaker_states"] = states
+
+
+def set_strategy_health(strategy: str, metric_name: str, value: float) -> None:
+    with _metrics_lock:
+        health = _metrics.get("strategy_health_metrics", {})
+        key = f"{strategy}_{metric_name}"
+        health[key] = value
+        _metrics["strategy_health_metrics"] = health
+
+
+def set_bot_state(field: str, value: float) -> None:
+    with _metrics_lock:
+        fields = _metrics.get("bot_state_fields", {})
+        fields[field] = value
+        _metrics["bot_state_fields"] = fields
 
 
 # Export metrics in Prometheus format
@@ -208,6 +263,53 @@ def get_metrics() -> str:
             "# HELP polyedge_strategies_paused Number of paused strategies",
             "# TYPE polyedge_strategies_paused gauge",
             f"polyedge_strategies_paused {_metrics['strategies_paused']}",
+            "",
+            "# HELP polyedge_trade_execution_total Total trade executions",
+            "# TYPE polyedge_trade_execution_total counter",
+            f"polyedge_trade_execution_total {_metrics['trade_execution_total']}",
+            "",
+            "# HELP polyedge_risk_rejection_total Total risk manager rejections",
+            "# TYPE polyedge_risk_rejection_total counter",
+            f"polyedge_risk_rejection_total {_metrics['risk_rejection_total']}",
+            "",
+            "# HELP polyedge_order_latency_seconds_avg Average order placement latency in seconds",
+            "# TYPE polyedge_order_latency_seconds_avg gauge",
+            f"polyedge_order_latency_seconds_avg {_metrics['order_latency_ms_total'] / _metrics['order_latency_count'] / 1000:.6f}" if _metrics['order_latency_count'] > 0 else "polyedge_order_latency_seconds_avg 0",
+            "",
+            "# HELP polyedge_settlement_by_status_total Settlements by status",
+            "# TYPE polyedge_settlement_by_status_total counter",
         ])
+
+        for status, count in _metrics.get("settlement_by_status", {}).items():
+            lines.append(f'polyedge_settlement_by_status_total{{status="{status}"}} {count}')
+
+        lines.extend([
+            "",
+            "# HELP polyedge_circuit_breaker_state Circuit breaker state (0=open 1=half-open 2=closed)",
+            "# TYPE polyedge_circuit_breaker_state gauge",
+        ])
+        for name, state in _metrics.get("circuit_breaker_states", {}).items():
+            lines.append(f'polyedge_circuit_breaker_state{{breaker_name="{name}"}} {state}')
+
+        lines.extend([
+            "",
+            "# HELP polyedge_strategy_health_gauge Strategy health metric value",
+            "# TYPE polyedge_strategy_health_gauge gauge",
+        ])
+        for key, value in _metrics.get("strategy_health_metrics", {}).items():
+            parts = key.split("_", 1)
+            strategy = parts[0] if len(parts) > 0 else "unknown"
+            metric = parts[1] if len(parts) > 1 else "value"
+            lines.append(f'polyedge_strategy_health_gauge{{strategy="{strategy}",metric="{metric}"}} {value:.4f}')
+
+        lines.extend([
+            "",
+            "# HELP polyedge_bot_state_gauge Bot state field value",
+            "# TYPE polyedge_bot_state_gauge gauge",
+        ])
+        for field, value in _metrics.get("bot_state_fields", {}).items():
+            lines.append(f'polyedge_bot_state_gauge{{field="{field}"}} {value:.4f}')
+
+        lines.append("")
 
         return "\n".join(lines)

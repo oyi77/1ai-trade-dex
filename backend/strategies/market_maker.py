@@ -39,7 +39,30 @@ class MarketMakerStrategy(BaseStrategy):
         "min_spread": 0.02,
         "max_spread": 0.15,
         "quote_size": 25.0,  # USD per side
+        "spread_mode": "static",
+        "lmsr_liquidity_param": 10.0,
     }
+
+    @staticmethod
+    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = 10.0) -> dict:
+        import math
+        b = max(liquidity_param, 0.1)
+        exp_yes = math.exp(yes_inventory / b)
+        exp_no = math.exp(no_inventory / b)
+        denom = exp_yes + exp_no
+        yes_price = exp_yes / denom
+        no_price = exp_no / denom
+        return {"yes_price": yes_price, "no_price": no_price}
+
+    @staticmethod
+    def optimism_tax_factor(yes_price: float) -> float:
+        if yes_price < 0.10:
+            return 1.5
+        if yes_price < 0.20:
+            return 1.3
+        if yes_price < 0.30:
+            return 1.1
+        return 1.0
 
     def calculate_spread(
         self, volatility: float, inventory_pct: float, params: dict = None
@@ -51,8 +74,13 @@ class MarketMakerStrategy(BaseStrategy):
         inventory_skew_factor = p.get(
             "inventory_skew_factor", self.default_params["inventory_skew_factor"]
         )
+        quote_size = p.get("quote_size", self.default_params["quote_size"])
 
-        inventory_pct = max(-1.0, min(1.0, inventory_pct))
+        if quote_size <= 0:
+            logger.warning("market_maker: quote_size=%.2f invalid, using default", quote_size)
+            quote_size = self.default_params["quote_size"]
+
+        inventory_pct = max(0.0, min(1.0, inventory_pct))
         volatility = max(0.0, min(2.0, volatility))
 
         volatility_adjustment = volatility * 0.5

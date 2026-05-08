@@ -11,6 +11,7 @@ from backend.config import settings
 from backend.db.utils import get_db_session
 from backend.models.database import Trade, BotState, for_update
 from backend.monitoring.hft_metrics import record_signal
+from backend.monitoring.metrics import increment_risk_rejection
 from sqlalchemy import func, or_
 
 logger = logging.getLogger("trading_bot.risk")
@@ -177,6 +178,7 @@ class RiskManager:
         min_confidence = self._get_confidence_threshold(effective_mode, strategy_name)
         if confidence < min_confidence:
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_confidence")
+            increment_risk_rejection(strategy=strategy_name or "unknown", reason="confidence")
             return RiskDecision(False, f"confidence {confidence:.2f} below {min_confidence}", 0.0)
 
         bias_weight = getattr(self.s, 'LONGSHOT_NO_BIAS_WEIGHT', 0.0)
@@ -204,6 +206,7 @@ class RiskManager:
             )
         elif self._daily_loss_exceeded(db=db, mode=effective_mode):
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_daily_loss")
+            increment_risk_rejection(strategy=strategy_name or "unknown", reason="daily_loss")
             return RiskDecision(False, "daily loss limit hit", 0.0)
 
         if not self._breaker_enabled_for_mode("drawdown", effective_mode):
@@ -214,6 +217,7 @@ class RiskManager:
             drawdown = self.check_drawdown(bankroll, db=db, mode=effective_mode)
             if drawdown.is_breached:
                 record_signal(strategy=strategy_name or "unknown", signal_type="rejected_drawdown")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="drawdown")
                 return RiskDecision(
                     False, f"drawdown breaker: {drawdown.breach_reason}", 0.0
                 )
@@ -222,6 +226,7 @@ class RiskManager:
             market_ticker, db=db, mode=effective_mode, direction=direction
         ):
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_unsettled")
+            increment_risk_rejection(strategy=strategy_name or "unknown", reason="unsettled")
             return RiskDecision(
                 False, f"unsettled trade exists for {market_ticker}", 0.0
             )
@@ -247,10 +252,12 @@ class RiskManager:
             adjusted = max(0.0, max_exposure - current_exposure)
             if adjusted <= 0:
                 record_signal(strategy=strategy_name or "unknown", signal_type="rejected_exposure")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="exposure")
                 return RiskDecision(False, "max exposure reached", 0.0)
 
         if slippage is not None and slippage > self.s.SLIPPAGE_TOLERANCE:
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_slippage")
+            increment_risk_rejection(strategy=strategy_name or "unknown", reason="slippage")
             return RiskDecision(False, f"slippage {slippage:.4f} > tolerance", 0.0)
 
         # Per-strategy allocation: use AGI allocation if available, otherwise equal-weight fallback
@@ -262,6 +269,7 @@ class RiskManager:
             remaining_cap = self._strategy_allocation_cap(strategy_name, db, effective_mode)
             if remaining_cap is not None and remaining_cap <= 0:
                 record_signal(strategy=strategy_name, signal_type="rejected_allocation_exhausted")
+                increment_risk_rejection(strategy=strategy_name, reason="allocation_exhausted")
                 return RiskDecision(False, f"allocation exhausted for {strategy_name}", 0.0)
             effective_cap = remaining_cap if remaining_cap is not None else strategy_allocation
             # Use the tighter of strategy allocation and remaining budget

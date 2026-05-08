@@ -26,6 +26,7 @@ import time
 from dataclasses import dataclass, field
 
 from backend.ai.llm_router import LLMRouter as _LLMRouter
+from backend.ai.probability_utils import clamp_probability
 
 logger = logging.getLogger("trading_bot.debate_engine")
 
@@ -604,7 +605,7 @@ async def run_debate(
         )
         judge_response = judge_response or ""
 
-    consensus_prob = max(0.01, min(0.99, consensus_prob))
+    consensus_prob = clamp_probability(consensus_prob)
     consensus_conf = max(0.0, min(1.0, consensus_conf))
 
     latency_ms = (time.time() - start_time) * 1000

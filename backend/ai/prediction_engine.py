@@ -8,6 +8,8 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from backend.ai.probability_utils import clamp_probability
+
 logger = logging.getLogger("trading_bot.prediction_engine")
 
 
@@ -120,7 +122,7 @@ class PredictionEngine:
                 logger.debug(f"Empirical blend skipped for {strategy}: {e}")
 
         confidence = min(1.0, abs(prob - 0.5) * 2.0)
-        prob = max(0.01, min(0.99, prob))
+        prob = clamp_probability(prob)
         return Prediction(
             probability_yes=round(prob, 6),
             confidence=round(confidence, 6),

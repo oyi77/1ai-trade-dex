@@ -586,9 +586,11 @@ class AutonomousPromoter:
             logger.warning(f"[AutonomousPromoter] Failed to dynamically schedule '{strategy_name}': {e}")
 
     async def _disable_strategy(self, strategy_name: str, db: Session) -> None:
+        from datetime import datetime, timezone
         config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
         if config:
             config.enabled = False
+            config.disabled_at = datetime.now(timezone.utc)
             db.commit()
             logger.info(f"[AutonomousPromoter] Disabled StrategyConfig '{strategy_name}' (degradation fallback)")
 

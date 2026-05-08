@@ -95,6 +95,33 @@ class KalshiClient:
         """Get portfolio balance (useful for auth test)."""
         return await self.get("/portfolio/balance")
 
+    async def _request(self, method: str, path: str, json: Optional[Dict[str, Any]] = None) -> dict:
+        full_path = f"/trade-api/v2{path}"
+        url = f"{BASE_URL}{path}"
+        headers = self._sign_request(method.upper(), full_path)
+
+        async def _fetch():
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.request(method, url, headers=headers, json=json)
+                response.raise_for_status()
+                return response.json()
+
+        return await kalshi_breaker.call(_fetch)
+
+    async def batch_create_orders(self, orders: list[dict]) -> dict:
+        return await self._request("POST", "/portfolio/batch_create_orders", json={"orders": orders})
+
+    async def batch_cancel_orders(self, order_ids: list[str]) -> dict:
+        return await self._request("DELETE", "/portfolio/batch_cancel_orders", json={"order_ids": order_ids})
+
+    async def amend_order(self, order_id: str, new_price: float = None, new_size: int = None) -> dict:
+        payload: Dict[str, Any] = {"order_id": order_id}
+        if new_price is not None:
+            payload["new_price"] = new_price
+        if new_size is not None:
+            payload["new_size"] = new_size
+        return await self._request("POST", "/portfolio/amend_order", json=payload)
+
 
 def kalshi_credentials_present() -> bool:
     """Check if Kalshi API credentials are configured."""
