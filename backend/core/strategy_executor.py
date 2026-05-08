@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from backend.config import settings
-from backend.models.database import Trade, Signal, BotState, StrategyConfig, for_update
+from backend.models.database import Trade, Signal, BotState, StrategyConfig, for_update, botstate_mutex
 from backend.core.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
@@ -518,21 +518,21 @@ async def execute_decision(
                         user_id=f"strategy:{strategy_name}",
                     )
 
-                    if mode == "paper" and state:
-                        state.paper_bankroll = max(
-                            0.0, (state.paper_bankroll or 0.0) - adjusted_size
-                        )
-                        state.paper_trades = (state.paper_trades or 0) + 1
-                    elif mode == "testnet" and state:
-                        state.testnet_bankroll = max(
-                            0.0, (state.testnet_bankroll or 0.0) - adjusted_size
-                        )
-                        state.testnet_trades = (state.testnet_trades or 0) + 1
-                    elif mode == "live" and state:
-                        # Live bankroll is synced from PM API — do not deduct locally.
-                        # On-chain USDC is managed by the CLOB; our bankroll field
-                        # tracks PM portfolio value, not a local cash balance.
-                        state.total_trades = (state.total_trades or 0) + 1
+                    async with botstate_mutex:
+                        fresh_state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+                        if mode == "paper" and fresh_state:
+                            fresh_state.paper_bankroll = max(
+                                0.0, (fresh_state.paper_bankroll or 0.0) - adjusted_size
+                            )
+                            fresh_state.paper_trades = (fresh_state.paper_trades or 0) + 1
+                        elif mode == "testnet" and fresh_state:
+                            fresh_state.testnet_bankroll = max(
+                                0.0, (fresh_state.testnet_bankroll or 0.0) - adjusted_size
+                            )
+                            fresh_state.testnet_trades = (fresh_state.testnet_trades or 0) + 1
+                        elif mode == "live" and fresh_state:
+                            fresh_state.total_trades = (fresh_state.total_trades or 0) + 1
+                        db.commit()
 
                     signal_data = {
                         "direction": direction,
@@ -707,7 +707,7 @@ async def execute_quote(
     decision: dict, strategy_name: str, mode: str, db=None
 ) -> dict | None:
     """Execute a QUOTE decision from market_maker — places GTC limit orders on both sides."""
-    from backend.models.database import SessionLocal, Trade, BotState
+    from backend.models.database import Trade, BotState
     from backend.db.utils import get_db_session
     from backend.config import settings as s
 

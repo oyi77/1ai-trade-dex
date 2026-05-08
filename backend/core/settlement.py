@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import re as _re
 
 from backend.config import settings
-from backend.models.database import Trade, BotState, for_update
+from backend.models.database import Trade, BotState, for_update, botstate_mutex
 from backend.core.alert_manager import AlertManager
 from backend.monitoring.hft_metrics import record_execution
 
@@ -551,70 +551,55 @@ async def update_bot_state_with_settlements(
         return
 
     try:
-        for trade in settled_trades:
-            if trade.pnl is None:
-                continue
+        async with botstate_mutex:
+            for trade in settled_trades:
+                if trade.pnl is None:
+                    continue
 
-            trading_mode = getattr(trade, "trading_mode", "paper") or "paper"
-            is_real_trade = trade.result in ("win", "loss")
-            is_expired_or_push = trade.result in ("expired", "push", "closed")
+                trading_mode = getattr(trade, "trading_mode", "paper") or "paper"
+                is_real_trade = trade.result in ("win", "loss")
+                is_expired_or_push = trade.result in ("expired", "push", "closed")
 
-            # Route updates to mode-specific fields
-            if trading_mode == "paper":
                 state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
                 if not state:
                     logger.warning(f"Bot state not found for mode {trading_mode}")
                     continue
-                if is_real_trade:
-                    state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
-                    state.paper_bankroll = max(
-                        0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl
-                    )
-                    state.paper_trades = (state.paper_trades or 0) + 1
-                    if trade.result == "win":
-                        state.paper_wins = (state.paper_wins or 0) + 1
-                elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
-                    state.paper_bankroll = (state.paper_bankroll or 0.0) + trade.size
-                    logger.info(
-                        f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to paper bankroll"
-                    )
-            elif trading_mode == "testnet":
-                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
-                if not state:
-                    logger.warning(f"Bot state not found for mode {trading_mode}")
-                    continue
-                if is_real_trade:
-                    state.testnet_pnl = (state.testnet_pnl or 0.0) + trade.pnl
-                    state.testnet_bankroll = max(
-                        0.0, (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
-                    )
-                    state.testnet_trades = (state.testnet_trades or 0) + 1
-                    if trade.result == "win":
-                        state.testnet_wins = (state.testnet_wins or 0) + 1
-                elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
-                    state.testnet_bankroll = (state.testnet_bankroll or 0.0) + trade.size
-                    logger.info(
-                        f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to testnet bankroll"
-                    )
-            elif trading_mode == "live":
-                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
-                if not state:
-                    logger.warning(f"Bot state not found for mode {trading_mode}")
-                    continue
-                if is_real_trade:
-                    state.total_trades = (state.total_trades or 0) + 1
-                    if trade.result == "win":
-                        state.winning_trades = (state.winning_trades or 0) + 1
-                # We do not update live bankroll/pnl here because they are derived
-                # from external account equity. They will be reconciled below.
 
+                if trading_mode == "paper":
+                    if is_real_trade:
+                        state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
+                        state.paper_bankroll = max(
+                            0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl
+                        )
+                        state.paper_trades = (state.paper_trades or 0) + 1
+                        if trade.result == "win":
+                            state.paper_wins = (state.paper_wins or 0) + 1
+                    elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
+                        state.paper_bankroll = (state.paper_bankroll or 0.0) + trade.size
+                        logger.info(
+                            f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to paper bankroll"
+                        )
+                elif trading_mode == "testnet":
+                    if is_real_trade:
+                        state.testnet_pnl = (state.testnet_pnl or 0.0) + trade.pnl
+                        state.testnet_bankroll = max(
+                            0.0, (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
+                        )
+                        state.testnet_trades = (state.testnet_trades or 0) + 1
+                        if trade.result == "win":
+                            state.testnet_wins = (state.testnet_wins or 0) + 1
+                    elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
+                        state.testnet_bankroll = (state.testnet_bankroll or 0.0) + trade.size
+                        logger.info(
+                            f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to testnet bankroll"
+                        )
+                elif trading_mode == "live":
+                    if is_real_trade:
+                        state.total_trades = (state.total_trades or 0) + 1
+                        if trade.result == "win":
+                            state.winning_trades = (state.winning_trades or 0) + 1
 
-        try:
             db.commit()
-        except Exception as e:
-            logger.error(f"Failed to commit settlement + bot state: {e}")
-            db.rollback()
-            return
 
         modes_with_settlements = {
             getattr(t, "trading_mode", "paper") or "paper"

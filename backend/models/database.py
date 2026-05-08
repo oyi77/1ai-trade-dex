@@ -56,7 +56,7 @@ engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 
 def configure_sqlite_wal(engine_obj):
-    """Register a connect listener that enables WAL mode for SQLite connections."""
+    """Register a connect listener that enables WAL mode and performance PRAGMAs for SQLite."""
     if engine_obj.url.get_dialect().name != "sqlite":
         return
 
@@ -66,6 +66,11 @@ def configure_sqlite_wal(engine_obj):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA busy_timeout=30000")
         cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-64000")
+        cursor.execute("PRAGMA mmap_size=268435456")
+        cursor.execute("PRAGMA wal_autocheckpoint=1000")
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
 
@@ -74,8 +79,15 @@ configure_sqlite_wal(engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+botstate_mutex = asyncio.Lock()
+
+
 def for_update(session, query):
-    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL."""
+    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL.
+
+    For SQLite, use ``botstate_mutex`` alongside this for read-modify-write
+    patterns on BotState to prevent lost updates under concurrent async access.
+    """
     if session.get_bind().dialect.name == "postgresql":
         return query.with_for_update()
     return query
