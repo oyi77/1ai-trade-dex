@@ -43,7 +43,7 @@ async def test_trade_creation_logs_audit_event(test_db):
     decision = {
         "market_ticker": "BTC-UP-5M",
         "direction": "up",
-        "size": 50.0,
+        "size": 5.0,
         "entry_price": 0.65,
         "edge": 0.15,
         "confidence": 0.75,
@@ -71,7 +71,7 @@ async def test_trade_creation_logs_audit_event(test_db):
     assert entry.entity_type == "TRADE"
     assert entry.entity_id == str(result["id"])
     assert entry.new_value["market_ticker"] == "BTC-UP-5M"
-    assert entry.new_value["size"] == 50.0
+    assert entry.new_value["size"] == 5.0
     assert entry.user_id == "strategy:test_strategy"
 
 
@@ -82,7 +82,7 @@ async def test_settlement_logs_audit_event(test_db):
         platform="polymarket",
         direction="up",
         entry_price=0.65,
-        size=100.0,
+        size=5.0,
         model_probability=0.75,
         market_price_at_entry=0.65,
         edge_at_entry=0.10,

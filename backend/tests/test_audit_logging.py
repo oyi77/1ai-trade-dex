@@ -51,7 +51,7 @@ def test_log_trade_created(test_db):
         trade_data={
             "market_ticker": "BTC-UP-5M",
             "direction": "up",
-            "size": 100.0,
+            "size": 5.0,
             "entry_price": 0.65,
             "trading_mode": "paper",
         },
@@ -63,7 +63,7 @@ def test_log_trade_created(test_db):
     assert entry.entity_type == "TRADE"
     assert entry.entity_id == "42"
     assert entry.new_value["market_ticker"] == "BTC-UP-5M"
-    assert entry.new_value["size"] == 100.0
+    assert entry.new_value["size"] == 5.0
     assert entry.user_id == "strategy:btc_5min"
     assert entry.old_value is None
 
@@ -91,7 +91,7 @@ def test_log_position_updated(test_db):
     entry = log_position_updated(
         db=test_db,
         position_id="BTC-UP-5M:42",
-        old_state={"size": 100.0},
+        old_state={"size": 5.0},
         new_state={"size": 150.0},
         user_id="system:reconciliation",
     )
@@ -100,7 +100,7 @@ def test_log_position_updated(test_db):
     assert entry.event_type == "POSITION_UPDATED"
     assert entry.entity_type == "POSITION"
     assert entry.entity_id == "BTC-UP-5M:42"
-    assert entry.old_value["size"] == 100.0
+    assert entry.old_value["size"] == 5.0
     assert entry.new_value["size"] == 150.0
 
 

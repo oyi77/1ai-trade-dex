@@ -84,7 +84,7 @@ def _make_decision(**overrides) -> dict:
     base = {
         "market_ticker": "test-market-001",
         "direction": "yes",
-        "size": 50.0,
+        "size": 5.0,
         "entry_price": 0.55,
         "edge": 0.08,
         "confidence": 0.75,
@@ -406,7 +406,7 @@ class TestUpdatesBankroll:
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
-                _make_decision(market_ticker="bankroll-market", size=50.0),
+                _make_decision(market_ticker="bankroll-market", size=5.0),
                 "test_strategy",
                 "paper",
             )
@@ -416,7 +416,7 @@ class TestUpdatesBankroll:
         check_db = TestSession()
         try:
             state = check_db.query(BotState).filter_by(mode="paper").first()
-            assert state.paper_bankroll == pytest.approx(500.0 - 50.0)
+            assert state.paper_bankroll == pytest.approx(500.0 - 5.0)
         finally:
             check_db.close()
 
@@ -555,7 +555,7 @@ class TestLiveModeCallsCLOB:
             success=True,
             order_id="live-order-xyz",
             fill_price=0.56,
-            fill_size=50.0,
+            fill_size=5.0,
         )
 
         mock_clob = AsyncMock()
@@ -585,7 +585,7 @@ class TestLiveModeCallsCLOB:
                 _make_decision(
                     market_ticker="live-market-001",
                     token_id="token-abc-123",
-                    size=50.0,
+                    size=5.0,
                 ),
                 "live_strategy",
                 "live",
