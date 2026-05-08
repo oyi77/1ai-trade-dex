@@ -230,15 +230,22 @@ class WhaleFrontrun(BaseStrategy):
         try:
             from backend.data.whale_monitor_ws import WhaleMonitorWS
 
-            self._ws = WhaleMonitorWS()
+            ws = WhaleMonitorWS()
+            connected = await ws.connect()
+            if not connected:
+                logger.info("[whale_frontrun] WS endpoint unavailable — using REST polling fallback")
+                return False
+
+            self._ws = ws
             self._running = True
             self._reconnect_count = 0
 
             asyncio.create_task(self._ws_loop())
+            logger.info("[whale_frontrun] WebSocket connected, streaming whale activity")
             return True
 
         except Exception as exc:
-            logger.warning(f"[whale_frontrun] WebSocket connect failed: {exc}")
+            logger.debug(f"[whale_frontrun] WebSocket connect failed: {exc}")
             return False
 
     async def _ws_loop(self) -> None:
@@ -258,7 +265,8 @@ class WhaleFrontrun(BaseStrategy):
     async def _try_reconnect(self) -> None:
         """Auto-reconnect with exponential backoff (max 5 retries)."""
         if self._reconnect_count >= _cfg("WHALE_FRONTRUN_MAX_RECONNECT", 5):
-            logger.error("[whale_frontrun] Max reconnection attempts reached")
+            logger.info("[whale_frontrun] Max WS reconnect attempts reached — switching to REST-only mode")
+            self._ws = None
             return
 
         self._reconnect_count += 1
@@ -268,10 +276,16 @@ class WhaleFrontrun(BaseStrategy):
         try:
             from backend.data.whale_monitor_ws import WhaleMonitorWS
 
-            self._ws = WhaleMonitorWS()
-            logger.info("[whale_frontrun] Reconnected, loop will resume streaming")
+            ws = WhaleMonitorWS()
+            connected = await ws.connect()
+            if connected:
+                self._ws = ws
+                self._reconnect_count = 0
+                logger.info("[whale_frontrun] Reconnected, loop will resume streaming")
+            else:
+                logger.debug(f"[whale_frontrun] WS reconnect attempt {self._reconnect_count} failed")
         except Exception as exc:
-            logger.warning(f"[whale_frontrun] Reconnect failed: {exc}")
+            logger.debug(f"[whale_frontrun] Reconnect failed: {exc}")
 
     def _parse_whale_message(self, message: dict) -> Optional[WhaleActivity]:
         """Parse WebSocket message into WhaleActivity."""
