@@ -41,7 +41,7 @@ class CopySignalResponse(BaseModel):
 
 
 @router.get("/leaderboard", response_model=List[ScoredTraderResponse])
-async def get_copy_leaderboard(limit: int = 100, _: None = Depends(require_admin)):
+async def get_copy_leaderboard(limit: int = 100):
     """Return top traders from Polymarket Data API leaderboard."""
     limit = min(limit, 500)
     import httpx
@@ -145,7 +145,7 @@ async def get_copy_leaderboard(limit: int = 100, _: None = Depends(require_admin
 
 
 @router.get("/signals", response_model=List[CopySignalResponse])
-async def get_copy_signals(limit: int = 20, _: None = Depends(require_admin)):
+async def get_copy_signals(limit: int = 20):
     """Return recent copy trade signals from the DB."""
     limit = min(limit, 500)
     from backend.db.utils import get_db_session
@@ -180,7 +180,7 @@ async def get_copy_signals(limit: int = 20, _: None = Depends(require_admin)):
 
 @router.get("/positions")
 async def get_copy_trader_positions(
-    db: Session = Depends(get_db), _: None = Depends(require_admin)
+    db: Session = Depends(get_db),
 ):
     """Return recent copy trader position entries from DB."""
     entries = (
@@ -203,7 +203,7 @@ async def get_copy_trader_positions(
 
 @router.get("/status")
 async def get_copy_trader_status(
-    db: Session = Depends(get_db), _: None = Depends(require_admin)
+    db: Session = Depends(get_db),
 ):
     """Return copy trader status including tracked wallets and recent signals."""
     try:

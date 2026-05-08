@@ -16,7 +16,7 @@ _arb_cache: Dict = {"timestamp": 0.0, "data": []}
 
 
 @router.get("/opportunities")
-async def get_arbitrage_opportunities(_: None = Depends(require_admin)):
+async def get_arbitrage_opportunities():
     """Live arbitrage scan over recent Polymarket Gamma markets, cached 60s."""
     now = _time.time()
     if now - _arb_cache["timestamp"] < 60 and _arb_cache["data"]:

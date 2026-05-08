@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { API_BASE } from '../api'
+import { getCsrfToken } from '../utils/auth'
 
 export type SSEEvent = {
   event_type: 'trade_executed' | 'settlement_completed' | 'strategy_health_killed'
@@ -49,6 +50,8 @@ export function useSSEEvents(options: UseSSEEventsOptions = {}): UseSSEEventsRes
       
       const params = new URLSearchParams();
       if (channels?.length) params.set('channels', channels.join(','));
+      const csrfToken = getCsrfToken()
+      if (csrfToken) params.set('token', csrfToken);
       
       const qs = params.toString();
       const url = `${API_BASE}/api/events/stream${qs ? '?' + qs : ''}`;

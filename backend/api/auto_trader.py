@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auto-trader", tags=["auto_trader"])
 
 
 @router.get("/pending")
-async def list_pending_approvals(_admin=Depends(require_admin)):
+async def list_pending_approvals():
     """List all pending trade approvals."""
     from backend.db.utils import get_db_session
     with get_db_session() as db:

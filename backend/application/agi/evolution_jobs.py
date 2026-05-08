@@ -13,7 +13,10 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 from backend.db.utils import get_db_session as _get_db_session
 from backend.core.event_bus import publish_event
+import json
+
 from backend.domain.evolution.fitness import calculate_fitness
+from backend.domain.genome.models import FitnessMetrics
 from backend.domain.evolution.mutation_engine import mutate_genome
 from backend.domain.evolution.crossover_engine import crossover_genomes
 from backend.application.agi.necromancer import run_necromancy_analysis
@@ -58,8 +61,9 @@ def fitness_evaluation_job() -> None:
 
         for genome in genomes:
             try:
-                # Calculate fitness
-                fitness_score = calculate_fitness(genome.fitness_metrics)
+                raw = json.loads(genome.fitness_json) if genome.fitness_json else {}
+                metrics = FitnessMetrics(**{k: v for k, v in raw.items() if k in FitnessMetrics.model_fields})
+                fitness_score = calculate_fitness(metrics)
 
                 genome.fitness_score = fitness_score
                 genome.fitness_updated_at = datetime.now(timezone.utc)

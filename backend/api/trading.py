@@ -68,6 +68,7 @@ class SignalResponse(BaseModel):
 class TradeResponse(BaseModel):
     id: int
     market_ticker: str
+    market_question: Optional[str] = None
     platform: str
     event_slug: Optional[str] = None
     direction: str
@@ -222,7 +223,6 @@ async def get_signals_history(
     market_type: Optional[str] = None,
     direction: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin),
 ):
     """Return historical signals from the database with outcome data."""
     query = db.query(Signal)
@@ -260,7 +260,7 @@ async def get_signals_history(
 
 @router.get("/signals/actionable", response_model=List[SignalResponse])
 @handle_errors(default_response=[])
-async def get_actionable_signals(_: str = Depends(require_admin)):
+async def get_actionable_signals():
     """Get only signals that pass the edge threshold."""
     signals = await scan_for_signals()
     actionable = [s for s in signals if s.passes_threshold]
@@ -277,7 +277,6 @@ async def get_trades(
     limit: int = 50,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin),
 ):
     limit = min(limit, 500)
     query = db.query(Trade)
@@ -327,7 +326,7 @@ async def get_trades(
 
 @router.get("/equity-curve")
 async def get_equity_curve(
-    db: Session = Depends(get_db), _: str = Depends(require_admin)
+    db: Session = Depends(get_db),
 ):
     trades = (
         db.query(Trade).filter(Trade.settled.is_(True)).order_by(Trade.timestamp).all()
@@ -434,7 +433,7 @@ async def settle_trades_endpoint(
 
 @router.get("/calibration")
 async def get_calibration(
-    db: Session = Depends(get_db), _: str = Depends(require_admin)
+    db: Session = Depends(get_db),
 ):
     """Return calibration data: predicted probability vs actual win rate."""
     signals = db.query(Signal).filter(Signal.outcome_correct.isnot(None)).all()
@@ -484,7 +483,6 @@ async def get_settlements(
     limit: int = 100,
     offset: int = 0,
     db: Session = Depends(get_db),
-    _: str = Depends(require_admin),
 ):
     events = (
         db.query(SettlementEvent)

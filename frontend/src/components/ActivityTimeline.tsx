@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useActivity } from '../hooks/useActivity'
+import { useModeFilter } from '../hooks/useModeFilter'
 
 export function ActivityTimeline() {
   const { activities, isConnected, error } = useActivity()
+  const { selectedMode } = useModeFilter()
   const [strategyFilter, setStrategyFilter] = useState<string>('all')
   const [decisionFilter, setDecisionFilter] = useState<string>('all')
   const [displayCount, setDisplayCount] = useState(20)
@@ -14,11 +16,12 @@ export function ActivityTimeline() {
 
   const filteredActivities = useMemo(() => {
     return activities.filter(activity => {
+      if (selectedMode !== 'all' && activity.trading_mode !== selectedMode) return false
       if (strategyFilter !== 'all' && activity.strategy_name !== strategyFilter) return false
       if (decisionFilter !== 'all' && activity.decision_type !== decisionFilter) return false
       return true
     })
-  }, [activities, strategyFilter, decisionFilter])
+  }, [activities, selectedMode, strategyFilter, decisionFilter])
 
   const displayedActivities = filteredActivities.slice(0, displayCount)
   const hasMore = displayCount < filteredActivities.length

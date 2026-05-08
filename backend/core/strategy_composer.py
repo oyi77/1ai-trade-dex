@@ -160,6 +160,10 @@ class StrategyComposer:
         if not validation:
             raise ValueError(f"Cannot register invalid composition: {validation.errors}")
 
+        existing = self._session.query(ExperimentRecord).filter_by(name=composed.name).first()
+        if existing:
+            return existing.name
+
         experiment = ExperimentRecord(
             name=composed.name,
             strategy_composition=composed.to_dict(),

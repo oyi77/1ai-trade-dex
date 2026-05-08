@@ -102,9 +102,65 @@ export function useBrainGraph(): UseBrainGraphResult {
         status: restData.mirofish_enabled ? 'active' : 'idle',
       }
 
+      const allNodes = [mirofishNode, ...nodes]
+      const edges: BrainEdge[] = []
+
+      const signals = allNodes.filter((n) => n.type === 'signal')
+      const ais = allNodes.filter((n) => n.type === 'ai')
+      const analyses = allNodes.filter((n) => n.type === 'analysis')
+      const executions = allNodes.filter((n) => n.type === 'execution')
+
+      signals.forEach((s) => {
+        ais.forEach((a) => {
+          edges.push({
+            id: `e-${s.id}-${a.id}`,
+            source: s.id,
+            target: a.id,
+            animated: s.status === 'active',
+            label: 'signal',
+          })
+        })
+      })
+
+      ais.forEach((a) => {
+        analyses.forEach((an) => {
+          edges.push({
+            id: `e-${a.id}-${an.id}`,
+            source: a.id,
+            target: an.id,
+            animated: a.status === 'active',
+            label: 'analyze',
+          })
+        })
+      })
+
+      analyses.forEach((an) => {
+        executions.forEach((e) => {
+          edges.push({
+            id: `e-${an.id}-${e.id}`,
+            source: an.id,
+            target: e.id,
+            animated: an.status === 'active',
+            label: 'execute',
+          })
+        })
+      })
+
+      ais.forEach((a) => {
+        if (a.id !== 'mirofish') {
+          edges.push({
+            id: `e-mirofish-${a.id}`,
+            source: 'mirofish',
+            target: a.id,
+            animated: mirofishNode.status === 'active',
+            label: 'validate',
+          })
+        }
+      })
+
       setGraphData({
-        nodes: [mirofishNode, ...nodes],
-        edges: [],
+        nodes: allNodes,
+        edges,
         timestamp: new Date().toISOString(),
       })
       setLoading(false)

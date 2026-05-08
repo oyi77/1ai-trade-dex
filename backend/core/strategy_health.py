@@ -28,7 +28,7 @@ class StrategyHealthMonitor:
     KILL_SHARPE = -2.0
     KILL_DRAWDOWN = 0.50
 
-    def assess(self, strategy: str, db: Session, readonly: bool = False) -> Dict[str, Any]:
+    def assess(self, strategy: str, db: Session, readonly: bool = False, trading_mode: str = "live") -> Dict[str, Any]:
         """
         Compute full health metrics for a strategy.
 
@@ -36,6 +36,8 @@ class StrategyHealthMonitor:
             strategy: Strategy name to assess.
             db: Database session.
             readonly: If True, compute metrics only — do NOT disable strategies or persist records.
+            trading_mode: Filter outcomes to this mode ("live", "paper"). Defaults to "live"
+                          to avoid mixing paper and live trades in health metrics.
 
         Returns dict: total_trades, wins, losses, win_rate, sharpe, max_drawdown,
                       brier_score, psi_score, status
@@ -45,13 +47,13 @@ class StrategyHealthMonitor:
 
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .order_by(StrategyOutcome.settled_at.asc())
             .all()
         )
 
         if not outcomes:
-            outcomes = self._outcomes_from_trades(strategy, db)
+            outcomes = self._outcomes_from_trades(strategy, db, trading_mode=trading_mode)
 
         total = len(outcomes)
         wins = sum(1 for o in outcomes if o.result == "win")
@@ -60,7 +62,7 @@ class StrategyHealthMonitor:
 
         sharpe = self._sharpe_from_outcomes(outcomes)
         max_dd = self._max_drawdown_from_outcomes(outcomes)
-        psi = self.compute_psi(strategy, db)
+        psi = self.compute_psi(strategy, db, trading_mode=trading_mode)
         brier = self._brier_from_outcomes(outcomes)
 
         # Determine status
@@ -124,13 +126,12 @@ class StrategyHealthMonitor:
 
         return health
 
-    def should_kill(self, strategy: str, db: Session) -> bool:
-        """True if strategy meets kill criteria (after warm-up)."""
+    def should_kill(self, strategy: str, db: Session, trading_mode: str = "live") -> bool:
         if strategy == "unknown":
             return False
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .all()
         )
         total = len(outcomes)
@@ -142,11 +143,10 @@ class StrategyHealthMonitor:
         max_dd = self._max_drawdown_from_outcomes(outcomes)
         return self._should_kill_metrics(total, win_rate, sharpe, max_dd)
 
-    def should_warn(self, strategy: str, db: Session) -> bool:
-        """True if strategy shows warning signs."""
+    def should_warn(self, strategy: str, db: Session, trading_mode: str = "live") -> bool:
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .all()
         )
         if not outcomes:
@@ -155,17 +155,13 @@ class StrategyHealthMonitor:
         wins = sum(1 for o in outcomes if o.result == "win")
         win_rate = wins / total if total > 0 else 0.0
         brier = self._brier_from_outcomes(outcomes)
-        psi = self.compute_psi(strategy, db)
+        psi = self.compute_psi(strategy, db, trading_mode=trading_mode)
         return self._should_warn_metrics(win_rate, brier, psi)
 
-    def compute_psi(self, strategy: str, db: Session) -> float:
-        """
-        Population Stability Index comparing last 30 vs previous 30 outcomes.
-        Uses win/loss as 2 bins. Returns 0.0 if insufficient data.
-        """
+    def compute_psi(self, strategy: str, db: Session, trading_mode: str = "live") -> float:
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .order_by(StrategyOutcome.settled_at.desc())
             .limit(60)
             .all()
@@ -194,22 +190,20 @@ class StrategyHealthMonitor:
               (r_loss - p_loss) * math.log(r_loss / p_loss)
         return abs(psi)
 
-    def compute_sharpe(self, strategy: str, db: Session) -> float:
-        """Sharpe ratio from recent trade PnLs. Returns 0.0 if insufficient data."""
+    def compute_sharpe(self, strategy: str, db: Session, trading_mode: str = "live") -> float:
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .order_by(StrategyOutcome.settled_at.desc())
             .limit(100)
             .all()
         )
         return self._sharpe_from_outcomes(outcomes)
 
-    def compute_max_drawdown(self, strategy: str, db: Session) -> float:
-        """Peak-to-trough from cumulative PnL. Returns 0.0 if no data."""
+    def compute_max_drawdown(self, strategy: str, db: Session, trading_mode: str = "live") -> float:
         outcomes = (
             db.query(StrategyOutcome)
-            .filter(StrategyOutcome.strategy == strategy)
+            .filter(StrategyOutcome.strategy == strategy, StrategyOutcome.trading_mode == trading_mode)
             .order_by(StrategyOutcome.settled_at.asc())
             .all()
         )
@@ -250,9 +244,10 @@ class StrategyHealthMonitor:
             equity += p
             if equity > peak:
                 peak = equity
-            dd = (peak - equity) / max(abs(peak), 1e-9)
-            if dd > max_dd:
-                max_dd = dd
+            if peak > 0:
+                dd = (peak - equity) / peak
+                if dd > max_dd:
+                    max_dd = dd
         return max_dd
 
     def _brier_from_outcomes(self, outcomes) -> float:
@@ -400,11 +395,11 @@ class StrategyHealthMonitor:
             "status": status,
         }
 
-    def _outcomes_from_trades(self, strategy: str, db: Session) -> list:
+    def _outcomes_from_trades(self, strategy: str, db: Session, trading_mode: str = "live") -> list:
         from backend.models.database import Trade
         return (
             db.query(Trade)
-            .filter(Trade.strategy == strategy, Trade.settled == 1, Trade.result.in_(["win", "loss"]))
+            .filter(Trade.strategy == strategy, Trade.settled == 1, Trade.trading_mode == trading_mode, Trade.result.in_(["win", "loss"]))
             .order_by(Trade.settlement_time.asc())
             .all()
         )

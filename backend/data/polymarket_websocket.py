@@ -275,7 +275,7 @@ class PolymarketWebSocket:
         try:
             while self._running:
                 await asyncio.sleep(self.config.heartbeat_interval)
-                if self.ws and not self.ws.closed:
+                if self.ws and self.ws.state == websockets.protocol.State.OPEN:
                     await self.ws.send("PING")
                     logger.debug("Sent PING")
         except asyncio.CancelledError:

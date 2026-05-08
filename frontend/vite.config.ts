@@ -40,11 +40,8 @@ export default defineConfig({
             if (id.includes('mapbox-gl') || id.includes('react-map-gl') || id.includes('react-simple-maps') || id.includes('leaflet') || id.includes('react-leaflet') || id.includes('d3-geo')) {
               return 'vendor-maps'
             }
-            if (id.includes('three') && !id.includes('three-globe')) {
+            if (id.includes('three') || id.includes('react-globe.gl') || id.includes('globe.gl')) {
               return 'vendor-three'
-            }
-            if (id.includes('react-globe.gl') || id.includes('three-globe') || id.includes('globe.gl')) {
-              return 'vendor-globe'
             }
           }
         },

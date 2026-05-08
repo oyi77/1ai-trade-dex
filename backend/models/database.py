@@ -47,8 +47,9 @@ if _is_postgres:
 else:
     # SQLite uses smaller default pool
     _engine_kwargs.update({
-        "pool_size": 5,
-        "max_overflow": 10,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_timeout": 60,
         "connect_args": {"check_same_thread": False},
     })
 

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 interface Trade {
   id: string | number
   market_ticker: string
+  market_question?: string
   direction: string
   entry_price: number
   exit_price?: number | null
@@ -72,8 +73,11 @@ export function WinningTradesPreview({
                 transition={{ delay: idx * 0.05 }}
                 className="border-b border-neutral-800/40 hover:bg-neutral-900/30 transition-colors"
               >
-                <td className="px-3 py-2 text-neutral-400 truncate max-w-[120px]" title={trade.market_ticker}>
-                  {trade.market_ticker.length > 20 ? `${trade.market_ticker.slice(0, 18)}...` : trade.market_ticker}
+                <td className="px-3 py-2 text-neutral-400 truncate max-w-[200px]" title={trade.market_question || trade.market_ticker}>
+                  {(() => {
+                    const display = trade.market_question || trade.market_ticker
+                    return display.length > 30 ? `${display.slice(0, 28)}...` : display
+                  })()}
                 </td>
                 <td className="px-3 py-2">
                   <span className={`font-bold ${trade.direction === 'up' ? 'text-green-400' : 'text-red-400'}`}>

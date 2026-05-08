@@ -125,3 +125,5 @@ docs/paper/**/*.out
 docs/paper/**/*.toc
 /paper.aux
 /paper.out
+tradingbot.db.pre_rebuild_*
+tradingdb

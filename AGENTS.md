@@ -1,4 +1,4 @@
-<!-- Generated: 2026-04-10 | Updated: 2026-05-07 -->
+<!-- Generated: 2026-04-10 | Updated: 2026-05-08 -->
 
 # polyedge
 
@@ -51,7 +51,7 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 - Environment variables are documented in `.env.example`; always keep that in sync
 - Production deploys to Railway (backend) + Vercel (frontend) — check `railway.json` and `vercel.json`
 - Docusaurus docs deploy inside the Vercel frontend under `/docs/`; document URLs are emitted as `.html` files and Vercel rewrites extensionless `/docs/*` routes to those files before the Vite catch-all so docs pages do not render the dashboard shell.
-- PM2 manages multiple processes in production: API server, queue worker, and scheduler
+- PM2 manages three processes in production: `polyedge-api` (FastAPI server), `polyedge-bot` (background worker + scheduler), `polyedge-frontend` (Vite dev server) — process names are `polyedge-*`, not just `polyedge`
 - Live `BotState.bankroll`/`total_pnl` are derived caches from CLOB USDC cash + Polymarket Data API open-position value; do not recompute live equity from local ledger/backfill P&L (see `docs/architecture/adr-002-live-equity-source.md`)
 - Paper/testnet PnL may be negative, but available simulated bankroll/balance must never be negative; settlement, reconciliation, and stats/dashboard output floor depleted simulated bankroll at `$0.00` while preserving learning trades and PnL history.
 - Trade execution observability uses the `TradeAttempt` ledger and dashboard Control Room; do not replace it with log scraping or mutate historical `Trade` rows to explain rejected attempts (see `docs/architecture/adr-003-trade-attempt-observability.md`)
@@ -71,6 +71,8 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 - All sensitive operations guarded by circuit breakers and risk limits
 - Redis optional — falls back to SQLite queue when unavailable
 - `backend/modules/` is for infrastructure modules (data feeds, execution helpers, arbitrage, scanners) — NOT alpha strategies. Alpha strategies go in `backend/strategies/`.
+- **Strategy Governance**: AGI health check (`AGI_HEALTH_CHECK_ENABLED`, every 15 min via `AGI_HEALTH_CHECK_INTERVAL_MINUTES`) auto-kills strategies with <30% win rate after sufficient trades. Killed strategies are disabled in `StrategyConfig` and should NOT be manually re-enabled. Current active strategies: `agi_orchestrator`, `copy_trader`, `universal_scanner`, `weather_emos`, `whale_frontrun`, `whale_pnl_tracker`. Disabled: `btc_oracle` (killed, 27.3% WR), `general_scanner` (warned, 10% WR), `btc_momentum` (deprecated), `realtime_scanner`, `probability_arb`.
+- **Trade Attribution**: `auto_trader` (`backend/core/auto_trader.py`) is an execution router, NOT a strategy. It routes pending signals through risk validation. Trade attribution uses `Signal.track_name` to preserve the originating strategy name. Historical trades attributed to "auto_trader" actually came from various signal sources routed through the auto-execute path.
 
 ## Dependencies
 

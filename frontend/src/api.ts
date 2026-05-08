@@ -87,7 +87,7 @@ export async function fetchBtcWindows(): Promise<BtcWindow[]> {
 }
 
 export async function fetchTrades(): Promise<Trade[]> {
-  const { data } = await adminApi.get<Trade[]>('/trades', { params: { limit: 10000 } })
+  const { data } = await api.get<Trade[]>('/trades', { params: { limit: 10000 } })
   return data
 }
 
@@ -363,7 +363,7 @@ export async function fetchCopyTraderStatus(): Promise<{
   status: string
   errors: Array<{ source: string; message: string }>
 }> {
-  const { data } = await adminApi.get('/copy/status')
+  const { data } = await api.get('/copy/status')
   return data
 }
 
@@ -376,7 +376,7 @@ export interface CopyTraderPosition {
 }
 
 export async function fetchCopyTraderPositions(): Promise<CopyTraderPosition[]> {
-  const { data } = await adminApi.get<CopyTraderPosition[]>('/copy/positions')
+  const { data } = await api.get<CopyTraderPosition[]>('/copy/positions')
   return data
 }
 
@@ -410,7 +410,7 @@ export interface ScoredTrader {
 }
 
 export async function fetchCopyLeaderboard(): Promise<ScoredTrader[]> {
-  const { data } = await adminApi.get<ScoredTrader[]>('/copy/leaderboard', { params: { limit: 100 } })
+  const { data } = await api.get<ScoredTrader[]>('/copy/leaderboard', { params: { limit: 100 } })
   return data
 }
 
@@ -427,7 +427,7 @@ export interface WalletConfigRow {
 }
 
 export async function fetchWalletConfigs(params?: Record<string, string | number | boolean>): Promise<{ items: WalletConfigRow[]; total: number }> {
-  const { data } = await adminApi.get('/wallets/config', { params })
+  const { data } = await api.get('/wallets/config', { params })
   return data
 }
 
@@ -461,7 +461,7 @@ export interface ActiveWallet {
 }
 
 export async function getActiveWallet(): Promise<ActiveWallet> {
-  const { data } = await adminApi.get<ActiveWallet>('/wallets/active')
+  const { data } = await api.get<ActiveWallet>('/wallets/active')
   return data
 }
 
@@ -479,7 +479,7 @@ export interface WalletBalance {
 }
 
 export async function getWalletBalance(address: string, forceRefresh = false): Promise<WalletBalance> {
-  const { data } = await adminApi.get<WalletBalance>(`/wallets/${address}/balance`, {
+  const { data } = await api.get<WalletBalance>(`/wallets/${address}/balance`, {
     params: { force_refresh: forceRefresh }
   })
   return data
@@ -508,7 +508,7 @@ export interface StrategyConfig {
 }
 
 export async function fetchStrategies(): Promise<StrategyConfig[]> {
-  const { data } = await adminApi.get('/strategies')
+  const { data } = await api.get('/strategies')
   return data
 }
 
@@ -534,7 +534,7 @@ export interface MarketWatchRow {
 }
 
 export async function fetchMarketWatches(params?: Record<string, string | number | boolean>): Promise<{ items: MarketWatchRow[]; total: number }> {
-  const { data } = await adminApi.get('/markets/watch', { params })
+  const { data } = await api.get('/markets/watch', { params })
   return data
 }
 
@@ -616,7 +616,7 @@ export async function fetchAISuggest(): Promise<{
   ai_provider: string
   raw_response?: string
 }> {
-  const { data } = await adminApi.get('/admin/ai/suggest')
+  const { data } = await api.get('/admin/ai/suggest')
   return data
 }
 
@@ -636,7 +636,7 @@ export interface PendingApproval {
 }
 
 export async function fetchPendingApprovals(): Promise<PendingApproval[]> {
-  const { data } = await adminApi.get<PendingApproval[]>('/auto-trader/pending')
+  const { data } = await api.get<PendingApproval[]>('/auto-trader/pending')
   return data
 }
 

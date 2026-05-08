@@ -427,22 +427,34 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     )
                     continue
 
+                _still_open = False
                 try:
-                    is_resolved_retry, sv_retry = await fetch_resolution_for_trade(trade)
-                    if is_resolved_retry and sv_retry is not None:
-                        pnl_retry = calculate_pnl(trade, sv_retry)
-                        if await process_settled_trade(
-                            trade, True, sv_retry, pnl_retry, db
-                        ):
-                            logger.info(
-                                f"Trade {trade.id} rescued from expiry via retry: pnl=${pnl_retry:+.2f}"
+                    import httpx
+                    _wallet = settings.POLYMARKET_BUILDER_ADDRESS
+                    if _wallet:
+                        async with httpx.AsyncClient(timeout=8.0) as _client:
+                            _resp = await _client.get(
+                                f"{settings.DATA_API_URL}/positions",
+                                params={"user": _wallet},
                             )
-                            settled_trades.append(trade)
-                            continue
-                except Exception as e:
-                    logger.debug(
-                        f"Last-chance resolution retry failed for trade {trade.id}: {e}"
-                    )
+                        if _resp.status_code == 200:
+                            _positions = _resp.json()
+                            _ticker = trade.market_ticker or ""
+                            for _pos in _positions:
+                                _asset = _pos.get("asset", "")
+                                _slug = _pos.get("slug", "")
+                                if _ticker in (_asset, _slug) or _asset in _ticker or _slug in _ticker:
+                                    if not _pos.get("redeemable", False):
+                                        _still_open = True
+                                        logger.info(
+                                            f"Trade {trade.id}: stale but still open on-chain "
+                                            f"({(_pos.get('title','') or '')[:40]}), deferring"
+                                        )
+                                        break
+                except Exception:
+                    pass
+                if _still_open:
+                    continue
 
                 trade.settled = True
                 trade.result = "expired_unresolved"

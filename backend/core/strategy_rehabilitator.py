@@ -72,6 +72,7 @@ class StrategyRehabilitator:
             .filter(
                 Trade.strategy == cfg.strategy_name,
                 Trade.settled.is_(True),
+                Trade.trading_mode == "live",
             )
             .order_by(Trade.timestamp.desc())
             .first()
@@ -108,6 +109,7 @@ class StrategyRehabilitator:
                 Trade.strategy == cfg.strategy_name,
                 Trade.settled.is_(True),
                 Trade.result.in_(["win", "loss"]),
+                Trade.trading_mode == "live",
             )
             .order_by(Trade.timestamp.desc())
             .limit(self.REHAB_PAPER_TRADES * 3)

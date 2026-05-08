@@ -68,6 +68,7 @@ export interface Signal {
 export interface Trade {
   id: number
   market_ticker: string
+  market_question?: string
   platform: string
   event_slug?: string | null
   direction: string

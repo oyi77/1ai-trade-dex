@@ -308,8 +308,18 @@ async def get_brain_status(db: Session = Depends(get_db)):
     mirofish_setting = db.query(SystemSettings).filter(SystemSettings.key == "mirofish_enabled").first()
     mirofish_enabled = str(mirofish_setting.value).lower() in ("true", "1", "yes") if mirofish_setting else False
 
+    pipeline_nodes = [
+        {"id": "bull_agent", "name": "bull_agent", "label": "Bull Agent", "type": "ai", "enabled": True},
+        {"id": "bear_agent", "name": "bear_agent", "label": "Bear Agent", "type": "ai", "enabled": True},
+        {"id": "judge_agent", "name": "judge_agent", "label": "Judge Agent", "type": "ai", "enabled": True},
+        {"id": "risk_manager", "name": "risk_manager", "label": "Risk Manager", "type": "analysis", "enabled": True},
+        {"id": "trade_analyzer", "name": "trade_analyzer", "label": "Trade Analyzer", "type": "analysis", "enabled": True},
+        {"id": "trade_executor", "name": "trade_executor", "label": "Trade Executor", "type": "execution", "enabled": True},
+        {"id": "proposal_gen", "name": "proposal_gen", "label": "Proposal Gen", "type": "analysis", "enabled": True},
+    ]
+
     return {
-        "strategies": strategies,
+        "strategies": strategies + pipeline_nodes,
         "mirofish_enabled": mirofish_enabled,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -318,7 +328,6 @@ async def get_brain_status(db: Session = Depends(get_db)):
 @router.get("/graph", response_model=BrainGraphResponse)
 async def get_brain_graph(
     db: Session = Depends(get_db),
-    _: None = Depends(require_admin)
 ):
     """Get the brain graph structure with nodes and edges.
 
@@ -344,7 +353,6 @@ async def get_brain_graph(
 async def get_debate_transcript(
     decision_id: int,
     db: Session = Depends(get_db),
-    _: None = Depends(require_admin)
 ):
     """Get the full debate transcript for a decision.
 
@@ -392,7 +400,6 @@ async def get_debate_transcript(
 async def get_learning_feedback(
     limit: int = 20,
     db: Session = Depends(get_db),
-    _: None = Depends(require_admin)
 ):
     """Get recent learning feedback proposals.
 

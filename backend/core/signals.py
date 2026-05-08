@@ -390,6 +390,7 @@ def _persist_signals(signals: list, mode: str = "paper"):
                     suggested_size=signal.suggested_size,
                     sources=signal.sources,
                     reasoning=signal.reasoning,
+                    track_name="btc_oracle",
                     execution_mode=execution_mode,
                     executed=False,
                 )

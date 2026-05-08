@@ -26,6 +26,111 @@ from backend.models.database import BotState, Trade, TradeContext, get_db, for_u
 
 logger = logging.getLogger("trading_bot")
 
+# ── Market question cache (market_ticker → question) ──────────────────────
+_market_question_cache: dict[str, str] = {}
+_market_question_cache_built = False
+
+
+def _build_market_question_cache(db: Session) -> None:
+    global _market_question_cache_built
+    if _market_question_cache_built:
+        return
+
+    try:
+        from backend.models.database import MarketWatch
+        rows = db.query(MarketWatch).all()
+        for row in rows:
+            if row.ticker and row.ticker not in _market_question_cache:
+                _market_question_cache[row.ticker] = row.ticker
+    except Exception:
+        pass
+
+    _market_question_cache_built = True
+
+
+async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str, str]:
+    _build_market_question_cache(db)
+
+    result: dict[str, str] = {}
+    unresolved: list[str] = []
+
+    for ticker in tickers:
+        if ticker in _market_question_cache:
+            result[ticker] = _market_question_cache[ticker]
+        else:
+            unresolved.append(ticker)
+
+    if not unresolved:
+        return result
+
+    # First pass: decode slug-based tickers locally (e.g. "bun-dor-ein-2026-05-08-dor")
+    still_unresolved: list[str] = []
+    for ticker in unresolved:
+        if ticker and not ticker.isdigit() and '-' in ticker:
+            decoded = ticker.replace('-', ' ').title()
+            _market_question_cache[ticker] = decoded
+            result[ticker] = decoded
+        else:
+            still_unresolved.append(ticker)
+
+    if not still_unresolved:
+        return result
+
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            numeric_ids = [t for t in still_unresolved if t.isdigit()]
+            if numeric_ids:
+                for ticker in numeric_ids[:10]:
+                    try:
+                        resp = await client.get(f"https://gamma-api.polymarket.com/markets/{ticker}")
+                        if resp.status_code == 200:
+                            m = resp.json()
+                            q = m.get("question", "")
+                            if q:
+                                _market_question_cache[ticker] = q
+                                result[ticker] = q
+                                continue
+                    except Exception:
+                        pass
+                    result[ticker] = ticker
+            else:
+                for ticker in still_unresolved:
+                    result[ticker] = ticker
+    except Exception:
+        for ticker in still_unresolved:
+            result[ticker] = ticker
+
+    return result
+
+    # Batch-resolve from Gamma API
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            for ticker in unresolved:
+                try:
+                    resp = await client.get(
+                        f"https://gamma-api.polymarket.com/markets",
+                        params={"condition_id": ticker, "limit": 1},
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if data and isinstance(data, list) and len(data) > 0:
+                            question = data[0].get("question", "")
+                            if question:
+                                _market_question_cache[ticker] = question
+                                result[ticker] = question
+                                continue
+                except Exception:
+                    pass
+                # Fallback: use event_slug or ticker
+                result[ticker] = ticker
+    except Exception:
+        for ticker in unresolved:
+            result[ticker] = ticker
+
+    return result
+
 router = APIRouter(tags=["dashboard"])
 
 class BtcPriceResponse(BaseModel):
@@ -119,11 +224,12 @@ class DashboardData(BaseModel):
     weather_forecasts: List[WeatherForecastResponse] = []
     trading_mode: str = "paper"
 
-def _serialize_trade_response(trade: Trade, contexts: dict[int, TradeContext]) -> TradeResponse:
+def _serialize_trade_response(trade: Trade, contexts: dict[int, TradeContext], market_questions: dict[str, str] | None = None) -> TradeResponse:
     context = contexts.get(trade.id)
     return TradeResponse(
         id=trade.id,
         market_ticker=trade.market_ticker,
+        market_question=(market_questions or {}).get(trade.market_ticker) or trade.event_slug,
         platform=trade.platform,
         event_slug=trade.event_slug,
         direction=trade.direction,
@@ -333,10 +439,12 @@ async def get_dashboard(
             exc_info=True
         )
 
-    # Recent trades (with TradeContext enrichment)
+    # Recent trades (with TradeContext enrichment + market questions)
     trades = db.query(Trade).order_by(Trade.timestamp.desc()).limit(50).all()
     contexts = _load_trade_contexts(db, trades)
-    recent_trades = [_serialize_trade_response(t, contexts) for t in trades]
+    trade_tickers = list({t.market_ticker for t in trades if t.market_ticker})
+    market_questions = await _resolve_market_questions(trade_tickers, db)
+    recent_trades = [_serialize_trade_response(t, contexts, market_questions) for t in trades]
 
     top_winning_trade_rows = (
         db.query(Trade)
@@ -351,7 +459,7 @@ async def get_dashboard(
     )
     top_winning_contexts = _load_trade_contexts(db, top_winning_trade_rows)
     top_winning_trades = [
-        _serialize_trade_response(t, top_winning_contexts) for t in top_winning_trade_rows
+        _serialize_trade_response(t, top_winning_contexts, market_questions) for t in top_winning_trade_rows
     ]
 
     # Equity curve: match the default dashboard/account view.

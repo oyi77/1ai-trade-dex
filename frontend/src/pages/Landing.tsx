@@ -15,7 +15,6 @@ type Translation = {
     headline: string
     body: string
     support: string
-    ctaConfig: string
   }
   proofMetrics: { label: string; value: string; detail: string }[]
   dossier: { label: string; live: string; claimLabel: string; claim: string }
@@ -65,7 +64,6 @@ const translations: Record<LandingLanguage, Translation> = {
       headline: 'PolyEdge evolves.',
       body: 'Not a trading bot. An AGI Trading System that creates strategies, debates trades, sizes capital, executes under deterministic risk gates, diagnoses losses, and evolves the next generation.',
       support: 'Built for prediction-market allocators who need proof, governance, and audit trails before capital touches Polymarket or Kalshi.',
-      ctaConfig: 'CTA configured through VITE_LANDING_* environment variables.',
     },
     proofMetrics: [
       { label: 'Strategies', value: '14+', detail: 'registered strategy surface plus AGI Orchestrator' },
@@ -116,7 +114,6 @@ const translations: Record<LandingLanguage, Translation> = {
       headline: 'PolyEdge berevolusi.',
       body: 'Bukan bot trading. PolyEdge adalah Sistem Trading AGI yang menciptakan strategi, mendebat trade, mengukur modal, mengeksekusi di bawah gerbang risiko deterministik, mendiagnosis kerugian, dan mengembangkan generasi berikutnya.',
       support: 'Dibangun untuk allocator pasar prediksi yang membutuhkan bukti, tata kelola, dan jejak audit sebelum modal menyentuh Polymarket atau Kalshi.',
-      ctaConfig: 'CTA dikonfigurasi melalui variabel lingkungan VITE_LANDING_*.',
     },
     proofMetrics: [
       { label: 'Strategi', value: '14+', detail: 'permukaan strategi terdaftar plus AGI Orchestrator' },
@@ -161,7 +158,7 @@ const translations: Record<LandingLanguage, Translation> = {
     nav: { dashboard: 'Панель', docs: 'Документы', research: 'Исследование' },
     brandSubtitle: 'Мемо аллокации',
     tickerItems: ['LIVE', 'AGI TRADING SYSTEM', 'DOI 10.5281/ZENODO.16966978', '14+ СТРАТЕГИЙ', '25 АВТОНОМНЫХ ЭКСПЕРИМЕНТОВ', '162 СДЕЛКИ ОТСЛЕЖЕНЫ', 'PAPER · TESTNET · LIVE', 'ON-CHAIN / DASHBOARD AUDIT'],
-    hero: { badges: ['AGI Trading System', 'Инвесторское досье', 'Paper · панель · риск-гейты'], eyebrow: 'Статичные боты умирают при смене режима', headline: 'PolyEdge эволюционирует.', body: 'Не торговый бот. Это AGI Trading System, которая создает стратегии, проводит дебаты по сделкам, распределяет капитал, исполняет только через детерминированные риск-гейты, диагностирует убытки и развивает следующее поколение.', support: 'Для аллокаторов рынков предсказаний, которым нужны доказательства, управление и аудит до того, как капитал попадет в Polymarket или Kalshi.', ctaConfig: 'CTA настраивается через переменные окружения VITE_LANDING_*.' },
+    hero: { badges: ['AGI Trading System', 'Инвесторское досье', 'Paper · панель · риск-гейты'], eyebrow: 'Статичные боты умирают при смене режима', headline: 'PolyEdge эволюционирует.', body: 'Не торговый бот. Это AGI Trading System, которая создает стратегии, проводит дебаты по сделкам, распределяет капитал, исполняет только через детерминированные риск-гейты, диагностирует убытки и развивает следующее поколение.', support: 'Для аллокаторов рынков предсказаний, которым нужны доказательства, управление и аудит до того, как капитал попадет в Polymarket или Kalshi.' },
     proofMetrics: [{ label: 'Стратегии', value: '14+', detail: 'зарегистрированные стратегии плюс AGI Orchestrator' }, { label: 'Эксперименты', value: '25', detail: 'автономные кандидаты под управлением' }, { label: 'Сделки', value: '162', detail: 'отслежены через решения, попытки ордера и расчеты' }, { label: 'Paper', value: '33с', detail: 'исследовательская работа с 15 источниками и приложением' }],
     dossier: { label: 'Доказательства досье', live: 'Live-тезис', claimLabel: 'Главный тезис', claim: 'Управляемая автономия: поэтапная, измеряемая, обсуждаемая и аудируемая до масштабирования капитала.' },
     sectionLabels: { problem: 'Проблема', breakthrough: 'Прорыв', mechanism: 'Механизм', proof: 'Доказательства', allocation: 'Аллокация' },
@@ -180,7 +177,7 @@ const translations: Record<LandingLanguage, Translation> = {
     nav: { dashboard: '仪表盘', docs: '文档', research: '研究' },
     brandSubtitle: '配置备忘录',
     tickerItems: ['LIVE', 'AGI 交易系统', 'DOI 10.5281/ZENODO.16966978', '14+ 策略', '25 个自主实验', '162 笔交易追踪', '论文 · 测试网 · 实盘', '链上 / 仪表盘审计'],
-    hero: { badges: ['AGI 交易系统', '投资者档案', '论文 · 仪表盘 · 风控门'], eyebrow: '市场 regime 变化时，静态机器人会失效', headline: 'PolyEdge 会进化。', body: '不是交易机器人，而是 AGI 交易系统：创建策略、辩论交易、分配资本、在确定性风控门下执行、诊断亏损，并进化下一代策略。', support: '为预测市场资金配置者而建：在资本进入 Polymarket 或 Kalshi 前，先提供证据、治理与审计轨迹。', ctaConfig: 'CTA 通过 VITE_LANDING_* 环境变量配置。' },
+    hero: { badges: ['AGI 交易系统', '投资者档案', '论文 · 仪表盘 · 风控门'], eyebrow: '市场 regime 变化时，静态机器人会失效', headline: 'PolyEdge 会进化。', body: '不是交易机器人，而是 AGI 交易系统：创建策略、辩论交易、分配资本、在确定性风控门下执行、诊断亏损，并进化下一代策略。', support: '为预测市场资金配置者而建：在资本进入 Polymarket 或 Kalshi 前，先提供证据、治理与审计轨迹。' },
     proofMetrics: [{ label: '策略', value: '14+', detail: '已注册策略面，加上 AGI Orchestrator' }, { label: '实验', value: '25', detail: '受治理约束的自主生命周期候选' }, { label: '交易', value: '162', detail: '通过决策、下单尝试与结算记录追踪' }, { label: '论文', value: '33页', detail: '含 15 个参考文献和补充材料' }],
     dossier: { label: '档案证据', live: '实时 thesis', claimLabel: '核心主张', claim: '受治理的自主性：分阶段、可度量、可辩论、可审计，然后再扩大资本。' },
     sectionLabels: { problem: '问题', breakthrough: '突破', mechanism: '机制', proof: '证据', allocation: '配置' },
@@ -424,7 +421,6 @@ export default function Landing() {
                 {landingCta.secondaryLabel}
               </SmartLink>
             </div>
-            <p className="mt-3 text-[10px] uppercase tracking-[0.24em] text-stone-700">{t.hero.ctaConfig}</p>
           </motion.div>
 
           <motion.aside

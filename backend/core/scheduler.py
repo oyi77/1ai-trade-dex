@@ -473,9 +473,6 @@ def start_scheduler():
     with get_db_session() as db:
         since = datetime.now(timezone.utc) - timedelta(hours=1)
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
-            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
-                continue
-
             for mode in settings.active_modes_set:
                 trades = db.query(Trade).filter(
                     Trade.strategy == config.strategy_name,
@@ -484,17 +481,20 @@ def start_scheduler():
                     Trade.trading_mode == mode,
                 ).all()
 
-                if len(trades) < 3:
-                    continue
+                if len(trades) >= 3:
+                    wins = sum(1 for t in trades if t.result == 'win')
+                    win_rate = wins / len(trades)
+                    pnl = sum(t.pnl for t in trades if t.pnl)
 
-                wins = sum(1 for t in trades if t.result == 'win')
-                win_rate = wins / len(trades)
-                pnl = sum(t.pnl for t in trades if t.pnl)
+                    if win_rate < 0.30 or pnl < -50.0:
+                        config.enabled = False
+                        disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                        logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                        continue
 
-                if win_rate < 0.30 or pnl < -50.0:
-                    config.enabled = False
-                    disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                    logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                interval = config.interval_seconds or 60
+                schedule_strategy(config.strategy_name, interval, mode=mode)
+                logger.info(f"Scheduled strategy {config.strategy_name} ({mode}) every {interval}s")
     logger.info("Done scheduling strategies from DB")
 
     if settings.NEWS_FEED_ENABLED:
@@ -610,7 +610,7 @@ def start_scheduler():
         logger.info("Scheduled shadow validation job every 5 minutes")
 
     # AGI improvement cycle — runs all 7 closed loops (feedback, meta-learn, evolve, propose, compose, replace, counterfactual)
-    agi_cycle_interval = getattr(settings, "AGI_IMPROVEMENT_CYCLE_INTERVAL_HOURS", 4)
+    agi_cycle_interval = getattr(settings, "AGI_IMPROVEMENT_CYCLE_INTERVAL_HOURS", 1)
     if getattr(settings, "AGI_IMPROVEMENT_CYCLE_ENABLED", True):
         scheduler.add_job(
             agi_improvement_cycle_job,

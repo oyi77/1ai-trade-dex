@@ -75,7 +75,6 @@ def _row_to_dict(r: WalletConfig) -> dict:
 @router.get("/config")
 async def list_wallet_configs(
     db: Session = Depends(get_db),
-    _: None = Depends(require_admin),
 ):
     """List all configured wallets."""
     rows = db.query(WalletConfig).order_by(WalletConfig.added_at.desc()).all()
@@ -187,7 +186,6 @@ async def create_wallet(_: None = Depends(require_admin)):
 @router.get("/active")
 async def get_active_wallet(
     db: Session = Depends(get_db),
-    _: None = Depends(require_admin),
 ):
     """Get the currently active wallet address."""
     state = for_update(db, db.query(BotState)).first()
@@ -227,7 +225,6 @@ async def get_wallet_balance(
     address: str,
     db: Session = Depends(get_db),
     force_refresh: bool = False,
-    _: None = Depends(require_admin),
 ):
     """Get wallet balance (fetches live from Polymarket if authenticated, otherwise uses cache)."""
     row = db.query(WalletConfig).filter(WalletConfig.address == address).first()

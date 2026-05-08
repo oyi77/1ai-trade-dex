@@ -713,7 +713,9 @@ def _seed_strategy_configs() -> None:
                         ))
                         added += 1
                     else:
-                        exists.enabled = enabled
+                        # Only update interval and params — do NOT override
+                        # runtime toggles like `enabled` which are managed by
+                        # the dashboard, health monitor, or manual DB edits.
                         exists.interval_seconds = interval
                         exists.params = _json.dumps(params)
                         added += 1

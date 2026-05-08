@@ -151,6 +151,10 @@ class {strategy_name}(BaseStrategy):
         if not lint_check:
             raise ValueError(f"Lint validation failed: {lint_check.errors}")
 
+        existing = self._session.query(ExperimentRecord).filter_by(name=generated.name).first()
+        if existing:
+            return str(existing.id)
+
         experiment = ExperimentRecord(
             name=generated.name,
             strategy_composition={"code": generated.code, "description": generated.description},

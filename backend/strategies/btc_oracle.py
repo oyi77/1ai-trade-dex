@@ -145,7 +145,7 @@ class BtcOracleStrategy(BaseStrategy):
     )
     category = "arbitrage"
     default_params = {
-        "min_edge": 0.05,
+        "min_edge": 0.03,
         "max_minutes_to_resolution": 60,
         "interval_seconds": 30,
     }

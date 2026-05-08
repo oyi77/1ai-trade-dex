@@ -21,7 +21,7 @@ export function ModeSelector() {
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b border-neutral-800 bg-black/40">
       <div className="text-[10px] text-neutral-500 uppercase tracking-wider mr-2">
-        Mode:
+        View:
       </div>
       <div className="flex gap-2">
         {MODES.map(({ key, label }) => {

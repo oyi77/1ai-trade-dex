@@ -87,8 +87,11 @@ export function TradesTab() {
                 <td className="px-2 py-1 text-neutral-600 whitespace-nowrap">
                   {t.timestamp ? new Date(t.timestamp).toLocaleString('en-US', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
                 </td>
-                <td className="px-2 py-1 text-neutral-400 truncate max-w-[100px]" title={t.market_ticker}>
-                  {t.market_ticker?.length > 18 ? `${t.market_ticker.slice(0, 16)}…` : t.market_ticker ?? '—'}
+                <td className="px-2 py-1 text-neutral-400 truncate max-w-[200px]" title={t.market_question || t.event_slug || t.market_ticker}>
+                  {(() => {
+                    const display = t.market_question || t.event_slug || t.market_ticker || '—'
+                    return display.length > 40 ? `${display.slice(0, 38)}…` : display
+                  })()}
                 </td>
                 <td className={`px-2 py-1 font-bold ${t.direction === 'up' ? 'text-green-400' : 'text-red-400'}`}>
                   {t.direction?.toUpperCase() ?? '—'}

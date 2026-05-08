@@ -755,7 +755,7 @@ async def auto_trader_job(mode: str):
                     "market_ticker": sig.market_ticker,
                     "side": "BUY" if (sig.direction or "yes") == "yes" else "SELL",
                     "confidence": getattr(sig, "confidence", 0.0) or 0.0,
-                    "size": min(50.0, bankroll * settings.KELLY_FRACTION),
+                    "size": min(settings.MAX_TRADE_SIZE, bankroll * settings.KELLY_FRACTION),
                     "price": getattr(sig, "model_probability", 0.5) or 0.5,
                     "token_id": token_id,
                 }
@@ -768,7 +768,7 @@ async def auto_trader_job(mode: str):
                 if result.executed:
                     from backend.core.strategy_executor import execute_decision
 
-                    trade_size = min(50.0, (bankroll or 100.0) * settings.KELLY_FRACTION)
+                    trade_size = min(settings.MAX_TRADE_SIZE, (bankroll or 100.0) * settings.KELLY_FRACTION)
                     decision = {
                         "market_ticker": sig.market_ticker,
                         "direction": sig.direction or "yes",
@@ -780,7 +780,8 @@ async def auto_trader_job(mode: str):
                         "token_id": token_id,
                         "platform": "kalshi" if sig.market_ticker.startswith("KX") else "polymarket",
                     }
-                    exec_result = await execute_decision(decision, "auto_trader", mode=mode, db=db)
+                    source_strategy = getattr(sig, "track_name", None) or "auto_trader"
+                    exec_result = await execute_decision(decision, source_strategy, mode=mode, db=db)
                     if exec_result is not None:
                         sig.executed = True
                         executed += 1
@@ -788,6 +789,9 @@ async def auto_trader_job(mode: str):
                 elif result.pending_approval:
                     queued += 1
                 else:
+                    # Mark as processed even when skipped/rejected so we don't
+                    # re-attempt the same stale signal every cycle.
+                    sig.executed = True
                     skipped += 1
             db.commit()
             log_event(
