@@ -1,0 +1,3 @@
+## 2023-10-27 - [N+1 Query Bottleneck in Knowledge Graph Operations]
+**Learning:** The `KnowledgeGraph` class in `backend/core/knowledge_graph.py` contains N+1 query patterns in multiple methods (e.g. `get_related`, `find_pattern`, `get_strategies_for_regime`) where it iterates over `relations` and performs a database `.first()` query for each relation's associated entity. This is an architecture-specific performance anti-pattern.
+**Action:** When working with SQLAlchemy queries that iterate over multiple relations to fetch associated entities, always use the `in_` operator to bulk-fetch the entities in a single query and perform an O(1) dictionary lookup within the loop.
