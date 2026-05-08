@@ -763,6 +763,7 @@ async def auto_trader_job(mode: str):
                     signal_dict,
                     bankroll=bankroll,
                     current_exposure=current_exposure,
+                    mode=mode,
                 )
                 if result.executed:
                     from backend.core.strategy_executor import execute_decision
