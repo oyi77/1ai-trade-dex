@@ -43,6 +43,7 @@ from backend.core.agi_jobs import (
     historical_data_collection_job,
     forensics_integration_job,
     fronttest_validation_job,
+    model_calibration_check_job,
 )
 from backend.core.db_backup import backup_job
 from backend.core.cache_cleanup import cache_cleanup_job
@@ -671,6 +672,17 @@ def start_scheduler():
         forensics_integration_job,
         IntervalTrigger(days=1),
         id="forensics_integration",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    # Calibration drift check — runs every 6h; triggers retraining if Brier
+    # score exceeds AGI_BRIER_DRIFT_THRESHOLD (default 0.25).
+    calibration_interval_hours = getattr(settings, "AGI_CALIBRATION_CHECK_INTERVAL_HOURS", 6)
+    scheduler.add_job(
+        model_calibration_check_job,
+        IntervalTrigger(hours=calibration_interval_hours),
+        id="model_calibration_check",
         replace_existing=True,
         max_instances=1,
     )

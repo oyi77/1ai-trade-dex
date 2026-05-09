@@ -322,6 +322,8 @@ class AutonomousPromoter:
                     db.add(exp)
                     logger.warning(f"[AutonomousPromoter] LIVE_TRIAL→PAPER (kill) '{exp.name}': wr={health.get('win_rate', 0):.1%}")
                     stats["demoted"] = stats.get("demoted", 0) + 1
+                    # Trigger improvement loop on demotion
+                    self._trigger_improvement_loop(strategy_name, db)
                     continue
 
                 if trial_days >= min_trial_days and health.get("total_trades", 0) >= min_trial_trades:
@@ -353,6 +355,8 @@ class AutonomousPromoter:
                         db.add(exp)
                         logger.warning(f"[AutonomousPromoter] LIVE_TRIAL→PAPER (degraded) '{exp.name}': wr={wr:.1%} sharpe={sharpe:.2f}")
                         stats["demoted"] = stats.get("demoted", 0) + 1
+                        # Trigger improvement loop on degradation demotion
+                        self._trigger_improvement_loop(strategy_name, db)
             if trials:
                 db.commit()
 
@@ -374,6 +378,8 @@ class AutonomousPromoter:
                         f"wr={health.get('win_rate', 0):.1%}, sharpe={health.get('sharpe', 0):.2f}"
                     )
                     stats["demoted"] = stats.get("demoted", 0) + 1
+                    # Trigger improvement loop: forensics + auto_improve + new DRAFT experiment
+                    self._trigger_improvement_loop(strategy_name, db)
                     continue
 
                 wr = health.get("win_rate", 0.0)
@@ -596,6 +602,64 @@ class AutonomousPromoter:
             config.disabled_at = datetime.now(timezone.utc)
             db.commit()
             logger.info(f"[AutonomousPromoter] Disabled StrategyConfig '{strategy_name}' (degradation fallback)")
+
+    def _trigger_improvement_loop(self, strategy_name: str, db: Session) -> None:
+        """Trigger forensics analysis + auto_improve for a demoted strategy.
+
+        Creates a new DRAFT ExperimentRecord so the strategy re-enters the
+        DRAFT→SHADOW→PAPER→LIVE_TRIAL pipeline with improved params.
+        Respects AGI_MAX_IMPROVEMENT_ATTEMPTS to avoid infinite retry loops.
+        """
+        max_attempts = getattr(settings, "AGI_MAX_IMPROVEMENT_ATTEMPTS", 3)
+
+        # Count how many improvement attempts have already been made
+        attempt_count = (
+            db.query(ExperimentRecord)
+            .filter(
+                ExperimentRecord.strategy_name == strategy_name,
+                ExperimentRecord.status.in_([
+                    ExperimentStatus.RETIRED.value,
+                    ExperimentStatus.PAPER.value,
+                    ExperimentStatus.DRAFT.value,
+                ]),
+            )
+            .count()
+        )
+
+        if attempt_count >= max_attempts:
+            logger.warning(
+                "[AutonomousPromoter] '%s' reached max improvement attempts (%d) — retiring",
+                strategy_name, max_attempts,
+            )
+            # Mark all active experiments for this strategy as RETIRED
+            db.query(ExperimentRecord).filter(
+                ExperimentRecord.strategy_name == strategy_name,
+                ExperimentRecord.status.notin_([ExperimentStatus.RETIRED.value]),
+            ).update({"status": ExperimentStatus.RETIRED.value}, synchronize_session=False)
+            db.commit()
+            return
+
+        # 1. Generate forensics proposals
+        try:
+            from backend.core.forensics_integration import generate_forensics_proposals
+            generate_forensics_proposals(strategy_filter=strategy_name)
+            logger.info("[AutonomousPromoter] Forensics proposals generated for '%s'", strategy_name)
+        except Exception as e:
+            logger.warning("[AutonomousPromoter] Forensics generation failed for '%s': %s", strategy_name, e)
+
+        # 2. Create a new DRAFT experiment so the strategy re-enters the pipeline
+        new_exp = ExperimentRecord(
+            name=f"{strategy_name}_improve_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}",
+            strategy_name=strategy_name,
+            status=ExperimentStatus.DRAFT.value,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(new_exp)
+        db.commit()
+        logger.info(
+            "[AutonomousPromoter] Created new DRAFT experiment '%s' for improvement cycle (attempt %d/%d)",
+            new_exp.name, attempt_count + 1, max_attempts,
+        )
 
     def _bootstrap_genome_experiments(self, db: Session) -> None:
         """Create ExperimentRecord rows for genome_registry genomes that lack them."""

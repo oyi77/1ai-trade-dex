@@ -14,6 +14,13 @@ from backend.models.database import SessionLocal, StrategyProposal, Trade
 logger = logging.getLogger("trading_bot.fronttest")
 
 
+def _get_strategy_risk_tier(strategy_name: str, db: Session) -> str:
+    """Return the risk_tier for a strategy, defaulting to 'moderate'."""
+    from backend.models.database import StrategyConfig
+    cfg = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+    return (getattr(cfg, "risk_tier", None) or "moderate") if cfg else "moderate"
+
+
 class FronttestValidator:
     """Validates that a parameter change survives a paper-trial period before going live."""
 
@@ -41,21 +48,25 @@ class FronttestValidator:
             if executed.tzinfo is None:
                 executed = executed.replace(tzinfo=timezone.utc)
 
+            # crazy-tier strategies skip the minimum trial-day gate so the AGI
+            # can run unlimited paper experiments without waiting 14 days.
+            risk_tier = _get_strategy_risk_tier(proposal.strategy_name, db)
+            effective_trial_days = 0 if risk_tier == "crazy" else self.trial_days
+
             elapsed = (datetime.now(timezone.utc) - executed).days
-            if elapsed < self.trial_days:
-                remaining = self.trial_days - elapsed
+            if elapsed < effective_trial_days:
+                remaining = effective_trial_days - elapsed
                 return {
                     "approved": False,
                     "reason": f"trial period incomplete ({remaining} days remaining)",
                     "elapsed_days": elapsed,
-                    "required_days": self.trial_days,
+                    "required_days": effective_trial_days,
                 }
 
-            strategy = proposal.strategy_name
             trades = (
                 db.query(Trade)
                 .filter(
-                    Trade.strategy == strategy,
+                    Trade.strategy == proposal.strategy_name,
                     Trade.trading_mode == "paper",
                     Trade.timestamp >= executed,
                     Trade.settled.is_(True),

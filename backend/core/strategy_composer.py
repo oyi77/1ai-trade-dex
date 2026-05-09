@@ -17,12 +17,16 @@ class ComposedStrategy:
         blocks: list[StrategyBlock],
         status: str = "draft",
         experiment_id: Optional[str] = None,
+        kg_context: Optional[dict] = None,
     ):
         self.name = name
         self.blocks = blocks
         self.status = status
         self.experiment_id = experiment_id
         self.created_at = datetime.now(timezone.utc)
+        # KG context injected at composition time; used by StrategySynthesizer
+        # to enrich LLM prompts with regime history and strategy performance.
+        self.kg_context: dict = kg_context or {}
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -86,8 +90,17 @@ class StrategyComposer:
         if self._owns_session:
             self._session.close()
 
-    def compose(self, blocks: list[StrategyBlock], name: str) -> ComposedStrategy:
+    def compose(self, blocks: list[StrategyBlock], name: str, kg_context: dict | None = None) -> ComposedStrategy:
+        """Compose a strategy from blocks.
+
+        ``kg_context`` carries regime history and strategy performance data read
+        from the KnowledgeGraph.  It is stored on the composed strategy so that
+        downstream callers (e.g. StrategySynthesizer) can inject it into LLM
+        prompts without re-querying the KG.
+        """
         composed = ComposedStrategy(name=name, blocks=blocks, status="draft")
+        if kg_context:
+            composed.kg_context = kg_context
         return composed
 
     def validate_composition(self, composed: ComposedStrategy) -> ValidationResult:

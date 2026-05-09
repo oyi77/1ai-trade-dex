@@ -349,10 +349,25 @@ class Settings(BaseSettings):
     AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4      # re-disable for 4h if still bad
     AGI_REHAB_LITE_WIN_RATE_THRESHOLD: float = 0.30  # keep enabled if WR >= 30%
     AGI_AUTO_DISABLE_MIN_TRADES: int = 10          # exempt strategies with <10 trades
-    AGI_LIVE_TRIAL_BANKROLL_PCT: float = 0.01  # 1% bankroll during live trial
+    # LIVE_TRIAL phase configuration (AGI-2)
+    LIVE_TRIAL_ENABLED: bool = True
+    LIVE_TRIAL_BANKROLL_PCT: float = 0.01   # fraction of bankroll during live trial
+    LIVE_TRIAL_DURATION_DAYS: int = 7       # minimum trial period before full promotion
+    LIVE_TRIAL_DEGRADATION_THRESHOLD: float = 0.80  # live perf must be >= paper perf * this
+    AGI_LIVE_TRIAL_BANKROLL_PCT: float = 0.01  # legacy alias — kept for compatibility
     AGI_LIVE_TRIAL_DAYS: int = 7  # minimum trial period before full promotion
     AGI_LIVE_TRIAL_MIN_TRADES: int = 10
     AGI_DEMOTION_RETRY_LIMIT: int = 3  # max improvement cycles before permanent retirement
+    # Demotion → improvement loop (AGI-3)
+    AGI_MAX_IMPROVEMENT_ATTEMPTS: int = 3   # max improvement cycles before RETIRED
+    # LLM strategy synthesis (AGI-4)
+    AGI_SYNTHESIS_DAILY_BUDGET: float = 2.00  # max USD/day for LLM synthesis calls
+    # Forensics overhaul for broken strategies (AGI-7)
+    AGI_BROKEN_STRATEGY_OVERHAUL_ENABLED: bool = True
+    # Calibration drift detection (AI-3)
+    AGI_BRIER_DRIFT_THRESHOLD: float = 0.25   # Brier score above this triggers retrain
+    AGI_CALIBRATION_MIN_SAMPLES: int = 30     # min settled trades before checking calibration
+    AGI_CALIBRATION_CHECK_INTERVAL_HOURS: int = 6  # how often to run calibration check job
     AGI_FRONTTEST_MIN_WIN_RATE: float = 0.40
     AGI_PROMOTER_SHADOW_MIN_TRADES: int = 100
     AGI_PROMOTER_SHADOW_MIN_DAYS: int = 7
@@ -590,6 +605,24 @@ class Settings(BaseSettings):
             raise ValueError(f"DAILY_DRAWDOWN_LIMIT_PCT must be between 0.0 and 0.5 (inclusive), got {v}")
         return v
 
+    @model_validator(mode="after")
+    def _warn_missing_admin_key(self) -> "Settings":
+        """Warn loudly when ADMIN_API_KEY is unset outside shadow/dev mode.
+
+        Does not raise — allows dev environments to run without a key.
+        In production (SHADOW_MODE=false, TRADING_MODE=live) an unset key
+        leaves all admin endpoints open, which is a security risk.
+        """
+        import logging as _logging
+        if not self.ADMIN_API_KEY:
+            _mode = getattr(self, "TRADING_MODE", "paper")
+            _shadow = getattr(self, "SHADOW_MODE", True)
+            if not _shadow and str(_mode).lower() == "live":
+                _logging.getLogger("trading_bot.config").critical(
+                    "ADMIN_API_KEY is not set — all admin endpoints are UNAUTHENTICATED. "
+                    "Set ADMIN_API_KEY in your .env file before running in live mode."
+                )
+        return self
 
     model_config = ConfigDict(env_file=".env", extra="ignore")
 
