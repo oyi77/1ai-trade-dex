@@ -317,3 +317,4 @@ class TestEvolutionSchedulerRegistration:
         assert "id=\"evolution_mutation_cycle\"" in source
         assert "id=\"evolution_crossover_cycle\"" in source
         assert "id=\"evolution_population_rebalance\"" in source
+
