@@ -103,7 +103,7 @@ def test_strategy_health_active(db):
         t = _make_trade(i + 100, "btc_oracle", "win" if i % 2 == 0 else "loss", 5.0 if i % 2 == 0 else -3.0)
         record_outcome(t, db)
 
-    health = monitor.assess("btc_oracle", db)
+    health = monitor.assess("btc_oracle", db, trading_mode="paper")
     assert health["total_trades"] == 35
     assert health["status"] in ("active", "warned")
     assert 0.0 <= health["win_rate"] <= 1.0
