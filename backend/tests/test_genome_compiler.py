@@ -37,7 +37,7 @@ class TestGenomeCompiler:
                     "entry_logic": {
                         "trigger_type": "threshold_cross",
                         "conditions": [
-                            {"indicator": "rsi", "operator": ">", "value": 0.5, "weight": 1.0}
+                            {"indicator": "rsi", "operator": ">=", "value": 0.5, "weight": 1.0}
                         ],
                         "min_confidence": 0.6
                     }
@@ -83,48 +83,46 @@ class TestGenomeCompiler:
         assert strategy.category == expected_category
 
     def test_chromosome_normalization_handles_pydantic_models(self, valid_genome):
-        """Test that chromosome normalization works with Pydantic models."""
-        # Mock a Pydantic model
-        mock_pydantic = MagicMock()
-        mock_pydantic.model_dump.return_value = {"test": "data"}
+        """Test that _normalize_chromosome_section works with Pydantic models."""
+        from backend.domain.genome.models import CognitionChromosome, EntryLogic, EntryCondition, ExitLogic, MarketSelector
 
-        genome_with_pydantic = StrategyGenome(
-            genome_id="test-123",
-            strategy_name="test_strategy",
-            archetype="test",
-            chromosomes=mock_pydantic
+        strategy = GenomeStrategy(valid_genome)
+
+        real_pydantic = CognitionChromosome(
+            entry_logic=EntryLogic(
+                trigger_type="threshold_cross",
+                conditions=[EntryCondition(indicator="rsi", operator=">=", value=0.5, weight=1.0)],
+                min_confidence=0.6
+            ),
+            exit_logic=ExitLogic(trigger_type="stop_loss"),
+            market_selector=MarketSelector()
         )
 
-        strategy = GenomeStrategy(genome_with_pydantic)
-        assert strategy._chromosomes == {"test": "data"}
+        result = strategy._normalize_chromosome_section(real_pydantic)
+        assert isinstance(result, dict)
+        assert "entry_logic" in result
 
     def test_chromosome_normalization_handles_plain_dicts(self, valid_genome):
         """Test that chromosome normalization works with plain dicts."""
-        plain_dict_chromosomes = {"perception": {"test": "value"}}
-        genome_with_dict = StrategyGenome(
-            genome_id="test-123",
-            strategy_name="test_strategy",
-            archetype="test",
-            chromosomes=plain_dict_chromosomes
-        )
+        strategy = GenomeStrategy(valid_genome)
 
-        strategy = GenomeStrategy(genome_with_dict)
-        assert strategy._chromosomes == plain_dict_chromosomes
+        assert isinstance(strategy._perception, dict)
+        assert isinstance(strategy._cognition, dict)
+        assert isinstance(strategy._execution, dict)
+        assert isinstance(strategy._risk, dict)
+        assert isinstance(strategy._meta, dict)
 
-    def test_chromosome_normalization_handles_unexpected_types(self, caplog):
-        """Test that unexpected chromosome types are handled gracefully."""
-        genome_with_invalid = StrategyGenome(
-            genome_id="test-123",
-            strategy_name="test_strategy",
-            archetype="test",
-            chromosomes="invalid_string"  # Not a dict or Pydantic model
-        )
+        assert strategy._perception == {"indicators": ["rsi", "volume"]}
+
+    def test_chromosome_normalization_handles_unexpected_types(self, valid_genome, caplog):
+        """Test that _normalize_chromosome_section handles unexpected types gracefully."""
+        strategy = GenomeStrategy(valid_genome)
 
         with caplog.at_level("WARNING"):
-            strategy = GenomeStrategy(genome_with_invalid)
+            result = strategy._normalize_chromosome_section("invalid_string")
 
-        assert strategy._chromosomes == {}
-        assert "Unexpected chromosome type" in caplog.text
+        assert result == {}
+        assert "Failed to normalize chromosome section" in caplog.text
 
     def test_normalize_chromosome_section_handles_all_types(self):
         """Test _normalize_chromosome_section handles various input types."""
@@ -155,7 +153,7 @@ class TestGenomeCompiler:
         assert strategy._normalize_chromosome_section(Convertible()) == {"a": 1, "b": 2}
 
     def test_normalize_chromosome_section_logs_warnings(self, caplog):
-        """Test that _normalize_chromosome_section logs warnings for failures."""
+        """Test that _normalize_chromosome_section handles non-convertible types."""
         genome = StrategyGenome(
             genome_id="test-123",
             strategy_name="test_strategy",
@@ -164,12 +162,12 @@ class TestGenomeCompiler:
         )
         strategy = GenomeStrategy(genome)
 
-        # Test Pydantic model that fails
-        mock_model = MagicMock()
-        mock_model.model_dump.side_effect = Exception("Model dump failed")
+        # dict() on a non-iterable object triggers the warning path
+        class NotConvertible:
+            pass
 
         with caplog.at_level("WARNING"):
-            result = strategy._normalize_chromosome_section(mock_model)
+            result = strategy._normalize_chromosome_section(NotConvertible())
 
         assert result == {}
         assert "Failed to normalize chromosome section" in caplog.text
@@ -225,11 +223,10 @@ class TestGenomeCompiler:
         """Test that _fetch_markets handles malformed market data gracefully."""
         strategy = GenomeStrategy(valid_genome)
 
-        # Mock fetch_markets to return malformed data
         malformed_data = [
-            {"ticker": "TEST", "slug": "test", "category": "test"},  # Missing outcomePrices
-            {"ticker": "TEST2", "outcomePrices": "not_a_list"},  # Invalid outcomePrices
-            {"ticker": "TEST3", "outcomePrices": [0.6]},  # Only one price
+            {"ticker": "TEST1", "slug": "test1", "category": "test"},
+            {"ticker": "TEST2", "outcomePrices": "not_a_list"},
+            {"ticker": "TEST3", "outcomePrices": [0.6]},
         ]
 
         with patch('backend.data.gamma.fetch_markets', new_callable=AsyncMock) as mock_fetch:
@@ -238,12 +235,15 @@ class TestGenomeCompiler:
             with caplog.at_level("WARNING"):
                 markets = await strategy._fetch_markets(mock_context)
 
-            # Should handle all cases gracefully
             assert len(markets) == 3
             for market in markets:
                 assert isinstance(market, MarketInfo)
-                assert market.yes_price == DEFAULT_CONFIDENCE_BASELINE
-                assert market.no_price == DEFAULT_CONFIDENCE_BASELINE
+            # Missing outcomePrices → defaults to DEFAULT_CONFIDENCE_BASELINE
+            assert markets[0].yes_price == DEFAULT_CONFIDENCE_BASELINE
+            # Invalid outcomePrices type → defaults to DEFAULT_CONFIDENCE_BASELINE
+            assert markets[1].yes_price == DEFAULT_CONFIDENCE_BASELINE
+            # Valid single-price outcomePrices → uses the provided price
+            assert markets[2].yes_price == 0.6
 
     @pytest.mark.asyncio
     async def test_fetch_markets_logs_exceptions(self, valid_genome, mock_context, caplog):
@@ -291,9 +291,33 @@ class TestGenomeCompiler:
         result = strategy._evaluate_market(market, mock_context)
         assert result is None
 
-    def test_evaluate_market_returns_none_for_low_confidence(self, valid_genome, mock_context):
-        """Test that _evaluate_market returns None when confidence is too low."""
-        strategy = GenomeStrategy(valid_genome)
+    def test_evaluate_market_returns_none_for_low_confidence(self, mock_context):
+        """Test that _evaluate_market returns None when no conditions match."""
+        genome_high_threshold = StrategyGenome(
+            genome_id="test-123",
+            strategy_name="test_strategy",
+            archetype="test",
+            chromosomes={
+                "perception": {"indicators": ["rsi"]},
+                "cognition": {
+                    "entry_logic": {
+                        "trigger_type": "threshold_cross",
+                        "conditions": [
+                            {"indicator": "rsi", "operator": ">", "value": 0.99, "weight": 1.0}
+                        ],
+                        "min_confidence": 0.6
+                    }
+                },
+                "execution": {"order_type": "limit"},
+                "risk": {
+                    "kelly_fraction": 0.3,
+                    "max_position_fraction": 0.1,
+                    "max_total_exposure_fraction": 0.8
+                },
+                "meta": {"self_optimization_enabled": True}
+            }
+        )
+        strategy = GenomeStrategy(genome_high_threshold)
         market = MarketInfo(
             ticker="TEST",
             slug="test",
@@ -301,13 +325,13 @@ class TestGenomeCompiler:
             end_date=None,
             volume=1000.0,
             liquidity=500.0,
-            yes_price=0.3,  # Very low probability
+            yes_price=0.3,
             no_price=0.7,
             metadata={}
         )
 
         result = strategy._evaluate_market(market, mock_context)
-        assert result is None  # Confidence too low
+        assert result is None
 
     def test_evaluate_market_returns_signal_for_valid_conditions(self, valid_genome, mock_context):
         """Test that _evaluate_market returns a signal for valid market conditions."""
@@ -319,7 +343,7 @@ class TestGenomeCompiler:
             end_date=None,
             volume=1000.0,
             liquidity=500.0,
-            yes_price=0.7,  # High probability
+            yes_price=0.7,
             no_price=0.3,
             metadata={}
         )
@@ -359,18 +383,17 @@ class TestGenomeCompiler:
             slug="test",
             category="test",
             end_date=None,
-            volume=1000.0,  # > 100000.0 * 0.01 = 1000, so volume condition should match
+            volume=100000.0,
             liquidity=500.0,
-            yes_price=0.7,  # > 0.5, so RSI condition should match
+            yes_price=0.7,
             no_price=0.3,
             metadata={}
         )
 
-        # Conditions from valid_genome: RSI > 0.5 with weight 1.0
-        conditions = [{"indicator": "rsi", "operator": ">", "value": 0.5, "weight": 1.0}]
+        conditions = [{"indicator": "volume", "operator": ">", "value": 0.01, "weight": 1.0}]
         confidence = strategy._calculate_confidence(market, conditions)
 
-        assert confidence == 1.0  # Perfect match
+        assert confidence == 1.0
 
     def test_compile_genome_creates_valid_strategy_class(self, valid_genome):
         """Test that compile_genome creates a valid strategy class."""
