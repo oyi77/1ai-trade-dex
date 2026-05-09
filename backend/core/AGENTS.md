@@ -1,0 +1,137 @@
+<!-- Parent: ../AGENTS.md -->
+<!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
+
+# backend/core
+
+## Purpose
+The trading engine — execution routing, risk management, settlement, circuit breakers, AGI lifecycle, background scheduling, and all cross-cutting infrastructure. This is the most-edited and most critical directory in the codebase.
+
+## Key Files by Group
+
+### Execution & Routing
+| File | Description |
+|------|-------------|
+| `auto_trader.py` | Execution router — routes high-confidence signals to immediate execution, low-confidence to approval queue. **Not a strategy.** |
+| `strategy_executor.py` | Creates trades in paper mode, places orders in live mode; acquires `botstate_mutex` before bankroll mutation |
+| `signals.py` | Signal model and signal routing logic |
+| `trade_attempts.py` | `TradeAttemptRecorder` — durable ledger for all execution attempts (executed and rejected) |
+| `trade_role.py` | Trade role classification utilities |
+
+### Risk & Circuit Breakers
+| File | Description |
+|------|-------------|
+| `risk_manager.py` | Validates trades against position size, exposure, drawdown, confidence, and per-strategy allocation caps |
+| `risk_manager_hft.py` | HFT-specific risk manager with tighter latency constraints |
+| `risk_profiles.py` | Static risk profile presets — safe/normal/aggressive/extreme |
+| `circuit_breaker.py` | Circuit breaker implementation (CLOSED/OPEN/HALF_OPEN state machine) |
+| `circuit_breaker_pybreaker.py` | pybreaker-based circuit breaker variant |
+| `market_risk.py` | Market-level risk calculations |
+| `validation.py` | Trade and signal input validation |
+
+### Settlement
+| File | Description |
+|------|-------------|
+| `settlement.py` | Core settlement logic — resolves trades, updates BotState; must hold `botstate_mutex` |
+| `settlement_capture.py` | Captures settlement events from exchange |
+| `settlement_helpers.py` | Settlement utility functions and `TransactionEvent` emission |
+| `settlement_ws.py` | WebSocket-based settlement event listener |
+| `auto_redeem.py` | Automatic position redemption after market resolution |
+
+### AGI Lifecycle
+| File | Description |
+|------|-------------|
+| `autonomous_promoter.py` | Experiment lifecycle daemon — DRAFT→SHADOW→PAPER→LIVE_PROMOTED→RETIRED |
+| `agi_health_check.py` | Auto-kills strategies with <30% win rate after sufficient trades |
+| `agi_orchestrator.py` | AGI orchestration — coordinates signal generation across strategies |
+| `agi_goal_engine.py` | AGI goal tracking and objective management |
+| `agi_promotion_pipeline.py` | Promotion gate evaluation logic |
+| `agi_event_handlers.py` | AGI event handler callbacks |
+| `agi_jobs.py` | AGI background job definitions |
+| `agi_types.py` | AGI type definitions |
+| `strategy_health.py` | `StrategyHealthMonitor` — computes win rate, Sharpe, drawdown, Brier, PSI |
+| `strategy_rehabilitator.py` | Rehabilitation logic for killed strategies |
+| `bankroll_allocator.py` | Daily capital allocator — computes per-strategy budgets via `StrategyRanker` |
+| `strategy_ranker.py` | Ranks strategies by composite performance score |
+| `strategy_performance_registry.py` | `StrategyPerformanceRegistry` singleton — per-strategy metrics updated after each settlement |
+
+### Scheduling
+| File | Description |
+|------|-------------|
+| `scheduler.py` | APScheduler instance and job registration |
+| `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `strategy_cycle_job`, etc. |
+| `task_manager.py` | Async task lifecycle management |
+
+### Infrastructure
+| File | Description |
+|------|-------------|
+| `event_bus.py` | SSE broadcast and internal event dispatch — replaces module-level globals from old monolithic main.py |
+| `mode_context.py` | Trading mode context (paper/live/shadow) |
+| `shadow_mode.py` | Shadow mode execution — runs strategies without placing real orders |
+| `shadow_validation.py` | Shadow mode trade validation |
+| `distributed_lock.py` | Distributed lock for multi-process coordination |
+| `redis_pubsub.py` | Redis pub/sub for cross-process event delivery |
+| `retry.py` | Retry decorator with exponential backoff |
+| `timeout_helpers.py` | Async timeout utilities |
+| `errors.py` | Core exception types |
+| `error_logger.py` | Structured error logging |
+
+### Analytics & Learning
+| File | Description |
+|------|-------------|
+| `trade_forensics.py` | Per-loss trade analysis — diagnoses root causes |
+| `backtester.py` | Backtesting engine |
+| `backtesting.py` | Backtesting utilities |
+| `hft_backtester.py` | HFT-specific backtester |
+| `online_learner.py` | Online learning from trade outcomes |
+| `regime_detector.py` | Market regime detection (trending/ranging/volatile) |
+| `regime_router.py` | Routes strategies based on detected regime |
+| `calibration.py` | Probability calibration |
+| `calibration_tracker.py` | Calibration metric tracking |
+| `thompson_sampler.py` | Thompson sampling for strategy selection |
+| `portfolio_optimizer.py` | Portfolio-level optimization |
+| `bankroll_reconciliation.py` | Reconciles simulated vs actual bankroll |
+| `equity_calculator.py` | Live equity calculation from CLOB + open positions |
+
+## For AI Agents
+
+### Critical Safety Rules
+- **`botstate_mutex` is mandatory for BotState read-modify-write** — always acquire `botstate_mutex` before reading BotState if you intend to write. See `strategy_executor.py` and `settlement.py` for the pattern. Skipping this causes lost updates under concurrent execution.
+- **`risk_manager.py`, `circuit_breaker.py`, and `settlement.py` must not be weakened without an ADR** — these are the last line of defense before real money moves. Any change that relaxes a limit, bypasses a check, or alters settlement logic requires a new ADR in `docs/architecture/`.
+- **`settlement.py` is append-only for trade records** — never mutate historical `Trade` rows to explain rejected attempts. Use `TradeAttemptRecorder` instead (see `adr-003`).
+- **`auto_trader.py` is an execution router, not a strategy** — trade attribution uses `Signal.track_name` to preserve the originating strategy name.
+
+### BotState Pattern
+```python
+async with botstate_mutex:
+    state = db.query(BotState).with_for_update().first()
+    # ... read-modify-write ...
+    db.commit()
+```
+
+### Scheduler Job Registry
+Jobs are registered in `scheduler.py` and implemented in `scheduling_strategies.py`:
+- `scan_and_trade_job` — main signal scan + execution loop
+- `settlement_job` — resolves open positions
+- `strategy_cycle_job` — per-strategy execution cycle
+- `autonomous_promotion_job` — AGI experiment promotion (every 6h)
+- `bankroll_allocation_job` — daily capital allocation
+- `heartbeat_job` — system health heartbeat
+- `market_universe_scan_job` — market discovery
+
+### Testing Requirements
+- Use in-memory SQLite and stub `apscheduler` (see `tests/conftest.py`)
+- Risk manager tests: mock `BotState` and `Trade` queries
+- Settlement tests: verify `botstate_mutex` is acquired
+
+## Dependencies
+
+### Internal
+- `backend.config` — `settings`
+- `backend.models.database` — ORM models, `botstate_mutex`, `for_update`
+- `backend.db.utils` — `get_db_session`
+- `backend.monitoring` — metrics emission
+
+### External
+- `apscheduler` — background job scheduling
+- `sqlalchemy` — ORM queries
+- `asyncio` — async execution

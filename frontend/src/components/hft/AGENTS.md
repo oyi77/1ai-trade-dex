@@ -1,4 +1,4 @@
-<!-- Parent: ../../AGENTS.md -->
+<!-- Parent: ../AGENTS.md -->
 <!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
 
 # frontend/src/components/hft
