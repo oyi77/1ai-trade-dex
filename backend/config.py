@@ -332,6 +332,10 @@ class Settings(BaseSettings):
     # Wave 9: Meta-Learning Layer
     FORENSICS_AUTO_MUTATE: bool = False  # Auto-apply forensics-driven mutations
     EVOLUTION_ENGINE_ENABLED: bool = False  # Enable evolution engine jobs
+    AGI_MUTATION_INTERVAL_HOURS: int = 6
+    AGI_CROSSOVER_INTERVAL_HOURS: int = 24
+    AGI_POPULATION_SIZE: int = 20
+    AGI_MUTATION_RATE: float = 0.10
     GENOME_POPULATION_TARGET: int = 25
     MUTATION_CYCLE_INTERVAL_HOURS: int = 6
     CROSSOVER_CYCLE_INTERVAL_HOURS: int = 168  # weekly
