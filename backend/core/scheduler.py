@@ -51,11 +51,11 @@ from backend.core.bankroll_allocator import bankroll_allocation_job
 from backend.core.agi_orchestrator import agi_improvement_cycle_job
 from backend.core.shadow_validation import shadow_validation_job
 from backend.application.agi.evolution_jobs import (
-    fitness_evaluation_job,
-    mutation_cycle_job,
-    crossover_cycle_job,
+    run_crossover_cycle,
+    rebalance_population,
+    run_mutation_cycle,
+    update_fitness_from_shadow,
     necromancy_analysis_job,
-    regime_rebalancing_job,
     full_population_review_job,
     legend_evaluation_job,
 )
@@ -78,6 +78,54 @@ task_manager: Optional[TaskManager] = None
 event_log: List[dict] = []
 MAX_LOG_SIZE = 200
 _event_log_lock = threading.Lock()
+
+
+def _register_evolution_jobs(target_scheduler) -> None:
+    """Register evolution scheduler jobs using config-driven intervals."""
+    target_scheduler.add_job(
+        update_fitness_from_shadow,
+        IntervalTrigger(hours=1),
+        id="evolution_fitness_update",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Scheduled evolution fitness update job every 1 hour")
+
+    target_scheduler.add_job(
+        run_mutation_cycle,
+        IntervalTrigger(hours=settings.AGI_MUTATION_INTERVAL_HOURS),
+        id="evolution_mutation_cycle",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info(
+        "Scheduled evolution mutation cycle job every %s hours",
+        settings.AGI_MUTATION_INTERVAL_HOURS,
+    )
+
+    target_scheduler.add_job(
+        run_crossover_cycle,
+        IntervalTrigger(hours=settings.AGI_CROSSOVER_INTERVAL_HOURS),
+        id="evolution_crossover_cycle",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info(
+        "Scheduled evolution crossover cycle job every %s hours",
+        settings.AGI_CROSSOVER_INTERVAL_HOURS,
+    )
+
+    target_scheduler.add_job(
+        rebalance_population,
+        IntervalTrigger(hours=settings.AGI_MUTATION_INTERVAL_HOURS),
+        id="evolution_population_rebalance",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info(
+        "Scheduled evolution population rebalance job every %s hours",
+        settings.AGI_MUTATION_INTERVAL_HOURS,
+    )
 
 
 def log_event(event_type: str, message: str, data: dict = None):
@@ -937,36 +985,7 @@ def start_scheduler():
     # Evolution engine jobs (guarded by EVOLUTION_ENGINE_ENABLED flag)
     if settings.EVOLUTION_ENGINE_ENABLED:
         logger.info("EVOLUTION_ENGINE_ENABLED=True - scheduling evolution jobs")
-
-        # Fitness evaluation — every 60 seconds
-        scheduler.add_job(
-            fitness_evaluation_job,
-            IntervalTrigger(seconds=60),
-            id="fitness_evaluation",
-            replace_existing=True,
-            max_instances=1,
-        )
-        logger.info("Scheduled fitness evaluation job every 60 seconds")
-
-        # Mutation cycle — every 6 hours
-        scheduler.add_job(
-            mutation_cycle_job,
-            IntervalTrigger(hours=6),
-            id="mutation_cycle",
-            replace_existing=True,
-            max_instances=1,
-        )
-        logger.info("Scheduled mutation cycle job every 6 hours")
-
-        # Crossover cycle — weekly
-        scheduler.add_job(
-            crossover_cycle_job,
-            IntervalTrigger(weeks=1),
-            id="crossover_cycle",
-            replace_existing=True,
-            max_instances=1,
-        )
-        logger.info("Scheduled crossover cycle job weekly")
+        _register_evolution_jobs(scheduler)
 
         # Necromancy analysis — weekly
         scheduler.add_job(
@@ -977,16 +996,6 @@ def start_scheduler():
             max_instances=1,
         )
         logger.info("Scheduled necromancy analysis job weekly")
-
-        # Regime rebalancing — every 4 hours
-        scheduler.add_job(
-            regime_rebalancing_job,
-            IntervalTrigger(hours=4),
-            id="regime_rebalancing",
-            replace_existing=True,
-            max_instances=1,
-        )
-        logger.info("Scheduled regime rebalancing job every 4 hours")
 
         # Full population review — weekly
         scheduler.add_job(
