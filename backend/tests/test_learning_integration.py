@@ -115,7 +115,7 @@ def test_strategy_health_kill(db):
         t = _make_trade(i + 200, "bad_strategy", "loss", -10.0, prob=0.9)
         record_outcome(t, db)
 
-    health = monitor.assess("bad_strategy", db)
+    health = monitor.assess("bad_strategy", db, trading_mode="paper")
     assert health["status"] == "killed"
     assert health["win_rate"] < monitor.KILL_WIN_RATE
 

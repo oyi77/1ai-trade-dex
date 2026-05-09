@@ -1,7 +1,7 @@
 """GenomeCompiler - translate StrategyGenome into executable BaseStrategy."""
 
 import logging
-from typing import Type, Dict, Any, Optional
+from typing import Type, Dict, Any, Optional, TypedDict
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
 from backend.domain.genome.models import StrategyGenome
@@ -20,35 +20,105 @@ DEFAULT_CONFIDENCE_BASELINE = 0.5
 MARKET_LIMIT = 50
 TOP_MARKETS_TO_PROCESS = 10
 
+# Chromosome schema documentation
+"""
+Chromosome structure for evolved strategies:
+
+{
+  "perception": {
+    "indicators": ["rsi", "volume", "liquidity"],
+    ...
+  },
+  "cognition": {
+    "entry_logic": {
+      "trigger_type": "threshold_cross",
+      "conditions": [
+        {"indicator": "rsi", "operator": ">", "value": 0.5, "weight": 1.0}
+      ],
+      "min_confidence": 0.50
+    },
+    ...
+  },
+  "execution": {...},
+  "risk": {
+    "kelly_fraction": 0.25,
+    "max_position_fraction": 0.08,
+    "max_total_exposure_fraction": 0.70
+  },
+  "meta": {...}
+}
+"""
+
+class EntryCondition(TypedDict, total=False):
+    """Single condition in entry logic."""
+    indicator: str
+    operator: str
+    value: float
+    weight: float
+
+class EntryLogic(TypedDict, total=False):
+    """Entry logic chromosome section."""
+    trigger_type: str
+    min_confidence: float
+    conditions: list[EntryCondition]
+
+class CognitionChromosome(TypedDict, total=False):
+    """Cognition chromosome section."""
+    entry_logic: EntryLogic
+
+class RiskChromosome(TypedDict, total=False):
+    """Risk chromosome section."""
+    kelly_fraction: float
+    max_position_fraction: float
+    max_total_exposure_fraction: float
+
 
 class GenomeStrategy(BaseStrategy):
     """Compiled strategy from genome - dynamically generated."""
     
     def __init__(self, genome: StrategyGenome):
         self.genome = genome
-        
-        # Normalize chromosomes to dict to handle both Pydantic models and plain dicts
-        raw_chromosomes = genome.chromosomes
-        if hasattr(raw_chromosomes, "model_dump"):
-            # It's a Pydantic model - convert to dict
-            self._chromosomes = raw_chromosomes.model_dump()
-        elif isinstance(raw_chromosomes, dict):
-            self._chromosomes = raw_chromosomes
-        else:
-            # Unexpected type, fallback to empty dict
-            self._chromosomes = {}
-        
-        # Normalize each chromosome section (handle Pydantic models nested within)
-        self._perception = self._normalize_chromosome_section(self._chromosomes.get("perception"))
-        self._cognition = self._normalize_chromosome_section(self._chromosomes.get("cognition"))
-        self._execution = self._normalize_chromosome_section(self._chromosomes.get("execution"))
-        self._risk = self._normalize_chromosome_section(self._chromosomes.get("risk"))
-        self._meta = self._normalize_chromosome_section(self._chromosomes.get("meta"))
-        
-        self.name = f"genome_{genome.genome_id[:8]}"
-        self.description = f"Auto-evolved {genome.archetype} strategy"
-        self.category = genome.archetype
+        self._load_chromosomes()
         self.default_params = self._build_params()
+
+    def _load_chromosomes(self) -> None:
+        """Load and normalize chromosome sections from genome."""
+        raw_chromosomes = self._extract_raw_chromosomes()
+        self._perception = self._normalize_chromosome_section(raw_chromosomes.get("perception"))
+        self._cognition: CognitionChromosome = self._normalize_chromosome_section(raw_chromosomes.get("cognition"))
+        self._execution = self._normalize_chromosome_section(raw_chromosomes.get("execution"))
+        self._risk: RiskChromosome = self._normalize_chromosome_section(raw_chromosomes.get("risk"))
+        self._meta = self._normalize_chromosome_section(raw_chromosomes.get("meta"))
+
+    def _extract_raw_chromosomes(self) -> Dict[str, Any]:
+        """Extract raw chromosomes from genome, handling Pydantic models."""
+        raw = self.genome.chromosomes
+        if hasattr(raw, "model_dump"):
+            try:
+                return raw.model_dump()
+            except Exception as e:
+                logger.warning(f"Failed to extract chromosomes from genome {self.genome.genome_id}: {e}")
+                return {}
+        elif isinstance(raw, dict):
+            return raw
+        else:
+            logger.warning(f"Unexpected chromosome type {type(raw).__name__} for genome {self.genome.genome_id}")
+            return {}
+
+    @property
+    def name(self) -> str:
+        """Unique machine-readable strategy name."""
+        return f"genome_{self.genome.genome_id[:8]}"
+
+    @property
+    def description(self) -> str:
+        """Human-readable description of what the strategy does."""
+        return f"Auto-evolved {self.genome.archetype} strategy"
+
+    @property
+    def category(self) -> str:
+        """Strategy category (e.g. 'btc', 'weather', 'copy', 'ai')."""
+        return self.genome.archetype
 
     def _normalize_chromosome_section(self, section: Any) -> Dict[str, Any]:
         """Convert Pydantic models to dicts; fallback to empty dict if None."""
@@ -64,22 +134,86 @@ class GenomeStrategy(BaseStrategy):
         except (TypeError, ValueError) as e:
             logger.warning(f"Failed to normalize chromosome section (type={type(section).__name__}): {e}")
             return {}
+
+    def validate_chromosome_schema(self) -> bool:
+        """Validate that the genome's chromosome structure matches expected schema.
+        
+        Returns True if valid, False if invalid. Logs validation errors.
+        """
+        try:
+            chromosomes = self._chromosomes
+            if not isinstance(chromosomes, dict):
+                logger.error(f"Genome {self.genome.genome_id}: chromosomes must be a dict, got {type(chromosomes)}")
+                return False
+            
+            # Required top-level sections
+            required_sections = ["perception", "cognition", "execution", "risk", "meta"]
+            for section in required_sections:
+                if section not in chromosomes:
+                    logger.warning(f"Genome {self.genome.genome_id}: missing required chromosome section '{section}'")
+            
+            # Validate cognition section structure
+            cognition = chromosomes.get("cognition", {})
+            if isinstance(cognition, dict):
+                entry_logic = cognition.get("entry_logic", {})
+                if isinstance(entry_logic, dict):
+                    conditions = entry_logic.get("conditions", [])
+                    if isinstance(conditions, list):
+                        for i, condition in enumerate(conditions):
+                            if not isinstance(condition, dict):
+                                logger.warning(f"Genome {self.genome.genome_id}: condition {i} must be a dict")
+                                continue
+                            required_keys = ["indicator", "operator", "value"]
+                            for key in required_keys:
+                                if key not in condition:
+                                    logger.warning(f"Genome {self.genome.genome_id}: condition {i} missing '{key}'")
+                    else:
+                        logger.warning(f"Genome {self.genome.genome_id}: entry_logic.conditions must be a list")
+            
+            # Validate risk section structure
+            risk = chromosomes.get("risk", {})
+            if isinstance(risk, dict):
+                numeric_params = ["kelly_fraction", "max_position_fraction", "max_total_exposure_fraction"]
+                for param in numeric_params:
+                    value = risk.get(param)
+                    if value is not None and not isinstance(value, (int, float)):
+                        logger.warning(f"Genome {self.genome.genome_id}: risk.{param} must be numeric, got {type(value)}")
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Genome {self.genome.genome_id}: schema validation failed with error: {e}")
+            return False
     
     def _build_params(self) -> Dict[str, Any]:
+        """Build strategy parameters from chromosome configuration.
+        
+        Optimized to minimize repeated dict.get() calls and improve performance.
+        """
         params = {}
         
+        # Cache chromosome sections to avoid repeated access
         risk = self._risk
-        if isinstance(risk, dict):
-            params["kelly_fraction"] = risk.get("kelly_fraction", DEFAULT_KELLY_FRACTION)
-            params["max_position_fraction"] = risk.get("max_position_fraction", DEFAULT_MAX_POSITION_FRACTION)
-            params["max_total_exposure_fraction"] = risk.get("max_total_exposure_fraction", DEFAULT_MAX_EXPOSURE_FRACTION)
-        
         cognition = self._cognition
+        
+        # Extract risk parameters with single dict access
+        if isinstance(risk, dict):
+            risk_params = {
+                "kelly_fraction": risk.get("kelly_fraction", DEFAULT_KELLY_FRACTION),
+                "max_position_fraction": risk.get("max_position_fraction", DEFAULT_MAX_POSITION_FRACTION),
+                "max_total_exposure_fraction": risk.get("max_total_exposure_fraction", DEFAULT_MAX_EXPOSURE_FRACTION)
+            }
+            params.update(risk_params)
+        
+        # Extract cognition parameters with single dict access
         if isinstance(cognition, dict):
             entry = cognition.get("entry_logic", {})
             if isinstance(entry, dict):
-                params["min_confidence"] = entry.get("min_confidence", DEFAULT_MIN_CONFIDENCE)
-                params["trigger_type"] = entry.get("trigger_type", DEFAULT_TRIGGER_TYPE)
+                cognition_params = {
+                    "min_confidence": entry.get("min_confidence", DEFAULT_MIN_CONFIDENCE),
+                    "trigger_type": entry.get("trigger_type", DEFAULT_TRIGGER_TYPE)
+                }
+                params.update(cognition_params)
         
         return params
     
@@ -151,7 +285,7 @@ class GenomeStrategy(BaseStrategy):
             return []
     
     def _evaluate_market(self, market: MarketInfo, ctx: StrategyContext) -> Optional[Dict[str, Any]]:
-        cognition = self._cognition
+        cognition: CognitionChromosome = self._cognition
         if not isinstance(cognition, dict):
             return None
         
@@ -171,7 +305,7 @@ class GenomeStrategy(BaseStrategy):
         
         direction = "up" if market.yes_price < 0.5 else "down"
         
-        risk = self._risk
+        risk: RiskChromosome = self._risk
         max_frac = DEFAULT_MAX_POSITION_FRACTION
         if isinstance(risk, dict):
             max_frac = risk.get("max_position_fraction", DEFAULT_MAX_POSITION_FRACTION)
@@ -236,21 +370,49 @@ def compile_genome(genome: StrategyGenome) -> Type[BaseStrategy]:
     """Compile a StrategyGenome into a BaseStrategy subclass.
     
     Creates a GenomeStrategy subclass with genome-specific initialization.
-    Instance attributes (name, description, category) are set in __init__().
+    Properties (name, description, category) are computed dynamically from genome.
+    
+    Logs comprehensive metrics about the compilation process.
     """
+    import time
+    start_time = time.time()
     
-    class CompiledGenomeStrategy(GenomeStrategy):
-        """Compiled strategy instance for this specific genome."""
-        pass
-    
-    # Set strategy metadata for registration
-    strategy_name = f"genome_{genome.genome_id[:8]}"
-    CompiledGenomeStrategy.__name__ = strategy_name
-    CompiledGenomeStrategy.__qualname__ = strategy_name
-    
-    from backend.strategies.registry import _auto_register
-    _auto_register(CompiledGenomeStrategy)
-    
-    logger.info(f"Compiled genome {genome.genome_id} as {strategy_name}")
-    
-    return CompiledGenomeStrategy
+    try:
+        class CompiledGenomeStrategy(GenomeStrategy):
+            """Compiled strategy instance for this specific genome."""
+            pass
+        
+        # Set strategy metadata for registration and logging
+        strategy_name = f"genome_{genome.genome_id[:8]}"
+        CompiledGenomeStrategy.__name__ = strategy_name
+        CompiledGenomeStrategy.__qualname__ = strategy_name
+        
+        # Log compilation metrics
+        compilation_time = time.time() - start_time
+        chromosome_count = len(genome.chromosomes) if isinstance(genome.chromosomes, dict) else 0
+        
+        logger.info(
+            f"Genome compilation completed | "
+            f"genome_id={genome.genome_id} | "
+            f"archetype={genome.archetype} | "
+            f"strategy_name={strategy_name} | "
+            f"chromosomes={chromosome_count} | "
+            f"compilation_time={compilation_time:.3f}s"
+        )
+        
+        from backend.strategies.registry import _auto_register
+        _auto_register(CompiledGenomeStrategy)
+        
+        return CompiledGenomeStrategy
+        
+    except Exception as e:
+        compilation_time = time.time() - start_time
+        logger.error(
+            f"Genome compilation failed | "
+            f"genome_id={genome.genome_id} | "
+            f"error={str(e)} | "
+            f"genome_id={genome.genome_id} | "
+            f"archetype={genome.archetype} | "
+            f"compilation_time={compilation_time:.3f}s"
+        )
+        raise
