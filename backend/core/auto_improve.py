@@ -36,11 +36,12 @@ TUNABLE_PARAMS = (
     "daily_loss_limit",
 )
 
-# In-memory log of most recent parameter change for rollback evaluation.
-# Stored as a module-level dict so it survives across job invocations within
-# the same process.  Keys: previous_values, applied_values, applied_at,
-#                          pre_change_win_rate, pre_change_pnl, trade_count_at_apply
-_last_param_change: Optional[dict] = None
+# Per-strategy rollback state. Each key is a strategy name; value has the same
+# shape as the old single-dict: previous_values, applied_values, applied_at,
+# pre_change_win_rate, pre_change_pnl, trade_count_at_apply.
+# Using a per-strategy dict allows independent rollback windows for each
+# strategy instead of serialising all improvements through a single slot.
+_last_param_change: dict[str, dict] = {}
 _param_lock = threading.Lock()
 
 
@@ -108,25 +109,35 @@ def _get_current_params(target_settings=None) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def check_rollback_needed(db: Session, target_settings=None, bigbrain=None) -> bool:
+def check_rollback_needed(db: Session, target_settings=None, bigbrain=None, strategy: str = "__global__") -> bool:
+    """Check whether the most recent param change for *strategy* should be rolled back.
+
+    Pass ``strategy`` to scope the rollback check to a specific strategy.
+    The legacy ``"__global__"`` key is used when no strategy is specified so
+    that callers that don't pass a strategy still work correctly.
+    """
     global _last_param_change
     with _param_lock:
-        if _last_param_change is None:
+        if strategy not in _last_param_change:
             return False
 
-        applied_at = _last_param_change.get("applied_at")
+        applied_at = _last_param_change[strategy].get("applied_at")
         if applied_at is None:
             return False
-        snapshot = dict(_last_param_change)
+        snapshot = dict(_last_param_change[strategy])
 
-    # Gather settled trades since the change was applied
+    # Gather settled trades since the change was applied (scoped to strategy when possible)
+    trade_filter = [
+        Trade.settled.is_(True),  # noqa: E712
+        Trade.settlement_time >= applied_at,
+        Trade.result.in_(("win", "loss")),
+    ]
+    if strategy != "__global__" and hasattr(Trade, "strategy"):
+        trade_filter.append(Trade.strategy == strategy)
+
     post_trades = (
         db.query(Trade)
-        .filter(
-            Trade.settled.is_(True),  # noqa: E712
-            Trade.settlement_time >= applied_at,
-            Trade.result.in_(("win", "loss")),
-        )
+        .filter(*trade_filter)
         .order_by(Trade.settlement_time.asc())
         .limit(ROLLBACK_TRADE_WINDOW)
         .all()
@@ -187,16 +198,16 @@ def check_rollback_needed(db: Session, target_settings=None, bigbrain=None) -> b
             logger.debug("Audit log for rollback failed: %s", e)
 
         with _param_lock:
-            _last_param_change = None
+            _last_param_change.pop(strategy, None)
         return True
 
     # Performance acceptable — clear the pending rollback check
     logger.info(
-        f"[auto_improve] Post-change performance OK "
+        f"[auto_improve] Post-change performance OK for '{strategy}' "
         f"({post_win_rate:.1%} vs {pre_win_rate:.1%}), keeping new params"
     )
     with _param_lock:
-        _last_param_change = None
+        _last_param_change.pop(strategy, None)
     return False
 
 
@@ -285,11 +296,16 @@ async def auto_improve_job():
 
                 conf_float = _confidence_to_float(confidence)
                 if conf_float >= MIN_CONFIDENCE_FOR_AUTO_APPLY:
+                    # Use "__global__" as the strategy key when no specific strategy
+                    # is targeted (legacy behaviour). Per-strategy callers should
+                    # pass their own key to allow independent rollback windows.
+                    _strategy_key = "__global__"
                     with _param_lock:
-                        pending = _last_param_change is not None
+                        pending = _strategy_key in _last_param_change
                     if pending:
                         logger.info(
-                            "Auto-improve: skipping apply — pending change awaiting rollback review"
+                            "Auto-improve: skipping apply for '%s' — pending change awaiting rollback review",
+                            _strategy_key,
                         )
                     else:
                         current = _get_current_params()
@@ -297,7 +313,7 @@ async def auto_improve_job():
                         if clamped:
                             previous = apply_params_to_settings(clamped)
                             with _param_lock:
-                                _last_param_change = {
+                                _last_param_change[_strategy_key] = {
                                     "previous_values": previous,
                                     "applied_values": clamped,
                                     "applied_at": datetime.now(timezone.utc),

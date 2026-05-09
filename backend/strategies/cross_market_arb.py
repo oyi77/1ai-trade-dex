@@ -25,10 +25,12 @@ def _cfg(name, default):
     return getattr(settings, name, default)
 
 
-_poly_breaker = CircuitBreaker("polymarket", failure_threshold=5, recovery_timeout=60.0)
-_kalshi_breaker = CircuitBreaker("kalshi", failure_threshold=5, recovery_timeout=60.0)
+_CB_THRESHOLD = _cfg("CIRCUIT_BREAKER_THRESHOLD", 5)
+_CB_TIMEOUT = _cfg("CIRCUIT_BREAKER_TIMEOUT", 60.0)
+_poly_breaker = CircuitBreaker("polymarket", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT)
+_kalshi_breaker = CircuitBreaker("kalshi", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT)
 _consecutive_failures = 0
-_FAILURE_THRESHOLD = 5
+_FAILURE_THRESHOLD = _CB_THRESHOLD
 
 
 @dataclass
