@@ -1,5 +1,4 @@
 """T16: Ensemble confidence agreement metric tests [#47]."""
-import numpy as np
 import pytest
 
 from backend.ai.ensemble import EnsembleSignalGenerator

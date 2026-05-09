@@ -1,6 +1,5 @@
 import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -47,7 +46,7 @@ class TestShadowExperimentRealSignals:
 
     def test_shadow_experiment_persists_real_stats(self, db_session):
         runner = ExperimentRunner(session=db_session)
-        result = runner.run_shadow_experiment("persist_strategy", duration_days=7)
+        runner.run_shadow_experiment("persist_strategy", duration_days=7)
 
         experiment = (
             db_session.query(ExperimentRecord)

@@ -11,7 +11,6 @@ from backend.models.database import (
     Trade,
     WhaleTransaction,
 )
-from backend.api.auth import require_admin
 import logging
 
 logger = logging.getLogger("trading_bot")

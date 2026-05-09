@@ -225,7 +225,7 @@ export default function Dashboard() {
         </div>
 
         {/* MODE SELECTOR */}
-        {(['Overview', 'Trades', 'Performance'] as const).includes(activeTab) && <ModeSelector />}
+        {(['Overview', 'Trades', 'Performance'] as DashboardTab[]).includes(activeTab) && <ModeSelector />}
 
         {/* TAB BAR */}
         <div className="shrink-0 border-b border-neutral-800 px-3 flex items-center gap-0 overflow-x-auto scrollbar-none">

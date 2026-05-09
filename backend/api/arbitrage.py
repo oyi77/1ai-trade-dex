@@ -1,10 +1,9 @@
 """Arbitrage detection routes."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from typing import Dict
 import time as _time
 import logging
 
-from backend.api.auth import require_admin
 from backend.core.arbitrage_detector import ArbitrageDetector
 from backend.core.market_scanner import fetch_all_active_markets
 

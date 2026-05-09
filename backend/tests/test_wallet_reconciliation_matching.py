@@ -1,9 +1,9 @@
 """T17: Wallet reconciliation condition_id matching + orphan logging [#49]."""
 import logging
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from backend.models.database import Base, Trade, SessionLocal
+from backend.models.database import Base, Trade
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def _make_trade(db, market_ticker, direction="up", entry_price=0.50, size=10.0, 
 
 class TestConditionIdMatching:
     def test_condition_id_matches_first(self, test_db):
-        trade = _make_trade(test_db, "will-btc-hit-100k-condition_abc123def456")
+        _make_trade(test_db, "will-btc-hit-100k-condition_abc123def456")
         rec = MagicMock()
         rec.get.side_effect = lambda k, d=None: {
             "conditionId": "abc123def456",
@@ -59,7 +59,7 @@ class TestConditionIdMatching:
             }.get(k, d)
 
     def test_slug_fallback_when_condition_id_fails(self, test_db):
-        trade = _make_trade(test_db, "will-btc-hit-100k-2024")
+        _make_trade(test_db, "will-btc-hit-100k-2024")
         rec = MagicMock()
         rec.get.side_effect = lambda k, d=None: {
             "conditionId": "",

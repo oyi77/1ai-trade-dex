@@ -110,7 +110,7 @@ async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str
             for ticker in unresolved:
                 try:
                     resp = await client.get(
-                        f"https://gamma-api.polymarket.com/markets",
+                        "https://gamma-api.polymarket.com/markets",
                         params={"condition_id": ticker, "limit": 1},
                     )
                     if resp.status_code == 200:

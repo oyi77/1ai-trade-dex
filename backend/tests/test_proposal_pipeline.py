@@ -1,6 +1,5 @@
 """T18: Proposal column name validation + schema fix [#50]."""
 import pytest
-from unittest.mock import MagicMock, patch
 
 from backend.models.database import Base, StrategyProposal
 
