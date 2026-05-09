@@ -1,12 +1,11 @@
-import inspect
 """Tests for AGI scheduler job wiring (self-review, research pipeline)."""
+import inspect
 import json
 from datetime import datetime, timezone
 from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
-
-import pytest  # noqa: E402
+import pytest
 
 from backend.models.database import GenomeRegistry, ShadowTrade
 
