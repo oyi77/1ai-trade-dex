@@ -149,7 +149,7 @@ class Settings(BaseSettings):
         "weather": 1.15,
         "entertainment": 1.15,
     }
-    MAX_TRADE_SIZE: float = 8.0
+    MAX_TRADE_SIZE: float = 8.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
     MIN_TIME_REMAINING: int = 60  # Don't trade windows closing in < 60s

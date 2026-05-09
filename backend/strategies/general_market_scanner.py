@@ -208,7 +208,7 @@ class GeneralMarketScanner(BaseStrategy):
         "max_ai_calls_per_cycle": 40,
         "max_concurrent": 25,
         "min_reward_risk": 0.3,
-        "max_days_to_end": 2,  # Align with STALE_TRADE_HOURS (48h) to prevent premature expiration
+        "max_days_to_end": 2,
         "max_low_prob_size": 0.25,
         "low_prob_threshold": 0.20,
         "edge_dampening": 0.6,
@@ -224,6 +224,9 @@ class GeneralMarketScanner(BaseStrategy):
         "market_agree_low": 0.50,
         "market_agree_high": 0.65,
         "min_expected_profit": 0.08,
+        "dynamic_max_tiers": [(0.90, 0.20, 16.0), (0.85, 0.15, 12.0), (0.75, 0.10, 8.0), (0.65, 0.06, 5.0)],
+        "category_caps": {"sports": 0.75, "politics": 1.50, "crypto": 2.00},
+        "low_prob_yes_cap": 0.25,
     }
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
@@ -817,21 +820,12 @@ class GeneralMarketScanner(BaseStrategy):
             # Higher confidence = larger allowed position (up to bankroll %)
             # ============================================================
             base_max = max_position_size
-            if ai_confidence >= 0.90:
-                # Very high confidence: up to 20% of bankroll or $16
-                dynamic_max = min(bankroll * 0.20, 16.0)
-            elif ai_confidence >= 0.85:
-                # High confidence: up to 15% of bankroll or $12
-                dynamic_max = min(bankroll * 0.15, 12.0)
-            elif ai_confidence >= 0.75:
-                # Medium-high confidence: up to 10% of bankroll or $8
-                dynamic_max = min(bankroll * 0.10, 8.0)
-            elif ai_confidence >= 0.65:
-                # Medium confidence: up to 6% of bankroll or $5
-                dynamic_max = min(bankroll * 0.06, 5.0)
-            else:
-                # Low confidence: stick to base max
-                dynamic_max = base_max
+            dynamic_max = base_max
+            tiers = params.get("dynamic_max_tiers", [])
+            for conf_thresh, pct, cap in tiers:
+                if ai_confidence >= conf_thresh:
+                    dynamic_max = min(bankroll * pct, cap)
+                    break
 
             ctx.logger.debug(
                 f"[general_scanner] DYNAMIC_SIZE {slug}: "
@@ -858,13 +852,9 @@ class GeneralMarketScanner(BaseStrategy):
                     size = min(min_size_for_profit, max_position_size)
             # For YES bets at low probability, aggressively cap size
             if direction == "yes" and entry_price < 0.50:
-                size = min(size, 0.25)
+                size = min(size, params["low_prob_yes_cap"])
 
-            category_caps = {
-                "sports": 0.75,
-                "politics": 1.50,
-                "crypto": 2.00,
-            }
+            category_caps = params.get("category_caps", {})
             for cat_key, cap in category_caps.items():
                 if cat_key in market_categories or (is_sports and cat_key == "sports"):
                     size = min(size, cap)

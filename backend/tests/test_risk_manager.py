@@ -10,6 +10,7 @@ class MockSettings:
     INITIAL_BANKROLL: float = 1000.0
     DAILY_LOSS_LIMIT: float = 300.0
     MAX_POSITION_FRACTION: float = 0.05
+    MAX_TRADE_SIZE: float = 100.0  # Global max trade size ceiling
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.50
     SLIPPAGE_TOLERANCE: float = 0.02
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10
@@ -366,3 +367,26 @@ class TestImmutableSafetyRules:
             # Even with 2.0x multiplier: 0.80 * 2.0 = 1.60, but should be capped at 0.95
             threshold = rm._get_confidence_threshold("live", "BTC Momentum")
             assert threshold == 0.95
+
+    def test_max_trade_size_enforced(self):
+        """Risk manager must cap any trade size to settings.MAX_TRADE_SIZE."""
+        s = MockSettings()
+        s.MAX_TRADE_SIZE = 50.0  # Set a known ceiling
+        s.MAX_POSITION_FRACTION = 0.50  # Allow large fraction to isolate MAX_TRADE_SIZE effect
+        rm = RiskManager(settings_obj=s)
+
+        # Request a size far above MAX_TRADE_SIZE
+        decision = rm.validate_trade(
+            size=200.0,
+            current_exposure=0.0,
+            bankroll=1000.0,
+            confidence=0.90,
+            market_ticker="TEST",
+            mode="paper",
+            strategy_name="test_strategy",
+            direction="up",
+        )
+        # Should be allowed but reduced to MAX_TRADE_SIZE
+        assert decision.allowed is True
+        assert decision.adjusted_size == 50.0
+        assert "ok" in decision.reason.lower()

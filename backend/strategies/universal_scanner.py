@@ -195,6 +195,7 @@ class UniversalScanner(BaseStrategy):
             "min_edge": _cfg("SCANNER_MIN_EDGE", 0.02),
         "min_volume": 1000.0,
         "max_signals": 100,
+        "max_decision_size": 10.0,
     }
 
     async def scan_all(self) -> list[MarketInfo]:
@@ -347,10 +348,11 @@ class UniversalScanner(BaseStrategy):
                     signals.append(signal)
 
             decisions = []
+            max_decision_size = self.default_params["max_decision_size"]
             for sig in signals:
                 edge = sig["edge"]
                 confidence = sig["confidence"]
-                size = min(abs(edge) * 100.0, self._MAX_DECISION_SIZE)
+                size = min(abs(edge) * 100.0, max_decision_size)
                 size = max(size, 1.0)
                 side = "YES" if edge > 0 else "NO"
 

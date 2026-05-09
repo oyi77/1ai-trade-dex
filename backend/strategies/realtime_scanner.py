@@ -111,6 +111,7 @@ class RealtimeScannerStrategy(BaseStrategy):
         # Track configuration
         "track_name": "realtime",
         "execution_mode": "live",
+        "max_position_usd": 50.0,  # Max trade size for this strategy (USD)
     }
 
     def __init__(self):
@@ -252,10 +253,12 @@ class RealtimeScannerStrategy(BaseStrategy):
                                 "direction": direction.lower(),
                                 "confidence": confidence,
                                 "edge": slow_velocity,
-                                "size": ctx.params.get("max_position_usd", 50),
+                                "size": ctx.params.get(
+                                    "max_position_usd", self.default_params["max_position_usd"]
+                                ),
                                 "entry_price": rt_entry_price,
                                 "suggested_size": ctx.params.get(
-                                    "max_position_usd", 50
+                                    "max_position_usd", self.default_params["max_position_usd"]
                                 ),
                                 "model_probability": confidence,
                                 "market_probability": current_price,

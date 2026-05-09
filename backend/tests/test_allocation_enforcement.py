@@ -15,6 +15,7 @@ class _MockSettings:
     INITIAL_BANKROLL: float = 1000.0
     DAILY_LOSS_LIMIT: float = 300.0
     MAX_POSITION_FRACTION: float = 0.05
+    MAX_TRADE_SIZE: float = 50.0  # Added - global max position cap enforced by RiskManager
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.50
     SLIPPAGE_TOLERANCE: float = 0.02
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10

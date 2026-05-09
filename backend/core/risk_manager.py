@@ -240,6 +240,9 @@ class RiskManager:
             max_position = bankroll * self.s.MAX_POSITION_FRACTION
         adjusted = min(size, max_position)
 
+        # Global max trade size ceiling (immutable safety rule)
+        adjusted = min(adjusted, self.s.MAX_TRADE_SIZE)
+
         # Paper/testnet bankroll is available cash because entry execution
         # deducts stake immediately; total exposure limits must use equity
         # (cash + already-open stake), otherwise existing positions shrink the

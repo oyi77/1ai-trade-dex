@@ -30,15 +30,15 @@ def calculate_dynamic_size(
     confidence: float,
     max_position_usd: float,
     min_position_usd: float = 1.0,
+    edge_scale_threshold: float = 0.10,
 ) -> float:
     """Return an AI-signal-sized position proposal within the strategy mandate.
 
     BTC Oracle still expresses an autonomous preference using edge and confidence,
     but the proposal cannot exceed the configured strategy cap. The RiskManager
     remains the final non-bypassable authority for bankroll, exposure, drawdown,
-    duplicate-position, and minimum-order checks.
+    duplicate-position, minimum-order, and global MAX_TRADE_SIZE checks.
     """
-
     cap = max(0.0, float(max_position_usd))
     if cap <= 0:
         return 0.0
@@ -46,7 +46,7 @@ def calculate_dynamic_size(
     # Edge on these near-resolution markets can be noisy, so scale the proposal
     # smoothly instead of jumping from zero to full cap. A 10%+ edge at high
     # confidence reaches the mandate cap; weaker signals use smaller probes.
-    edge_score = min(1.0, max(0.0, edge) / 0.10)
+    edge_score = min(1.0, max(0.0, edge) / edge_scale_threshold)
     confidence_score = min(1.0, max(0.0, confidence))
     sizing_fraction = max(0.10, edge_score * confidence_score)
     proposed = cap * sizing_fraction
@@ -148,6 +148,9 @@ class BtcOracleStrategy(BaseStrategy):
         "min_edge": 0.03,
         "max_minutes_to_resolution": 60,
         "interval_seconds": 30,
+        "max_position_usd": 50.0,
+        "edge_scale_threshold": 0.10,
+        "min_position_usd": 1.0,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
@@ -161,12 +164,10 @@ class BtcOracleStrategy(BaseStrategy):
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
-        min_edge = ctx.params.get("min_edge", self.default_params["min_edge"])
-        max_minutes = ctx.params.get(
-            "max_minutes_to_resolution",
-            self.default_params["max_minutes_to_resolution"],
-        )
-        max_position_usd = float(ctx.params.get("max_position_usd", 50))
+        params = {**self.default_params, **(ctx.params or {})}
+        min_edge = params.get("min_edge", self.default_params["min_edge"])
+        max_minutes = params.get("max_minutes_to_resolution", self.default_params["max_minutes_to_resolution"])
+        max_position_usd = float(params.get("max_position_usd", self.default_params["max_position_usd"]))
 
         btc_price = await fetch_btc_price()
         if btc_price is None:
@@ -263,6 +264,8 @@ class BtcOracleStrategy(BaseStrategy):
                     edge=edge,
                     confidence=confidence_score,
                     max_position_usd=max_position_usd,
+                    min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
+                    edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
                 )
                 result.decisions.append(
                     {
@@ -379,6 +382,8 @@ class BtcOracleStrategy(BaseStrategy):
                     edge=edge,
                     confidence=confidence_score,
                     max_position_usd=max_position_usd,
+                    min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
+                    edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
                 )
                 result.decisions.append(
                     {

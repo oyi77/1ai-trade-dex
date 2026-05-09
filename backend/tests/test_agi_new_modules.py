@@ -224,7 +224,7 @@ class TestStrategyRehabilitator:
         for i in range(12):
             db.add(Trade(
                 strategy="old_strat",
-                trading_mode="paper",
+                trading_mode="live",
                 market_ticker=f"T{i}",
                 direction="up",
                 entry_price=0.5,

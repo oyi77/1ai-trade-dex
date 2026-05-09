@@ -32,6 +32,9 @@ class BondScannerStrategy(BaseStrategy):
         "min_days_to_resolution": 0.5,
         "max_position_size": 8.0,
         "max_concurrent_bonds": 8,
+        "kelly_fraction": 0.25,
+        "min_size_usd": 5.0,
+        "bankroll_pct": 0.08,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
@@ -261,9 +264,9 @@ class BondScannerStrategy(BaseStrategy):
             confidence = win_prob
             # Size proportional to edge — don't max-bet on tiny edges
             kelly = edge / (1.0 - qualifying_price) if qualifying_price < 1.0 else 0.0
-            size = min(max_position_size, bankroll * 0.08, bankroll * kelly * 0.25)
-            # Floor at $5 to meet Polymarket CLOB minimum order size
-            size = max(size, 5.0)
+            kelly_fraction = params.get("kelly_fraction", 0.25)
+            size = min(max_position_size, bankroll * params.get("bankroll_pct", 0.08), bankroll * kelly * kelly_fraction)
+            size = max(size, params.get("min_size_usd", 5.0))
             size = min(size, max_position_size)
 
             trade_direction = str(qualifying_outcome).strip().strip("'\"").lower()
