@@ -9,6 +9,7 @@ Benchmarks:
 - LLM cost tracking < 1ms overhead per call
 """
 import time
+import pytest
 
 import pytest
 

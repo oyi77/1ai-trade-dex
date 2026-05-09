@@ -101,6 +101,7 @@ def test_strategy_health_active(db):
     monitor = StrategyHealthMonitor()
     for i in range(35):
         t = _make_trade(i + 100, "btc_oracle", "win" if i % 2 == 0 else "loss", 5.0 if i % 2 == 0 else -3.0)
+        t.trading_mode = "live"
         record_outcome(t, db)
 
     health = monitor.assess("btc_oracle", db, trading_mode="paper")
@@ -113,6 +114,7 @@ def test_strategy_health_kill(db):
     monitor = StrategyHealthMonitor()
     for i in range(35):
         t = _make_trade(i + 200, "bad_strategy", "loss", -10.0, prob=0.9)
+        t.trading_mode = "live"
         record_outcome(t, db)
 
     health = monitor.assess("bad_strategy", db, trading_mode="paper")

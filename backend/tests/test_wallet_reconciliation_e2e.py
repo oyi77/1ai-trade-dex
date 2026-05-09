@@ -65,24 +65,30 @@ async def test_database_recovery_from_empty(db, mock_clob):
     # Mock Data API response with 3 positions
     mock_positions = [
         {
-            "asset": "btc-up-5m",
+            "type": "TRADE",
+                "slug": "btc-up-5m",
+                "conditionId": "cond1",
             "outcome": "Yes",
-            "initialValue": 100.0,
-            "avgPrice": 0.65,
+                "size": 100.0,
+                "price": 0.65,
             "redeemable": False,
         },
         {
-            "asset": "eth-down-1h",
+            "type": "TRADE",
+                "slug": "eth-down-1h",
+                "conditionId": "cond2",
             "outcome": "No",
-            "initialValue": 50.0,
-            "avgPrice": 0.40,
+                "size": 50.0,
+                "price": 0.40,
             "redeemable": False,
         },
         {
-            "asset": "sol-up-daily",
+            "type": "TRADE",
+                "slug": "sol-up-daily",
+                "conditionId": "cond3",
             "outcome": "Yes",
-            "initialValue": 200.0,
-            "avgPrice": 0.55,
+                "size": 200.0,
+                "price": 0.55,
             "redeemable": False,
         },
     ]
@@ -159,17 +165,21 @@ async def test_external_trade_deduplication(db, mock_clob):
     # Mock Data API: same position + new position
     mock_positions = [
         {
-            "asset": "btc-up-5m",  # Duplicate
+            "type": "TRADE",
+            "slug": "btc-up-5m",  # Duplicate
+            "conditionId": "cond1",
             "outcome": "Yes",
-            "initialValue": 100.0,
-            "avgPrice": 0.65,
+            "size": 100.0,
+            "price": 0.65,
             "redeemable": False,
         },
         {
-            "asset": "eth-down-1h",  # New
+            "type": "TRADE",
+            "slug": "eth-down-1h",  # New
+            "conditionId": "cond2",
             "outcome": "No",
-            "initialValue": 75.0,
-            "avgPrice": 0.30,
+            "size": 75.0,
+            "price": 0.30,
             "redeemable": False,
         },
     ]
@@ -372,24 +382,30 @@ async def test_full_reconciliation_e2e(db, mock_clob):
     # Mock Data API response with 2 positions to import + 1 orphaned
     mock_positions = [
         {
-            "asset": "btc-up-5m",
+            "type": "TRADE",
+            "slug": "btc-up-5m",
+            "conditionId": "cond1",
             "outcome": "Yes",
-            "initialValue": 100.0,
-            "avgPrice": 0.65,
+            "size": 100.0,
+            "price": 0.65,
             "redeemable": False,
         },
         {
-            "asset": "eth-down-1h",
+            "type": "TRADE",
+            "slug": "eth-down-1h",
+            "conditionId": "cond2",
             "outcome": "No",
-            "initialValue": 50.0,
-            "avgPrice": 0.40,
+            "size": 50.0,
+            "price": 0.40,
             "redeemable": False,
         },
         {
-            "asset": "sol-up-daily",  # Orphaned
+            "type": "TRADE",
+            "slug": "sol-up-daily",  # Orphaned
+            "conditionId": "cond3",
             "outcome": "No",
-            "initialValue": 150.0,
-            "avgPrice": 0.50,
+            "size": 150.0,
+            "price": 0.50,
             "redeemable": False,
         },
     ]
