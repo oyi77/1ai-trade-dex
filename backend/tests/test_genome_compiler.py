@@ -2,7 +2,6 @@
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, Any
 
 from backend.application.strategy.genome_compiler import (
     GenomeStrategy,
