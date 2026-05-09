@@ -90,9 +90,6 @@ frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/
 
-# Auto-generated agent docs (OMC)
-AGENTS.md
-**/AGENTS.md
 
 # Dev reports (session artifacts, not source)
 BACKTEST_TESTING_FINAL_REPORT.md
