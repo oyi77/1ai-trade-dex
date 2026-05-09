@@ -138,9 +138,18 @@ class KnowledgeGraph:
             KGRelationModel.to_entity_id == target.id,
             KGRelationModel.relation_type == relation_type,
         ).all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        source_entity_ids = [rel.from_entity_id for rel in relations]
+        if not source_entity_ids:
+            return []
+
+        sources = self._session.query(KGEntityModel).filter(KGEntityModel.id.in_(source_entity_ids)).all()
+        source_dict = {source.id: source for source in sources}
+
         results = []
         for rel in relations:
-            source = self._session.query(KGEntityModel).filter(KGEntityModel.id == rel.from_entity_id).first()
+            source = source_dict.get(rel.from_entity_id)
             if source:
                 results.append(KGEntityType(
                     entity_type=source.entity_type,
@@ -160,9 +169,18 @@ class KnowledgeGraph:
             KGRelationModel.to_entity_id == regime_entity.id,
             KGRelationModel.relation_type == "performs_well_in",
         ).all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        strategy_ids = [rel.from_entity_id for rel in relations]
+        if not strategy_ids:
+            return []
+
+        strategies = self._session.query(KGEntityModel).filter(KGEntityModel.id.in_(strategy_ids)).all()
+        strategy_dict = {strat.id: strat for strat in strategies}
+
         results = []
         for rel in relations:
-            strategy = self._session.query(KGEntityModel).filter(KGEntityModel.id == rel.from_entity_id).first()
+            strategy = strategy_dict.get(rel.from_entity_id)
             if strategy:
                 results.append(KGEntityType(
                     entity_type=strategy.entity_type,
@@ -180,9 +198,18 @@ class KnowledgeGraph:
         relations = self._session.query(KGRelationModel).filter(
             KGRelationModel.from_entity_id == strategy_entity.id,
         ).all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        regime_ids = [rel.to_entity_id for rel in relations]
+        if not regime_ids:
+            return {}
+
+        regimes = self._session.query(KGEntityModel).filter(KGEntityModel.id.in_(regime_ids)).all()
+        regime_dict = {r.id: r for r in regimes}
+
         performance = {}
         for rel in relations:
-            regime = self._session.query(KGEntityModel).filter(KGEntityModel.id == rel.to_entity_id).first()
+            regime = regime_dict.get(rel.to_entity_id)
             if regime and regime.entity_type == "regime":
                 performance[regime.entity_id] = {
                     "weight": rel.weight,
@@ -384,9 +411,18 @@ class KnowledgeGraph:
         if relation_type:
             query = query.filter(KGRelationModel.relation_type == relation_type)
         relations = query.all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        to_entity_ids = [rel.to_entity_id for rel in relations]
+        if not to_entity_ids:
+            return []
+
+        to_models = session.query(KGEntityModel).filter(KGEntityModel.id.in_(to_entity_ids)).all()
+        to_model_dict = {model.id: model for model in to_models}
+
         results = []
         for rel in relations:
-            to_model = session.query(KGEntityModel).filter(KGEntityModel.id == rel.to_entity_id).first()
+            to_model = to_model_dict.get(rel.to_entity_id)
             if to_model:
                 results.append(KGRelationType(
                     from_entity=entity_id,
@@ -408,9 +444,18 @@ class KnowledgeGraph:
         relations = session.query(KGRelationModel).filter(
             KGRelationModel.from_entity_id == strategy_model.id
         ).all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        regime_ids = [rel.to_entity_id for rel in relations]
+        if not regime_ids:
+            return {}
+
+        regimes = session.query(KGEntityModel).filter(KGEntityModel.id.in_(regime_ids)).all()
+        regime_dict = {r.id: r for r in regimes}
+
         result = {}
         for rel in relations:
-            regime_model = session.query(KGEntityModel).filter(KGEntityModel.id == rel.to_entity_id).first()
+            regime_model = regime_dict.get(rel.to_entity_id)
             if regime_model and regime_model.entity_type == "regime":
                 try:
                     regime = MarketRegime(regime_model.entity_id)
@@ -438,9 +483,18 @@ class KnowledgeGraph:
             KGRelationModel.to_entity_id == regime_model.id,
             KGRelationModel.relation_type == "performs_well_in",
         ).order_by(KGRelationModel.weight.desc()).limit(limit).all()
+
+        # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+        strategy_ids = [rel.from_entity_id for rel in relations]
+        if not strategy_ids:
+            return []
+
+        strategies = session.query(KGEntityModel).filter(KGEntityModel.id.in_(strategy_ids)).all()
+        strategy_dict = {strat.id: strat for strat in strategies}
+
         results = []
         for rel in relations:
-            strategy_model = session.query(KGEntityModel).filter(KGEntityModel.id == rel.from_entity_id).first()
+            strategy_model = strategy_dict.get(rel.from_entity_id)
             if strategy_model:
                 results.append(KGEntityType(
                     entity_type=strategy_model.entity_type,
