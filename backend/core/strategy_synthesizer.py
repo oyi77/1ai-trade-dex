@@ -124,9 +124,6 @@ class StrategySynthesizer:
             from backend.ai.strategy_composer import StrategyComposer
             composer = StrategyComposer()
 
-            # Build a KG-enriched prompt context
-            kg_summary = self._build_kg_summary(kg_context)
-
             # compose_new_strategy uses the DB session for outcome history
             result = await composer.compose_new_strategy(db=self._session)
             if result and result.get("code"):

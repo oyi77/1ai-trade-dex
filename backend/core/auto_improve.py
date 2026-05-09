@@ -8,7 +8,7 @@ import logging
 import json
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from backend.config import settings
 from backend.models.database import SessionLocal, Trade, DecisionLog
