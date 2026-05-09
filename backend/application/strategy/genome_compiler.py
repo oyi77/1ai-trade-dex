@@ -75,7 +75,7 @@ class RiskChromosome(TypedDict, total=False):
 
 class GenomeStrategy(BaseStrategy):
     """Compiled strategy from genome - dynamically generated."""
-    
+
     def __init__(self, genome: StrategyGenome):
         self.genome = genome
         self._load_chromosomes()
@@ -137,7 +137,7 @@ class GenomeStrategy(BaseStrategy):
 
     def validate_chromosome_schema(self) -> bool:
         """Validate that the genome's chromosome structure matches expected schema.
-        
+
         Returns True if valid, False if invalid. Logs validation errors.
         """
         try:
@@ -145,13 +145,13 @@ class GenomeStrategy(BaseStrategy):
             if not isinstance(chromosomes, dict):
                 logger.error(f"Genome {self.genome.genome_id}: chromosomes must be a dict, got {type(chromosomes)}")
                 return False
-            
+
             # Required top-level sections
             required_sections = ["perception", "cognition", "execution", "risk", "meta"]
             for section in required_sections:
                 if section not in chromosomes:
                     logger.warning(f"Genome {self.genome.genome_id}: missing required chromosome section '{section}'")
-            
+
             # Validate cognition section structure
             cognition = chromosomes.get("cognition", {})
             if isinstance(cognition, dict):
@@ -169,7 +169,7 @@ class GenomeStrategy(BaseStrategy):
                                     logger.warning(f"Genome {self.genome.genome_id}: condition {i} missing '{key}'")
                     else:
                         logger.warning(f"Genome {self.genome.genome_id}: entry_logic.conditions must be a list")
-            
+
             # Validate risk section structure
             risk = chromosomes.get("risk", {})
             if isinstance(risk, dict):
@@ -178,24 +178,24 @@ class GenomeStrategy(BaseStrategy):
                     value = risk.get(param)
                     if value is not None and not isinstance(value, (int, float)):
                         logger.warning(f"Genome {self.genome.genome_id}: risk.{param} must be numeric, got {type(value)}")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Genome {self.genome.genome_id}: schema validation failed with error: {e}")
             return False
-    
+
     def _build_params(self) -> Dict[str, Any]:
         """Build strategy parameters from chromosome configuration.
-        
+
         Optimized to minimize repeated dict.get() calls and improve performance.
         """
         params = {}
-        
+
         # Cache chromosome sections to avoid repeated access
         risk = self._risk
         cognition = self._cognition
-        
+
         # Extract risk parameters with single dict access
         if isinstance(risk, dict):
             risk_params = {
@@ -204,7 +204,7 @@ class GenomeStrategy(BaseStrategy):
                 "max_total_exposure_fraction": risk.get("max_total_exposure_fraction", DEFAULT_MAX_EXPOSURE_FRACTION)
             }
             params.update(risk_params)
-        
+
         # Extract cognition parameters with single dict access
         if isinstance(cognition, dict):
             entry = cognition.get("entry_logic", {})
@@ -214,9 +214,9 @@ class GenomeStrategy(BaseStrategy):
                     "trigger_type": entry.get("trigger_type", DEFAULT_TRIGGER_TYPE)
                 }
                 params.update(cognition_params)
-        
+
         return params
-    
+
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(
             decisions_recorded=0,
@@ -224,19 +224,19 @@ class GenomeStrategy(BaseStrategy):
             trades_placed=0,
             errors=[]
         )
-        
+
         try:
             markets = await self._fetch_markets(ctx)
             if not markets:
                 return result
-            
+
             for market in markets[:TOP_MARKETS_TO_PROCESS]:
                 signal = self._evaluate_market(market, ctx)
                 if signal:
                     result.decisions.append(signal)
                     result.decisions_recorded += 1
                     result.trades_attempted += 1
-                    
+
                     record_decision = getattr(ctx, 'record_decision', None)
                     if record_decision:
                         record_decision(
@@ -251,9 +251,9 @@ class GenomeStrategy(BaseStrategy):
         except Exception as e:
             result.errors.append(str(e))
             logger.exception(f"[{self.name}] Error: {e}")
-        
+
         return result
-    
+
     async def _fetch_markets(self, ctx: StrategyContext) -> list[MarketInfo]:
         try:
             from backend.data.gamma import fetch_markets
@@ -264,10 +264,10 @@ class GenomeStrategy(BaseStrategy):
                 outcome_prices = m.get("outcomePrices", [DEFAULT_CONFIDENCE_BASELINE])
                 if not isinstance(outcome_prices, list) or len(outcome_prices) == 0:
                     outcome_prices = [DEFAULT_CONFIDENCE_BASELINE]
-                
+
                 yes_price = float(outcome_prices[0]) if len(outcome_prices) > 0 else DEFAULT_CONFIDENCE_BASELINE
                 no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 else DEFAULT_CONFIDENCE_BASELINE
-                
+
                 result.append(MarketInfo(
                     ticker=m.get("ticker", m.get("question", "")[:50]),
                     slug=m.get("slug", ""),
@@ -283,36 +283,36 @@ class GenomeStrategy(BaseStrategy):
         except Exception as e:
             logger.warning(f"Failed to fetch markets: {e}")
             return []
-    
+
     def _evaluate_market(self, market: MarketInfo, ctx: StrategyContext) -> Optional[Dict[str, Any]]:
         cognition: CognitionChromosome = self._cognition
         if not isinstance(cognition, dict):
             return None
-        
+
         entry = cognition.get("entry_logic", {})
         if not isinstance(entry, dict):
             return None
-        
+
         conditions = entry.get("conditions", [])
         if not conditions:
             return None
-        
+
         confidence = self._calculate_confidence(market, conditions)
         min_conf = entry.get("min_confidence", DEFAULT_MIN_CONFIDENCE)
-        
+
         if confidence < min_conf:
             return None
-        
+
         direction = "up" if market.yes_price < 0.5 else "down"
-        
+
         risk: RiskChromosome = self._risk
         max_frac = DEFAULT_MAX_POSITION_FRACTION
         if isinstance(risk, dict):
             max_frac = risk.get("max_position_fraction", DEFAULT_MAX_POSITION_FRACTION)
-        
+
         bankroll = getattr(ctx, 'bankroll', DEFAULT_BANKROLL) if hasattr(ctx, 'bankroll') else DEFAULT_BANKROLL
         size = min(bankroll * max_frac, DEFAULT_MAX_TRADE_SIZE)
-        
+
         return {
             "decision": "BUY",
             "market_ticker": market.ticker,
@@ -329,18 +329,18 @@ class GenomeStrategy(BaseStrategy):
             "genome_id": self.genome.genome_id,
             "reasoning": f"genome {entry.get('trigger_type', DEFAULT_TRIGGER_TYPE)} confidence={confidence:.2f}"
         }
-    
+
     def _calculate_confidence(self, market: MarketInfo, conditions: list) -> float:
         if not conditions:
             return 0.5
-        
+
         score = 0.0
         for cond in conditions:
             indicator = cond.get("indicator", "")
             operator = cond.get("operator", ">")
             value = cond.get("value", 0.5)
             weight = cond.get("weight", 1.0)
-            
+
             if indicator in ["rsi", "RSI"]:
                 market_value = 0.5
             elif indicator in ["volume", "vol"]:
@@ -349,7 +349,7 @@ class GenomeStrategy(BaseStrategy):
                 market_value = market.liquidity / 100000.0
             else:
                 market_value = market.yes_price
-            
+
             match = False
             if operator == ">" and market_value > value:
                 match = True
@@ -359,38 +359,38 @@ class GenomeStrategy(BaseStrategy):
                 match = True
             elif operator == "<=" and market_value <= value:
                 match = True
-            
+
             if match:
                 score += weight
-        
+
         return min(score / len(conditions), 1.0)
 
 
 def compile_genome(genome: StrategyGenome) -> Type[BaseStrategy]:
     """Compile a StrategyGenome into a BaseStrategy subclass.
-    
+
     Creates a GenomeStrategy subclass with genome-specific initialization.
     Properties (name, description, category) are computed dynamically from genome.
-    
+
     Logs comprehensive metrics about the compilation process.
     """
     import time
     start_time = time.time()
-    
+
     try:
         class CompiledGenomeStrategy(GenomeStrategy):
             """Compiled strategy instance for this specific genome."""
             pass
-        
+
         # Set strategy metadata for registration and logging
         strategy_name = f"genome_{genome.genome_id[:8]}"
         CompiledGenomeStrategy.__name__ = strategy_name
         CompiledGenomeStrategy.__qualname__ = strategy_name
-        
+
         # Log compilation metrics
         compilation_time = time.time() - start_time
         chromosome_count = len(genome.chromosomes) if isinstance(genome.chromosomes, dict) else 0
-        
+
         logger.info(
             f"Genome compilation completed | "
             f"genome_id={genome.genome_id} | "
@@ -399,12 +399,12 @@ def compile_genome(genome: StrategyGenome) -> Type[BaseStrategy]:
             f"chromosomes={chromosome_count} | "
             f"compilation_time={compilation_time:.3f}s"
         )
-        
+
         from backend.strategies.registry import _auto_register
         _auto_register(CompiledGenomeStrategy)
-        
+
         return CompiledGenomeStrategy
-        
+
     except Exception as e:
         compilation_time = time.time() - start_time
         logger.error(
