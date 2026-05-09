@@ -4,9 +4,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import Column, String, Integer, Float, JSON, DateTime, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from backend.models.database import Base
 
 
 class GenomeRegistry(Base):
