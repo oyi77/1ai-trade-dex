@@ -48,7 +48,6 @@ class NightlyReviewWriter:
 
             logger.info("[NightlyReview] Written to %s", path)
 
-            # TODO: Wire NightlyReview output into KnowledgeGraph (Wave 10)
             # Publish event for KnowledgeGraph integration
             from backend.core.event_bus import publish_event
             publish_event("nightly_review_complete", {
@@ -177,7 +176,7 @@ class NightlyReviewWriter:
             else:
                 lines.append("- No pending proposals")
 
-            disabled = db.query(StrategyConfig).filter(StrategyConfig.enabled == False).all()
+            disabled = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(False)).all()
             if disabled:
                 lines.append(f"\n### Disabled Strategies ({len(disabled)})\n")
                 for d in disabled:
