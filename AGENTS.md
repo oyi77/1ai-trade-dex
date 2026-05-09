@@ -28,6 +28,9 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 | `backend/core/bankroll_allocator.py` | Daily capital allocator — computes allocations via `StrategyRanker`, persists to `BotState.misc_data` |
 | `backend/core/trade_forensics.py` | Per-loss trade analysis — diagnoses root causes, aggregates pattern insights |
 | `backend/data/market_universe.py` | MarketUniverseScanner — universal market discovery across platforms using DataProvider ABC with configurable TTL cache |
+| `backend/models/genome_registry.py` | ORM models for genome persistence — GenomeRegistry, GenomePerformance, GenomeShadowTrade |
+| `backend/repositories/genome_repository.py` | Repository layer — CRUD operations for genome persistence |
+| `backend/application/strategy/genome_compiler.py` | GenomeCompiler — runtime translation of StrategyGenome into executable BaseStrategy subclass |
 | `docs/architecture/adr-006-agi-autonomy-framework.md` | AGI autonomy governance — promotion gates, safety boundaries, human-in-the-loop override |
 
 ## Subdirectories
