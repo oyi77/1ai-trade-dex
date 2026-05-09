@@ -14,9 +14,10 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 # Per-exchange circuit breakers for the BTC kline fallback chain
-coinbase_breaker = CircuitBreaker("coinbase")
-kraken_breaker = CircuitBreaker("kraken")
-binance_breaker = CircuitBreaker("binance")
+# Increased tolerance: 10 failures before opening, 5-minute recovery window
+coinbase_breaker = CircuitBreaker("coinbase", failure_threshold=10, recovery_timeout=300.0)
+kraken_breaker = CircuitBreaker("kraken", failure_threshold=10, recovery_timeout=300.0)
+binance_breaker = CircuitBreaker("binance", failure_threshold=10, recovery_timeout=300.0)
 
 # ---------------------------------------------------------------------------
 # Binance 1-min kline fetcher + technical indicators for BTC 5-min trading
@@ -26,6 +27,29 @@ BINANCE_API = settings.BINANCE_API_URL
 BYBIT_API = settings.BYBIT_API_URL
 COINBASE_API = settings.COINBASE_API_URL
 KRAKEN_API = settings.KRAKEN_API_URL
+
+# Module-level persistent HTTP client to avoid creating a new one per call
+_crypto_client: httpx.AsyncClient | None = None
+
+
+def _get_crypto_client() -> httpx.AsyncClient:
+    """Lazily create and reuse a single httpx.AsyncClient for all crypto feed calls."""
+    global _crypto_client
+    if _crypto_client is None or _crypto_client.is_closed:
+        _crypto_client = httpx.AsyncClient(
+            timeout=10.0,
+            limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+        )
+    return _crypto_client
+
+
+async def close_crypto_client() -> None:
+    """Close the persistent crypto HTTP client (call on shutdown)."""
+    global _crypto_client
+    if _crypto_client is not None and not _crypto_client.is_closed:
+        await _crypto_client.aclose()
+    _crypto_client = None
+
 
 # 30-second cache to avoid hammering Binance during a single scan cycle
 _kline_cache: Dict[str, Any] = {"data": None, "ts": 0.0}
@@ -57,10 +81,10 @@ class BtcMicrostructure:
     source: str = "binance"
 
 
-async def fetch_binance_klines(limit: int = 60) -> Optional[List[list]]:
+async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
     """
-    Fetch recent 1-minute BTCUSDT candles from Binance.
-    Falls back to Bybit if Binance fails (US geo-blocking).
+    Fetch recent 1-minute BTC candles from exchanges.
+    Tries Coinbase first, then Kraken, Binance, and Bybit as fallbacks.
 
     Returns list of [open_time, open, high, low, close, volume, ...] or None.
     """
@@ -68,120 +92,124 @@ async def fetch_binance_klines(limit: int = 60) -> Optional[List[list]]:
     if _kline_cache["data"] is not None and (now - _kline_cache["ts"]) < _CACHE_TTL:
         return _kline_cache["data"]
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        # Try Coinbase first (US-accessible, reliable)
-        if coinbase_breaker.state != "OPEN":
-            try:
-                import datetime as _dt
-                end = _dt.datetime.now(_dt.timezone.utc)
-                start = end - _dt.timedelta(minutes=limit)
-                resp = await client.get(
-                    f"{COINBASE_API}/products/BTC-USD/candles",
-                    params={
-                        "start": start.isoformat(),
-                        "end": end.isoformat(),
-                        "granularity": 60,
-                    },
-                )
-                resp.raise_for_status()
-                rows = resp.json()
-                # Coinbase returns [time, low, high, open, close, volume] newest-first
-                rows = list(reversed(rows))
-                candles = [
-                    [int(r[0]) * 1000, str(r[3]), str(r[2]), str(r[1]), str(r[4]), str(r[5])]
-                    for r in rows
-                ]
-                _kline_cache["data"] = candles
-                _kline_cache["ts"] = now
-                _kline_cache["_source"] = "coinbase"
-                _feed_health["coinbase"] = time.time()
-                await coinbase_breaker._on_success()
-                return candles
-            except Exception as e:
-                logger.warning(f"Coinbase kline fetch failed, trying Kraken: {e}")
-                await coinbase_breaker._on_failure()
-        else:
-            logger.warning("Coinbase circuit OPEN, skipping to Kraken")
+    client = _get_crypto_client()
 
-        # Fallback 1: Kraken (US-accessible, free)
-        if kraken_breaker.state != "OPEN":
-            try:
-                resp = await client.get(
-                    f"{KRAKEN_API}/OHLC",
-                    params={"pair": "XBTUSD", "interval": 1},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                result = data.get("result", {})
-                ohlc_key = [k for k in result if k != "last"]
-                if ohlc_key:
-                    rows = result[ohlc_key[0]]
-                    rows = rows[-limit:]
-                    candles = [
-                        [int(r[0]) * 1000, str(r[1]), str(r[2]), str(r[3]), str(r[4]), str(r[6])]
-                        for r in rows
-                    ]
-                    _kline_cache["data"] = candles
-                    _kline_cache["ts"] = now
-                    _kline_cache["_source"] = "kraken"
-                    _feed_health["kraken"] = time.time()
-                    await kraken_breaker._on_success()
-                    return candles
-            except Exception as e:
-                logger.warning(f"Kraken kline fetch failed, trying Binance: {e}")
-                await kraken_breaker._on_failure()
-        else:
-            logger.warning("Kraken circuit OPEN, skipping to Binance")
-
-        # Fallback 2: Binance (geo-blocked in US)
-        if binance_breaker.state != "OPEN":
-            try:
-                resp = await client.get(
-                    f"{BINANCE_API}/klines",
-                    params={"symbol": "BTCUSDT", "interval": "1m", "limit": limit},
-                )
-                resp.raise_for_status()
-                candles = resp.json()
-                _kline_cache["data"] = candles
-                _kline_cache["ts"] = now
-                _kline_cache["_source"] = "binance"
-                _feed_health["binance"] = time.time()
-                await binance_breaker._on_success()
-                return candles
-            except Exception as e:
-                logger.warning(f"Binance kline fetch failed, trying Bybit: {e}")
-                await binance_breaker._on_failure()
-        else:
-            logger.warning("Binance circuit OPEN, skipping to Bybit")
-
-        # Fallback 3: Bybit (last resort, no dedicated breaker)
+    # Try Coinbase first (US-accessible, reliable)
+    if coinbase_breaker.state != "OPEN":
         try:
+            import datetime as _dt
+            end = _dt.datetime.now(_dt.timezone.utc)
+            start = end - _dt.timedelta(minutes=limit)
             resp = await client.get(
-                f"{BYBIT_API}/kline",
+                f"{COINBASE_API}/products/BTC-USD/candles",
                 params={
-                    "category": "spot",
-                    "symbol": "BTCUSDT",
-                    "interval": "1",
-                    "limit": limit,
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "granularity": 60,
                 },
             )
             resp.raise_for_status()
-            data = resp.json()
-            rows = data.get("result", {}).get("list", [])
+            rows = resp.json()
             rows = list(reversed(rows))
             candles = [
-                [int(r[0]), r[1], r[2], r[3], r[4], r[5]]
+                [int(r[0]) * 1000, str(r[3]), str(r[2]), str(r[1]), str(r[4]), str(r[5])]
                 for r in rows
             ]
             _kline_cache["data"] = candles
             _kline_cache["ts"] = now
-            _kline_cache["_source"] = "bybit"
-            _feed_health["bybit"] = time.time()
+            _kline_cache["_source"] = "coinbase"
+            _feed_health["coinbase"] = time.time()
+            await coinbase_breaker._on_success()
             return candles
         except Exception as e:
-            logger.error(f"All kline sources failed: {e}")
+            logger.warning(f"Coinbase kline fetch failed, trying Kraken: {repr(e)}")
+            await coinbase_breaker._on_failure()
+    else:
+        logger.warning("Coinbase circuit OPEN, skipping to Kraken")
 
-        return None
+    # Fallback 1: Kraken (US-accessible, free)
+    if kraken_breaker.state != "OPEN":
+        try:
+            resp = await client.get(
+                f"{KRAKEN_API}/OHLC",
+                params={"pair": "XBTUSD", "interval": 1},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            result = data.get("result", {})
+            ohlc_key = [k for k in result if k != "last"]
+            if ohlc_key:
+                rows = result[ohlc_key[0]]
+                rows = rows[-limit:]
+                candles = [
+                    [int(r[0]) * 1000, str(r[1]), str(r[2]), str(r[3]), str(r[4]), str(r[6])]
+                    for r in rows
+                ]
+                _kline_cache["data"] = candles
+                _kline_cache["ts"] = now
+                _kline_cache["_source"] = "kraken"
+                _feed_health["kraken"] = time.time()
+                await kraken_breaker._on_success()
+                return candles
+        except Exception as e:
+            logger.warning(f"Kraken kline fetch failed, trying Binance: {repr(e)}")
+            await kraken_breaker._on_failure()
+    else:
+        logger.warning("Kraken circuit OPEN, skipping to Binance")
+
+    # Fallback 2: Binance (geo-blocked in US)
+    if binance_breaker.state != "OPEN":
+        try:
+            resp = await client.get(
+                f"{BINANCE_API}/klines",
+                params={"symbol": "BTCUSDT", "interval": "1m", "limit": limit},
+            )
+            resp.raise_for_status()
+            candles = resp.json()
+            _kline_cache["data"] = candles
+            _kline_cache["ts"] = now
+            _kline_cache["_source"] = "binance"
+            _feed_health["binance"] = time.time()
+            await binance_breaker._on_success()
+            return candles
+        except Exception as e:
+            logger.warning(f"Binance kline fetch failed, trying Bybit: {repr(e)}")
+            await binance_breaker._on_failure()
+    else:
+        logger.warning("Binance circuit OPEN, skipping to Bybit")
+
+    # Fallback 3: Bybit (last resort, no dedicated breaker)
+    try:
+        resp = await client.get(
+            f"{BYBIT_API}/kline",
+            params={
+                "category": "spot",
+                "symbol": "BTCUSDT",
+                "interval": "1",
+                "limit": limit,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        rows = data.get("result", {}).get("list", [])
+        rows = list(reversed(rows))
+        candles = [
+            [int(r[0]), r[1], r[2], r[3], r[4], r[5]]
+            for r in rows
+        ]
+        _kline_cache["data"] = candles
+        _kline_cache["ts"] = now
+        _kline_cache["_source"] = "bybit"
+        _feed_health["bybit"] = time.time()
+        return candles
+    except Exception as e:
+        logger.error(f"All kline sources failed: {repr(e)}")
+
+    return None
+
+
+# Backward-compatible alias
+fetch_binance_klines = fetch_btc_klines
 
 
 def _compute_rsi(closes: List[float], period: int = 14) -> float:

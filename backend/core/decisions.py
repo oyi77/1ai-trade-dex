@@ -15,6 +15,9 @@ from backend.models.database import DecisionLog
 
 logger = logging.getLogger("trading_bot")
 
+_DB_LOCKED_MAX_RETRIES = 3
+_DB_LOCKED_RETRY_DELAY = 0.5
+
 
 def record_decision(
     db,
@@ -26,7 +29,7 @@ def record_decision(
     reason: str | None = None,
 ) -> DecisionLog | None:
     """
-    Insert a DecisionLog row.
+    Insert a DecisionLog row with automatic retry on SQLite lock contention.
 
     Args:
         db: SQLAlchemy Session
@@ -54,41 +57,52 @@ def record_decision(
                 )
                 signal_json = str(signal_data)
 
-    try:
-        row = DecisionLog(
-            strategy=strategy,
-            market_ticker=market_ticker,
-            decision=decision.upper(),
-            confidence=confidence,
-            signal_data=signal_json,
-            reason=reason,
-            created_at=datetime.now(timezone.utc),
-        )
-        db.add(row)
-        db.flush()
-        return row
-    except OperationalError as e:
-        # SQLite "database is locked" — rollback so the session stays usable
-        logger.warning(
-            f"record_decision: OperationalError for {strategy}/{market_ticker}, "
-            f"rolling back session: {e}",
-            extra={"component": "decisions"},
-        )
+    for attempt in range(_DB_LOCKED_MAX_RETRIES):
         try:
-            db.rollback()
-        except Exception:
-            logger.error(f"record_decision: rollback also failed for {strategy}/{market_ticker}")
-        return None
-    except Exception as e:
-        logger.error(
-            f"record_decision failed for {strategy}/{market_ticker}: {e}",
-            extra={"component": "decisions"},
-        )
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        return None
+            row = DecisionLog(
+                strategy=strategy,
+                market_ticker=market_ticker,
+                decision=decision.upper(),
+                confidence=confidence,
+                signal_data=signal_json,
+                reason=reason,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(row)
+            db.flush()
+            return row
+        except OperationalError as e:
+            if "database is locked" not in str(e).lower() or attempt >= _DB_LOCKED_MAX_RETRIES - 1:
+                logger.warning(
+                    f"record_decision: OperationalError for {strategy}/{market_ticker}, "
+                    f"rolling back session: {e}",
+                    extra={"component": "decisions"},
+                )
+                try:
+                    db.rollback()
+                except Exception:
+                    logger.error(f"record_decision: rollback also failed for {strategy}/{market_ticker}")
+                return None
+            logger.info(
+                f"record_decision: database locked for {strategy}/{market_ticker}, "
+                f"retry {attempt + 1}/{_DB_LOCKED_MAX_RETRIES}"
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            time.sleep(_DB_LOCKED_RETRY_DELAY)
+        except Exception as e:
+            logger.error(
+                f"record_decision failed for {strategy}/{market_ticker}: {e}",
+                extra={"component": "decisions"},
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            return None
+    return None
 
 
 def record_decision_standalone(
