@@ -686,3 +686,4 @@ async def test_autonomous_cycle_losing_trade():
 
     finally:
         db.close()
+
