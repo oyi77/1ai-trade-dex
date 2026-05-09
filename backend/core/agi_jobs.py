@@ -207,3 +207,66 @@ async def fronttest_validation_job() -> None:
     except Exception as exc:
         logger.exception("fronttest_validation_job failed: %s", exc)
         log_event("error", f"Fronttest validation failed: {exc}")
+
+
+async def model_calibration_check_job() -> None:
+    """Check AI model calibration (Brier score) and trigger retraining on drift.
+
+    Runs the ModelEvaluator against recent settled trades. If the Brier score
+    exceeds the configured threshold (default 0.25), fires the retrain trigger.
+    """
+    from backend.core.scheduler import log_event
+
+    log_event("info", "Running model calibration check...")
+    try:
+        from backend.models.database import SessionLocal, Trade
+        from backend.ai.training.model_evaluator import ModelEvaluator
+        from backend.config import settings
+
+        brier_threshold = getattr(settings, "AGI_BRIER_DRIFT_THRESHOLD", 0.25)
+        min_samples = getattr(settings, "AGI_CALIBRATION_MIN_SAMPLES", 30)
+
+        with SessionLocal() as db:
+            recent_trades = (
+                db.query(Trade)
+                .filter(
+                    Trade.settled.is_(True),
+                    Trade.result.in_(("win", "loss")),
+                    Trade.model_probability.isnot(None),
+                )
+                .order_by(Trade.settlement_time.desc())
+                .limit(200)
+                .all()
+            )
+
+        if len(recent_trades) < min_samples:
+            log_event("info", f"Calibration check skipped: only {len(recent_trades)} samples (need {min_samples})")
+            return
+
+        predictions = [
+            (float(t.model_probability), 1.0 if t.result == "win" else 0.0)
+            for t in recent_trades
+            if t.model_probability is not None
+        ]
+
+        evaluator = ModelEvaluator()
+        metrics = evaluator.evaluate(predictions)
+        brier = metrics.get("brier", 0.0)
+
+        if brier > brier_threshold:
+            logger.warning(
+                "[calibration_check] Brier score %.4f exceeds threshold %.4f — triggering retrain",
+                brier, brier_threshold,
+            )
+            from backend.core.retrain_trigger import check_and_trigger_retraining
+            retrain_result = await check_and_trigger_retraining()
+            log_event(
+                "warning" if retrain_result.get("status") != "ok" else "success",
+                f"Calibration drift detected (Brier={brier:.4f}): retrain → {retrain_result.get('status')}",
+            )
+        else:
+            log_event("success", f"Calibration OK: Brier={brier:.4f} (threshold={brier_threshold})")
+
+    except Exception as exc:
+        logger.exception("model_calibration_check_job failed: %s", exc)
+        log_event("error", f"Model calibration check failed: {exc}")

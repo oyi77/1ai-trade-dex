@@ -159,6 +159,7 @@ class StrategyRanker:
         db: Session,
         bankroll: float,
         lookback_days: int = 30,
+        trading_mode: Optional[str] = None,
     ) -> dict[str, float]:
         """Allocate bankroll across strategies proportional to risk-adjusted return.
 

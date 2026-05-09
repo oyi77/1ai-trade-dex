@@ -162,21 +162,27 @@ class TestApplyAndRollback:
 
 
 class TestCheckRollbackNeeded:
+    # _last_param_change is now dict[str, dict] keyed by strategy name.
+    # The legacy "__global__" key is used when no strategy is specified.
+    _KEY = "__global__"
+
     def _setup_rollback_state(self, pre_win_rate=0.6, previous_values=None):
         auto_improve_mod._last_param_change = {
-            "previous_values": previous_values or {"kelly_fraction": 0.05},
-            "applied_values": {"kelly_fraction": 0.06},
-            "applied_at": datetime.now(timezone.utc) - timedelta(hours=1),
-            "pre_change_win_rate": pre_win_rate,
-            "pre_change_pnl": 10.0,
-            "trade_count_at_apply": 50,
+            self._KEY: {
+                "previous_values": previous_values or {"kelly_fraction": 0.05},
+                "applied_values": {"kelly_fraction": 0.06},
+                "applied_at": datetime.now(timezone.utc) - timedelta(hours=1),
+                "pre_change_win_rate": pre_win_rate,
+                "pre_change_pnl": 10.0,
+                "trade_count_at_apply": 50,
+            }
         }
 
     def teardown_method(self):
-        auto_improve_mod._last_param_change = None
+        auto_improve_mod._last_param_change = {}
 
     def test_no_pending_change_returns_false(self):
-        auto_improve_mod._last_param_change = None
+        auto_improve_mod._last_param_change = {}
         db = MagicMock()
         assert check_rollback_needed(db) is False
 
@@ -186,7 +192,7 @@ class TestCheckRollbackNeeded:
         query = db.query.return_value.filter.return_value.order_by.return_value.limit.return_value
         query.all.return_value = [_make_trade() for _ in range(5)]
         assert check_rollback_needed(db) is False
-        assert auto_improve_mod._last_param_change is not None
+        assert self._KEY in auto_improve_mod._last_param_change
 
     def test_good_performance_clears_state(self):
         self._setup_rollback_state(pre_win_rate=0.6)
@@ -199,7 +205,7 @@ class TestCheckRollbackNeeded:
         query.all.return_value = trades
         result = check_rollback_needed(db, target_settings=s)
         assert result is False
-        assert auto_improve_mod._last_param_change is None
+        assert self._KEY not in auto_improve_mod._last_param_change
 
     @patch("backend.core.auto_improve.rollback_params")
     def test_degraded_performance_triggers_rollback(self, mock_rollback):
@@ -214,7 +220,7 @@ class TestCheckRollbackNeeded:
         result = check_rollback_needed(db, target_settings=s)
         assert result is True
         mock_rollback.assert_called_once()
-        assert auto_improve_mod._last_param_change is None
+        assert self._KEY not in auto_improve_mod._last_param_change
 
     def test_zero_pre_win_rate_no_rollback(self):
         self._setup_rollback_state(pre_win_rate=0.0)
@@ -331,9 +337,9 @@ def _optimizer_mock(confidence="high", suggestions=None):
 class TestAutoImproveJob:
     @pytest.fixture(autouse=True)
     def _reset_module_state(self):
-        auto_improve_mod._last_param_change = None
+        auto_improve_mod._last_param_change = {}
         yield
-        auto_improve_mod._last_param_change = None
+        auto_improve_mod._last_param_change = {}
 
     @pytest.mark.asyncio
     @patch("backend.core.auto_improve.get_bigbrain")
@@ -363,9 +369,9 @@ class TestAutoImproveJob:
             await auto_improve_mod.auto_improve_job()
 
         assert fake_s.KELLY_FRACTION == 0.12
-        assert auto_improve_mod._last_param_change is not None
+        assert "__global__" in auto_improve_mod._last_param_change
         assert (
-            auto_improve_mod._last_param_change["applied_values"]["kelly_fraction"]
+            auto_improve_mod._last_param_change["__global__"]["applied_values"]["kelly_fraction"]
             == 0.12
         )
 
@@ -393,7 +399,8 @@ class TestAutoImproveJob:
             await auto_improve_mod.auto_improve_job()
 
         assert fake_s.KELLY_FRACTION == 0.10
-        assert auto_improve_mod._last_param_change is None
+        assert "__global__" not in auto_improve_mod._last_param_change
+
 
     @pytest.mark.asyncio
     @patch("backend.core.auto_improve.get_bigbrain")
@@ -431,8 +438,9 @@ class TestAutoImproveJob:
             await auto_improve_mod.auto_improve_job()
 
         assert fake_s.KELLY_FRACTION == 0.13
+        assert "__global__" in auto_improve_mod._last_param_change
         assert (
-            auto_improve_mod._last_param_change["applied_values"]["kelly_fraction"]
+            auto_improve_mod._last_param_change["__global__"]["applied_values"]["kelly_fraction"]
             == 0.13
         )
 
@@ -452,12 +460,14 @@ class TestAutoImproveJob:
     ):
         fake_s = _make_job_settings()
         auto_improve_mod._last_param_change = {
-            "previous_values": {"kelly_fraction": 0.09},
-            "applied_values": {"kelly_fraction": 0.12},
-            "applied_at": datetime.now(timezone.utc),
-            "pre_change_win_rate": 0.65,
-            "pre_change_pnl": 100.0,
-            "trade_count_at_apply": 40,
+            "__global__": {
+                "previous_values": {"kelly_fraction": 0.09},
+                "applied_values": {"kelly_fraction": 0.12},
+                "applied_at": datetime.now(timezone.utc),
+                "pre_change_win_rate": 0.65,
+                "pre_change_pnl": 100.0,
+                "trade_count_at_apply": 40,
+            }
         }
 
         bb = _bigbrain_mock()
@@ -534,4 +544,4 @@ class TestAutoImproveJob:
             await auto_improve_mod.auto_improve_job()
 
         assert fake_s.KELLY_FRACTION == 0.10
-        assert auto_improve_mod._last_param_change is None
+        assert "__global__" not in auto_improve_mod._last_param_change

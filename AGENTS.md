@@ -24,9 +24,16 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 | `POLYMARKET_SETUP.md` | Polymarket API credential setup guide |
 | `IMPLEMENTATION_GAPS.md` | Known gaps and incomplete features |
 | `test_backtest_data.py` | Root-level backtest data validation tests |
-| `backend/core/autonomous_promoter.py` | Experiment lifecycle daemon — auto-promotes DRAFT→SHADOW→PAPER→LIVE, auto-retires killed experiments, health-based kill checks |
-| `backend/core/bankroll_allocator.py` | Daily capital allocator — computes allocations via `StrategyRanker`, persists to `BotState.misc_data` |
+| `backend/core/autonomous_promoter.py` | Experiment lifecycle daemon — auto-promotes DRAFT→SHADOW→PAPER→LIVE_TRIAL→LIVE_PROMOTED, demotes killed strategies to PAPER with improvement loop, health-based kill checks |
+| `backend/core/bankroll_allocator.py` | Daily capital allocator — computes allocations via `StrategyRanker` with risk-tier caps, persists to `BotState.misc_data` |
 | `backend/core/trade_forensics.py` | Per-loss trade analysis — diagnoses root causes, aggregates pattern insights |
+| `backend/core/strategy_synthesizer.py` | LLM-powered strategy synthesis with 4-gate validation (syntax→lint→backtest→sandbox); only validated strategies enter SHADOW |
+| `backend/core/knowledge_graph.py` | KG with `query_by_type()` and `query_relations()` helpers; read during AGI cycle to inform strategy composition |
+| `backend/core/risk_profiles.py` | 6 risk presets (safe/conservative/moderate/aggressive/extreme/crazy) + `RISK_TIER_MAX_ALLOCATION` dict |
+| `backend/core/forensics_integration.py` | Forensics→improvement pipeline; broken strategies get parameter overhaul; `_has_active_experiment()` excludes RETIRED |
+| `backend/core/auto_improve.py` | Per-strategy rollback dict (`_last_param_change[strategy_key]`); independent rollback windows per strategy |
+| `backend/core/fronttest_validator.py` | Paper-trial gate; crazy-tier strategies skip 14-day minimum via `_get_strategy_risk_tier()` |
+| `backend/core/agi_jobs.py` | AGI scheduled jobs including new `model_calibration_check_job` (Brier drift → retrain trigger) |
 | `backend/data/market_universe.py` | MarketUniverseScanner — universal market discovery across platforms using DataProvider ABC with configurable TTL cache |
 | `backend/models/genome_registry.py` | ORM models for genome persistence — GenomeRegistry, GenomePerformance, GenomeShadowTrade |
 | `backend/repositories/genome_repository.py` | Repository layer — CRUD operations for genome persistence |

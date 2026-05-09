@@ -89,6 +89,18 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit_pct=0.05,
         longshot_no_bias_weight=0.05,
     ),
+    # conservative sits between safe and normal — suitable for strategies that
+    # have passed paper validation but haven't yet proven live performance.
+    "conservative": RiskProfile(
+        name="conservative", display_name="Conservative", is_preset=True,
+        kelly_fraction=0.20, min_edge_threshold=0.35, max_trade_size=5.0,
+        max_position_fraction=0.05, max_total_exposure_fraction=0.50,
+        daily_loss_limit=3.0, daily_drawdown_limit_pct=0.07,
+        weekly_drawdown_limit_pct=0.15, slippage_tolerance=0.015,
+        auto_approve_min_confidence=0.60,
+        daily_loss_limit_pct=0.07,
+        longshot_no_bias_weight=0.07,
+    ),
     "normal": RiskProfile(
         name="normal", display_name="Normal", is_preset=True,
         kelly_fraction=0.30, min_edge_threshold=0.30, max_trade_size=8.0,
@@ -120,9 +132,36 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_floor_pct=-0.40, weekly_loss_floor_pct=-0.60,
         longshot_no_bias_weight=0.15,
     ),
+    # crazy tier is for unlimited paper experimentation only. BankrollAllocator
+    # caps live allocation at 1% of bankroll for crazy-tier strategies.
+    # FronttestValidator skips the 14-day minimum gate for crazy-tier.
+    "crazy": RiskProfile(
+        name="crazy", display_name="Crazy (Experimental)", is_preset=True,
+        kelly_fraction=1.00, min_edge_threshold=0.01, max_trade_size=100.0,
+        max_position_fraction=0.50, max_total_exposure_fraction=1.00,
+        daily_loss_limit=100.0, daily_drawdown_limit_pct=0.80,
+        weekly_drawdown_limit_pct=0.95, slippage_tolerance=0.10,
+        auto_approve_min_confidence=0.10,
+        daily_loss_limit_pct=0.80,
+        daily_loss_floor_pct=-0.80, weekly_loss_floor_pct=-0.95,
+        longshot_no_bias_weight=0.20,
+    ),
 }
 
 DEFAULT_PROFILE = "normal"
+
+# Maximum fraction of total bankroll that BankrollAllocator may assign to a
+# single strategy, keyed by risk_tier.  Tiers not listed fall back to the
+# "moderate" cap.  "crazy" is intentionally capped at 1% for live trading;
+# paper/shadow experiments are uncapped by design.
+RISK_TIER_MAX_ALLOCATION: Dict[str, float] = {
+    "safe":         0.50,
+    "conservative": 0.30,
+    "moderate":     0.20,
+    "aggressive":   0.15,
+    "extreme":      0.05,
+    "crazy":        0.01,
+}
 
 
 def seed_presets(db: Optional[Session] = None) -> None:
