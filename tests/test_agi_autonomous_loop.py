@@ -489,8 +489,8 @@ async def test_full_autonomous_cycle():
             ),
             patch("backend.core.scheduler.log_event", MagicMock()),
         ):
-            # Reset _last_param_change so the job can apply
-            auto_improve_mod._last_param_change = None
+            # Reset _last_param_change so the job can apply (must be dict, not None)
+            auto_improve_mod._last_param_change = {}
             await auto_improve_job()
 
         # Verify optimizer was consulted
@@ -515,7 +515,7 @@ async def test_full_autonomous_cycle():
         )
 
         # Verify _last_param_change was set for future rollback evaluation
-        assert auto_improve_mod._last_param_change is not None, (
+        assert auto_improve_mod._last_param_change, (
             "auto_improve should record _last_param_change for rollback tracking"
         )
 
@@ -542,7 +542,7 @@ async def test_full_autonomous_cycle():
             attr = key.upper()
             if hasattr(settings, attr) and pre_params.get(key) is not None:
                 object.__setattr__(settings, attr, pre_params[key])
-        auto_improve_mod._last_param_change = None
+        auto_improve_mod._last_param_change = {}
         db.close()
 
 
