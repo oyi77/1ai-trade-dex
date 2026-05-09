@@ -43,6 +43,10 @@ class GenomeShadowTrade(Base):
     """Shadow trades for sandbox testing - linked to genome."""
 
     __tablename__ = "genome_shadow_trade"
+    __table_args__ = (
+        Index("ix_shadow_genome_settled", "genome_id", "settled"),
+        Index("ix_shadow_timestamp", "timestamp"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     genome_id = Column(String(36), nullable=False, index=True)
@@ -64,8 +68,8 @@ class GenomeShadowTrade(Base):
     actual_outcome = Column(Float, nullable=True)
     accuracy_score = Column(Float, nullable=True)
 
-    signal_data = Column(JSON, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    signal_data = Column(JSON, nullable=True, index=True)  # indexed for forensics
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     settled_at = Column(DateTime, nullable=True)
 
     def __repr__(self):

@@ -79,17 +79,20 @@ class GenomeRepository:
             self.close()
 
     def get_by_stage(self, stage: str, limit: int = 100) -> List[GenomeRegistry]:
-        """Get all genomes at a specific stage."""
+        """Get all genomes at a specific stage, sorted by fitness_score."""
         db = self._get_db()
         try:
             return db.query(GenomeRegistry).filter(
                 GenomeRegistry.stage == stage
-            ).order_by(desc(GenomeRegistry.sharpe_ratio)).limit(limit).all()
+            ).order_by(desc(GenomeRegistry.fitness_score)).limit(limit).all()
         finally:
             self.close()
 
     def get_elite(self, limit: int = 5) -> List[GenomeRegistry]:
-        """Get top-performing genomes (LIVE or BREEDING stage with good metrics)."""
+        """Get top-performing genomes (LIVE or BREEDING stage with good metrics).
+
+        Uses native columns for efficient index-based filtering.
+        """
         db = self._get_db()
         try:
             return db.query(GenomeRegistry).filter(
@@ -103,12 +106,12 @@ class GenomeRepository:
             self.close()
 
     def get_draft_genomes(self, limit: int = 20) -> List[GenomeRegistry]:
-        """Get genomes in DRAFT stage for evolution."""
+        """Get genomes in DRAFT stage for evolution, sorted by fitness_score."""
         db = self._get_db()
         try:
             return db.query(GenomeRegistry).filter(
                 GenomeRegistry.stage == "DRAFT"
-            ).order_by(desc(GenomeRegistry.created_at)).limit(limit).all()
+            ).order_by(desc(GenomeRegistry.fitness_score)).limit(limit).all()
         finally:
             self.close()
 
@@ -129,7 +132,11 @@ class GenomeRepository:
             self.close()
 
     def update_fitness(self, genome_id: str, metrics: Dict[str, Any]) -> bool:
-        """Update fitness metrics for a genome."""
+        """Update fitness metrics for a genome.
+
+        Syncs both fitness_json (structured) and native denormalized columns
+        (indexed for fast queries).
+        """
         db = self._get_db()
         try:
             genome = db.query(GenomeRegistry).filter(

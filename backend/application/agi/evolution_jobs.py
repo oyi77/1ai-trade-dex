@@ -388,7 +388,7 @@ def log_evolution_action(action: EvolutionAction, db: Session) -> None:
 
 
 def _sync_genome_fitness_from_shadow_trades(genome, settled_trades, db: Session) -> dict:
-    """Update fitness_json and genome_performance row from settled shadow trades."""
+    """Update fitness_json, native metric columns, and genome_performance row from settled shadow trades."""
     metrics = compute_shadow_metrics(settled_trades)
     fitness = FitnessMetrics(
         sharpe_ratio=metrics["sharpe_ratio"],
@@ -399,8 +399,17 @@ def _sync_genome_fitness_from_shadow_trades(genome, settled_trades, db: Session)
         last_evaluated=datetime.now(timezone.utc),
     )
     genome.fitness_json = fitness.model_dump_json()
-    genome.fitness_score = calculate_fitness(fitness)
+
+    # Compute composite fitness score and sync ALL native denormalized columns
+    fitness_score = calculate_fitness(fitness)
+    genome.fitness_score = fitness_score
     genome.fitness_updated_at = datetime.now(timezone.utc)
+    genome.total_pnl = metrics["total_pnl"]
+    genome.win_rate = metrics["win_rate"]
+    genome.sharpe_ratio = metrics["sharpe_ratio"]
+    genome.max_drawdown_pct = metrics["max_drawdown_pct"]
+    genome.trade_count = metrics["total_trades"]
+    genome.last_evaluated_at = datetime.now(timezone.utc)
 
     perf_row = db.query(GenomePerformance).filter(
         GenomePerformance.genome_id == genome.genome_id
@@ -440,21 +449,148 @@ def _sync_genome_fitness_from_shadow_trades(genome, settled_trades, db: Session)
 
 
 def fitness_evaluation_job() -> None:
-    """Backward-compatible wrapper for shadow fitness updates."""
-    updated = update_fitness_from_shadow()
-    logger.info("Fitness evaluation completed for %s genomes", updated)
+    """Evaluate fitness for all active genomes. Runs every 60 seconds."""
+    if not settings.EVOLUTION_ENGINE_ENABLED:
+        logger.debug("Evolution engine disabled, skipping fitness evaluation")
+        return
+
+    logger.info("Starting fitness evaluation job")
+    with _get_db_session() as db:
+        # Get all active genomes (not in GRAVEYARD stage)
+        genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage != "GRAVEYARD"
+        ).all()
+
+        for genome in genomes:
+            try:
+                raw = genome.fitness_metrics  # hybrid_property auto-deserializes fitness_json
+                metrics = FitnessMetrics(**{k: v for k, v in raw.items() if k in FitnessMetrics.model_fields})
+                fitness_score = calculate_fitness(metrics)
+
+                # Sync both JSON and native denormalized columns
+                genome.fitness_score = fitness_score
+                genome.fitness_updated_at = datetime.now(timezone.utc)
+                genome.total_pnl = raw.get("total_pnl", 0.0) if metrics.total_trades > 0 else 0.0
+                genome.win_rate = metrics.win_rate
+                genome.sharpe_ratio = metrics.sharpe_ratio
+                genome.max_drawdown_pct = metrics.max_drawdown_pct
+                genome.trade_count = metrics.total_trades
+                genome.last_evaluated_at = datetime.now(timezone.utc)
+
+                # Log evolution action
+                action = EvolutionAction(
+                    action_type="fitness_eval",
+                    genome_id=genome.genome_id,
+                    strategy_name=genome.strategy_name,
+                    details={"fitness_score": fitness_score},
+                )
+                log_evolution_action(action, db)
+
+                logger.debug(f"Fitness evaluated for {genome.strategy_name}: {fitness_score}")
+
+            except Exception as e:
+                logger.error(f"Error evaluating fitness for {genome.strategy_name}: {e}")
+
+        db.commit()
+        logger.info(f"Fitness evaluation completed for {len(genomes)} genomes")
 
 
 def mutation_cycle_job() -> None:
-    """Backward-compatible wrapper for the evolution mutation cycle."""
-    created = run_mutation_cycle()
-    logger.info("Mutation cycle completed, created %s offspring", created)
+    """Run mutation cycle on PAPER and LIVE genomes. Runs every 12 minutes."""
+    if not settings.EVOLUTION_ENGINE_ENABLED:
+        logger.debug("Evolution engine disabled, skipping mutation cycle")
+        return
+
+    logger.info("Starting mutation cycle")
+    with _get_db_session() as db:
+        # Get genomes eligible for mutation (PAPER or LIVE stage)
+        eligible = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage.in_(["PAPER", "LIVE"])
+        ).all()
+
+        mutants = []
+        for genome in eligible:
+            try:
+                mutant_genome, changes = mutate_genome(genome)
+
+                # Sync both JSON and native denormalized columns
+                mutant_genome.fitness_score = 0.0
+                mutant_genome.fitness_updated_at = datetime.now(timezone.utc)
+                mutant_genome.total_pnl = 0.0
+                mutant_genome.win_rate = 0.0
+                mutant_genome.sharpe_ratio = 0.0
+                mutant_genome.max_drawdown_pct = 0.0
+                mutant_genome.trade_count = 0
+                mutant_genome.last_evaluated_at = datetime.now(timezone.utc)
+
+                db.add(mutant_genome)
+                mutants.append(mutant_genome)
+
+                # Log evolution action
+                action = EvolutionAction(
+                    action_type="mutation",
+                    genome_id=mutant_genome.genome_id,
+                    strategy_name=mutant_genome.strategy_name,
+                    details={"parent_id": genome.genome_id, "changes": changes},
+                )
+                log_evolution_action(action, db)
+
+                logger.debug(f"Mutated {genome.strategy_name} -> {mutant_genome.strategy_name}")
+
+            except Exception as e:
+                logger.error(f"Error mutating {genome.strategy_name}: {e}")
+
+        db.commit()
+        logger.info(f"Mutation cycle completed, created {len(mutants)} offspring")
 
 
 def crossover_cycle_job() -> None:
-    """Backward-compatible wrapper for the evolution crossover cycle."""
-    created = run_crossover_cycle()
-    logger.info("Crossover cycle completed, created %s offspring", created)
+    """Run crossover cycle on PAPER and LIVE genomes. Runs every 12 minutes."""
+    if not settings.EVOLUTION_ENGINE_ENABLED:
+        logger.debug("Evolution engine disabled, skipping crossover cycle")
+        return
+
+    logger.info("Starting crossover cycle")
+    with _get_db_session() as db:
+        # Get elite genomes (top performers) for crossover
+        elite_genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage.in_(["PAPER", "LIVE"])
+        ).order_by(GenomeRegistry.fitness_score.desc()).limit(10).all()
+
+        for i in range(0, len(elite_genomes) - 1, 2):
+            parent_a = elite_genomes[i]
+            parent_b = elite_genomes[i + 1]
+            try:
+                child_genome = crossover_genomes(parent_a, parent_b)
+
+                # Sync both JSON and native denormalized columns
+                child_genome.fitness_score = 0.0
+                child_genome.fitness_updated_at = datetime.now(timezone.utc)
+                child_genome.total_pnl = 0.0
+                child_genome.win_rate = 0.0
+                child_genome.sharpe_ratio = 0.0
+                child_genome.max_drawdown_pct = 0.0
+                child_genome.trade_count = 0
+                child_genome.last_evaluated_at = datetime.now(timezone.utc)
+
+                db.add(child_genome)
+
+                # Log evolution action
+                action = EvolutionAction(
+                    action_type="crossover",
+                    genome_id=child_genome.genome_id,
+                    strategy_name=child_genome.strategy_name,
+                    details={"parent_a": parent_a.genome_id, "parent_b": parent_b.genome_id},
+                )
+                log_evolution_action(action, db)
+
+                logger.info(f"Crossover created {child_genome.strategy_name} from {parent_a.strategy_name} x {parent_b.strategy_name}")
+
+            except Exception as e:
+                logger.error(f"Error in crossover for {parent_a.strategy_name} x {parent_b.strategy_name}: {e}")
+
+        db.commit()
+        logger.info(f"Crossover cycle completed, created {len(elite_genomes) // 2} children")
 
 
 def necromancy_analysis_job() -> None:
@@ -646,10 +782,20 @@ def full_population_review_job() -> None:
 
         killed = 0
         for genome in genomes:
-            fitness = calculate_fitness(genome.fitness_metrics) if genome.fitness_metrics else 0.0
+            raw_metrics = genome.fitness_metrics  # dict via hybrid_property
+            metrics_obj = FitnessMetrics(**{k: v for k, v in raw_metrics.items() if k in FitnessMetrics.model_fields})
+            fitness = calculate_fitness(metrics_obj)
             genome.fitness_score = fitness
+            genome.fitness_updated_at = datetime.now(timezone.utc)
+            if raw_metrics:
+                genome.total_pnl = raw_metrics.get("total_pnl", 0.0)
+                genome.win_rate = raw_metrics.get("win_rate", 0.0)
+                genome.sharpe_ratio = raw_metrics.get("sharpe_ratio", 0.0)
+                genome.max_drawdown_pct = raw_metrics.get("max_drawdown_pct", 0.0)
+                genome.trade_count = raw_metrics.get("total_trades", 0)
+                genome.last_evaluated_at = datetime.now(timezone.utc)
 
-            if fitness < 0.30 and genome.fitness_metrics and genome.fitness_metrics.total_trades >= 20:
+            if fitness < 0.30 and raw_metrics and raw_metrics.get("total_trades", 0) >= 20:
                 genome.stage = "GRAVEYARD"
                 action = EvolutionAction(
                     action_type="kill",
@@ -685,9 +831,12 @@ def legend_evaluation_job() -> None:
 
         legends = 0
         for genome in live_genomes:
-            fitness = calculate_fitness(genome.fitness_metrics) if genome.fitness_metrics else 0.0
-            if fitness > 0.85 and genome.fitness_metrics and genome.fitness_metrics.profit_factor > 2.0:
+            raw_metrics = genome.fitness_metrics  # dict via hybrid_property
+            metrics_obj = FitnessMetrics(**{k: v for k, v in raw_metrics.items() if k in FitnessMetrics.model_fields})
+            fitness = calculate_fitness(metrics_obj)
+            if fitness > 0.85 and raw_metrics.get("profit_factor", 0) > 2.0:
                 genome.stage = "LEGEND"
+                genome.stage_entered_at = datetime.now(timezone.utc)
                 action = EvolutionAction(
                     action_type="promote",
                     genome_id=genome.genome_id,
@@ -726,8 +875,16 @@ def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:
             return
 
         # Only mutate the flagged chromosome
-        mutated = mutate_genome(genome, market_regime="neutral", targeted_chrom=chrom_name)
+        mutated, _ = mutate_genome(genome, market_regime="neutral", targeted_chrom=chrom_name)
         if mutated and mutated.genome_id != genome.genome_id:
+            mutated.fitness_score = calculate_fitness(mutated.fitness_metrics)
+            mutated.total_pnl = mutated.fitness_metrics.total_pnl or 0.0
+            mutated.win_rate = mutated.fitness_metrics.win_rate or 0.0
+            mutated.sharpe_ratio = mutated.fitness_metrics.sharpe_ratio or 0.0
+            mutated.max_drawdown_pct = mutated.fitness_metrics.max_drawdown_pct or 0.0
+            mutated.trade_count = mutated.fitness_metrics.total_trades or 0
+            mutated.fitness_updated_at = datetime.now(timezone.utc)
+            mutated.last_evaluated_at = datetime.now(timezone.utc)
             db.add(mutated)
 
             action = EvolutionAction(

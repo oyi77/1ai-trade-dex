@@ -11,8 +11,22 @@ def normalize(value: float, min_val: float, max_val: float) -> float:
 def calculate_fitness(metrics: FitnessMetrics) -> float:
     """
     Calculate fitness score from 0.0 (worst) to 1.0 (best).
-    Requires at least 20 trades for meaningful evaluation.
+
+    Requires at least 20 trades for meaningful evaluation. Newly created
+    genomes (total_trades = 0) return a provisional score based on
+    profit_factor and win_rate, allowing them to enter DRAFT pool.
     """
+    if metrics.total_trades == 0:
+        # Provisional score for brand-new genomes that haven't been tested yet.
+        # Allows them to enter the evolution pool; they won't pass promotion gates
+        # without settled trades but they can be bred/mutated.
+        provisional = (
+            normalize(metrics.profit_factor, 0, 5) * 0.40 +
+            metrics.win_rate * 0.30 +
+            (1.0 - metrics.max_drawdown_pct) * 0.30
+        )
+        return max(0.0, min(1.0, provisional))
+
     if metrics.total_trades < 20:
         return 0.0
 

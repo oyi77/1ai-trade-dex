@@ -25,6 +25,8 @@ from sqlalchemy.orm import Session as SQLAlchemySession, declarative_base, relat
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import inspect
+from sqlalchemy.ext.hybrid import hybrid_property
+import json
 import asyncio
 
 from backend.config import settings
@@ -162,33 +164,34 @@ class Trade(Base):
         nullable=True,
         index=True,
     )
+
+    # Core trade identifiers
     market_ticker = Column(String, index=True)
     platform = Column(String)
-    strategy = Column(String, nullable=True)
-    trading_mode = Column(String, nullable=True)
-    model_probability = Column(Float, nullable=True)
-    market_price_at_entry = Column(Float, nullable=True)
-    edge_at_entry = Column(Float, nullable=True)
-    fee = Column(Float, nullable=True)
-    slippage = Column(Float, nullable=True)
-    clob_order_id = Column(String, nullable=True)
-    filled_size = Column(Float, nullable=True)
-    confidence = Column(Float, nullable=True)
-    blockchain_verified = Column(Boolean, nullable=True)
-    external_import_at = Column(DateTime, nullable=True)
-    status = Column(String, nullable=True)
+    strategy = Column(String, nullable=True, index=True)
+    trading_mode = Column(String, default="paper", index=True)
+    market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
     event_slug = Column(String, nullable=True)
     market_end_date = Column(DateTime, nullable=True)
-    market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
 
-    # Trade details
+    # Trade direction, entry, and size
     direction = Column(String)  # "up" or "down"
     entry_price = Column(Float)
     size = Column(Float)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
-    # Strategy / signal metadata
-    strategy = Column(String, nullable=True, index=True)
+    # Execution and cost tracking
+    source = Column(String, default="bot", index=True)  # "bot", "user", "import"
+    role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
+    clob_order_id = Column(String, nullable=True, index=True)
+    clob_idempotency_key = Column(String, nullable=True)
+    filled_size = Column(Float, nullable=True)
+    fill_price = Column(Float, nullable=True)
+    fill_ratio = Column(Float, nullable=True)
+    fee = Column(Float, nullable=True)
+    slippage = Column(Float, nullable=True)
+
+    # Signal metadata
     signal_source = Column(String, nullable=True)
     confidence = Column(Float, nullable=True)
     model_probability = Column(Float, nullable=True)
@@ -196,27 +199,12 @@ class Trade(Base):
     edge_at_entry = Column(Float, nullable=True)
     data_quality_flags = Column(Text, nullable=True)
 
-    # Trading mode this trade was placed in
-    trading_mode = Column(String, default="paper", index=True)
-    role = Column(String, default="unknown", index=True)  # maker, taker, unknown
-    source = Column(String, default="bot")
-
-    # CLOB / on-chain tracking
-    clob_order_id = Column(String, nullable=True)
-    clob_idempotency_key = Column(String, nullable=True)
-    filled_size = Column(Float, nullable=True)
-    fill_price = Column(Float, nullable=True)
-    fill_ratio = Column(Float, nullable=True)
-
-    # Cost tracking
-    fee = Column(Float, nullable=True)
-    slippage = Column(Float, nullable=True)
-
     # Blockchain verification
     blockchain_verified = Column(Boolean, default=False)
     settlement_source = Column(String, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
     external_import_at = Column(DateTime, nullable=True)
+    status = Column(String, nullable=True)
 
     # Settlement
     settled = Column(Boolean, default=False)
@@ -226,10 +214,6 @@ class Trade(Base):
         String, default="pending"
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    settlement_source = Column(String, nullable=True)
-    source = Column(String, nullable=False, default="bot", index=True)
-    role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
 
 
 class HFTExecutionRecord(Base):
@@ -312,12 +296,83 @@ class GenomeRegistry(Base):
     fitness_json = Column(Text, nullable=False)
     chromosome_perf_json = Column(Text, nullable=True)
     death_certificate_json = Column(Text, nullable=True)
+
+    # Native columns derived from fitness_json for efficient querying
+    fitness_score = Column(Float, nullable=True, index=True)  # 0.0–1.0 composite score
+    fitness_updated_at = Column(DateTime, nullable=True)  # when fitness was last recalculated
+    total_pnl = Column(Float, nullable=True, default=0.0)
+    win_rate = Column(Float, nullable=True, default=0.0)
+    sharpe_ratio = Column(Float, nullable=True, default=0.0)
+    max_drawdown_pct = Column(Float, nullable=True, default=0.0)
+    trade_count = Column(Integer, nullable=True, default=0)
+    last_evaluated_at = Column(DateTime, nullable=True)
+    stage_entered_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, nullable=True)
-    stage_entered_at = Column(DateTime, nullable=True)  # When stage was entered
 
     # Relationships
     evolution_logs = relationship("EvolutionLog", back_populates="genome", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_genome_stage_score", "stage", "fitness_score"),
+        Index("idx_genome_stage_winrate", "stage", "win_rate"),
+        Index("idx_genome_archetype_stage", "archetype", "stage"),
+    )
+
+    @hybrid_property
+    def fitness_metrics(self) -> dict:
+        """Deserialize fitness_json into a dict on read."""
+        if self.fitness_json:
+            try:
+                return json.loads(self.fitness_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    @fitness_metrics.setter
+    def fitness_metrics(self, value: dict):
+        """Serialize fitness_metrics dict into fitness_json on write."""
+        self.fitness_json = json.dumps(value) if value else "{}"
+
+    @hybrid_property
+    def lineage(self) -> dict:
+        if self.lineage_json:
+            try:
+                return json.loads(self.lineage_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    @lineage.setter
+    def lineage(self, value: dict):
+        self.lineage_json = json.dumps(value) if value else "{}"
+
+    @hybrid_property
+    def chromosomes(self) -> dict:
+        if self.chromosomes_json:
+            try:
+                return json.loads(self.chromosomes_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    @chromosomes.setter
+    def chromosomes(self, value: dict):
+        self.chromosomes_json = json.dumps(value) if value else "{}"
+
+    @hybrid_property
+    def chromosome_performance(self) -> dict:
+        if self.chromosome_perf_json:
+            try:
+                return json.loads(self.chromosome_perf_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return {}
+
+    @chromosome_performance.setter
+    def chromosome_performance(self, value: dict):
+        self.chromosome_perf_json = json.dumps(value) if value else "{}"
 
 class ShadowTrade(Base):
     """Shadow trades for strategy validation without real capital."""
@@ -1883,6 +1938,43 @@ def ensure_schema():
                         logger.info(f"Added '{col}' column to strategy_proposal")
             except Exception as e:
                 logger.warning(f"Schema migration: could not add strategy_proposal.{col}: {e}")
+
+    # Add denormalized metric columns + composite indexes to genome_registry
+    try:
+        gr_cols = {c["name"] for c in inspector.get_columns("genome_registry")}
+    except Exception:
+        gr_cols = set()
+
+    for col, coltype in [
+        ("fitness_score", "REAL"),
+        ("fitness_updated_at", "DATETIME"),
+        ("total_pnl", "REAL DEFAULT 0.0"),
+        ("win_rate", "REAL DEFAULT 0.0"),
+        ("sharpe_ratio", "REAL DEFAULT 0.0"),
+        ("max_drawdown_pct", "REAL DEFAULT 0.0"),
+        ("trade_count", "INTEGER DEFAULT 0"),
+        ("last_evaluated_at", "DATETIME"),
+        ("stage_entered_at", "DATETIME"),
+    ]:
+        if col not in gr_cols:
+            try:
+                with engine.connect() as conn:
+                    with conn.begin():
+                        conn.execute(text(f"ALTER TABLE genome_registry ADD COLUMN {col} {coltype}"))
+                        logger.info(f"Added '{col}' column to genome_registry")
+            except Exception as e:
+                logger.warning(f"Schema migration: could not add genome_registry.{col}: {e}")
+
+    # Create composite indexes on genome_registry (idempotent — ignores errors if already exists)
+    try:
+        with engine.connect() as conn:
+            with conn.begin():
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_stage_score ON genome_registry(stage, fitness_score)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_stage_winrate ON genome_registry(stage, win_rate)"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_archetype_stage ON genome_registry(archetype, stage)"))
+                logger.info("Created composite indexes on genome_registry")
+    except Exception as e:
+        logger.warning(f"Could not create genome_registry composite indexes: {e}")
 
 
 def log_audit(action: str, actor: str = "system", details: dict = None):

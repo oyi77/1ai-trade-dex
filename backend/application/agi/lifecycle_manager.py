@@ -5,6 +5,7 @@ Manages the full lifecycle of strategy genomes through stages:
 DRAFT → SHADOW → PAPER → LIVE → BREEDING → LEGEND → GRAVEYARD
 """
 
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -218,9 +219,21 @@ class LifecycleManager:
             db_genome.stage_entered_at = datetime.now(timezone.utc)
             db_genome.updated_at = datetime.now(timezone.utc)
 
-            # Update fitness metrics
+            # Update fitness metrics — sync both JSON and native columns
             if genome.fitness_metrics:
-                db_genome.fitness_json = genome.fitness_metrics.model_dump_json()
+                metrics_dict = genome.fitness_metrics.model_dump() if hasattr(genome.fitness_metrics, 'model_dump') else genome.fitness_metrics
+                db_genome.fitness_json = json.dumps(metrics_dict)
+                db_genome.total_pnl = metrics_dict.get("total_pnl", 0.0)
+                db_genome.win_rate = metrics_dict.get("win_rate", 0.0)
+                db_genome.sharpe_ratio = metrics_dict.get("sharpe_ratio", 0.0)
+                db_genome.max_drawdown_pct = metrics_dict.get("max_drawdown_pct", 0.0)
+                db_genome.trade_count = metrics_dict.get("total_trades", 0)
+
+            # Sync native columns
+            if hasattr(genome, 'fitness_score') and genome.fitness_score is not None:
+                db_genome.fitness_score = genome.fitness_score
+            db_genome.last_evaluated_at = datetime.now(timezone.utc)
+            db_genome.fitness_updated_at = datetime.now(timezone.utc)
 
             db.commit()
 

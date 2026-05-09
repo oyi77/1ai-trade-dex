@@ -33,18 +33,13 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
             with get_db_session() as db:
                 trade = db.query(Trade).filter_by(id=trade_id).first()
                 genome = db.query(GenomeRegistry).filter_by(genome_id=genome_id).first()
-                if trade and genome and genome.chromosomes_json:
-                    import json
+                if trade and genome and genome.chromosomes:
                     try:
-                        chromosomes = json.loads(genome.chromosomes_json)
-                    except json.JSONDecodeError:
-                        chromosomes = {}
-                    from backend.domain.genome.models import StrategyGenome
-                    try:
+                        from backend.domain.genome.models import StrategyGenome
                         strategy_genome = StrategyGenome(
                             genome_id=genome.genome_id,
                             strategy_name=genome.strategy_name,
-                            chromosomes=chromosomes,
+                            chromosomes=genome.chromosomes,  # hybrid property auto-deserializes
                         )
                         market_state = {"regime": "neutral"}
                         attribute_trade_to_chromosomes(trade, strategy_genome, market_state)
