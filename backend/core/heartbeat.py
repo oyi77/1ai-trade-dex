@@ -37,27 +37,47 @@ def _flush_heartbeats() -> None:
         _pending_heartbeats.clear()
 
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    conn = sqlite3.connect(db_path, timeout=30.0)
-    try:
-        conn.execute("PRAGMA journal_mode=WAL")
-        for mode in settings.active_modes_set:
-            row = conn.execute("SELECT misc_data FROM bot_state WHERE id=1 AND mode=?", (mode,)).fetchone()
-            if not row:
-                continue
-            data = {}
-            if row[0]:
+    import time as _time
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        conn = sqlite3.connect(db_path, timeout=30.0)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            for mode in settings.active_modes_set:
+                row = conn.execute("SELECT misc_data FROM bot_state WHERE id=1 AND mode=?", (mode,)).fetchone()
+                if not row:
+                    continue
+                data = {}
+                if row[0]:
+                    try:
+                        data = json.loads(row[0])
+                    except Exception:
+                        data = {}
+                for strategy_name, ts in snapshot.items():
+                    data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+                conn.execute("UPDATE bot_state SET misc_data=? WHERE id=1 AND mode=?", (json.dumps(data), mode))
+            conn.commit()
+            break  # success
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries:
+                logger.warning(f"heartbeat flush locked, retry {attempt}/{max_retries}")
                 try:
-                    data = json.loads(row[0])
+                    conn.rollback()
                 except Exception:
-                    data = {}
-            for strategy_name, ts in snapshot.items():
-                data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-            conn.execute("UPDATE bot_state SET misc_data=? WHERE id=1 AND mode=?", (json.dumps(data), mode))
-        conn.commit()
-    except Exception as e:
-        logger.warning(f"heartbeat flush failed: {e}")
-    finally:
-        conn.close()
+                    pass
+                conn.close()
+                _time.sleep(0.5)
+                continue
+            logger.warning(f"heartbeat flush failed: {e}")
+            break
+        except Exception as e:
+            logger.warning(f"heartbeat flush failed: {e}")
+            break
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 def get_strategy_health(db) -> list[dict]:
