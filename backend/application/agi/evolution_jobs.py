@@ -5,8 +5,8 @@ Contains the job functions for fitness evaluation, mutation cycles, crossover cy
 necromancy analysis, and regime rebalancing.
 """
 
+import json
 import logging
-import math
 import statistics
 from datetime import datetime, timezone
 from itertools import cycle
@@ -14,20 +14,14 @@ from itertools import cycle
 from sqlalchemy.orm import Session
 
 from backend.config import settings
-from backend.db.utils import get_db_session as _get_db_session
 from backend.core.event_bus import publish_event
-import json
-
+from backend.db.utils import get_db_session as _get_db_session
 from backend.domain.evolution.fitness import calculate_fitness
 from backend.domain.genome.models import (
     CognitionChromosome,
-    EntryCondition,
-    EntryLogic,
     ExecutionChromosome,
-    ExitLogic,
     FitnessMetrics,
     LineageData,
-    MarketSelector,
     MetaChromosome,
     PerceptionChromosome,
     RiskChromosome,
