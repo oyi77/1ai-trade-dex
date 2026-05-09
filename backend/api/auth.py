@@ -174,7 +174,7 @@ def _get_valid_session(admin_session: str | None) -> dict | None:
 
 def authorize_realtime_access(token: str | None = None, admin_session: str | None = None) -> bool:
     """Authorize SSE/WebSocket access — public read-only for dashboard data.
-    
+
     Real-time streams are read-only (no write capability) so public access
     is safe. Auth is still enforced for admin actions via require_admin.
     """

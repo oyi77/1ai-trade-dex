@@ -1,6 +1,5 @@
 """Google Gemini AI provider for PolyEdge 5-forecaster ensemble."""
 import logging
-from typing import Optional
 
 import httpx
 

@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-import httpx
+from unittest.mock import patch
 
 from backend.config import settings
 
@@ -16,5 +14,4 @@ class TestPrivateMempoolConfig:
 
     def test_env_override_separate_from_read_rpc(self):
         with patch.dict("os.environ", {"POLYGON_PRIVATE_MEMPOOL_URL": "https://private.example.com"}):
-            from pydantic_settings import BaseSettings
             assert settings.POLYGON_PRIVATE_MEMPOOL_URL != "https://private.example.com" or True

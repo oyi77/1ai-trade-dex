@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 from backend.data.kalshi_client import KalshiClient
 
@@ -49,7 +49,7 @@ class TestKalshiBatch:
     async def test_amend_order_size_and_price(self, client):
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_req:
             mock_req.return_value = {"amended": True}
-            result = await client.amend_order("order-2", new_price=55.0, new_size=20)
+            await client.amend_order("order-2", new_price=55.0, new_size=20)
             mock_req.assert_called_once_with(
                 "POST", "/portfolio/amend_order",
                 json={"order_id": "order-2", "new_price": 55.0, "new_size": 20}
