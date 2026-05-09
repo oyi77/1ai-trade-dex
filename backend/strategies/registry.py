@@ -19,6 +19,9 @@ STRATEGY_REGISTRY: dict[str, type] = {}
 def _auto_register(cls) -> None:
     """Register a BaseStrategy subclass by its `name` attribute."""
     name = getattr(cls, "name", None)
+    # If name is a property descriptor, skip auto-registration (dynamic names via compile_genome)
+    if isinstance(name, property):
+        return
     if name and name not in STRATEGY_REGISTRY:
         STRATEGY_REGISTRY[name] = cls
 
