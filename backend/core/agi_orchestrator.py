@@ -260,36 +260,48 @@ class AGIOrchestrator:
 
     def emergency_stop(self) -> None:
         self._emergency_stop = True
-        audit = DecisionAuditLog(
-            timestamp=datetime.now(timezone.utc),
-            agent_name="AGIOrchestrator",
-            decision_type="agi_emergency_stop",
-            input_data={"action": "emergency_stop"},
-            output_data={"status": "stopped"},
-            confidence=1.0,
-            reasoning="Emergency stop activated",
-        )
-        self._session.add(audit)
-        self._session.commit()
+        try:
+            audit = DecisionAuditLog(
+                timestamp=datetime.now(timezone.utc),
+                agent_name="AGIOrchestrator",
+                decision_type="agi_emergency_stop",
+                input_data={"action": "emergency_stop"},
+                output_data={"status": "stopped"},
+                confidence=1.0,
+                reasoning="Emergency stop activated",
+            )
+            self._session.add(audit)
+            self._session.commit()
+        except Exception:
+            try:
+                self._session.rollback()
+            except Exception:
+                pass
 
     def _log_cycle(
         self, regime: MarketRegime, goal: AGIGoal, allocations: dict, errors: list[str]
     ):
-        audit = DecisionAuditLog(
-            timestamp=datetime.now(timezone.utc),
-            agent_name="AGIOrchestrator",
-            decision_type="agi_cycle",
-            input_data={
-                "regime": regime.value,
-                "goal": goal.value,
-                "allocations": allocations,
-            },
-            output_data={"errors": errors, "actions": len(allocations)},
-            confidence=1.0 if not errors else 0.5,
-            reasoning=f"AGI cycle completed: regime={regime.value}, goal={goal.value}",
-        )
-        self._session.add(audit)
-        self._session.commit()
+        try:
+            audit = DecisionAuditLog(
+                timestamp=datetime.now(timezone.utc),
+                agent_name="AGIOrchestrator",
+                decision_type="agi_cycle",
+                input_data={
+                    "regime": regime.value,
+                    "goal": goal.value,
+                    "allocations": allocations,
+                },
+                output_data={"errors": errors, "actions": len(allocations)},
+                confidence=1.0 if not errors else 0.5,
+                reasoning=f"AGI cycle completed: regime={regime.value}, goal={goal.value}",
+            )
+            self._session.add(audit)
+            self._session.commit()
+        except Exception:
+            try:
+                self._session.rollback()
+            except Exception:
+                pass
 
 
 class ErrorType(Enum):

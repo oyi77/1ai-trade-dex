@@ -45,11 +45,11 @@ if _is_postgres:
         "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
     })
 else:
-    # SQLite uses smaller default pool
+    # SQLite needs generous pool for concurrent strategy cycles + API + workers
     _engine_kwargs.update({
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_timeout": 60,
+        "pool_size": 20,
+        "max_overflow": 40,
+        "pool_timeout": 120,
         "connect_args": {"check_same_thread": False},
     })
 

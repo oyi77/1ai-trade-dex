@@ -10,14 +10,14 @@ def get_db_session():
     db = SessionLocal()
     try:
         yield db
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 db.commit()
                 return
             except Exception as commit_err:
                 db.rollback()
-                if "locked" in str(commit_err).lower() and attempt < 2:
-                    time.sleep(0.5 * (attempt + 1))
+                if "locked" in str(commit_err).lower() and attempt < 4:
+                    time.sleep(0.3 * (2 ** attempt))
                     continue
                 raise
     except Exception:
