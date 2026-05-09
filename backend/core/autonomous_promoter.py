@@ -660,11 +660,11 @@ class AutonomousPromoter:
             .first()
         )
         if not any_proposal:
-            logger.warning(
-                f"[AutonomousPromoter] BACKTEST auto-pass for '{exp.name}': "
-                f"no StrategyProposal exists — treating as seed genome"
+            logger.info(
+                f"[AutonomousPromoter] BACKTEST gate for '{exp.name}': "
+                f"no StrategyProposal exists — requires manual validation"
             )
-            return True
+            return False
 
         return False
 
