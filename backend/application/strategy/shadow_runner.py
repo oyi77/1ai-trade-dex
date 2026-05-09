@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import SessionLocal, ShadowTrade
 from backend.core.shadow_mode import ShadowPerformance  # Reuse existing dataclass
+from backend.domain.evolution.shadow_metrics import compute_shadow_metrics
 
 logger = logging.getLogger("trading_bot.shadow")
 
@@ -57,7 +58,7 @@ class DBSessionShadowRunner:
         size: float,
         model_prob: float,
         strategy: str,
-        genome_id: Optional[int] = None,
+        genome_id: Optional[str] = None,
         predicted_outcome: Optional[float] = None,
     ) -> ShadowTrade:
         """Record a shadow trade (no execution) — persists to database."""
@@ -141,7 +142,29 @@ class DBSessionShadowRunner:
         finally:
             self._close_db()
 
-    def get_performance(self, genome_id: Optional[int] = None) -> ShadowPerformance:
+    @staticmethod
+    def _calculate_genome_metrics(settled_trades: list[ShadowTrade]) -> dict:
+        """Calculate fitness-facing metrics from settled shadow trades."""
+        return compute_shadow_metrics(settled_trades)
+
+    def get_genome_metrics(self, genome_id: str) -> dict:
+        """Get per-genome metrics derived from settled shadow trades."""
+        db = self._get_db()
+        try:
+            settled_trades = (
+                db.query(ShadowTrade)
+                .filter(
+                    ShadowTrade.genome_id == genome_id,
+                    ShadowTrade.settled.is_(True),
+                )
+                .order_by(ShadowTrade.timestamp.asc())
+                .all()
+            )
+            return self._calculate_genome_metrics(settled_trades)
+        finally:
+            self._close_db()
+
+    def get_performance(self, genome_id: Optional[str] = None) -> ShadowPerformance:
         """Get performance metrics for a genome or all trades."""
         db = self._get_db()
         try:
@@ -180,7 +203,7 @@ class DBSessionShadowRunner:
         finally:
             self._close_db()
 
-    def evaluate_promotion_eligibility(self, genome_id: int) -> dict:
+    def evaluate_promotion_eligibility(self, genome_id: str) -> dict:
         """Evaluate if a genome is eligible for promotion from SHADOW to PAPER.
 
         Promotion criteria:

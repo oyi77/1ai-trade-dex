@@ -19,7 +19,10 @@ from backend.core.risk_profiles import (
 
 class TestProfileDefinitions:
     def test_four_presets_exist(self):
-        assert set(PRESETS.keys()) == {"safe", "normal", "aggressive", "extreme"}
+        # conservative and crazy were added in Round 12 (AGI risk-tier allocation)
+        assert {"safe", "normal", "aggressive", "extreme"}.issubset(set(PRESETS.keys()))
+        assert "conservative" in PRESETS
+        assert "crazy" in PRESETS
 
     def test_default_is_normal(self):
         assert DEFAULT_PROFILE == "normal"
@@ -102,7 +105,8 @@ class TestDBBackedProfiles:
         seed_presets(db=db)
         seed_presets(db=db)
         count = db.query(RiskProfileRow).count()
-        assert count == 4
+        # conservative and crazy were added in Round 12; total is now 6
+        assert count == len(PRESETS)
 
     def test_create_custom_profile(self, db):
         seed_presets(db=db)

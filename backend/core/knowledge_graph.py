@@ -521,6 +521,80 @@ class KnowledgeGraph:
                 f"store_trade_memory failed for trade {trade_id}: {e}"
             )
 
+    def query_by_type(self, entity_type: str, limit: int = 50) -> list[KGEntityType]:
+        """Return all entities of a given type, most recently created first."""
+        try:
+            rows = (
+                self._session.query(KGEntityModel)
+                .filter(KGEntityModel.entity_type == entity_type)
+                .order_by(KGEntityModel.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                KGEntityType(
+                    entity_type=r.entity_type,
+                    entity_id=r.entity_id,
+                    properties=r.properties or {},
+                )
+                for r in rows
+            ]
+        except Exception as e:
+            import logging
+            logging.getLogger("trading_bot.knowledge_graph").error(
+                "query_by_type failed for type '%s': %s", entity_type, e
+            )
+            return []
+
+    def query_relations(
+        self,
+        from_entity_id: str,
+        relation_type: str | None = None,
+        limit: int = 20,
+    ) -> list[KGEntityType]:
+        """Return entities related to *from_entity_id*, optionally filtered by relation_type."""
+        try:
+            from_model = (
+                self._session.query(KGEntityModel)
+                .filter(KGEntityModel.entity_id == from_entity_id)
+                .first()
+            )
+            if not from_model:
+                return []
+
+            q = self._session.query(KGRelationModel).filter(
+                KGRelationModel.from_entity_id == from_model.id
+            )
+            if relation_type:
+                q = q.filter(KGRelationModel.relation_type == relation_type)
+            relations = q.order_by(KGRelationModel.weight.desc()).limit(limit).all()
+
+            to_ids = [r.to_entity_id for r in relations]
+            if not to_ids:
+                return []
+
+            entities = (
+                self._session.query(KGEntityModel)
+                .filter(KGEntityModel.id.in_(to_ids))
+                .all()
+            )
+            entity_map = {e.id: e for e in entities}
+            return [
+                KGEntityType(
+                    entity_type=entity_map[r.to_entity_id].entity_type,
+                    entity_id=entity_map[r.to_entity_id].entity_id,
+                    properties=entity_map[r.to_entity_id].properties or {},
+                )
+                for r in relations
+                if r.to_entity_id in entity_map
+            ]
+        except Exception as e:
+            import logging
+            logging.getLogger("trading_bot.knowledge_graph").error(
+                "query_relations failed for entity '%s': %s", from_entity_id, e
+            )
+            return []
+
     def retrieve_similar_trades(self, strategy: str, market_context: str = "", limit: int = 5) -> list:
         try:
             from backend.models.kg_models import KGEntity
