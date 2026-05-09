@@ -2,6 +2,42 @@
 
 All notable changes to the Polyedge trading bot from the comprehensive hardening effort.
 
+## [2.1.0] - 2026-05-10
+
+### AGI Full Vision + Genome Evolution System
+
+**Merged PRs (3)**:
+- **#90** `test/untested-core-functions` — Unit tests for `apply_longshot_feedback` and `classify_trade_role`
+- **#89** `feat/agi-full-vision` — Full AGI vision: LIVE_TRIAL phase, demotion→improvement loop, LLM synthesis with 4-gate validation, KG read-back, calibration drift→retrain trigger, risk-tier allocation, per-strategy rollback, forensics overhaul, AGI cycle observability
+- **#86** `copilot/agi-implement-evolution-scheduler-jobs` — Autonomous AGI evolution scheduler cycles: mutation, crossover, fitness refresh, diversity rebalance + genome fitness feedback loop from settled shadow trades
+
+### Changed
+- `backend/core/autonomous_promoter.py` — Demotion→improvement loop with per-strategy improvement attempts
+- `backend/core/strategy_synthesizer.py` — LLM-powered strategy generation with 4-gate validation (syntax→lint→backtest→sandbox)
+- `backend/core/knowledge_graph.py` — Added `query_by_type()` and `query_relations()` for KG read-back during AGI decisions
+- `backend/core/agi_jobs.py` — New `model_calibration_check_job` (Brier drift → retrain trigger)
+- `backend/core/forensics_integration.py` — Parameter overhaul path for broken strategies, targeted strategy improvements
+- `backend/core/auto_improve.py` — Per-strategy rollback dict (`_last_param_change[strategy_key]`)
+- `backend/core/risk_profiles.py` — Added `conservative` and `crazy` risk presets + `RISK_TIER_MAX_ALLOCATION`
+- `backend/core/fronttest_validator.py` — Crazy-tier strategies skip 14-day minimum via `_get_strategy_risk_tier()`
+- `backend/core/scheduler.py` — AGI evolution jobs: mutation cycle, crossover cycle, population rebalance
+- `backend/application/agi/evolution_jobs.py` — Genome fitness feedback loop, shadow validation with stage gates, auto-kill thresholds
+
+### Added
+- `backend/application/strategy/genome_compiler.py` — GenomeCompiler for runtime translation of StrategyGenome
+- `backend/application/strategy/genome_strategy.py` — Genome strategy template with chromosome-mapped execution
+- `backend/models/genome_registry.py` — ORM models: GenomeRegistry, GenomePerformance, GenomeShadowTrade
+- `backend/repositories/genome_repository.py` — CRUD operations for genome persistence
+- `backend/tests/test_bankroll_allocator_longshot.py` — Tests for longshot bias feedback
+- `backend/tests/test_classify_trade_role.py` — Tests for trade role classification
+- `backend/tests/test_evolution_jobs_feedback_loop.py` — Tests for genome fitness feedback
+- `backend/tests/test_genome_compiler.py` — Tests for genome compilation
+- `alembic/versions/a9f3c1e2b4d5_add_time_horizon_risk_tier_to_strategy_config.py` — Migration for time_horizon/risk_tier columns
+- `docs/agi-log/` directory — AGI experiment and decision logs
+- `docs/architecture/adr-006-agi-autonomy-framework.md` — AGI autonomy governance ADR
+
+---
+
 ## [2.0.0] - 2026-04-21
 
 ### Comprehensive Hardening Complete

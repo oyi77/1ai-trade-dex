@@ -302,7 +302,9 @@ stateDiagram-v2
     
     SHADOW --> PAPER: PAPER criteria met<br/>≥100 trades, ≥7 days<br/>≥45% win rate<br/>≤25% max drawdown<br/>Sharpe ≥ 0.3
     
-    PAPER --> LIVE_PROMOTED: LIVE criteria met<br/>≥50 trades, ≥3 days<br/>≥50% win rate<br/>Sharpe ≥ 0.5<br/>≤20% max drawdown
+    PAPER --> LIVE_TRIAL: LIVE_TRIAL criteria met<br/>≥50 trades, ≥3 days<br/>≥50% win rate<br/>Sharpe ≥ 0.5<br/>≤20% max drawdown
+    
+    LIVE_TRIAL --> LIVE_PROMOTED: LIVE_PROMOTED criteria met<br/>Sustained performance<br/>over trial period
     
     LIVE_PROMOTED --> RETIRED: Health kill detected<br/>Win rate < 5% OR<br/>Sharpe < -2.0 AND drawdown > 50%
     
@@ -310,11 +312,13 @@ stateDiagram-v2
     PAPER --> RETIRED: Health kill
     DRAFT --> RETIRED: Abandoned
     
-    LIVE_PROMOTED --> PAPER: Degraded<br/>(if auto-demote enabled)
+    LIVE_PROMOTED --> PAPER: Degraded<br/>(demotion loop,<br/>auto-demote enabled)
+    LIVE_TRIAL --> PAPER: Degraded<br/>(demotion loop)
     
     note right of SHADOW: No trade execution<br/>Logs signals only<br/>ShadowRunner records<br/>in-memory ShadowTrade
     note right of PAPER: Creates Trade rows in DB<br/>No CLOB orders<br/>Paper bankroll tracking
-    note right of LIVE_PROMOTED: Real CLOB orders<br/>Real USDC at risk<br/>Bankroll from external API
+    note right of LIVE_TRIAL: Limited real CLOB orders<br/>Small position sizes<br/>Trial period validation
+    note right of LIVE_PROMOTED: Full real CLOB orders<br/>Real USDC at risk<br/>Bankroll from external API
     
     state RETIRED {
         [*] --> Disabled
@@ -322,6 +326,98 @@ stateDiagram-v2
         CoolingOff --> [*]: Rehabilitation check<br/>≥50% recent win rate<br/>+ positive PnL
     }
 ```
+
+### Full Promotion Pipeline: DRAFT → SHADOW → PAPER → LIVE_TRIAL → LIVE_PROMOTED
+
+The AGI experiment lifecycle follows a five-stage promotion pipeline with demotion loops:
+
+1. **DRAFT** — Strategy proposed by human or synthesized by `StrategySynthesizer`. No trade execution. Must pass 4-gate validation before entering SHADOW.
+2. **SHADOW** — Signal logging only; `ShadowRunner` records in-memory `ShadowTrade` objects. The `shadow_validation_job` recalculates per-genome fitness from settled shadow trades, syncs `GenomePerformance`, and evaluates stage gates for promotion to PAPER.
+3. **PAPER** — Creates `Trade` rows in DB with simulated bankroll. No CLOB orders. Strategies that degrade from LIVE_TRIAL or LIVE_PROMOTED are demoted back here with parameter improvement via `ForensicsIntegration`.
+4. **LIVE_TRIAL** — Limited real CLOB orders with small position sizes. Validates that strategy performance translates from paper to live conditions.
+5. **LIVE_PROMOTED** — Full real CLOB orders with real USDC at risk. Bankroll sourced from external CLOB + Data API (ADR-002).
+
+**Demotion loop**: LIVE_PROMOTED → PAPER (if auto-demote enabled and health degrades). Demoted strategies receive parameter overhaul via `ForensicsIntegration._has_active_experiment()` which excludes RETIRED genomes.
+
+### Genome Evolution Pipeline
+
+```mermaid
+flowchart TD
+    subgraph Genome_Evolution["Genome Evolution Pipeline"]
+        MUT[Mutation<br/>Random parameter perturbation<br/>of existing genomes]
+        CROSS[Crossover<br/>Combine chromosomes from<br/>two parent genomes]
+        FIT[Fitness Refresh<br/>Recalculate fitness from<br/>settled ShadowTrade data]
+        REB[Population Rebalance<br/>Adjust genome population<br/>based on fitness rankings]
+    end
+    
+    MUT --> NEW_GENOME[New StrategyGenome]
+    CROSS --> NEW_GENOME
+    NEW_GENOME --> VALIDATE[4-Gate Validation<br/>syntax → lint → backtest → sandbox]
+    VALIDATE -->|Pass| SHADOW_STAGE[Enter SHADOW stage<br/>ShadowRunner tracks signals]
+    VALIDATE -->|Fail| DISCARD[Discard genome<br/>Log validation failure]
+    
+    FIT --> UPDATE_PERF[Update GenomePerformance<br/>win_rate, sharpe, max_drawdown]
+    UPDATE_PERF --> GATE_CHECK{Stage gate<br/>criteria met?}
+    GATE_CHECK -->|Yes| PROMOTE_STAGE[Promote to next stage]
+    GATE_CHECK -->|No| CONTINUE[Continue in current stage]
+    
+    REB --> RANK[StrategyRanker<br/>Rank by fitness + health]
+    RANK --> ALLOC[BankrollAllocator<br/>Allocate capital by rank]
+```
+
+The genome evolution pipeline (`backend/application/strategy/genome_compiler.py`, `backend/application/strategy/genome_strategy.py`) operates as follows:
+
+- **Mutation**: Random perturbation of existing genome chromosomes (entry, exit, risk, execution parameters)
+- **Crossover**: Combines chromosomes from two parent genomes to produce offspring
+- **Fitness Refresh**: `shadow_validation_job` recalculates per-genome fitness from settled `ShadowTrade` records, syncing `GenomePerformance` metrics
+- **Population Rebalance**: `StrategyRanker` adjusts the active genome population based on fitness rankings, culling underperformers and promoting strong candidates
+
+### 4-Gate Strategy Synthesis Validation
+
+```mermaid
+flowchart LR
+    INPUT[StrategySynthesizer<br/>LLM-generated strategy] --> G1[Gate 1: Syntax<br/>Python AST parse<br/>No syntax errors]
+    G1 -->|Pass| G2[Gate 2: Lint<br/>Pylint static analysis<br/>No critical errors]
+    G2 -->|Pass| G3[Gate 3: Backtest<br/>Historical performance<br/>Positive expected value]
+    G3 -->|Pass| G4[Gate 4: Sandbox<br/>Live paper execution<br/>No runtime errors]
+    G4 -->|Pass| SHADOW[Enter SHADOW stage]
+    
+    G1 -->|Fail| REJECT1[Log syntax error<br/>Discard genome]
+    G2 -->|Fail| REJECT2[Log lint errors<br/>Discard genome]
+    G3 -->|Fail| REJECT3[Log backtest failure<br/>Discard genome]
+    G4 -->|Fail| REJECT4[Log sandbox crash<br/>Discard genome]
+```
+
+The `StrategySynthesizer` (`backend/core/strategy_synthesizer.py`) uses LLM-powered strategy generation with a 4-gate validation pipeline. Only strategies that pass all four gates (syntax → lint → backtest → sandbox) enter the SHADOW stage. Failed genomes are discarded with detailed validation logs.
+
+### Shadow-Trade Fitness Feedback Loop
+
+```mermaid
+flowchart TD
+    SHADOW_JOB[shadow_validation_job<br/>Scheduled periodically] --> FETCH[Fetch settled<br/>ShadowTrade records]
+    FETCH --> CALC[Recalculate per-genome<br/>fitness metrics<br/>win_rate, sharpe, max_drawdown]
+    CALC --> SYNC[Sync GenomePerformance<br/>in database]
+    SYNC --> GATE{Stage gate<br/>criteria met?}
+    GATE -->|SHADOW → PAPER| PROMOTE_P[Promote to PAPER<br/>Create StrategyConfig]
+    GATE -->|PAPER → LIVE_TRIAL| PROMOTE_L[Promote to LIVE_TRIAL<br/>Enable live execution]
+    GATE -->|No| CHECK_HEALTH{Health check<br/>kill threshold?}
+    CHECK_HEALTH -->|Yes| KILL[Auto-kill strategy<br/>Move to GRAVEYARD]
+    CHECK_HEALTH -->|No| CONTINUE2[Continue in current stage]
+```
+
+The `shadow_validation_job` (`backend/application/agi/evolution_jobs.py`) is the canonical shadow-trade feedback loop. It recalculates per-genome fitness from settled `ShadowTrade` records, syncs `GenomePerformance`, promotes SHADOW→PAPER and PAPER→LIVE_TRIAL by metric gates, and auto-kills terminal performers to GRAVEYARD.
+
+### Model Calibration Drift Check
+
+```mermaid
+flowchart TD
+    CALIB_JOB[model_calibration_check_job<br/>Scheduled periodically] --> BRIER[Calculate Brier score<br/>for each strategy's<br/>prediction accuracy]
+    BRIER --> DRIFT{Brier score<br/>drift detected?}
+    DRIFT -->|Yes| RETRAIN[Trigger model retrain<br/>Adjust strategy parameters<br/>via auto_improve]
+    DRIFT -->|No| STABLE[Continue monitoring<br/>No action needed]
+```
+
+The `model_calibration_check_job` (`backend/core/agi_jobs.py`) monitors prediction accuracy drift using Brier scores. When drift exceeds thresholds, it triggers model retraining and parameter adjustment via `auto_improve`.
 
 ### Autonomous Daemons
 
@@ -335,6 +431,8 @@ flowchart TD
         S[settlement_job<br/>every 120s]
         BTC2[btc_scan_and_trade_job<br/>every 60s]
         WX[weather_scan_and_trade_job<br/>configurable]
+        SV[shadow_validation_job<br/>periodic]
+        MC[model_calibration_check_job<br/>periodic]
     end
     
     P6 --> PROM[AutonomousPromoter]
@@ -352,6 +450,15 @@ flowchart TD
     
     N --> REVIEW[NightlyReview]
     REVIEW --> LOG2[Write markdown log<br/>to docs/agi-log/]
+    
+    SV --> FITNESS[Recalculate genome fitness<br/>from ShadowTrade data]
+    FITNESS --> SYNC_PERF[Sync GenomePerformance]
+    SYNC_PERF --> GATE_EVAL[Evaluate stage gates<br/>for promotion/demotion]
+    
+    MC --> BRIER[Calculate Brier scores<br/>Check calibration drift]
+    BRIER --> DRIFT_CHECK{Drift detected?}
+    DRIFT_CHECK -->|Yes| RETRAIN[Trigger model retrain<br/>via auto_improve]
+    DRIFT_CHECK -->|No| MONITOR[Continue monitoring]
 ```
 
 ### Promotion Gate Criteria
@@ -360,8 +467,11 @@ flowchart TD
 |-----------|-----------|----------|----------|--------|-------------|
 | DRAFT → SHADOW | 0 | 0 | — | — | — |
 | SHADOW → PAPER | 100 | 7 | ≥45% | ≥0.3 | ≤25% |
-| PAPER → LIVE | 50 | 3 | ≥50% | ≥0.5 | ≤20% |
+| PAPER → LIVE_TRIAL | 50 | 3 | ≥50% | ≥0.5 | ≤20% |
+| LIVE_TRIAL → LIVE_PROMOTED | — | — | Sustained performance | — | — |
 | Kill (any mode) | — | — | <5% | <−2.0 AND | >50% |
+
+> **Note**: Crazy-tier strategies skip the 14-day minimum via `_get_strategy_risk_tier()` in `fronttest_validator.py`.
 
 ---
 

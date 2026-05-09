@@ -114,12 +114,22 @@ Key method: `RiskManager._breaker_enabled_for_mode(breaker, mode)` — checks co
 
 ### AGI Autonomy Pipeline
 
-Experiments flow through stages: **DRAFT → SHADOW → PAPER → LIVE**
+Experiments flow through stages: **DRAFT → SHADOW → PAPER → LIVE_TRIAL → LIVE_PROMOTED** (with demotion loop back to PAPER)
 
-- `autonomous_promoter.py` — Auto-promotes experiments through stages
-- `agi_health_check.py` — Validates strategy health before promotion
+- `autonomous_promoter.py` — Auto-promotes experiments through stages with health checks and automatic retirement
+- `agi_health_check.py` — Validates strategy health before promotion; auto-kills strategies with <30% win rate after sufficient trades
 - `agi_goal_engine.py` — Maps market regimes to trading goals
-- `auto_improve.py` — Refines strategy parameters based on feedback
+- `auto_improve.py` — Refines strategy parameters based on feedback; per-strategy rollback dict with independent rollback windows
+- `strategy_synthesizer.py` — LLM-powered strategy synthesis with 4-gate validation (syntax → lint → backtest → sandbox); only validated strategies enter SHADOW
+- `genome_compiler.py` — Runtime translation of `StrategyGenome` into executable `BaseStrategy` subclass
+- `genome_strategy.py` — Genome strategy template executing chromosome-mapped entry/exit/risk/execution logic
+- `evolution_jobs.py` — `shadow_validation_job` (canonical shadow-trade feedback loop: recalculates per-genome fitness from settled `ShadowTrade`, syncs `GenomePerformance`, promotes SHADOW→PAPER and PAPER→LIVE_TRIAL by metric gates, auto-kills terminal performers to GRAVEYARD)
+- `agi_jobs.py` — AGI scheduled jobs including `model_calibration_check_job` (Brier drift → retrain trigger)
+- `fronttest_validator.py` — Paper-trial gate; crazy-tier strategies skip 14-day minimum via `_get_strategy_risk_tier()`
+- `trade_forensics.py` — Per-loss root cause diagnosis and pattern aggregation
+- `forensics_integration.py` — Forensics→improvement pipeline; broken strategies get parameter overhaul; `_has_active_experiment()` excludes RETIRED
+
+See `docs/architecture/adr-006-agi-autonomy-framework.md` for the full AGI autonomy governance specification.
 
 ---
 
@@ -174,10 +184,21 @@ Read the README and architecture docs:
 - `backend/models/database.py` — SQLAlchemy ORM models (Trade, BotState, Signal, etc.)
 - `alembic/versions/` — Schema migration history
 
-### Step 10: AGI Autonomy
-- `backend/core/autonomous_promoter.py` — Experiment lifecycle management (DRAFT→SHADOW→PAPER→LIVE)
+### Step 10: AGI Autonomy & Evolution
+- `backend/core/autonomous_promoter.py` — Experiment lifecycle management (DRAFT→SHADOW→PAPER→LIVE_TRIAL→LIVE_PROMOTED) with demotion loop
+- `backend/core/strategy_synthesizer.py` — LLM-powered strategy synthesis with 4-gate validation (syntax → lint → backtest → sandbox)
+- `backend/application/strategy/genome_compiler.py` — Runtime translation of `StrategyGenome` into executable `BaseStrategy` subclass
+- `backend/application/strategy/genome_strategy.py` — Genome strategy template executing chromosome-mapped entry/exit/risk/execution logic
+- `backend/application/agi/evolution_jobs.py` — `shadow_validation_job` (shadow-trade fitness feedback loop, stage gates, GRAVEYARD auto-kill)
+- `backend/core/agi_jobs.py` — AGI scheduled jobs including `model_calibration_check_job` (Brier drift → retrain trigger)
 - `backend/core/agi_goal_engine.py` — Market regime → trading goal mapping
-- `backend/core/auto_improve.py` — Strategy parameter refinement
+- `backend/core/auto_improve.py` — Strategy parameter refinement with per-strategy rollback
+- `backend/core/fronttest_validator.py` — Paper-trial gate with risk-tier-aware minimum duration
+- `backend/core/trade_forensics.py` — Post-loss analysis, root cause diagnosis
+- `backend/core/forensics_integration.py` — Forensics→improvement pipeline with parameter overhaul
+- `backend/models/genome_registry.py` — ORM models for genome persistence (GenomeRegistry, GenomePerformance, GenomeShadowTrade)
+- `backend/repositories/genome_repository.py` — Repository layer for genome CRUD operations
+- `docs/architecture/adr-006-agi-autonomy-framework.md` — Full AGI autonomy governance specification
 
 ### Step 11: Risk Management & Circuit Breakers
 - `backend/core/risk_manager.py` — Per-mode breaker toggles, position limits, concentration guards

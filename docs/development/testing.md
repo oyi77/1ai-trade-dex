@@ -178,6 +178,65 @@ pytest backend/tests/test_alert_manager.py
 pytest backend/tests/test_audit_trail.py
 ```
 
+#### Genome Compiler Tests
+
+**File**: `backend/tests/test_genome_compiler.py`
+
+**Coverage**:
+- StrategyGenome compilation to executable BaseStrategy subclass
+- Chromosome mapping (entry, exit, risk, execution parameters)
+- Genome validation and error handling
+- Runtime strategy instantiation from genome templates
+
+**Run**:
+```bash
+pytest backend/tests/test_genome_compiler.py
+```
+
+#### Evolution Jobs Feedback Loop Tests
+
+**File**: `backend/tests/test_evolution_jobs_feedback_loop.py`
+
+**Coverage**:
+- Shadow-trade fitness recalculation from settled ShadowTrade records
+- GenomePerformance sync and stage gate evaluation
+- SHADOW→PAPER and PAPER→LIVE_TRIAL promotion by metric gates
+- GRAVEYARD auto-kill for terminal performers
+- Demotion loop handling
+
+**Run**:
+```bash
+pytest backend/tests/test_evolution_jobs_feedback_loop.py
+```
+
+#### Bankroll Allocator Longshot Tests
+
+**File**: `backend/tests/test_bankroll_allocator_longshot.py`
+
+**Coverage**:
+- StrategyRanker allocation with longshot/low-probability strategies
+- Risk-tier-aware capital allocation caps
+- Edge cases in bankroll distribution across strategies
+
+**Run**:
+```bash
+pytest backend/tests/test_bankroll_allocator_longshot.py
+```
+
+#### Trade Role Classification Tests
+
+**File**: `backend/tests/test_classify_trade_role.py`
+
+**Coverage**:
+- Trade role classification logic
+- Signal attribution and strategy name tracking
+- Auto-trader routing and role assignment
+
+**Run**:
+```bash
+pytest backend/tests/test_classify_trade_role.py
+```
+
 ### Integration Tests
 
 **File**: `backend/tests/test_integration.py`

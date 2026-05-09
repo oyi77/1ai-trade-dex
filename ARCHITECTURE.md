@@ -78,23 +78,13 @@ The system supports paper trading (shadow mode), live trading with risk controls
 │  │objective switch  │ │ engine)          │ │& recovery             │  │
 │  └─────────────────┘ └─────────────────┘ └──────────────────────┘  │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌──────────────────────┐  │
-│  │StrategySynth.    │ │ExperimentRunner │ │CausalReasoner         │  │
-│  │(strategy_        │ │(experiment_     │ │(causal_reasoning)     │  │
-│  │ synthesizer)     │ │ runner)          │ │Why-did-X-happen       │  │
-│  │LLM code gen      │ │Sandboxed testing │ │analysis                │  │
-│  └─────────────────┘ └─────────────────┘ └──────────────────────┘  │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌──────────────────────┐  │
-│  │AGIOrchestrator  │ │LLMCostTracker   │ │AGIPromotionPipeline   │  │
-│  │(agi_orchestrator)│ │(llm_cost_tracker)│ │(agi_promotion_       │  │
-│  │Unified control  │ │$10/day budget   │ │ pipeline)              │  │
-│  │loop             │ │enforcement       │ │shadow→paper→live      │  │
-│  └─────────────────┘ └─────────────────┘ └──────────────────────┘  │
-│  ┌─────────────────┐                                                  │
-│  │RegimeAware      │                                                  │
-│  │Allocator         │                                                  │
-│  │(strategy_alloc.) │                                                  │
-│  │Capital allocation │                                                  │
-│  └─────────────────┘                                                  │
+│  │RegimeAware      │ │GenomeCompiler   │ │EvolutionScheduler    │  │
+│  │Allocator         │ │(genome_compiler)│ │(evolution_jobs)      │  │
+│  │(strategy_alloc.) │ │Runtime genome→  │ │Shadow validation,    │  │
+│  │Capital allocation │ │strategy compile │ │mutation/crossover,   │  │
+│  └─────────────────┘ └─────────────────┘ │fitness feedback,      │  │
+│                                        │ │diversity rebalance    │  │
+│                                        └──────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
         │                     │                      │
         ▼                     ▼                      ▼
@@ -193,6 +183,20 @@ polyedge/
 │   │   └── weather.py         # Open-Meteo GFS ensemble
 │   ├── bot/                   # Notifications (Telegram, Discord)
 │   ├── models/                # SQLAlchemy models (Trade, Signal, etc.)
+│   │   ├── database.py        # Core models (Trade, Signal, BotState, etc.)
+│   │   ├── kg_models.py       # Knowledge graph models
+│   │   └── genome_registry.py # Genome persistence models (GenomeRegistry, GenomePerformance, GenomeShadowTrade)
+│   ├── repositories/           # Repository layer (data access)
+│   │   └── genome_repository.py # Genome CRUD operations
+│   ├── domain/                 # Domain logic (pure business rules)
+│   │   └── evolution/
+│   │       └── shadow_metrics.py # Per-genome shadow trade metrics
+│   ├── application/            # Application services
+│   │   ├── strategy/
+│   │   │   ├── genome_compiler.py  # Runtime genome→strategy compilation
+│   │   │   └── genome_strategy.py   # Genome strategy template (chromosome-mapped logic)
+│   │   └── agi/
+│   │       └── evolution_jobs.py    # Shadow validation, mutation/crossover, fitness feedback
 │   ├── cache/                 # Response caching layer
 │   ├── monitoring/            # Prometheus metrics + middleware
 │   ├── queue/                 # Job queue (Redis or SQLite fallback)
@@ -301,13 +305,19 @@ RiskManager bounds (ADR-004, ADR-005). Live promotion requires manual approval u
 | DynamicPromptEngine | `core/dynamic_prompt_engine.py` | Evolves AI prompts based on outcome feedback to improve signal quality |
 | AGIGoalEngine | `core/agi_goal_engine.py` | Regime-aware objective switching (maximize_pnl, preserve_capital, explore, reduce_risk) |
 | SelfDebugger | `core/self_debugger.py` | API failure diagnosis and recovery (404, 503, timeout scenarios) |
-| StrategySynthesizer | `core/strategy_synthesizer.py` | LLM-driven Python strategy code generation with syntax validation |
+| StrategySynthesizer | `core/strategy_synthesizer.py` | LLM-powered strategy synthesis with 4-gate validation (syntax→lint→backtest→sandbox); only validated strategies enter SHADOW |
 | ExperimentRunner | `core/experiment_runner.py` | Sandboxed strategy testing (shadow/paper/live) with statistical promotion gates |
 | CausalReasoner | `core/causal_reasoning.py` | Why-did-X-happen analysis tracing causation chains for trade outcomes |
 | AGIOrchestrator | `core/agi_orchestrator.py` | Unified AGI control loop coordinating all modules |
 | LLMCostTracker | `core/llm_cost_tracker.py` | LLM spending budget enforcement ($10/day cap, per-action limits) |
 | AGIPromotionPipeline | `core/agi_promotion_pipeline.py` | shadow→paper→live promotion pipeline with manual approval gate |
 | RegimeAwareAllocator | `core/strategy_allocator.py` | Regime-aware capital allocation across strategies (max 30% per strategy) |
+| GenomeCompiler | `application/strategy/genome_compiler.py` | Runtime translation of StrategyGenome into executable BaseStrategy subclass |
+| GenomeStrategy | `application/strategy/genome_strategy.py` | Genome strategy template — executes chromosome-mapped entry/exit/risk/execution logic at runtime |
+| GenomeRegistry | `models/genome_registry.py` | ORM models for genome persistence — GenomeRegistry, GenomePerformance, GenomeShadowTrade |
+| GenomeRepository | `repositories/genome_repository.py` | Repository layer — CRUD operations for genome persistence |
+| EvolutionScheduler | `application/agi/evolution_jobs.py` | Shadow validation, fitness feedback, mutation/crossover, and diversity rebalance cycles |
+| ShadowMetrics | `domain/evolution/shadow_metrics.py` | Per-genome shadow trade metrics (win rate, Sharpe, drawdown, fitness score) |
 
 ### Autonomous Lifecycle Daemons
 
@@ -319,6 +329,7 @@ These scheduler-run daemons implement the complete experiment lifecycle without 
 | **BankrollAllocator** | `core/bankroll_allocator.py` | Daily (configurable) | Computes capital allocation weights via `StrategyRanker.auto_allocate()`. Writes allocations to `BotState.misc_data["allocations"]` for observability. |
 | **StrategyHealthMonitor** | `core/strategy_health.py` | Called on-demand by promoter & settlement | Computes health metrics (win rate, Sharpe, max drawdown, Brier score, PSI). Issues `killed` or `warned` status. Auto-disables killed strategies in `StrategyConfig`. |
 | **TradeForensics** | `core/trade_forensics.py` | Called on every settlement loss | Analyzes losing trades, diagnoses root causes, aggregates pattern insights for AGI improvement loop. |
+| **EvolutionScheduler** | `application/agi/evolution_jobs.py` | Configurable intervals | Runs shadow validation (recalculates per-genome fitness from settled ShadowTrades), mutation/crossover cycles, fitness refresh, and diversity rebalance. Promotes SHADOW→PAPER and PAPER→LIVE by metric gates; auto-kills terminal performers to GRAVEYARD. |
 
 **Promotion thresholds:**
 - SHADOW → PAPER: ≥100 trades, ≥7 days, ≥45% win rate, ≤25% drawdown

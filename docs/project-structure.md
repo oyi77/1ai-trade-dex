@@ -52,11 +52,23 @@ polyedge/
 │   │   └── markets.py              # Generic market wrapper
 │   ├── models/
 │   │   ├── database.py             # SQLAlchemy models (market_type column)
-│   │   └── kg_models.py            # Knowledge graph SQLAlchemy models
+│   │   ├── kg_models.py            # Knowledge graph SQLAlchemy models
+│   │   └── genome_registry.py      # Genome persistence models (GenomeRegistry, GenomePerformance, GenomeShadowTrade)
 │   ├── strategies/
 │   │   ├── copy_trader.py          # Copy trading main logic
 │   │   ├── wallet_sync.py          # Wallet sync helper
 │   │   └── order_executor.py       # Order execution helper
+│   ├── application/
+│   │   ├── strategy/
+│   │   │   ├── genome_compiler.py   # Runtime genome→strategy compilation
+│   │   │   └── genome_strategy.py   # Genome strategy template (chromosome-mapped logic)
+│   │   └── agi/
+│   │       └── evolution_jobs.py    # Shadow validation, mutation/crossover, fitness feedback, diversity rebalance
+│   ├── domain/
+│   │   └── evolution/
+│   │       └── shadow_metrics.py    # Per-genome shadow trade metrics (win rate, Sharpe, drawdown, fitness)
+│   ├── repositories/
+│   │   └── genome_repository.py     # Genome CRUD operations
 │   └── config.py                   # All settings (BTC + weather)
 ├── frontend/
 │   ├── src/
@@ -122,7 +134,9 @@ polyedge/
 │   ├── test_shadow_enforcement.py    # Shadow mode enforcement audit tests
 │   ├── test_agi_promotion_pipeline.py # Promotion pipeline tests
 │   ├── test_agi_benchmarks.py        # Performance benchmark tests
-│   └── test_agi_failure_injection.py # Failure injection tests
+│   ├── test_agi_failure_injection.py # Failure injection tests
+│   ├── test_genome_compiler.py       # Genome compiler and strategy compilation tests
+│   └── test_evolution_jobs_feedback_loop.py # Shadow validation fitness feedback loop tests
 ├── requirements.txt
 ├── run.py
 └── README.md
