@@ -17,6 +17,7 @@ Genetic algorithm engine for strategy evolution and composition. Implements muta
 | `mutation_engine.py` | Adaptive mutation engine with market regime awareness - hyperparameter tweaks, indicator swaps, timeframe shifts, risk model changes, and chromosome additions |
 | `seed.py` | Initial population generator - creates 9 DRAFT archetypes with randomized chromosomes and diversity injection |
 | `fitness.py` | Composite fitness scoring function - combines Sharpe ratio, win rate, profit factor, drawdown, alpha per trade, and capital rotation efficiency |
+| `shadow_metrics.py` | Shared settled-shadow-trade metric calculator used by stage-gating and shadow performance feedback loops |
 
 ## Subdirectories
 
@@ -45,6 +46,7 @@ Genetic algorithm engine for strategy evolution and composition. Implements muta
 - Apply mutations via `mutate_genome(genome, market_regime, fitness_score)`
 - Calculate fitness with `calculate_fitness(metrics)` from normalized components
 - Generate initial population with `seed_initial_population()` for 9 founding archetypes
+- Use `compute_shadow_metrics(settled_trades)` for canonical win rate / Sharpe / drawdown calculations from shadow outcomes
 - All evolution actions tracked as events for auditability
 
 ## Dependencies

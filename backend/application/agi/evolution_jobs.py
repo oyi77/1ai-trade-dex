@@ -21,10 +21,25 @@ from backend.domain.evolution.mutation_engine import mutate_genome
 from backend.domain.evolution.crossover_engine import crossover_genomes
 from backend.application.agi.necromancer import run_necromancy_analysis
 from backend.application.agi.regime_population_manager import detect_regime_and_rebalance
+from backend.domain.evolution.shadow_metrics import compute_shadow_metrics
 from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.models.database import GenomeRegistry, EvolutionLog
+from backend.models.genome_registry import GenomePerformance
 
 logger = logging.getLogger(__name__)
+
+SHADOW_TO_PAPER_MIN_TRADES = 20
+SHADOW_TO_PAPER_MIN_WIN_RATE = 0.45
+SHADOW_TO_PAPER_MIN_SHARPE = 0.5
+
+PAPER_TO_LIVE_MIN_TRADES = 50
+PAPER_TO_LIVE_MIN_WIN_RATE = 0.50
+PAPER_TO_LIVE_MIN_SHARPE = 0.8
+PAPER_TO_LIVE_MAX_DRAWDOWN = 0.20
+
+AUTO_KILL_MAX_DRAWDOWN = 0.50
+AUTO_KILL_MIN_SHARPE = -2.0
+AUTO_KILL_MIN_WIN_RATE = 0.05
 
 
 def log_evolution_action(action: EvolutionAction, db: Session) -> None:
@@ -44,6 +59,58 @@ def log_evolution_action(action: EvolutionAction, db: Session) -> None:
     # Publish event
     publish_event("evolution_action", action.to_dict())
     logger.info(f"Evolution action logged: {action.action_type} for genome {action.genome_id}")
+
+
+def _sync_genome_fitness_from_shadow_trades(genome, settled_trades, db: Session) -> dict:
+    """Update fitness_json and genome_performance row from settled shadow trades."""
+    metrics = compute_shadow_metrics(settled_trades)
+    fitness = FitnessMetrics(
+        sharpe_ratio=metrics["sharpe_ratio"],
+        win_rate=metrics["win_rate"],
+        profit_factor=metrics["profit_factor"],
+        max_drawdown_pct=metrics["max_drawdown_pct"],
+        total_trades=metrics["total_trades"],
+        last_evaluated=datetime.now(timezone.utc),
+    )
+    genome.fitness_json = fitness.model_dump_json()
+    genome.fitness_score = calculate_fitness(fitness)
+    genome.fitness_updated_at = datetime.now(timezone.utc)
+
+    perf_row = db.query(GenomePerformance).filter(
+        GenomePerformance.genome_id == genome.genome_id
+    ).first()
+    if perf_row is None:
+        perf_row = GenomePerformance(genome_id=genome.genome_id)
+        db.add(perf_row)
+
+    perf_row.trades = [
+        {
+            "shadow_trade_id": t.id,
+            "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+            "market_ticker": t.market_ticker,
+            "direction": t.direction,
+            "entry_price": t.entry_price,
+            "settlement_value": t.settlement_value,
+            "size": t.size,
+            "pnl": t.pnl,
+            "result": "win" if (t.pnl or 0) > 0 else "loss",
+        }
+        for t in settled_trades
+    ]
+    perf_row.total_trades = metrics["total_trades"]
+    perf_row.winning_trades = metrics["winning_trades"]
+    perf_row.losing_trades = metrics["losing_trades"]
+    perf_row.total_pnl = metrics["total_pnl"]
+    perf_row.avg_pnl = metrics["avg_pnl"]
+    perf_row.avg_win = metrics["avg_win"]
+    perf_row.avg_loss = metrics["avg_loss"]
+    perf_row.sharpe_ratio = metrics["sharpe_ratio"]
+    perf_row.max_drawdown_pct = metrics["max_drawdown_pct"]
+    perf_row.volatility = metrics["volatility"]
+    perf_row.profit_factor = metrics["profit_factor"]
+    perf_row.last_updated = datetime.now(timezone.utc)
+
+    return metrics
 
 
 def fitness_evaluation_job() -> None:
@@ -235,8 +302,14 @@ def regime_rebalancing_job() -> None:
 
 
 def shadow_validation_job() -> None:
-    """Score shadow predictions — evaluate accuracy of SHADOW stage genomes.
-    Runs every 5 minutes. Promotes accurate SHADOW genomes to PAPER."""
+    """Process genome fitness feedback loop from settled shadow trades.
+
+    Runs every 5 minutes.
+    - Recomputes fitness metrics from settled shadow trades
+    - Syncs GenomePerformance rows
+    - Applies stage gates (SHADOW→PAPER and PAPER→LIVE)
+    - Auto-kills terminal underperformers to GRAVEYARD
+    """
     if not settings.EVOLUTION_ENGINE_ENABLED:
         logger.debug("Evolution engine disabled, skipping shadow validation")
         return
@@ -244,38 +317,108 @@ def shadow_validation_job() -> None:
     logger.info("Starting shadow validation job")
     with _get_db_session() as db:
         from backend.models.database import ShadowTrade
-        shadow_genomes = db.query(GenomeRegistry).filter(
-            GenomeRegistry.stage == "SHADOW"
+        candidate_genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage.in_(["SHADOW", "PAPER"])
         ).all()
 
         promoted = 0
-        for genome in shadow_genomes:
+        killed = 0
+        for genome in candidate_genomes:
             trades = db.query(ShadowTrade).filter(
                 ShadowTrade.genome_id == genome.genome_id,
-                ShadowTrade.actual_outcome.isnot(None)
-            ).all()
+                ShadowTrade.settled.is_(True),
+                ShadowTrade.pnl.isnot(None),
+            ).order_by(ShadowTrade.timestamp.asc()).all()
 
-            if len(trades) < 10:
-                continue
+            metrics = _sync_genome_fitness_from_shadow_trades(genome, trades, db)
 
-            correct = sum(1 for t in trades if t.accuracy_score is not None and t.accuracy_score < 0.2)
-            accuracy = correct / len(trades) if trades else 0.0
-
-            if accuracy >= 0.60:
-                genome.stage = "PAPER"
+            # Auto-kill gates
+            if (
+                metrics["max_drawdown_pct"] > AUTO_KILL_MAX_DRAWDOWN
+                or (metrics["sharpe_ratio"] < AUTO_KILL_MIN_SHARPE and metrics["win_rate"] < AUTO_KILL_MIN_WIN_RATE)
+            ):
+                from_stage = genome.stage
+                genome.stage = "GRAVEYARD"
+                genome.stage_entered_at = datetime.now(timezone.utc)
+                genome.updated_at = datetime.now(timezone.utc)
                 action = EvolutionAction(
-                    action_type="promote",
+                    action_type="kill",
                     genome_id=genome.genome_id,
                     strategy_name=genome.strategy_name,
-                    from_stage="SHADOW",
-                    to_stage="PAPER",
-                    details={"accuracy": accuracy, "total_trades": len(trades)},
+                    from_stage=from_stage,
+                    to_stage="GRAVEYARD",
+                    details={
+                        "reason": "auto_kill_threshold",
+                        "metrics": {
+                            "total_trades": metrics["total_trades"],
+                            "win_rate": metrics["win_rate"],
+                            "sharpe_ratio": metrics["sharpe_ratio"],
+                            "max_drawdown_pct": metrics["max_drawdown_pct"],
+                        },
+                    },
                 )
                 log_evolution_action(action, db)
-                promoted += 1
+                killed += 1
+                continue
+
+            if genome.stage == "SHADOW":
+                if (
+                    metrics["total_trades"] >= SHADOW_TO_PAPER_MIN_TRADES
+                    and metrics["win_rate"] >= SHADOW_TO_PAPER_MIN_WIN_RATE
+                    and metrics["sharpe_ratio"] >= SHADOW_TO_PAPER_MIN_SHARPE
+                ):
+                    genome.stage = "PAPER"
+                    genome.stage_entered_at = datetime.now(timezone.utc)
+                    genome.updated_at = datetime.now(timezone.utc)
+                    action = EvolutionAction(
+                        action_type="promote",
+                        genome_id=genome.genome_id,
+                        strategy_name=genome.strategy_name,
+                        from_stage="SHADOW",
+                        to_stage="PAPER",
+                        details={
+                            "gate": "shadow_to_paper",
+                            "total_trades": metrics["total_trades"],
+                            "win_rate": metrics["win_rate"],
+                            "sharpe_ratio": metrics["sharpe_ratio"],
+                        },
+                    )
+                    log_evolution_action(action, db)
+                    promoted += 1
+            elif genome.stage == "PAPER":
+                if (
+                    metrics["total_trades"] >= PAPER_TO_LIVE_MIN_TRADES
+                    and metrics["win_rate"] >= PAPER_TO_LIVE_MIN_WIN_RATE
+                    and metrics["sharpe_ratio"] >= PAPER_TO_LIVE_MIN_SHARPE
+                    and metrics["max_drawdown_pct"] <= PAPER_TO_LIVE_MAX_DRAWDOWN
+                ):
+                    genome.stage = "LIVE"
+                    genome.stage_entered_at = datetime.now(timezone.utc)
+                    genome.updated_at = datetime.now(timezone.utc)
+                    action = EvolutionAction(
+                        action_type="promote",
+                        genome_id=genome.genome_id,
+                        strategy_name=genome.strategy_name,
+                        from_stage="PAPER",
+                        to_stage="LIVE",
+                        details={
+                            "gate": "paper_to_live",
+                            "total_trades": metrics["total_trades"],
+                            "win_rate": metrics["win_rate"],
+                            "sharpe_ratio": metrics["sharpe_ratio"],
+                            "max_drawdown_pct": metrics["max_drawdown_pct"],
+                        },
+                    )
+                    log_evolution_action(action, db)
+                    promoted += 1
 
         db.commit()
-        logger.info(f"Shadow validation completed, promoted {promoted} genomes")
+        logger.info(
+            "Shadow validation completed for %s genomes, promoted %s, killed %s",
+            len(candidate_genomes),
+            promoted,
+            killed,
+        )
 
 
 def full_population_review_job() -> None:

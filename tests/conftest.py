@@ -31,6 +31,7 @@ from backend.models.database import Base
 import backend.models.kg_models  # noqa: F401 — ExperimentRecord, StrategyProposal
 import backend.models.outcome_tables  # noqa: F401 — StrategyOutcome, EvolutionLineage
 import backend.models.historical_data  # noqa: F401 — HistoricalCandle, MarketOutcome
+import backend.models.genome_registry  # noqa: F401 — GenomePerformance, GenomeShadowTrade
 try:
     from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: F401
 except Exception:
