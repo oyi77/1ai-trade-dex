@@ -221,18 +221,33 @@ class TestStrategyRehabilitator:
         db.add(cfg)
 
         old_ts = datetime.now(timezone.utc) - timedelta(days=14)
-        for i in range(12):
+
+        # StrategyRehabilitator needs a recent live trade to identify when it was disabled
+        db.add(Trade(
+            strategy="old_strat",
+            trading_mode="live",
+            market_ticker="TLIVE",
+            direction="up",
+            entry_price=0.5,
+            size=10.0,
+            result="loss",
+            pnl=-5.0,
+            settled=True,
+            timestamp=old_ts,
+        ))
+
+        for i in range(15):
             db.add(Trade(
                 strategy="old_strat",
-                trading_mode="paper",
+                trading_mode="live",
                 market_ticker=f"T{i}",
                 direction="up",
                 entry_price=0.5,
                 size=10.0,
-                result="win" if i < 7 else "loss",
-                pnl=5.0 if i < 7 else -3.0,
+                result="win" if i < 10 else "loss",
+                pnl=5.0 if i < 10 else -3.0,
                 settled=True,
-                timestamp=old_ts - timedelta(hours=i),
+                timestamp=old_ts + timedelta(days=1, hours=i),
             ))
         db.commit()
 

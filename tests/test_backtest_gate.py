@@ -116,6 +116,17 @@ async def test_draft_to_backtest_auto_promotion():
             created_at=datetime.now(timezone.utc),
         )
         db.add(exp)
+
+        # Add a dummy proposal so it doesn't auto-pass the backtest gate
+        proposal = StrategyProposal(
+            strategy_name="test_strategy",
+            status="pending",
+            backtest_passed=False,
+            created_at=datetime.now(timezone.utc),
+            change_details="{}",
+            expected_impact="dummy",
+        )
+        db.add(proposal)
         db.commit()
 
         promoter = AutonomousPromoter()
@@ -192,6 +203,17 @@ async def test_backtest_to_shadow_with_record_flag():
             created_at=datetime.now(timezone.utc),
         )
         db.add(exp)
+
+        # Add a dummy proposal so it doesn't auto-pass the backtest gate
+        proposal = StrategyProposal(
+            strategy_name="bad_algo",
+            status="pending",
+            backtest_passed=False,
+            created_at=datetime.now(timezone.utc),
+            change_details="{}",
+            expected_impact="dummy",
+        )
+        db.add(proposal)
         db.commit()
 
         promoter = AutonomousPromoter()
@@ -253,6 +275,17 @@ async def test_backtest_retired_after_7_days():
             created_at=datetime.now(timezone.utc) - timedelta(days=8),
         )
         db.add(exp)
+
+        # Add a dummy proposal so it doesn't auto-pass the backtest gate
+        proposal = StrategyProposal(
+            strategy_name="old_algo",
+            status="pending",
+            backtest_passed=False,
+            created_at=datetime.now(timezone.utc) - timedelta(days=8),
+            change_details="{}",
+            expected_impact="dummy",
+        )
+        db.add(proposal)
         db.commit()
 
         promoter = AutonomousPromoter()
