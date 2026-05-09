@@ -19,6 +19,12 @@ from backend.application.strategy.genome_compiler import (
 )
 from backend.domain.genome.models import StrategyGenome
 from backend.strategies.base import StrategyContext, CycleResult, MarketInfo
+from backend.strategies.registry import (
+    STRATEGY_REGISTRY,
+    STRATEGY_GENOME_REGISTRY,
+    create_strategy,
+    get_genome_id_for_strategy,
+)
 
 
 class TestGenomeCompiler:
@@ -205,6 +211,8 @@ class TestGenomeCompiler:
         assert params["kelly_fraction"] == 0.3
         assert params["max_position_fraction"] == 0.1
         assert params["max_total_exposure_fraction"] == 0.8
+        assert params["execution"]["order_type"] == "limit"
+        assert params["execution"]["slippage_tolerance"] == 0.02
 
     @pytest.mark.asyncio
     async def test_fetch_markets_handles_empty_response(self, valid_genome, mock_context):
@@ -417,6 +425,44 @@ class TestGenomeCompiler:
         expected_name = f"genome_{valid_genome.genome_id[:8]}"
         assert StrategyClass.__name__ == expected_name
         assert StrategyClass.__qualname__ == expected_name
+
+    @pytest.mark.asyncio
+    async def test_compile_register_and_run_cycle_integration(self, valid_genome, mock_context):
+        """Integration: compile -> registry lookup -> instantiate -> run cycle."""
+        strategy_name = f"genome_{valid_genome.genome_id[:8]}"
+        try:
+            compile_genome(valid_genome)
+
+            assert strategy_name in STRATEGY_REGISTRY
+            assert get_genome_id_for_strategy(strategy_name) == valid_genome.genome_id
+
+            strategy = create_strategy(strategy_name)
+            assert strategy.genome.genome_id == valid_genome.genome_id
+
+            with patch("backend.data.gamma.fetch_markets", new_callable=AsyncMock) as mock_fetch:
+                mock_fetch.return_value = [
+                    {
+                        "ticker": "GENOME-TST",
+                        "slug": "genome-test",
+                        "category": "test",
+                        "outcomePrices": [0.2, 0.8],
+                        "volume24hr": 100000,
+                        "liquidity": 100000,
+                    }
+                ]
+                result = await strategy.run_cycle(mock_context)
+
+            assert isinstance(result, CycleResult)
+            assert result.decisions_recorded >= 1
+            assert result.trades_attempted >= 1
+            assert result.errors == []
+            assert result.decisions[0]["size"] <= min(
+                mock_context.bankroll * valid_genome.chromosomes["risk"]["max_position_fraction"],
+                DEFAULT_MAX_TRADE_SIZE,
+            )
+        finally:
+            STRATEGY_REGISTRY.pop(strategy_name, None)
+            STRATEGY_GENOME_REGISTRY.pop(strategy_name, None)
 
     @pytest.mark.asyncio
     async def test_run_cycle_handles_empty_markets(self, valid_genome, mock_context):

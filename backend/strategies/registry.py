@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Maps strategy name -> strategy class
 STRATEGY_REGISTRY: dict[str, type] = {}
+# Maps compiled genome strategy name -> genome_id
+STRATEGY_GENOME_REGISTRY: dict[str, str] = {}
 
 
 def _auto_register(cls) -> None:
@@ -24,6 +26,16 @@ def _auto_register(cls) -> None:
         return
     if name and name not in STRATEGY_REGISTRY:
         STRATEGY_REGISTRY[name] = cls
+
+
+def register_genome_strategy(strategy_name: str, genome_id: str) -> None:
+    """Track which compiled genome produced a registered strategy name."""
+    STRATEGY_GENOME_REGISTRY[strategy_name] = genome_id
+
+
+def get_genome_id_for_strategy(strategy_name: str) -> str | None:
+    """Return genome_id for compiled strategy names when available."""
+    return STRATEGY_GENOME_REGISTRY.get(strategy_name)
 
 
 class BaseStrategy:
