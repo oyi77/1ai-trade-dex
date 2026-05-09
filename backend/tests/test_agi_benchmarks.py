@@ -1,4 +1,3 @@
-import pytest
 """Performance Benchmarks — verifies AGI modules meet time thresholds requirements.
 
 Benchmarks:
@@ -10,6 +9,7 @@ Benchmarks:
 - LLM cost tracking < 1ms overhead per call
 """
 import time
+import pytest
 
 from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph

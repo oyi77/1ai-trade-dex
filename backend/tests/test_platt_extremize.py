@@ -1,6 +1,5 @@
 import pytest
 from backend.ai.ensemble import platt_scale, extremize
-from backend.ai.probability_utils import clamp_probability
 
 
 class TestPlattScale:

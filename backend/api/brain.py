@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from backend.models.database import get_db, DecisionLog, SystemSettings
-from backend.api.auth import require_admin
 
 logger = logging.getLogger("trading_bot.brain_api")
 
