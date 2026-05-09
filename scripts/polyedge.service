@@ -1,0 +1,20 @@
+[Unit]
+Description=PolyEdge Trading Bot
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=openclaw
+WorkingDirectory=/home/openclaw/projects/polyedge
+Environment="PATH=/home/openclaw/projects/polyedge/venv/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=/home/openclaw/projects/polyedge/.env
+ExecStart=/home/openclaw/projects/polyedge/venv/bin/python -m backend
+Restart=always
+RestartSec=10
+
+StandardOutput=append:/home/openclaw/projects/polyedge/logs/polyedge.log
+StandardError=append:/home/openclaw/projects/polyedge/logs/polyedge.error.log
+
+[Install]
+WantedBy=multi-user.target
