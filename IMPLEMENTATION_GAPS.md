@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-08 (Round 11 — SQLite concurrency PRAGMAs and BotState mutex; Known Gaps section below remains active)
+**Last Updated:** 2026-05-09 (Round 12 — AGI genome fitness feedback loop from settled shadow trades; Known Gaps section below remains active)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -13,6 +13,8 @@ Format:
 ---
 
 ## Fixed
+
+~~**No genome fitness feedback loop from shadow outcomes** — SHADOW/PAPER genomes were not re-scored from settled shadow trades, so promotion and kill decisions lacked direct trade-performance feedback.~~ → **Fixed** (2026-05-09): `backend/application/strategy/shadow_runner.py` now exposes per-genome metric calculation from settled shadow trades (win rate, Sharpe, drawdown, PnL stats). `backend/application/agi/evolution_jobs.py:shadow_validation_job` now recalculates and persists `FitnessMetrics` + `fitness_json`, syncs `GenomePerformance`, enforces stage gates (SHADOW→PAPER requires min 20 trades, win_rate ≥45%, Sharpe ≥0.5; PAPER→LIVE requires min 50 trades, win_rate ≥50%, Sharpe ≥0.8, max_drawdown ≤20%), and auto-kills genomes to GRAVEYARD when max_drawdown >50% or (Sharpe < -2 and win_rate <5%). Tests: `backend/tests/test_evolution_jobs_feedback_loop.py`.
 
 ~~**SSE/WebSocket auth bypass when token omitted**~~ → **Fixed** (2026-05-07): Realtime auth now requires either a valid admin cookie session or legacy `token=ADMIN_API_KEY`. Added centralized `authorize_realtime_access()` in `backend/api/auth.py`; wired into `backend/api/events/sse_router.py` and all secured WS routes in `backend/api/websockets_routes.py`.
 
