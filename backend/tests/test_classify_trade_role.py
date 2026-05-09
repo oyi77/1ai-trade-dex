@@ -4,8 +4,6 @@ This pure function determines whether a trade was executed as a maker or taker,
 which feeds into role-based allocation adjustments in BankrollAllocator.
 """
 
-import pytest
-
 from backend.core.trade_forensics import classify_trade_role
 
 
