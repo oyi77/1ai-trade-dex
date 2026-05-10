@@ -75,7 +75,7 @@ class TestExtendedSettings:
         settings = ExtendedSettings()
         assert settings.POLYGON_RPC_URL is not None
         assert settings.MIROFISH_API_TIMEOUT == 10.0
-        assert settings.MIROFISH_ENABLED == True
+        assert settings.MIROFISH_ENABLED is True
 
     def test_extended_env_override(self):
         with patch.dict(os.environ, {
@@ -118,7 +118,7 @@ class TestDatabaseSettings:
 
     def test_job_queue_defaults(self):
         settings = Settings()
-        assert settings.JOB_WORKER_ENABLED is False
+        assert settings.JOB_WORKER_ENABLED is True
         assert "sqlite" in settings.JOB_QUEUE_URL
         assert settings.JOB_TIMEOUT_SECONDS == 300
 

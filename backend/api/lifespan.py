@@ -357,6 +357,48 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("All lifespan startup tasks (except TaskManager init) temporarily skipped.")
 
+    # Initialize graceful shutdown handler
+    shutdown_handler = GracefulShutdownHandler(app)
+    shutdown_handler.register_handlers()
+    app.state.shutdown_handler = shutdown_handler
+
+    # Set WebSocket task managers
+    brain_stream.set_task_manager(app.state.task_manager)
+    activity_stream.set_task_manager(app.state.task_manager)
+    proposals.set_task_manager(app.state.task_manager)
+    livestream.set_task_manager(app.state.task_manager)
+
+    logger.info("=" * 60)
+    logger.info("BTC 5-MIN TRADING BOT v3.0")
+    logger.info("=" * 60)
+    logger.info("Initializing database...")
+
+    from backend.models.database import init_db
+    init_db()
+
+    try:
+        from alembic.config import Config
+        from alembic import command
+        from alembic.runtime.migration import MigrationContext
+        from sqlalchemy import create_engine
+
+        _alembic_cfg = Config("alembic.ini")
+        _engine = create_engine(settings.DATABASE_URL)
+        with _engine.connect() as _conn:
+            _ctx = MigrationContext.configure(_conn)
+            _current_rev = _ctx.get_current_revision()
+
+        if _current_rev is None:
+            command.stamp(_alembic_cfg, "head")
+            logger.info("Fresh DB detected — stamped at Alembic head")
+        else:
+            command.upgrade(_alembic_cfg, "head")
+            logger.info("Alembic migrations up to date")
+    except Exception as exc:
+        logger.warning("Alembic migration check skipped — continuing: %s", exc)
+
+    logger.info("Seeding initial settings...")
+
     # Register ModeExecutionContext for each active mode
     try:
         for mode in ["paper", "testnet", "live"]:
