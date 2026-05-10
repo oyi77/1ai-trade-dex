@@ -194,18 +194,11 @@ async def _startup_polymarket_websocket():
                 market_ws = await get_market_websocket(asset_ids)
                 orderbook_cache = get_orderbook_cache()
 
+                # Notify event bus: WS connected, strategies can use WS path
+                from backend.core.event_bus import event_bus
+                event_bus.set_ws_connected()
+
                 def handle_orderbook(snapshot):
-                    logger.debug(f"Orderbook update: {snapshot.asset_id}")
-
-                    async def update_orderbook():
-                        await _get_app().state.task_manager.create_task(
-                            orderbook_cache.update(
-                                snapshot.asset_id, snapshot.bids, snapshot.asks
-                            ),
-                            name=f"orderbook_update_{snapshot.asset_id}"
-                        )
-
-                    asyncio.create_task(update_orderbook())
                     from backend.core.event_bus import publish_event
                     publish_event(
                         "orderbook_update",
@@ -218,7 +211,6 @@ async def _startup_polymarket_websocket():
                     )
 
                 def handle_trade(trade):
-                    logger.debug(f"Trade: {trade.side} {trade.size} @ {trade.price}")
                     from backend.core.event_bus import publish_event
                     publish_event(
                         "trade_executed",
@@ -230,6 +222,19 @@ async def _startup_polymarket_websocket():
                             "timestamp": trade.timestamp,
                         },
                     )
+
+                # Also map WS event types for strategy dispatch
+                def handle_last_trade_price(event_data):
+                    asset_id = event_data.get("asset_id", "")
+                    if asset_id:
+                        from backend.core.event_bus import publish_event
+                        publish_event("last_trade_price", event_data)
+
+                def handle_price_change(event_data):
+                    asset_id = event_data.get("asset_id", "")
+                    if asset_id:
+                        from backend.core.event_bus import publish_event
+                        publish_event("price_change", event_data)
 
                 market_ws.on_orderbook(handle_orderbook)
                 market_ws.on_trade(handle_trade)
