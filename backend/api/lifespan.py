@@ -409,7 +409,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     clob_client=clob_client,
                     risk_manager=risk_manager,
                 )
-                register_context(context)
+                register_context(mode, context)
                 logger.info(f"ModeExecutionContext initialized for {mode.upper()} mode")
 
         logger.info("")
@@ -429,7 +429,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Initialize TaskManager only after all other configs are loaded
     if settings.job_worker_enabled:
         logger.info("Initializing TaskManager and scheduler...")
-        task_manager = TaskManager(session_factory=get_db_session)
+        task_manager = TaskManager()
         background_tasks.add_task(task_manager.start_scheduler)
         # If job worker is enabled, start the scheduler. It will then manage its own tasks.
     else:
@@ -464,14 +464,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("   ✓ All active requests completed")
 
         logger.info("3. Closing WebSocket connections...")
-        from backend.api.ws_manager_v2 import ws_manager
-        ws_count = len(ws_manager.active_connections)
-        for ws in ws_manager.active_connections[:]:
-            try:
-                await ws.close(code=1001, reason="Server shutting down")
-            except Exception as e:
-                logger.debug(f"Error closing WebSocket: {e}")
-        logger.info(f"   ✓ Closed {ws_count} WebSocket connections")
+        try:
+            from backend.api.ws_manager_v2 import topic_manager
+            ws_count = sum(len(subs) for subs in topic_manager.subscriptions.values())
+            for topic_subs in topic_manager.subscriptions.values():
+                for ws in list(topic_subs):
+                    try:
+                        await ws.close(code=1001, reason="Server shutting down")
+                    except Exception:
+                        pass
+            logger.info(f"   ✓ Closed {ws_count} WebSocket connections")
+        except Exception as e:
+            logger.debug(f"WebSocket shutdown skipped: {e}")
 
         logger.info("4. Shutting down Redis pub/sub...")
         try:
@@ -594,18 +598,18 @@ def _seed_strategy_configs() -> None:
     logger.info("Seeding strategy configs - START")
 
     strategy_defaults = [
-        ("copy_trader", True, 300, {"max_wallets": 20, "min_score": 30.0, "poll_interval": 300}),
-        ("whale_frontrun", True, 300, {"min_whale_size": 10000, "max_slippage": 0.02}),
-        ("weather_emos", True, 300, {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
-        ("kalshi_arb", True, 300, {"min_edge": 0.02, "allow_live_execution": False}),
-        ("btc_oracle", True, 300, {"min_edge": 0.02, "max_minutes_to_resolution": 30}),
-        ("btc_oracle_legacy", False, 300, {}),
-        ("btc_momentum", False, 300, {"max_trade_fraction": 0.03}),
-        ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
-        ("bond_scanner", False, 600, {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
-        ("realtime_scanner", False, 60, {"min_edge": 0.03, "max_position_usd": 100}),
-        ("whale_pnl_tracker", True, 300, {"min_wallet_pnl": 10000, "max_position_usd": 100}),
-        ("market_maker", False, 300, {"spread": 0.02, "max_position_usd": 200}),
+        ("copy_trader", True, 300, "paper", {"max_wallets": 20, "min_score": 30.0, "poll_interval": 300}),
+        ("whale_frontrun", True, 300, "paper", {"min_whale_size": 10000, "max_slippage": 0.02}),
+        ("weather_emos", True, 300, "paper", {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
+        ("kalshi_arb", True, 300, "paper", {"min_edge": 0.02, "allow_live_execution": False}),
+        ("btc_oracle", True, 300, "live", {"min_edge": 0.02, "max_minutes_to_resolution": 30}),
+        ("btc_oracle_legacy", False, 300, "live", {}),
+        ("btc_momentum", False, 300, "live", {"max_trade_fraction": 0.03}),
+        ("general_scanner", False, 300, "paper", {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
+        ("bond_scanner", False, 600, "paper", {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
+        ("realtime_scanner", False, 60, "paper", {"min_edge": 0.03, "max_position_usd": 100}),
+        ("whale_pnl_tracker", True, 300, "paper", {"min_wallet_pnl": 10000, "max_position_usd": 100}),
+        ("market_maker", False, 300, "paper", {"spread": 0.02, "max_position_usd": 200}),
     ]
 
     max_attempts = 3
@@ -615,18 +619,22 @@ def _seed_strategy_configs() -> None:
             with get_db_session() as db:
                 _set_startup_sqlite_busy_timeout(db, 1000)
                 added = 0
-                for name, enabled, interval, params in strategy_defaults:
+                for name, enabled, interval, mode, params in strategy_defaults:
                     exists = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
                     if not exists:
                         db.add(StrategyConfig(
                             strategy_name=name,
                             enabled=enabled,
                             interval_seconds=interval,
+                            mode=mode,
                             params=_json.dumps(params),
                         ))
                         added += 1
                     else:
                         changed = False
+                        if exists.mode != mode:
+                            exists.mode = mode
+                            changed = True
                         if exists.interval_seconds != interval:
                             exists.interval_seconds = interval
                             changed = True
