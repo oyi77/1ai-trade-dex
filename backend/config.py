@@ -388,6 +388,7 @@ class ConfigRegistry:
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
+    KALSHI_ENABLED: bool = False
     ADMIN_API_KEY: Optional[str] = None
 
     # Port and hosting
