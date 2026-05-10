@@ -6,6 +6,13 @@ All strategies must subclass BaseStrategy and implement:
   - market_filter(markets) -> filtered markets
   - run_cycle(ctx) -> CycleResult
 
+Event-driven strategies may additionally override:
+  - subscribed_tokens: set of token IDs to receive WS events for
+  - subscribed_events: set of event types ("last_trade_price", "book", "price_change", "market_resolved")
+  - on_market_event(event) -> Optional[dict]: handle WS-triggered event, return decision or None
+  - on_ws_disconnected(): called when CLOB WS drops, activate REST fallback
+  - on_ws_reconnected(): called when CLOB WS reconnects, deactivate REST fallback
+
 Subclasses are auto-registered in the strategy registry on class creation.
 """
 
@@ -13,7 +20,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Set
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -54,6 +61,16 @@ class MarketInfo:
     no_price: float = 0.5
     question: str = ""
     metadata: dict = field(default_factory=dict)
+
+
+@dataclass
+class MarketEvent:
+    """A real-time market event from CLOB WebSocket, delivered to strategy handlers."""
+
+    token_id: str
+    event_type: str  # "last_trade_price", "book", "price_change", "market_resolved"
+    data: dict      # raw WS event payload
+    timestamp: float
 
 
 @dataclass
@@ -136,6 +153,23 @@ class BaseStrategy(ABC):
     @abstractmethod
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Execute one trading cycle. Must be implemented by subclasses."""
+
+    # ------------------------------------------------------------------
+    # Event-driven extensions (WebSocket-first architecture)
+    # Override in subclasses that want WS event dispatch instead of timer-driven cycles.
+    # ------------------------------------------------------------------
+
+    subscribed_tokens: Set[str] = set()
+    subscribed_events: Set[str] = {"last_trade_price"}
+
+    async def on_market_event(self, event: "MarketEvent") -> Optional[dict]:
+        return None
+
+    async def on_ws_disconnected(self) -> None:
+        pass
+
+    async def on_ws_reconnected(self) -> None:
+        pass
 
     # ------------------------------------------------------------------
     # Concrete wrapper
