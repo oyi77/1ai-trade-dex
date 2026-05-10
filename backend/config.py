@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     KELLY_FRACTION: float = 0.30  # 30% Kelly - more aggressive (winners used bigger positions)
 
     # BTC 5-min specific settings
-    SCAN_INTERVAL_SECONDS: int = 10  # Scan every 10 seconds
+    SCAN_INTERVAL_SECONDS: int = 120  # Scan every 2 min (was 10s — reduced to avoid Polymarket 429)
     SETTLEMENT_INTERVAL_SECONDS: int = 120  # Check settlements every 2 min
     BTC_PRICE_SOURCE: str = "coinbase"
     MIN_EDGE_THRESHOLD: float = (
@@ -225,7 +225,7 @@ class Settings(BaseSettings):
     WS_HANDLER_TIMEOUT_MS: int = 100
 
     # Job Queue Settings
-    JOB_WORKER_ENABLED: bool = False  # Phase 1: disabled by default
+    JOB_WORKER_ENABLED: bool = True  # Required for trading — enables APScheduler strategy cycles
     JOB_QUEUE_URL: str = "sqlite:///./job_queue.db"  # or "redis://localhost:6379"
     JOB_TIMEOUT_SECONDS: int = 300  # 5 minutes
     MAX_CONCURRENT_JOBS: int = 1
