@@ -327,6 +327,7 @@ def _persist_weather_signals(signals: list, mode: str = None):
                     suggested_size=signal.suggested_size,
                     sources=signal.sources,
                     reasoning=signal.reasoning,
+                    track_name="weather_emos",
                     execution_mode=effective_mode,
                     executed=False,
                 )
