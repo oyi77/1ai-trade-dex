@@ -171,6 +171,18 @@ class BaseStrategy(ABC):
     async def on_ws_reconnected(self) -> None:
         pass
 
+    async def register_with_event_bus(self) -> None:
+        """Register this strategy's tokens with the event bus after discovery."""
+        from backend.core.event_bus import event_bus
+        if not self.subscribed_tokens:
+            return
+        event_bus.subscribe_strategy(
+            strategy_name=self.name,
+            token_ids=self.subscribed_tokens,
+            event_types=self.subscribed_events,
+            handler=self.on_market_event,
+        )
+
     # ------------------------------------------------------------------
     # Concrete wrapper
     # ------------------------------------------------------------------

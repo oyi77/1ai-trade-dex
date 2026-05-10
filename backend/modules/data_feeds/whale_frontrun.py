@@ -179,6 +179,7 @@ class WhaleFrontrun(BaseStrategy):
                 self.subscribed_tokens = token_ids
                 self._tokens_resolved = True
                 logger.info(f"[whale_frontrun] Resolved {len(token_ids)} tokens from {len(wallets)} whale wallets")
+                await self.register_with_event_bus()
 
             finally:
                 db.close()

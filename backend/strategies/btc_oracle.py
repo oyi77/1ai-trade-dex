@@ -176,6 +176,7 @@ class BtcOracleStrategy(BaseStrategy):
                 len(token_ids),
                 len(markets),
             )
+            await self.register_with_event_bus()
         except Exception as e:
             logger.warning("BtcOracleStrategy: failed to populate subscribed_tokens: %s", e)
 
