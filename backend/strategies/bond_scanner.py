@@ -25,16 +25,16 @@ class BondScannerStrategy(BaseStrategy):
     )
     category = "value"
     default_params = {
-        "min_price": 0.88,
-        "max_price": 0.97,
-        "min_volume": 1000,
-        "max_days_to_resolution": 14,
-        "min_days_to_resolution": 0.5,
-        "max_position_size": 8.0,
-        "max_concurrent_bonds": 8,
-        "kelly_fraction": 0.25,
-        "min_size_usd": 5.0,
-        "bankroll_pct": 0.08,
+        "min_price": settings.BOND_SCANNER_MIN_PRICE,
+        "max_price": settings.BOND_SCANNER_MAX_PRICE,
+        "min_volume": settings.BOND_SCANNER_MIN_VOLUME,
+        "max_days_to_resolution": settings.BOND_SCANNER_MAX_DAYS_TO_RESOLUTION,
+        "min_days_to_resolution": settings.BOND_SCANNER_MIN_DAYS_TO_RESOLUTION,
+        "max_position_size": settings.BOND_SCANNER_MAX_POSITION_SIZE,
+        "max_concurrent_bonds": settings.BOND_SCANNER_MAX_CONCURRENT_BONDS,
+        "kelly_fraction": settings.BOND_SCANNER_KELLY_FRACTION,
+        "min_size_usd": settings.BOND_SCANNER_MIN_SIZE_USD,
+        "bankroll_pct": settings.BOND_SCANNER_BANKROLL_PCT,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:

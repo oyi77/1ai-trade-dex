@@ -16,7 +16,12 @@ from backend.utils.redaction import redact_sensitive
 
 logger = logging.getLogger("trading_bot")
 
-webhook_breaker = CircuitBreaker("webhook", failure_threshold=3, recovery_timeout=300.0)
+webhook_breaker = CircuitBreaker(
+    "webhook",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+    half_open_max=settings.CB_HALF_OPEN_MAX,
+)
 
 
 class ProductionMonitor:

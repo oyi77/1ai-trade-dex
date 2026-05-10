@@ -58,13 +58,13 @@ class LineMovementDetectorStrategy(BaseStrategy):
     description = "Detect sharp price movements (5%+ in 1 hour) and research cause"
     category = "edge_discovery"
     default_params = {
-        "min_price_change_pct": 5.0,
-        "min_volume_24h": 10000,
-        "min_liquidity": 5000,
-        "lookback_hours": 1,
-        "max_markets_per_cycle": 10,
-        "web_search_enabled": True,
-        "min_confidence_to_signal": 0.6,
+        "min_price_change_pct": settings.LINE_MOVE_MIN_PRICE_CHANGE_PCT,
+        "min_volume_24h": settings.LINE_MOVE_MIN_VOLUME_24H,
+        "min_liquidity": settings.LINE_MOVE_MIN_LIQUIDITY,
+        "lookback_hours": settings.LINE_MOVE_LOOKBACK_HOURS,
+        "max_markets_per_cycle": settings.GENERAL_MARKET_SCANNER_MAX_MARKETS_PER_CYCLE,
+        "web_search_enabled": settings.LINE_MOVE_WEB_SEARCH_ENABLED,
+        "min_confidence_to_signal": settings.LINE_MOVE_MIN_CONFIDENCE_TO_SIGNAL,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:

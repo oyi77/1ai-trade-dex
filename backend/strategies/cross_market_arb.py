@@ -153,8 +153,8 @@ async def _place_order_retry(clob, token_id: str, side: str, price: float,
         return await breaker.call(_do_order)
 
     except Exception:
-        if retry_count < _cfg("ARB_MAX_RETRIES", 3):
-            wait = 0.1 * (2 ** retry_count)
+        if retry_count < settings.ARB_MAX_RETRIES:
+            wait = settings.CROSS_MARKET_ARB_RETRY_WAIT_BASE * (2 ** retry_count)
             await asyncio.sleep(wait)
             return await _place_order_retry(
                 clob, token_id, side, price, size, idempotency_key, breaker, retry_count + 1
@@ -176,7 +176,7 @@ class CrossMarketArb(BaseStrategy):
     )
     category = "arb"
     default_params = {
-            "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
+        "min_profit": settings.CROSS_MARKET_ARB_MIN_PROFIT,
         "enabled": True,
     }
 

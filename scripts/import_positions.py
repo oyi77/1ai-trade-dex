@@ -11,7 +11,11 @@ from datetime import datetime, timezone
 from backend.models.database import SessionLocal, Trade, BotState
 from backend.config import settings
 
-DATA_API_URL = "https://data-api.polymarket.com"
+# DATA_API_URL sourced from settings; fallback for standalone execution
+try:
+    DATA_API_URL = settings.DATA_API_URL
+except (ImportError, AttributeError):
+    DATA_API_URL = "https://data-api.polymarket.com"
 
 async def import_positions_from_data_api(wallet_address: str, mode: str = "live"):
     """

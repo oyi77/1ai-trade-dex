@@ -163,8 +163,8 @@ async def _fetch_page_with_retry(
             raise
         except Exception as exc:
             if retry_count < _cfg("ARB_MAX_RETRIES", 3):
-                # Exponential backoff: 0.1s, 0.2s, 0.4s
-                wait = 0.1 * (2 ** retry_count)
+                # Exponential backoff
+                wait = settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_BASE * (settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_MULTIPLIER ** retry_count)
                 await asyncio.sleep(wait)
                 return await _fetch_page_with_retry(
                     client, offset, semaphore, retry_count + 1, breaker

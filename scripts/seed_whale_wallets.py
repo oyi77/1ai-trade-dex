@@ -183,7 +183,7 @@ def seed_via_sqlite(wallets: list[dict], dry_run: bool) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed whale wallets into wallet_config")
     parser.add_argument("--dry-run", action="store_true", help="Preview inserts without committing")
-    parser.add_argument("--api-url", default="http://localhost:8100", help="FastAPI base URL")
+    parser.add_argument("--api-url", default="http://localhost:8100", help="FastAPI base URL (default from settings.API_PORT if available)")
     parser.add_argument("--fallback-sqlite", action="store_true", help="Use direct sqlite3 instead of API")
     args = parser.parse_args()
 

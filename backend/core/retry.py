@@ -8,22 +8,27 @@ import random
 import time
 from typing import Callable
 
+from backend.config import settings
+
 logger = logging.getLogger(__name__)
 
 
 def retry(
     max_attempts: int = 3,
-    backoff_base: float = 2.0,
-    max_delay: float = 30.0,
+    backoff_base: float | None = None,
+    max_delay: float | None = None,
     retryable_exceptions: tuple = (Exception,),
     on_retry: Callable | None = None,
 ):
+    _backoff_base = settings.RATE_LIMIT_BACKOFF_BASE if backoff_base is None else backoff_base
+    _max_delay = settings.RATE_LIMIT_MAX_DELAY if max_delay is None else max_delay
     def decorator(func: Callable) -> Callable:
         if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
-                last_exc = None
+                nonlocal _backoff_base, _max_delay
+                last_exc: Exception | None = None
                 for attempt in range(1, max_attempts + 1):
                     try:
                         return await func(*args, **kwargs)
@@ -31,7 +36,7 @@ def retry(
                         last_exc = exc
                         if attempt == max_attempts:
                             break
-                        delay = min(backoff_base**attempt, max_delay) + random.random()
+                        delay = min(_backoff_base**attempt, _max_delay) + random.random()
                         logger.warning(
                             "Retry %d/%d for %s after %.1fs: %s",
                             attempt,
@@ -43,14 +48,16 @@ def retry(
                         if on_retry is not None:
                             on_retry(func.__name__, attempt, exc)
                         await asyncio.sleep(delay)
-                raise last_exc
+                if last_exc is not None:
+                    raise last_exc
 
             return async_wrapper
         else:
 
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
-                last_exc = None
+                nonlocal _backoff_base, _max_delay
+                last_exc: Exception | None = None
                 for attempt in range(1, max_attempts + 1):
                     try:
                         return func(*args, **kwargs)
@@ -58,7 +65,7 @@ def retry(
                         last_exc = exc
                         if attempt == max_attempts:
                             break
-                        delay = min(backoff_base**attempt, max_delay) + random.random()
+                        delay = min(_backoff_base**attempt, _max_delay) + random.random()
                         logger.warning(
                             "Retry %d/%d for %s after %.1fs: %s",
                             attempt,
@@ -70,7 +77,8 @@ def retry(
                         if on_retry is not None:
                             on_retry(func.__name__, attempt, exc)
                         time.sleep(delay)
-                raise last_exc
+                if last_exc is not None:
+                    raise last_exc
 
             return sync_wrapper
 

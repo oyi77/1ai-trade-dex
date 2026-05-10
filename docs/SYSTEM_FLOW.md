@@ -107,7 +107,7 @@ sequenceDiagram
     Orch->>Sched: configure_jobs()
     Note over Sched: Schedules:<br/>BTC scan (60s),<br/>Weather scan (configurable),<br/>Settlement (120s),<br/>Auto-trader (configurable),<br/>AGI promotion (6h),<br/>Bankroll allocation (daily),<br/>Health check (15min)
     Orch->>API: start_uvicorn()
-    Note over API: FastAPI on port 8000<br/>Lifespan handler manages<br/>DB session pool + scheduler
+    Note over API: FastAPI on port 8100<br/>Lifespan handler manages<br/>DB session pool + scheduler
     opt TELEGRAM_BOT_TOKEN set
         Orch->>TG: start_bot()
     end
@@ -876,7 +876,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     subgraph Railway["Railway (Backend)"]
-        API2[FastAPI<br/>uvicorn<br/>Port 8000]
+        API2[FastAPI<br/>uvicorn<br/>Port 8100]
         WORKER2[Queue Worker<br/>PM2 managed]
         SCHEDULER2[Scheduler<br/>PM2 managed]
     end

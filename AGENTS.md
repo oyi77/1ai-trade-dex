@@ -23,7 +23,7 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 | `README.md` | Project overview and setup guide |
 | `POLYMARKET_SETUP.md` | Polymarket API credential setup guide |
 | `IMPLEMENTATION_GAPS.md` | Known gaps and incomplete features |
-| `test_backtest_data.py` | Root-level backtest data validation tests |
+| `tests/test_backtest_data.py` | Backtest data validation tests |
 | `backend/core/autonomous_promoter.py` | Experiment lifecycle daemon — auto-promotes DRAFT→SHADOW→PAPER→LIVE_TRIAL→LIVE_PROMOTED, demotes killed strategies to PAPER with improvement loop, health-based kill checks |
 | `backend/core/bankroll_allocator.py` | Daily capital allocator — computes allocations via `StrategyRanker` with risk-tier caps, persists to `BotState.misc_data` |
 | `backend/core/trade_forensics.py` | Per-loss trade analysis — diagnoses root causes, aggregates pattern insights |

@@ -4,7 +4,7 @@ Script to create historical test data for backtesting verification.
 Creates simulated settled trades with realistic outcomes.
 """
 import sys
-sys.path.insert(0, '/home/openclaw/projects/polyedge')
+sys.path.insert(0, '.')
 
 from datetime import datetime, timedelta
 from backend.models.database import SessionLocal, Trade, Signal

@@ -5,6 +5,7 @@ import time
 from enum import Enum
 from typing import Any, Callable
 
+from backend.config import settings
 from backend.core.errors import CircuitOpenError
 
 logger = logging.getLogger(__name__)
@@ -22,14 +23,14 @@ class CircuitBreaker:
     def __init__(
         self,
         name: str,
-        failure_threshold: int = 5,
-        recovery_timeout: float = 60.0,
-        half_open_max: int = 1,
+        failure_threshold: int | None = None,
+        recovery_timeout: float | None = None,
+        half_open_max: int | None = None,
     ):
         self.name = name
-        self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
-        self.half_open_max = half_open_max
+        self.failure_threshold = failure_threshold if failure_threshold is not None else settings.CB_FAILURE_THRESHOLD
+        self.recovery_timeout = recovery_timeout if recovery_timeout is not None else settings.CB_RECOVERY_TIMEOUT
+        self.half_open_max = half_open_max if half_open_max is not None else settings.CB_HALF_OPEN_MAX
 
         self._state = State.CLOSED
         self.failure_count = 0
