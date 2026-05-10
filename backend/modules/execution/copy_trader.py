@@ -80,9 +80,22 @@ async def _fetch_token_id(
         close_client = True
     attempts: list[str] = []
 
+    # Rate-limited token resolution cache (in-memory, process-local)
+    # Reduces Gamma API calls from 3-per-condition to cache-hits
+    if not hasattr(_fetch_token_id, "_cache"):
+        _fetch_token_id._cache = {}  # type: dict[str, Optional[str]]
+        _fetch_token_id._lock = asyncio.Lock()
+
+    async with _fetch_token_id._lock:
+        if condition_id in _fetch_token_id._cache:
+            return _fetch_token_id._cache[condition_id]
+
+    token_id = None
+
     try:
         # --- Attempt 1: Gamma query-param (original approach) ---
         attempts.append("gamma-query")
+        await asyncio.sleep(0.3)  # Respect Gamma rate limit: 300 req/10s
         resp = await http.get(
             f"{GAMMA_HOST}/markets",
             params={"conditionId": condition_id},
@@ -91,37 +104,35 @@ async def _fetch_token_id(
             markets = resp.json()
             if markets and isinstance(markets, list) and len(markets) > 0:
                 token_id = _extract_clob_token_id(markets[0])
-                if token_id:
-                    return token_id
 
-        # --- Attempt 2: Gamma path-segment ---
-        attempts.append("gamma-path")
-        resp = await http.get(f"{GAMMA_HOST}/markets/{condition_id}")
-        if resp.status_code == 200:
-            data = resp.json()
-            # May be a single market dict or a list with one element
-            market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
-            if market:
-                token_id = _extract_clob_token_id(market)
-                if token_id:
-                    return token_id
+        if not token_id:
+            # --- Attempt 2: Gamma path-segment ---
+            attempts.append("gamma-path")
+            await asyncio.sleep(0.3)
+            resp = await http.get(f"{GAMMA_HOST}/markets/{condition_id}")
+            if resp.status_code == 200:
+                data = resp.json()
+                market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+                if market:
+                    token_id = _extract_clob_token_id(market)
 
-        # --- Attempt 3: CLOB markets endpoint ---
-        attempts.append("clob-markets")
-        resp = await http.get(f"{CLOB_HOST}/markets/{condition_id}")
-        if resp.status_code == 200:
-            data = resp.json()
-            market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
-            if market:
-                token_id = _extract_clob_token_id(market)
-                if token_id:
-                    return token_id
+        if not token_id:
+            # --- Attempt 3: CLOB markets endpoint ---
+            attempts.append("clob-markets")
+            await asyncio.sleep(0.3)
+            resp = await http.get(f"{CLOB_HOST}/markets/{condition_id}")
+            if resp.status_code == 200:
+                data = resp.json()
+                market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+                if market:
+                    token_id = _extract_clob_token_id(market)
 
-        logger.warning(
-            f"CopyTrader: token_id fetch failed for condition_id={condition_id[:20]}... "
-            f"— tried: {', '.join(attempts)}"
-        )
-        return None
+        if not token_id:
+            logger.warning(
+                f"CopyTrader: token_id fetch failed for condition_id={condition_id[:20]}... "
+                f"— tried: {', '.join(attempts)}"
+            )
+        return token_id
     except Exception as e:
         logger.warning(
             f"CopyTrader: token_id fetch error for condition_id={condition_id[:20]}... "
@@ -129,6 +140,9 @@ async def _fetch_token_id(
         )
         return None
     finally:
+        # Cache result for this cycle (positive or negative)
+        async with _fetch_token_id._lock:
+            _fetch_token_id._cache[condition_id] = token_id
         if close_client:
             await http.aclose()
 
