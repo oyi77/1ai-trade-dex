@@ -207,7 +207,7 @@ async def _execute_trade(
         "reasoning": f"edge {signal.edge:.3f} >= threshold, {signal.direction} @ {entry_price:.0%}",
     }
 
-    result = await execute_decision(decision, "btc_5m", mode=mode, db=db)
+    result = await execute_decision(decision, "btc_oracle", mode=mode, db=db)
     if result is None:
         return trades_executed
 
@@ -548,7 +548,7 @@ async def weather_scan_and_trade_job(mode: str):
                     "market_type": "weather",
                     "reasoning": f"weather signal: {signal.market.city_name}",
                 }
-                result = await execute_decision(decision, "weather", mode=mode, db=db)
+                result = await execute_decision(decision, "weather_emos", mode=mode, db=db)
                 if result is None:
                     continue
 
@@ -759,6 +759,7 @@ async def auto_trader_job(mode: str):
                     "size": min(settings.MAX_TRADE_SIZE, bankroll * settings.KELLY_FRACTION),
                     "price": getattr(sig, "model_probability", 0.5) or 0.5,
                     "token_id": token_id,
+                    "strategy": getattr(sig, "track_name", "unknown"),
                 }
                 result = await trader.execute_signal(
                     signal_dict,
@@ -781,7 +782,12 @@ async def auto_trader_job(mode: str):
                         "token_id": token_id,
                         "platform": "kalshi" if sig.market_ticker.startswith("KX") else "polymarket",
                     }
-                    source_strategy = getattr(sig, "track_name", None) or "auto_trader"
+                    source_strategy = getattr(sig, "track_name", None)
+                    if not source_strategy:
+                        logger.warning(f"Signal {sig.id} has no track_name — skipping auto-trader")
+                        sig.executed = True
+                        skipped += 1
+                        continue
                     exec_result = await execute_decision(decision, source_strategy, mode=mode, db=db)
                     if exec_result is not None:
                         sig.executed = True

@@ -37,6 +37,7 @@ class TradingSignal:
     reasoning: str = ""
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     execution_mode: str = "paper"  # "paper", "testnet", or "live"
+    track_name: str = ""  # Strategy name for attribution
 
     # BTC price context
     btc_price: float = 0.0
@@ -292,6 +293,7 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
         sources=[f"binance_microstructure_{micro.source}"],
         reasoning=reasoning,
         execution_mode=mode,
+        track_name="btc_oracle",
         btc_price=micro.price,
         btc_change_1h=micro.momentum_5m * 12,
         btc_change_24h=micro.momentum_15m * 96,
@@ -390,7 +392,7 @@ def _persist_signals(signals: list, mode: str = "paper"):
                     suggested_size=signal.suggested_size,
                     sources=signal.sources,
                     reasoning=signal.reasoning,
-                    track_name="btc_oracle",
+                    track_name=signal.track_name or "btc_oracle",
                     execution_mode=execution_mode,
                     executed=False,
                 )
