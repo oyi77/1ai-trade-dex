@@ -118,13 +118,13 @@ async def events_stream(
     )
 
 
-@router.get("/status")
+@router.get("/events/status")
 async def event_bus_status():
     from backend.core.event_bus import event_bus
     return {"status": "ok", **event_bus.get_health()}
 
 
-@router.get("/strategies")
+@router.get("/events/strategies")
 async def subscribed_strategies():
     from backend.core.event_bus import event_bus
     return {
