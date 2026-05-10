@@ -3,6 +3,8 @@ import logging
 import httpx
 import os
 
+from backend.config import settings
+
 logger = logging.getLogger("trading_bot.bk_brain")
 
 BK_BRAIN_URL = os.getenv("BK_BRAIN_URL", "http://localhost:9099")

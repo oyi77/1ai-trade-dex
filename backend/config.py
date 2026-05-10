@@ -93,6 +93,7 @@ class ConfigRegistry:
     MIROFISH_API_URL: str = "https://polyedge-mirofish-api.aitradepulse.com"
     
     # Brain/BK-Hub API
+    BK_BRAIN_URL: str = "http://localhost:9099"
     BRAIN_API_URL: str = "http://localhost:9099"
     
     # API_BASE_URL - FastAPI server URL (constructed from API_HOST and API_PORT)
