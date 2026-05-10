@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from backend.domain.evolution.crossover_engine import crossover_genomes
 from backend.domain.genome.models import (
     StrategyGenome, PerceptionChromosome, CognitionChromosome,
@@ -80,7 +81,9 @@ def test_crossover_volatile_regime():
     parent_b = create_test_genome("Parent B", "test", sharpe_ratio=0.8)
     parent_b.fitness_metrics.max_drawdown_pct = 0.20  # Higher drawdown
 
-    child = crossover_genomes(parent_a, parent_b, "volatile")
+    # Mock mutation to avoid non-deterministic field changes overriding crossover selection
+    with patch("backend.domain.evolution.crossover_engine.mutate_genome", side_effect=lambda g, *a, **kw: (g, [])):
+        child = crossover_genomes(parent_a, parent_b, "volatile")
 
     # In volatile regime, parent with lower drawdown should contribute risk chromosome
     assert child.chromosomes["risk"].position_sizing_model == parent_a.chromosomes["risk"].position_sizing_model
