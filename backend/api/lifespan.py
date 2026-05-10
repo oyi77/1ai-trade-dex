@@ -170,17 +170,25 @@ async def _startup_polymarket_websocket():
                     if market.condition_id:
                         condition_ids.append(market.condition_id)
 
-                # Fallback: if MarketWatch is empty, load token IDs from open trades
+                # Fallback: load token IDs from Gamma API when MarketWatch is empty
                 if not asset_ids:
-                    from backend.models.database import Trade
-                    open_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
-                    for trade in open_trades:
-                        if hasattr(trade, 'token_id') and trade.token_id and trade.token_id not in asset_ids:
-                            asset_ids.append(trade.token_id)
-                        if hasattr(trade, 'condition_id') and trade.condition_id and trade.condition_id not in condition_ids:
-                            condition_ids.append(trade.condition_id)
-                    if open_trades:
-                        logger.info(f"Loaded {len(asset_ids)} token IDs from {len(open_trades)} open trades")
+                    try:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=15.0) as client:
+                            resp = await client.get(
+                                f"{settings.GAMMA_API_URL}/markets",
+                                params={"active": "true", "closed": "false", "limit": 100, "order": "volume", "ascending": "false"},
+                            )
+                            if resp.status_code == 200:
+                                markets = resp.json()
+                                for m in markets:
+                                    tokens = m.get("clobTokenIds") or []
+                                    asset_ids.extend(tokens[:2])
+                                    if m.get("conditionId") and m["conditionId"] not in condition_ids:
+                                        condition_ids.append(m["conditionId"])
+                                logger.info(f"WS fallback: loaded {len(asset_ids)} token IDs from Gamma API")
+                    except Exception as exc:
+                        logger.warning(f"WS token loading from Gamma API failed: {exc}")
 
             if asset_ids:
                 market_ws = await get_market_websocket(asset_ids)
