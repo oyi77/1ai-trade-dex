@@ -14,7 +14,7 @@ feedparser>=6.0.0
 aiohttp==3.11.11  # was 3.9.1, updated for security fixes
 
 # Polymarket integration
-py-clob-client>=0.34.0
+py-clob-client-v2>=1.0.0
 py-order-utils>=0.3.0
 py-builder-signing-sdk>=0.0.2
 py-builder-relayer-client>=0.0.1

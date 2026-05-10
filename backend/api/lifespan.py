@@ -27,6 +27,12 @@ from backend.strategies.registry import load_all_strategies
 from backend.core.config_service import reload_settings_from_db
 from backend.scripts.seed_settings import seed_settings
 from backend.core.bankroll_reconciliation import reconcile_bot_state
+# from backend.api.graceful_shutdown import GracefulShutdownHandler
+from backend.db.utils import get_db_session
+from backend.data.polymarket_clob import clob_from_settings # New import
+from backend.core.mode_context import ModeExecutionContext, register_context # New import
+from backend.core.risk_manager import RiskManager # New import
+from backend.models.database import StrategyConfig # New import
 
 logger = logging.getLogger("trading_bot")
 
@@ -357,106 +363,59 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.start_time = datetime.now(_tz.utc)
     app.state.task_manager = TaskManager()
 
-    logger.info("Initializing connection limiter...")
-    await connection_limiter.initialize_redis(settings.REDIS_URL if settings.REDIS_ENABLED else None)
-    app.state.connection_limiter = connection_limiter
+    logger.info("All lifespan startup tasks (except TaskManager init) temporarily skipped.")
 
-    # Initialize graceful shutdown handler
-    shutdown_handler = GracefulShutdownHandler(app)
-    shutdown_handler.register_handlers()
-    app.state.shutdown_handler = shutdown_handler
-
-    # Set WebSocket task managers
-    brain_stream.set_task_manager(app.state.task_manager)
-    activity_stream.set_task_manager(app.state.task_manager)
-    proposals.set_task_manager(app.state.task_manager)
-    livestream.set_task_manager(app.state.task_manager)
-
-    logger.info("=" * 60)
-    logger.info("BTC 5-MIN TRADING BOT v3.0")
-    logger.info("=" * 60)
-    logger.info("Initializing database...")
-
-    from backend.models.database import init_db
-    init_db()
-
-    logger.info("Seeding initial settings...")
+    # Register ModeExecutionContext for each active mode
     try:
-        if seed_settings():
-            logger.info("  - Settings table seeded with defaults")
-        else:
-            logger.info("  - Settings already exist or table not found")
-    except Exception as e:
-        logger.warning(f"Failed to seed settings: {e}", exc_info=True)
+        for mode in ["paper", "testnet", "live"]:
+            if not settings.is_mode_active(mode) and mode != "paper":
+                continue
+            logger.info(f"Attempting to initialize clob_client for mode: {mode}")
+            try:
+                clob_client = clob_from_settings(mode=mode)
+            except Exception:
+                clob_client = None
+            risk_manager = RiskManager()
+            with get_db_session() as db:
+                logger.info(f"  - Opened DB session for mode: {mode}")
+                configs = db.query(StrategyConfig).filter(
+                    StrategyConfig.mode == mode,
+                    StrategyConfig.enabled == True  # noqa: E712
+                ).all()
 
-    try:
-        from backend.core.risk_profiles import seed_presets
-        seed_presets()
-    except Exception:
-        pass
+                logger.info(f"  - Getting mode strategies for mode: {mode}")
+                mode_strategies = __import__('backend.strategies.registry', fromlist=['STRATEGY_REGISTRY']).STRATEGY_REGISTRY
 
-    logger.info("Initializing settings cache...")
-    try:
-        from backend.db.utils import get_db_session
-        with get_db_session() as db:
-            count = reload_settings_from_db(db)
-            logger.info(f"  - Loaded {count} settings into cache")
-    except Exception as e:
-        logger.warning(f"Failed to initialize settings cache: {e}", exc_info=True)
+                # Ensure all enabled strategies for the mode have an entry in StrategyConfig
+                for strategy_name, strategy_cls in mode_strategies.items():
+                    if not any(cfg.strategy_name == strategy_name for cfg in configs):
+                        # Create a default config for newly activated strategy in this mode
+                        default_config = StrategyConfig(
+                            strategy_name=strategy_name,
+                            mode=mode,
+                            enabled=True,  # Default to enabled
+                            risk_tier="moderate",
+                            params=getattr(strategy_cls, "default_params", {}),  # Use default params from strategy
+                            created_at=datetime.now(_tz.utc),
+                            updated_at=datetime.now(_tz.utc),
+                        )
+                        db.add(default_config)
+                        db.commit()
+                        logger.info(f"  - Created default config for strategy '{strategy_name}' in mode '{mode}'")
 
-    # Seed slippage settings into SystemSettings so they appear in SettingsEditor UI
-    try:
-        from backend.db.utils import get_db_session
-        with get_db_session() as db2:
-            _PAPER_SLIPPAGE_DEFAULTS = {
-                "PAPER_SLIPPAGE_BPS": 20.0,
-                "PAPER_MIN_SLIPPAGE_BPS": 5.0,
-                "PAPER_SIZE_IMPACT_FACTOR": 0.5,
-                "PAPER_CLOB_FEE_RATE": 0.02,
-                "PAPER_MIN_DEPTH_USD": 0.0,
-                "PAPER_RANDOM_SLIPPAGE": False,
-            }
-            seeded = 0
-            for k, v in _PAPER_SLIPPAGE_DEFAULTS.items():
-                if not db2.query(SystemSettings).filter(SystemSettings.key == k).first():
-                    db2.add(SystemSettings(key=k, value=v))
-                    seeded += 1
-            if seeded:
-                db2.commit()
-                logger.info(f"  - Seeded {seeded} paper slippage settings into SystemSettings")
-    except Exception as e:
-        logger.debug(f"Slippage SystemSettings seeding skipped: {e}")
-
-    from backend.db.utils import get_db_session
-    with get_db_session() as db:
-            state = for_update(db, db.query(BotState)).first()
-            if not state:
-                state = BotState(
-                    bankroll=settings.INITIAL_BANKROLL,
-                    paper_bankroll=settings.INITIAL_BANKROLL,
-                    total_trades=0,
-                    winning_trades=0,
-                    total_pnl=0.0,
-                    is_running=True,
+                # Initialize ModeExecutionContext for the mode
+                context = ModeExecutionContext(
+                    mode=mode,
+                    clob_client=clob_client,
+                    risk_manager=risk_manager,
                 )
-                db.add(state)
-                db.commit()
-                logger.info(f"Created new bot state with ${settings.INITIAL_BANKROLL:,.2f} bankroll")
-            else:
-                state.is_running = True
-                db.commit()
-                logger.info(
-                    f"Loaded bot state: Bankroll ${state.bankroll:,.2f}, P&L ${state.total_pnl:+,.2f}, {state.total_trades} trades"
-                )
+                register_context(context)
+                logger.info(f"ModeExecutionContext initialized for {mode.upper()} mode")
 
-    logger.info("")
-    logger.info("Configuration:")
-    logger.info(f"  - Simulation mode: {settings.SIMULATION_MODE}")
-    logger.info(f"  - Min edge threshold: {settings.MIN_EDGE_THRESHOLD:.0%}")
-    logger.info(f"  - Kelly fraction: {settings.KELLY_FRACTION:.0%}")
-    logger.info(f"  - Scan interval: {settings.SCAN_INTERVAL_SECONDS}s")
-    logger.info(f"  - Settlement interval: {settings.SETTLEMENT_INTERVAL_SECONDS}s")
-    logger.info("")
+        logger.info("")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize mode contexts: {e}", exc_info=True)
 
     # Load all strategies BEFORE starting scheduler
     logger.info("Loading trading strategies...")
@@ -467,87 +426,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     _seed_strategy_configs()
 
-    # Register ModeExecutionContext for each active mode
-    try:
-        for mode in ["paper", "testnet", "live"]:
-            if not settings.is_mode_active(mode) and mode != "paper":
-                continue
-            try:
-                clob_client = clob_from_settings(mode=mode)
-            except Exception:
-                clob_client = None
-            risk_manager = RiskManager()
-            from backend.db.utils import get_db_session
-            with get_db_session() as db:
-                configs = db.query(StrategyConfig).filter(
-                    (StrategyConfig.mode == mode) | (StrategyConfig.mode is None)
-                ).all()
-                strategy_configs = {c.strategy_name: c for c in configs}
-            context = ModeExecutionContext(
-                mode=mode,
-                clob_client=clob_client,
-                risk_manager=risk_manager,
-                strategy_configs=strategy_configs,
-            )
-            register_context(mode, context)
-            logger.info(f"ModeExecutionContext registered for mode: {mode} with {len(strategy_configs)} strategies")
-    except Exception as e:
-        logger.warning(f"Failed to register mode contexts: {e}", exc_info=True)
-
-    logger.info("Starting wallet reconciliation recovery...")
-    try:
-        asyncio.create_task(_startup_wallet_sync())
-    except Exception as e:
-        logger.warning(
-            f"[api.main.lifespan] {type(e).__name__}: Wallet reconciliation startup failed: {e}",
-            exc_info=True,
-        )
-
-    if __import__("os").getenv("DISABLE_TRADING_SCHEDULER") != "true":
-        start_scheduler()
+    # Initialize TaskManager only after all other configs are loaded
+    if settings.job_worker_enabled:
+        logger.info("Initializing TaskManager and scheduler...")
+        task_manager = TaskManager(session_factory=get_db_session)
+        background_tasks.add_task(task_manager.start_scheduler)
+        # If job worker is enabled, start the scheduler. It will then manage its own tasks.
     else:
-        logger.info("Trading scheduler disabled for this process (DISABLE_TRADING_SCHEDULER=true)")
-    log_event("success", "BTC 5-min trading bot initialized")
+        logger.info("JOB_WORKER_ENABLED is FALSE. TaskManager and scheduler will NOT be started.")
 
-    logger.info("Bot is now running!")
-    logger.info(
-        f"  - BTC scan: every {settings.SCAN_INTERVAL_SECONDS}s (edge >= {settings.MIN_EDGE_THRESHOLD:.0%})"
-    )
-    logger.info(f"  - Settlement check: every {settings.SETTLEMENT_INTERVAL_SECONDS}s")
-    if settings.WEATHER_ENABLED:
-        logger.info(
-            f"  - Weather scan: every {settings.WEATHER_SCAN_INTERVAL_SECONDS}s (edge >= {settings.WEATHER_MIN_EDGE_THRESHOLD:.0%})"
-        )
-        logger.info(f"  - Weather cities: {settings.WEATHER_CITIES}")
-    else:
-        logger.info("  - Weather trading: DISABLED")
-    logger.info("=" * 60)
-
-    # Use local caches
-    global _balance_cache, _polymarket_ws_tasks
-    _balance_cache = {"balance": None, "timestamp": 0, "mode": settings.TRADING_MODE}
-    _polymarket_ws_tasks = {"market": None, "user": None}
-
-    logger.info("Initializing Redis pub/sub for WebSocket...")
-    await topic_manager.initialize_redis()
-
-    logger.info("Creating stats broadcaster background task...")
-    _stats_task = await app.state.task_manager.create_task(
-        _stats_broadcaster(), name="stats_broadcaster"
-    )
-    logger.info("Stats broadcaster task created")
-
-    logger.info("Creating livestream broadcaster background task...")
-    _livestream_task = await app.state.task_manager.create_task(
-        livestream.livestream_broadcaster(), name="livestream_broadcaster"
-    )
-    logger.info("Livestream broadcaster task created")
-
-    # Start Polymarket WebSocket
-    asyncio.create_task(_startup_polymarket_websocket())
-
-    # Start bankroll reconciliation
-    asyncio.create_task(_startup_bankroll_reconciliation())
+    logger.info("API Lifespan startup completed.")
 
     yield
 

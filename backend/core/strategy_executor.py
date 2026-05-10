@@ -369,7 +369,7 @@ async def execute_decision(
                             for clob_attempt in range(2):
                                 try:
                                     async with context.clob_client as clob:
-                                        await clob.create_or_derive_api_creds()
+                                        await clob.create_or_derive_api_key()
                                         result = await clob.place_limit_order(
                                             token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
                                         )

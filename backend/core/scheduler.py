@@ -1083,20 +1083,25 @@ def start_scheduler():
         queue = create_queue()
 
         if hasattr(queue, "recover_stale_jobs"):
-            loop = asyncio.new_event_loop()
+            import concurrent.futures
 
             def _run_recovery():
-                asyncio.set_event_loop(loop)
-                return loop.run_until_complete(queue.recover_stale_jobs(stale_threshold_seconds=600))
+                recovery_loop = asyncio.new_event_loop()
+                try:
+                    asyncio.set_event_loop(recovery_loop)
+                    return recovery_loop.run_until_complete(
+                        queue.recover_stale_jobs(stale_threshold_seconds=600)
+                    )
+                finally:
+                    recovery_loop.close()
 
             try:
-                recovered = _run_recovery()
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    recovered = pool.submit(_run_recovery).result(timeout=30)
                 if recovered > 0:
                     logger.info(f"Recovered {recovered} stale jobs from previous crash")
             except Exception as e:
                 logger.warning(f"Stale job recovery failed: {e}")
-            finally:
-                loop.close()
 
         use_local_worker = queue.__class__.__name__ != "RedisQueue"
         if not use_local_worker:
