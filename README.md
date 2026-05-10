@@ -84,11 +84,11 @@ cp .env.example .env
 # Edit .env with your API keys (see docs/configuration.md)
 
 # Run the backend
-uvicorn backend.api.main:app --reload --port 8000
+uvicorn backend.api.main:app --reload --port 8100
 ```
 
-Backend will be at: http://localhost:8000
-API docs at: http://localhost:8000/docs
+Backend will be at: http://localhost:8100
+API docs at: http://localhost:8100/docs
 
 ### 2. Frontend Setup
 

@@ -17,7 +17,7 @@ cd frontend && npm install && npm run dev
 docker-compose up -d
 ```
 
-**Backend**: http://localhost:8000 · **API docs**: http://localhost:8000/docs · **Frontend**: http://localhost:5173
+**Backend**: http://localhost:8100 · **API docs**: http://localhost:8100/docs · **Frontend**: http://localhost:5173
 
 ---
 
