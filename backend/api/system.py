@@ -8,7 +8,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 import json as _json
 import asyncio
-import psutil
+# import psutil # Temporarily disabled for debugging
 import os
 
 from backend.config import settings

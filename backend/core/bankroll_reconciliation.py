@@ -170,7 +170,7 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
 
             clob = clob_from_settings(mode="live")
             async with clob:
-                await clob.create_or_derive_api_creds()
+                await clob.create_or_derive_api_key()
                 balance = await clob.get_wallet_balance()
             if balance.get("error"):
                 logger.warning(

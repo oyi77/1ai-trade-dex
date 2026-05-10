@@ -53,7 +53,7 @@ class Orchestrator:
 
         if settings.is_mode_active("live"):
             logger.info("Live mode: deriving API credentials from private key...")
-            creds = await self._clob_clients["live"].create_or_derive_api_creds()
+            creds = await self._clob_clients["live"].create_or_derive_api_key()
             if not creds:
                 raise RuntimeError(
                     "Failed to derive Polymarket API credentials from private key. "
@@ -143,18 +143,19 @@ class Orchestrator:
         register_agi_event_handlers()
 
         # Start real-time settlement WebSocket handler
-        if settings.is_mode_active("paper") or settings.is_mode_active("live"):
-            try:
-                from backend.core.settlement_ws import get_settlement_handler
+        # if settings.is_mode_active("paper") or settings.is_mode_active("live"):
+        #     try:
+        #         from backend.core.settlement_ws import SettlementWebSocketHandler
 
-                self._settlement_handler = await get_settlement_handler()
-                logger.info("Settlement WebSocket handler started")
-            except Exception as e:
-                logger.warning(
-                    f"[orchestrator.start] {type(e).__name__}: Could not start settlement WebSocket handler: {e}",
-                    exc_info=True,
-                )
-
+        #         self._settlement_handler = SettlementWebSocketHandler(task_manager=self._task_manager)
+        #         await self._settlement_handler.start()
+        #         logger.info("Settlement WebSocket handler started")
+        #     except Exception as e:
+        #         logger.warning(
+        #             f"[orchestrator.start] {type(e).__name__}: Could not start settlement WebSocket handler: {e}",
+        #             exc_info=True,
+        #         )
+        logger.info("Settlement WebSocket handler skipped for now.")
         self._phase2 = init_phase2_modules()
         if self._phase2:
             logger.info(f"Phase 2 modules active: {list(self._phase2.keys())}")

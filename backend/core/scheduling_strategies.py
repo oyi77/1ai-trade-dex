@@ -993,7 +993,7 @@ async def sync_live_wallet():
 
             clob = clob_from_settings(mode="live")
             async with clob:
-                await clob.create_or_derive_api_creds()
+                await clob.create_or_derive_api_key()
                 reconciler = WalletReconciler(clob, db, "live")
                 result = await reconciler.full_reconciliation()
 

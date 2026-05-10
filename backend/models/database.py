@@ -1817,7 +1817,8 @@ def ensure_schema():
     # Backfill logic for existing trades (preserve data)
     try:
         with engine.connect() as conn:
-            _set_sqlite_busy_timeout(conn, 1000)
+            if "sqlite" in settings.DATABASE_URL:
+                _set_sqlite_busy_timeout(conn, 1000)
             with conn.begin():
                 # Set source="bot" for all existing trades (assume bot-executed)
                 conn.execute(
@@ -1825,10 +1826,16 @@ def ensure_schema():
                 )
                 logger.info("Backfilled 'source' field for existing trades")
 
-                # Set blockchain_verified=0 for all existing trades (conservative)
-                conn.execute(
-                    text("UPDATE trades SET blockchain_verified = 0 WHERE blockchain_verified IS NULL")
-                )
+                # Set blockchain_verified=false for all existing trades (conservative)
+                if "postgresql" in settings.DATABASE_URL:
+                    conn.execute(
+                        text("UPDATE trades SET blockchain_verified = FALSE WHERE blockchain_verified IS NULL")
+                    )
+                else:
+                    # For SQLite and other databases
+                    conn.execute(
+                        text("UPDATE trades SET blockchain_verified = 0 WHERE blockchain_verified IS NULL")
+                    )
                 logger.info("Backfilled 'blockchain_verified' field for existing trades")
     except Exception as e:
         logger.warning(f"Could not backfill unified state sync fields: {e}")

@@ -100,6 +100,8 @@ class Settings(BaseSettings):
 
     # AI Feature Flags
     AI_ENABLED: bool = True  # Master toggle for AI-enhanced signals
+    job_worker_enabled: bool = True  # Enable background jobs (scheduler/worker)
+    shadow_mode: bool = True  # Global shadow mode (no live trades)
     AI_LOG_ALL_CALLS: bool = True
     AI_DAILY_BUDGET_USD: float = 1.0
     AI_SIGNAL_WEIGHT: float = 0.30  # Weight of AI in ensemble (0 = disabled, max 0.50)

@@ -92,21 +92,20 @@ async def production_exception_handler(request: Request, exc: Exception):
     )
 
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
-
-from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402
-from backend.api.versioning import APIVersionMiddleware  # noqa: E402
-from backend.api.timeout_middleware import TimeoutMiddleware  # noqa: E402
-
-app.add_middleware(TimeoutMiddleware)
-app.add_middleware(RateLimiterMiddleware, requests_per_minute=100)
-app.add_middleware(APIVersionMiddleware)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_headers=["*"],
+# )
+# # from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402
+# # from backend.api.versioning import APIVersionMiddleware  # noqa: E402
+# # from backend.api.timeout_middleware import TimeoutMiddleware  # noqa: E402
+#
+# # app.add_middleware(TimeoutMiddleware)
+# # app.add_middleware(RateLimiterMiddleware, requests_per_minute=100)
+# # app.add_middleware(APIVersionMiddleware)
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(markets_router, prefix="/api/v1")

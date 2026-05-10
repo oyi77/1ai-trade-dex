@@ -560,7 +560,7 @@ class TestLiveModeCallsCLOB:
 
         mock_clob = AsyncMock()
         mock_clob.place_limit_order = AsyncMock(return_value=mock_order_result)
-        mock_clob.create_or_derive_api_creds = AsyncMock()
+        mock_clob.create_or_derive_api_key = AsyncMock()
         mock_clob.__aenter__ = AsyncMock(return_value=mock_clob)
         mock_clob.__aexit__ = AsyncMock(return_value=False)
 

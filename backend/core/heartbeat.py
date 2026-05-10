@@ -244,7 +244,7 @@ async def wallet_sync_job() -> None:
 
             clob = clob_from_settings(mode=sync_mode)
             async with clob:
-                await clob.create_or_derive_api_creds()
+                await clob.create_or_derive_api_key()
                 balance_data = await clob.get_wallet_balance()
                 usdc_balance = balance_data.get("usdc_balance", 0.0)
                 error = balance_data.get("error")

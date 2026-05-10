@@ -2,7 +2,7 @@
 Polymarket CLOB execution client.
 
 Uses httpx.AsyncClient for read-only queries (shared connection pool).
-Delegates order creation/placement/cancellation to py_clob_client.ClobClient,
+Delegates order creation/placement/cancellation to py_clob_client_v2.ClobClient,
 which handles EIP-712 signing, L2 HMAC auth, and tick-size resolution internally.
 
 Auth: EIP-712 L1 (derive API keys) + HMAC-SHA256 L2 (per-request headers).
@@ -21,12 +21,14 @@ import httpx
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 
-from py_clob_client.client import ClobClient
-from py_clob_client.clob_types import (
+from py_clob_client_v2 import (
+    ClobClient,
     ApiCreds,
+    BuilderConfig,
     OrderArgs,
     BalanceAllowanceParams,
     AssetType,
+    OrderPayload,
 )
 
 from backend.core.circuit_breaker import CircuitBreaker
@@ -229,10 +231,6 @@ class PolymarketCLOB:
             builder_config = None
             if builder_api_key and builder_secret and builder_passphrase:
                 try:
-                    from py_clob_client.clob_types import BuilderConfig
-
-                    # Builder code must be a hex string (bytes32).
-                    # If it's a UUID, remove hyphens and pad to 64 chars.
                     builder_code = (builder_api_key or "").replace("-", "").lower()
                     if builder_code and len(builder_code) < 64:
                         builder_code = builder_code.ljust(64, "0")
@@ -244,12 +242,13 @@ class PolymarketCLOB:
                         builder_code=builder_code,
                     )
                     logger.info(
-                        "[polymarket_clob.__init__] Builder Program configured with code: %s",
-                        builder_code
+                        "[polymarket_clob.__init__] Builder Program configured for address: %s",
+                        builder_address or "default"
                     )
-                except ImportError:
+                except Exception as e:
                     logger.warning(
-                        "[polymarket_clob.__init__] py_clob_client BuilderConfig unavailable"
+                        "[polymarket_clob.__init__] Failed to configure Builder Program: %s: %s",
+                        type(e).__name__, e
                     )
             try:
                 self._clob_client = ClobClient(
@@ -462,11 +461,11 @@ class PolymarketCLOB:
     # API credential derivation (via py-clob-client)
     # =========================================================================
 
-    async def create_or_derive_api_creds(self) -> Optional[ApiCreds]:
+    async def create_or_derive_api_key(self) -> Optional[ApiCreds]:
         """
         Derive or create API credentials from the private key.
 
-        Uses ClobClient.create_or_derive_api_creds() which:
+        Uses ClobClient.derive_api_key() which:
         1. Tries to create a new API key (L1 auth via private key)
         2. Falls back to deriving an existing key if already created
 
@@ -496,7 +495,7 @@ class PolymarketCLOB:
             return creds
         except Exception as e:
             logger.error(
-                f"[polymarket_clob.create_or_derive_api_creds] {type(e).__name__}: Failed to derive API credentials: {e}",
+                f"[polymarket_clob.create_or_derive_api_key] {type(e).__name__}: Failed to derive API credentials: {e}",
                 exc_info=True,
             )
             return None
@@ -537,7 +536,7 @@ class PolymarketCLOB:
             if not self._clob_client.creds:
                 return OrderResult(
                     success=False,
-                    error="API credentials required — call create_or_derive_api_creds() first",
+                    error="API credentials required — call create_or_derive_api_key() first",
                 )
 
         # Deterministic key: same params within a 5-min window = same key → deduplicated.
@@ -590,7 +589,7 @@ class PolymarketCLOB:
             _release_idempotency_key(idempotency_key)
             return OrderResult(
                 success=False,
-                error="API credentials required — call create_or_derive_api_creds() first",
+                error="API credentials required — call create_or_derive_api_key() first",
             )
 
         if clob_breaker.state == "OPEN":
@@ -614,7 +613,6 @@ class PolymarketCLOB:
                 price=price,
                 size=shares,
                 side=side,
-                nonce=int(time.time() * 1000),
             )
 
             # ClobClient.create_order handles tick-size resolution, neg_risk, signing
@@ -624,7 +622,7 @@ class PolymarketCLOB:
 
             # Post the signed order
             resp = await asyncio.to_thread(
-                self._clob_client.post_order, signed_order, "GTC"
+                self._clob_client.post_order, signed_order
             )
 
             order_id = (
@@ -659,7 +657,7 @@ class PolymarketCLOB:
             logger.error("Cancel requires ClobClient with API credentials")
             return False
         try:
-            resp = await asyncio.to_thread(self._clob_client.cancel, order_id)
+            resp = await asyncio.to_thread(self._clob_client.cancel_order, OrderPayload(orderID=order_id))
             return resp.get("success", False) if isinstance(resp, dict) else bool(resp)
         except Exception as e:
             logger.error(
