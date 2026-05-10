@@ -15,7 +15,7 @@ from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.core.task_manager import TaskManager
-from backend.core.scheduler import start_scheduler, log_event
+from backend.core.scheduler import log_event
 from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
@@ -426,15 +426,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     _seed_strategy_configs()
 
-    # Initialize TaskManager only after all other configs are loaded
-    if settings.job_worker_enabled:
-        logger.info("Initializing TaskManager and scheduler...")
-        task_manager = TaskManager()
-        background_tasks.add_task(task_manager.start_scheduler)
-        # If job worker is enabled, start the scheduler. It will then manage its own tasks.
-    else:
-        logger.info("JOB_WORKER_ENABLED is FALSE. TaskManager and scheduler will NOT be started.")
-
+    # Scheduler runs in the bot (orchestrator) process, not the API process.
+    # The bot calls orchestrator.start() → start_scheduler() directly.
+    # API lifespan should NOT start the scheduler to avoid circular imports.
     logger.info("API Lifespan startup completed.")
 
     yield
