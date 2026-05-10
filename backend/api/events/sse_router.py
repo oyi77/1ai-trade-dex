@@ -116,3 +116,19 @@ async def events_stream(
             "Access-Control-Allow-Methods": "GET, OPTIONS",
         },
     )
+
+
+@router.get("/status")
+async def event_bus_status():
+    from backend.core.event_bus import event_bus
+    return {"status": "ok", **event_bus.get_health()}
+
+
+@router.get("/strategies")
+async def subscribed_strategies():
+    from backend.core.event_bus import event_bus
+    return {
+        "ws_connected": event_bus.ws_connected,
+        "total_tokens": len(event_bus.get_all_subscribed_tokens()),
+        "strategies": event_bus.get_subscription_status(),
+    }

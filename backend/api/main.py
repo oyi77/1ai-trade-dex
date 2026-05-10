@@ -46,7 +46,7 @@ from backend.api.analytics import router as analytics_router
 from backend.api.settings import router as settings_router
 from backend.api.activities import router as activities_router
 from backend.api.proposals import router as proposals_router
-from backend.api.events import router as events_router
+from backend.api.events.sse_router import router as events_router
 from backend.api.agi_routes import router as agi_router
 from backend.api.admin import router as admin_router
 from backend.api.brain import router as brain_router
