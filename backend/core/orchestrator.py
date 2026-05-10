@@ -34,14 +34,22 @@ class Orchestrator:
         # Reset CLOB circuit breaker to ensure we start in CLOSED state
         clob_breaker.reset()
 
-        self._clob = clob_from_settings()
-        await self._clob.__aenter__()
-
         for mode in ["paper", "testnet", "live"]:
-            clob_client = clob_from_settings(mode=mode)
-            await clob_client.__aenter__()
-            self._clob_clients[mode] = clob_client
-            logger.info(f"CLOB client initialized for mode: {mode}")
+            try:
+                clob_client = clob_from_settings(mode=mode)
+                await clob_client.__aenter__()
+                self._clob_clients[mode] = clob_client
+                logger.info(f"CLOB client initialized for mode: {mode}")
+            except Exception as exc:
+                logger.warning(f"CLOB client init failed for mode {mode}: {exc}")
+                if mode in ("testnet", "live"):
+                    raise RuntimeError(
+                        f"Failed to initialize CLOB client for {mode} mode. "
+                        f"Check POLYMARKET_PRIVATE_KEY and CLOB_API_* in .env."
+                    ) from exc
+                self._clob_clients[mode] = None
+
+        self._clob = self._clob_clients.get("live") or self._clob_clients.get("paper")
 
         if settings.is_mode_active("live"):
             logger.info("Live mode: deriving API credentials from private key...")
@@ -173,6 +181,8 @@ class Orchestrator:
             await self._clob.__aexit__(None, None, None)
 
         for mode, clob_client in self._clob_clients.items():
+            if not clob_client:
+                continue
             if mode == "live":
                 await clob_client.cancel_all_orders()
             await clob_client.__aexit__(None, None, None)
@@ -314,6 +324,10 @@ class Orchestrator:
 
         if size < 1.0:
             logger.debug(f"Copy signal size ${size:.2f} below minimum — skipping")
+            return None
+
+        if not self._clob:
+            logger.warning("CLOB not available — skipping order placement")
             return None
 
         return await self._clob.place_limit_order(
