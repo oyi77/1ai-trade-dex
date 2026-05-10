@@ -158,7 +158,7 @@ async def _startup_polymarket_websocket():
     user_ws_task = None
 
     try:
-            if settings.POLYMARKET_WS_ENABLED:
+        if settings.POLYMARKET_WS_ENABLED:
             asset_ids = []
             condition_ids = []
             from backend.db.utils import get_db_session
