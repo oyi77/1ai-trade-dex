@@ -1,14 +1,13 @@
 """bk-brain integration — cross-ecosystem memory sharing. Async, non-blocking."""
 import logging
 import httpx
-import os
 
 from backend.config import settings
 
 logger = logging.getLogger("trading_bot.bk_brain")
 
-BK_BRAIN_URL = os.getenv("BK_BRAIN_URL", "http://localhost:9099")
-BK_BRAIN_ENABLED = os.getenv("BK_BRAIN_ENABLED", "false").lower() == "true"
+BK_BRAIN_URL = settings.BK_BRAIN_URL
+BK_BRAIN_ENABLED = getattr(settings, "BK_BRAIN_ENABLED", False)
 
 
 async def store_memory(title: str, content: str, tags: list = None) -> bool:

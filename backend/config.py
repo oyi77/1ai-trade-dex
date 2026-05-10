@@ -4,7 +4,7 @@ import os
 import logging
 from pydantic import model_validator, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Dict, Optional
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -26,21 +26,16 @@ DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
 # - polling:Interval settings for jobs and tasks
 # ============================================================================
 
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any
-import os
-
-
 @dataclass
 class ConfigRegistry:
     """
     Centralized configuration registry with categorized access.
-    
+
     This is the single source of truth for all configuration in PolyEdge.
     All settings are organized by domain (API_ENDPOINTS, RATE_LIMITS, etc.)
     and validated at startup to fail fast with clear error messages.
     """
-    
+
     # --------------------------------------------------------------------------
     # API_ENDPOINTS - External API URLs
     # --------------------------------------------------------------------------
@@ -51,17 +46,17 @@ class ConfigRegistry:
     CLOB_API_URL: str = "https://clob.polymarket.com"
     POLYMARKET_BASE_URL: str = "https://polymarket.com"
     POLYMARKET_RELAYER_URL: str = "https://relayer-v2.polymarket.com"
-    
+
     # Polymarket WebSocket URLs
     POLYMARKET_WS_CLOB_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     POLYMARKET_WS_USER_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/user"
     POLYMARKET_WS_RTDS_URL: str = "wss://ws-live-data.polymarket.com"
     POLYMARKET_WS_WHALE_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     POLYMARKET_WS_ORDERBOOK_URL: str = "wss://ws.polymarket.com/orderbook"
-    
+
     # Kalshi API
     KALSHI_API_URL: str = "https://api.elections.kalshi.com/trade-api/v2"
-    
+
     # Crypto exchange APIs
     BINANCE_API_URL: str = "https://api.binance.com/api/v3"
     BINANCE_KLINES_URL: str = "https://api.binance.com/api/v3/klines"
@@ -70,7 +65,7 @@ class ConfigRegistry:
     KRAKEN_API_URL: str = "https://api.kraken.com/0/public"
     BYBIT_API_URL: str = "https://api.bybit.com/v5/market"
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
-    
+
     # Weather APIs
     OPEN_METEO_API_URL: str = "https://api.open-meteo.com/v1"
     OPEN_METEO_ARCHIVE_URL: str = "https://archive-api.open-meteo.com/v1/archive"
@@ -78,35 +73,35 @@ class ConfigRegistry:
     OPEN_METEO_GEOCODING_URL: str = "https://geocoding-api.open-meteo.com/v1/search"
     NWS_API_URL: str = "https://api.weather.gov/gridpoints"
     NWS_BASE_URL: str = "https://api.weather.gov"
-    
+
     # Search APIs
     TAVILY_API_URL: str = "https://api.tavily.com/search"
     EXA_API_URL: str = "https://api.exa.ai/search"
     SERPER_API_URL: str = "https://google.serper.dev/search"
     DDG_HTML_URL: str = "https://html.duckduckgo.com/html/"
     CRW_API_URL: Optional[str] = None
-    
+
     # Telegram API
     TELEGRAM_API_BASE: str = "https://api.telegram.org"
-    
+
     # MiroFish API
     MIROFISH_API_URL: str = "https://polyedge-mirofish-api.aitradepulse.com"
-    
+
     # Brain/BK-Hub API
     BK_BRAIN_URL: str = "http://localhost:9099"
     BRAIN_API_URL: str = "http://localhost:9099"
 
     # Goldsky GraphQL API (Polymarket historical order data)
     GOLDSKY_API_URL: str = "https://api.goldsky.com/api/public/project_cl6mb8i9h0003e201j6li0diw/subgraphs/orderbook-subgraph/0.0.1/gn"
-    
+
     # API_BASE_URL - FastAPI server URL (constructed from API_HOST and API_PORT)
     API_HOST: str = "localhost"
     API_PORT: int = 8005
     API_BASE_URL: str = "http://localhost:8005"
-    
+
     # RSS Feed URLs (comma-separated)
     RSS_FEED_URLS: str = "https://feeds.bbci.co.uk/news/rss.xml,https://feeds.reuters.com/reuters/businessNews,https://www.federalreserve.gov/feeds/press_all.xml,https://cointelegraph.com/rss,https://coindesk.com/arc/outboundfeeds/rss/"
-    
+
     # --------------------------------------------------------------------------
     # RATE_LIMITS - Rate limit settings for API services
     # --------------------------------------------------------------------------
@@ -119,7 +114,7 @@ class ConfigRegistry:
     CB_FAILURE_THRESHOLD: int = 5  #failures before opening circuit
     CB_RECOVERY_TIMEOUT: float = 60.0  #seconds before attempting recovery
     CB_HALF_OPEN_MAX: int = 1  #max concurrent probes in half-open state
-    
+
     # --------------------------------------------------------------------------
     # STRATEGY_PARAMS - Strategy-specific thresholds and limits
     # --------------------------------------------------------------------------
@@ -132,7 +127,7 @@ class ConfigRegistry:
     AUTO_TRADER_BATCH_SIZE: int = 100  #batch size for auto-trader
     MAX_TOTAL_PENDING_TRADES: int = 50  #max pending trades
     STALE_TRADE_HOURS: int = 48  #hours before trade considered stale
-    
+
     # Position sizing
     KELLY_FRACTION: float = 0.30  #Kelly fraction (0.30 = 30% Kelly)
     MAX_POSITION_FRACTION: float = 0.08  #max position as % of bankroll
@@ -140,23 +135,23 @@ class ConfigRegistry:
     MAX_TRADE_SIZE: float = 8.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
     PAPER_MIN_ORDER_USDC: float = 1.0  #minimum order size (paper)
-    
+
     # Confidence and signal weights
     AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5  #min confidence for auto-approve
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
-    
+
     # Indicator weights (must sum to ~1.0)
     WEIGHT_RSI: float = 0.20
     WEIGHT_MOMENTUM: float = 0.35
     WEIGHT_VWAP: float = 0.20
     WEIGHT_SMA: float = 0.15
     WEIGHT_MARKET_SKEW: float = 0.10
-    
+
     # Volume filters
     MIN_MARKET_VOLUME: float = 100.0  #minimum market volume
     MIN_WHALE_TRADE_USD: float = 1000.0  #minimum whale trade size
-    
+
     # Risk management
     DAILY_LOSS_LIMIT: float = 5.0  #maximum daily loss
     DAILY_LOSS_LIMIT_PCT: float = 0.10  #daily loss % (overrides flat limit)
@@ -165,7 +160,7 @@ class ConfigRegistry:
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  #max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  #daily loss floor (auto-pause)
     WEEKLY_LOSS_FLOOR_PCT: float = -0.20  #weekly loss floor (revert to paper)
-    
+
     # HFT parameters
     HFT_ENABLED: bool = True
     HFT_POSITION_SIZE_PCT: float = 0.25  #position size as % of bankroll
@@ -177,7 +172,7 @@ class ConfigRegistry:
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  #minimum slippage (0.05%)
     HFT_MAX_SLIPPAGE_BPS: float = 20.0
     PAPER_RANDOM_SLIPPAGE: bool = False  #add random jitter to slippage
-    
+
     # Weather parameters
     WEATHER_ENABLED: bool = True
     WEATHER_SCAN_INTERVAL_SECONDS: int = 60
@@ -188,14 +183,14 @@ class ConfigRegistry:
     WEATHER_CITIES: str = "nyc,chicago,miami,dallas,seattle,atlanta,los_angeles,denver,london,seoul,tokyo"
     WEATHER_KELLY_FRACTION: float = 0.15
     WEATHER_MAX_BANKROLL_FRACTION: float = 0.05
-    
+
     # Whale detection
     WHALE_FRONTRUN_MIN_SIZE: float = 10000.0
     WHALE_FRONTRUN_MIN_SCORE: float = 0.8
     WHALE_FRONTRUN_MAX_RECONNECT: int = 5
     WHALE_FRONTRUN_DELAY_MS: int = 50
     WHALE_FRONTRUN_SELL_DELAY_MS: int = 1000
-    
+
     # Scanner parameters
     SCANNER_PAGE_SIZE: int = 500
     SCANNER_SEMAPHORE_LIMIT: int = 50
@@ -203,11 +198,11 @@ class ConfigRegistry:
     SCANNER_STALE_THRESHOLD_SECONDS: float = 5.0
     SCANNER_MAX_MARKETS: int = 10000
     MARKET_UNIVERSE_CACHE_TTL_SECONDS: int = 300
-    
+
     # Order executor
     ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 50.0
     ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION: int = 7
-    
+
     #Line movement detector
     LINE_MOVE_BASE_CONFIDENCE: float = 0.5
     LINE_MOVE_HUGE_THRESHOLD: float = 15.0
@@ -339,7 +334,7 @@ class ConfigRegistry:
     MIN_TIME_REMAINING: int = 60  #min time remaining in seconds
     MAX_TIME_REMAINING: int = 1800  #max time remaining in seconds
     MAX_TIME_EXECUTION_MS: int = 500  #max execution time in ms
-    
+
     # --------------------------------------------------------------------------
     # SYSTEM - Deployment and runtime settings
     # --------------------------------------------------------------------------
@@ -394,20 +389,20 @@ class ConfigRegistry:
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     ADMIN_API_KEY: Optional[str] = None
-    
+
     # Port and hosting
     PORT: int = 8100  #backend API port
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://polyedge.aitradepulse.com,http://polyedge.aitradepulse.com"
-    
+
     # Trading modes
     ACTIVE_MODES: str = "paper"
     TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
-    
+
     # Logging
     LOG_LEVEL: str = "INFO"
     API_LOG_ALL_CALLS: bool = True
-    
+
     # WebSocket
     POLYMARKET_WS_ENABLED: bool = True
     POLYMARKET_USER_WS_ENABLED: bool = False
@@ -416,12 +411,12 @@ class ConfigRegistry:
     DATABASE_QUERY_TIMEOUT: float = 10.0
     EXTERNAL_API_TIMEOUT: float = 15.0
     WS_HANDLER_TIMEOUT_MS: int = 100
-    
+
     # Telegram
     TELEGRAM_BOT_TOKEN: Optional[str] = None
     TELEGRAM_ADMIN_CHAT_IDS: str = ""
     TELEGRAM_HIGH_CONFIDENCE_ALERTS: bool = True
-    
+
     # --------------------------------------------------------------------------
     # RISK - Trading risk configuration
     # --------------------------------------------------------------------------
@@ -429,16 +424,16 @@ class ConfigRegistry:
     CIRCUIT_BREAKER_ENABLED: bool = True
     MAX_CONCURRENT_POSITIONS: int = 3
     CONSECUTIVE_LOSS_LIMIT: int = 3
-    
+
     # Daily loss monitoring
     DAILY_LOSS_LIMIT_ENABLED: bool = True
     DRAWDOWN_BREAKER_ENABLED_PER_MODE: Dict[str, bool] = field(default_factory=lambda: {"paper": False, "testnet": True, "live": True})
     DAILY_LOSS_LIMIT_ENABLED_PER_MODE: Dict[str, bool] = field(default_factory=lambda: {"paper": False, "testnet": True, "live": True})
-    
+
     # Risk limits per mode
     RISK_MAX_DAILY_LOSS_PCT: float = 0.10
     RISK_MAX_WEEKLY_LOSS_PCT: float = 0.20
-    
+
     # HFT risk parameters (from config_hft.py)
     HFT_SCANNER_PARALLEL_LIMIT: int = 50
     HFT_SCANNER_MAX_MARKETS: int = 10000
@@ -449,32 +444,32 @@ class ConfigRegistry:
     HFT_SCANNER_MAX_RETRIES: int = 3
     HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD: int = 5
     HFT_SCANNER_CIRCUIT_BREAKER_TIMEOUT: float = 60.0
-    
+
     HFT_EXECUTION_AUTO_EXECUTE: bool = True
     HFT_EXECUTION_AUTO_EXECUTE_MIN_CONFIDENCE: float = 0.7
     HFT_EXECUTION_POSITION_SIZE_PCT: float = 0.25
     HFT_EXECUTION_MAX_POSITION_USD: float = 1000.0
     HFT_EXECUTION_MAX_TOTAL_EXPOSURE: float = 5000.0
     HFT_EXECUTION_IDEMPOTENCY_TTL_SEC: int = 30
-    
+
     HFT_WHALE_MIN_SIZE_USD: float = 10000.0
     HFT_WHALE_MIN_SCORE: float = 0.8
     HFT_WHALE_FRONTRUN_DELAY_MS: int = 50
     HFT_WHALE_SELL_DELAY_MS: int = 1000
     HFT_WHALE_MAX_RECONNECT_RETRIES: int = 5
     HFT_WHALE_WS_RECONNECT_DELAY_BASE: float = 0.1
-    
+
     HFT_ARB_MIN_PROFIT: float = 0.02
     HFT_ARB_POLYMARKET_FEE: float = 0.01
     HFT_ARB_KALSHI_FEE: float = 0.01
     HFT_ARB_EXECUTION_MAX_RETRIES: int = 3
     HFT_ARB_PENDING_QUEUE_TTL_SEC: int = 300
-    
+
     HFT_LATENCY_MAX_SCAN_LATENCY_MS: float = 1000.0
     HFT_LATENCY_MAX_EXECUTION_LATENCY_MS: float = 50.0
     HFT_LATENCY_LATENCY_ALERT_THRESHOLD_MS: float = 100.0
     HFT_LATENCY_CACHE_TTL_SEC: float = 1.0
-    
+
     # --------------------------------------------------------------------------
     # POLLING - Interval settings for jobs and tasks
     # --------------------------------------------------------------------------
@@ -483,14 +478,14 @@ class ConfigRegistry:
     SETTLEMENT_INTERVAL_SECONDS: int = 120
     WEATHER_SCAN_INTERVAL_SECONDS: int = 60
     WEATHER_SETTLEMENT_INTERVAL_SECONDS: int = 1800
-    
+
     # Job intervals
     JOB_WORKER_ENABLED: bool = True
     JOB_QUEUE_URL: str = "sqlite:///./job_queue.db"
     JOB_TIMEOUT_SECONDS: int = 300
     MAX_CONCURRENT_JOBS: int = 1
     DB_EXECUTOR_MAX_WORKERS: int = 4
-    
+
     # AGI intervals
     AGI_PROMOTION_INTERVAL_HOURS: int = 6
     AGI_HEALTH_CHECK_INTERVAL_MINUTES: int = 15
@@ -503,14 +498,14 @@ class ConfigRegistry:
     HISTORICAL_DATA_COLLECTOR_INTERVAL_HOURS: int = 6
     ARBITRAGE_SCAN_INTERVAL_SECONDS: int = 30
     NEWS_FEED_INTERVAL_SECONDS: int = 600
-    
+
     # Evolution engine intervals
     AGI_MUTATION_INTERVAL_HOURS: int = 6
     AGI_CROSSOVER_INTERVAL_HOURS: int = 24
     MUTATION_CYCLE_INTERVAL_HOURS: int = 6
     CROSSOVER_CYCLE_INTERVAL_HOURS: int = 168  #weekly
     NECROMANCY_INTERVAL_DAYS: int = 7
-    
+
     # --------------------------------------------------------------------------
     # AGI - Self-improvement and autonomy features
     # --------------------------------------------------------------------------
@@ -524,11 +519,11 @@ class ConfigRegistry:
     REGIME_ROUTING_ENABLED: bool = True
     ENABLE_PAIR_COST_ARB: bool = True
     USE_EVENT_BUS_HANDLERS: bool = True
-    
+
     # Promotion thresholds
     REGISTRY_MIN_WIN_RATE: float = 0.30
     REGISTRY_MIN_ROI: float = -0.30
-    
+
     # Rehabilitation
     AGI_REHAB_COOLDOWN_DAYS: int = 7
     AGI_REHAB_MIN_TRADES: int = 10
@@ -537,7 +532,7 @@ class ConfigRegistry:
     AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4
     AGI_REHAB_LITE_WIN_RATE_THRESHOLD: float = 0.30
     AGI_AUTO_DISABLE_MIN_TRADES: int = 10
-    
+
     # Promotion rules
     AGI_PROMOTER_SHADOW_MIN_TRADES: int = 100
     AGI_PROMOTER_SHADOW_MIN_DAYS: int = 7
@@ -548,17 +543,17 @@ class ConfigRegistry:
     AGI_PROMOTER_PAPER_MIN_WIN_RATE: float = 0.50
     AGI_PROMOTER_PAPER_MIN_SHARPE: float = 0.5
     AGI_PROMOTER_PAPER_MAX_DRAWDOWN: float = 0.20
-    
+
     # Fronttest
     AGI_FRONTTEST_DAYS: int = 14
     AGI_FRONTTEST_MIN_TRADES: int = 10
     AGI_FRONTTEST_MIN_WIN_RATE: float = 0.40
-    
+
     # Improvement cycles
     AGI_MAX_IMPROVEMENT_ATTEMPTS: int = 3
     AGI_DEMOTION_RETRY_LIMIT: int = 3
     AGI_BROKEN_STRATEGY_OVERHAUL_ENABLED: bool = True
-    
+
     # Live trial
     LIVE_TRIAL_ENABLED: bool = True
     LIVE_TRIAL_BANKROLL_PCT: float = 0.01
@@ -566,26 +561,26 @@ class ConfigRegistry:
     LIVE_TRIAL_DEGRADATION_THRESHOLD: float = 0.80
     AGI_LIVE_TRIAL_DAYS: int = 7
     AGI_LIVE_TRIAL_MIN_TRADES: int = 10
-    
+
     # LLM synthesis
     AGI_SYNTHESIS_DAILY_BUDGET: float = 2.00
     AGI_BUDGET_DAILY_LIMIT_USD: float = 2.00
-    
+
     # Calibration
     AGI_BRIER_DRIFT_THRESHOLD: float = 0.25
     AGI_CALIBRATION_MIN_SAMPLES: int = 30
-    
+
     # Forensics
     FORENSICS_AUTO_MUTATE: bool = False
     FORENSICS_MAX_MUTATIONS_PER_DAY: int = 3
-    
+
     # Self-debugger
     SELF_DEBUGGER_MAX_RECOVERY_ATTEMPTS: int = 3
-    
+
     # Monitoring
     MONITORING_BACKUP_MAX_AGE_HOURS: float = 2.0
     MONITORING_PNL_TOLERANCE_PCT: float = 0.02
-    
+
     # --------------------------------------------------------------------------
     # WEB - Web search and research settings
     # --------------------------------------------------------------------------
@@ -595,7 +590,7 @@ class ConfigRegistry:
     WEBSEARCH_MAX_RESULTS: int = 5
     WEBSEARCH_TIMEOUT_SECONDS: float = 15.0
     WEBSEARCH_MIN_CONFIDENCE: float = 0.5
-    
+
     # API keys
     TAVILY_API_KEY: Optional[str] = None
     EXA_API_KEY: Optional[str] = None
@@ -604,7 +599,7 @@ class ConfigRegistry:
     MIROFISH_API_KEY: Optional[str] = None
     POLYGON_RPC_URL: str = "https://polygon-bor-rpc.publicnode.com"
     POLYGON_PRIVATE_MEMPOOL_URL: str = "https://polygon-bor-rpc.publicnode.com"
-    
+
     # --------------------------------------------------------------------------
     # AI - AI/LLM configuration
     # --------------------------------------------------------------------------
@@ -616,7 +611,7 @@ class ConfigRegistry:
     AI_API_KEY: Optional[str] = None
     AI_BASE_URL: Optional[str] = None
     AI_SIGNAL_WEIGHT: float = 0.30
-    
+
     # LLM routing
     LLM_DEFAULT_PROVIDER: str = "groq"
     LLM_DEBATE_PROVIDER: str = "groq"
@@ -624,19 +619,19 @@ class ConfigRegistry:
     ANTHROPIC_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     GEMINI_API_KEY: str = ""
-    
+
     # LLM models
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
     GEMINI_MODEL: str = "gemini-1.5-pro"
-    
+
     # Debate
     MULTI_AGENT_DEBATE_ENABLED: bool = True
     DEBATE_TIMEOUT_SECONDS: float = 10.0
     BULL_AGENT_ENABLED: bool = True
     BEAR_AGENT_ENABLED: bool = True
     RESEARCH_AGENT_ENABLED: bool = True
-    
+
     # --------------------------------------------------------------------------
     # BLOCKCHAIN - Polygon and blockchain settings
     # --------------------------------------------------------------------------
@@ -645,12 +640,12 @@ class ConfigRegistry:
     POLYGON_WS_URL: str = "wss://polygon-rpc.com"
     CONDITIONAL_TOKENS_ADDRESS: str = "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
     QUICKNODE_RPC_URL: str = "https://rpc-mainnet.matic.quiknode.pro"
-    
+
     # Token addresses
     USDC_E_ADDRESS: str = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
     USDC_NATIVE_ADDRESS: str = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
     PUSD_ADDRESS: str = "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb"
-    
+
     # --------------------------------------------------------------------------
     # DATABASE - Database and caching
     # --------------------------------------------------------------------------
@@ -659,7 +654,7 @@ class ConfigRegistry:
     REDIS_DEFAULT_URL: str = "redis://localhost:6379"
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_ENABLED: bool = False
-    
+
     # --------------------------------------------------------------------------
     # BOT - Bot state and trading
     # --------------------------------------------------------------------------
@@ -667,12 +662,12 @@ class ConfigRegistry:
     PAPER_MIN_BANKROLL: float = 50.0
     PAPER_TOPUP_AMOUNT: float = 500.0
     MAX_TOPUPS: int = 10
-    
+
     # Trading
     AUTO_TRADER_ENABLED: bool = True
     SIGNAL_APPROVAL_MODE: str = "manual"
     SIGNAL_NOTIFICATION_DURATION_MS: int = 10000
-    
+
     # Jobs
     AUTO_IMPROVE_ENABLED: bool = True
     AUTO_IMPROVE_TRADE_LIMIT: int = 100
@@ -683,11 +678,11 @@ class ConfigRegistry:
     DB_BACKUP_INTERVAL_HOURS: int = 6
     DB_BACKUP_DIR: str = "backups"
     DB_BACKUP_RETENTION_DAYS: int = 30
-    
+
     # Shadow mode
     SHADOW_VALIDATE_ENABLED: bool = True
     SHADOW_USES_REAL_SIGNALS: bool = True
-    
+
     # Evolution engine
     EVOLUTION_ENGINE_ENABLED: bool = False
     AGI_POPULATION_SIZE: int = 20
@@ -695,7 +690,7 @@ class ConfigRegistry:
     GENOME_POPULATION_TARGET: int = 25
     GENOME_RAMP_MIN_TRADES: int = 10
     GENOME_INITIAL_ALLOCATION_PCT: float = 0.02
-    
+
     # --------------------------------------------------------------------------
     # MiroFish - External signal API
     # --------------------------------------------------------------------------
@@ -707,18 +702,18 @@ class ConfigRegistry:
     DEBATE_CYCLE_TIMEOUT: int = 30
     ACTIVITY_DB_TRANSACTION_TIMEOUT: int = 3
     WEBSOCKET_ACTIVITY_LATENCY_SLA: int = 500
-    
+
     # --------------------------------------------------------------------------
     # ALERTS - Webhook notifications
     # --------------------------------------------------------------------------
     SLACK_WEBHOOK_URL: Optional[str] = None
     DISCORD_WEBHOOK_URL: Optional[str] = None
-    
+
     # --------------------------------------------------------------------------
     # BTC - BTC-specific settings
     # --------------------------------------------------------------------------
     BTC_PRICE_SOURCE: str = "coinbase"
-    
+
     # --------------------------------------------------------------------------
     # POLYMARKET_TOKENS - Token contract addresses
     # --------------------------------------------------------------------------
@@ -726,7 +721,7 @@ class ConfigRegistry:
     USDC_E_ADDRESS_TOKENS: str = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
     USDC_NATIVE_ADDRESS_TOKENS: str = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
     PUSD_ADDRESS_TOKENS: str = "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb"
-    
+
     # --------------------------------------------------------------------------
     # CATEGORY_CONFIDENCE - Category-specific confidence multipliers
     # --------------------------------------------------------------------------
@@ -739,7 +734,7 @@ class ConfigRegistry:
         "weather": 1.15,
         "entertainment": 1.15,
     })
-    
+
     # --------------------------------------------------------------------------
     # ARBITRAGE - Arbitrage detection parameters
     # --------------------------------------------------------------------------
@@ -756,13 +751,13 @@ class ConfigRegistry:
     TAKER_FEE_RATE: float = 0.02
     MIN_ARB_SPREAD: float = 0.005
     SSE_EVENT_TYPE_FILTER_ENABLED: bool = True
-    
+
     # --------------------------------------------------------------------------
     # NEWS - News feed settings
     # --------------------------------------------------------------------------
     NEWS_FEED_ENABLED: bool = False
     RSS_FEEDS: str = "https://feeds.bbci.co.uk/news/rss.xml,https://feeds.reuters.com/reuters/businessNews,https://www.federalreserve.gov/feeds/press_all.xml,https://cointelegraph.com/rss,https://coindesk.com/arc/outboundfeeds/rss/"
-    
+
     # --------------------------------------------------------------------------
     # DATA_AGGREGATOR - Data freshness settings
     # --------------------------------------------------------------------------
@@ -781,7 +776,7 @@ class ConfigRegistry:
     SAFE_TUNER_MAX_CHANGE_PCT_CONFIG: float = 0.10
     SAFE_TUNER_MIN_TRADES_FOR_TUNING_CONFIG: int = 20
     SAFE_TUNER_REVERT_SIGMA_THRESHOLD_CONFIG: float = 2.0
-    
+
     # --------------------------------------------------------------------------
     # BANKROLL - Bankroll management
     # --------------------------------------------------------------------------
@@ -789,7 +784,7 @@ class ConfigRegistry:
     PAPER_MIN_BANKROLL_CONFIG: float = 50.0
     PAPER_TOPUP_AMOUNT_CONFIG: float = 500.0
     MAX_TOPUPS_CONFIG: int = 10
-    
+
     # --------------------------------------------------------------------------
     # AGI_HEALTH - AGI health check parameters
     # --------------------------------------------------------------------------
@@ -797,7 +792,7 @@ class ConfigRegistry:
     AGI_HEALTH_DATA_FRESHNESS_HOURS: float = 24.0
     AGI_HEALTH_BUDGET_NEAR_LIMIT_PCT: float = 0.8
     AGI_HEALTH_ORPHAN_MAX_AGE_DAYS: int = 7
-    
+
     # --------------------------------------------------------------------------
     # RISK_LIMITS - Risk limit configuration
     # --------------------------------------------------------------------------
@@ -805,7 +800,7 @@ class ConfigRegistry:
     RISK_DAILY_LOSS_LIMIT: float = 5.0
     RISK_MAX_DAILY_LOSS_PCT_CONFIG: float = 0.10
     RISK_MAX_WEEKLY_LOSS_PCT_CONFIG: float = 0.20
-    
+
     # --------------------------------------------------------------------------
     # POLLING_INTERVALS - Polling interval configuration
     # --------------------------------------------------------------------------
@@ -813,27 +808,27 @@ class ConfigRegistry:
     POLLING_NORMAL_MS: int = 10000
     POLLING_SLOW_MS: int = 30000
     POLLING_VERY_SLOW_MS: int = 60000
-    
+
     # --------------------------------------------------------------------------
     # VALIDATION - Validation methods
     # --------------------------------------------------------------------------
-    
+
     def validate(self) -> list[str]:
         """
         Validate all configuration values.
-        
+
         Returns:
             List of validation issues (empty if valid)
         """
         issues: list[str] = []
-        
+
         # Check required values
         if not self.DATABASE_URL:
             issues.append("DATABASE_URL is required")
-        
+
         if not self.GAMMA_API_URL:
             issues.append("GAMMA_API_URL is required")
-        
+
         # Check API endpoints are valid URLs
         api_urls = [
             self.GAMMA_API_URL,
@@ -845,11 +840,11 @@ class ConfigRegistry:
             self.TAVILY_API_URL,
             self.MIROFISH_API_URL,
         ]
-        
+
         for url in api_urls:
             if url and not url.startswith(('http://', 'https://', 'wss://', 'ws://')):
                 issues.append(f"Invalid URL format: {url}")
-        
+
         # Check rate limits are positive
         if self.RATE_LIMIT_GAMMA <= 0:
             issues.append("RATE_LIMIT_GAMMA must be positive")
@@ -857,17 +852,17 @@ class ConfigRegistry:
             issues.append("RATE_LIMIT_KALSHI must be positive")
         if self.RATE_LIMIT_CRYPTO <= 0:
             issues.append("RATE_LIMIT_CRYPTO must be positive")
-        
+
         # Check rate limit backoff parameters
         if self.RATE_LIMIT_BACKOFF_BASE < 1.0:
             issues.append("RATE_LIMIT_BACKOFF_BASE must be >= 1.0")
         if self.RATE_LIMIT_MAX_DELAY < self.RATE_LIMIT_BACKOFF_BASE:
             issues.append("RATE_LIMIT_MAX_DELAY must be >= RATE_LIMIT_BACKOFF_BASE")
-        
+
         # Check port numbers are valid
         if self.PORT < 1 or self.PORT > 65535:
             issues.append(f"PORT must be between 1 and 65535, got {self.PORT}")
-        
+
         # Check percentages are in valid range (0-1)
         risky_floats = [
             ('KELLY_FRACTION', self.KELLY_FRACTION, 0.0, 0.5),
@@ -885,11 +880,11 @@ class ConfigRegistry:
             ('HFT_WHALE_MIN_SCORE', self.HFT_WHALE_MIN_SCORE, 0.0, 1.0),
             ('HFT_EXECUTION_AUTO_EXECUTE_MIN_CONFIDENCE', self.HFT_EXECUTION_AUTO_EXECUTE_MIN_CONFIDENCE, 0.0, 1.0),
         ]
-        
+
         for name, value, min_val, max_val in risky_floats:
             if not (min_val <= value <= max_val):
                 issues.append(f"{name} must be between {min_val} and {max_val}, got {value}")
-        
+
         # Check integer ranges
         risky_ints = [
             ('HFT_MAX_POSITION_USD', self.HFT_MAX_POSITION_USD, 100, 100000),
@@ -904,29 +899,29 @@ class ConfigRegistry:
             ('MIN_TIME_REMAINING', self.MIN_TIME_REMAINING, 1, 3600),
             ('MAX_TIME_REMAINING', self.MAX_TIME_REMAINING, 60, 7200),
         ]
-        
+
         for name, value, min_val, max_val in risky_ints:
             if not (min_val <= value <= max_val):
                 issues.append(f"{name} must be between {min_val} and {max_val}, got {value}")
-        
+
         # Check scan intervals are reasonable
         if self.SCAN_INTERVAL_SECONDS < 5:
             issues.append(f"SCAN_INTERVAL_SECONDS too aggressive: {self.SCAN_INTERVAL_SECONDS}s (min: 5s)")
         if self.SETTLEMENT_INTERVAL_SECONDS < 30:
             issues.append(f"SETTLEMENT_INTERVAL_SECONDS too aggressive: {self.SETTLEMENT_INTERVAL_SECONDS}s (min: 30s)")
-        
+
         # Check HFT parameters
         if self.HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD < 1:
             issues.append("HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD must be >= 1")
         if self.HFT_SCANNER_CIRCUIT_BREAKER_TIMEOUT < 1:
             issues.append("HFT_SCANNER_CIRCUIT_BREAKER_TIMEOUT must be >= 1s")
-        
+
         # Check AGI thresholds
         if self.REGISTRY_MIN_WIN_RATE < 0 or self.REGISTRY_MIN_WIN_RATE > 1:
             issues.append(f"REGISTRY_MIN_WIN_RATE must be 0-1, got {self.REGISTRY_MIN_WIN_RATE}")
         if self.REGISTRY_MIN_ROI < -1:
             issues.append(f"REGISTRY_MIN_ROI must be >= -1, got {self.REGISTRY_MIN_ROI}")
-        
+
         # Check intervals are positive
         positive_ints = [
             ('SCAN_INTERVAL_SECONDS', self.SCAN_INTERVAL_SECONDS),
@@ -979,11 +974,11 @@ class ConfigRegistry:
             ('SCANNER_STALE_THRESHOLD_SECONDS', int(self.SCANNER_STALE_THRESHOLD_SECONDS * 10)),
             ('SCANNER_MAX_MARKETS', self.SCANNER_MAX_MARKETS),
         ]
-        
+
         for name, value in positive_ints:
             if value < 1:
                 issues.append(f"{name} must be >= 1, got {value}")
-        
+
         # Check timeouts are positive
         positive_floats = [
             ('RATE_LIMIT_BACKOFF_BASE', self.RATE_LIMIT_BACKOFF_BASE),
@@ -998,11 +993,11 @@ class ConfigRegistry:
             ('MAX_TRADE_SIZE', self.MAX_TRADE_SIZE),
             ('INITIAL_BANKROLL', self.INITIAL_BANKROLL),
         ]
-        
+
         for name, value in positive_floats:
             if value < 0:
                 issues.append(f"{name} must be >= 0, got {value}")
-        
+
         return issues
 
     # ------------------------------------------------------------------
@@ -1677,7 +1672,7 @@ if __name__ == "__main__":
         for issue in issues:
             print(f"  - {issue}")
         raise ValueError(f"Configuration validation failed: {issues[:3]}")
-    
+
     # Print configuration summary
     print("PolyEdge Configuration Loaded Successfully")
     print(f"  Trading mode: {settings.TRADING_MODE}")

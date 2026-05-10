@@ -2,11 +2,11 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
+from backend.data.gamma import fetch_markets
+from backend.data.polymarket_clob import PolymarketCLOB
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
 logger = logging.getLogger(__name__)
-from backend.data.gamma import fetch_markets
-from backend.data.polymarket_clob import PolymarketCLOB
 
 class PolymarketProvider(DataProvider):
     @property
