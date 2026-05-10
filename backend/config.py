@@ -525,7 +525,7 @@ class Settings(BaseSettings):
     POLYMARKET_WS_CLOB_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     POLYMARKET_WS_USER_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/user"
     POLYMARKET_WS_RTDS_URL: str = "wss://ws-live-data.polymarket.com"
-    POLYMARKET_WS_WHALE_URL: str = "wss://ws.polymarket.com/whale"
+    POLYMARKET_WS_WHALE_URL: str = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
     POLYMARKET_WS_ORDERBOOK_URL: str = "wss://ws.polymarket.com/orderbook"
     QUICKNODE_RPC_URL: str = "https://rpc-mainnet.matic.quiknode.pro"
     OPEN_METEO_ENSEMBLE_URL: str = "https://ensemble-api.open-meteo.com/v1/ensemble"

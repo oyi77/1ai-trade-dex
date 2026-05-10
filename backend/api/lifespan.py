@@ -158,7 +158,7 @@ async def _startup_polymarket_websocket():
     user_ws_task = None
 
     try:
-        if settings.POLYMARKET_WS_ENABLED:
+            if settings.POLYMARKET_WS_ENABLED:
             asset_ids = []
             condition_ids = []
             from backend.db.utils import get_db_session
@@ -169,6 +169,18 @@ async def _startup_polymarket_websocket():
                         asset_ids.append(market.token_id)
                     if market.condition_id:
                         condition_ids.append(market.condition_id)
+
+                # Fallback: if MarketWatch is empty, load token IDs from open trades
+                if not asset_ids:
+                    from backend.models.database import Trade
+                    open_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
+                    for trade in open_trades:
+                        if hasattr(trade, 'token_id') and trade.token_id and trade.token_id not in asset_ids:
+                            asset_ids.append(trade.token_id)
+                        if hasattr(trade, 'condition_id') and trade.condition_id and trade.condition_id not in condition_ids:
+                            condition_ids.append(trade.condition_id)
+                    if open_trades:
+                        logger.info(f"Loaded {len(asset_ids)} token IDs from {len(open_trades)} open trades")
 
             if asset_ids:
                 market_ws = await get_market_websocket(asset_ids)
