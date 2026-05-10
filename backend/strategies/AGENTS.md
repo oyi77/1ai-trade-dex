@@ -38,7 +38,7 @@ The authoritative enabled/disabled state is in `StrategyConfig` in the database.
 | Strategy name | File | Status | Notes |
 |---|---|---|---|
 | `agi_orchestrator` | `agi_meta_strategy.py` | Active | Coordinates all other strategies |
-| `btc_oracle` | `btc_oracle.py` | Active | 52.1% WR, +$161 PnL |
+| `btc_oracle` | `btc_oracle.py` | Disabled | 43.9% WR, -$341 PnL — disabled after probability-bounds fix |
 | `universal_scanner` | `universal_scanner.py` | Active | |
 | `bond_scanner` | `bond_scanner.py` | Active | |
 | `cex_pm_leadlag` | `cex_pm_leadlag.py` | Active | |
