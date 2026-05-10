@@ -711,8 +711,8 @@ def _seed_strategy_configs() -> None:
         ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
         ("bond_scanner", False, 600, {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
         ("realtime_scanner", False, 60, {"min_edge": 0.03, "max_position_usd": 100}),
-        ("whale_pnl_tracker", True, 30, {"min_wallet_pnl": 10000, "max_position_usd": 100}),
-        ("market_maker", False, 30, {"spread": 0.02, "max_position_usd": 200}),
+        ("whale_pnl_tracker", True, 300, {"min_wallet_pnl": 10000, "max_position_usd": 100}),
+        ("market_maker", False, 300, {"spread": 0.02, "max_position_usd": 200}),
     ]
 
     max_attempts = 3
