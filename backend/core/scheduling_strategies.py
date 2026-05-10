@@ -126,7 +126,7 @@ async def _process_signal_with_approval(
     if approval_mode == "auto_deny":
         record_decision(
             db,
-            "btc_5m",
+            "btc_oracle",
             signal.market.market_id,
             "SKIP",
             confidence=signal.confidence,
@@ -136,7 +136,7 @@ async def _process_signal_with_approval(
                 "market_probability": signal.market_probability,
                 "edge": signal.edge,
                 "btc_price": getattr(signal, "btc_price", None),
-                "sources": ["btc_5m_scanner", "market_maker", "whale_tracker"],
+                "sources": ["btc_oracle_scanner", "market_maker", "whale_tracker"],
             },
             reason="auto-deny mode: signal rejected",
         )
@@ -155,7 +155,7 @@ async def _process_signal_with_approval(
             )
             record_decision(
                 db,
-                "btc_5m",
+                "btc_oracle",
                 signal.market.market_id,
                 "SKIP",
                 confidence=signal.confidence,
@@ -165,7 +165,7 @@ async def _process_signal_with_approval(
                     "market_probability": signal.market_probability,
                     "edge": signal.edge,
                     "btc_price": getattr(signal, "btc_price", None),
-                    "sources": ["btc_5m_scanner", "market_maker", "whale_tracker"],
+                    "sources": ["btc_oracle_scanner", "market_maker", "whale_tracker"],
                 },
                 reason=f"auto-approve: confidence {signal.confidence:.2f} below threshold {min_confidence}",
             )
@@ -257,7 +257,7 @@ async def _queue_for_approval(
     try:
         record_decision(
             db,
-            "btc_5m",
+            "btc_oracle",
             signal.market.market_id,
             "PENDING",
             confidence=signal.confidence,
@@ -269,7 +269,7 @@ async def _queue_for_approval(
                 "btc_price": getattr(signal, "btc_price", None),
                 "pending_id": pending.id,
                 "trade_size": trade_size,
-                "sources": ["btc_5m_scanner", "market_maker", "whale_tracker"],
+                "sources": ["btc_oracle_scanner", "market_maker", "whale_tracker"],
             },
             reason=f"queued for manual approval (conf {signal.confidence:.2f})",
         )

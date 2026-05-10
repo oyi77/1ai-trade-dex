@@ -155,9 +155,16 @@ class AGIOrchestrator:
         try:
             from backend.core.strategy_allocator import RegimeAwareAllocator
             from backend.core.knowledge_graph import KnowledgeGraph
+            from backend.db.utils import get_db_session
+            from backend.models.database import StrategyConfig
             kg = KnowledgeGraph(session=self._session)
             allocator = RegimeAwareAllocator(kg=kg)
-            allocations = allocator.allocate(["btc_momentum", "weather_emos"], regime, capital=10000.0 * source_mult)
+            with get_db_session() as db:
+                active = [r[0] for r in db.query(StrategyConfig.strategy_name).filter(
+                    StrategyConfig.enabled.is_(True)
+                ).all()]
+            strategy_names = active if active else ["btc_oracle", "weather_emos"]
+            allocations = allocator.allocate(strategy_names, regime, capital=10000.0 * source_mult)
             actions += 1
         except Exception as e:
             errors.append(f"Allocation failed: {e}")

@@ -146,9 +146,14 @@ class OnlineLearner:
 
     def get_strategy_rankings(self) -> dict[str, float]:
         try:
-            return self.get_allocation(
-                ["btc_momentum", "weather_emos", "btc_oracle", "copy_trader",
-                 "market_maker", "kalshi_arb", "bond_scanner", "whale_pnl",
-                 "realtime_scanner"], total_capital=1.0)
+            from backend.db.utils import get_db_session
+            from backend.models.database import StrategyConfig
+            with get_db_session() as db:
+                names = [r[0] for r in db.query(StrategyConfig.strategy_name).filter(
+                    StrategyConfig.enabled.is_(True)
+                ).all()]
+            if not names:
+                names = ["btc_oracle", "weather_emos", "copy_trader"]
+            return self.get_allocation(names, total_capital=1.0)
         except Exception:
             return {}
