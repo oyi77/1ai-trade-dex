@@ -628,6 +628,12 @@ class Settings(BaseSettings):
                 )
         return self
 
+    RATE_LIMIT_GAMMA: int = 100
+    RATE_LIMIT_KALSHI: int = 30
+    RATE_LIMIT_CRYPTO: int = 60
+    RATE_LIMIT_BACKOFF_BASE: float = 2.0
+    RATE_LIMIT_MAX_DELAY: float = 60.0
+
     model_config = ConfigDict(env_file=".env", extra="ignore")
 
 

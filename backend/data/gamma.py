@@ -3,6 +3,8 @@ Gamma API client for Polymarket market data.
 
 Provides fetch_markets() used by realtime_scanner and other strategies
 to retrieve active markets from the Polymarket Gamma API.
+
+Rate limiting: Uses ExternalRateLimiter with RATE_LIMIT_GAMMA config.
 """
 
 import logging
@@ -14,14 +16,28 @@ import httpx
 
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.external_rate_limiter import ExternalRateLimiter
 
 logger = logging.getLogger("trading_bot")
 
+# Circuit breaker for transient failures
 gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
+
+# Rate limiter for Gamma API (configurable requests per minute)
+_gamma_rate_limiter = ExternalRateLimiter(
+    name="gamma",
+    max_calls_per_minute=settings.RATE_LIMIT_GAMMA,
+    circuit_breaker=gamma_breaker,
+)
 
 GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 _RATE_LIMIT_RETRY_DELAY = 2.0
 _RATE_LIMIT_MAX_RETRIES = 3
+
+
+def get_gamma_rate_limiter() -> ExternalRateLimiter:
+    """Return the module-level rate limiter instance."""
+    return _gamma_rate_limiter
 
 
 async def fetch_markets(
@@ -60,8 +76,26 @@ async def fetch_markets(
             return []
 
     if limit <= 100:
+        async def _fetch_single_page_limited() -> list[dict[str, Any]]:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    GAMMA_API_URL,
+                    params={
+                        "active": str(active).lower(),
+                        "closed": str(not active).lower(),
+                        "limit": limit,
+                        "order": order,
+                        "ascending": str(ascending).lower(),
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+                return []
+
         try:
-            return await gamma_breaker.call(_fetch_single_page)
+            return await _gamma_rate_limiter.call(_fetch_single_page_limited)
         except CircuitOpenError:
             logger.warning("[gamma] Gamma API circuit open, skipping")
             return []
@@ -103,7 +137,7 @@ async def fetch_markets(
         async with httpx.AsyncClient(timeout=15.0) as client:
             while len(all_markets) < limit:
                 try:
-                    page = await gamma_breaker.call(_fetch_page, client, offset)
+                    page = await _gamma_rate_limiter.call(_fetch_page, client, offset)
                 except CircuitOpenError:
                     logger.warning("[gamma] Gamma API circuit open during pagination at offset %d", offset)
                     break
@@ -159,7 +193,7 @@ async def fetch_resolved_markets(
                     params["tag"] = tag
 
                 try:
-                    page = await gamma_breaker.call(_fetch_resolved_page, client, params)
+                    page = await _gamma_rate_limiter.call(_fetch_resolved_page, client, params)
                 except CircuitOpenError:
                     logger.warning("[gamma] Gamma API circuit open during resolved markets fetch at offset %d", offset)
                     break
@@ -189,69 +223,3 @@ async def fetch_resolved_markets(
     except Exception as e:
         logger.warning("[gamma] Resolved markets fetch failed: %s", e)
         return all_markets
-
-
-async def fetch_settled_markets() -> list[dict[str, Any]]:
-    """Fetch settled Polymarket markets formatted for historical data storage.
-
-    Called by HistoricalDataCollector.collect_market_outcomes().
-    """
-    raw = await fetch_resolved_markets(limit=500)
-    results = []
-    for m in raw:
-        tokens = m.get("tokens", [])
-        if not tokens:
-            continue
-
-        winning_token = None
-        for t in tokens:
-            if t.get("winner"):
-                winning_token = t
-                break
-
-        if winning_token is None:
-            winning_outcome = m.get("outcome", "")
-        else:
-            winning_outcome = winning_token.get("outcome", "unknown")
-
-        final_price = None
-        if winning_token:
-            final_price = float(winning_token.get("price", 0))
-        elif m.get("outcomePrices"):
-            try:
-                prices = m["outcomePrices"]
-                if isinstance(prices, str):
-                    import json
-                    prices = json.loads(prices)
-                if isinstance(prices, list) and prices:
-                    final_price = float(prices[0])
-            except (ValueError, TypeError):
-                pass
-
-        end_date_str = m.get("endDate") or m.get("end_date_iso")
-        resolution_time = None
-        if end_date_str:
-            try:
-                resolution_time = datetime.fromisoformat(
-                    end_date_str.replace("Z", "+00:00")
-                )
-            except (ValueError, TypeError):
-                pass
-
-        results.append({
-            "ticker": m.get("conditionId", m.get("id", "")),
-            "platform": "polymarket",
-            "outcome": winning_outcome,
-            "final_price": final_price,
-            "resolution_time": resolution_time,
-            "volume": float(m.get("volume", 0) or 0),
-            "category": m.get("category", m.get("groupItemTitle")),
-            "raw_data": {
-                "question": m.get("question", ""),
-                "slug": m.get("slug", ""),
-                "outcomes": m.get("outcomes", ""),
-                "outcomePrices": m.get("outcomePrices"),
-            },
-        })
-
-    return results

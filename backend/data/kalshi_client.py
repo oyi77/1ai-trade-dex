@@ -10,11 +10,18 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from backend.config import settings
-from backend.core.circuit_breaker_pybreaker import kalshi_breaker
+from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.external_rate_limiter import ExternalRateLimiter
 
 logger = logging.getLogger("trading_bot")
 
 BASE_URL = settings.KALSHI_API_URL
+
+# Rate limiter for Kalshi API (configurable requests per minute)
+_kalshi_rate_limiter = ExternalRateLimiter(
+    name="kalshi",
+    max_calls_per_minute=settings.RATE_LIMIT_KALSHI,
+)
 
 
 class KalshiClient:
@@ -64,24 +71,22 @@ class KalshiClient:
         }
 
     async def get(self, path: str, params: Optional[Dict[str, Any]] = None) -> dict:
-        """
-        Authenticated GET request to Kalshi API.
+        """Authenticated GET request to Kalshi API through rate limiter."""
+        return await _kalshi_rate_limiter.call(self._execute_get, path, params)
 
-        Args:
-            path: API path after /trade-api/v2 (e.g., "/markets")
-            params: Query parameters (not included in signature)
-        """
+    async def _execute_get(self, path: str, params: Optional[Dict[str, Any]] = None) -> dict:
+        """Execute the actual GET request (called through rate limiter)."""
+        full_path = f"/trade-api/v2{path}"
+        url = f"{BASE_URL}{path}"
+        headers = self._sign_request("GET", full_path)
+
         async def _fetch():
-            full_path = f"/trade-api/v2{path}"
-            url = f"{BASE_URL}{path}"
-            headers = self._sign_request("GET", full_path)
-
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(url, headers=headers, params=params)
                 response.raise_for_status()
                 return response.json()
 
-        return await kalshi_breaker.call(_fetch)
+        return await _kalshi_rate_limiter.call(_fetch)
 
     async def get_markets(self, params: Optional[Dict[str, Any]] = None) -> dict:
         """Fetch markets with optional filters."""

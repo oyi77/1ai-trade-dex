@@ -1,0 +1,316 @@
+"""
+External Rate Limiter for API calls with 429 handling and exponential backoff.
+
+This module provides an async rate limiter that:
+- Detects HTTP 429 responses
+- Parses Retry-After header for server guidance
+- Falls back to exponential backoff with jitter when no Retry-After
+- Integrates with the existing CircuitBreaker for failure tracking
+- Supports per-API configurable rate limits
+"""
+
+import asyncio
+import functools
+import logging
+import random
+import time
+from typing import Any, Callable
+
+from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.errors import RateLimitError
+
+logger = logging.getLogger(__name__)
+
+
+class ExternalRateLimiter:
+    """Rate limiter for external API calls with 429 handling and circuit breaker integration."""
+
+    def __init__(
+        self,
+        name: str,
+        max_calls_per_minute: int,
+        circuit_breaker: CircuitBreaker | None = None,
+        backoff_base: float = 2.0,
+        max_delay: float = 60.0,
+    ):
+        """
+        Initialize the rate limiter.
+
+        Args:
+            name: Unique identifier for this rate limiter (e.g., "gamma", "kalshi")
+            max_calls_per_minute: Maximum API calls allowed per minute
+            circuit_breaker: Optional CircuitBreaker instance; creates one if not provided
+            backoff_base: Base multiplier for exponential backoff (default: 2.0s)
+            max_delay: Maximum delay between retries (default: 60.0s)
+        """
+        self.name = name
+        self.max_calls_per_minute = max_calls_per_minute
+        self.backoff_base = backoff_base
+        self.max_delay = max_delay
+
+        # Use provided circuit breaker or create one
+        self._circuit_breaker = circuit_breaker or CircuitBreaker(
+            name=f"{name}_circuit",
+            failure_threshold=3,
+            recovery_timeout=60.0,
+            half_open_max=1,
+        )
+
+        # Token bucket for rate limiting
+        self._tokens = max_calls_per_minute
+        self._last_update = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    @property
+    def circuit_breaker(self) -> CircuitBreaker:
+        """Return the circuit breaker instance for this rate limiter."""
+        return self._circuit_breaker
+
+    def _get_retry_after(self, response_headers: dict[str, str]) -> float | None:
+        """
+        Parse the Retry-After header from HTTP response.
+
+        Args:
+            response_headers: Response headers dict
+
+        Returns:
+            Wait time in seconds if Retry-After is present, None otherwise
+        """
+        retry_after = response_headers.get("Retry-After")
+        if retry_after is None:
+            return None
+
+        try:
+            # Retry-After can be seconds (integer) or HTTP-date
+            # We only handle seconds format for simplicity
+            return float(retry_after)
+        except (ValueError, TypeError):
+            logger.warning(
+                "Invalid Retry-After header value: %s", retry_after
+            )
+            return None
+
+    def _calculate_backoff_delay(self, attempt: int) -> float:
+        """
+        Calculate exponential backoff delay with jitter.
+
+        Args:
+            attempt: Current retry attempt (1-indexed)
+
+        Returns:
+            Delay in seconds with jitter
+        """
+        # Exponential backoff: base * 2^(attempt-1)
+        exponential_delay = self.backoff_base * (2 ** (attempt - 1))
+        # Add random jitter (0.5x to 1.5x)
+        jitter = random.uniform(0.5, 1.5)
+        delay = min(exponential_delay * jitter, self.max_delay)
+        return delay
+
+    async def _wait_for_token(self) -> None:
+        """
+        Wait for a rate limit token to become available.
+        Uses token bucket algorithm with refill.
+        """
+        async with self._lock:
+            now = time.monotonic()
+            elapsed = now - self._last_update
+
+            # Refill tokens based on elapsed time
+            tokens_to_add = (elapsed / 60.0) * self.max_calls_per_minute
+            self._tokens = min(
+                self._tokens + tokens_to_add, self.max_calls_per_minute
+            )
+            self._last_update = now
+
+            # Wait if no tokens available
+            wait_time = 0.0
+            while self._tokens < 1:
+                # Calculate time until next token
+                tokens_needed = 1 - self._tokens
+                wait_time = (tokens_needed / self.max_calls_per_minute) * 60.0
+                self._tokens = 0
+                self._last_update = now
+
+        if wait_time > 0:
+            await asyncio.sleep(wait_time)
+
+            # Re-acquire lock after sleep to refill tokens
+            async with self._lock:
+                now = time.monotonic()
+                elapsed = now - self._last_update
+                tokens_to_add = (elapsed / 60.0) * self.max_calls_per_minute
+                self._tokens = min(
+                    self._tokens + tokens_to_add, self.max_calls_per_minute
+                )
+                self._last_update = now
+
+    async def _handle_rate_limit(
+        self, response_headers: dict[str, str], attempt: int, retry_after: float | None = None
+    ) -> float:
+        """
+        Handle a 429 rate limit response.
+
+        Args:
+            response_headers: Response headers from the 429 response
+            attempt: Current retry attempt (1-indexed)
+            retry_after: Retry-After value from RateLimitError.retry_after (takes precedence)
+
+        Returns:
+            Wait time in seconds before retry
+        """
+        # If retry_after is passed from RateLimitError, use it directly (no jitter)
+        if retry_after is not None:
+            logger.info(
+                "Rate limited by %s, retry after %.1fs (from RateLimitError.retry_after)",
+                self.name,
+                retry_after,
+            )
+            return retry_after
+
+        # Try to get Retry-After from headers
+        header_retry_after = self._get_retry_after(response_headers)
+        if header_retry_after is not None:
+            logger.info(
+                "Rate limited by %s, retry after %.1fs (from Retry-After header)",
+                self.name,
+                header_retry_after,
+            )
+            return header_retry_after
+
+        # Fall back to exponential backoff
+        delay = self._calculate_backoff_delay(attempt)
+        logger.warning(
+            "Rate limited by %s, backing off for %.1fs (attempt %d)",
+            self.name,
+            delay,
+            attempt,
+        )
+        return delay
+
+    async def call(
+        self,
+        func: Callable,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Execute a function with rate limiting and 429 handling.
+
+        Args:
+            func: The async function to execute
+            *args: Positional arguments for func
+            **kwargs: Keyword arguments for func
+
+        Returns:
+            The return value from func
+
+        Raises:
+            RateLimitError: If rate limit is hit and max retries exhausted
+            CircuitOpenError: If circuit breaker is open
+            Exception: Any other exception from func
+        """
+        last_exception = None
+        max_attempts = 5  # Max retry attempts after rate limit
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                # Wait for rate limit token
+                await self._wait_for_token()
+
+                # Check circuit breaker
+                result = await self._circuit_breaker.call(func, *args, **kwargs)
+
+                return result
+
+            except RateLimitError as e:
+                last_exception = e
+
+                # Get Retry-After from error directly or from headers
+                response_headers = {}
+                if e.details and "headers" in e.details:
+                    response_headers = e.details["headers"]
+
+                # Calculate wait time (uses Retry-After if available, or handles 429)
+                wait_time = await self._handle_rate_limit(response_headers, attempt, e.retry_after)
+
+                # Rate limit errors are transient - don't trip circuit breaker permanently
+                # await self._circuit_breaker._on_failure()
+
+                # Wait before retry
+                await asyncio.sleep(wait_time)
+                continue  # Retry with next attempt
+
+            except Exception as e:
+                # For non-rate-limit errors, let circuit breaker handle it
+                raise
+
+        # Max attempts exhausted
+        logger.error(
+            "Max retry attempts exhausted for %s after %d attempts",
+            self.name,
+            max_attempts,
+        )
+        raise RateLimitError(
+            f"Max retry attempts exhausted for {self.name}",
+            source=self.name,
+            status_code=429,
+        )
+
+    async def __aenter__(self) -> "ExternalRateLimiter":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        pass
+
+
+def rate_limited(
+    name: str,
+    max_calls_per_minute: int,
+    backoff_base: float = 2.0,
+    max_delay: float = 60.0,
+):
+    """
+    Decorator for rate limiting external API calls.
+
+    Args:
+        name: Unique identifier for this rate limiter
+        max_calls_per_minute: Maximum API calls per minute
+        backoff_base: Base multiplier for exponential backoff
+        max_delay: Maximum delay between retries
+
+    Returns:
+        Decorated function with rate limiting
+    """
+
+    def decorator(func: Callable) -> Callable:
+        # Create a rate limiter instance per function
+        limiter = ExternalRateLimiter(
+            name=name,
+            max_calls_per_minute=max_calls_per_minute,
+            backoff_base=backoff_base,
+            max_delay=max_delay,
+        )
+
+        if not asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+                # For sync functions, run in event loop
+                import asyncio
+
+                return asyncio.run(
+                    limiter.call(func, *args, **kwargs)
+                )
+
+            return sync_wrapper
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            return await limiter.call(func, *args, **kwargs)
+
+        return async_wrapper
+
+    return decorator

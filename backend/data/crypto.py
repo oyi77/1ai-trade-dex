@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 
 from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.core.retry import retry
 from backend.config import settings
 
@@ -18,6 +19,13 @@ logger = logging.getLogger(__name__)
 coinbase_breaker = CircuitBreaker("coinbase", failure_threshold=10, recovery_timeout=300.0)
 kraken_breaker = CircuitBreaker("kraken", failure_threshold=10, recovery_timeout=300.0)
 binance_breaker = CircuitBreaker("binance", failure_threshold=10, recovery_timeout=300.0)
+
+# Rate limiter for crypto exchange API calls (configurable requests per minute)
+_crypto_rate_limiter = ExternalRateLimiter(
+    name="crypto",
+    max_calls_per_minute=settings.RATE_LIMIT_CRYPTO,
+    circuit_breaker=CircuitBreaker("crypto_circuit", failure_threshold=3, recovery_timeout=60.0),
+)
 
 # ---------------------------------------------------------------------------
 # Binance 1-min kline fetcher + technical indicators for BTC 5-min trading
