@@ -135,7 +135,7 @@ def backfill_missing_outcomes(db) -> int:
         from backend.models.database import Trade
         existing_ids = set(r[0] for r in db.query(StrategyOutcome.trade_id).all())
         settled = db.query(Trade).filter(
-            Trade.settled == 1,
+            Trade.settled == True,
             Trade.result.in_(["win", "loss"]),
         ).all()
         missing = [t for t in settled if t.id not in existing_ids]
