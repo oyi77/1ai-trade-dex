@@ -353,7 +353,7 @@ def _load_strategy_jobs() -> None:
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
                 .filter(
-                    (StrategyConfig.mode == mode) | (StrategyConfig.mode is None)
+                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode is None)
                 )
                 .all()
             )
@@ -1110,12 +1110,9 @@ def start_scheduler():
                 "Run arq worker (backend.job_queue.arq_settings:WorkerSettings)."
             )
         else:
-            from backend.api.main import app
-            if hasattr(app.state, 'task_manager'):
-                task_manager = app.state.task_manager
-                worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
-            else:
-                worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS)
+            # bot process: use the module-level task_manager set during scheduler init
+            # API process: task_manager is set on app.state by lifespan startup
+            worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
 
             jobs_to_remove = [f"{mode}_market_scan" for mode in modes] + ["settlement_check"]
             for job_id in jobs_to_remove:
