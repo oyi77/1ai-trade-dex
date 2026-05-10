@@ -38,7 +38,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8100:8100"
+      - "8000:8100"
     env_file:
       - .env
     environment:
