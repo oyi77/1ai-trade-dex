@@ -184,41 +184,76 @@ class WhaleFrontrun(BaseStrategy):
         )
 
     async def _poll_recent_large_trades(self) -> list[WhaleActivity]:
-        """REST polling fallback — fetch recent large positions from Polymarket Data API."""
-        data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
+        """REST polling fallback — fetch positions for known whale wallets.
+
+        Polymarket Data API /positions requires a user= parameter.
+        We iterate tracked wallets from WalletConfig (discovered via WhaleDiscovery)
+        instead of querying all positions at once (which returns 400 without user).
+        Rate limit: 150 req/10s. We spread requests across cycles with backoff.
+        """
+        from backend.models.database import SessionLocal, WalletConfig
+
         min_size = self.default_params["min_size"]
         min_score = self.default_params["min_score"]
+        data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
+        activities: list[WhaleActivity] = []
 
         try:
+            db = SessionLocal()
+            try:
+                wallets = db.query(WalletConfig).filter(
+                    WalletConfig.whale_score > 0.5
+                ).order_by(WalletConfig.whale_score.desc()).limit(5).all()
+            finally:
+                db.close()
+
+            if not wallets:
+                logger.debug("[whale_frontrun] No whale wallets in WalletConfig — run whale discovery first")
+                return []
+
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{data_url}/positions", params={"limit": 50})
-                resp.raise_for_status()
-                positions = resp.json()
+                for w in wallets:
+                    try:
+                        resp = await client.get(
+                            f"{data_url}/positions",
+                            params={"user": w.address, "limit": 20},
+                        )
+                        if resp.status_code != 200:
+                            if resp.status_code == 429:
+                                logger.debug("[whale_frontrun] Rate limited — pausing briefly")
+                                await asyncio.sleep(2.0)
+                            continue
 
-            activities: list[WhaleActivity] = []
-            for pos in positions:
-                size = float(pos.get("size", 0) or 0)
-                if size < min_size:
-                    continue
+                        positions = resp.json()
+                        rows = positions if isinstance(positions, list) else positions.get("data", [])
+                        for pos in rows:
+                            size = float(pos.get("size", pos.get("initialValue", 0)) or 0)
+                            if size < min_size:
+                                continue
 
-                wallet = str(pos.get("user", pos.get("wallet", "")))
-                market = str(pos.get("market", pos.get("condition_id", pos.get("asset", ""))))
-                score = min(1.0, size / (min_size * 10))
-                if score < min_score:
-                    continue
+                            market = str(pos.get("condition_id", pos.get("asset", pos.get("market", ""))))
+                            score = min(1.0, size / (min_size * 10))
+                            if score < min_score:
+                                continue
 
-                activities.append(WhaleActivity(
-                    wallet=wallet,
-                    action=pos.get("side", "BUY"),
-                    size=size,
-                    market=market,
-                    score=score,
-                    timestamp=time.time(),
-                ))
+                            activities.append(WhaleActivity(
+                                wallet=w.address,
+                                action=pos.get("side", pos.get("outcome", "BUY")),
+                                size=size,
+                                market=market,
+                                score=score,
+                                timestamp=time.time(),
+                            ))
+
+                        # Respect rate limit: 150 req/10s = ~1 req/66ms. Be safe with 500ms.
+                        await asyncio.sleep(0.5)
+
+                    except Exception as exc:
+                        logger.debug(f"[whale_frontrun] Failed fetching positions for {w.address[:8]}: {exc}")
+                        continue
 
             if activities:
-                logger.debug(f"[whale_frontrun] REST fallback found {len(activities)} large positions")
-
+                logger.info(f"[whale_frontrun] REST fallback found {len(activities)} whale positions across {len(wallets)} wallets")
             return activities
 
         except Exception as exc:
