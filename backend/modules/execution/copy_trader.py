@@ -284,6 +284,10 @@ class CopyTraderStrategy(BaseStrategy):
     description = "Mirror top Polymarket whale traders proportionally to our bankroll"
     category = "copy_trading"
 
+    # Event-driven WebSocket subscriptions
+    subscribed_tokens: set[str] = set()
+    subscribed_events: set[str] = {"last_trade_price"}
+
     # Cache for active market condition_ids (refreshed every 5 min)
     _ACTIVE_CACHE_TTL = 300  # seconds
 
@@ -405,6 +409,33 @@ class CopyTraderStrategy(BaseStrategy):
                 result.append(w)
 
         return result[: max_wallets * 2]  # cap at 2x to avoid runaway
+
+    async def on_market_event(self, event):
+        """Handle CLOB WS events for leaderboard traders' tokens."""
+        from backend.strategies.base import MarketEvent
+        if not isinstance(event, MarketEvent):
+            return None
+        if event.event_type != "last_trade_price":
+            return None
+        price = float(event.data.get("price", 0))
+        size = float(event.data.get("size", 0))
+        if size <= 0 or price <= 0:
+            return None
+        self.subscribed_tokens.add(event.token_id)
+        confidence = min(0.85, size / 1000.0)
+        edge = abs(price - 0.50) * 0.3
+        return {
+            "decision": "BUY" if price > 0.50 else "SKIP",
+            "market_ticker": event.token_id,
+            "confidence": confidence,
+            "edge": edge,
+            "size": min(10.0, size * 0.01),
+            "direction": "yes" if price > 0.50 else "no",
+            "model_probability": price,
+            "platform": "polymarket",
+            "strategy_name": self.name,
+            "reasoning": "copy_trader_ws_event",
+        }
 
     async def run_cycle(self, ctx):
         from backend.models.database import DecisionLog

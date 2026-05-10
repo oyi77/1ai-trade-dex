@@ -30,7 +30,7 @@ from typing import Any
 
 import httpx
 
-from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
+from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
 from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision
 from backend.core.activity_logger import activity_logger
@@ -408,6 +408,128 @@ class WeatherEMOSStrategy(BaseStrategy):
         ],
         "interval_seconds": 300,
     }
+
+    # ── Event-driven (WS-first) extensions ──
+    subscribed_events: set[str] = {"last_trade_price", "price_change", "market_resolved"}
+
+    async def on_market_event(self, event: MarketEvent) -> dict | None:
+        """
+        Handle real-time WS events for weather markets.
+
+        - market_resolved → auto-settle open positions
+        - price_change / last_trade_price → re-evaluate calibrated edge vs new market price
+        """
+        token_id = event.token_id
+        event_type = event.event_type
+        data = event.data
+
+        if event_type == "market_resolved":
+            return await self._handle_market_resolved(token_id, data)
+
+        if event_type in ("price_change", "last_trade_price"):
+            return await self._handle_price_update(token_id, data)
+
+        return None
+
+    async def _handle_market_resolved(self, token_id: str, data: dict) -> dict | None:
+        """Auto-settle positions when a weather market resolves."""
+        outcome = data.get("outcome") or data.get("resolution")
+        if not outcome:
+            logger.debug(f"[{self.name}] market_resolved event missing outcome for {token_id[:20]}...")
+            return None
+
+        logger.info(
+            f"[{self.name}] Market resolved: token={token_id[:20]}... outcome={outcome}"
+        )
+
+        return {
+            "decision": "SETTLE",
+            "token_id": token_id,
+            "outcome": outcome,
+            "strategy_name": self.name,
+            "reasoning": f"weather_emos: auto-settle on market_resolved outcome={outcome}",
+        }
+
+    async def _handle_price_update(self, token_id: str, data: dict) -> dict | None:
+        """
+        Re-evaluate calibrated edge when market price changes.
+
+        Compares our EMOS-calibrated probability against the new market mid-price.
+        Fires a BUY signal if edge exceeds min_edge threshold.
+        """
+        new_price = data.get("price") or data.get("last_trade_price")
+        if new_price is None:
+            return None
+
+        try:
+            new_price = float(new_price)
+        except (ValueError, TypeError):
+            return None
+
+        if not (0.0 < new_price < 1.0):
+            return None
+
+        question = data.get("question", "")
+        if not question:
+            return None
+
+        threshold_f, direction = extract_threshold_from_question(question)
+        if threshold_f is None:
+            return None
+
+        city_name = None
+        for city, fp_city in DEFAULT_CITIES:
+            if city.lower().replace(" ", "") in question.lower().replace(" ", ""):
+                city_name = city
+                break
+
+        if city_name is None:
+            return None
+
+        cal_states = load_calibration_states(None, self.name)
+        cal = cal_states.get(city_name)
+        if cal is None or cal.n < self.default_params["min_calibration_observations"]:
+            return None
+
+        forecast_high = data.get("forecast_high_f")
+        if forecast_high is None:
+            return None
+
+        forecast_mean = float(forecast_high)
+        calibrated_mean = cal.calibrate(forecast_mean)
+        calibrated_std = max(1.0, cal.residual_std())
+
+        if direction == "above":
+            calibrated_p = pr_exceeds_threshold(threshold_f, calibrated_mean, calibrated_std)
+        else:
+            calibrated_p = 1.0 - pr_exceeds_threshold(threshold_f, calibrated_mean, calibrated_std)
+
+        edge = calibrated_p - new_price
+        min_edge = self.default_params["min_edge"]
+
+        if abs(edge) <= min_edge:
+            return None
+
+        trade_side = "NO" if edge < 0 else "YES"
+        confidence = min(1.0, abs(edge) / min_edge)
+
+        logger.info(
+            f"[{self.name}] WS edge signal: city={city_name} edge={edge:+.3f} "
+            f"calibrated_p={calibrated_p:.3f} market={new_price:.3f}"
+        )
+
+        return {
+            "decision": "BUY",
+            "token_id": token_id,
+            "direction": trade_side.lower(),
+            "confidence": confidence,
+            "edge": edge,
+            "model_probability": calibrated_p,
+            "market_probability": new_price,
+            "strategy_name": self.name,
+            "market_type": "weather",
+            "reasoning": f"weather_emos WS: calibrated_p={calibrated_p:.3f} market={new_price:.3f} edge={edge:+.3f}",
+        }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
         """Filter to weather/temperature markets."""

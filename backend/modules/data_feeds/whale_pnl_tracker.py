@@ -37,6 +37,7 @@ from backend.strategies.base import (
     StrategyContext,
     CycleResult,
     MarketInfo,
+    MarketEvent,
 )
 from backend.core.decisions import record_decision
 from backend.core.whale_discovery import WhaleDiscovery
@@ -145,7 +146,12 @@ class WhalePNLTrackerStrategy(BaseStrategy):
         # Track configuration
         "track_name": "whale",
         "execution_mode": "live",
+        # Event-driven thresholds
+        "pnl_signal_threshold": 0.05,  # Minimum PnL change to trigger signal
     }
+
+    # ── Event-driven (WS-first) extensions ──
+    subscribed_events: set[str] = {"last_trade_price"}
 
     def __init__(self):
         super().__init__()
@@ -154,10 +160,93 @@ class WhalePNLTrackerStrategy(BaseStrategy):
             str, WhalePosition
         ] = {}  # condition_id -> position
         self._last_signal_times: Dict[str, float] = {}  # ticker -> timestamp
+        self._whale_pnl_cache: Dict[str, float] = {}  # token_id -> last known PnL
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
         """Pass through all markets - whale signals determine which to trade."""
         return markets
+
+    async def on_market_event(self, event: MarketEvent) -> dict | None:
+        """
+        Handle real-time WS events for whale PnL tracking.
+
+        - last_trade_price → track PnL for whale wallets' tokens.
+          If whale PnL exceeds threshold → generate signal.
+        """
+        token_id = event.token_id
+        data = event.data
+
+        price = data.get("price") or data.get("last_trade_price")
+        if price is None:
+            return None
+
+        try:
+            price = float(price)
+        except (ValueError, TypeError):
+            return None
+
+        if not (0.0 < price < 1.0):
+            return None
+
+        pnl_threshold = self.default_params["pnl_signal_threshold"]
+
+        matching_position = None
+        for pos in self._tracked_positions.values():
+            condition_tokens = []
+            metadata = data.get("metadata") or {}
+            if isinstance(metadata, dict):
+                condition_tokens = metadata.get("clobTokenIds", [])
+            if token_id in condition_tokens or token_id == pos.condition_id:
+                matching_position = pos
+                break
+
+        if matching_position is None:
+            return None
+
+        last_pnl = self._whale_pnl_cache.get(token_id, 0.0)
+        entry_price = data.get("entry_price") or data.get("avg_price")
+        if entry_price is not None:
+            try:
+                entry_price = float(entry_price)
+            except (ValueError, TypeError):
+                entry_price = None
+
+        pnl_change = 0.0
+        if entry_price and entry_price > 0:
+            pnl_change = (price - entry_price) / entry_price
+
+        self._whale_pnl_cache[token_id] = pnl_change
+
+        if abs(pnl_change) < pnl_threshold:
+            return None
+
+        cooldown_minutes = self.default_params["signal_cooldown_minutes"]
+        last_signal = self._last_signal_times.get(matching_position.ticker, 0)
+        if datetime.now(timezone.utc).timestamp() - last_signal < cooldown_minutes * 60:
+            return None
+
+        self._last_signal_times[matching_position.ticker] = datetime.now(timezone.utc).timestamp()
+
+        direction = "up" if pnl_change > 0 else "down"
+        confidence = min(abs(pnl_change) / pnl_threshold, 1.0)
+        copy_fraction = self.default_params["copy_fraction"]
+
+        logger.info(
+            f"[{self.name}] WS whale PnL signal: token={token_id[:20]}... "
+            f"pnl_change={pnl_change:+.4f} dir={direction}"
+        )
+
+        return {
+            "decision": "BUY",
+            "token_id": token_id,
+            "direction": direction,
+            "confidence": confidence,
+            "edge": pnl_change,
+            "size": matching_position.size * copy_fraction,
+            "strategy_name": self.name,
+            "market_type": "whale_pnl_ws",
+            "reasoning": f"whale_pnl_tracker WS: pnl_change={pnl_change:+.4f} wallet={matching_position.wallet[:8]}...",
+        }
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """

@@ -13,7 +13,7 @@ Unlike BTC 5-min momentum (negative EV), this targets a structural market ineffi
 import logging
 from datetime import datetime, timezone
 
-from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
+from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
 from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
@@ -153,6 +153,140 @@ class BtcOracleStrategy(BaseStrategy):
         "min_position_usd": 1.0,
     }
 
+    # ── Event-driven (WebSocket) subscription config ──
+    subscribed_tokens: set[str] = set()
+    subscribed_events: set[str] = {"last_trade_price", "price_change"}
+    _tokens_populated: bool = False
+
+    async def _populate_subscribed_tokens(self) -> None:
+        """Discover active BTC markets and populate subscribed_tokens with their CLOB token IDs."""
+        try:
+            from backend.data.btc_markets import fetch_active_btc_markets
+
+            markets = await fetch_active_btc_markets()
+            token_ids: set[str] = set()
+            for m in markets:
+                if m.up_token_id:
+                    token_ids.add(m.up_token_id)
+                if m.down_token_id:
+                    token_ids.add(m.down_token_id)
+            self.subscribed_tokens = token_ids
+            logger.info(
+                "BtcOracleStrategy: subscribed_tokens populated with %d token IDs from %d markets",
+                len(token_ids),
+                len(markets),
+            )
+        except Exception as e:
+            logger.warning("BtcOracleStrategy: failed to populate subscribed_tokens: %s", e)
+
+    async def on_market_event(self, event: MarketEvent) -> dict | None:
+        """Handle a real-time WS market event for a subscribed BTC token.
+
+        Evaluates whether the trade price creates sufficient edge to warrant
+        an immediate BUY decision. Returns a decision dict if edge exists,
+        None otherwise. The decision dict format matches run_cycle() output
+        so it can be fed directly into strategy_executor.execute_decisions().
+        """
+        params = {**self.default_params}
+        min_edge = params.get("min_edge", self.default_params["min_edge"])
+        max_position_usd = float(params.get("max_position_usd", self.default_params["max_position_usd"]))
+        edge_scale_threshold = params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"])
+        min_position_usd = params.get("min_position_usd", self.default_params["min_position_usd"])
+
+        price_str = event.data.get("price") or event.data.get("last_trade_price")
+        if not price_str:
+            return None
+        try:
+            trade_price = float(price_str)
+        except (ValueError, TypeError):
+            return None
+
+        if trade_price <= 0 or trade_price >= 1:
+            return None
+
+        direction = "up" if trade_price > 0.5 else "down"
+        market_mid = trade_price
+
+        btc_price = await fetch_btc_price()
+        if btc_price is None:
+            logger.debug("BtcOracleStrategy.on_market_event: could not fetch BTC price, skipping")
+            return None
+
+        from backend.data.crypto import compute_btc_microstructure
+
+        try:
+            micro = await compute_btc_microstructure()
+        except Exception:
+            micro = None
+
+        if micro:
+            rsi_norm = (micro.rsi - 50.0) / 50.0
+            mom_signal = max(-1.0, min(1.0, micro.momentum_5m * 10.0))
+            vwap_signal = max(-1.0, min(1.0, micro.vwap_deviation * 100.0))
+            sma_signal = max(-1.0, min(1.0, micro.sma_crossover * 100.0))
+            composite = (
+                rsi_norm * 0.25
+                + mom_signal * 0.30
+                + vwap_signal * 0.25
+                + sma_signal * 0.20
+            )
+            oracle_implied = 0.50 + composite * 0.10
+            if direction == "down":
+                oracle_implied = 1.0 - oracle_implied
+        else:
+            oracle_implied = market_mid
+
+        edge = abs(oracle_implied - market_mid) - min_edge
+
+        if edge <= 0:
+            return None
+
+        confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+        suggested_size = calculate_dynamic_size(
+            edge=edge,
+            confidence=confidence_score,
+            max_position_usd=max_position_usd,
+            min_position_usd=min_position_usd,
+            edge_scale_threshold=edge_scale_threshold,
+        )
+
+        market_ticker = event.data.get("market_ticker") or event.data.get("market_id") or event.token_id
+
+        token_id = event.token_id
+
+        record_decision_standalone(
+            self.name,
+            market_ticker,
+            "BUY",
+            confidence=confidence_score,
+            signal_data={
+                "oracle_price": btc_price,
+                "market_mid": market_mid,
+                "implied_direction": direction,
+                "edge": edge,
+                "event_type": event.event_type,
+                "source": "ws_event",
+            },
+            reason=f"ws_oracle_edge={edge:.3f} btc=${btc_price:,.0f} dir={direction} event={event.event_type}",
+        )
+
+        return {
+            "decision": "BUY",
+            "market_ticker": market_ticker,
+            "token_id": token_id,
+            "direction": direction,
+            "confidence": confidence_score,
+            "edge": edge,
+            "size": suggested_size,
+            "entry_price": market_mid,
+            "suggested_size": suggested_size,
+            "model_probability": oracle_implied,
+            "market_probability": market_mid,
+            "platform": "polymarket",
+            "strategy_name": self.name,
+            "reasoning": f"ws_oracle_edge={edge:.3f} btc=${btc_price:,.0f} dir={direction} event={event.event_type}",
+        }
+
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
         """Filter to active BTC binary markets resolving within max_minutes."""
         return [
@@ -163,6 +297,9 @@ class BtcOracleStrategy(BaseStrategy):
         ]
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
+        if not self._tokens_populated:
+            await self._populate_subscribed_tokens()
+            self._tokens_populated = True
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
         params = {**self.default_params, **(ctx.params or {})}
         min_edge = params.get("min_edge", self.default_params["min_edge"])
@@ -405,3 +542,8 @@ class BtcOracleStrategy(BaseStrategy):
                     }
                 )
         return result
+
+
+# Event bus registration happens in scheduler._register_event_driven_strategies()
+# which calls subscribe_strategy("btc_oracle", strategy.subscribed_tokens,
+#   strategy.subscribed_events, strategy.on_market_event, fallback_handler=...)

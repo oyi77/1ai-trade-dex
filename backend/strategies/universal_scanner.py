@@ -22,7 +22,7 @@ from typing import Optional
 
 import httpx
 
-from backend.strategies.base import BaseStrategy, CycleResult, MarketInfo, StrategyContext
+from backend.strategies.base import BaseStrategy, CycleResult, MarketInfo, StrategyContext, MarketEvent
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
@@ -197,6 +197,125 @@ class UniversalScanner(BaseStrategy):
         "max_signals": 100,
         "max_decision_size": 10.0,
     }
+
+    # ── Event-driven (WS-first) extensions ──
+    subscribed_events: set[str] = {"book", "price_change", "new_market"}
+
+    def __init__(self):
+        super().__init__()
+        self._ws_known_tokens: set[str] = set()
+
+    async def on_market_event(self, event: MarketEvent) -> dict | None:
+        """
+        Handle real-time WS events for universal scanning.
+
+        - book / price_change → evaluate token for edge
+        - new_market → dynamically subscribe to the new token
+        """
+        token_id = event.token_id
+        event_type = event.event_type
+        data = event.data
+
+        if event_type == "new_market":
+            return await self._handle_new_market(token_id, data)
+
+        if event_type in ("book", "price_change"):
+            return await self._handle_price_event(token_id, data)
+
+        return None
+
+    async def _handle_new_market(self, token_id: str, data: dict) -> dict | None:
+        """Dynamically subscribe to a newly discovered market token."""
+        from backend.core.event_bus import event_bus
+
+        question = data.get("question", "")
+        yes_price = data.get("yes_price") or data.get("outcomePrices", [None, None])
+        if isinstance(yes_price, list):
+            yes_price = float(yes_price[0]) if yes_price[0] else None
+        elif yes_price is not None:
+            try:
+                yes_price = float(yes_price)
+            except (ValueError, TypeError):
+                yes_price = None
+
+        no_price = data.get("no_price")
+        if no_price is None and yes_price is not None:
+            no_price = 1.0 - yes_price
+
+        volume = data.get("volume", 0)
+        try:
+            volume = float(volume)
+        except (ValueError, TypeError):
+            volume = 0
+
+        if yes_price is None or volume < self.default_params["min_volume"]:
+            return None
+
+        self._ws_known_tokens.add(token_id)
+        event_bus.update_strategy_tokens(self.name, self._ws_known_tokens)
+
+        edge = yes_price - (1.0 - (no_price or (1.0 - yes_price)))
+        if abs(edge) < self.default_params["min_edge"]:
+            return None
+
+        logger.info(f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f}")
+
+        return {
+            "decision": "BUY",
+            "token_id": token_id,
+            "direction": "YES" if edge > 0 else "NO",
+            "confidence": min(abs(edge) * 5.0, 1.0),
+            "edge": edge,
+            "strategy_name": self.name,
+            "market_type": "universal_ws",
+            "reasoning": f"universal_scanner WS new_market: edge={edge:+.4f} vol={volume:.0f}",
+        }
+
+    async def _handle_price_event(self, token_id: str, data: dict) -> dict | None:
+        """Evaluate a token for edge on book/price_change events."""
+        price = data.get("price") or data.get("last_trade_price") or data.get("mid_price")
+        if price is None:
+            return None
+
+        try:
+            price = float(price)
+        except (ValueError, TypeError):
+            return None
+
+        if not (0.0 < price < 1.0):
+            return None
+
+        no_price = 1.0 - price
+        implied_prob = 1.0 - no_price
+        edge = price - implied_prob
+
+        if abs(edge) < self.default_params["min_edge"]:
+            return None
+
+        volume = data.get("volume", 0)
+        try:
+            volume = float(volume)
+        except (ValueError, TypeError):
+            volume = 0
+
+        if volume < self.default_params["min_volume"]:
+            return None
+
+        self._ws_known_tokens.add(token_id)
+
+        logger.info(f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f}")
+
+        return {
+            "decision": "BUY",
+            "token_id": token_id,
+            "direction": "YES" if edge > 0 else "NO",
+            "confidence": min(abs(edge) * 5.0, 1.0),
+            "edge": edge,
+            "size": min(abs(edge) * 100.0, self._MAX_DECISION_SIZE),
+            "strategy_name": self.name,
+            "market_type": "universal_ws",
+            "reasoning": f"universal_scanner WS: edge={edge:+.4f} price={price:.4f}",
+        }
 
     async def scan_all(self) -> list[MarketInfo]:
         """

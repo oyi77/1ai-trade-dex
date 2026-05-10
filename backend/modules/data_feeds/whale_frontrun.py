@@ -16,7 +16,7 @@ from typing import Optional
 
 import httpx
 
-from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
+from backend.strategies.base import BaseStrategy, CycleResult, MarketEvent, StrategyContext
 from backend.config import settings
 
 logger = logging.getLogger("trading_bot.whale_frontrun")
@@ -74,6 +74,10 @@ class WhaleFrontrun(BaseStrategy):
             "frontrun_delay_ms": _cfg("WHALE_FRONTRUN_DELAY_MS", 50),
     }
 
+    # Event-driven WebSocket subscriptions
+    subscribed_tokens: set[str] = set()  # populated from WalletConfig whale positions
+    subscribed_events: set[str] = {"last_trade_price"}
+
     def __init__(self):
         super().__init__()
         self._ws: Optional[object] = None
@@ -82,17 +86,105 @@ class WhaleFrontrun(BaseStrategy):
         self._running = False
         self._ws_initialized = False
         self._state_lock = asyncio.Lock()  # protects _ws, _running, _reconnect_count, _activity_buffer
+        self._tokens_resolved = False
 
     async def start(self, ctx: StrategyContext) -> None:
         """Start the whale front-runner — connect WebSocket on first cycle."""
         if not self._ws_initialized:
             self._ws_initialized = True
             self._running = True
+            await self._resolve_whale_tokens()
             ws_ok = await self.connect_ws()
             if ws_ok:
                 logger.info("[whale_frontrun] WebSocket connected, streaming whale activity")
             else:
                 logger.info("[whale_frontrun] WebSocket unavailable, will use REST polling fallback")
+
+    async def on_market_event(self, event: MarketEvent) -> Optional[dict]:
+        """Handle real-time CLOB WebSocket events for whale front-running.
+
+        Triggered when a last_trade_price event arrives for a subscribed token.
+        If trade size >= min_whale_size, creates a front-run BUY decision.
+        """
+        if event.event_type != "last_trade_price":
+            return None
+
+        data = event.data
+        size = float(data.get("size", 0) or 0)
+        min_whale_size = self.default_params.get("min_size", 10000.0)
+
+        if size < min_whale_size:
+            return None
+
+        price = float(data.get("price", 0) or 0)
+        side = data.get("side", "BUY")
+        confidence = min(1.0, size / (min_whale_size * 10))
+        min_score = self.default_params.get("min_score", 0.8)
+
+        if confidence < min_score:
+            return None
+
+        direction = "BUY" if side.upper() in ("BUY", "BID") else "SELL"
+
+        return {
+            "decision": direction,
+            "market_ticker": event.token_id,
+            "confidence": confidence,
+            "edge": confidence * 0.1,
+            "size": min(10.0, size * 0.001),
+            "strategy_name": "whale_frontrun",
+            "reasoning": f"ws frontrun: size=${size:.0f} side={side} price={price}",
+        }
+
+    async def _resolve_whale_tokens(self) -> None:
+        """Populate subscribed_tokens from WalletConfig whale wallets' tracked positions."""
+        if self._tokens_resolved:
+            return
+
+        try:
+            from backend.models.database import SessionLocal, WalletConfig
+
+            db = SessionLocal()
+            try:
+                wallets = (
+                    db.query(WalletConfig)
+                    .filter(WalletConfig.whale_score > 0.5, WalletConfig.enabled.is_(True))
+                    .all()
+                )
+
+                data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
+                token_ids: set[str] = set()
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    for w in wallets:
+                        try:
+                            resp = await client.get(
+                                f"{data_url}/positions",
+                                params={"user": w.address, "limit": 50},
+                            )
+                            if resp.status_code != 200:
+                                continue
+
+                            positions = resp.json()
+                            rows = positions if isinstance(positions, list) else positions.get("data", [])
+                            for pos in rows:
+                                token_id = pos.get("asset", pos.get("token_id", ""))
+                                if token_id:
+                                    token_ids.add(token_id)
+                        except Exception:
+                            continue
+
+                        await asyncio.sleep(0.3)
+
+                self.subscribed_tokens = token_ids
+                self._tokens_resolved = True
+                logger.info(f"[whale_frontrun] Resolved {len(token_ids)} tokens from {len(wallets)} whale wallets")
+
+            finally:
+                db.close()
+
+        except Exception as exc:
+            logger.warning(f"[whale_frontrun] Token resolution failed: {exc}")
 
     def detect_and_frontrun(self, activity: WhaleActivity) -> FrontrunResult:
         """Detect whale activity and place front-run order."""
