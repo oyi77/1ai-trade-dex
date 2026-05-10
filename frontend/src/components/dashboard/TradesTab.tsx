@@ -1,5 +1,5 @@
 import { POLL } from '../../polling'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchTrades } from '../../api'
 import { useModeFilter } from '../../hooks/useModeFilter'
@@ -17,25 +17,57 @@ export function TradesTab() {
     refetchInterval: POLL.NORMAL,
   })
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">Loading...</div>
-  if (error) return <div className="flex items-center justify-center h-64 text-red-500/60 text-sm">Failed to load data</div>
+  // Bolt: Memoize filtered trades to avoid expensive O(n) filtering on every render
+  const filtered = useMemo(() => {
+    return (trades || []).filter((t: any) => {
+      if (selectedMode !== 'all' && t.trading_mode !== selectedMode) return false
+      if (resultFilter !== 'all' && t.result !== resultFilter) return false
+      if (strategyFilter !== 'all' && t.strategy !== strategyFilter) return false
+      return true
+    })
+  }, [trades, selectedMode, resultFilter, strategyFilter])
 
-  const filtered = trades.filter((t: any) => {
-    if (selectedMode !== 'all' && t.trading_mode !== selectedMode) return false
-    if (resultFilter !== 'all' && t.result !== resultFilter) return false
-    if (strategyFilter !== 'all' && t.strategy !== strategyFilter) return false
-    return true
-  })
+  // Bolt: Memoize strategies extraction
+  const strategies = useMemo(() => {
+    return Array.from(new Set((trades || []).map((t: any) => t.strategy).filter(Boolean)))
+  }, [trades])
 
-  const strategies = Array.from(new Set(trades.map((t: any) => t.strategy).filter(Boolean)))
-  const paginated = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE)
+  // Bolt: Memoize paginated view so changing page is O(1) slice of cached array
+  const paginated = useMemo(() => {
+    return filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE)
+  }, [filtered, page])
+
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
 
-  const totalPnl = filtered.reduce((s, t: any) => s + (t.pnl ?? 0), 0)
-  const settled = filtered.filter((t: any) => t.result === 'win' || t.result === 'loss')
-  const wins = filtered.filter((t: any) => t.result === 'win').length
-  const losses = filtered.filter((t: any) => t.result === 'loss').length
-  const winRate = settled.length > 0 ? (wins / settled.length * 100) : 0
+  // Bolt: Memoize metrics to prevent redundant reductions on page change
+  const { totalPnl, wins, losses, winRate } = useMemo(() => {
+    const _totalPnl = filtered.reduce((s, t: any) => s + (t.pnl ?? 0), 0)
+    let _wins = 0
+    let _losses = 0
+    let _settledCount = 0
+
+    for (const t of filtered) {
+      if (t.result === 'win') {
+        _wins++
+        _settledCount++
+      } else if (t.result === 'loss') {
+        _losses++
+        _settledCount++
+      }
+    }
+
+    const _winRate = _settledCount > 0 ? (_wins / _settledCount * 100) : 0
+
+    return {
+      totalPnl: _totalPnl,
+      wins: _wins,
+      losses: _losses,
+      winRate: _winRate
+    }
+  }, [filtered])
+
+  if (isLoading) return <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">Loading...</div>
+  if (error) return <div className="flex items-center justify-center h-64 text-red-500/60 text-sm">Failed to load data</div>
 
   return (
     <div className="flex flex-col h-full min-h-0">
