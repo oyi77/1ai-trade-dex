@@ -7,7 +7,7 @@ This module adds: GenomePerformance, GenomeShadowTrade
 
 from datetime import datetime
 
-from sqlalchemy import Column, String, Integer, Float, JSON, DateTime, Boolean
+from sqlalchemy import Column, Index, String, Integer, Float, JSON, DateTime, Boolean
 from backend.models.database import Base
 
 
