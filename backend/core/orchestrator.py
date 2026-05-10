@@ -263,7 +263,7 @@ class Orchestrator:
             "reasoning": "weather copy trade",
         }
 
-        result = await execute_decision(decision, "weather_copy", db=None)
+        result = await execute_decision(decision, "weather_emos", db=None)
         if result is None:
             raise RuntimeError(
                 "Weather copy trade rejected by risk manager or duplicate"

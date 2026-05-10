@@ -702,11 +702,11 @@ def _seed_strategy_configs() -> None:
 
     strategy_defaults = [
         ("copy_trader", True, 60, {"max_wallets": 20, "min_score": 30.0, "poll_interval": 60}),
-        ("whale_frontrun", True, 10, {"min_whale_size": 10000, "max_slippage": 0.02}),
+        ("whale_frontrun", True, 300, {"min_whale_size": 10000, "max_slippage": 0.02}),
         ("weather_emos", True, 300, {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
         ("kalshi_arb", True, 60, {"min_edge": 0.02, "allow_live_execution": False}),
         ("btc_oracle", False, 30, {"min_edge": 0.03, "max_minutes_to_resolution": 10}),
-        ("btc_5m", False, 60, {}),
+        ("btc_oracle_legacy", False, 60, {}),
         ("btc_momentum", False, 60, {"max_trade_fraction": 0.03}),
         ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
         ("bond_scanner", False, 600, {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
