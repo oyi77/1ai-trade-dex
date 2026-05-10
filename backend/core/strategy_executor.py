@@ -365,60 +365,64 @@ async def execute_decision(
                             clob_order_id = None
                             fill_price = entry_price
                         elif token_id:
-                            try:
-                                async with context.clob_client as clob:
-                                    await clob.create_or_derive_api_creds()
-                                    result = await clob.place_limit_order(
-                                        token_id=token_id,
-                                        side="BUY",
-                                        price=entry_price,
-                                        size=adjusted_size,
-                                    )
-                                if result.success:
-                                    clob_order_id = result.order_id
-                                    if result.fill_price:
-                                        fill_price = result.fill_price
-
-                                        alert_manager.check_high_slippage(
-                                            trade_id=0,
-                                            expected_price=entry_price,
-                                            actual_price=fill_price,
-                                            position_value=adjusted_size,
-                                            mode=mode,
+                            # CLOB order placement with retry on order_version_mismatch (CLOB state stale)
+                            for clob_attempt in range(2):
+                                try:
+                                    async with context.clob_client as clob:
+                                        await clob.create_or_derive_api_creds()
+                                        result = await clob.place_limit_order(
+                                            token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
                                         )
-                                    if (
-                                        hasattr(result, "filled_size")
-                                        and result.filled_size is not None
-                                    ):
-                                        filled_size = result.filled_size
-                                    logger.info(
-                                        f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {result.error}"
-                                    )
+                                    if result.success:
+                                        clob_order_id = result.order_id
+                                        fill_price = result.fill_price or fill_price
+                                        if hasattr(result, "filled_size") and result.filled_size is not None:
+                                            filled_size = result.fill_size
+                                        logger.info(f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}")
+                                        break
+                                    # Order rejected — check for retryable version mismatch
+                                    err_msg = result.error or "CLOB order rejected"
+                                    logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_msg}")
+                                    if clob_attempt == 0 and "order_version_mismatch" in err_msg.lower():
+                                        try:
+                                            fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                            entry_price = fresh_mid
+                                            logger.warning(
+                                                f"[{mode.upper()}][{strategy_name}] Retrying with refreshed mid price {entry_price:.4f}"
+                                            )
+                                            continue
+                                        except Exception as refresh_err:
+                                            logger.warning(f"Failed to refresh mid price: {refresh_err}")
                                     attempt_recorder.record_rejected(
-                                        str(result.error or "CLOB order rejected"),
-                                        phase="execution",
-                                        reason_code="REJECTED_BROKER_ORDER",
-                                        adjusted_size=adjusted_size,
-                                        order_id=getattr(result, "order_id", None),
+                                        err_msg, phase="execution", reason_code="REJECTED_BROKER_ORDER",
+                                        adjusted_size=adjusted_size, order_id=getattr(result, "order_id", None),
                                     )
                                     db.commit()
                                     return None
-                            except Exception as clob_err:
-                                logger.error(
-                                    f"[strategy_executor.execute_decision] {type(clob_err).__name__}: CLOB execution error for {market_ticker}: {clob_err}",
-                                    exc_info=True,
-                                )
-                                attempt_recorder.record_failed(
-                                    f"CLOB execution error: {clob_err}",
-                                    phase="execution",
-                                    adjusted_size=adjusted_size,
-                                )
-                                db.commit()
+                                except Exception as clob_err:
+                                    err_str = f"{type(clob_err).__name__}: {clob_err}"
+                                    logger.error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}", exc_info=True)
+                                    if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
+                                        try:
+                                            fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                            entry_price = fresh_mid
+                                            logger.warning(
+                                                f"[{mode.upper()}][{strategy_name}] Retrying after exception with refreshed mid price {entry_price:.4f}"
+                                            )
+                                            continue
+                                        except Exception as refresh_err:
+                                            logger.warning(f"Failed to refresh mid price: {refresh_err}")
+                                    attempt_recorder.record_failed(
+                                        f"CLOB execution error: {err_str}", phase="execution", adjusted_size=adjusted_size,
+                                    )
+                                    db.commit()
+                                    return None
+                            if clob_order_id is None:
                                 return None
+                            alert_manager.check_high_slippage(
+                                trade_id=0, expected_price=entry_price, actual_price=fill_price,
+                                position_value=adjusted_size, mode=mode,
+                            )
                         else:
                             logger.warning(
                                 f"[{mode.upper()}][{strategy_name}] No token_id for {market_ticker}, skipping order"

@@ -304,7 +304,7 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
         kwargs={"strategy_name": strategy_name, "mode": mode},
         id=job_id,
         replace_existing=True,
-        max_instances=5,
+        max_instances=2,
         misfire_grace_time=grace,
     )
     logger.info(
@@ -548,8 +548,10 @@ def start_scheduler():
     from datetime import datetime, timezone, timedelta
 
     disabled = []
+    configs_to_schedule = []
+    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
-        since = datetime.now(timezone.utc) - timedelta(hours=1)
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
             for mode in settings.active_modes_set:
                 trades = db.query(Trade).filter(
@@ -559,20 +561,35 @@ def start_scheduler():
                     Trade.trading_mode == mode,
                 ).all()
 
+                should_disable = False
                 if len(trades) >= 3:
                     wins = sum(1 for t in trades if t.result == 'win')
                     win_rate = wins / len(trades)
                     pnl = sum(t.pnl for t in trades if t.pnl)
 
                     if win_rate < 0.30 or pnl < -50.0:
-                        config.enabled = False
+                        should_disable = True
                         disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
                         logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                        continue
 
-                interval = config.interval_seconds or 60
-                schedule_strategy(config.strategy_name, interval, mode=mode)
-                logger.info(f"Scheduled strategy {config.strategy_name} ({mode}) every {interval}s")
+                if not should_disable:
+                    interval = config.interval_seconds or 60
+                    configs_to_schedule.append((config.strategy_name, interval, mode))
+                    logger.info(f"Scheduling strategy {config.strategy_name} ({mode}) every {interval}s")
+    # Phase 2: apply disable mutations (separate session, short-lived)
+    if disabled:
+        with get_db_session() as db:
+            for desc in disabled:
+                name = desc.split(" ")[0]
+                db.query(StrategyConfig).filter(
+                    StrategyConfig.strategy_name == name,
+                    StrategyConfig.enabled == True,
+                ).update({"enabled": False})
+            db.commit()
+            logger.info(f"Disabled {len(disabled)} underperforming strategies: {disabled}")
+    # Phase 3: register strategy jobs
+    for name, interval, mode in configs_to_schedule:
+        schedule_strategy(name, interval, mode=mode)
     logger.info("Done scheduling strategies from DB")
 
     if settings.NEWS_FEED_ENABLED:

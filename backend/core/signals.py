@@ -172,12 +172,12 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
     up_votes = sum(1 for s in indicator_signs if s > 0.15)
     down_votes = sum(1 for s in indicator_signs if s < -0.15)
 
-    # STRICT: require 3 of 4 indicators to agree (was 2 of 4)
-    has_convergence = up_votes >= 3 or down_votes >= 3
+    # Require 2 of 4 indicators to agree (relaxed from 3/4 for low-volatility environment)
+    has_convergence = up_votes >= 2 or down_votes >= 2
 
     # Volatility gate: skip signals during low-volatility (random walk) periods
-    # BTC 5-min vol < 0.02% means price is barely moving — no edge possible
-    has_sufficient_volatility = micro.volatility >= 0.02
+    # Lowered from 0.02% to 0.01% to allow trading in current low-volatility environment
+    has_sufficient_volatility = micro.volatility >= 0.01
 
     w = settings
     composite = (

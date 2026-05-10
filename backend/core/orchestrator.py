@@ -88,14 +88,8 @@ class Orchestrator:
 
         load_all_strategies()  # trigger auto-registration
 
-        logger.info("About to seed strategies...")
-        try:
-            from backend.api.lifespan import _seed_strategy_configs
-            logger.info("Imported seed function, calling it...")
-            _seed_strategy_configs()
-            logger.info("Seed function completed")
-        except Exception as e:
-            logger.error(f"Failed to seed strategies: {e}", exc_info=True)
+        # Seed is handled by lifespan.py - don't call twice
+        logger.info("Strategy config seeding handled by lifespan startup")
 
         # Single session for backfill + mode context setup (fixes USE-AFTER-CLOSE CORE-1)
         from backend.db.utils import get_db_session

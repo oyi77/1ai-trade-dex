@@ -821,7 +821,8 @@ async def heartbeat_job():
 
     try:
         with get_db_session() as db:
-            state = for_update(db, db.query(BotState)).first()
+            # Read-only check — for_update here caused PG deadlocks with strategy cycles
+            state = db.query(BotState).first()
             pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
 
             if state is None:
@@ -955,6 +956,8 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
             from backend.core.heartbeat import update_heartbeat
+
+            update_heartbeat(strategy_name)
 
             log_event(
                 "info",

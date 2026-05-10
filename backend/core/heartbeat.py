@@ -5,7 +5,9 @@ import logging
 import threading
 from datetime import datetime, timezone, timedelta
 
-from backend.models.database import BotState, StrategyConfig, for_update
+from sqlalchemy import text
+
+from backend.models.database import BotState, StrategyConfig
 
 logger = logging.getLogger("trading_bot")
 
@@ -26,9 +28,13 @@ def update_heartbeat(strategy_name: str) -> None:
 
 
 def _flush_heartbeats() -> None:
-    """Write all pending heartbeats to DB in a single transaction."""
-    import sqlite3
+    """Write all pending heartbeats to DB in a single transaction.
+
+    Uses atomic jsonb_set() for PostgreSQL to avoid lock contention.
+    Falls back to SQLAlchemy ORM for SQLite.
+    """
     from backend.config import settings
+    from backend.db.utils import get_db_session
 
     with _hb_lock:
         if not _pending_heartbeats:
@@ -36,48 +42,37 @@ def _flush_heartbeats() -> None:
         snapshot = dict(_pending_heartbeats)
         _pending_heartbeats.clear()
 
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    import time as _time
-    max_retries = 3
-    for attempt in range(1, max_retries + 1):
-        conn = sqlite3.connect(db_path, timeout=30.0)
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            for mode in settings.active_modes_set:
-                row = conn.execute("SELECT misc_data FROM bot_state WHERE id=1 AND mode=?", (mode,)).fetchone()
-                if not row:
-                    continue
-                data = {}
-                if row[0]:
-                    try:
-                        data = json.loads(row[0])
-                    except Exception:
-                        data = {}
-                for strategy_name, ts in snapshot.items():
-                    data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-                conn.execute("UPDATE bot_state SET misc_data=? WHERE id=1 AND mode=?", (json.dumps(data), mode))
-            conn.commit()
-            break  # success
-        except sqlite3.OperationalError as e:
-            if "database is locked" in str(e) and attempt < max_retries:
-                logger.warning(f"heartbeat flush locked, retry {attempt}/{max_retries}")
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
-                conn.close()
-                _time.sleep(0.5)
-                continue
-            logger.warning(f"heartbeat flush failed: {e}")
-            break
-        except Exception as e:
-            logger.warning(f"heartbeat flush failed: {e}")
-            break
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+    try:
+        # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
+        if settings.is_postgres():
+            with get_db_session() as db:
+                for mode in settings.active_modes_set:
+                    for strategy_name, ts in snapshot.items():
+                        key_path = f"{{heartbeat:{strategy_name}}}"
+                        db.execute(
+                            text(
+                                "UPDATE bot_state "
+                                "SET misc_data = jsonb_set(COALESCE(misc_data::jsonb, '{}'::jsonb), :key, :val, true) "
+                                "WHERE mode = :mode"
+                            ),
+                            {"key": key_path, "val": json.dumps(ts), "mode": mode},
+                        )
+                db.commit()
+        else:
+            with get_db_session() as db:
+                for state in db.query(BotState).all():
+                    data = {}
+                    if state.misc_data:
+                        try:
+                            data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
+                        except Exception:
+                            data = {}
+                    for strategy_name, ts in snapshot.items():
+                        data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+                    state.misc_data = json.dumps(data)
+                db.commit()
+    except Exception as e:
+        logger.warning(f"heartbeat flush failed: {e}")
 
 
 def get_strategy_health(db) -> list[dict]:
@@ -93,7 +88,7 @@ def get_strategy_health(db) -> list[dict]:
         from backend.config import settings
         all_data = {}
         for mode in settings.active_modes_set:
-            state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+            state = db.query(BotState).filter_by(mode=mode).first()
             if state and state.misc_data:
                 try:
                     mode_data = (
@@ -264,7 +259,7 @@ async def wallet_sync_job() -> None:
 
 
 def _sync_balance_to_db(balance: float, mode: str) -> None:
-    """Write wallet balance to bot_state DB row (raw sqlite3 to bypass pool)."""
+    """Write wallet balance to bot_state DB row via SQLAlchemy."""
     if mode == "live":
         logger.debug(
             "wallet_sync: skipping live BotState.bankroll raw CLOB cash write; "
@@ -272,19 +267,14 @@ def _sync_balance_to_db(balance: float, mode: str) -> None:
         )
         return
 
-    import sqlite3
-    from backend.config import settings
+    from backend.db.utils import get_db_session
 
-    db_path = settings.DATABASE_URL.replace("sqlite:///", "")
-    conn = sqlite3.connect(db_path, timeout=30.0)
     try:
-        conn.execute("PRAGMA journal_mode=WAL")
-        available_balance = max(0.0, float(balance))
-        conn.execute(
-            "UPDATE bot_state SET bankroll=? WHERE id=1 AND mode=?",
-            (available_balance, mode),
-        )
-        conn.commit()
-        logger.debug(f"wallet_sync: {mode} balance updated to ${available_balance:.2f}")
-    finally:
-        conn.close()
+        with get_db_session() as db:
+            state = db.query(BotState).filter(BotState.mode == mode).first()
+            if state:
+                state.bankroll = max(0.0, float(balance))
+                db.commit()
+                logger.debug(f"wallet_sync: {mode} balance updated to ${state.bankroll:.2f}")
+    except Exception as e:
+        logger.warning(f"wallet_sync: {mode} balance update failed: {e}")

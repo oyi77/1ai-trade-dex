@@ -710,7 +710,7 @@ def _seed_strategy_configs() -> None:
         ("whale_frontrun", True, 300, {"min_whale_size": 10000, "max_slippage": 0.02}),
         ("weather_emos", True, 300, {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
         ("kalshi_arb", True, 300, {"min_edge": 0.02, "allow_live_execution": False}),
-        ("btc_oracle", False, 300, {"min_edge": 0.03, "max_minutes_to_resolution": 10}),
+        ("btc_oracle", True, 300, {"min_edge": 0.02, "max_minutes_to_resolution": 30}),
         ("btc_oracle_legacy", False, 300, {}),
         ("btc_momentum", False, 300, {"max_trade_fraction": 0.03}),
         ("general_scanner", False, 300, {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
@@ -738,12 +738,16 @@ def _seed_strategy_configs() -> None:
                         ))
                         added += 1
                     else:
-                        # Only update interval and params — do NOT override
-                        # runtime toggles like `enabled` which are managed by
-                        # the dashboard, health monitor, or manual DB edits.
-                        exists.interval_seconds = interval
-                        exists.params = _json.dumps(params)
-                        added += 1
+                        changed = False
+                        if exists.interval_seconds != interval:
+                            exists.interval_seconds = interval
+                            changed = True
+                        new_params = _json.dumps(params)
+                        if exists.params != new_params:
+                            exists.params = new_params
+                            changed = True
+                        if changed:
+                            added += 1
                 if added:
                     db.commit()
                     logger.info(f"Committed {added} strategy config changes")
