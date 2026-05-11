@@ -2,8 +2,10 @@ import asyncio
 import httpx
 import sys
 
+from backend.config import settings
+
 async def test_modes():
-    async with httpx.AsyncClient(base_url="http://localhost:8005") as client:
+    async with httpx.AsyncClient(base_url=settings.API_BASE_URL) as client:
         print("Testing mode switch...")
         
         # Test 1: Switch to paper

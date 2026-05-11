@@ -3,12 +3,12 @@
 
 set -e
 
-BACKUP_DIR="/home/openclaw/projects/polyedge/backups"
-LOG_FILE="/home/openclaw/projects/polyedge/logs/backup.log"
-VERIFICATION_LOG="/home/openclaw/projects/polyedge/logs/backup_verification.log"
+BACKUP_DIR="${POLYEDGE_BACKUP_DIR:-./backups}"
+LOG_FILE="${POLYEDGE_LOG_DIR:-./logs}/backup.log"
+VERIFICATION_LOG="${POLYEDGE_LOG_DIR:-./logs}/backup_verification.log"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/auto_$TIMESTAMP.db"
-DB_FILE="/home/openclaw/projects/polyedge/tradingbot.db"
+DB_FILE="${POLYEDGE_DB_FILE:-./tradingbot.db}"
 RETENTION_DAYS=7
 TEMP_RESTORE_DB="/tmp/backup_restore_test_$TIMESTAMP.db"
 

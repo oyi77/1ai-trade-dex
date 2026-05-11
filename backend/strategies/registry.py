@@ -106,7 +106,8 @@ def _check_performance_gate(name: str) -> None:
         from backend.config import settings
         min_win_rate = getattr(settings, "REGISTRY_MIN_WIN_RATE", 0.30)
         min_roi = getattr(settings, "REGISTRY_MIN_ROI", -0.30)
-    except Exception:
+    except Exception as e:
+        logger.debug("Could not load settings for strategy health check: %s", e)
         return
 
     cls = STRATEGY_REGISTRY.get(name)
@@ -173,7 +174,8 @@ def is_strategy_enabled(name: str, db=None) -> bool:
         if config is None:
             return True  # not configured = default enabled
         return bool(config.enabled)
-    except Exception:
+    except Exception as e:
+        logger.warning("Error checking strategy '%s' enabled state, defaulting to enabled: %s", name, e)
         return True  # on error, default to enabled
 
 

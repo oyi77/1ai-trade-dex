@@ -29,8 +29,8 @@ def calculate_dynamic_size(
     edge: float,
     confidence: float,
     max_position_usd: float,
-    min_position_usd: float = 1.0,
-    edge_scale_threshold: float = 0.10,
+    min_position_usd: float = settings.BTC_ORACLE_MIN_POSITION_USD,
+    edge_scale_threshold: float = settings.BTC_ORACLE_EDGE_SCALE_THRESHOLD,
 ) -> float:
     """Return an AI-signal-sized position proposal within the strategy mandate.
 
@@ -145,12 +145,12 @@ class BtcOracleStrategy(BaseStrategy):
     )
     category = "arbitrage"
     default_params = {
-        "min_edge": 0.03,
-        "max_minutes_to_resolution": 60,
-        "interval_seconds": 30,
-        "max_position_usd": 50.0,
-        "edge_scale_threshold": 0.10,
-        "min_position_usd": 1.0,
+        "min_edge": settings.BTC_ORACLE_MIN_EDGE,
+        "max_minutes_to_resolution": settings.BTC_ORACLE_MAX_MINUTES_TO_RESOLUTION,
+        "interval_seconds": settings.BTC_ORACLE_INTERVAL_SECONDS,
+        "max_position_usd": settings.BTC_ORACLE_MAX_POSITION_USD,
+        "edge_scale_threshold": settings.BTC_ORACLE_EDGE_SCALE_THRESHOLD,
+        "min_position_usd": settings.BTC_ORACLE_MIN_POSITION_USD,
     }
 
     # ── Event-driven (WebSocket) subscription config ──
@@ -335,7 +335,8 @@ class BtcOracleStrategy(BaseStrategy):
             from backend.data.crypto import compute_btc_microstructure
             try:
                 micro = await compute_btc_microstructure()
-            except Exception:
+            except Exception as e:
+                logger.debug("BTC microstructure computation failed: %s", e)
                 micro = None
 
             if micro and micro.momentum_5m is not None:
@@ -360,7 +361,7 @@ class BtcOracleStrategy(BaseStrategy):
                     + vwap_signal * 0.25
                     + sma_signal * 0.20
                 )
-                oracle_implied = 0.50 + composite * 0.10
+                oracle_implied = settings.BTC_ORACLE_ORACLE_IMPLIED_BASE + composite * settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE
 
                 # Flip for DOWN direction: model prob must reflect chosen side.
                 if direction == "down":
@@ -501,7 +502,8 @@ class BtcOracleStrategy(BaseStrategy):
 
                     try:
                         clob_token_ids = _json.loads(clob_token_ids)
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("Failed to parse CLOB token IDs from JSON: %s", e)
                         clob_token_ids = []
                 if clob_token_ids and len(clob_token_ids) >= 2:
                     clob_token_id = str(clob_token_ids[0] if direction in ("yes", "up") else clob_token_ids[1])

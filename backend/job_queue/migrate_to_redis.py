@@ -25,8 +25,7 @@ async def migrate_sqlite_to_redis() -> Dict[str, int]:
         logger.error(f"RedisQueue unavailable: {e}")
         return {"migrated": 0, "failed": 0, "skipped": 0}
 
-    redis_url = settings.JOB_QUEUE_URL if settings.JOB_QUEUE_URL.startswith("redis://") else "redis://localhost:6379"
-    redis_queue = RedisQueue(redis_url)
+    redis_queue = RedisQueue(settings.JOB_QUEUE_URL if settings.JOB_QUEUE_URL.startswith("redis://") else settings.REDIS_URL)
 
     migrated = 0
     failed = 0

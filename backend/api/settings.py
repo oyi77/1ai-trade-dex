@@ -510,8 +510,8 @@ async def mirofish_service_pause(_: None = Depends(require_admin)):
 
 # ============== MiroFish Process Management ==============
 
-MIROFISH_BACKEND_DIR = "/home/openclaw/projects/mirofish/backend"
-MIROFISH_FRONTEND_DIR = "/home/openclaw/projects/mirofish/frontend"
+MIROFISH_BACKEND_DIR = "../../mirofish/backend"
+MIROFISH_FRONTEND_DIR = "../../mirofish/frontend"
 MIROFISH_BACKEND_PORT = 5001
 MIROFISH_FRONTEND_PORT = 3200
 

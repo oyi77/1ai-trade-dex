@@ -27,7 +27,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from backend.config import settings
+
+GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 
 import httpx
 from sqlalchemy.orm import Session
@@ -304,7 +306,7 @@ async def fetch_binance_historical_price(
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             resp = await client.get(
-                "https://api.binance.com/api/v3/klines",
+                settings.BINANCE_KLINES_URL,
                 params={
                     "symbol": symbol,
                     "interval": "1m",
@@ -323,7 +325,7 @@ async def fetch_binance_historical_price(
         # Bybit fallback
         try:
             resp = await client.get(
-                "https://api.bybit.com/v5/market/kline",
+                settings.BYBIT_KLINES_URL,
                 params={
                     "category": "spot",
                     "symbol": symbol,
@@ -365,7 +367,7 @@ async def fetch_openmeteo_historical_temp(
                 params["temperature_unit"] = "fahrenheit"
 
             resp = await client.get(
-                "https://archive-api.open-meteo.com/v1/archive",
+                settings.OPEN_METEO_ARCHIVE_URL,
                 params=params,
             )
             if resp.status_code != 200:
@@ -574,7 +576,7 @@ async def seed_honest_backtest(
             offset = page * page_size
             try:
                 resp = await client.get(
-                    "https://gamma-api.polymarket.com/markets",
+                    settings.GAMMA_API_URL + "/markets",
                     params={
                         "active": "false",
                         "closed": "true",

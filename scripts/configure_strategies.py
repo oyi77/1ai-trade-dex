@@ -4,7 +4,7 @@ import sqlite3
 import time
 import sys
 
-DB_PATH = '/home/openclaw/projects/polyedge/tradingbot.db'
+DB_PATH = 'tradingbot.db'
 
 # Winning strategies to enable (based on analysis)
 WINNING_STRATEGIES = [

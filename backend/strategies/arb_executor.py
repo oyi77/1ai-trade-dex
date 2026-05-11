@@ -33,7 +33,7 @@ def detect_intra_market_arb(
     no_price: float,
     fee_rate: float = None,
     market_id: str = "unknown",
-    max_size: float = 100.0,
+    max_size: float = settings.ARB_EXECUTOR_MAX_SIZE,
 ) -> Optional[ArbOpportunity]:
     if fee_rate is None:
         fee_rate = _cfg("ARB_DEFAULT_FEE_RATE", 0.02)
@@ -70,7 +70,7 @@ def detect_cross_platform_arb(
     min_spread: float = None,
     market_id: str = "unknown",
     fee_rate: float = None,
-    max_size: float = 100.0,
+    max_size: float = settings.ARB_EXECUTOR_MAX_SIZE,
 ) -> Optional[ArbOpportunity]:
     if min_spread is None:
         min_spread = _cfg("ARB_DEFAULT_MIN_SPREAD", 0.03)
@@ -109,8 +109,8 @@ def detect_negrisk_arb(
     outcome_prices: list[float],
     fee_rate: float = None,
     market_id: str = "unknown",
-    max_size: float = 100.0,
-    min_deviation: float = 0.02,
+    max_size: float = settings.ARB_EXECUTOR_MAX_SIZE,
+    min_deviation: float = settings.ARB_EXECUTOR_MIN_DEVIATION,
 ) -> Optional[ArbOpportunity]:
     if fee_rate is None:
         fee_rate = _cfg("ARB_DEFAULT_FEE_RATE", 0.02)

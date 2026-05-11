@@ -60,7 +60,7 @@ class PolygonListener:
                     from backend.bot.notification_router import send_alert
                     await send_alert("Polygon listener permanently disconnected after %d retries" % MAX_RETRIES)
                 except Exception:
-                    pass
+                    logger.debug("Failed to send polygon listener alert")
                 raise
 
     async def _handle_message(self, raw: str) -> None:
@@ -90,7 +90,7 @@ class PolygonListener:
                 from backend.api.ws_manager import broadcast_whale_tick
                 await broadcast_whale_tick(payload)
             except Exception:
-                pass
+                logger.debug("Failed to broadcast whale tick")
         except Exception as e:
             logger.warning(f"polygon msg parse failed: {e}")
 
@@ -99,6 +99,7 @@ class PolygonListener:
             raw = int(data_hex, 16) if data_hex else 0
             return raw / 1e6  # USDC has 6 decimals
         except Exception:
+            logger.debug("Failed to estimate USD value from data_hex")
             return 0.0
 
     def _extract_wallet(self, topics: list) -> Optional[str]:

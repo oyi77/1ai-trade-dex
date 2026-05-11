@@ -24,6 +24,7 @@ async def test_testnet():
     builder_secret = os.getenv("POLYMARKET_BUILDER_SECRET")
     builder_pass = os.getenv("POLYMARKET_BUILDER_PASSPHRASE")
 
+    # NOTE: Testnet mode uses mainnet CLOB with Builder auth (gasless trading).
     print("=" * 60)
     print("POLYMARKET TESTNET MODE TEST (Builder Program on Mainnet CLOB)")
     print("=" * 60)

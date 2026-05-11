@@ -47,7 +47,7 @@ Breakers auto-recover: OPEN → HALF-OPEN after timeout → CLOSED on probe succ
 ### Manual Reset
 
 ```bash
-curl -X POST localhost:8000/api/admin/circuit-breaker/<name>/reset \
+curl -X POST localhost:8100/api/admin/circuit-breaker/<name>/reset \
   -H "Authorization: Bearer $ADMIN_API_KEY"
 ```
 

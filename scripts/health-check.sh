@@ -7,6 +7,9 @@ set -e
 echo "=== PolyEdge Health Check ==="
 echo "Time: $(date)"
 
+POLYEDGE_ROOT="${POLYEDGE_ROOT:-$(dirname "$0"/..)}"
+cd "$POLYEDGE_ROOT"
+
 # Check PM2 processes
 echo ""
 echo "--- PM2 Status ---"
@@ -21,7 +24,6 @@ if [ "$API_STATUS" = "200" ]; then
 else
     echo "API: FAIL (code: $API_STATUS)"
     echo "Attempting restart..."
-    cd /home/openclaw/projects/polyedge
     pm2 restart polyedge-api
 fi
 
@@ -34,7 +36,6 @@ if [ "$FE_STATUS" = "200" ]; then
 else
     echo "Frontend: FAIL (code: $FE_STATUS)"
     echo "Attempting restart..."
-    cd /home/openclaw/projects/polyedge
     pm2 restart polyedge-frontend
 fi
 
@@ -47,15 +48,13 @@ if [ "$BOT_UPTIME" != "0" ]; then
 else
     echo "Bot: DOWN"
     echo "Attempting restart..."
-    cd /home/openclaw/projects/polyedge
     pm2 restart polyedge-bot
 fi
 
 # Check open trades
 echo ""
 echo "--- Open Trades ---"
-cd /home/openclaw/projects/polyedge
-OPEN_COUNT=$(sqlite3 tradingbot.db "SELECT COUNT(*) FROM trades WHERE settled=0;" 2>/dev/null || echo "0")
+OPEN_COUNT=$(sqlite3 "${POLYEDGE_ROOT}/tradingbot.db" "SELECT COUNT(*) FROM trades WHERE settled=0;" 2>/dev/null || echo "0")
 echo "Open trades: $OPEN_COUNT"
 
 # Warn if too many open
@@ -66,7 +65,7 @@ fi
 # Check recent settlement
 echo ""
 echo "--- Recent Settlements ---"
-LAST_SETTLE=$(sqlite3 tradingbot.db "SELECT datetime(MAX(timestamp)) FROM trades WHERE settled=1;" 2>/dev/null || echo "none")
+LAST_SETTLE=$(sqlite3 "${POLYEDGE_ROOT}/tradingbot.db" "SELECT datetime(MAX(timestamp)) FROM trades WHERE settled=1;" 2>/dev/null || echo "none")
 echo "Last settlement: $LAST_SETTLE"
 
 echo ""

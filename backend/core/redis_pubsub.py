@@ -11,27 +11,16 @@ from typing import Any, Callable, Dict, Optional
 
 import redis.asyncio as redis
 from backend.core.circuit_breaker_pybreaker import redis_breaker
+from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class RedisPublisher:
-    """Publishes WebSocket messages to Redis for cross-instance broadcasting.
+    """Publishes WebSocket messages to Redis for cross-instance broadcasting."""
 
-    Usage:
-        publisher = RedisPublisher(redis_url="redis://localhost:6379")
-        await publisher.connect()
-        await publisher.publish("signals", {"type": "new_signal", "data": {...}})
-        await publisher.close()
-    """
-
-    def __init__(self, redis_url: str):
-        """Initialize Redis publisher.
-
-        Args:
-            redis_url: Redis connection URL (e.g., redis://localhost:6379)
-        """
-        self.redis_url = redis_url
+    def __init__(self, redis_url: Optional[str] = None):
+        self.redis_url = redis_url or settings.REDIS_URL
         self.client: Optional[redis.Redis] = None
         self.connected = False
 
@@ -103,26 +92,10 @@ class RedisPublisher:
 
 
 class RedisSubscriber:
-    """Subscribes to Redis channels and forwards messages to callback handlers.
+    """Subscribes to Redis channels and forwards messages to callback handlers."""
 
-    Usage:
-        async def handle_message(topic: str, message: dict):
-            print(f"Received on {topic}: {message}")
-
-        subscriber = RedisSubscriber(redis_url="redis://localhost:6379")
-        await subscriber.connect()
-        await subscriber.subscribe("signals", handle_message)
-        await subscriber.listen()  # Blocks until stopped
-        await subscriber.close()
-    """
-
-    def __init__(self, redis_url: str):
-        """Initialize Redis subscriber.
-
-        Args:
-            redis_url: Redis connection URL (e.g., redis://localhost:6379)
-        """
-        self.redis_url = redis_url
+    def __init__(self, redis_url: Optional[str] = None):
+        self.redis_url = redis_url or settings.REDIS_URL
         self.client: Optional[redis.Redis] = None
         self.pubsub: Optional[redis.client.PubSub] = None
         self.connected = False

@@ -27,7 +27,7 @@ Operational and diagnostic scripts for the trading bot. Includes smoke tests, mi
 
 1. **Running the scanner smoke test**:
    ```bash
-   cd /home/openclaw/projects/polyedge
+   cd .
    python backend/scripts/scanner_smoke.py
    ```
    Expected output:
@@ -59,7 +59,7 @@ Operational and diagnostic scripts for the trading bot. Includes smoke tests, mi
    def test_scanner_smoke():
        result = subprocess.run(
            ["python", "backend/scripts/scanner_smoke.py"],
-           cwd="/home/openclaw/projects/polyedge",
+            cwd=".",
            capture_output=True,
            timeout=30
        )

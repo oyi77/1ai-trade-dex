@@ -1,6 +1,6 @@
 # PolyEdge — Prediction Market Trading Bot
 
-A full-stack automated prediction market trading bot targeting **Polymarket** and **Kalshi**. Combines AI-powered signal generation, 14 trading strategies with bounded AGI autonomy, evolutionary strategy composition, real-time market data aggregation, and a React dashboard for monitoring and control.
+A full-stack automated prediction market trading bot targeting **Polymarket** and **Kalshi**. Combines AI-powered signal generation, 12 trading strategies with bounded AGI autonomy, evolutionary strategy composition, real-time market data aggregation, and a React dashboard for monitoring and control.
 
 [![Research DOI](https://zenodo-badge.example.com/10.5281/zenodo.16966978.svg)](https://doi.org/10.5281/zenodo.16966978)
 
@@ -10,29 +10,28 @@ A full-stack automated prediction market trading bot targeting **Polymarket** an
 
 ## Overview
 
-### Trading Strategies (14 registered + AGI Orchestrator)
+### Trading Strategies (12 registered + AGI Orchestrator)
 
 | Strategy | Description |
 |----------|-------------|
+| **AGI Meta Strategy** | Autonomous strategy composition with evolution |
 | **BTC Momentum** | RSI + momentum + VWAP on 1m/5m/15m candles from Coinbase/Kraken/Binance |
 | **BTC Oracle** | CoinGecko latency arbitrage on BTC price markets |
-| **Weather EMOS** | 31-member GFS ensemble temperature forecasting (Open-Meteo + NWS) |
-| **Copy Trader** | Mirrors top whale trader positions from Polymarket leaderboard |
-| **Market Maker** | Spread quoting with real-time inventory tracking |
-| **Kalshi Arbitrage** | Cross-platform price gap detection (Polymarket ↔ Kalshi) |
 | **Bond Scanner** | Fixed-income prediction market opportunities |
-| **Whale PNL Tracker** | Tracks top trader realized PNL for signal generation |
-| **Realtime Scanner** | Price velocity and momentum signal detection |
-| **Probability Arb** | Cross-market probability arbitrage detection |
-| **Cross Market Arb** | Cross-market arbitrage execution |
 | **CEX-PM Lead-Lag** | CEX price lead-lag signal for Polymarket markets |
+| **Copy Trader** | Mirrors top whale trader positions from Polymarket leaderboard |
+| **Cross Market Arb** | Cross-market arbitrage execution |
+| **General Market Scanner** | General market scanning and opportunity detection |
 | **Line Movement** | Betting line movement detection |
-| **General Scanner** | General market scanning and opportunity detection |
+| **Market Maker** | Spread quoting with real-time inventory tracking |
+| **Probability Arb** | Cross-market probability arbitrage detection |
+| **Realtime Scanner** | Price velocity and momentum signal detection |
+| **Universal Scanner** | Universal market scanning and opportunity detection |
 | **AGI Orchestrator** | Meta-strategy composing and evolving other strategies autonomously |
 
 ### Key Features
 
-- **Multi-Strategy Engine** — 14 strategies running in parallel with per-strategy risk isolation
+- **Multi-Strategy Engine** — 12 strategies running in parallel with per-strategy risk isolation
 - **Bounded AGI Autonomy** — Autonomous promotion pipeline (DRAFT→SHADOW→PAPER→LIVE) with deterministic safety gates
 - **Evolutionary Composition** — AGI meta-strategy composes, mutates, and evolves trading strategies from a genome grammar; GenomeCompiler translates genomes into executable strategies at runtime; GenomeRegistry persists genome lineage, performance, and shadow trades
 - **Shadow-Validation Fitness Feedback** — Shadow trades are settled against real market outcomes; per-genome fitness (win rate, Sharpe, drawdown) is recalculated from settled ShadowTrades, driving promotion and kill decisions

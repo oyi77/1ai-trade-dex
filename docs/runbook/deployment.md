@@ -4,7 +4,7 @@
 
 ```bash
 # Backend health
-curl -f http://localhost:8000/api/health
+curl -f http://localhost:8100/api/health
 
 # Frontend build
 cd frontend && npm run build

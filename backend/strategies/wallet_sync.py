@@ -242,7 +242,7 @@ class WalletWatcher:
                 orig_entry = self._get_entry_size(wallet, pos_key)
                 cumulative_sell = self._sell_sizes[wallet][pos_key]
 
-                if orig_entry > 0 and cumulative_sell >= 0.50 * orig_entry:
+                if orig_entry > 0 and cumulative_sell >= settings.WALLET_SYNC_EXIT_THRESHOLD * orig_entry:
                     new_exits.append(trade)
                     logger.info(
                         f"Exit signal from {wallet[:10]}...: SELL {outcome} "

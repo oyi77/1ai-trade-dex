@@ -6,6 +6,7 @@ Wants=postgresql.service redis.service
 [Service]
 Type=simple
 User=openclaw
+# NOTE: Customize paths below for your deployment environment
 WorkingDirectory=/home/openclaw/projects/polyedge
 Environment="PATH=/home/openclaw/projects/polyedge/venv/bin:/usr/local/bin:/usr/bin:/bin"
 EnvironmentFile=/home/openclaw/projects/polyedge/.env

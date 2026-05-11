@@ -4,7 +4,7 @@
 
 All API endpoints are versioned using the `/v1` prefix. The current version is **v1**.
 
-**Base URL**: `http://localhost:8000/api/v1`
+**Base URL**: `http://localhost:8100/api/v1`
 
 **Version Detection**:
 1. URL path: `/api/v1/...` (primary method)

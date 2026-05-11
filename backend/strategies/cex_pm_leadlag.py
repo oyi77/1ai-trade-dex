@@ -51,11 +51,11 @@ class CexPmLeadLagStrategy(BaseStrategy):
     )
     category = "crypto"
     default_params = {
-        "min_momentum": 0.003,        # 0.3% on 1m candle
-        "min_edge": 0.05,             # 5% gap between projected implied & PM mid
-        "max_minutes_to_resolution": 90,
-        "max_position_usd": 50,
-        "interval_seconds": 15,
+        "min_momentum": settings.CEX_PM_LEADLAG_MIN_MOMENTUM,
+        "min_edge": settings.CEX_PM_LEADLAG_MIN_EDGE,
+        "max_minutes_to_resolution": settings.CEX_PM_LEADLAG_MAX_MINUTES_TO_RESOLUTION,
+        "max_position_usd": settings.CEX_PM_LEADLAG_MAX_POSITION_USD,
+        "interval_seconds": settings.CEX_PM_LEADLAG_INTERVAL_SECONDS,
     }
 
     async def market_filter(self, markets: list[BtcMarket]) -> list[BtcMarket]:

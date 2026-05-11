@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from backend.config import settings
+
 import logging
 from typing import Optional
 
@@ -19,7 +21,7 @@ class CLOBEventIndexer:
     """
 
     def __init__(self, rpc_url: Optional[str] = None, contract: Optional[str] = None):
-        self.rpc_url = rpc_url or "https://polygon-rpc.com"
+        self.rpc_url = rpc_url or settings.POLYGON_RPC_URL
         self.contract = contract or CLOB_CONTRACT
         self._w3 = None
         self._last_indexed_block: int = 0

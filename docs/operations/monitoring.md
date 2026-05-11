@@ -291,7 +291,7 @@ scrape_configs:
   - job_name: 'polyedge'
     scrape_interval: 15s
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['localhost:8100']
     metrics_path: '/metrics'
 ```
 

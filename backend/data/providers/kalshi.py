@@ -1,11 +1,14 @@
 """KalshiProvider — DataProvider implementation for Kalshi exchange."""
 
 from __future__ import annotations
+import logging
 from typing import List, Optional
 
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.kalshi_client import KalshiClient
 from backend.data.kalshi_markets import fetch_kalshi_markets
+
+logger = logging.getLogger(__name__)
 
 
 class KalshiProvider(DataProvider):
@@ -18,6 +21,7 @@ class KalshiProvider(DataProvider):
             markets = await fetch_kalshi_markets(limit=1)
             return bool(markets)
         except Exception:
+            logger.debug("Kalshi health check failed")
             return False
 
     async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:

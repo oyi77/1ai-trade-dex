@@ -2,7 +2,7 @@
 # Cron job installer for hourly database backups
 # Run this script once to set up the hourly backup schedule
 
-SCRIPT_PATH="/home/openclaw/projects/polyedge/scripts/backup_with_validation.sh"
+SCRIPT_PATH="${POLYEDGE_ROOT:-.}/scripts/backup_with_validation.sh"
 CRON_SCHEDULE="0 * * * * $SCRIPT_PATH"
 
 # Check if script exists and is executable

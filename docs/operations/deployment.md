@@ -12,7 +12,7 @@ docker-compose up -d
 ```
 
 **Services**:
-- `app` - Backend API server (port 8000)
+- `app` - Backend API server (port 8100)
 - `redis` - Redis cache and pub/sub (port 6379)
 
 **Configuration**:
@@ -83,7 +83,7 @@ Set in Vercel dashboard:
 **Configuration**: `ecosystem.config.js`
 
 **Processes**:
-- `api` - FastAPI server (port 8000)
+- `api` - FastAPI server (port 8100)
 - `worker` - Job queue worker
 - `scheduler` - Background scheduler
 
@@ -391,8 +391,8 @@ pm2 stop api
 **Load Balancer Configuration**:
 ```nginx
 upstream backend {
-    server backend1:8000 max_fails=3 fail_timeout=30s;
-    server backend2:8000 max_fails=3 fail_timeout=30s;
+    server backend1:8100 max_fails=3 fail_timeout=30s;
+    server backend2:8100 max_fails=3 fail_timeout=30s;
 }
 
 server {
@@ -442,7 +442,7 @@ PROMETHEUS_ENABLED=true
 
 **Frontend** (`.env`):
 ```bash
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:8100
 ```
 
 ### Environment Validation
@@ -490,7 +490,7 @@ scrape_configs:
   - job_name: 'polyedge'
     scrape_interval: 15s
     static_configs:
-      - targets: ['backend:8000']
+      - targets: ['backend:8100']
     metrics_path: '/metrics'
 ```
 

@@ -22,10 +22,10 @@ The system supports paper trading (shadow mode), live trading with risk controls
                                │ REST API (polling via TanStack Query)
                                ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│                         API LAYER (FastAPI)                           │
+│ API LAYER (FastAPI)                           │
 │  backend/api/main.py — Lifespan-managed, CORS, Prometheus metrics    │
-│  81 routes: /api/v1/{signals,trades,strategies,risk,admin,...}       │
-└──────────────────────────────────────────────────────────────────────┘
+│  189 routes: /api/v1/{signals,trades,strategies,risk,admin,...}      │
+└─────────────────────────────────────────────────────────────────────┘
                                │
           ┌────────────────────┼────────────────────┐
           ▼                    ▼                    ▼
