@@ -16,6 +16,7 @@ Key optimizations:
 
 import asyncio
 import logging
+import math
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -175,6 +176,88 @@ async def _fetch_page_with_retry(
             return ([], False)
 
 
+async def _fetch_web_context(question: str) -> str:
+    try:
+        from backend.clients.websearch import get_websearch
+        client = get_websearch()
+        if not client.is_enabled:
+            return ""
+        return await client.search_for_market(question, max_results=3)
+    except Exception:
+        return ""
+
+
+async def _fetch_brain_context(question: str) -> str:
+    try:
+        from backend.clients.bigbrain import BigBrainClient
+        brain = BigBrainClient()
+        results = await brain.search_context(question, limit=5)
+        if not results:
+            return ""
+        parts = []
+        for item in results[:5]:
+            text = item.get("text") or item.get("content") or ""
+            if text:
+                parts.append(text[:200])
+        return " | ".join(parts) if parts else ""
+    except Exception:
+        return ""
+
+
+async def _run_debate_gate(
+    question: str,
+    market_price: float,
+    volume: float,
+    category: str,
+    context: str,
+    data_sources: list[str] | None = None,
+    db=None,
+):
+    try:
+        from backend.ai.debate_router import run_debate_with_routing
+        if db is None:
+            from backend.ai.debate_engine import run_debate
+            return await run_debate(
+                question=question, market_price=market_price, volume=volume,
+                category=category, context=context, data_sources=data_sources,
+            )
+        return await run_debate_with_routing(
+            db=db, question=question, market_price=market_price, volume=volume,
+            category=category, context=context, data_sources=data_sources,
+        )
+    except Exception as exc:
+        logger.warning("[universal_scanner._run_debate_gate] %s: %s", type(exc).__name__, exc)
+        return None
+
+
+def _compute_composite_confidence(
+    llm_confidence: float,
+    raw_edge: float,
+    volume: float,
+    engine_confidence: float | None = None,
+    debate_confidence: float | None = None,
+    data_source_count: int = 0,
+) -> float:
+    components: list[tuple[float, float]] = []
+    components.append((max(0.0, min(1.0, llm_confidence)), 0.40))
+    edge_score = min(1.0, 1.0 - math.exp(-20.0 * raw_edge))
+    components.append((edge_score, 0.25))
+    if engine_confidence is not None:
+        components.append((max(0.0, min(1.0, engine_confidence)), 0.15))
+    if debate_confidence is not None:
+        components.append((max(0.0, min(1.0, debate_confidence)), 0.10))
+    vol_capped = max(1.0, volume)
+    vol_score = min(1.0, math.log10(vol_capped) / 7.0)
+    components.append((vol_score, 0.10))
+    richness_score = min(1.0, 0.2 + 0.2 * data_source_count)
+    components.append((richness_score, 0.10))
+    total_weight = sum(w for _, w in components)
+    if total_weight <= 0:
+        return 0.5
+    composite = sum(s * w for s, w in components) / total_weight
+    return round(max(0.0, min(1.0, composite)), 4)
+
+
 class UniversalScanner(BaseStrategy):
     """
     HFT-grade universal market scanner.
@@ -251,20 +334,33 @@ class UniversalScanner(BaseStrategy):
         if yes_price is None or volume < self.default_params["min_volume"]:
             return None
 
+        edge = yes_price - (1.0 - (no_price or (1.0 - yes_price)))
+
         self._ws_known_tokens.add(token_id)
         event_bus.update_strategy_tokens(self.name, self._ws_known_tokens)
 
-        edge = yes_price - (1.0 - (no_price or (1.0 - yes_price)))
-        if abs(edge) < self.default_params["min_edge"]:
-            return None
+        debate_result = await _run_debate_gate(
+            question=data.get("question", ""),
+            market_price=yes_price,
+            volume=volume,
+            category=data.get("category", ""),
+            context="",
+            data_sources=["polymarket_ws"],
+            db=None,
+        )
 
-        logger.info(f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f}")
+        if debate_result is not None:
+            llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
+        else:
+            llm_conf = min(abs(edge) * 5.0, 1.0)
+
+        logger.info(f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}")
 
         return {
             "decision": "BUY",
             "token_id": token_id,
             "direction": "YES" if edge > 0 else "NO",
-            "confidence": min(abs(edge) * 5.0, 1.0),
+            "confidence": llm_conf,
             "edge": edge,
             "strategy_name": self.name,
             "market_type": "universal_ws",
@@ -303,13 +399,17 @@ class UniversalScanner(BaseStrategy):
 
         self._ws_known_tokens.add(token_id)
 
-        logger.info(f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f}")
+        edge_score = min(1.0, 1.0 - math.exp(-20.0 * abs(edge)))
+        vol_score = min(1.0, math.log10(max(1.0, volume)) / 7.0)
+        confidence = round(max(0.0, min(1.0, 0.65 * edge_score + 0.35 * vol_score)), 4)
+
+        logger.info(f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}")
 
         return {
             "decision": "BUY",
             "token_id": token_id,
             "direction": "YES" if edge > 0 else "NO",
-            "confidence": min(abs(edge) * 5.0, 1.0),
+            "confidence": confidence,
             "edge": edge,
             "size": min(abs(edge) * 100.0, self._MAX_DECISION_SIZE),
             "strategy_name": self.name,
@@ -406,7 +506,9 @@ class UniversalScanner(BaseStrategy):
             )
             return markets
 
-    async def analyze_market(self, market: MarketInfo) -> Optional[dict]:
+    async def analyze_market(
+        self, market: MarketInfo, db=None, ctx: StrategyContext | None = None
+    ) -> Optional[dict]:
         """
         Analyze a single market for trading opportunity.
 
@@ -418,9 +520,6 @@ class UniversalScanner(BaseStrategy):
         """
         lock = await _get_market_lock(market.ticker)
         async with lock:
-            # Compute probability edge
-            # Market prices sum to ~1.0 (YES price + NO price ≈ $1.00)
-            # If YES=0.60, NO=0.45 → edge = 0.60 - 0.55 = 0.05 (mispriced)
             implied_prob = 1.0 - market.no_price
             edge = market.yes_price - implied_prob
 
@@ -430,6 +529,37 @@ class UniversalScanner(BaseStrategy):
             if market.volume < self.default_params["min_volume"]:
                 return None
 
+            web_context = await _fetch_web_context(market.question)
+            brain_context = await _fetch_brain_context(market.question)
+            combined_context = " | ".join(filter(None, [web_context, brain_context]))
+            data_sources = ["gamma_api", "websearch"] if web_context else ["gamma_api"]
+
+            debate_result = await _run_debate_gate(
+                question=market.question,
+                market_price=market.yes_price,
+                volume=market.volume,
+                category=market.category or "",
+                context=combined_context,
+                data_sources=data_sources,
+                db=db or (ctx.db if ctx else None),
+            )
+
+            if debate_result is not None:
+                llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
+                debate_conf = llm_conf
+            else:
+                llm_conf = 0.5
+                debate_conf = None
+
+            engine_conf = None
+            data_source_count = len(data_sources)
+            confidence = _compute_composite_confidence(
+                llm_conf, abs(edge), market.volume,
+                engine_confidence=engine_conf,
+                debate_confidence=debate_conf,
+                data_source_count=data_source_count,
+            )
+
             return {
                 "ticker": market.ticker,
                 "question": market.question,
@@ -438,7 +568,9 @@ class UniversalScanner(BaseStrategy):
                 "edge": edge,
                 "volume": market.volume,
                 "category": market.category,
-                "confidence": min(abs(edge) * 5.0, 1.0),
+                "confidence": confidence,
+                "llm_confidence": llm_conf,
+                "debate_confidence": debate_conf,
             }
 
     _MAX_DECISION_SIZE = 10.0
@@ -459,10 +591,11 @@ class UniversalScanner(BaseStrategy):
 
             signals = []
             max_signals = self.default_params["max_signals"]
+            db = ctx.db if ctx else None
             for market in markets:
                 if len(signals) >= max_signals:
                     break
-                signal = await self.analyze_market(market)
+                signal = await self.analyze_market(market, db=db, ctx=ctx)
                 if signal:
                     signals.append(signal)
 
