@@ -2008,16 +2008,16 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 50, Task 51, Task 52, Task 53, Task 36
 
-- [ ] 58. Create `backend/agi/node_registry.py` - Reference import for all nodes
+- [ ] 58. Create `backend/agi/nodes/__init__.py` - Auto-discover and reference import for all nodes
 
   **What to do**:
   - Import `node_registry` from `backend.agi.node_registry`
-  - Import all node modules in nodes/ directory
-  - Register all nodes via decorators
-  - Export in `backend/agi/__init__.py`
+  - Import all node modules in the `nodes/` directory from `backend/agi/nodes/__init__.py`
+  - Trigger registration via decorators as a side effect of module import
+  - Export `node_registry` and node package imports in `backend/agi/__init__.py`
 
   **Test cases**:
-  - All nodes registered in registry
+  - All nodes registered in registry after importing `backend.agi.nodes`
 
   **Recommended Agent Profile**:
   > - **Category**: `quick` - Import setup
