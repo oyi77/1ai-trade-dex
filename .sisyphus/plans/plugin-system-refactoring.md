@@ -1325,8 +1325,6 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - Implement POST `/api/v1/markets/providers/{name}/disable`
   - Implement POST `/api/v1/markets/providers/{name}/disable?force=true`
   - Implement GET `/api/v1/markets/providers/{name}/markets`
-  - Implement POST `/api/v1/markets/order`
-  - Implement DELETE `/api/v1/markets/order/{venue}/{order_id}`
   - Implement GET `/api/v1/markets/positions` (aggregate)
   - Implement GET `/api/v1/markets/balance` (aggregate)
   - Add to `backend/api/v1/__init__.py`
