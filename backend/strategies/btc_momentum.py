@@ -17,6 +17,7 @@ from backend.strategies.base import (
     CycleResult,
     MarketInfo,
 )
+from backend.config import settings
 
 logger = logging.getLogger("trading_bot")
 
@@ -34,7 +35,7 @@ class BtcMomentumStrategy(BaseStrategy):
         "WARNING": EXPERIMENTAL_WARNING,
         "interval_seconds": 60,
         "max_trades_per_scan": 2,
-        "max_trade_fraction": 0.03,
+        "max_trade_fraction": settings.BTC_MOMENTUM_MAX_TRADE_FRACTION,
         "_force_disabled": True,
     }
 

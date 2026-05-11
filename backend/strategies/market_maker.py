@@ -16,6 +16,7 @@ from backend.strategies.base import (
 )
 from backend.core.decisions import record_decision
 from backend.models.database import Trade
+from backend.config import settings
 
 logger = logging.getLogger("trading_bot.market_maker")
 
@@ -33,18 +34,18 @@ class MarketMakerStrategy(BaseStrategy):
     description = "Two-sided quoting with dynamic spread and inventory control"
     category = "market_making"
     default_params = {
-        "base_spread": 0.04,  # 4% base spread
-        "max_inventory": 500.0,  # max USD per market
-        "inventory_skew_factor": 0.5,
-        "min_spread": 0.02,
-        "max_spread": 0.15,
-        "quote_size": 25.0,  # USD per side
+        "base_spread": settings.MARKET_MAKER_BASE_SPREAD,
+        "max_inventory": settings.MARKET_MAKER_MAX_INVENTORY,
+        "inventory_skew_factor": settings.MARKET_MAKER_INVENTORY_SKEW_FACTOR,
+        "min_spread": settings.MARKET_MAKER_MIN_SPREAD,
+        "max_spread": settings.MARKET_MAKER_MAX_SPREAD,
+        "quote_size": settings.MARKET_MAKER_QUOTE_SIZE,
         "spread_mode": "static",
-        "lmsr_liquidity_param": 10.0,
+        "lmsr_liquidity_param": settings.MARKET_MAKER_LMSR_LIQUIDITY_PARAM,
     }
 
     @staticmethod
-    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = 10.0) -> dict:
+    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = settings.MARKET_MAKER_LMSR_LIQUIDITY_PARAM) -> dict:
         import math
         b = max(liquidity_param, 0.1)
         exp_yes = math.exp(yes_inventory / b)
@@ -234,7 +235,7 @@ class MarketMakerStrategy(BaseStrategy):
                         self.name,
                         market.ticker,
                         decision,
-                        confidence=0.5,
+                        confidence=settings.MARKET_MAKER_DEFAULT_CONFIDENCE,
                         signal_data={
                             "bid_price": quote.bid_price,
                             "ask_price": quote.ask_price,

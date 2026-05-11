@@ -16,6 +16,7 @@ import random
 import time
 from typing import Any, Callable
 
+from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.errors import RateLimitError
 
@@ -30,8 +31,8 @@ class ExternalRateLimiter:
         name: str,
         max_calls_per_minute: int,
         circuit_breaker: CircuitBreaker | None = None,
-        backoff_base: float = 2.0,
-        max_delay: float = 60.0,
+        backoff_base: float | None = None,
+        max_delay: float | None = None,
     ):
         """
         Initialize the rate limiter.
@@ -40,20 +41,20 @@ class ExternalRateLimiter:
             name: Unique identifier for this rate limiter (e.g., "gamma", "kalshi")
             max_calls_per_minute: Maximum API calls allowed per minute
             circuit_breaker: Optional CircuitBreaker instance; creates one if not provided
-            backoff_base: Base multiplier for exponential backoff (default: 2.0s)
-            max_delay: Maximum delay between retries (default: 60.0s)
+            backoff_base: Base multiplier for exponential backoff (default: settings.RATE_LIMIT_BACKOFF_BASE)
+            max_delay: Maximum delay between retries (default: settings.RATE_LIMIT_MAX_DELAY)
         """
         self.name = name
         self.max_calls_per_minute = max_calls_per_minute
-        self.backoff_base = backoff_base
-        self.max_delay = max_delay
+        self.backoff_base = backoff_base if backoff_base is not None else settings.RATE_LIMIT_BACKOFF_BASE
+        self.max_delay = max_delay if max_delay is not None else settings.RATE_LIMIT_MAX_DELAY
 
-        # Use provided circuit breaker or create one
+        # Use provided circuit breaker or create one with settings-based defaults
         self._circuit_breaker = circuit_breaker or CircuitBreaker(
             name=f"{name}_circuit",
-            failure_threshold=3,
-            recovery_timeout=60.0,
-            half_open_max=1,
+            failure_threshold=settings.CB_FAILURE_THRESHOLD,
+            recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+            half_open_max=settings.CB_HALF_OPEN_MAX,
         )
 
         # Token bucket for rate limiting
@@ -266,8 +267,8 @@ class ExternalRateLimiter:
 def rate_limited(
     name: str,
     max_calls_per_minute: int,
-    backoff_base: float = 2.0,
-    max_delay: float = 60.0,
+    backoff_base: float | None = None,
+    max_delay: float | None = None,
 ):
     """
     Decorator for rate limiting external API calls.
@@ -275,8 +276,8 @@ def rate_limited(
     Args:
         name: Unique identifier for this rate limiter
         max_calls_per_minute: Maximum API calls per minute
-        backoff_base: Base multiplier for exponential backoff
-        max_delay: Maximum delay between retries
+        backoff_base: Base multiplier for exponential backoff (default: settings.RATE_LIMIT_BACKOFF_BASE)
+        max_delay: Maximum delay between retries (default: settings.RATE_LIMIT_MAX_DELAY)
 
     Returns:
         Decorated function with rate limiting

@@ -40,7 +40,8 @@ def _resolve_rss_feeds() -> list[str]:
             DEFAULT_RSS_FEEDS = [u.strip() for u in raw.split(",") if u.strip()]
         else:
             DEFAULT_RSS_FEEDS = []
-    except Exception:
+    except Exception as e:
+        logger.debug("Could not resolve RSS feeds from config: %s", e)
         DEFAULT_RSS_FEEDS = []
     return DEFAULT_RSS_FEEDS
 
@@ -307,7 +308,8 @@ class ResearchPipeline:
                     result = await router.complete_json(prompt, role="default")
                     score = float(result.get("score", 0.5))
                     item.relevance_score = max(0.0, min(1.0, score))
-                except Exception:
+                except Exception as e:
+                    logger.debug("LLM relevance scoring failed for item, defaulting to 0.5: %s", e)
                     item.relevance_score = 0.5
         except Exception as exc:
             logger.warning("LLM scoring unavailable, defaulting to 0.5: %s", exc)

@@ -1,9 +1,12 @@
 from __future__ import annotations
+import logging
 from typing import List, Optional
 
-from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.gamma import fetch_markets
 from backend.data.polymarket_clob import PolymarketCLOB
+from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
+
+logger = logging.getLogger(__name__)
 
 class PolymarketProvider(DataProvider):
     @property
@@ -15,6 +18,7 @@ class PolymarketProvider(DataProvider):
             markets = await fetch_markets(limit=1)
             return bool(markets)
         except Exception:
+            logger.debug("Polymarket health check failed")
             return False
 
     async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:

@@ -1,10 +1,10 @@
 #!/bin/bash
 # Hourly backup and verification cron job wrapper
 
-BACKUP_SCRIPT="/home/openclaw/projects/polyedge/scripts/backup_with_validation.sh"
-VERIFY_SCRIPT="/home/openclaw/projects/polyedge/scripts/verify_latest_backup.sh"
-LOG_FILE="/home/openclaw/projects/polyedge/logs/backup_cron.log"
-ALERT_LOG="/home/openclaw/projects/polyedge/logs/backup_alerts.log"
+BACKUP_SCRIPT="${POLYEDGE_ROOT:-.}/scripts/backup_with_validation.sh"
+VERIFY_SCRIPT="${POLYEDGE_ROOT:-.}/scripts/verify_latest_backup.sh"
+LOG_FILE="${POLYEDGE_LOG_DIR:-./logs}/backup_cron.log"
+ALERT_LOG="${POLYEDGE_LOG_DIR:-./logs}/backup_alerts.log"
 
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$ALERT_LOG")"

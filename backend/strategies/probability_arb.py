@@ -65,13 +65,13 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
     if sum_price >= 1.0:
         return None
 
-    fees = _cfg("ARB_POLYMARKET_FEE", 0.01) + _cfg("ARB_KALSHI_FEE", 0.01)
+    fees = settings.ARB_POLYMARKET_FEE + settings.ARB_KALSHI_FEE
     profit = (1.0 - sum_price) - fees
 
-    if profit < _cfg("ARB_MIN_PROFIT", 0.02):
+    if profit < settings.ARB_MIN_PROFIT:
         return None
 
-    min_profit = _cfg("ARB_MIN_PROFIT", 0.02)
+    min_profit = settings.ARB_MIN_PROFIT
 
     return ArbOpportunity(
         market_id="",
@@ -105,7 +105,7 @@ async def execute_arb(
 
     async with execution_breaker():
         try:
-            arb_size = _cfg("ARB_DEFAULT_SIZE", 10.0)
+            arb_size = settings.ARB_EXECUTOR_MAX_SIZE
             order_yes = await _place_order_with_retry(
                 token_id=market_id,
                 side="BUY",
@@ -174,7 +174,7 @@ async def _place_order_with_retry(
 
     except Exception:
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
-            wait = 0.1 * (2 ** retry_count)
+            wait = settings.PROB_ARB_RETRY_BACKOFF_BASE * (settings.PROB_ARB_RETRY_BACKOFF_MULTIPLIER ** retry_count)
             await asyncio.sleep(wait)
             return await _place_order_with_retry(
                 token_id, side, price, size, clob, idempotency_key, retry_count + 1

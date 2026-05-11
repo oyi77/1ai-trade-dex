@@ -12,6 +12,7 @@ from redis import Redis
 from redis.exceptions import RedisError
 
 from backend.job_queue.abstract import AbstractCache
+from backend.config import settings
 
 logger = logging.getLogger("trading_bot")
 
@@ -98,19 +99,12 @@ class RedisCache(AbstractCache):
 
     def __init__(
         self,
-        redis_url: str,
-        fallback: AbstractCache,
+        redis_url: Optional[str] = None,
+        fallback: AbstractCache = None,
         breaker_threshold: int = 3,
         breaker_timeout: int = 60,
     ):
-        """
-        Args:
-            redis_url: Redis connection URL (e.g. "redis://localhost:6379/0")
-            fallback: AbstractCache instance to use when Redis is unavailable
-            breaker_threshold: Failures before circuit opens
-            breaker_timeout: Seconds before half-open trial is allowed
-        """
-        self._redis_url = redis_url
+        self._redis_url = redis_url or settings.REDIS_URL
         self._fallback = fallback
         self._breaker = CircuitBreaker(
             threshold=breaker_threshold, timeout=breaker_timeout

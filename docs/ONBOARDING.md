@@ -23,7 +23,7 @@ docker-compose up -d
 
 ## Project Overview
 
-**PolyEdge** is a full-stack automated prediction market trading bot targeting **Polymarket** and **Kalshi**. It combines AI-powered signal generation, 9 trading strategies, real-time market data aggregation, and a React dashboard for monitoring and control.
+**PolyEdge** is a full-stack automated prediction market trading bot targeting **Polymarket** and **Kalshi**. It combines AI-powered signal generation, 14 trading strategies (9 active + 5 module-resident), 181 API routes, real-time market data aggregation, and a React dashboard for monitoring and control.
 
 | Aspect | Details |
 |--------|---------|
@@ -51,7 +51,7 @@ PolyEdge follows a **layered architecture** with clear separation of concerns:
 │  Orchestrator · Risk Manager · Settlement · Backtest │
 ├─────────────────────────────────────────────────────┤
 │  AI & Strategies                                     │
-│  Claude/Groq · Debate Engine · 9 Strategies          │
+│  Claude/Groq · Debate Engine · 14 Strategies (9 active + 5 module-resident)          │
 ├─────────────────────────────────────────────────────┤
 │  Data Sources                                        │
 │  Polymarket CLOB · Kalshi · Coinbase/Binance · NWS    │
@@ -69,7 +69,7 @@ PolyEdge follows a **layered architecture** with clear separation of concerns:
 | **Database & Migrations** | SQLAlchemy ORM, Alembic migrations | `backend/models/`, `alembic/versions/` |
 | **Core Trading Engine** | Orchestrator, risk, settlement, backtesting | `backend/core/orchestrator.py`, `backend/core/risk_manager.py`, `backend/core/settlement.py` |
 | **AI & Signal Generation** | Claude, Groq, debate engine, signal parsing | `backend/ai/claude.py`, `backend/ai/groq.py`, `backend/ai/debate_engine.py` |
-| **Trading Strategies** | 9 parallel strategies with risk isolation | `backend/strategies/btc_momentum.py`, `backend/strategies/weather_emos.py`, `backend/strategies/copy_trader.py` |
+| **Trading Strategies** | 14 parallel strategies (9 active + 5 module-resident) with risk isolation | `backend/strategies/btc_oracle.py`, `backend/strategies/universal_scanner.py`, `backend/strategies/agi_orchestrator.py`, `backend/modules/copy_trader.py`, etc. |
 | **API & WebSocket Layer** | FastAPI routes, auth, middleware | `backend/api/auth.py`, `backend/api/trading.py`, `backend/api/dashboard.py` |
 | **Data Sources & Clients** | Polymarket, Kalshi, crypto feeds, weather | `backend/data/polymarket_clob.py`, `backend/data/kalshi_client.py`, `backend/data/crypto.py` |
 | **Notifications & Bot** | Telegram, Discord, alert routing | `backend/bot/telegram_bot.py`, `backend/bot/notification_router.py` |

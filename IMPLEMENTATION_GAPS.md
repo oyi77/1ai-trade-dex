@@ -20,9 +20,9 @@ Format:
 
 ~~**[AGI-3] No demotion→improvement loop — killed strategies go to RETIRED**~~ → **Fixed** (2026-05-09): `AutonomousPromoter` now calls `_trigger_improvement_loop()` on LIVE_TRIAL kill, LIVE_TRIAL degradation, and LIVE_PROMOTED kill. Loop triggers forensics proposals + creates new DRAFT experiment. Respects `AGI_MAX_IMPROVEMENT_ATTEMPTS` before RETIRED. Affects: `backend/core/autonomous_promoter.py`.
 
-~~~~**[AGI-4] StrategySynthesizer stub code**~~ Fixed (2026-05-09).~~ → **Fixed** (2026-05-09): `StrategySynthesizer.generate_strategy()` now calls `StrategyComposer.compose_new_strategy()` (Claude/Groq LLM) with KG context. Added 4-gate validation pipeline: syntax → lint → 30-day backtest → sandbox import. Only strategies passing all gates enter SHADOW. Daily budget enforced via `AGI_SYNTHESIS_DAILY_BUDGET`. Affects: `backend/core/strategy_synthesizer.py`.
+~~~~**[AGI-4] StrategySynthesizer stub code** → **Fixed** (2026-05-09): `StrategySynthesizer.generate_strategy()` now calls `StrategyComposer.compose_new_strategy()` (Claude/Groq LLM) with KG context. Added 4-gate validation pipeline: syntax → lint → 30-day backtest → sandbox import. Only strategies passing all gates enter SHADOW. Daily budget enforced via `AGI_SYNTHESIS_DAILY_BUDGET`. Affects: `backend/core/strategy_synthesizer.py`.
 
-~~~~**[AGI-5] ExperimentRunner faked shadow results**~~ Verified Fixed (2026-05-09).~~ → **Verified Fixed** (2026-05-09): `DBSessionShadowRunner` is the canonical shadow runner; `shadow_validation_job` updates `GenomeRegistry.fitness_json` from real shadow trades. No stub data found in current code.
+~~~~**[AGI-5] ExperimentRunner faked shadow results** → **Verified Fixed** (2026-05-09): `DBSessionShadowRunner` is the canonical shadow runner; `shadow_validation_job` updates `GenomeRegistry.fitness_json` from real shadow trades. No stub data found in current code.
 
 ~~**[AGI-6] AGI improvement cycle swallows all errors silently**~~ → **Fixed** (2026-05-09): All 7 stages now record per-stage result in `stats["stage_results"]`. PERMANENT failures call `_alert_permanent_failure()` → `ProductionMonitor.send_alert()`. BENIGN failures log a warning before continuing. Affects: `backend/core/agi_orchestrator.py`.
 

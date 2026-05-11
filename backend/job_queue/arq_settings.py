@@ -31,10 +31,6 @@ class WorkerSettings:
     """arq Worker configuration."""
 
     functions = [market_scan, settlement_check, signal_generation]
-    redis_settings = RedisSettings.from_dsn(
-        settings.JOB_QUEUE_URL
-        if settings.JOB_QUEUE_URL.startswith("redis://")
-        else "redis://localhost:6379"
-    )
+    redis_settings = RedisSettings.from_dsn(settings.JOB_QUEUE_URL)
     max_jobs = settings.MAX_CONCURRENT_JOBS
     job_timeout = settings.JOB_TIMEOUT_SECONDS

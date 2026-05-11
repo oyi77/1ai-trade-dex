@@ -18,7 +18,7 @@
 
 ## Triage Flow
 
-1. **Check health endpoint**: `curl localhost:8000/api/health`
+1. **Check health endpoint**: `curl localhost:8100/api/health`
 2. **Check PM2**: `pm2 status` — are all 3 processes running?
 3. **Check logs**: `pm2 logs --lines 100`
 4. **Check circuit breakers**: Are any breakers OPEN?
@@ -31,31 +31,31 @@
 
 ```bash
 # Check pending trades
-curl localhost:8000/api/trades?settled=false
+curl localhost:8100/api/trades?settled=false
 
 # Force settlement check
-curl -X POST localhost:8000/api/admin/settle -H "Authorization: Bearer $ADMIN_API_KEY"
+curl -X POST localhost:8100/api/admin/settle -H "Authorization: Bearer $ADMIN_API_KEY"
 ```
 
 ### Strategy Killed
 
 ```bash
 # Check strategy health
-curl localhost:8000/api/admin/strategies
+curl localhost:8100/api/admin/strategies
 
 # Re-enable (if justified)
-curl -X PATCH localhost:8000/api/admin/strategies/<name>/enable -H "Authorization: Bearer $ADMIN_API_KEY"
+curl -X PATCH localhost:8100/api/admin/strategies/<name>/enable -H "Authorization: Bearer $ADMIN_API_KEY"
 ```
 
 ### Exchange API Down
 
 ```bash
 # Check circuit breaker state
-curl localhost:8000/api/health | jq '.circuit_breakers'
+curl localhost:8100/api/health | jq '.circuit_breakers'
 
 # Wait for automatic recovery (HALF_OPEN → CLOSED)
 # Or manual reset:
-curl -X POST localhost:8000/api/admin/circuit-breaker/<name>/reset -H "Authorization: Bearer $ADMIN_API_KEY"
+curl -X POST localhost:8100/api/admin/circuit-breaker/<name>/reset -H "Authorization: Bearer $ADMIN_API_KEY"
 ```
 
 ## Postmortem Template

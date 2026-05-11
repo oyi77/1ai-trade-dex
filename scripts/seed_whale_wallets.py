@@ -7,7 +7,7 @@ via the running FastAPI /api/wallets/config endpoint to avoid SQLite lock conten
 Falls back to direct sqlite3 when the API is unavailable.
 
 Usage:
-    python scripts/seed_whale_wallets.py [--dry-run] [--api-url http://localhost:8000]
+    python scripts/seed_whale_wallets.py [--dry-run] [--api-url http://localhost:{API_PORT}]
 
 Idempotent: re-running will skip addresses already present in wallet_config.
 """
@@ -21,6 +21,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from backend.config import settings
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -183,7 +185,7 @@ def seed_via_sqlite(wallets: list[dict], dry_run: bool) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed whale wallets into wallet_config")
     parser.add_argument("--dry-run", action="store_true", help="Preview inserts without committing")
-    parser.add_argument("--api-url", default="http://localhost:8100", help="FastAPI base URL")
+    parser.add_argument("--api-url", default=None, help="FastAPI base URL (default: settings.API_PORT with /api prefix)")
     parser.add_argument("--fallback-sqlite", action="store_true", help="Use direct sqlite3 instead of API")
     args = parser.parse_args()
 
@@ -201,6 +203,10 @@ def main() -> None:
         f"{len(wallets) - len(decision_addresses)} known whales)"
     )
 
+    if args.api_url is None:
+        api_port = getattr(settings, "API_PORT", 8100)
+        args.api_url = f"http://localhost:{api_port}"
+    
     if args.fallback_sqlite:
         count = seed_via_sqlite(wallets, args.dry_run)
     else:

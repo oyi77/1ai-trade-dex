@@ -15,16 +15,15 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 # Per-exchange circuit breakers for the BTC kline fallback chain
-# Increased tolerance: 10 failures before opening, 5-minute recovery window
-coinbase_breaker = CircuitBreaker("coinbase", failure_threshold=10, recovery_timeout=300.0)
-kraken_breaker = CircuitBreaker("kraken", failure_threshold=10, recovery_timeout=300.0)
-binance_breaker = CircuitBreaker("binance", failure_threshold=10, recovery_timeout=300.0)
+# Increased tolerance: settings.CB_FAILURE_THRESHOLD failures before opening, settings.CB_RECOVERY_TIMEOUT recovery window
+coinbase_breaker = CircuitBreaker("coinbase", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+kraken_breaker = CircuitBreaker("kraken", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+binance_breaker = CircuitBreaker("binance", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
 
 # Rate limiter for crypto exchange API calls (configurable requests per minute)
 _crypto_rate_limiter = ExternalRateLimiter(
     name="crypto",
     max_calls_per_minute=settings.RATE_LIMIT_CRYPTO,
-    circuit_breaker=CircuitBreaker("crypto_circuit", failure_threshold=3, recovery_timeout=60.0),
 )
 
 # ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import logging
 from typing import Optional, Dict, Any
 
 from backend.job_queue.abstract import AbstractQueue, Job
+from backend.config import settings
 
 logger = logging.getLogger("trading_bot")
 
@@ -32,17 +33,11 @@ class RedisQueue(AbstractQueue):
 
     def __init__(
         self,
-        redis_url: str,
+        redis_url: Optional[str] = None,
         max_jobs: int = 1,
         job_timeout: int = 300,
     ):
-        """
-        Args:
-            redis_url: Redis connection URL (e.g. "redis://localhost:6379")
-            max_jobs: Maximum concurrent jobs (used by arq worker config)
-            job_timeout: Job execution timeout in seconds
-        """
-        self._redis_url = redis_url
+        self._redis_url = redis_url or settings.REDIS_URL
         self._max_jobs = max_jobs
         self._job_timeout = job_timeout
 

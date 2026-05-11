@@ -1,6 +1,6 @@
 """Hands-on verification of all 15 core AGI modules."""
 import sys
-sys.path.insert(0, '/home/openclaw/projects/polyedge/backend')
+sys.path.insert(0, '.')
 
 # Import all 15 core modules
 from core.regime_detector import RegimeDetector, RegimeResult

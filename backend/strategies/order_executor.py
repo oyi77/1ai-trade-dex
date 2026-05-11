@@ -72,10 +72,10 @@ class LeaderboardScorer:
     """Fetches and scores Polymarket leaderboard traders."""
 
     WEIGHTS = {
-        "profit_30d": 0.35,
-        "win_rate": 0.25,
-        "market_diversity": 0.20,
-        "consistency": 0.20,
+        "profit_30d": settings.ORDER_EXECUTOR_WEIGHT_PROFIT_30D,
+        "win_rate": settings.ORDER_EXECUTOR_WEIGHT_WIN_RATE,
+        "market_diversity": settings.ORDER_EXECUTOR_WEIGHT_MARKET_DIVERSITY,
+        "consistency": settings.ORDER_EXECUTOR_WEIGHT_CONSISTENCY,
     }
 
     def __init__(self, http: httpx.AsyncClient):

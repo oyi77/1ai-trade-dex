@@ -143,8 +143,8 @@ class CLOBWebSocket:
         if self._ws:
             try:
                 await self._ws.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Error closing WebSocket: %s", e)
 
     # =========================================================================
     # Internal

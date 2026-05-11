@@ -1,7 +1,7 @@
 """Smoke test: verify the market scanner can fetch real markets."""
 import asyncio
 import sys
-sys.path.insert(0, "/home/openclaw/projects/polyedge")
+sys.path.insert(0, ".")
 
 from backend.core.market_scanner import fetch_all_active_markets, fetch_markets_by_keywords
 

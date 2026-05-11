@@ -22,6 +22,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional, Set
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -208,8 +210,8 @@ class BaseStrategy(ABC):
                     errors=[],
                     cycle_duration_ms=0.0,
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            ctx.logger.debug("[%s] State preparation failed: %s", self.name, e)
 
         try:
             result = await self.run_cycle(ctx)
@@ -231,8 +233,8 @@ class BaseStrategy(ABC):
             from backend.core.heartbeat import update_heartbeat
 
             update_heartbeat(self.name)
-        except Exception:
-            pass
+        except Exception as e:
+            ctx.logger.debug("[%s] Heartbeat update failed: %s", self.name, e)
 
         return result
 
@@ -249,4 +251,4 @@ class BaseStrategy(ABC):
 
                 _auto_register(cls)
             except ImportError:
-                pass
+                logger.debug("Auto-registration unavailable (circular import guard)")

@@ -113,9 +113,10 @@ class DistributedSettlementLock:
         try:
             from backend.config import settings  # type: ignore
 
-            redis_url = getattr(settings, "REDIS_URL", None) or "redis://localhost:6379"
+            redis_url = getattr(settings, "REDIS_URL", None) or settings.REDIS_DEFAULT_URL
         except Exception:
             redis_url = "redis://localhost:6379"
+            logger.warning("Could not load config for Redis URL, using default fallback")
 
         try:
             import redis  # type: ignore
