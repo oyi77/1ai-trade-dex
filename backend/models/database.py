@@ -79,6 +79,21 @@ def configure_sqlite_wal(engine_obj):
 
 configure_sqlite_wal(engine)
 
+
+def configure_postgres_lock_timeout(engine_obj):
+    if engine_obj.url.get_dialect().name != "postgresql":
+        return
+
+    @event.listens_for(engine_obj, "connect")
+    def set_postgres_lock_timeout(dbapi_conn, connection_record):
+        cursor = dbapi_conn.cursor()
+        cursor.execute("SET lock_timeout = '5s'")
+        cursor.execute("SET statement_timeout = '30s'")
+        cursor.close()
+
+
+configure_postgres_lock_timeout(engine)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -90,13 +105,9 @@ def for_update(session, query):
 
     For SQLite, use ``botstate_mutex`` alongside this for read-modify-write
     patterns on BotState to prevent lost updates under concurrent async access.
-
-    On PostgreSQL, uses ``skip_locked=True`` to avoid indefinite blocking when
-    multiple strategy executors compete for the same BotState row. Callers
-    must handle the case where the row is skipped (returns None).
     """
     if session.get_bind().dialect.name == "postgresql":
-        return query.with_for_update(skip_locked=True)
+        return query.with_for_update()
     return query
 
 
