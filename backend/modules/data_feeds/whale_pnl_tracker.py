@@ -227,7 +227,7 @@ class WhalePNLTrackerStrategy(BaseStrategy):
 
         self._last_signal_times[matching_position.ticker] = datetime.now(timezone.utc).timestamp()
 
-        direction = "up" if pnl_change > 0 else "down"
+        direction = "yes" if pnl_change > 0 else "no"
         confidence = min(abs(pnl_change) / pnl_threshold, 1.0)
         copy_fraction = self.default_params["copy_fraction"]
 
@@ -239,12 +239,12 @@ class WhalePNLTrackerStrategy(BaseStrategy):
         return {
             "decision": "BUY",
             "token_id": token_id,
+            "market_ticker": matching_position.ticker,
             "direction": direction,
             "confidence": confidence,
             "edge": pnl_change,
             "size": matching_position.size * copy_fraction,
-            "strategy_name": self.name,
-            "market_type": "whale_pnl_ws",
+            "strategy": self.name,
             "reasoning": f"whale_pnl_tracker WS: pnl_change={pnl_change:+.4f} wallet={matching_position.wallet[:8]}...",
         }
 
