@@ -124,15 +124,18 @@ class WhaleFrontrun(BaseStrategy):
         if confidence < min_score:
             return None
 
-        direction = "BUY" if side.upper() in ("BUY", "BID") else "SELL"
+        side_val = side.upper()
+        direction = "yes" if side_val in ("BUY", "BID") else "no"
 
         return {
-            "decision": direction,
+            "decision": "BUY",
+            "token_id": event.token_id,
             "market_ticker": event.token_id,
+            "direction": direction,
             "confidence": confidence,
             "edge": confidence * 0.1,
-            "size": min(10.0, size * 0.001),
-            "strategy_name": "whale_frontrun",
+            "size": max(5.0, min(10.0, size * 0.001)),
+            "strategy": self.name,
             "reasoning": f"ws frontrun: size=${size:.0f} side={side} price={price}",
         }
 
@@ -241,13 +244,17 @@ class WhaleFrontrun(BaseStrategy):
                 result = self.detect_and_frontrun(activity)
                 if result.frontrun_placed:
                     frontruns += 1
+                    action = activity.action.upper() if isinstance(activity.action, str) else "BUY"
+                    dir_val = "yes" if action in ("BUY", "BID") else "no"
                     decisions.append({
                         "decision": "BUY",
                         "market_ticker": activity.market,
+                        "token_id": activity.market,
+                        "direction": dir_val,
                         "confidence": activity.score,
                         "edge": activity.score * 0.1,
-                        "size": min(10.0, activity.size * 0.001),
-                        "strategy_name": "whale_frontrun",
+                        "size": max(5.0, min(10.0, activity.size * 0.001)),
+                        "strategy": self.name,
                         "reasoning": f"frontrun whale {activity.wallet[:8]}... size=${activity.size:.0f}",
                     })
 
