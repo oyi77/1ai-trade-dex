@@ -1598,7 +1598,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   **What to do**:
   - Create `SandboxRegistry` instance with mock-only data sources
   - Only include `mock_source` in registry
-  -拒绝 any nodes with requires_live_data=True
+  - Reject any nodes with requires_live_data=True
   - Export in `backend/agi/sandbox/__init__.py`
 
   **Test cases**:
