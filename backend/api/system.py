@@ -8,7 +8,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 import json as _json
 import asyncio
-# import psutil # Temporarily disabled for debugging
+import psutil
 import os
 
 from backend.config import settings
@@ -36,7 +36,7 @@ logger = logging.getLogger("trading_bot")
 
 def _iso(dt) -> str | None:
     """Safely convert a datetime or string to ISO format.
-    
+
     SQLite stores dates as strings, PostgreSQL as datetime objects.
     This handles both cases without crashing.
     """

@@ -210,7 +210,6 @@ class ExternalRateLimiter:
             CircuitOpenError: If circuit breaker is open
             Exception: Any other exception from func
         """
-        last_exception = None
         max_attempts = 5  # Max retry attempts after rate limit
 
         for attempt in range(1, max_attempts + 1):
@@ -224,7 +223,6 @@ class ExternalRateLimiter:
                 return result
 
             except RateLimitError as e:
-                last_exception = e
 
                 # Get Retry-After from error directly or from headers
                 response_headers = {}
@@ -241,7 +239,7 @@ class ExternalRateLimiter:
                 await asyncio.sleep(wait_time)
                 continue  # Retry with next attempt
 
-            except Exception as e:
+            except Exception:
                 # For non-rate-limit errors, let circuit breaker handle it
                 raise
 

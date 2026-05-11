@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from backend.config import settings
 from backend.models.audit_logger import log_audit_event
-from backend.models.database import BotState, Trade, for_update
+from backend.models.database import BotState, Trade
 
 logger = logging.getLogger("trading_bot.bankroll_reconciliation")
 

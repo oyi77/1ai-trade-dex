@@ -13,26 +13,18 @@ from sqlalchemy.exc import OperationalError
 from backend.config import settings
 from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
-from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.core.task_manager import TaskManager
-from backend.core.scheduler import log_event
 from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
 from backend.data.orderbook_cache import get_orderbook_cache
-from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig, SystemSettings, for_update
+from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig, for_update
 from backend.core.mode_context import ModeExecutionContext, register_context
 from backend.core.risk_manager import RiskManager
 from backend.strategies.registry import load_all_strategies
-from backend.core.config_service import reload_settings_from_db
-from backend.scripts.seed_settings import seed_settings
 from backend.core.bankroll_reconciliation import reconcile_bot_state
 # from backend.api.graceful_shutdown import GracefulShutdownHandler
 from backend.db.utils import get_db_session
-from backend.data.polymarket_clob import clob_from_settings # New import
-from backend.core.mode_context import ModeExecutionContext, register_context # New import
-from backend.core.risk_manager import RiskManager # New import
-from backend.models.database import StrategyConfig # New import
 
 logger = logging.getLogger("trading_bot")
 
@@ -198,7 +190,7 @@ async def _startup_polymarket_websocket():
 
             if asset_ids:
                 market_ws = await get_market_websocket(asset_ids)
-                orderbook_cache = get_orderbook_cache()
+                get_orderbook_cache()
 
                 # Notify event bus: WS connected, strategies can use WS path
                 from backend.core.event_bus import event_bus
@@ -434,7 +426,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # --- Shutdown ---
-    shutdown_handler = getattr(app.state, 'shutdown_handler', None)
+    getattr(app.state, 'shutdown_handler', None)
     shutdown_start = time.time()
 
     logger.info("=" * 60)

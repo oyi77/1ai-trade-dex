@@ -203,7 +203,7 @@ class WhalePNLTrackerStrategy(BaseStrategy):
         if matching_position is None:
             return None
 
-        last_pnl = self._whale_pnl_cache.get(token_id, 0.0)
+        self._whale_pnl_cache.get(token_id, 0.0)
         entry_price = data.get("entry_price") or data.get("avg_price")
         if entry_price is not None:
             try:
