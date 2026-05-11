@@ -1569,7 +1569,9 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - Gate 1 - SYNTAX: `ast.parse()` succeeds, no forbidden imports
   - Gate 2 - LINT: run `ruff check` subprocess with zero errors; run any existing configured security tooling, or add the required security-tool configuration as an explicit deliverable before implementation
   - Gate 3 - SANDBOX BACKTEST: run sandbox with 3 scenarios (bull, bear, volatile)
-  - Gate 4 - SHADOW PROBE: register strategy as SHADOW, run 24 hours
+  - Gate 4 - SHADOW PROBE: 
+    - For automated tests/CI: run deterministic "shadow probe simulation" (10 simulated trades with mock data, ~30 seconds)
+    - For production validation: register strategy as SHADOW, run 24-hour live probe (separate long-running step)
   - Return SandboxResult with per-gate results
   - On gate failure: store failure point, return error details
   - Export in `backend/agi/sandbox/__init__.py`
@@ -1578,7 +1580,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - Gate 1 rejects forbidden imports
   - Gate 2 rejects lint errors
   - Gate 3 rejects below win rate / max drawdown
-  - Gate 4 rejects during shadow probe
+  - Gate 4 simulation rejects strategies with critical errors (uses fast mock-based probe)
   - Full pass returns success result
 
   **Recommended Agent Profile**:
