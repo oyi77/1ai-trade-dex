@@ -2457,24 +2457,34 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 # Run all plugin system tests
 pytest backend/tests/test_plugin_registry.py backend/tests/test_ai_provider_registry.py backend/tests/test_data_source_registry.py backend/tests/test_market_provider_registry.py backend/tests/test_node_registry.py backend/tests/test_sandbox_validator.py backend/tests/test_sandbox_manager.py
 
-# Check AI provider system
-curl -s http://localhost:8100/api/v1/ai/providers | jq .
-curl -s -X POST http://localhost:8100/api/v1/ai/providers/claude/disable | jq .
+# Base URLs:
+# - Use UVICORN_API when running the API directly on the host (for example, uvicorn on port 8100)
+# - Use COMPOSE_API when running via Docker Compose with host port mapping 8000:8100
+UVICORN_API="http://localhost:8100"
+COMPOSE_API="http://localhost:8000"
 
-# Check data source system
-curl -s http://localhost:8100/api/v1/data/sources | jq .
-curl -s -X POST http://localhost:8100/api/v1/data/sources/polymarket/disable | jq .
+# Check AI provider system (direct uvicorn)
+curl -s "$UVICORN_API/api/v1/ai/providers" | jq .
+curl -s -X POST "$UVICORN_API/api/v1/ai/providers/claude/disable" | jq .
 
-# Check market provider system
-curl -s http://localhost:8100/api/v1/markets/providers | jq .
-curl -s -X POST http://localhost:8100/api/v1/markets/providers/polymarket/disable?force=true | jq .
+# Check AI provider system (Docker Compose)
+curl -s "$COMPOSE_API/api/v1/ai/providers" | jq .
+curl -s -X POST "$COMPOSE_API/api/v1/ai/providers/claude/disable" | jq .
 
-# Check AGI node system
-curl -s http://localhost:8100/api/v1/agi/nodes | jq .
-curl -s http://localhost:8100/api/v1/agi/graphs | jq .
+# Check data source system (direct uvicorn)
+curl -s "$UVICORN_API/api/v1/data/sources" | jq .
+curl -s -X POST "$UVICORN_API/api/v1/data/sources/polymarket/disable" | jq .
 
-# Check sandbox validation
-curl -s -X POST http://localhost:8100/api/v1/agi/sandbox/validate -H "Content-Type: application/json" -d '{"code": "...", "scenario": "bull_2024"}' | jq .
+# Check market provider system (direct uvicorn)
+curl -s "$UVICORN_API/api/v1/markets/providers" | jq .
+curl -s -X POST "$UVICORN_API/api/v1/markets/providers/polymarket/disable?force=true" | jq .
+
+# Check AGI node system (direct uvicorn)
+curl -s "$UVICORN_API/api/v1/agi/nodes" | jq .
+curl -s "$UVICORN_API/api/v1/agi/graphs" | jq .
+
+# Check sandbox validation (direct uvicorn)
+curl -s -X POST "$UVICORN_API/api/v1/agi/sandbox/validate" -H "Content-Type: application/json" -d '{"code": "...", "scenario": "bull_2024"}' | jq .
 ```
 
 ### Final Checklist
