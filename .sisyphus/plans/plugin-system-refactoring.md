@@ -150,20 +150,20 @@ Wave 4 (After Wave 1 - Market Provider system):
 ├── Task 27: backend/markets/providers/paper_provider.py - In-memory paper trading
 ├── Task 28: backend/strategies/order_executor.py - Refactor to use market registry
 ├── Task 29: backend/core/settlement.py - Update to stream fills from registry
-├── Task 30: backend/api/v1/market_providers.py - API endpoints for venue control
-├── Task 31: backend/tests/test_market_provider_registry.py - Unit tests
-└── Task 32: backend/tests/test_paper_provider.py - Paper provider tests
+├── Task 31: backend/api/v1/market_providers.py - API endpoints for venue control
+├── Task 32: backend/tests/test_market_provider_registry.py - Unit tests
+└── Task 33: backend/tests/test_paper_provider.py - Paper provider tests
 
 Wave 5 (After Waves 1-4 - AGI core infrastructure):
-├── Task 33: backend/agi/agent_state.py - AgentState dataclass
-├── Task 34: backend/agi/base_node.py - AGI node abstract base
-├── Task 35: backend/agi/node_registry.py - Node registry implementation
-├── Task 36: backend/agi/graph_engine.py - Directed graph executor
-└── Task 37: backend/tests/test_graph_engine.py - Graph engine tests
+├── Task 34: backend/agi/agent_state.py - AgentState dataclass
+├── Task 35: backend/agi/base_node.py - AGI node abstract base
+├── Task 36: backend/agi/node_registry.py - Node registry implementation
+├── Task 37: backend/agi/graph_engine.py - Directed graph executor
+└── Task 38: backend/tests/test_graph_engine.py - Graph engine tests
 
 Wave 6 (After Wave 5 - AGI sandbox system):
-├── Task 38: backend/agi/sandbox/sandbox_manager.py - Isolated execution manager
-├── Task 39: backend/agi/sandbox/sandbox_validator.py - 4-gate validation
+├── Task 39: backend/agi/sandbox/sandbox_manager.py - Isolated execution manager
+├── Task 40: backend/agi/sandbox/sandbox_validator.py - 4-gate validation
 ├── Task 40: backend/agi/sandbox/sandbox_registry.py - Mock-only registry
 ├── Task 41: backend/agi/sandbox/results.py - SandboxResult dataclass
 ├── Task 42: backend/tests/test_sandbox_validator.py - 4-gate validation tests
