@@ -27,7 +27,7 @@ Major refactoring to transform four subsystems (AI Providers, Data Sources, Mark
 - Decorator pattern for automatic registration (`@provider_registry.plugin`)
 - Singleton registry pattern for each domain
 - Background health check loops at configurable intervals
-- Sandbox uses mock data only, never lives
+- Sandbox uses mock data only and never touches live systems
 - Node system uses AgentState as shared mutable state passed through graph
 - 4-gate validation for sandbox strategy evaluation
 
