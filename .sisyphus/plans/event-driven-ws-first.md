@@ -487,7 +487,7 @@ Task 1 (Event Bus) → Task 2 (WS Bridge) → Task 4 (Token Discovery) → Tasks
     Preconditions: WS connected, strategy subscribed
     Steps:
       1. Run bot for 5 minutes
-      2. grep logs for "REST fallback" 
+      2. grep logs for "REST fallback"
       3. Assert 0 REST calls to Polymarket API
     Expected Result: 0 REST calls during WS uptime
     Evidence: .sisyphus/evidence/task-5-no-rest-calls.txt
@@ -805,7 +805,7 @@ Task 1 (Event Bus) → Task 2 (WS Bridge) → Task 4 (Token Discovery) → Tasks
       1. grep "Event Bus" ARCHITECTURE.md → found
       2. grep "WebSocket-first" README.md → found
       3. grep "ws_fallback.py" docs/project-structure.md → found
-      4. grep "on_market_event" backend/strategies/AGENTS.md → found  
+      4. grep "on_market_event" backend/strategies/AGENTS.md → found
     Expected Result: All 4 docs reference new event-driven architecture
     Evidence: .sisyphus/evidence/task-17-docs.txt
   ```

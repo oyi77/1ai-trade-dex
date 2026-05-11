@@ -1,6 +1,7 @@
 import { POLL } from '../../polling'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { useStats } from '../../hooks/useStats'
 import { useModeFilter } from '../../hooks/useModeFilter'
 import { ProfitCurveChart } from './ProfitCurveChart'
@@ -103,16 +104,27 @@ export function OverviewTab({
     winRate
   }
 
-  const filteredRecentTrades = selectedMode === 'all'
-    ? recentTrades
-    : recentTrades.filter((t: any) => t.trading_mode === selectedMode)
+  // Bolt: Memoize filtered array of recent trades
+  const filteredRecentTrades = useMemo(() => {
+    return selectedMode === 'all'
+      ? recentTrades
+      : recentTrades.filter((t: any) => t.trading_mode === selectedMode)
+  }, [recentTrades, selectedMode])
 
-  const filteredWinningTrades = selectedMode === 'all'
-    ? topWinningTrades
-    : topWinningTrades.filter((t: any) => t.trading_mode === selectedMode)
-  const settledLossTrades = (filteredRecentTrades as Trade[])
-    .filter(t => (t.pnl ?? 0) < 0)
-    .sort((a, b) => (a.pnl ?? 0) - (b.pnl ?? 0))
+  // Bolt: Memoize filtered array of winning trades
+  const filteredWinningTrades = useMemo(() => {
+    return selectedMode === 'all'
+      ? topWinningTrades
+      : topWinningTrades.filter((t: any) => t.trading_mode === selectedMode)
+  }, [topWinningTrades, selectedMode])
+
+  // Bolt: Memoize expensive filter and sort for loss trades
+  const settledLossTrades = useMemo(() => {
+    return (filteredRecentTrades as Trade[])
+      .filter(t => (t.pnl ?? 0) < 0)
+      .sort((a, b) => (a.pnl ?? 0) - (b.pnl ?? 0))
+  }, [filteredRecentTrades])
+
   const sourceStats = stats.stats as BotStats
   const activeMode = Array.isArray(sourceStats.active_mode)
     ? sourceStats.active_mode.join(', ')
@@ -140,6 +152,7 @@ export function OverviewTab({
     modeCard('Testnet', testnetStats, 'text-yellow-400'),
   ]
   
+  // Bolt: Calculate 24h trades and PnL (unmemoized so Date.now() window slides properly without needing a tick dependency)
   const trades24h = filteredRecentTrades.filter((t: any) => {
     const tradeTime = new Date(t.timestamp).getTime()
     const now = Date.now()
@@ -155,10 +168,13 @@ export function OverviewTab({
     ? stats.openExposure
     : modeStatsForSelected?.open_exposure ?? 0
 
-  const profitCurveData = equityCurve.map((point: any) => ({
-    timestamp: point.timestamp,
-    cumulative_pnl: point.pnl,
-  }))
+  // Bolt: Memoize mapped curve data
+  const profitCurveData = useMemo(() => {
+    return equityCurve.map((point: any) => ({
+      timestamp: point.timestamp,
+      cumulative_pnl: point.pnl,
+    }))
+  }, [equityCurve])
 
   const proposalsGenerated = proposalsData?.length || 0
   const proposalsApproved = proposalsData?.filter(p => p.admin_decision === 'approved' || p.status === 'approved').length || 0

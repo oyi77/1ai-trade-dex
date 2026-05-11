@@ -228,6 +228,7 @@ class UniversalScanner(BaseStrategy):
         """Dynamically subscribe to a newly discovered market token."""
         from backend.core.event_bus import event_bus
 
+        data.get("question", "")
         yes_price = data.get("yes_price") or data.get("outcomePrices", [None, None])
         if isinstance(yes_price, list):
             yes_price = float(yes_price[0]) if yes_price[0] else None
