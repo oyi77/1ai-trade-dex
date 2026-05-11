@@ -9,6 +9,12 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)
+except ImportError:
+    pass
+
 # Project root directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
@@ -137,8 +143,8 @@ class ConfigRegistry:
     PAPER_MIN_ORDER_USDC: float = 1.0  #minimum order size (paper)
 
     # Confidence and signal weights
-    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5  #min confidence for auto-approve (live mode)
-    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = 0.25  #lower threshold for paper mode
+    AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
+    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.25"))
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
 
@@ -340,7 +346,7 @@ class ConfigRegistry:
     # SYSTEM - Deployment and runtime settings
     # --------------------------------------------------------------------------
     # Database
-    DATABASE_URL: str = "sqlite:///./tradingbot.db"
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tradingbot.db")
     POSTGRES_POOL_SIZE: int = 10
     POSTGRES_MAX_OVERFLOW: int = 20
     POSTGRES_POOL_TIMEOUT: int = 30
