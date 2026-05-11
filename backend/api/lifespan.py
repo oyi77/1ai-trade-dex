@@ -628,7 +628,7 @@ def _seed_strategy_configs() -> None:
 
     strategy_defaults = [
         ("copy_trader", True, 300, "paper", {"max_wallets": 20, "min_score": 30.0, "poll_interval": 300}),
-        ("whale_frontrun", True, 300, "paper", {"min_whale_size": 10000, "max_slippage": 0.02}),
+        ("whale_frontrun", True, 300, "paper", {"min_size": 5000, "min_score": 0.5, "frontrun_delay_ms": 50}),
         ("weather_emos", True, 300, "paper", {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40}),
         ("kalshi_arb", True, 300, "paper", {"min_edge": 0.02, "allow_live_execution": False}),
         ("btc_oracle", True, 300, "live", {"min_edge": 0.02, "max_minutes_to_resolution": 30}),
@@ -637,7 +637,7 @@ def _seed_strategy_configs() -> None:
         ("general_scanner", False, 300, "paper", {"min_volume": 50000, "min_edge": 0.05, "max_position_usd": 150}),
         ("bond_scanner", False, 600, "paper", {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200}),
         ("realtime_scanner", False, 60, "paper", {"min_edge": 0.03, "max_position_usd": 100}),
-        ("whale_pnl_tracker", True, 300, "paper", {"min_wallet_pnl": 10000, "max_position_usd": 100}),
+        ("whale_pnl_tracker", True, 300, "paper", {"max_whales": 5, "min_whale_score": 0.3, "min_trades": 20, "copy_fraction": 0.10, "min_position_size": 100, "signal_cooldown_minutes": 5, "pnl_signal_threshold": 0.05}),
         ("market_maker", False, 300, "paper", {"spread": 0.02, "max_position_usd": 200}),
     ]
 

@@ -504,19 +504,22 @@ class RiskManager:
 
     def _get_confidence_threshold(self, trading_mode: str, strategy_name: Optional[str] = None) -> float:
         """Get confidence threshold for trade approval, respecting regime routing."""
-        # Start with base confidence from settings
-        base_confidence = getattr(
-            self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
-        )
+        is_paper = (trading_mode or "").lower() in ("paper", "shadow")
+        if is_paper:
+            base_confidence = getattr(
+                self.s, "PAPER_AUTO_APPROVE_MIN_CONFIDENCE", 0.25
+            )
+        else:
+            base_confidence = getattr(
+                self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
+            )
 
-        # Apply regime multiplier if enabled
         if getattr(self.s, 'REGIME_ROUTING_ENABLED', False):
             regime_multiplier = self._get_regime_multiplier(strategy_name)
             threshold = base_confidence * regime_multiplier
         else:
             threshold = base_confidence
 
-        # Cap at 0.95 maximum
         return min(threshold, 0.95)
 
     def check_drawdown_floors(

@@ -137,7 +137,8 @@ class ConfigRegistry:
     PAPER_MIN_ORDER_USDC: float = 1.0  #minimum order size (paper)
 
     # Confidence and signal weights
-    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5  #min confidence for auto-approve
+    AUTO_APPROVE_MIN_CONFIDENCE: float = 0.5  #min confidence for auto-approve (live mode)
+    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = 0.25  #lower threshold for paper mode
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
 

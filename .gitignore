@@ -124,3 +124,4 @@ docs/paper/**/*.toc
 /paper.out
 tradingbot.db.pre_rebuild_*
 tradingdb
+tradingbot.db.corrupted

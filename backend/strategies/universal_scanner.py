@@ -238,10 +238,12 @@ def _compute_composite_confidence(
     debate_confidence: float | None = None,
     data_source_count: int = 0,
 ) -> float:
+    SIGNAL_FLOOR = 0.35
     components: list[tuple[float, float]] = []
     components.append((max(0.0, min(1.0, llm_confidence)), 0.40))
     edge_score = min(1.0, 1.0 - math.exp(-20.0 * raw_edge))
-    components.append((edge_score, 0.25))
+    components.append((edge_score, 0.20))
+    components.append((SIGNAL_FLOOR, 0.15))
     if engine_confidence is not None:
         components.append((max(0.0, min(1.0, engine_confidence)), 0.15))
     if debate_confidence is not None:
@@ -352,7 +354,7 @@ class UniversalScanner(BaseStrategy):
         if debate_result is not None:
             llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
         else:
-            llm_conf = min(abs(edge) * 5.0, 1.0)
+            llm_conf = max(0.4, min(abs(edge) * 10.0, 1.0))
 
         logger.info(f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}")
 
@@ -399,9 +401,12 @@ class UniversalScanner(BaseStrategy):
 
         self._ws_known_tokens.add(token_id)
 
-        edge_score = min(1.0, 1.0 - math.exp(-20.0 * abs(edge)))
-        vol_score = min(1.0, math.log10(max(1.0, volume)) / 7.0)
-        confidence = round(max(0.0, min(1.0, 0.65 * edge_score + 0.35 * vol_score)), 4)
+        confidence = _compute_composite_confidence(
+            llm_confidence=0.5,
+            raw_edge=abs(edge),
+            volume=volume,
+            data_source_count=1,
+        )
 
         logger.info(f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}")
 
