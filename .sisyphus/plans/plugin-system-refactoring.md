@@ -1569,7 +1569,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   **What to do**:
   - Create `SandboxValidator` class with `validate(code, scenario)` method
   - Gate 1 - SYNTAX: `ast.parse()` succeeds, no forbidden imports
-  - Gate 2 - LINT: run flake8 subprocess, zero errors; run bandit security
+  - Gate 2 - LINT: run `ruff check` subprocess with zero errors; run any existing configured security tooling, or add the required security-tool configuration as an explicit deliverable before implementation
   - Gate 3 - SANDBOX BACKTEST: run sandbox with 3 scenarios (bull, bear, volatile)
   - Gate 4 - SHADOW PROBE: register strategy as SHADOW, run 24 hours
   - Return SandboxResult with per-gate results
