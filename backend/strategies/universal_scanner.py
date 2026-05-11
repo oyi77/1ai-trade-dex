@@ -611,10 +611,11 @@ class UniversalScanner(BaseStrategy):
                 decisions.append({
                     "decision": "BUY",
                     "market_ticker": sig["ticker"],
+                    "token_id": sig["ticker"],
                     "size": round(size, 2),
                     "confidence": round(confidence, 4),
                     "edge": round(edge, 4),
-                    "side": side,
+                    "direction": side.lower(),
                     "strategy": self.name,
                     "reason": f"Edge {edge:+.4f} on {sig['question'][:60]}",
                 })
