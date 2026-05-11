@@ -90,9 +90,13 @@ def for_update(session, query):
 
     For SQLite, use ``botstate_mutex`` alongside this for read-modify-write
     patterns on BotState to prevent lost updates under concurrent async access.
+
+    On PostgreSQL, uses ``skip_locked=True`` to avoid indefinite blocking when
+    multiple strategy executors compete for the same BotState row. Callers
+    must handle the case where the row is skipped (returns None).
     """
     if session.get_bind().dialect.name == "postgresql":
-        return query.with_for_update()
+        return query.with_for_update(skip_locked=True)
     return query
 
 
