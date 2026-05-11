@@ -286,7 +286,7 @@ def _execute_decision_paper_or_kalshi(
             clob_order_id = None
             fill_price = entry_price
             filled_size = None
-            alert_manager = AlertManager(db)
+            AlertManager(db)
 
             if mode == "paper":
                 simulator = get_simulator()

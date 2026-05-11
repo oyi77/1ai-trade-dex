@@ -9,7 +9,6 @@ Rate limiting: Uses ExternalRateLimiter with RATE_LIMIT_GAMMA config.
 
 import logging
 import asyncio
-from datetime import datetime
 from typing import Any, Optional
 
 import httpx

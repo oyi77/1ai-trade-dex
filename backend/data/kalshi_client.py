@@ -15,6 +15,8 @@ from backend.core.external_rate_limiter import ExternalRateLimiter
 
 logger = logging.getLogger("trading_bot")
 
+kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
+
 BASE_URL = settings.KALSHI_API_URL
 
 # Rate limiter for Kalshi API (configurable requests per minute)

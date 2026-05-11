@@ -6,7 +6,6 @@ from fastapi import (
     WebSocket,
     Request,
 )
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone

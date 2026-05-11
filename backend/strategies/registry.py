@@ -226,7 +226,6 @@ def _discover_flat(package: str, path: str) -> list[str]:
 def _discover_recursive(package_root: str, path_root: str) -> list[str]:
     """Recursively discover all leaf modules in a package tree."""
     import os
-    import pkgutil
 
     modules: list[str] = []
     seen: set[str] = set()
