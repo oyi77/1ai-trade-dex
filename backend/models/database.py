@@ -57,7 +57,7 @@ else:
 
 engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
-
+_TS_TYPE = "TIMESTAMP" if "postgresql" in settings.DATABASE_URL else "DATETIME"
 def configure_sqlite_wal(engine_obj):
     """Register a connect listener that enables WAL mode and performance PRAGMAs for SQLite."""
     if engine_obj.url.get_dialect().name != "sqlite":
@@ -1501,7 +1501,7 @@ def ensure_schema():
                 ("actual_outcome", "TEXT"),
                 ("outcome_correct", "BOOLEAN"),
                 ("settlement_value", "FLOAT"),
-                ("settled_at", "DATETIME"),
+                ("settled_at", _TS_TYPE),
                 ("market_type", "VARCHAR DEFAULT 'btc'"),
             ]:
                 if col not in signal_columns:
@@ -1784,7 +1784,7 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE trades ADD COLUMN last_sync_at DATETIME DEFAULT NULL")
+                            text(f"ALTER TABLE trades ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL")
                         )
                         logger.info("Added 'last_sync_at' column to trades")
             except Exception as e:
@@ -1796,7 +1796,7 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE trades ADD COLUMN external_import_at DATETIME DEFAULT NULL")
+                            text(f"ALTER TABLE trades ADD COLUMN external_import_at {_TS_TYPE} DEFAULT NULL")
                         )
                         logger.info("Added 'external_import_at' column to trades")
             except Exception as e:
@@ -1815,7 +1815,7 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE bot_state ADD COLUMN last_sync_at DATETIME DEFAULT NULL")
+                            text(f"ALTER TABLE bot_state ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL")
                         )
                         logger.info("Added 'last_sync_at' column to bot_state")
             except Exception as e:
@@ -1839,7 +1839,7 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE bot_state ADD COLUMN settlement_last_check_at DATETIME DEFAULT NULL")
+                            text(f"ALTER TABLE bot_state ADD COLUMN settlement_last_check_at {_TS_TYPE} DEFAULT NULL")
                         )
                         logger.info("Added 'settlement_last_check_at' column to bot_state")
             except Exception as e:
@@ -1917,7 +1917,7 @@ def ensure_schema():
             with engine.connect() as conn:
                 with conn.begin():
                     conn.execute(
-                        text("ALTER TABLE strategy_config ADD COLUMN disabled_at DATETIME")
+                        text(f"ALTER TABLE strategy_config ADD COLUMN disabled_at {_TS_TYPE}")
                     )
                     logger.info("Added 'disabled_at' column to strategy_config")
         except Exception as e:
@@ -1947,14 +1947,14 @@ def ensure_schema():
 
     for col, coltype in [
         ("fitness_score", "REAL"),
-        ("fitness_updated_at", "DATETIME"),
+        ("fitness_updated_at", _TS_TYPE),
         ("total_pnl", "REAL DEFAULT 0.0"),
         ("win_rate", "REAL DEFAULT 0.0"),
         ("sharpe_ratio", "REAL DEFAULT 0.0"),
         ("max_drawdown_pct", "REAL DEFAULT 0.0"),
         ("trade_count", "INTEGER DEFAULT 0"),
-        ("last_evaluated_at", "DATETIME"),
-        ("stage_entered_at", "DATETIME"),
+        ("last_evaluated_at", _TS_TYPE),
+        ("stage_entered_at", _TS_TYPE),
     ]:
         if col not in gr_cols:
             try:
