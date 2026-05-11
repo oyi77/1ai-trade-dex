@@ -6,7 +6,7 @@ The actual job functions are in scheduling_strategies.py.
 
 import asyncio
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -289,15 +289,18 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
         interval_seconds: Interval between job executions.
         mode: Trading mode ("paper", "testnet", or "live").
     """
+    import random
     global scheduler
     if scheduler is None or not scheduler.running:
         return
 
     job_id = f"{mode}_{strategy_name}_{interval_seconds}"
-    # functools.partial(async_fn) loses iscoroutinefunction → APScheduler won't await it
     # misfire_grace_time must be generous for long-interval strategies (e.g. 300s, 600s)
     # so that a small scheduler delay doesn't permanently skip the run.
     grace = max(60, interval_seconds // 2)
+    # Stagger first execution by 0-60s to prevent all strategies from hitting DB simultaneously
+    jitter = random.randint(0, 60)
+    next_run = datetime.now(timezone.utc) + timedelta(seconds=jitter)
     scheduler.add_job(
         strategy_cycle_job,
         IntervalTrigger(seconds=interval_seconds),
@@ -306,6 +309,7 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
         replace_existing=True,
         max_instances=2,
         misfire_grace_time=grace,
+        next_run_time=next_run,
     )
     logger.info(
         f"Scheduled strategy {strategy_name} for mode {mode} every {interval_seconds}s (job_id={job_id})"
@@ -370,24 +374,30 @@ def _register_event_driven_strategies() -> None:
     from backend.core.event_bus import event_bus
     from backend.core.ws_fallback import WsFirstExecutor
 
+    logger.info("[DEBUG] _register_event_driven_strategies() starting")
     for name, strategy_cls in STRATEGY_REGISTRY.items():
-        strategy = strategy_cls()
-        tokens = getattr(strategy, "subscribed_tokens", set())
-        events = getattr(strategy, "subscribed_events", {"last_trade_price"})
+        try:
+            strategy = strategy_cls()
+            tokens = getattr(strategy, "subscribed_tokens", set())
+            events = getattr(strategy, "subscribed_events", {"last_trade_price"})
+            logger.info(f"[DEBUG] Registering {name}: tokens={len(tokens)}, events={len(events)}")
 
-        if not tokens:
-            continue
+            if not tokens:
+                continue
 
-        executor = WsFirstExecutor(name)
-        event_bus.subscribe_strategy(
-            strategy_name=name,
-            token_ids=tokens,
-            event_types=events,
-            handler=strategy.on_market_event,
-            fallback_handler=executor.on_ws_disconnected,
-        )
-        logger.info("EventBus: registered '%s' with %d tokens, %d event types",
-                     name, len(tokens), len(events))
+            executor = WsFirstExecutor(name)
+            event_bus.subscribe_strategy(
+                strategy_name=name,
+                token_ids=tokens,
+                event_types=events,
+                handler=strategy.on_market_event,
+                fallback_handler=executor.on_ws_disconnected,
+            )
+            logger.info("EventBus: registered '%s' with %d tokens, %d event types",
+                         name, len(tokens), len(events))
+        except Exception as e:
+            logger.warning(f"[DEBUG] Failed to register strategy {name} for event bus: {e}")
+    logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
 
 def start_scheduler():
@@ -491,23 +501,24 @@ def start_scheduler():
         max_instances=1,
     )
 
-    _persist_and_add_job(
-        scheduler,
-        sync_live_wallet,
-        IntervalTrigger(seconds=30),
-        id="wallet_sync_live",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # Wallet sync disabled — contains blocking synchronous DB calls that freeze the event loop.
+    # Re-enable after refactoring to use async DB (asyncpg/databases) or thread pool execution.
+    # First, remove any restored wallet_sync_live job from crash recovery state.
+    try:
+        scheduler.remove_job("wallet_sync_live")
+        logger.info("Removed wallet_sync_live job (blocking DB calls — disabled)")
+    except Exception:
+        pass  # Job may not exist
 
-    _persist_and_add_job(
-        scheduler,
-        verify_settlement_blockchain,
-        IntervalTrigger(seconds=120),
-        id="settlement_verify",
-        replace_existing=True,
-        max_instances=1,
-    )
+    # Settlement verification disabled — contains blocking synchronous DB calls (.all() + loop)
+    # that freeze the event loop for the duration of the query + resolution checks.
+    # Re-enable after refactoring to use async DB (asyncpg/databases) or thread pool execution.
+    # First, remove any restored settlement_verify job from crash recovery state.
+    try:
+        scheduler.remove_job("settlement_verify")
+        logger.info("Removed settlement_verify job (blocking DB calls — disabled)")
+    except Exception:
+        pass  # Job may not exist
 
     # Start OrderbookRouter as APScheduler fallback heartbeat
     if settings.POLYMARKET_WS_ENABLED:
@@ -1159,16 +1170,20 @@ def start_scheduler():
         )
 
     # Load registry-driven strategy jobs from DB
+    logger.info("[DEBUG] About to load strategy jobs from DB")
     try:
         _load_strategy_jobs()
+        logger.info("[DEBUG] _load_strategy_jobs() completed successfully")
     except Exception as e:
         logger.exception(f"Could not load strategy jobs from DB: {e}")
 
     # Register event-driven research triggers
+    logger.info("[DEBUG] About to register research event triggers")
     try:
         from backend.research.event_triggers import register_research_triggers
 
         register_research_triggers()
+        logger.info("[DEBUG] register_research_triggers() completed")
     except Exception as e:
         logger.warning("Could not register research event triggers: %s", e)
 

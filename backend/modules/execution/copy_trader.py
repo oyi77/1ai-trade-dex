@@ -293,10 +293,14 @@ class CopyTraderStrategy(BaseStrategy):
 
     def __init__(self, max_wallets: int = 20, min_score: float = 30.0):
         super().__init__()
-        # Resolve bankroll from DB (BotState) or fall back to default
-        bankroll = self._resolve_bankroll()
+        # Defer bankroll resolution — _resolve_bankroll() uses FOR UPDATE which
+        # can block/deadlock when called during startup inside the event loop.
+        # The engine bankroll will be resolved lazily on first run_cycle().
+        self._bankroll_resolved = False
+        self._max_wallets = max_wallets
+        self._min_score = min_score
         self._engine = CopyTrader(
-            bankroll=bankroll, max_wallets=max_wallets, min_score=min_score
+            bankroll=1000.0, max_wallets=max_wallets, min_score=min_score
         )
         self._task: asyncio.Task | None = None
         self._active_condition_ids: set[str] = set()
@@ -305,13 +309,12 @@ class CopyTraderStrategy(BaseStrategy):
     @staticmethod
     def _resolve_bankroll(mode: str = None) -> float:
         try:
-            from backend.models.database import SessionLocal, BotState, for_update
-            from backend.config import settings as _settings
+            from backend.models.database import SessionLocal, BotState
 
             effective = mode or _settings.TRADING_MODE
             db = SessionLocal()
             try:
-                state = for_update(db, db.query(BotState)).first()
+                state = db.query(BotState).first()
                 if state:
                     if effective == "paper":
                         return float(

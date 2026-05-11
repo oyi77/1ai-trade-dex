@@ -138,9 +138,12 @@ class Orchestrator:
         from backend.core.scheduler import start_scheduler
 
         start_scheduler()
+        logger.info("[DEBUG] start_scheduler() completed, now registering AGI event handlers")
 
         from backend.core.agi_event_handlers import register_agi_event_handlers
+
         register_agi_event_handlers()
+        logger.info("[DEBUG] register_agi_event_handlers() completed")
 
         # Start real-time settlement WebSocket handler
         # if settings.is_mode_active("paper") or settings.is_mode_active("live"):
@@ -157,6 +160,7 @@ class Orchestrator:
         #         )
         logger.info("Settlement WebSocket handler skipped for now.")
         self._phase2 = init_phase2_modules()
+        logger.info(f"[DEBUG] Phase 2 modules: {list(self._phase2.keys()) if self._phase2 else 'none'}")
         if self._phase2:
             logger.info(f"Phase 2 modules active: {list(self._phase2.keys())}")
 
@@ -440,6 +444,7 @@ async def main() -> None:
         loop.add_signal_handler(sig, _signal_handler)
 
     await orchestrator.start()
+    logger.info("[DEBUG] orchestrator.start() completed — now entering main event loop")
 
     try:
         from backend.models.database import SystemSettings

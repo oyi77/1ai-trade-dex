@@ -39,8 +39,8 @@ class Settings(BaseSettings):
         return v
 
     # PostgreSQL pool settings (used when DATABASE_URL starts with postgresql://)
-    POSTGRES_POOL_SIZE: int = 10
-    POSTGRES_MAX_OVERFLOW: int = 20
+    POSTGRES_POOL_SIZE: int = 20
+    POSTGRES_MAX_OVERFLOW: int = 40
     POSTGRES_POOL_TIMEOUT: int = 30
     POSTGRES_POOL_RECYCLE: int = 3600
     POSTGRES_SSL_MODE: str = "prefer"

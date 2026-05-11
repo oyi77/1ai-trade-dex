@@ -59,7 +59,7 @@ class ProductionMonitor:
         missing_pnl = self.db.execute(text("""
             SELECT COUNT(*)
             FROM trades
-            WHERE settled = 1 AND pnl IS NULL
+            WHERE settled = TRUE AND pnl IS NULL
         """)).fetchone()[0]
 
         if missing_pnl > 0:
@@ -95,7 +95,7 @@ class ProductionMonitor:
 
                 result = self.db.execute(text("""
                     SELECT COALESCE(SUM(pnl), 0) FROM trades
-                    WHERE settled = 1 AND trading_mode = :mode
+                    WHERE settled = TRUE AND trading_mode = :mode
                 """), {"mode": mode}).fetchone()
 
                 computed_pnl = float(result[0]) if result else 0.0

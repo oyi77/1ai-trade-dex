@@ -1178,9 +1178,9 @@ async def process_settled_trade(
 
     # Record TransactionEvent for settlement P&L (ledger entry)
     try:
-        from backend.models.database import TransactionEvent, BotState, for_update
+        from backend.models.database import TransactionEvent, BotState
         event_type = "settlement_win" if trade.result == "win" else "settlement_loss"
-        bot = for_update(db, db.query(BotState)).first()
+        bot = db.query(BotState).first()
         prior_balance = bot.bankroll if bot else 0.0
         estimated_balance = prior_balance + pnl
         event = TransactionEvent(

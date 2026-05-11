@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import re as _re
 
 from backend.config import settings
-from backend.models.database import Trade, BotState, for_update, botstate_mutex
+from backend.models.database import Trade, BotState, botstate_mutex
 from backend.core.alert_manager import AlertManager
 from backend.monitoring.hft_metrics import record_execution
 
@@ -509,7 +509,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             paper_min = settings.PAPER_MIN_BANKROLL
             paper_topup_amt = settings.PAPER_TOPUP_AMOUNT
             max_topups = settings.MAX_TOPUPS
-            paper_state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
+            paper_state = db.query(BotState).filter_by(mode="paper").first()
             if paper_state:
                 current = float(paper_state.paper_bankroll or 0)
                 import json as _json
@@ -578,7 +578,7 @@ async def update_bot_state_with_settlements(
                 is_real_trade = trade.result in ("win", "loss")
                 is_expired_or_push = trade.result in ("expired", "push", "closed")
 
-                state = for_update(db, db.query(BotState).filter_by(mode=trading_mode)).first()
+                state = db.query(BotState).filter_by(mode=trading_mode).first()
                 if not state:
                     logger.warning(f"Bot state not found for mode {trading_mode}")
                     continue
@@ -650,7 +650,7 @@ async def update_bot_state_with_settlements(
 
         # Log stats for ALL modes that had settlements
         for m in sorted(modes_with_settlements):
-            state = for_update(db, db.query(BotState).filter_by(mode=m)).first()
+            state = db.query(BotState).filter_by(mode=m).first()
             if not state:
                 logger.warning(f"Bot state not found while logging mode {m}")
                 continue

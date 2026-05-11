@@ -33,6 +33,21 @@ import logging
 
 logger = logging.getLogger("trading_bot")
 
+
+def _iso(dt) -> str | None:
+    """Safely convert a datetime or string to ISO format.
+    
+    SQLite stores dates as strings, PostgreSQL as datetime objects.
+    This handles both cases without crashing.
+    """
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        return dt.isoformat()
+    if isinstance(dt, str):
+        return dt  # Already a string from SQLite
+    return str(dt)
+
 router = APIRouter(tags=["system"])
 
 _ticker_price_cache = {}
@@ -1060,8 +1075,8 @@ def _attempt_to_dict(attempt: TradeAttempt) -> dict:
         "id": attempt.id,
         "attempt_id": attempt.attempt_id,
         "correlation_id": attempt.correlation_id,
-        "created_at": attempt.created_at.isoformat() if attempt.created_at else None,
-        "updated_at": attempt.updated_at.isoformat() if attempt.updated_at else None,
+        "created_at": _iso(attempt.created_at),
+        "updated_at": _iso(attempt.updated_at),
         "strategy": attempt.strategy,
         "mode": attempt.mode,
         "market_ticker": attempt.market_ticker,
@@ -1427,11 +1442,11 @@ async def list_strategies(
                 "interval_seconds": cfg.interval_seconds if cfg else 60,
                 "params": _json.loads(cfg.params) if cfg and cfg.params else {},
                 "default_params": dict(getattr(cls, "default_params", {})),
-                "updated_at": cfg.updated_at.isoformat()
-                if cfg and cfg.updated_at
-                else None,
-                "required_credentials": required_creds,
-                "trading_mode": cfg.trading_mode if cfg else None,
+        "updated_at": _iso(cfg.updated_at)
+        if cfg and cfg.updated_at
+        else None,
+        "required_credentials": required_creds,
+        "trading_mode": cfg.trading_mode if cfg else None,
             }
         )
     return result
@@ -1472,7 +1487,7 @@ async def get_strategy(
         "interval_seconds": cfg.interval_seconds if cfg else 300,
         "params": _json.loads(cfg.params) if cfg and cfg.params else {},
         "default_params": default_params,
-        "updated_at": cfg.updated_at.isoformat() if cfg and cfg.updated_at else None,
+        "updated_at": _iso(cfg.updated_at) if cfg and cfg.updated_at else None,
         "trading_mode": cfg.trading_mode if cfg else None,
     }
 
@@ -1553,7 +1568,7 @@ async def update_strategy(
         "enabled": cfg.enabled,
         "interval_seconds": cfg.interval_seconds,
         "params": _json.loads(cfg.params) if cfg.params else {},
-        "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None,
+        "updated_at": _iso(cfg.updated_at),
         "trading_mode": cfg.trading_mode,
     }
 
@@ -1584,17 +1599,9 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 cfg.trading_mode if cfg and cfg.trading_mode else None
             ) or settings.TRADING_MODE
 
-            state = for_update(db, db.query(BotState).filter_by(mode=strategy_mode)).first()
+            state = db.query(BotState).filter_by(mode=strategy_mode).first()
             if not state:
                 raise HTTPException(status_code=404, detail="Bot state not initialized")
-            cfg = (
-                db.query(StrategyConfig)
-                .filter(StrategyConfig.strategy_name == name)
-                .first()
-            )
-            strategy_mode = (
-                cfg.trading_mode if cfg and cfg.trading_mode else None
-            ) or settings.TRADING_MODE
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1613,21 +1620,18 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 and d.get("market_ticker")
             ]
 
-            if buy_decisions:
-                from backend.core.strategy_executor import execute_decisions
+        # Execute decisions OUTSIDE the outer session — execute_decision opens
+        # its own session per trade to avoid holding the caller session during
+        # async I/O (prevents event-loop blocking and stale-session bugs).
+        if buy_decisions:
+            from backend.core.strategy_executor import execute_decisions
 
-                execution_modes = []
-                if strategy_mode == "live":
-                    execution_modes = ["paper", "live"]
-                else:
-                    execution_modes = [strategy_mode]
-
-                for mode in execution_modes:
-                    decisions_copy = [d.copy() for d in buy_decisions]
-                    for d in decisions_copy:
-                        d["trading_mode"] = mode
-                    await execute_decisions(decisions_copy, name, db=db)
-
+            execution_modes = ["paper", "live"] if strategy_mode == "live" else [strategy_mode]
+            for mode in execution_modes:
+                decisions_copy = [d.copy() for d in buy_decisions]
+                for d in decisions_copy:
+                    d["trading_mode"] = mode
+                await execute_decisions(decisions_copy, name, mode)
 
         return {
             "status": "ok",
@@ -2108,7 +2112,7 @@ async def hft_strategies(db: Session = Depends(get_db)):
                 "name": name,
                 "enabled": config.enabled if config else True,
                 "signals_generated": 0,
-                "last_signal_at": config.updated_at.isoformat() if config and config.updated_at else None,
+                "last_signal_at": _iso(config.updated_at) if config and config.updated_at else None,
                 "pnl": 0.0,
                 "mode": config.trading_mode or "paper" if config else "paper",
             })
