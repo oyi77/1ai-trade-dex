@@ -91,13 +91,16 @@ def _record_unexpected_attempt_failure(
 
 
 def _execute_decision_paper_or_kalshi(
-    decision: dict, strategy_name: str, mode: str
+    decision: dict, strategy_name: str, mode: str, db=None
 ) -> Optional[dict]:
     """Synchronous trade execution path for paper/testnet/Kalshi modes.
 
     Runs entirely in a thread pool — no async I/O, all DB operations are
     synchronous SQLAlchemy calls. The caller acquires async coordination
     locks on the event loop before calling this.
+
+    If db is provided (e.g. in tests), that session is used directly.
+    Otherwise a fresh session is opened via get_db_session().
     """
     market_ticker = decision.get("market_ticker", "")
     direction = decision.get("direction", "")
@@ -112,9 +115,12 @@ def _execute_decision_paper_or_kalshi(
     market_type = decision.get("market_type", "btc")
     market_end_date_str = decision.get("market_end_date")
 
+    from contextlib import nullcontext
+
     from backend.db.utils import get_db_session
 
-    with get_db_session() as db:
+    ctx = nullcontext(db) if db is not None else get_db_session()
+    with ctx as db:
         attempt_recorder = None
         try:
             attempt_recorder = TradeAttemptRecorder(db, decision, strategy_name, mode)
@@ -622,6 +628,12 @@ async def execute_decision(
                 and decision.get("token_id") is not None
             )
             if not is_live_clob:
+                if db is not None:
+                    # db was provided (e.g. in tests) — run synchronously to
+                    # avoid crossing thread boundaries with a caller-owned session
+                    return _execute_decision_paper_or_kalshi(
+                        decision, strategy_name, mode, db,
+                    )
                 return await asyncio.to_thread(
                     _execute_decision_paper_or_kalshi,
                     decision, strategy_name, mode,
