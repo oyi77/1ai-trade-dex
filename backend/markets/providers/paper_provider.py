@@ -1,6 +1,5 @@
 """Paper trading provider for sandbox and testing."""
 import uuid
-from datetime import datetime
 from typing import Dict, List, Optional
 from decimal import Decimal
 
@@ -9,7 +8,7 @@ from backend.markets.base_provider import (
     NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability,
 )
 from backend.markets.order_types import (
-    NormalizedFillEvent, MarketInfo, OrderSide, OrderType, OrderStatus,
+    MarketInfo, OrderSide, OrderType, OrderStatus,
     PositionSide,
 )
 from backend.markets.provider_registry import market_registry

@@ -1,7 +1,6 @@
 """Test suite for paper trading provider."""
 import pytest
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock
 
 from backend.markets.providers.paper_provider import PaperProvider
 from backend.markets.order_types import (

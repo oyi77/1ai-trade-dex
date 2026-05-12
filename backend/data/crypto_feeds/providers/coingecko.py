@@ -37,7 +37,7 @@ class CoinGeckoFeed(BaseExchangeFeed):
             interval_map = {"1m": "1", "5m": "5", "15m": "15", "30m": "30", "1h": "60", "4h": "240", "1d": "1440"}
             granularity = interval_map.get(interval, "60")
             async with httpx.AsyncClient(timeout=10.0) as client:
-                from datetime import datetime, timedelta, timezone
+                from datetime import datetime, timezone
                 end = int(datetime.now(timezone.utc).timestamp())
                 start = end - (limit * int(granularity) * 60)
                 resp = await client.get(

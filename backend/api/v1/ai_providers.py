@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend.api.auth import require_admin
 from backend.ai.provider_registry import provider_registry
-from backend.core.plugin_errors import PluginNotFound, PluginEnvVarMissing
+from backend.core.plugin_errors import PluginNotFound
 
 router = APIRouter(tags=["AI Providers"])
 

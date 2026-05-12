@@ -5,8 +5,6 @@ import os
 from typing import List, Optional
 
 from backend.core.plugin_errors import (
-    MarketProviderError,
-    MarketProviderHasOpenPositions,
     MarketProviderNotFound,
     PluginEnvVarMissing,
 )

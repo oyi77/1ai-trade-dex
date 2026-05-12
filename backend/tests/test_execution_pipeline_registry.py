@@ -377,7 +377,6 @@ class TestRegistry:
 
     def test_auto_discover(self):
         importlib.reload(sys.modules['backend.core.execution_pipeline.stages']) if 'backend.core.execution_pipeline.stages' in sys.modules else None
-        from backend.core.execution_pipeline.stages import validate, simulate, execute, record, notify
 
         from backend.core.execution_pipeline.registry import registry
         assert "validation" in registry._plugins
@@ -387,10 +386,8 @@ class TestRegistry:
         assert "notify" in registry._plugins
 
     def test_health_check(self):
-        from backend.core.execution_pipeline.stages import validate, simulate, execute, record, notify
         registry.reset()
 
-        from backend.core.execution_pipeline.stages import validate, simulate, execute, record, notify
 
         result = registry.health_check()
 

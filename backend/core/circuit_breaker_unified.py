@@ -13,8 +13,6 @@ _USE_PYBREAKER = getattr(settings, "CB_USE_PYBREAKER", False) and _is_pybreaker_
 
 if _is_pybreaker_available:
     import logging
-    from typing import Any, Callable
-    from functools import wraps
 
     logger = logging.getLogger(__name__)
 

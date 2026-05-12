@@ -1,16 +1,15 @@
 """Test suite for market provider registry."""
 import pytest
 from decimal import Decimal
-from unittest.mock import MagicMock, AsyncMock
 
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest
 from backend.markets.order_types import (
-    NormalizedOrder, NormalizedOrderResult, NormalizedBalance,
-    NormalizedPosition, OrderSide, OrderType, OrderStatus, VenueCapability,
+    NormalizedOrderResult, NormalizedBalance,
+    OrderStatus, VenueCapability,
 )
-from backend.markets.provider_registry import MarketProviderRegistry, market_registry
+from backend.markets.provider_registry import MarketProviderRegistry
 from backend.core.plugin_errors import (
-    PluginEnvVarMissing, MarketProviderNotFound, MarketProviderHasOpenPositions,
+    PluginEnvVarMissing, MarketProviderNotFound,
 )
 
 
@@ -149,7 +148,7 @@ def test_set_enabled_with_positions():
     registry.register(MockMarketProvider)
 
     # Mock positions by directly setting internal state
-    provider = registry._plugins["mock_venue"]
+    _ = registry._plugins["mock_venue"]
     registry._enabled["mock_venue"] = True
     registry._health_status["mock_venue"] = True
 
@@ -169,7 +168,6 @@ def test_force_disable():
 
 def test_paper_mode_injected():
     """Paper mode is injected based on TRADING_MODE env var."""
-    import os
     # Default is paper mode
     registry = MarketProviderRegistry("test_registry")
     registry.register(MockMarketProvider)

@@ -1,7 +1,6 @@
 """Test suite for BaseAIProvider abstract base class."""
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from backend.ai.base_provider import BaseAIProvider, ProviderManifest
 

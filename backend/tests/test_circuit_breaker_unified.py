@@ -1,6 +1,5 @@
-import asyncio
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import patch
 
 from backend.core.circuit_breaker_unified import UnifiedCircuitBreaker
 

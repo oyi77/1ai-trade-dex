@@ -1,7 +1,7 @@
 """Base classes for execution pipeline stages."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import List
 
 
 @dataclass

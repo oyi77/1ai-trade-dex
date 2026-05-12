@@ -1,7 +1,7 @@
 """Kalshi data source plugin for the plugin system."""
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from backend.core.plugin_errors import DataSourceError
 from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType

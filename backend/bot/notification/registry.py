@@ -1,6 +1,5 @@
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
-import asyncio
 import importlib
 import os
 import pkgutil

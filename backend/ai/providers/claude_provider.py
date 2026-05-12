@@ -2,7 +2,6 @@
 import os
 from typing import Optional
 
-from backend.core.plugin_registry import BasePlugin
 from backend.ai.base_provider import BaseAIProvider, ProviderManifest
 from backend.ai.claude import ClaudeAnalyzer
 from backend.ai.provider_registry import provider_registry

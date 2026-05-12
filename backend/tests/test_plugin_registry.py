@@ -1,7 +1,6 @@
 """Test suite for the generic PluginRegistry."""
 import asyncio
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 
 from backend.core.plugin_registry import PluginRegistry, BasePlugin, BaseManifest
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound

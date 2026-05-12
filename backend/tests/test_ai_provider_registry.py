@@ -1,6 +1,5 @@
 """Test suite for AI provider registry."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from backend.ai.base_provider import BaseAIProvider, ProviderManifest
 from backend.ai.provider_registry import ProviderRegistry

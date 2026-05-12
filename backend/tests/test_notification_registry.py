@@ -1,13 +1,12 @@
 import asyncio
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 import os
 import sys
 
 sys.path.insert(0, "/Users/paijo/1ai-poly-trader")
 
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
-from backend.bot.notification.registry import NotificationRegistry, registry
+from backend.bot.notification.registry import registry
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 
 

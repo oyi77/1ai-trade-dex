@@ -21,7 +21,6 @@ class GoalEngineNode(BaseAGINode):
 
     async def execute(self, state: AgentState) -> AgentState:
         from backend.core.agi_goal_engine import AGIGoalEngine
-        from datetime import datetime
 
         regime = state.get("regime", "sideways")
 

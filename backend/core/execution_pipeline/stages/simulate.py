@@ -1,8 +1,6 @@
 from backend.core.execution_pipeline.base import BaseExecutionStage, ExecutionStageManifest
 from backend.core.execution_pipeline.registry import registry
 from backend.core.paper_slippage import PaperSlippageSimulator
-from backend.models.database import Trade
-from backend.core.trade_attempts import TradeAttemptRecorder
 
 
 class PaperSimulationStage(BaseExecutionStage):

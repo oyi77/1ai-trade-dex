@@ -1,11 +1,9 @@
 """Sandbox registry - mock-only registry for sandboxed validation."""
-import asyncio
 import logging
 from typing import List, Optional
 
 from backend.core.plugin_registry import PluginRegistry
 from backend.agi.base_node import NodeManifest, BaseAGINode
-from backend.agi.sandbox.results import SandboxResult
 
 logger = logging.getLogger(__name__)
 

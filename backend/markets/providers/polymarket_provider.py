@@ -3,9 +3,8 @@ import os
 from typing import List, Optional
 from decimal import Decimal
 
-from backend.core.plugin_errors import MarketProviderError
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
-from backend.markets.order_types import NormalizedFillEvent, MarketInfo, OrderSide, OrderType, OrderStatus, PositionSide
+from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 
 try:

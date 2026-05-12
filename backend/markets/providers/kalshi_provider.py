@@ -4,7 +4,7 @@ from typing import List, Optional
 from decimal import Decimal
 
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
-from backend.markets.order_types import MarketInfo, OrderSide, OrderType, OrderStatus, PositionSide
+from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 
 try:

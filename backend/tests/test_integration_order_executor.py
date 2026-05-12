@@ -8,7 +8,6 @@ Tests integration between:
 - Execution metrics and monitoring
 """
 
-import pytest
 from backend.strategies.order_executor import (
     ScoredTrader,
     CopySignal,

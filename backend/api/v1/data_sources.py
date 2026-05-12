@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend.api.auth import require_admin
 from backend.data.source_registry import source_registry
-from backend.data.base_source import DataType
-from backend.core.plugin_errors import PluginNotFound, PluginEnvVarMissing
+from backend.core.plugin_errors import PluginNotFound
 
 router = APIRouter(tags=["Data Sources"])
 

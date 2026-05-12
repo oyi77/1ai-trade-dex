@@ -5,7 +5,6 @@ execution pipeline stages following the PluginRegistry pattern.
 """
 from typing import List, Optional
 
-import os
 from backend.config import settings
 
 from backend.core.plugin_errors import PluginNotFound

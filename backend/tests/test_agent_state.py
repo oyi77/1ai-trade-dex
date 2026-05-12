@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime, timezone
 
 from backend.agi.agent_state import AgentState

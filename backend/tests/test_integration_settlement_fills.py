@@ -1,12 +1,10 @@
 """Integration tests for settlement and fill processing system."""
 
-import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
 
-from backend.markets.order_types import NormalizedFillEvent, OrderSide, OrderStatus
+from backend.markets.order_types import NormalizedFillEvent, OrderSide
 from backend.core.settlement_helpers import _looks_like_token_id, calculate_pnl
-from backend.core.settlement_capture import capture_closing_position
 from backend.models.database import Trade
 
 

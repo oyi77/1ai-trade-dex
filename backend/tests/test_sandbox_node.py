@@ -1,6 +1,5 @@
 """Test suite for SandboxNodeRegistry."""
 import pytest
-from unittest.mock import MagicMock
 
 from backend.agi.base_node import BaseAGINode, NodeManifest
 from backend.agi.sandbox.sandbox_registry import SandboxNodeRegistry
