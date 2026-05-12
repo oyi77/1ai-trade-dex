@@ -346,7 +346,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan context manager - handles startup and shutdown."""
     import time as _time
     start_time = _time.time()
-    
+
     global _app_ref
     _app_ref = app
 
