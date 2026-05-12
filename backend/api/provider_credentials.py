@@ -135,6 +135,8 @@ async def upsert_credential(
         .filter_by(provider_name=provider_name, config_key=config_key)
         .first()
     )
+    if row is None:
+        raise HTTPException(status_code=500, detail="Credential was not persisted")
     return CredentialResponse(
         id=row.id,
         provider_name=row.provider_name,

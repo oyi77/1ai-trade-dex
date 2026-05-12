@@ -149,8 +149,10 @@ class LimitlessProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26d.
         """
-        private_key: str = kwargs.get("private_key", "") or provider_config.get(
-            "limitless", "private_key"
+        private_key: str = (
+            kwargs["private_key"]
+            if "private_key" in kwargs
+            else provider_config.get("limitless", "private_key")
         )
         if not private_key:
             logger.warning("LimitlessProvider.place_order: no private key — dry-run")
