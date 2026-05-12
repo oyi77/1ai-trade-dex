@@ -15,6 +15,7 @@ ENV VARS:
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Optional
 
@@ -60,8 +61,6 @@ class AzuroProvider(DataProvider):
         graph_url: Optional[str] = None,
         cache_ttl: int = 60,
     ) -> None:
-        import os
-
         self._platform = platform
         self._graph_url = graph_url or os.getenv(
             "AZURO_GRAPH_URL", _AZURO_GRAPH_URL_DEFAULT
@@ -107,9 +106,7 @@ class AzuroProvider(DataProvider):
     async def get_markets(
         self, category: Optional[str] = None, limit: int = 100
     ) -> list[MarketEntry]:
-        import time as _time
-
-        now_ts = int(_time.time())
+        now_ts = int(time.time())
         gql = _GQL_ACTIVE_MARKETS % (limit, now_ts)
         try:
             data = await self._graphql(gql)
@@ -159,10 +156,9 @@ class AzuroProvider(DataProvider):
         Requires AZURO_RPC_URL and private_key in kwargs or env.
         Returns {"tx_hash": "0x...", "status": "submitted"} on success.
         """
-        private_key: str = kwargs.get("private_key", "")
-        if not private_key:
-            import os
-            private_key = os.getenv("WEB3_PRIVATE_KEY_AZURO", "")
+        private_key: str = kwargs.get("private_key", "") or os.getenv(
+            "WEB3_PRIVATE_KEY_AZURO", ""
+        )
 
         if not private_key or not self._rpc_url:
             logger.warning(
