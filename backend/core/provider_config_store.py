@@ -28,6 +28,10 @@ from typing import Optional
 from loguru import logger
 from sqlalchemy.orm import Session
 
+_FERNET_KEY_GEN_CMD = (
+    "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+)
+
 
 def _env_key(provider_name: str, config_key: str) -> str:
     """Return the conventional ENV var name for a provider config key."""
@@ -278,9 +282,8 @@ class ProviderConfigStore:
         f = _get_fernet()
         if f is None:
             raise ValueError(
-                "WALLET_FERNET_KEY is not set; cannot store secret credentials. "
-                "Generate a key with: python -c \"from cryptography.fernet import Fernet; "
-                "print(Fernet.generate_key().decode())\""
+                f"WALLET_FERNET_KEY is not set; cannot store secret credentials. "
+                f"Generate a key with: {_FERNET_KEY_GEN_CMD}"
             )
         return f.encrypt(value.encode()).decode()
 
@@ -292,7 +295,8 @@ class ProviderConfigStore:
             logger.error(
                 "ProviderConfigStore: WALLET_FERNET_KEY is not set but a secret credential "
                 "was requested — returning raw DB value (likely encrypted). "
-                "Set WALLET_FERNET_KEY to enable decryption."
+                "Generate a key with: {}",
+                _FERNET_KEY_GEN_CMD,
             )
             return value
         try:

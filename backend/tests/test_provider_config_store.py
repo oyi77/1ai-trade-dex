@@ -174,7 +174,7 @@ class TestProviderInstantiation:
         from backend.data.providers.sxbet import SXBetProvider
 
         p = SXBetProvider()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             p.place_order("0xMARKET", "BUY", 10.0, 0.5, private_key="")
         )
         assert result["status"] == "dry_run"
