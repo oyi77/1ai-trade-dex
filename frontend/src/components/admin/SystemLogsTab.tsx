@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSSEEvents } from '../../hooks/useSSEEvents';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
