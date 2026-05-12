@@ -209,7 +209,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "paper",
-            not Trade.settled
+            Trade.settled == False  # noqa: E712
         )
         .scalar()
         or 0
@@ -265,7 +265,7 @@ async def get_stats(
             db.query(func.count(Trade.id))
             .filter(
                 Trade.trading_mode == effective_mode if mode is not None else Trade.trading_mode == "live",
-                not Trade.settled
+                Trade.settled == False  # noqa: E712
             )
             .scalar()
             or 0
@@ -339,7 +339,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "testnet",
-            not Trade.settled
+            Trade.settled == False  # noqa: E712
         )
         .scalar()
         or 0

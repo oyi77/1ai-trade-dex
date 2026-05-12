@@ -120,7 +120,7 @@ def detect_regime_and_rebalance(db: Session) -> str:
     detector = RegimeDetector()
     result = detector.detect_regime(market_data)
     regime = result.regime.value
-    confidence = result.confidence
+    confidence = float(getattr(result, "confidence", 0.0))
 
     logger.info(
         "regime_population_manager: detected regime={} confidence={:.2f}",

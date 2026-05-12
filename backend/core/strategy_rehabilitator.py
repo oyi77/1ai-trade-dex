@@ -29,7 +29,7 @@ class StrategyRehabilitator:
         db = db or SessionLocal()
         rehabilitated = []
         try:
-            disabled = db.query(StrategyConfig).filter(not StrategyConfig.enabled).all()
+            disabled = db.query(StrategyConfig).filter(StrategyConfig.enabled == False).all()
             for cfg in disabled:
                 if self._is_candidate(cfg, db):
                     if self._passes_validation(cfg, db):

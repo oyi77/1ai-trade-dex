@@ -8,7 +8,7 @@ Exercises the full experiment promotion pipeline through the backtest gate:
 
 import sys
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
@@ -412,7 +412,7 @@ async def test_full_pipeline_backtest_to_shadow_to_paper():
         db.commit()
 
         promoter = AutonomousPromoter()
-        stats1 = await promoter.run_once()
+        await promoter.run_once()
 
         db.refresh(exp)
         assert exp.status == ExperimentStatus.SHADOW.value, (
@@ -425,7 +425,7 @@ async def test_full_pipeline_backtest_to_shadow_to_paper():
         exp.promoted_at = datetime.now(timezone.utc) - timedelta(days=2)
         db.commit()
 
-        stats2 = await promoter.run_once()
+        await promoter.run_once()
 
         db.refresh(exp)
         assert exp.status == ExperimentStatus.PAPER.value, (

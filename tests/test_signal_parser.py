@@ -1,9 +1,6 @@
 """Tests for backend/ai/signal_parser.py — MiroFish signal parsing and debate integration."""
 
 import pytest
-import json
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
 
 from backend.ai.signal_parser import (
     Signal,

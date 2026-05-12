@@ -106,7 +106,7 @@ class DBSessionShadowRunner:
                 db.query(ShadowTrade)
                 .filter(
                     ShadowTrade.market_ticker == market_ticker,
-                    not ShadowTrade.settled
+                    ShadowTrade.settled == False
                 )
                 .all()
             )

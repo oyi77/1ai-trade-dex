@@ -1,8 +1,6 @@
 """Tests for trade settlement logic."""
-import asyncio
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 from backend.core.settlement import calculate_pnl, _parse_market_resolution, check_market_settlement
 from backend.models.database import Trade

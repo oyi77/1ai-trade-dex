@@ -7,7 +7,6 @@ All external APIs (Polymarket CLOB, Groq, Anthropic, BigBrain) are mocked.
 No real network calls are made.
 """
 
-import asyncio
 import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -354,7 +353,6 @@ async def test_full_autonomous_cycle():
 
         state = db.query(BotState).first()
         assert state is not None
-        initial_bankroll = state.paper_bankroll
         state.paper_bankroll -= trade.size
         db.commit()
 

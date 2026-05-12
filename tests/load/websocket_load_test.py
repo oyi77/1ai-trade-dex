@@ -18,7 +18,6 @@ import psutil
 import os
 from typing import List, Dict, Any
 from datetime import datetime
-from collections import defaultdict
 
 try:
     import websockets
@@ -173,14 +172,14 @@ class LoadTestRunner:
     async def run(self):
         """Execute load test."""
         print(f"\n{'='*70}")
-        print(f"WebSocket Load Test - TopicWebSocketManager")
+        print("WebSocket Load Test - TopicWebSocketManager")
         print(f"{'='*70}")
         print(f"Endpoint: {self.endpoint}")
         print(f"Clients: {self.num_clients}")
         print(f"Duration: {self.duration}s")
         print(f"Base URL: {self.base_url}")
         if self.churn:
-            print(f"Churn: ENABLED (10% clients every 30s)")
+            print("Churn: ENABLED (10% clients every 30s)")
         if self.broadcast_rate > 0:
             print(f"Target Broadcast Rate: {self.broadcast_rate} msg/s")
         print(f"{'='*70}\n")
@@ -338,9 +337,9 @@ class LoadTestRunner:
             
             # Check p99 requirement
             if lat['p99'] < 200:
-                print(f"  ✓ PASS: p99 latency < 200ms")
+                print("  ✓ PASS: p99 latency < 200ms")
             else:
-                print(f"  ✗ FAIL: p99 latency >= 200ms")
+                print("  ✗ FAIL: p99 latency >= 200ms")
         else:
             print("\nLATENCY STATS: No latency data (no timestamped messages received)")
         
@@ -367,7 +366,7 @@ class LoadTestRunner:
         print(f"  Total Errors: {err['total_errors']}")
         print(f"  Error Rate: {err['error_rate']}")
         if err['unique_errors']:
-            print(f"  Sample Errors:")
+            print("  Sample Errors:")
             for error in err['unique_errors'][:5]:
                 print(f"    - {error}")
         

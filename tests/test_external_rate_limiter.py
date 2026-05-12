@@ -1,7 +1,5 @@
 """Tests for ExternalRateLimiter with 429 handling and exponential backoff."""
-import asyncio
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import Response
@@ -257,7 +255,7 @@ async def test_circuit_breaker_opens_after_failures():
         failure_threshold=10,
         recovery_timeout=60.0,
     )
-    limiter = ExternalRateLimiter(
+    ExternalRateLimiter(
         name="test",
         max_calls_per_minute=100,
         circuit_breaker=circuit_breaker,
@@ -358,8 +356,6 @@ async def test_token_bucket_refill():
     assert limiter._tokens == 60
 
     # Simulate time passing (token refill)
-    import time as time_mod
-    original_time = time_mod.monotonic
 
     # We can't easily test time-based refill without complex mocking,
     # so verify the algorithm structure exists

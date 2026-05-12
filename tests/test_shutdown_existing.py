@@ -116,7 +116,7 @@ async def test_shutdown():
         if shutdown_time >= 30:
             print(f"   - Shutdown time: {shutdown_time:.1f}s >= 30s")
         if completed == 0:
-            print(f"   - No requests completed")
+            print("   - No requests completed")
         return 1
 
 

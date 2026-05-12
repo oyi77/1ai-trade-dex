@@ -13,19 +13,15 @@ RQ-045: Error recovery test suite
 
 import asyncio
 import pytest
-import time
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
-from sqlalchemy.exc import OperationalError, DisconnectionError
+from unittest.mock import Mock, AsyncMock, patch
+from sqlalchemy.exc import OperationalError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from websockets.exceptions import ConnectionClosed
 import httpx
 
 # Import components to test
-from backend.data.polymarket_websocket import PolymarketWebSocket, WebSocketConfig, ChannelType
 from backend.job_queue.redis_queue import RedisQueue
 from backend.job_queue.sqlite_queue import AsyncSQLiteQueue
-from backend.models.database import SessionLocal, engine
 
 
 class TestDatabaseRecovery:
@@ -173,7 +169,6 @@ class TestWebSocketRecovery:
         5. Verify resubscription to channels
         """
         reconnect_attempts = []
-        resubscribe_count = 0
         
         # Simplified test: verify reconnect logic exists
         async def mock_connect_with_retry(max_retries=3):

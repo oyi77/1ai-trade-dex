@@ -390,7 +390,7 @@ class AlertManager:
                 Alert.alert_type,
                 func.count(Alert.id).label("count")
             )
-            .filter(not Alert.resolved)
+            .filter(Alert.resolved == False)
             .group_by(Alert.alert_type)
             .all()
         )
@@ -400,7 +400,7 @@ class AlertManager:
                 Alert.severity,
                 func.count(Alert.id).label("count")
             )
-            .filter(not Alert.resolved)
+            .filter(Alert.resolved == False)
             .group_by(Alert.severity)
             .all()
         )
