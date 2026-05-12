@@ -235,7 +235,7 @@ export default function WhaleTracker() {
       ? 'bg-amber-500'
       : 'bg-red-500'
 
-  // ⚡ Bolt: Memoize filteredLeaderboard to prevent O(N) filtering and sorting on every render
+  // ⚡ Bolt: Memoize filteredLeaderboard to avoid repeated filtering and sorting on every render
   const filteredLeaderboard = useMemo(() => {
     const pseudonymFilter = (lbQuery.state.filters['pseudonym'] ?? '').toLowerCase()
     const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
