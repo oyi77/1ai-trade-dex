@@ -63,7 +63,7 @@ class LimitlessProvider(DataProvider):
             return []
 
         if isinstance(raw_markets, dict):
-            raw_markets = raw_markets.get("markets", raw_markets.get("data", []))
+            raw_markets = raw_markets.get("markets") or raw_markets.get("data") or []
 
         entries: list[MarketEntry] = []
         for m in raw_markets:

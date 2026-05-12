@@ -8,7 +8,7 @@ from backend.data.provider import DataProvider, MarketEntry, PositionEntry, Bala
 from backend.data.kalshi_client import KalshiClient
 
 
-async def _fetch_kalshi_markets(limit: int = 100) -> list[dict]:
+async def fetch_kalshi_markets(limit: int = 100) -> list[dict]:
     """Fetch active Kalshi markets via KalshiClient.get_markets()."""
     client = KalshiClient()
     try:
@@ -38,14 +38,14 @@ class KalshiProvider(DataProvider):
 
     async def health_check(self) -> bool:
         try:
-            markets = await _fetch_kalshi_markets(limit=1)
+            markets = await fetch_kalshi_markets(limit=1)
             return bool(markets)
         except Exception:
             logger.debug("Kalshi health check failed")
             return False
 
     async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:
-        market_dicts = await _fetch_kalshi_markets(limit=limit)
+        market_dicts = await fetch_kalshi_markets(limit=limit)
         if category:
             market_dicts = [m for m in market_dicts if m.get("category") == category]
         return [
