@@ -1,5 +1,7 @@
 """Test suite for market provider registry."""
+import os
 import pytest
+from unittest.mock import patch
 from decimal import Decimal
 
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest
@@ -166,6 +168,7 @@ def test_force_disable():
     assert registry._enabled["mock_venue"] is False
 
 
+@patch.dict(os.environ, {"TRADING_MODE": "paper"}, clear=False)
 def test_paper_mode_injected():
     """Paper mode is injected based on TRADING_MODE env var."""
     # Default is paper mode

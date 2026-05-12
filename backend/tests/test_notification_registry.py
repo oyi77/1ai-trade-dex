@@ -2,6 +2,7 @@ import asyncio
 import pytest
 import os
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, "/Users/paijo/1ai-poly-trader")
 
@@ -44,6 +45,7 @@ class TestNotificationRegistry:
         assert registry._enabled["mock"] is True
         assert registry._health_status["mock"] is True
 
+    @patch.dict(os.environ, {"SHADOW_MODE": ""})
     def test_register_provider_missing_env_vars(self):
         class EnvProvider(BaseNotificationProvider):
             @classmethod
