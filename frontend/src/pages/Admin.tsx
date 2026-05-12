@@ -28,6 +28,7 @@ const AGIDecisionsTab = lazy(() => import('../components/admin/AGIDecisionsTab')
 const AGIComposerTab = lazy(() => import('../components/admin/AGIComposerTab').then(m => ({ default: m.AGIComposerTab })))
 const AGIRegimeTab = lazy(() => import('../components/admin/AGIRegimeTab').then(m => ({ default: m.AGIRegimeTab })))
 const ActivityTimeline = lazy(() => import('../components/ActivityTimeline').then(m => ({ default: m.ActivityTimeline })))
+const SystemLogsTab = lazy(() => import('../components/admin/SystemLogsTab').then(m => ({ default: m.SystemLogsTab })))
 
 function AdminLoginGate({ login }: { login: (p: string) => Promise<void> }) {
   const [password, setPassword] = useState('')
@@ -84,6 +85,7 @@ function AdminLoginGate({ login }: { login: (p: string) => Promise<void> }) {
 
 const TABS = [
   'System', 
+  'System Logs',
   'Activity Log',
   'AGI Control', 
   'AGI Decisions', 
@@ -188,6 +190,7 @@ export default function Admin() {
         <ModeFilterProvider>
         <Suspense fallback={<div className="flex items-center justify-center h-full text-neutral-500">Loading...</div>}>
           {activeTab === 'System' && <SystemStatus />}
+          {activeTab === 'System Logs' && <SystemLogsTab />}
           {activeTab === 'Activity Log' && <ActivityTimeline />}
           {activeTab === 'AGI Control' && <AGIControlTab />}
           {activeTab === 'AGI Decisions' && <AGIDecisionsTab />}

@@ -341,6 +341,42 @@ _balance_cache = {"balance": None, "timestamp": 0, "mode": settings.TRADING_MODE
 _polymarket_ws_tasks = {"market": None, "user": None}
 
 
+async def _redis_log_bridge():
+    """Background task that bridges logs from Redis to the internal EventBus."""
+    from backend.config import settings
+    import logging
+    
+    if not settings.REDIS_ENABLED or not settings.REDIS_URL:
+        return
+
+    bridge_logger = logging.getLogger("backend.monitoring.bridge")
+    bridge_logger.info("Starting Redis log bridge...")
+    from backend.core.event_bus import event_bus
+    
+    try:
+        import redis.asyncio as aioredis
+    except ImportError:
+        return
+
+    while True:
+        try:
+            async with aioredis.from_url(settings.REDIS_URL) as client:
+                async with client.pubsub() as pubsub:
+                    await pubsub.subscribe("logs:system")
+                    async for message in pubsub.listen():
+                        if message["type"] == "message":
+                            try:
+                                import json
+                                log_data = json.loads(message["data"])
+                                event_bus.publish("system_log", log_data)
+                            except Exception:
+                                pass
+        except Exception as e:
+            bridge_logger.debug(f"Redis log bridge reconnecting: {e}")
+            import asyncio
+            await asyncio.sleep(5)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan context manager - handles startup and shutdown."""
@@ -449,6 +485,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
             register_context(_mode, _ctx)
             logger.info(f"[LIFESPAN] Registered mode context for {_mode} (clob={'SET' if _clob else 'NONE'}, strategies={len(_configs)})")
+
+    # Start Redis log bridge
+    if settings.REDIS_ENABLED:
+        asyncio.create_task(_redis_log_bridge())
 
     yield
 
