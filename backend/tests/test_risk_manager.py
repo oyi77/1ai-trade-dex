@@ -162,6 +162,7 @@ class TestConfidenceThreshold:
     def test_paper_mode_uses_same_threshold_as_live(self):
         """Test that paper mode uses same confidence threshold as live mode."""
         s = MockSettings()
+        s.PAPER_AUTO_APPROVE_MIN_CONFIDENCE = 0.50
         s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
         s.REGIME_ROUTING_ENABLED = False
 
@@ -204,6 +205,7 @@ class TestConfidenceThreshold:
     def test_backward_compatibility_when_regime_routing_disabled(self):
         """Test backward compatibility when regime routing is disabled."""
         s = MockSettings()
+        s.PAPER_AUTO_APPROVE_MIN_CONFIDENCE = 0.40
         s.AUTO_APPROVE_MIN_CONFIDENCE = 0.40
         s.REGIME_ROUTING_ENABLED = False
 
