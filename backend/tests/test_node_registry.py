@@ -78,7 +78,7 @@ class TestNodeRegistry:
 
     def test_get_nonexistent_node_raises_keyerror(self):
         registry = NodeRegistry()
-        
+
         with pytest.raises(KeyError, match="not found"):
             registry.get("nonexistent_node")
 
