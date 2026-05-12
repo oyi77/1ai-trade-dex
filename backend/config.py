@@ -10,7 +10,7 @@ from loguru import logger
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(override=False)
+    load_dotenv(override=True)
 except ImportError:
     pass
 
@@ -39,7 +39,50 @@ class ConfigRegistry:
     This is the single source of truth for all configuration in PolyEdge.
     All settings are organized by domain (API_ENDPOINTS, RATE_LIMITS, etc.)
     and validated at startup to fail fast with clear error messages.
+
+    Settings are read from environment variables (via .env file), falling
+    back to the hardcoded class defaults when not set.
     """
+
+    def __init__(self):
+        import dataclasses
+        from dataclasses import Field, MISSING
+
+        all_fields = {}
+        # Collect dataclass fields first (they carry type + default metadata)
+        for f in dataclasses.fields(self):
+            if f.default is not MISSING:
+                all_fields[f.name] = f.default
+            elif f.default_factory is not MISSING:
+                all_fields[f.name] = f.default_factory()
+            else:
+                all_fields[f.name] = f.type() if f.type in (dict, list, set, str, int, float, bool) else None
+
+        # Then collect plain class annotations (non-dataclass-field defaults)
+        for name, value in self.__class__.__dict__.items():
+            if name.startswith('_') or callable(value) or isinstance(value, (staticmethod, classmethod, property, Field)):
+                continue
+            if name not in all_fields:
+                all_fields[name] = value
+
+        for name, default in all_fields.items():
+            env_val = os.environ.get(name)
+            if env_val is not None:
+                if isinstance(default, bool):
+                    setattr(self, name, env_val.lower() in ('true', '1', 'yes'))
+                elif isinstance(default, int):
+                    setattr(self, name, int(env_val))
+                elif isinstance(default, float):
+                    setattr(self, name, float(env_val))
+                elif isinstance(default, (dict, list)):
+                    try:
+                        setattr(self, name, eval(env_val))
+                    except Exception:
+                        setattr(self, name, default)
+                else:
+                    setattr(self, name, env_val)
+            else:
+                setattr(self, name, default)
 
     # --------------------------------------------------------------------------
     # API_ENDPOINTS - External API URLs
