@@ -39,6 +39,16 @@ else {
     Start-Process -FilePath "python" -ArgumentList "-m", "backend.core.orchestrator" -NoNewWindow -RedirectStandardOutput ".omc\logs\polyedge-bot-out.log" -RedirectStandardError ".omc\logs\polyedge-bot-error.log"
 
     if (Test-Path "frontend") {
+        if (-not (Test-Path "frontend\node_modules")) {
+            Write-Host "[INFO] Installing frontend dependencies..." -ForegroundColor Green
+            & npm --prefix "frontend" install
+        }
+
+        if (-not (Test-Path "frontend\dist")) {
+            Write-Host "[INFO] Building frontend..." -ForegroundColor Green
+            & npm --prefix "frontend" run build
+        }
+
         Write-Host "[INFO] Starting polyedge-frontend..." -ForegroundColor Green
         $frontendProc = Start-Process -FilePath "npm" -ArgumentList "run", "preview", "--", "--port", "5174" -NoNewWindow -WorkingDirectory "frontend" -RedirectStandardOutput ".omc\logs\polyedge-frontend-out.log" -RedirectStandardError ".omc\logs\polyedge-frontend-error.log"
     }

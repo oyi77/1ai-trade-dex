@@ -2086,5 +2086,11 @@ def get_db():
     finally:
         db.close()
 
-# Re-import to ensure table registration without circular import
-from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: E402, F401
+# Re-import to ensure table registration without failing on circular import orderings.
+try:
+    from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: E402, F401
+except ImportError as exc:
+    logger.debug(
+        "Deferred StrategyPerformanceSnapshot registration during database import: {}",
+        exc,
+    )

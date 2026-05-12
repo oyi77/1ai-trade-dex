@@ -23,6 +23,7 @@ module.exports = {
       env: {
         PYTHONPATH: ROOT,
         DISABLE_TRADING_SCHEDULER: 'true',
+        RELOAD_ON_CHANGE: 'false',
       },
       env_file: path.join(ROOT, '.env'),
       watch: false,
