@@ -475,7 +475,7 @@ class RiskManager:
     ) -> Optional[float]:
         """Return remaining allocation budget for a strategy, or None if no allocation exists."""
         try:
-            state = for_update(db, db.query(BotState)).first()
+            state = db.query(BotState).first()
             if not state or not state.misc_data:
                 return None
             misc = json.loads(state.misc_data)
@@ -495,8 +495,8 @@ class RiskManager:
             )
             remaining = total_budget - float(strategy_exposure)
             return max(0.0, remaining)
-        except Exception as e:
-            logger.error(f"[risk_manager._strategy_allocation_cap] {type(e).__name__}: {e}", exc_info=True)
+        except Exception:
+            logger.exception("[risk_manager._strategy_allocation_cap] allocation lookup failed")
             return None
 
     def _get_confidence_threshold(self, trading_mode: str, strategy_name: Optional[str] = None) -> float:
