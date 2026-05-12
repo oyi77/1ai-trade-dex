@@ -159,8 +159,10 @@ class AzuroProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Returns {"tx_hash": "0x...", "status": "submitted"} on success.
         """
-        private_key: str = kwargs.get("private_key", "") or provider_config.get(
-            self._platform, "private_key"
+        private_key: str = (
+            kwargs["private_key"]
+            if "private_key" in kwargs
+            else provider_config.get(self._platform, "private_key")
         )
 
         if not private_key or not self._rpc_url:

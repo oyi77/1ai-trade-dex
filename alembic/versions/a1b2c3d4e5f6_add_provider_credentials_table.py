@@ -25,7 +25,7 @@ def upgrade() -> None:
         sa.Column('provider_name', sa.String(), nullable=False),
         sa.Column('config_key', sa.String(), nullable=False),
         sa.Column('config_value', sa.Text(), nullable=True),
-        sa.Column('is_secret', sa.Boolean(), nullable=False, server_default='0'),
+        sa.Column('is_secret', sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
