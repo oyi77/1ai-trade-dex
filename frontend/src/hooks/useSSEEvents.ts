@@ -8,9 +8,9 @@ export type SSEEvent = {
     | 'autonomous_promotion' | 'arbitrage_fired' | 'regime_shift'
     | 'chromosome_flagged' | 'strategy_param_mutated' | 'genome_killed'
     | 'genome_promoted' | 'genome_ready_for_paper' | 'lifecycle_transition'
-    | 'connected';
+    | 'connected' | 'system_log';
   timestamp: string;
-  data: Record<string, unknown>;
+  data?: any;
 };
 
 interface UseSSEEventsOptions {
@@ -64,10 +64,13 @@ export function useSSEEvents(options: UseSSEEventsOptions = {}): UseSSEEventsRes
 
       es.onmessage = (e) => {
         try {
-          const event = JSON.parse(e.data) as SSEEvent;
+          const event = JSON.parse(e.data);
+          if (!event.event_type && event.type) {
+            event.event_type = event.type;
+          }
           
           setEvents(prev => {
-            const next = [event, ...prev];
+            const next = [event as SSEEvent, ...prev];
             return next.slice(0, 50);
           });
           setLastEvent(event);

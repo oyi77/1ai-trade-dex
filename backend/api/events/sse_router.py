@@ -29,6 +29,7 @@ EVENT_CHANNEL_MAP = {
     "genome_promoted": ["agi_control"],
     # New event from shadow_validation
     "genome_ready_for_paper": ["dashboard", "agi_control"],
+    "system_log": ["admin"],
 }
 
 router = APIRouter(tags=["events"])
