@@ -58,12 +58,26 @@ class ProviderConfigStore:
     def __init__(self) -> None:
         self._table_ready: bool = False  # flips True once the table is confirmed to exist
 
-    def _ensure_table_ready(self) -> bool:
-        """Return True if the provider_credentials table is accessible."""
+    def _ensure_table_ready(self, db: Optional["Session"] = None) -> bool:
+        """Return True if the provider_credentials table is accessible.
+
+        When a custom ``db`` session is provided, that session's engine is
+        inspected directly (without caching) — useful for tests.
+        When no ``db`` is provided, the global engine is checked and the result
+        is cached in ``_table_ready`` to avoid repeated introspection.
+        """
+        from sqlalchemy import inspect as sa_inspect
+
+        if db is not None:
+            # Per-session check: don't pollute the singleton cache
+            try:
+                return sa_inspect(db.bind).has_table("provider_credentials")
+            except Exception:
+                return False
+
         if self._table_ready:
             return True
         try:
-            from sqlalchemy import inspect as sa_inspect
             from backend.models.database import engine
 
             self._table_ready = sa_inspect(engine).has_table("provider_credentials")
@@ -90,7 +104,7 @@ class ProviderConfigStore:
                            session is opened from :data:`SessionLocal`
         """
         # --- 1. Try DB ---
-        if self._ensure_table_ready():
+        if self._ensure_table_ready(db):
             try:
                 row = self._fetch_row(provider_name, config_key, db)
                 if row is not None and row.config_value is not None:
@@ -130,7 +144,7 @@ class ProviderConfigStore:
                 result[cfg_key] = env_value
 
         # --- 2. DB rows (override ENV vars) ---
-        if self._ensure_table_ready():
+        if self._ensure_table_ready(db):
             try:
                 rows = self._fetch_all_rows(provider_name, db)
                 for row in rows:
@@ -263,10 +277,11 @@ class ProviderConfigStore:
     def _encrypt(self, value: str) -> str:
         f = _get_fernet()
         if f is None:
-            logger.warning(
-                "ProviderConfigStore: WALLET_FERNET_KEY not set — storing secret in plaintext"
+            raise ValueError(
+                "WALLET_FERNET_KEY is not set; cannot store secret credentials. "
+                "Generate a key with: python -c \"from cryptography.fernet import Fernet; "
+                "print(Fernet.generate_key().decode())\""
             )
-            return value
         return f.encrypt(value.encode()).decode()
 
     def _decrypt(self, value: str, is_secret: bool) -> str:
@@ -274,11 +289,18 @@ class ProviderConfigStore:
             return value
         f = _get_fernet()
         if f is None:
-            return value  # best-effort: return as-is
+            logger.error(
+                "ProviderConfigStore: WALLET_FERNET_KEY is not set but a secret credential "
+                "was requested — returning raw DB value (likely encrypted). "
+                "Set WALLET_FERNET_KEY to enable decryption."
+            )
+            return value
         try:
             return f.decrypt(value.encode()).decode()
         except Exception as exc:
-            logger.warning("ProviderConfigStore: decryption failed — {}", exc)
+            logger.error(
+                "ProviderConfigStore: decryption failed (bad WALLET_FERNET_KEY?) — {}", exc
+            )
             return value
 
 
