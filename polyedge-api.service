@@ -1,0 +1,26 @@
+[Unit]
+Description=PolyEdge Trading Bot API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=openclaw
+WorkingDirectory=/home/openclaw/projects/polyedge
+Environment="PYTHONPATH=/home/openclaw/projects/polyedge"
+Environment="PYTHONUNBUFFERED=1"
+Environment="DISABLE_TRADING_SCHEDULER=true"
+EnvironmentFile=/home/openclaw/projects/polyedge/.env
+ExecStart=/home/linuxbrew/.linuxbrew/bin/python3 -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8100 --workers 1 --timeout-keep-alive 120 --log-level info
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+TimeoutStartSec=120
+TimeoutStopSec=120
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=polyedge-api
+
+[Install]
+WantedBy=multi-user.target

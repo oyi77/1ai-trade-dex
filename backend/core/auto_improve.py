@@ -4,7 +4,6 @@ auto-applies optimizer suggestions with guardrails and rollback."""
 from __future__ import annotations
 
 import asyncio
-import logging
 import json
 import threading
 from datetime import datetime, timedelta, timezone
@@ -18,8 +17,7 @@ from backend.clients.bigbrain import BigBrainClient, get_bigbrain
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

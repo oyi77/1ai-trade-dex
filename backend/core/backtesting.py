@@ -11,16 +11,15 @@ for any code that directly imports it, but the /api/backtest/run
 endpoint now uses backend.core.backtester.BacktestEngine exclusively.
 """
 
-import logging
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from backend.models.database import Trade, Signal
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from backend.models.database import Trade, Signal
 
 warnings.warn(
     "backend.core.backtesting is deprecated — use backend.core.backtester instead. "

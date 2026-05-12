@@ -25,10 +25,10 @@ async def test_websocket_per_ip_limit():
         print(f"Connection {i + 1}: {'✓ Allowed' if allowed else '✗ Rejected'} - {error_msg or 'OK'}")
 
     # Verify first 10 allowed, 11th and 12th rejected
-    assert results[0][1] == True, "Connection 1 should be allowed"
-    assert results[9][1] == True, "Connection 10 should be allowed"
-    assert results[10][1] == False, "Connection 11 should be rejected (per-IP limit)"
-    assert results[11][1] == False, "Connection 12 should be rejected (per-IP limit)"
+    assert results[0][1], "Connection 1 should be allowed"
+    assert results[9][1], "Connection 10 should be allowed"
+    assert not results[10][1], "Connection 11 should be rejected (per-IP limit)"
+    assert not results[11][1], "Connection 12 should be rejected (per-IP limit)"
 
     print("\n✓ Per-IP limit test passed: 10 allowed, 11th+ rejected")
 
@@ -83,10 +83,10 @@ async def test_http_per_ip_limit():
             print(f"Request {i + 1}: {'✓ Allowed' if allowed else '✗ Rejected'} - {error_msg or 'OK'}")
 
     # Verify first 50 allowed, 51st+ rejected
-    assert results[0][1] == True, "Request 1 should be allowed"
-    assert results[49][1] == True, "Request 50 should be allowed"
-    assert results[50][1] == False, "Request 51 should be rejected (HTTP per-IP limit)"
-    assert results[51][1] == False, "Request 52 should be rejected (HTTP per-IP limit)"
+    assert results[0][1], "Request 1 should be allowed"
+    assert results[49][1], "Request 50 should be allowed"
+    assert not results[50][1], "Request 51 should be rejected (HTTP per-IP limit)"
+    assert not results[51][1], "Request 52 should be rejected (HTTP per-IP limit)"
 
     print("\n✓ HTTP per-IP limit test passed: 50 allowed, 51st+ rejected")
 

@@ -1,10 +1,12 @@
-"""Shared Data Service — internal API for MiroFish to access PolyEdge data."""
+"""Shared Data Service — internal API for MiroFish. Mounted at /api/v1/data via main.py."""
 
 from fastapi import APIRouter, Header, HTTPException, Query, Path
 from typing import Optional
 import time
 
-router = APIRouter(prefix="/api/v1/data", tags=["shared"])
+from loguru import logger
+
+router = APIRouter(prefix="/data", tags=["shared"])
 
 REQUEST_COUNTER: dict[str, float] = {}
 RATE_LIMIT = 100
@@ -23,6 +25,7 @@ async def _get_markets_polymarket(limit: int = 100) -> list[dict]:
         from backend.data.gamma import fetch_markets
         return await fetch_markets(limit=limit)
     except Exception as exc:
+        logger.exception("shared_service polymarket markets fetch failed")
         raise HTTPException(status_code=500, detail=f"Gamma API error: {exc}")
 
 
@@ -44,6 +47,7 @@ async def _get_market_price(condition_id: str) -> dict:
     except HTTPException:
         raise
     except Exception as exc:
+        logger.exception("shared_service market price lookup failed for condition_id=%s", condition_id)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -56,6 +60,7 @@ async def _get_orderbook(condition_id: str) -> dict:
         await ob.disconnect()
         return snapshot
     except Exception:
+        logger.exception("shared_service orderbook fetch failed for condition_id=%s", condition_id)
         return {"condition_id": condition_id, "bids": [], "asks": [], "spread": 0.0}
 
 
@@ -65,6 +70,7 @@ async def _get_markets_kalshi(limit: int = 100) -> list[dict]:
         client = KalshiClient()
         return await client.get_markets(params={"limit": limit})
     except Exception as exc:
+        logger.exception("shared_service kalshi markets fetch failed")
         raise HTTPException(status_code=500, detail=f"Kalshi API error: {exc}")
 
 

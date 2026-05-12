@@ -11,7 +11,7 @@ This module integrates with:
 - API endpoints for approval workflow
 """
 
-import logging
+from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -20,8 +20,6 @@ from backend.models.database import Trade
 from backend.ai.trade_analyzer import TradeAnalyzer
 from backend.ai.claude import ClaudeAnalyzer
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,7 +41,7 @@ class ProposalGenerator:
 
     def __init__(self):
         """Initialize the ProposalGenerator."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.trade_analyzer = TradeAnalyzer()
         self.claude_analyzer = ClaudeAnalyzer()
 
@@ -553,8 +551,8 @@ def auto_promote_eligible_proposals():
         with get_db_session() as db:
             eligible = db.query(DBProposal).filter(
                 DBProposal.status == "pending",
-                DBProposal.auto_promotable == True,
-                DBProposal.backtest_passed == False,
+                DBProposal.auto_promotable,
+                not DBProposal.backtest_passed,
             ).all()
 
             for proposal in eligible:
@@ -570,8 +568,8 @@ def auto_promote_eligible_proposals():
 
             promotable = db.query(DBProposal).filter(
                 DBProposal.status == "pending",
-                DBProposal.auto_promotable == True,
-                DBProposal.backtest_passed == True,
+                DBProposal.auto_promotable,
+                DBProposal.backtest_passed,
             ).all()
             for proposal in promotable:
                 try:
@@ -622,7 +620,7 @@ def _get_baseline_win_rate(db, strategy_name: str) -> float:
         func.count(Trade.id).filter(Trade.result == "win").label("wins"),
     ).filter(
         Trade.strategy == strategy_name,
-        Trade.settled == True,
+        Trade.settled,
     ).first()
     cnt = stats.cnt or 0
     return (stats.wins or 0) / cnt if cnt > 0 else 0.0
@@ -645,7 +643,7 @@ def _run_backtest_for_proposal(db, proposal) -> dict:
 
         settled_trades = (
             db.query(Trade)
-            .filter(Trade.strategy == strategy_name, Trade.settled == True)
+            .filter(Trade.strategy == strategy_name, Trade.settled)
             .order_by(Trade.settlement_time.asc())
             .all()
         )

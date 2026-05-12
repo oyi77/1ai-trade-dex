@@ -1,13 +1,11 @@
 """Order Book HFT WebSocket Handler — real-time order book updates with ping/pong and ordering."""
 
 import asyncio
-import logging
 from typing import AsyncIterator
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.ob_hft_ws")
-
+from loguru import logger
 OB_WS_URL = settings.POLYMARKET_WS_ORDERBOOK_URL
 
 
@@ -49,6 +47,7 @@ class OrderbookHFTWS:
             try:
                 await self._ws.close()
             except Exception:
+                logger.exception("ob_hft_ws disconnect error")
                 pass
             self._ws = None
 

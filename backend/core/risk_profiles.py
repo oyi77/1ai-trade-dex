@@ -6,8 +6,6 @@ Profiles are fully editable at runtime via REST API — no code changes needed.
 """
 
 from __future__ import annotations
-
-import logging
 import os
 from dataclasses import dataclass
 from typing import Dict, Optional
@@ -17,9 +15,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import Base, SessionLocal
 
-logger = logging.getLogger("trading_bot.risk_profiles")
-
-
+from loguru import logger
 class RiskProfileRow(Base):
     __tablename__ = "risk_profiles"
 
@@ -175,10 +171,11 @@ def seed_presets(db: Optional[Session] = None) -> None:
         db.commit()
     except Exception as e:
         logger.warning("[risk_profiles] Seed failed: %s", e)
+        logger.exception("[risk_profiles] Seed failed")
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.exception("[risk_profiles] Rollback failed during seed")
     finally:
         if _owned:
             db.close()
@@ -197,7 +194,7 @@ def get_profile(name: Optional[str] = None, db: Optional[Session] = None) -> Ris
         if row:
             return _row_to_profile(row)
     except Exception:
-        pass
+        logger.exception("[risk_profiles] Failed to get profile from database")
     finally:
         if _owned:
             db.close()
@@ -218,7 +215,7 @@ def list_profiles(db: Optional[Session] = None) -> Dict[str, RiskProfile]:
         for row in rows:
             result[row.name] = _row_to_profile(row)
     except Exception:
-        pass
+        logger.exception("[risk_profiles] Failed to list profiles from database")
     finally:
         if _owned:
             db.close()
@@ -241,6 +238,7 @@ def create_profile(profile: RiskProfile, db: Optional[Session] = None) -> RiskPr
         db.commit()
         return profile
     except Exception:
+        logger.exception("[risk_profiles] Failed to create profile")
         db.rollback()
         raise
     finally:
@@ -270,6 +268,7 @@ def update_profile(name: str, updates: dict, db: Optional[Session] = None) -> Ri
         db.commit()
         return _row_to_profile(row)
     except Exception:
+        logger.exception("[risk_profiles] Failed to update profile '%s'", name)
         db.rollback()
         raise
     finally:
@@ -290,6 +289,7 @@ def delete_profile(name: str, db: Optional[Session] = None) -> bool:
         db.commit()
         return True
     except Exception:
+        logger.exception("[risk_profiles] Failed to delete profile '%s'", name)
         db.rollback()
         return False
     finally:
@@ -364,4 +364,5 @@ def _persist_profile_name(name: str) -> None:
             f.writelines(lines)
         os.environ["RISK_PROFILE"] = name
     except Exception as e:
+        logger.exception("[risk_profiles] Failed to persist RISK_PROFILE to .env")
         logger.warning("[risk_profiles] Failed to persist RISK_PROFILE to .env: %s", e)

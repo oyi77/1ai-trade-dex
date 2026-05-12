@@ -14,7 +14,6 @@ We use web search to determine which scenario applies.
 """
 
 import json
-import logging
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -30,9 +29,7 @@ from backend.strategies.base import (
 from backend.core.decisions import record_decision
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 def _cfg(name, default):
     return getattr(settings, name, default)
 
@@ -330,6 +327,14 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 else "",
             )
 
+        # Size: scale with edge (price_change_pct) and volume confidence.
+        # Stronger moves + higher volume → larger position.
+        move_magnitude = abs(movement.price_change_pct)
+        base_size = min(move_magnitude * _cfg("LINE_MOVE_SIZE_PER_PCT", 5.0), _cfg("LINE_MOVE_MAX_SIGNAL_SIZE", 100.0))
+        # Volume boost: scale up to 2x for high-volume moves
+        vol_factor = min(2.0, max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)))
+        size = round(base_size * vol_factor * confidence, 2)
+
         return {
             "decision": action,
             "market_ticker": movement.ticker,
@@ -339,6 +344,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
             "entry_price": entry_price,
             "model_probability": confidence,
             "market_probability": movement.current_price,
+            "size": size,
             "platform": "polymarket",
             "strategy_name": self.name,
             "token_id": movement.token_id,

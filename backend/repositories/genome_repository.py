@@ -1,6 +1,5 @@
 """Genome Repository - DB access layer for genome persistence."""
 
-import logging
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
@@ -10,7 +9,6 @@ from sqlalchemy import func, desc, and_
 from backend.models.database import GenomeRegistry
 from backend.models.genome_registry import GenomeShadowTrade
 
-logger = logging.getLogger("trading_bot.genome_repo")
 
 
 class GenomeRepository:

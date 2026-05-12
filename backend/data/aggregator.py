@@ -5,16 +5,13 @@ Sources are registered per category (e.g. "btc_price") and tried in
 priority order. A local TTL-based cache avoids redundant fetches and
 provides stale data when all sources are unavailable.
 """
-import logging
 import time
 from dataclasses import dataclass
 from typing import Optional, Any, Callable, Awaitable
 
 from backend.core.errors import DataQualityError
 
-logger = logging.getLogger("trading_bot.aggregator")
-
-
+from loguru import logger
 @dataclass
 class SourceResult:
     data: Any

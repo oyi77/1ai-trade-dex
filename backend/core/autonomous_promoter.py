@@ -11,8 +11,6 @@ Respects ADR-006 gate but can be overridden via AGI_AUTO_PROMOTE=true.
 """
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -26,9 +24,7 @@ from backend.core.agi_types import ExperimentStatus
 from backend.core.strategy_health import StrategyHealthMonitor
 from backend.core.event_bus import publish_event
 
-logger = logging.getLogger("trading_bot.autonomous_promoter")
-
-
+from loguru import logger
 class AutonomousPromoter:
     """Daemon that evaluates and promotes experiments without human intervention."""
 
@@ -472,6 +468,7 @@ class AutonomousPromoter:
                     max_dd = dd
             return max_dd
         except Exception:
+            logger.exception(f"[AutonomousPromoter] Failed to compute shadow drawdown for '{exp.strategy_name}'")
             return 0.0
 
     def _check_paper_criteria(self, exp: ExperimentRecord) -> tuple[bool, list[str]]:

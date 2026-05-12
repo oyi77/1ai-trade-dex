@@ -1,7 +1,5 @@
 """Auto-trader: routes high-confidence signals to immediate execution,
 low-confidence signals to a manual approval queue."""
-
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -11,9 +9,7 @@ from backend.models.database import PendingApproval
 from backend.monitoring.hft_metrics import record_signal
 from backend.monitoring.metrics import increment_trade_execution
 
-logger = logging.getLogger("trading_bot.auto_trader")
-
-
+from loguru import logger
 @dataclass
 class ExecutionResult:
     executed: bool

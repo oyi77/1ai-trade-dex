@@ -15,15 +15,13 @@ Integration points:
 - Database - stores ProposalImpact and StrategyConfigSnapshot records
 """
 
-import logging
+from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from dataclasses import dataclass
 import numpy as np
 
 from backend.models.database import Trade, StrategyProposal
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -48,7 +46,7 @@ class ImpactMeasurer:
 
     def __init__(self):
         """Initialize the ImpactMeasurer."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
     def measure_proposal_impact(
         self,
@@ -308,4 +306,5 @@ class ImpactMeasurer:
 
                 return proposal.impact_measured
         except Exception:
+            logger.exception("Failed to retrieve proposal impact")
             return None

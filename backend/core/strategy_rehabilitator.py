@@ -1,8 +1,6 @@
 """Strategy rehabilitation — re-enables suspended strategies after paper validation."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -10,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import SessionLocal, StrategyConfig, Trade
 
-logger = logging.getLogger("trading_bot.rehabilitation")
-
-
+from loguru import logger
 class StrategyRehabilitator:
     """Re-enables disabled strategies if they pass paper-mode validation."""
 
@@ -54,7 +50,7 @@ class StrategyRehabilitator:
                 try:
                     db.rollback()
                 except Exception:
-                    pass
+                    logger.exception("[Rehabilitation] Rollback failed after rehabilitation error")
             return rehabilitated
         finally:
             if _owned:

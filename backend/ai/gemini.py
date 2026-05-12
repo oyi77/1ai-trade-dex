@@ -1,13 +1,9 @@
 """Google Gemini AI provider for PolyEdge 5-forecaster ensemble."""
-import logging
-
 import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.gemini")
-
-
+from loguru import logger
 class GeminiProvider:
     def __init__(self, api_key: str = None):
         self.api_key = api_key or getattr(settings, "GEMINI_API_KEY", "")

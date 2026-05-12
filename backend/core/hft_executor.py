@@ -1,7 +1,6 @@
 """HFT Strategy Executor — auto-executes HFT signals with idempotency and audit trail."""
 
 import asyncio
-import logging
 import time
 import uuid
 from collections import deque
@@ -13,9 +12,7 @@ from backend.core.risk_manager_hft import HRiskManager
 from backend.core.slippage import calculate_slippage
 from backend.monitoring.hft_metrics import record_execution, record_circuit_open, hft_latency_ms
 
-logger = logging.getLogger("trading_bot.hft_executor")
-
-
+from loguru import logger
 class HFTExecutor:
     """
     HFT Strategy Executor — auto-executes HFT signals with <50ms target.
@@ -127,6 +124,7 @@ class HFTExecutor:
             return execution
 
         except Exception as exc:
+            logger.exception(f"[hft_executor] Order execution failed for signal {signal.signal_id}")
             self._failure_count += 1
             if self._failure_count >= self._failure_threshold:
                 self._circuit_open = True
@@ -163,6 +161,7 @@ class HFTExecutor:
                 )
                 return getattr(result, "order_id", None)
             except Exception:
+                logger.exception(f"[hft_executor] Order placement attempt {attempt+1}/3 failed for signal {signal.signal_id}")
                 if attempt < 2:
                     wait = 0.01 * (2 ** attempt)
                     await asyncio.sleep(wait)

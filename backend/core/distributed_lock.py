@@ -19,16 +19,12 @@ Usage::
 """
 
 from __future__ import annotations
-
-import logging
 import threading
 import time
 import uuid
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.distributed_lock")
-
-
+from loguru import logger
 # ---------------------------------------------------------------------------
 # Process-local fallback registry
 # ---------------------------------------------------------------------------
@@ -239,7 +235,8 @@ class DistributedSettlementLock:
         try:
             if self.acquired:
                 self.release()
-        except Exception as exc:  # pragma: no cover - defensive
+        except Exception as exc:
+            logger.exception("Error releasing distributed lock %s", self._key)
             logger.warning("Error releasing distributed lock %s: %s", self._key, exc)
         # Do not suppress exceptions raised within the with-block.
         return None

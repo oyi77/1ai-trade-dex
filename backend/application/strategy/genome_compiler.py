@@ -1,6 +1,5 @@
 """GenomeCompiler - translate StrategyGenome into executable BaseStrategy."""
 
-import logging
 import time
 from typing import Type
 
@@ -9,7 +8,7 @@ from backend.strategies.base import BaseStrategy
 from backend.strategies.registry import _auto_register, register_genome_strategy
 from backend.application.strategy import genome_strategy as genome_strategy_module
 
-logger = logging.getLogger("trading_bot.genome_compiler")
+from loguru import logger
 
 # Backward-compatible exports for existing imports/tests
 GenomeStrategy = genome_strategy_module.GenomeStrategy

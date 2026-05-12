@@ -7,7 +7,6 @@ Auto-reconnects on network partitions, caches and replays on outage recovery.
 
 import asyncio
 import json
-import logging
 from typing import AsyncIterator, Optional
 
 import websockets
@@ -15,8 +14,7 @@ import websockets
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.whale_monitor_ws")
-
+from loguru import logger
 WHALE_WS_URL = settings.POLYMARKET_WS_WHALE_URL
 RECONNECT_MAX_RETRIES = 5
 RECONNECT_BASE_DELAY = 0.1
@@ -56,6 +54,7 @@ class WhaleMonitorWS:
             try:
                 await self._ws.close()
             except Exception:
+                logger.exception("whale_monitor_ws disconnect error")
                 pass
             self._ws = None
 

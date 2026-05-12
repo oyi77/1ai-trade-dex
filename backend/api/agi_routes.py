@@ -13,6 +13,7 @@ from backend.core.agi_goal_engine import AGIGoalEngine
 from backend.core.strategy_composer import StrategyComposer
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.models.kg_models import DecisionAuditLog, ExperimentRecord, KGEntity as KGEntityModel
+from loguru import logger
 
 router = APIRouter(tags=["AGI"])
 
@@ -34,7 +35,7 @@ async def get_goal(db: Session = Depends(get_db)):
         detector = RegimeDetector()
         regime = detector.detect_regime(market_data={}).regime
     except Exception:
-        pass
+        logger.exception("Failed to detect market regime in goal endpoint")
     goal = engine.get_current_goal(regime or None)
     return {"goal": goal.value, "reason": engine._goal_reason}
 

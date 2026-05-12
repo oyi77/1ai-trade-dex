@@ -1,7 +1,4 @@
 """Analytics API endpoints — strategy metrics, equity curve, calibration, experiments."""
-
-import logging
-
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -11,8 +8,6 @@ from backend.models.database import SessionLocal, Trade, EquitySnapshot
 from backend.core.strategy_ranker import strategy_ranker
 from backend.core.calibration_tracker import get_bucket_calibration
 from backend.db.utils import get_db_session
-
-logger = logging.getLogger("trading_bot.analytics")
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 

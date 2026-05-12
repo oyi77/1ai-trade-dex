@@ -10,14 +10,11 @@ Limits:
 """
 
 import time
-import logging
 from collections import defaultdict
 from typing import Optional, Dict, Tuple
 from fastapi import WebSocket
 
-logger = logging.getLogger("trading_bot.connection_limits")
-
-
+from loguru import logger
 class ConnectionLimiter:
     """Tracks and enforces connection limits per IP and globally."""
 

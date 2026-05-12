@@ -6,16 +6,14 @@ topic-based subscriptions for better scalability and selective updates.
 """
 
 import asyncio
-import logging
 from collections import defaultdict
 from typing import Dict, Set, Any, Optional
 
+from loguru import logger
 from fastapi import WebSocket
 
 from backend.config import settings
 from backend.core.redis_pubsub import RedisPublisher, RedisSubscriber
-
-logger = logging.getLogger(__name__)
 
 
 class TopicWebSocketManager:

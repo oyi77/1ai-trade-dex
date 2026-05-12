@@ -5,8 +5,6 @@ for AGI learning and strategy improvement.
 """
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from collections import Counter
@@ -57,9 +55,7 @@ def classify_trade_role(
 
 
 
-logger = logging.getLogger("trading_bot.trade_forensics")
-
-
+from loguru import logger  # noqa: E402
 class TradeForensics:
     """Analyzes losing trades to diagnose failure modes."""
 
@@ -156,6 +152,7 @@ class TradeForensics:
                         confidence += 0.15
                         factors.append(f"slippage {slippage:.1%}")
             except Exception:
+                logger.exception(f"[TradeForensics] Slippage calculation failed for trade_id={trade.id} market={trade.market_ticker}")
                 pass
 
         # 3. Check if strategy was already warned

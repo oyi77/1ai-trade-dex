@@ -2,7 +2,6 @@
 available; otherwise falls back to a deterministic logistic baseline so
 the end-to-end pipeline stays callable on a fresh checkout.
 """
-import logging
 import math
 import os
 from dataclasses import dataclass
@@ -10,9 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from backend.ai.probability_utils import clamp_probability
 
-logger = logging.getLogger("trading_bot.prediction_engine")
-
-
+from loguru import logger
 @dataclass
 class Prediction:
     probability_yes: float

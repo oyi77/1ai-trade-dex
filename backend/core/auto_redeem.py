@@ -14,8 +14,6 @@ Function: redeemPositions(collateralToken, parentCollectionId, conditionId, inde
 
 For standard binary markets: indexSets = [1, 2], parentCollectionId = bytes32(0)
 """
-
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -26,8 +24,7 @@ from eth_account import Account
 from backend.config_extensions import settings
 from backend.config import settings as _main_settings
 
-logger = logging.getLogger("auto_redeem")
-
+from loguru import logger
 POLYGON_RPC = settings.POLYGON_RPC_URL
 RELAYER_URL = _main_settings.POLYMARKET_RELAYER_URL
 CTF_ADDRESS = Web3.to_checksum_address("0x4D97DCd97eC945f40cF65F87097ACe5EA0476045")

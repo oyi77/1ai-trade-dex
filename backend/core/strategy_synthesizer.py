@@ -11,7 +11,6 @@ Pipeline:
 from __future__ import annotations
 
 import ast
-import logging
 import types
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -22,8 +21,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from backend.core.agi_types import MarketRegime
 from backend.models.kg_models import Base, ExperimentRecord
 
-logger = logging.getLogger("trading_bot.strategy_synthesizer")
-
+from loguru import logger
 # Daily LLM cost budget for synthesis (overridden by AGI_SYNTHESIS_DAILY_BUDGET env var)
 _DEFAULT_DAILY_BUDGET = 2.00
 
@@ -93,6 +91,7 @@ class StrategySynthesizer:
             from backend.config import settings
             return float(getattr(settings, "AGI_SYNTHESIS_DAILY_BUDGET", _DEFAULT_DAILY_BUDGET))
         except Exception:
+            logger.exception("[StrategySynthesizer] Failed to read AGI_SYNTHESIS_DAILY_BUDGET setting")
             return _DEFAULT_DAILY_BUDGET
 
     async def generate_strategy(
@@ -275,6 +274,7 @@ class StrategySynthesizer:
                     ):
                         return ValidationResult(valid=True)
                 except Exception:
+                    logger.debug("[StrategySynthesizer] Skipping invalid class in sandbox import test")
                     continue
             # No BaseStrategy subclass found but exec succeeded — still pass
             return ValidationResult(valid=True)

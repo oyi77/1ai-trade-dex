@@ -1,12 +1,8 @@
 """Longshot bias detection — identifies systematic over/under-pricing of longshot outcomes."""
-
-import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from backend.models.database import SessionLocal, CalibrationRecord
-
-logger = logging.getLogger("trading_bot.longshot_bias")
 
 # Constants
 LONGSHOT_THRESHOLD = 0.05  # Prices below this are considered longshots

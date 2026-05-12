@@ -4,7 +4,6 @@ Notification router for PolyEdge.
 Routes events to configured channels (Telegram, Discord, Email).
 """
 
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -15,7 +14,7 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.utils.redaction import redact_sensitive
 
-logger = logging.getLogger("trading_bot.notifications")
+from loguru import logger
 
 webhook_breaker = CircuitBreaker("webhook", failure_threshold=3, recovery_timeout=300.0)
 

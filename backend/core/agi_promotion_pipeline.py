@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from dataclasses import dataclass, field
 
+from loguru import logger
+
 from backend.core.experiment_runner import ExperimentRunner
 
 
@@ -121,4 +123,5 @@ class AGIPromotionPipeline:
         try:
             return self.runner.run_shadow_experiment(strategy_name=experiment_id, duration_days=0)
         except Exception:
+            logger.exception(f"AGIPromotionPipeline: failed to find experiment {experiment_id}")
             return None

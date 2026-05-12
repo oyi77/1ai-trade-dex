@@ -4,13 +4,12 @@ Broadcasts activity log entries to all connected WebSocket clients when new
 activities are logged via POST /api/activities.
 """
 
-import logging
 import asyncio
 from typing import Dict, Any
 from datetime import datetime, timezone
 from backend.core.task_manager import TaskManager
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _task_manager: TaskManager | None = None
 

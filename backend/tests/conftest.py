@@ -29,6 +29,30 @@ sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
 sys.modules["backend.core.scheduler"] = _sched_stub
 
 # ---------------------------------------------------------------------------
+# Loguru → caplog bridge: routes loguru output into pytest caplog
+# so tests that use caplog (stdlib LogCaptureFixture) still work.
+# ---------------------------------------------------------------------------
+import logging as _stdlib_logging
+
+@pytest.fixture(autouse=True)
+def _loguru_to_caplog(caplog):
+    from loguru import logger as _loguru_logger
+
+    class _LoguruHandler(_stdlib_logging.Handler):
+        def emit(self, record):
+            caplog.handler.emit(record)
+
+    _LoguruHandler()
+    handler_id = _loguru_logger.add(
+        lambda msg: _stdlib_logging.log(
+            msg.record["level"].no, msg.record["message"]
+        ),
+        level="DEBUG",
+    )
+    yield
+    _loguru_logger.remove(handler_id)
+
+# ---------------------------------------------------------------------------
 # Build in-memory SQLite engine and redirect the database module to use it
 # so every SessionLocal() call (including from startup event / heartbeat)
 # hits the same in-memory DB.

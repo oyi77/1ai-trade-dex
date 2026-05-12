@@ -17,7 +17,6 @@ Official Docs: https://docs.polymarket.com/developers/CLOB/websocket/wss-overvie
 
 import asyncio
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 
@@ -27,9 +26,7 @@ from enum import Enum
 
 import websockets
 
-logger = logging.getLogger("trading_bot.websocket")
-
-
+from loguru import logger
 class ChannelType(Enum):
     """WebSocket channel types"""
 

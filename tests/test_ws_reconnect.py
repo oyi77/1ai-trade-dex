@@ -27,21 +27,21 @@ async def test_reconnection(url="ws://localhost:8000/ws/activities", token="", c
                 except asyncio.TimeoutError:
                     print("✓ No immediate message (expected)")
                 
-                print(f"  Staying connected for 2 seconds...")
+                print("  Staying connected for 2 seconds...")
                 await asyncio.sleep(2)
                 
-                print(f"✓ Disconnecting gracefully...")
+                print("✓ Disconnecting gracefully...")
             
             disconnect_time = datetime.now()
             duration = (disconnect_time - connect_time).total_seconds()
             print(f"✓ Disconnected after {duration:.2f}s\n")
             
             if cycle < cycles:
-                print(f"  Waiting 1 second before reconnecting...")
+                print("  Waiting 1 second before reconnecting...")
                 await asyncio.sleep(1)
         
         except ConnectionRefusedError:
-            print(f"✗ Connection refused. Is the server running?")
+            print("✗ Connection refused. Is the server running?")
             return 1
         except Exception as e:
             print(f"✗ Error in cycle {cycle}: {e}")

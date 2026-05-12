@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import re
 import time
 from dataclasses import dataclass, field
@@ -28,8 +27,7 @@ from dataclasses import dataclass, field
 from backend.ai.llm_router import LLMRouter as _LLMRouter
 from backend.ai.probability_utils import clamp_probability
 
-logger = logging.getLogger("trading_bot.debate_engine")
-
+from loguru import logger
 # --- Configuration ---
 MAX_DEBATE_ROUNDS = 2
 MIN_DEBATE_ROUNDS = 1

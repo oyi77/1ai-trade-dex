@@ -1,7 +1,6 @@
 """WebSocket routes for real-time updates."""
 
 import asyncio
-import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -10,8 +9,7 @@ from backend.api.auth import authorize_realtime_access
 from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(tags=["websockets"])
 
 @router.websocket("/ws/markets")

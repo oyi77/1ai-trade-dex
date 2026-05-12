@@ -1,8 +1,6 @@
 """Nightly review — writes daily markdown logs with calibration and improvement plans."""
 
 from __future__ import annotations
-
-import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
@@ -12,9 +10,7 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState, for_update
 
-logger = logging.getLogger("trading_bot.nightly_review")
-
-
+from loguru import logger
 class NightlyReviewWriter:
     """Generates nightly AGI review reports as markdown files."""
 

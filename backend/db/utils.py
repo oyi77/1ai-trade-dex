@@ -1,9 +1,8 @@
 import time
-import logging
 from contextlib import contextmanager
 from backend.models.database import SessionLocal
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @contextmanager
 def get_db_session():
@@ -21,10 +20,11 @@ def get_db_session():
                     continue
                 raise
     except Exception:
+        logger.exception("db utils get_db_session failed")
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.exception("db utils rollback also failed")
         raise
     finally:
         db.close()

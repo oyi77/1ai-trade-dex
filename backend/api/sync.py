@@ -1,6 +1,4 @@
 """Wallet synchronization endpoints."""
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -14,8 +12,7 @@ from backend.core.event_bus import publish_event
 from backend.core.wallet_reconciliation import WalletReconciler
 from backend.models.database import BotState, get_db, for_update
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(tags=["sync"])
 
 class SyncStatusResponse(BaseModel):

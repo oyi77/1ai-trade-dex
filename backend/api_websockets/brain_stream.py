@@ -7,13 +7,12 @@ Broadcasts events when:
 - Proposal generated
 """
 
-import logging
 import asyncio
 from typing import Dict, Any
 from datetime import datetime, timezone
 from backend.core.task_manager import TaskManager
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Global task manager instance (set by main.py on startup)
 _task_manager: TaskManager | None = None

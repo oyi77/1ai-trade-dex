@@ -11,15 +11,13 @@ Fetches REAL data from polymarket.com:
 
 NO MOCK DATA - Everything is real!
 """
-import logging
 import asyncio
 from typing import List, Dict, Optional, Any
 import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.polymarket_scraper")
-
+from loguru import logger
 POLYMARKET_BASE = settings.POLYMARKET_BASE_URL
 POLYMARKET_GAMMA = settings.GAMMA_API_URL
 POLYMARKET_DATA = settings.DATA_API_URL

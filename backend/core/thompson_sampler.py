@@ -6,15 +6,12 @@ Updates: alpha += 1 on win, beta += 1 on loss.
 No new dependencies — uses stdlib random.betavariate().
 """
 import json
-import logging
 import random
 from pathlib import Path
 from typing import Dict, List, Tuple
 from collections import defaultdict
 
-logger = logging.getLogger("trading_bot.thompson_sampler")
-
-
+from loguru import logger
 class ThompsonSampler:
     """
     Per-strategy Thompson sampling allocator.

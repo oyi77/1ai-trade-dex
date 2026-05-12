@@ -1,6 +1,5 @@
 """Goldsky GraphQL client for ingesting historical Polymarket order-filled events."""
 import json
-import logging
 from pathlib import Path
 from typing import Optional
 
@@ -9,8 +8,7 @@ import httpx
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
-logger = logging.getLogger("trading_bot.goldsky")
-
+from loguru import logger
 goldsky_breaker = CircuitBreaker("goldsky_api", failure_threshold=3, recovery_timeout=120.0)
 
 GOLDSKY_URL = settings.GOLDSKY_API_URL

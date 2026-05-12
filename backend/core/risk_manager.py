@@ -1,7 +1,6 @@
 """Risk manager — validates trades against position size, exposure, drawdown, and confidence rules."""
 
 import json
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -14,9 +13,7 @@ from backend.monitoring.hft_metrics import record_signal
 from backend.monitoring.metrics import increment_risk_rejection
 from sqlalchemy import func, or_
 
-logger = logging.getLogger("trading_bot.risk")
-
-
+from loguru import logger
 def _not_backfill_settlement_source():
     """Include normal settlements and exclude only explicit historical backfills."""
 
@@ -447,17 +444,16 @@ class RiskManager:
         if getattr(self.s, 'AGI_BANKROLL_ALLOCATION_ENABLED', False):
             # Try to get AGI allocation from BotState.misc_data
             try:
-                state = for_update(db, db.query(BotState)).first()
+                state = db.query(BotState).first()
                 if state and state.misc_data:
                     misc = json.loads(state.misc_data)
                     allocations = misc.get("allocations", {})
                     if strategy_name in allocations:
                         allocation = float(allocations[strategy_name])
-                        # Cap at MAX_POSITION_FRACTION
                         max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
                         return min(allocation, max_position)
-            except Exception as e:
-                logger.error(f"[risk_manager._get_strategy_allocation] Error reading AGI allocation: {type(e).__name__}: {e}", exc_info=True)
+            except Exception:
+                logger.exception("[risk_manager._get_strategy_allocation] AGI allocation read failed")
 
         # Fallback: equal-weight allocation
         enabled_count = self._count_enabled_strategies(db)
@@ -478,7 +474,7 @@ class RiskManager:
     ) -> Optional[float]:
         """Return remaining allocation budget for a strategy, or None if no allocation exists."""
         try:
-            state = for_update(db, db.query(BotState)).first()
+            state = db.query(BotState).first()
             if not state or not state.misc_data:
                 return None
             misc = json.loads(state.misc_data)
@@ -498,21 +494,12 @@ class RiskManager:
             )
             remaining = total_budget - float(strategy_exposure)
             return max(0.0, remaining)
-        except Exception as e:
-            logger.error(f"[risk_manager._strategy_allocation_cap] {type(e).__name__}: {e}", exc_info=True)
+        except Exception:
+            logger.exception("[risk_manager._strategy_allocation_cap] allocation lookup failed")
             return None
 
     def _get_confidence_threshold(self, trading_mode: str, strategy_name: Optional[str] = None) -> float:
-        """Get confidence threshold for trade approval, respecting regime routing."""
-        is_paper = (trading_mode or "").lower() in ("paper", "shadow")
-        if is_paper:
-            base_confidence = getattr(
-                self.s, "PAPER_AUTO_APPROVE_MIN_CONFIDENCE", 0.25
-            )
-        else:
-            base_confidence = getattr(
-                self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
-            )
+        base_confidence = getattr(self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE)
 
         if getattr(self.s, 'REGIME_ROUTING_ENABLED', False):
             regime_multiplier = self._get_regime_multiplier(strategy_name)

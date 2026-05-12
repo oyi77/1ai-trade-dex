@@ -60,11 +60,11 @@ def create_historical_test_data():
         session.add(trade)
 
     session.commit()
-    print(f"Created 20 historical signals and 20 settled trades")
+    print("Created 20 historical signals and 20 settled trades")
 
     # Verify
     signal_count = session.query(Signal).count()
-    trade_count = session.query(Trade).filter(Trade.settled == True).count()
+    trade_count = session.query(Trade).filter(Trade.settled).count()
     print(f"Total signals in DB: {signal_count}")
     print(f"Settled trades in DB: {trade_count}")
 

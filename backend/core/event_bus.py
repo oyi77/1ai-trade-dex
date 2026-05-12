@@ -13,14 +13,12 @@ Strategy subscriptions enable event-driven execution:
 - WS disconnect triggers fallback notification to affected strategies
 """
 import asyncio
-import logging
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Callable, Awaitable, Optional, Set
 
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 EventHandler = Callable[[str, Dict[str, Any]], Awaitable[None]]
 StrategyHandler = Callable[["MarketEvent"], Awaitable[Optional[dict]]]

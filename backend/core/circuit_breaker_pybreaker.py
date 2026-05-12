@@ -13,13 +13,12 @@ Circuit breaker states:
 - HALF_OPEN: Testing recovery, limited requests allowed to check if service recovered
 """
 
-import logging
 from typing import Any, Callable
 from functools import wraps
 
-import pybreaker
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+import pybreaker
 
 
 class CircuitBreakerListener(pybreaker.CircuitBreakerListener):

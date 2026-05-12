@@ -11,9 +11,6 @@ from backend.models.database import (
     Trade,
     WhaleTransaction,
 )
-import logging
-
-logger = logging.getLogger("trading_bot")
 router = APIRouter(tags=["market_intel"])
 
 
@@ -40,8 +37,8 @@ async def get_edge_performance(
         db.query(
             Signal.track_name,
             func.count(Signal.id).label("total_signals"),
-            func.sum(case((Signal.executed == True, 1))).label("signals_executed"),
-            func.sum(case((Signal.outcome_correct == True, 1))).label("winning_trades"),
+            func.sum(case((Signal.executed, 1))).label("signals_executed"),
+            func.sum(case((Signal.outcome_correct, 1))).label("winning_trades"),
         )
         .filter(
             Signal.timestamp >= since_date,

@@ -5,15 +5,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
-import logging
 import asyncio
 
 from backend.api.auth import require_admin
 from backend.models.database import get_db, SystemSettings
 from backend.config import settings as app_settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
@@ -528,6 +526,7 @@ def _find_process_by_port(port: int) -> Optional[int]:
             pids = result.stdout.strip().split("\n")
             return int(pids[0])
     except Exception:
+        logger.exception(f"Failed to find process on port {port}")
         pass
     return None
 
@@ -538,7 +537,7 @@ def _kill_process(pid: int):
     try:
         subprocess.run(["kill", str(pid)], timeout=5)
     except Exception:
-        pass
+        logger.exception(f"Failed to kill process {pid}")
 
 
 def _start_mirofish_backend():

@@ -4,14 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timezone
-import logging
-
 from backend.models.database import get_db
 from backend.api.auth import require_admin
 from backend.core.error_logger import get_error_logger
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(prefix="/errors", tags=["errors"])
 
 

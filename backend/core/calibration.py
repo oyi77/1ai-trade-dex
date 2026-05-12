@@ -7,14 +7,12 @@ Gaussian probability model's accuracy over time.
 """
 
 import json
-import logging
 import math
 import threading
 from pathlib import Path
 from typing import Dict
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Default sigma values (°F) before calibration
 DEFAULT_SIGMA_F = 2.5  # US cities (°F)
 DEFAULT_SIGMA_C = 1.4  # Non-US cities (°C, converted to effective °F)

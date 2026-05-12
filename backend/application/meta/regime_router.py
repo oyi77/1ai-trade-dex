@@ -4,12 +4,10 @@ Adjusts confidence thresholds based on detected market regime.
 Different strategies perform better in different regimes.
 """
 
-import logging
 from typing import Dict
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.regime")
 
 
 class RegimeConfidenceRouter:

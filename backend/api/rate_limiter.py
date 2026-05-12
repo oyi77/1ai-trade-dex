@@ -1,13 +1,10 @@
 import time
-import logging
 from collections import defaultdict
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-logger = logging.getLogger("trading_bot.ratelimit")
-
-
+from loguru import logger
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     """
     In-process rate limiter with per-endpoint limits using sliding window.

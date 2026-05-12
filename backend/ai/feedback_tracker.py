@@ -5,7 +5,6 @@ creates ProposalFeedback records, and rolls back changes that made things worse.
 """
 
 import json
-import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -14,8 +13,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import StrategyProposal, StrategyConfig, Trade
 from backend.models.outcome_tables import ProposalFeedback, ParamChange
 
-logger = logging.getLogger("trading_bot.feedback_tracker")
-
+from loguru import logger
 MIN_TRADES_TO_MEASURE = 5
 ROLLBACK_WR_THRESHOLD = -0.05
 ROLLBACK_SHARPE_THRESHOLD = -1.0
@@ -92,13 +90,13 @@ def _measure_proposal(proposal: StrategyProposal, db: Session) -> Optional[dict]
 
     pre_trades = db.query(Trade).filter(
         Trade.strategy == strategy,
-        Trade.settled == True,
+        Trade.settled,
         Trade.timestamp < applied_at,
     ).order_by(Trade.timestamp.desc()).limit(50).all()
 
     post_trades = db.query(Trade).filter(
         Trade.strategy == strategy,
-        Trade.settled == True,
+        Trade.settled,
         Trade.timestamp >= applied_at,
     ).order_by(Trade.timestamp.asc()).limit(50).all()
 

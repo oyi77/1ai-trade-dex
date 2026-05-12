@@ -39,7 +39,7 @@ from backend.data.gamma import fetch_markets
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
-logger = logging.getLogger("honest_seed")
+from loguru import logger
 
 # ── Crypto symbol mapping ─────────────────────────────────────────────
 CRYPTO_SYMBOLS: Dict[str, str] = {

@@ -22,7 +22,6 @@ Track Configuration:
 """
 
 import asyncio
-import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -36,9 +35,7 @@ from backend.strategies.base import (
 )
 from backend.core.decisions import record_decision
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 @dataclass
 class PriceHistory:
     """Tracks price history for a single token_id."""

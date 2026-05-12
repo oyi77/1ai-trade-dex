@@ -1,6 +1,5 @@
 """API endpoints for strategy proposal management."""
 
-import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
@@ -16,8 +15,6 @@ from backend.api.validation import (
 )
 from backend.ai.impact_measurer import ImpactMeasurer
 from backend.services.rollback_manager import RollbackManager
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 

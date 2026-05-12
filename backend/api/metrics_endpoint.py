@@ -10,10 +10,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import get_db, PerformanceMetric
 from backend.api.auth import require_admin
 from backend.monitoring.performance_tracker import get_performance_tracker
-import logging
-
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(tags=["metrics"])
 
 

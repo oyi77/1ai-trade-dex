@@ -1,6 +1,4 @@
 """Signal generator for BTC 5-minute Up/Down markets."""
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional, List
 from dataclasses import dataclass, field
@@ -12,9 +10,7 @@ from backend.data.crypto import compute_btc_microstructure
 from backend.data.market_universe import MarketUniverseScanner
 from backend.models.database import Signal
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 @dataclass
 class TradingSignal:
     """A trading signal for a BTC 5-min market."""

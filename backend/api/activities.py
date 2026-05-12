@@ -1,6 +1,6 @@
 """Activity log API endpoints."""
 
-import logging
+from loguru import logger
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -12,8 +12,6 @@ from backend.models.database import ActivityLog
 from backend.api.auth import require_admin
 from backend.core.activity_logger import activity_logger
 from backend.api_websockets.activity_stream import broadcast_activity
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/activities", tags=["activities"])
 

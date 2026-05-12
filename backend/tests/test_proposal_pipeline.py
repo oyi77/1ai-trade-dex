@@ -40,7 +40,7 @@ class TestProposalSchema:
     def test_query_by_status_no_error(self, test_db):
         results = test_db.query(StrategyProposal).filter(
             StrategyProposal.status == "pending",
-            StrategyProposal.auto_promotable == True,
-            StrategyProposal.backtest_passed == False,
+            StrategyProposal.auto_promotable,
+            not StrategyProposal.backtest_passed,
         ).all()
         assert isinstance(results, list)

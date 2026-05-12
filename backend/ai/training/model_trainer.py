@@ -9,7 +9,6 @@ exercisable today and the swap to a heavier model is a contained change.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from dataclasses import dataclass
 from typing import List, Optional
@@ -20,8 +19,7 @@ from sklearn.linear_model import LogisticRegression
 from backend.ai.training.data_collector import TrainingExample
 from backend.ai.training.feature_engineering import FEATURE_ORDER, FeatureEngineer
 
-logger = logging.getLogger("trading_bot.training.model_trainer")
-
+from loguru import logger
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "baseline.pkl"
 )

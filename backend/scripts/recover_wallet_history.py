@@ -20,7 +20,6 @@ Examples:
 
 import argparse
 import asyncio
-import logging
 import sys
 import os
 
@@ -31,14 +30,9 @@ from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.models.database import SessionLocal
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
-logger = logging.getLogger("recover_wallet_history")
-
-
+from backend.core.log import configure_logging
+configure_logging()
+from loguru import logger  # noqa: E402
 async def main(wallet: str, mode: str):
     """
     Recover wallet history from blockchain.

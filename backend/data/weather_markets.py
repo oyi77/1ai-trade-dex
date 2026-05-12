@@ -1,6 +1,5 @@
 """Weather temperature market fetcher from Polymarket."""
 import re
-import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import List, Optional
@@ -8,8 +7,7 @@ from typing import List, Optional
 from backend.core.market_scanner import fetch_markets_by_keywords
 from backend.data.market_types import UnifiedMarketView
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Month name to number
 MONTH_MAP = {
     "january": 1, "february": 2, "march": 3, "april": 4,

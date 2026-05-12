@@ -3,13 +3,12 @@ arq-based Redis queue implementation.
 
 RQ-015: arq-based Redis queue
 """
-import logging
 from typing import Optional, Dict, Any
 
 from backend.job_queue.abstract import AbstractQueue, Job
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 # Priority → arq queue name mapping
 _PRIORITY_QUEUE_MAP = {

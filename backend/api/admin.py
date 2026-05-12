@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import os
 import re
-import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
@@ -22,11 +21,10 @@ from pydantic import BaseModel
 
 from backend.api.auth import require_admin
 from backend.config import settings
-from backend.models.database import BotState, get_db, for_update
+from backend.models.database import BotState, get_db
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # ---------------------------------------------------------------------------
@@ -189,7 +187,7 @@ async def admin_post_settings(body: SettingsUpdateRequest):
 @router.get("/system", dependencies=[Depends(require_admin)])
 async def admin_get_system(db: Session = Depends(get_db)):
     """Return lightweight system / bot status."""
-    bot_state = for_update(db, db.query(BotState)).first()
+    bot_state = db.query(BotState).first()
     return {
         "trading_mode": settings.TRADING_MODE,
         "bot_running": bot_state.is_running if bot_state else False,

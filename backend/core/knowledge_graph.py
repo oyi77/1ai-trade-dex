@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from backend.core.agi_types import KGEntity as KGEntityType, KGRelation as KGRelationType, MarketRegime
+from loguru import logger
 from backend.models.kg_models import (
     KGEntity as KGEntityModel,
     KGRelation as KGRelationModel,
@@ -516,8 +517,7 @@ class KnowledgeGraph:
             })
             self.add_relation(trade_entity_id, f"strategy:{strategy}", "executed_by", weight=1.0, confidence=1.0)
         except Exception as e:
-            import logging
-            logging.getLogger("trading_bot.knowledge_graph").error(
+            logger.error(
                 f"store_trade_memory failed for trade {trade_id}: {e}"
             )
 
@@ -540,8 +540,7 @@ class KnowledgeGraph:
                 for r in rows
             ]
         except Exception as e:
-            import logging
-            logging.getLogger("trading_bot.knowledge_graph").error(
+            logger.error(
                 "query_by_type failed for type '%s': %s", entity_type, e
             )
             return []
@@ -589,8 +588,7 @@ class KnowledgeGraph:
                 if r.to_entity_id in entity_map
             ]
         except Exception as e:
-            import logging
-            logging.getLogger("trading_bot.knowledge_graph").error(
+            logger.error(
                 "query_relations failed for entity '%s': %s", from_entity_id, e
             )
             return []
@@ -610,8 +608,7 @@ class KnowledgeGraph:
                         break
             return results
         except Exception as e:
-            import logging
-            logging.getLogger("trading_bot.knowledge_graph").error(
+            logger.error(
                 f"retrieve_similar_trades failed for strategy {strategy}: {e}"
             )
             return []

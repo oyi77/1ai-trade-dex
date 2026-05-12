@@ -1,13 +1,8 @@
 """HFT Risk Manager — aggressive 25% Kelly sizing with fail-open circuit breaker."""
-
-import logging
 from typing import Optional
 
 from backend.strategies.types_hft import HFTSignal, HFTStrategyConfig
 from backend.config import settings
-
-logger = logging.getLogger("trading_bot.hft_risk")
-
 
 def _cfg(key: str, default=None):
     return getattr(settings, key, default) if hasattr(settings, key) else default

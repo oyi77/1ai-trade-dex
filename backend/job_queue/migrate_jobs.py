@@ -4,13 +4,11 @@ Usage:
     python -m backend.job_queue.migrate_jobs
 """
 import asyncio
-import logging
 from typing import List, Dict, Any
 
 from backend.job_queue.sqlite_queue import AsyncSQLiteQueue
 
-logger = logging.getLogger("trading_bot.migrate_jobs")
-logging.basicConfig(level=logging.INFO)
+from loguru import logger
 
 # Canonical jobs that the scheduler runs (mirrors backend/core/scheduler.py)
 DEFAULT_JOBS: List[Dict[str, Any]] = [

@@ -4,15 +4,12 @@ Alert engine for PolyEdge.
 Evaluates market events against user-defined alert rules and fires
 notifications when conditions are met, respecting per-rule cooldowns.
 """
-import logging
 import time
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.alerts")
-
-
+from loguru import logger
 class AlertCondition(str, Enum):
     PRICE_ABOVE = "price_above"
     PRICE_BELOW = "price_below"

@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'polyedge-api',
       script: 'python3',
-      args: '-m uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8100} --workers 1',
+      args: '-m uvicorn backend.api.main:app --host 0.0.0.0 --port 8100 --workers 1',
       cwd: '.',
       interpreter: 'none',
       env: {
@@ -12,9 +12,11 @@ module.exports = {
       },
       env_file: '.env',
       watch: false,
-      restart_delay: 5000,
+      restart_delay: 30000,
       max_restarts: 50,
       exp_backoff_restart_delay: 100,
+      wait_time: 60,
+      kill_timeout: 120,
       autorestart: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       error_file: './.omc/logs/polyedge-api-error.log',

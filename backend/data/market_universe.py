@@ -5,16 +5,13 @@ Caches results for MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
 """
 
 from __future__ import annotations
-
-import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.market_universe")
-
+from loguru import logger
 _MARKET_CACHE: List[Dict[str, Any]] = []
 _CACHE_TIMESTAMP: float = 0.0
 

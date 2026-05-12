@@ -4,10 +4,7 @@ import os
 import threading
 from typing import Any, Optional
 from sqlalchemy.orm import Session
-import logging
-
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Thread-safe in-memory cache
 _settings_cache: dict[str, Any] = {}
 _cache_lock = threading.Lock()

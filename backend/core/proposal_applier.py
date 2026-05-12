@@ -14,10 +14,11 @@ This module bridges:
 - StrategyConfig table for persistent config storage
 """
 
-import logging
 import json
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
+
+from loguru import logger
 
 from backend.models.database import (
     StrategyConfig,
@@ -25,15 +26,13 @@ from backend.models.database import (
     AuditLog
 )
 
-logger = logging.getLogger(__name__)
-
 
 class ProposalApplier:
     """Applies approved proposals to live strategy configs."""
 
     def __init__(self):
         """Initialize the ProposalApplier."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
     def apply_proposal_to_config(
         self,

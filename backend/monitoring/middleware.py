@@ -3,13 +3,12 @@
 import asyncio
 from time import perf_counter
 from fastapi import Request
-import logging
 
 from backend.monitoring import record_api_latency, increment_api_errors
 from backend.monitoring.performance_tracker import get_performance_tracker
 from backend.models.database import SessionLocal
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 async def _persist_request_metrics(

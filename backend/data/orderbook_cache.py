@@ -6,14 +6,11 @@ fast access to current prices without REST API calls.
 """
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-logger = logging.getLogger("trading_bot.orderbook_cache")
-
-
+from loguru import logger
 @dataclass
 class CachedOrderbook:
     token_id: str

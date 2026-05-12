@@ -1,8 +1,6 @@
 """Fronttest validation — 14-day paper-trial gate before live parameter changes."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -11,9 +9,7 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 from backend.models.database import SessionLocal, StrategyProposal, Trade
 
-logger = logging.getLogger("trading_bot.fronttest")
-
-
+from loguru import logger
 def _get_strategy_risk_tier(strategy_name: str, db: Session) -> str:
     """Return the risk_tier for a strategy, defaulting to 'moderate'."""
     from backend.models.database import StrategyConfig

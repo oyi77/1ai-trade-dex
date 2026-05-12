@@ -44,24 +44,24 @@ def test_auto_kill_conditions():
     """Test auto-kill conditions."""
     # Test 50% drawdown condition
     metrics = FitnessMetrics(max_drawdown_pct=0.51)
-    assert AUTO_KILL_CONDITIONS[0](metrics) == True
+    assert AUTO_KILL_CONDITIONS[0](metrics)
 
     metrics = FitnessMetrics(max_drawdown_pct=0.49)
-    assert AUTO_KILL_CONDITIONS[0](metrics) == False
+    assert not AUTO_KILL_CONDITIONS[0](metrics)
 
     # Test Sharpe + win rate condition
     metrics = FitnessMetrics(sharpe_ratio=-2.1, win_rate=0.04)
-    assert AUTO_KILL_CONDITIONS[1](metrics) == True
+    assert AUTO_KILL_CONDITIONS[1](metrics)
 
     metrics = FitnessMetrics(sharpe_ratio=-1.9, win_rate=0.06)
-    assert AUTO_KILL_CONDITIONS[1](metrics) == False
+    assert not AUTO_KILL_CONDITIONS[1](metrics)
 
     # Test brier score condition
     metrics = FitnessMetrics(brier_score=0.36)
-    assert AUTO_KILL_CONDITIONS[2](metrics) == True
+    assert AUTO_KILL_CONDITIONS[2](metrics)
 
     metrics = FitnessMetrics(brier_score=0.34)
-    assert AUTO_KILL_CONDITIONS[2](metrics) == False
+    assert not AUTO_KILL_CONDITIONS[2](metrics)
 
     # Test that we have 3 auto-kill conditions
     assert len(AUTO_KILL_CONDITIONS) == 3
@@ -76,7 +76,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.6,
         win_rate=0.6
     )
-    assert should_promote_paper_to_live(genome, "volatile") == False
+    assert not should_promote_paper_to_live(genome, "volatile")
 
     # Test max drawdown requirement
     genome = create_test_genome(
@@ -86,7 +86,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.6,
         win_rate=0.6
     )
-    assert should_promote_paper_to_live(genome, "volatile") == False
+    assert not should_promote_paper_to_live(genome, "volatile")
 
     # Test volatile regime thresholds
     genome = create_test_genome(
@@ -96,7 +96,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.60,
         win_rate=0.50
     )
-    assert should_promote_paper_to_live(genome, "volatile") == True
+    assert should_promote_paper_to_live(genome, "volatile")
 
     genome = create_test_genome(
         stage="PAPER",
@@ -105,7 +105,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.59,
         win_rate=0.50
     )
-    assert should_promote_paper_to_live(genome, "volatile") == False
+    assert not should_promote_paper_to_live(genome, "volatile")
 
     # Test trending regime thresholds
     genome = create_test_genome(
@@ -115,7 +115,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.40,
         win_rate=0.55
     )
-    assert should_promote_paper_to_live(genome, "trending") == True
+    assert should_promote_paper_to_live(genome, "trending")
 
     # Test default regime thresholds
     genome = create_test_genome(
@@ -125,7 +125,7 @@ def test_should_promote_paper_to_live():
         sharpe_ratio=0.50,
         win_rate=0.50
     )
-    assert should_promote_paper_to_live(genome, "unknown_regime") == True
+    assert should_promote_paper_to_live(genome, "unknown_regime")
 
 
 def test_draft_to_shadow_transition():
@@ -401,13 +401,13 @@ def test_check_rehabilitation_eligibility():
     genome = create_test_genome(stage="LIVE")
     mock_db = MagicMock()
 
-    assert check_rehabilitation_eligibility(genome, mock_db) == False
+    assert not check_rehabilitation_eligibility(genome, mock_db)
 
     # Test in GRAVEYARD but insufficient trades
     genome = create_test_genome(stage="GRAVEYARD")
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
 
-    assert check_rehabilitation_eligibility(genome, mock_db) == False
+    assert not check_rehabilitation_eligibility(genome, mock_db)
 
     # Test successful rehabilitation
     mock_trade1 = MagicMock()
@@ -421,7 +421,7 @@ def test_check_rehabilitation_eligibility():
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = mock_trades
 
     # 4 winning trades out of 5 = 80% win rate, positive PnL
-    assert check_rehabilitation_eligibility(genome, mock_db) == True
+    assert check_rehabilitation_eligibility(genome, mock_db)
 
     # Test insufficient win rate
     mock_trade4 = MagicMock()
@@ -429,7 +429,7 @@ def test_check_rehabilitation_eligibility():
     mock_trades = [mock_trade1, mock_trade4, mock_trade4, mock_trade4, mock_trade4]  # 1 win, 4 losses
     mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = mock_trades
 
-    assert check_rehabilitation_eligibility(genome, mock_db) == False
+    assert not check_rehabilitation_eligibility(genome, mock_db)
 
 
 def test_legend_stage_no_transition():

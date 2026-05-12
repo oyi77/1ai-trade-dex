@@ -1,6 +1,4 @@
 """Trade settlement logic using Polymarket API. Helpers live in settlement_helpers.py."""
-
-import logging
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -22,8 +20,7 @@ from backend.core.settlement_helpers import (
     process_settled_trade,
 )
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 _settlement_lock = asyncio.Lock()
 
 
@@ -452,7 +449,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                         )
                                         break
                 except Exception:
-                    pass
+                    logger.exception(f"settlement: failed to check on-chain position for stale trade {trade.id}")
                 if _still_open:
                     continue
 
@@ -482,7 +479,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             increment_settlement_by_status("resolved")
             increment_settlement_by_status("unresolved")
         except Exception:
-            pass
+            logger.exception("settlement: failed to increment settlement status metrics")
         if resolved_count:
             logger.info(f"Settled {resolved_count} trades with market resolution")
         if unresolved_count:
