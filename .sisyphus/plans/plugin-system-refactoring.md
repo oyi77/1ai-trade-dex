@@ -27,7 +27,7 @@ Major refactoring to transform four subsystems (AI Providers, Data Sources, Mark
 - Decorator pattern for automatic registration (`@provider_registry.plugin`)
 - Singleton registry pattern for each domain
 - Background health check loops at configurable intervals
-- Sandbox uses mock data only and never touches live systems
+- Sandbox uses mock data only, never lives
 - Node system uses AgentState as shared mutable state passed through graph
 - 4-gate validation for sandbox strategy evaluation
 
@@ -63,13 +63,13 @@ Build a unified plugin architecture where modules declare themselves as plugins,
 - All documentation updates
 
 ### Definition of Done
-- [x] `backend/core/plugin_registry.py` passes unit tests
-- [x] All four domain plugin systems pass unit tests
-- [x] Sandbox 4-gate validation passes all test cases
-- [x] All API endpoints functional via integration tests
-- [x] Frontend panels display plugin status and control enable/disable
-- [x] All tests run under `SHADOW_MODE=true` with mock data only
-- [x] Documentation complete in all AGENTS.md files, `docs/api.md`, and ADRs
+- [ ] `backend/core/plugin_registry.py` passes unit tests
+- [ ] All four domain plugin systems pass unit tests
+- [ ] Sandbox 4-gate validation passes all test cases
+- [ ] All API endpoints functional via integration tests
+- [ ] Frontend panels display plugin status and control enable/disable
+- [ ] All tests run under `SHADOW_MODE=true` with mock data only
+- [ ] Documentation complete in all AGENTS.md files, `docs/api.md`, and ADRs
 
 ### Must Have
 - All plugin systems use shared registry base
@@ -147,23 +147,28 @@ Wave 4 (After Wave 1 - Market Provider system):
 ├── Task 24: backend/markets/providers/__init__.py - Auto-discover setup
 ├── Task 25: backend/markets/providers/polymarket_provider.py - Wrap CLOB client
 ├── Task 26: backend/markets/providers/kalshi_provider.py - Wrap kalshi_client.py
+├── Task 26a: backend/clients/azuro_client.py - Shared Azuro GraphQL/Web3 client (TTL cache)
+├── Task 26b: backend/markets/providers/predict_fun_provider.py - predict.fun via AzuroClient
+├── Task 26c: backend/markets/providers/bookmaker_xyz_provider.py - bookmaker.xyz via AzuroClient
+├── Task 26d: backend/clients/limitless_client.py + limitless_provider.py - limitless.exchange REST
+├── Task 26e: backend/clients/sxbet_client.py + sxbet_provider.py - sx.bet REST + EIP-712
 ├── Task 27: backend/markets/providers/paper_provider.py - In-memory paper trading
 ├── Task 28: backend/strategies/order_executor.py - Refactor to use market registry
 ├── Task 29: backend/core/settlement.py - Update to stream fills from registry
-├── Task 31: backend/api/v1/market_providers.py - API endpoints for venue control
-├── Task 32: backend/tests/test_market_provider_registry.py - Unit tests
-└── Task 33: backend/tests/test_paper_provider.py - Paper provider tests
+├── Task 30: backend/api/v1/market_providers.py - API endpoints for venue control
+├── Task 31: backend/tests/test_market_provider_registry.py - Unit tests (all 6 providers)
+└── Task 32: backend/tests/test_paper_provider.py - Paper provider tests
 
 Wave 5 (After Waves 1-4 - AGI core infrastructure):
-├── Task 34: backend/agi/agent_state.py - AgentState dataclass
-├── Task 35: backend/agi/base_node.py - AGI node abstract base
-├── Task 36: backend/agi/node_registry.py - Node registry implementation
-├── Task 37: backend/agi/graph_engine.py - Directed graph executor
-└── Task 38: backend/tests/test_graph_engine.py - Graph engine tests
+├── Task 33: backend/agi/agent_state.py - AgentState dataclass
+├── Task 34: backend/agi/base_node.py - AGI node abstract base
+├── Task 35: backend/agi/node_registry.py - Node registry implementation
+├── Task 36: backend/agi/graph_engine.py - Directed graph executor
+└── Task 37: backend/tests/test_graph_engine.py - Graph engine tests
 
 Wave 6 (After Wave 5 - AGI sandbox system):
-├── Task 39: backend/agi/sandbox/sandbox_manager.py - Isolated execution manager
-├── Task 40: backend/agi/sandbox/sandbox_validator.py - 4-gate validation
+├── Task 38: backend/agi/sandbox/sandbox_manager.py - Isolated execution manager
+├── Task 39: backend/agi/sandbox/sandbox_validator.py - 4-gate validation
 ├── Task 40: backend/agi/sandbox/sandbox_registry.py - Mock-only registry
 ├── Task 41: backend/agi/sandbox/results.py - SandboxResult dataclass
 ├── Task 42: backend/tests/test_sandbox_validator.py - 4-gate validation tests
@@ -214,6 +219,7 @@ Wave FINAL (After ALL tasks — 4 parallel reviews, then user okay):
 -> Present results -> Get explicit user okay
 
 Critical Path: Task 1 → Task 2 → Task 3/4/5/6/7/8 → Task 9-14/15-22/23-32/33-43/44-60 → Task 61-70 → Task 71-76 → F1-F4 → user okay
+New Provider Sub-Path (Wave 4): Task 26a → Task 26b + Task 26c (parallel, Azuro dep) | Task 26d + Task 26e (parallel, independent)
 Parallel Speedup: ~80% faster than sequential
 Max Concurrent: 8
 ```
@@ -225,6 +231,10 @@ Wave 1: - Tasks 1-8 (standalone - no dependencies)
 Wave 2: - Tasks 9-14 (deps: 1, 3, 4)
 Wave 3: - Tasks 15-22 (deps: 1, 5, 6)
 Wave 4: - Tasks 23-32 (deps: 1, 2, 7, 8)
+         - Task 26a: no deps (standalone client)
+         - Tasks 26b, 26c: dep on Task 26a
+         - Tasks 26d, 26e: no deps (independent clients)
+         - Task 31: dep on 25, 26, 26a-26e, 27
 Wave 5: - Tasks 33-37 (deps: 1, 2)
 Wave 6: - Tasks 38-43 (deps: 33-37)
 Wave 7: - Tasks 44-60 (deps: 33-37)
@@ -237,7 +247,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 - **Wave 1**: 2 quick + 6 unspecified-high (infrastructure)
 - **Wave 2**: 4 quick (providers + refactor) + 1 unspecified-high (API)
 - **Wave 3**: 2 quick (sources) + 3 unspecified-high (mock, strategy context, API)
-- **Wave 4**: 1 quick + 3 unspecified-high (providers) + 3 unsp. high (executor, settlement, API, tests)
+- **Wave 4**: 1 quick + 3 unspecified-high (providers) + 5 unsp. high (new providers: azuro_client, predict_fun, bookmaker_xyz, limitless, sxbet) + 3 unsp. high (executor, settlement, API, tests)
 - **Wave 5**: 1 quick + 2 unspecified-high (state, base, registry, engine, tests)
 - **Wave 6**: 3 unspecified-high + 2 tests (sandbox system)
 - **Wave 7**: 6 unspecified-high (nodes) + 3 unsp. high (graphs, registry, tests)
@@ -254,7 +264,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 1: Core Infrastructure (Tasks 1-8)
 
-- [x] 1. Create `backend/core/plugin_registry.py` - Generic base for all plugin registries
+- [ ] 1. Create `backend/core/plugin_registry.py` - Generic base for all plugin registries
 
   **What to do**:
   - Create generic `PluginRegistry[T_Manifest, T_Plugin]` abstract base class
@@ -319,7 +329,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
     Evidence: .sisyphus/evidence/task-01-register-valid-plugin.py
   \`\`\`
 
-- [x] 2. Create `backend/core/plugin_errors.py` - Shared error types
+- [ ] 2. Create `backend/core/plugin_errors.py` - Shared error types
 
   **What to do**:
   - Create custom exception hierarchy mirroring the spec
@@ -379,7 +389,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
     Evidence: .sisyphus/evidence/task-02-import-exceptions.sh
   \`\`\`
 
-- [x] 3. Create `backend/ai/base_provider.py` - AI provider abstract base
+- [ ] 3. Create `backend/ai/base_provider.py` - AI provider abstract base
 
   **What to do**:
   - Create `ProviderManifest` dataclass with all fields from spec
@@ -423,7 +433,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Provider without abstract method implementation raises proper error
   - [ ] `pytest backend/tests/test_ai_base.py::test_abstract_class` → PASS
 
-- [x] 4. Create `backend/ai/provider_registry.py` - AI provider registry
+- [ ] 4. Create `backend/ai/provider_registry.py` - AI provider registry
 
   **What to do**:
   - Subclass `PluginRegistry[ProviderManifest, BaseAIProvider]`
@@ -472,7 +482,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Health check loop runs in background, marks degraded on failure
   - [ ] `pytest backend/tests/test_ai_provider_registry.py` → PASS (all 6 tests)
 
-- [x] 5. Create `backend/data/base_source.py` - Data source abstract base
+- [ ] 5. Create `backend/data/base_source.py` - Data source abstract base
 
   **What to do**:
   - Create `DataType` enum with all data types from spec
@@ -519,7 +529,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] `BaseDataSource` abstract base with all abstract methods
   - [ ] `pytest backend/tests/test_data_base.py` → PASS
 
-- [x] 6. Create `backend/data/source_registry.py` - Data source registry
+- [ ] 6. Create `backend/data/source_registry.py` - Data source registry
 
   **What to do**:
   - Subclass `PluginRegistry[DataSourceManifest, BaseDataSource]`
@@ -567,7 +577,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Health check loop runs correctly
   - [ ] `pytest backend/tests/test_data_registry.py` → PASS
 
-- [x] 7. Create `backend/markets/order_types.py` - Normalized order dataclasses
+- [ ] 7. Create `backend/markets/order_types.py` - Normalized order dataclasses
 
   **What to do**:
   - Create `OrderSide` enum (YES, NO, BUY, SELL)
@@ -612,7 +622,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] All dataclasses created with all required fields
   - [ ] `pytest backend/tests/test_order_types.py` → PASS
 
-- [x] 8. Create `backend/markets/base_provider.py` - Market provider abstract base
+- [ ] 8. Create `backend/markets/base_provider.py` - Market provider abstract base
 
   **What to do**:
   - Create `VenueCapability` enum (LIMIT_ORDERS, MARKET_ORDERS, FOK_ORDERS, SHORT_SELLING, STREAMING_FILLS, MARKET_SEARCH, BATCH_ORDERS)
@@ -664,7 +674,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Base class abstract with all required methods
   - [ ] `pytest backend/tests/test_market_base.py` → PASS
 
-- [x] 9. Create `backend/ai/providers/__init__.py` - Auto-discover setup
+- [ ] 9. Create `backend/ai/providers/__init__.py` - Auto-discover setup
 
   **What to do**:
   - Import `provider_registry` from `backend.ai.provider_registry`
@@ -706,7 +716,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Providers registered in registry
   - [ ] `pytest backend/tests/test_ai_provider_registry.py::test_auto_discover` → PASS
 
-- [x] 10. Create `backend/ai/providers/claude_provider.py` - Claude plugin
+- [ ] 10. Create `backend/ai/providers/claude_provider.py` - Claude plugin
 
   **What to do**:
   - Create new file importing existing `claude.py` logic
@@ -749,7 +759,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Complete calls existing claude logic
   - [ ] `pytest backend/tests/test_claude_provider.py` → PASS
 
-- [x] 11. Create `backend/ai/providers/groq_provider.py` - Groq plugin
+- [ ] 11. Create `backend/ai/providers/groq_provider.py` - Groq plugin
 
   **What to do**:
   - Create new file importing existing `groq.py` logic
@@ -788,7 +798,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Complete calls existing groq logic
   - [ ] `pytest backend/tests/test_groq_provider.py` → PASS
 
-- [x] 12. Refactor `backend/ai/ensemble.py` - Registry-based routing
+- [ ] 12. Refactor `backend/ai/ensemble.py` - Registry-based routing
 
   **What to do**:
   - Import `provider_registry` from `backend.ai.provider_registry`
@@ -835,7 +845,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - [ ] Cost tracker enforced
   - [ ] `pytest backend/tests/test_ensemble_registry.py` → PASS
 
-- [x] 13. Create `backend/api/v1/ai_providers.py` - AI provider API endpoints
+- [ ] 13. Create `backend/api/v1/ai_providers.py` - AI provider API endpoints
 
   **What to do**:
   - Create new FastAPI router `ai_providers.py`
@@ -880,7 +890,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 2: AI Provider System Complete (Tasks 14)
 
-- [x] 14. Create `backend/tests/test_ai_provider_registry.py` - Unit tests
+- [ ] 14. Create `backend/tests/test_ai_provider_registry.py` - Unit tests
 
   **What to do**:
   - Create test file with 6 test functions
@@ -922,7 +932,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 3: Data Source System (Tasks 15-22)
 
-- [x] 15. Create `backend/data/sources/__init__.py` - Auto-discover setup
+- [ ] 15. Create `backend/data/sources/__init__.py` - Auto-discover setup
 
   **What to do**:
   - Import `source_registry` from `backend.data.source_registry`
@@ -944,7 +954,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 22 (tests)
   - **Blocked By**: Task 6 (registry)
 
-- [x] 16. Create `backend/data/sources/polymarket_source.py` - Polymarket plugin
+- [ ] 16. Create `backend/data/sources/polymarket_source.py` - Polymarket plugin
 
   **What to do**:
   - Create `PolymarketSource` subclass of `BaseDataSource`
@@ -970,7 +980,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 20 (strategy context)
   - **Blocked By**: Task 6, Task 15
 
-- [x] 17. Create `backend/data/sources/kalshi_source.py` - Kalshi plugin
+- [ ] 17. Create `backend/data/sources/kalshi_source.py` - Kalshi plugin
 
   **What to do**:
   - Create `KalshiSource` subclass of `BaseDataSource`
@@ -996,7 +1006,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 20 (strategy context)
   - **Blocked By**: Task 6, Task 15
 
-- [x] 18. Create `backend/data/sources/mock_source.py` - Mock data source
+- [ ] 18. Create `backend/data/sources/mock_source.py` - Mock data source
 
   **What to do**:
   - Create `MockDataSource` subclass of `BaseDataSource`
@@ -1025,7 +1035,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 19 (registry)
   - **Blocked By**: Task 6, Task 15
 
-- [x] 19. Create `backend/data/market_universe.py` - Update to use registry
+- [ ] 19. Create `backend/data/market_universe.py` - Update to use registry
 
   **What to do**:
   - Import `source_registry` from `backend.data.source_registry`
@@ -1049,7 +1059,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 6, Tasks 16, 17, 18
 
-- [x] 20. Update `backend/strategies/base.py` - Add data_registry to StrategyContext
+- [ ] 20. Update `backend/strategies/base.py` - Add data_registry to StrategyContext
 
   **What to do**:
   - Import `DataSourceRegistry` from `backend.data.source_registry`
@@ -1074,7 +1084,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 22 (integration tests)
   - **Blocked By**: Task 6, Task 19
 
-- [x] 21. Create `backend/api/v1/data_sources.py` - Data source API endpoints
+- [ ] 21. Create `backend/api/v1/data_sources.py` - Data source API endpoints
 
   **What to do**:
   - Create new FastAPI router
@@ -1100,7 +1110,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend API client (task 69)
   - **Blocked By**: None
 
-- [x] 22. Create `backend/tests/test_data_source_registry.py` - Unit tests
+- [ ] 22. Create `backend/tests/test_data_source_registry.py` - Unit tests
 
   **What to do**:
   - Create test file with test functions
@@ -1124,7 +1134,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 4: Market Provider System (Tasks 23-32)
 
-- [x] 23. Create `backend/markets/provider_registry.py` - Market provider registry
+- [ ] 23. Create `backend/markets/provider_registry.py` - Market provider registry
 
   **What to do**:
   - Subclass `PluginRegistry[MarketProviderManifest, BaseMarketProvider]`
@@ -1154,7 +1164,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Tasks 25, 26, 27, 28 (providers and executor)
   - **Blocked By**: Task 1, Task 7, Task 8
 
-- [x] 24. Create `backend/markets/providers/__init__.py` - Auto-discover
+- [ ] 24. Create `backend/markets/providers/__init__.py` - Auto-discover
 
   **What to do**:
   - Import `market_registry`
@@ -1174,7 +1184,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 32 (tests)
   - **Blocked By**: Task 23
 
-- [x] 25. Create `backend/markets/providers/polymarket_provider.py` - Polymarket plugin
+- [ ] 25. Create `backend/markets/providers/polymarket_provider.py` - Polymarket plugin
 
   **What to do**:
   - Create `PolymarketProvider` subclass of `BaseMarketProvider`
@@ -1201,7 +1211,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 28, 30 (executor and API)
   - **Blocked By**: Task 23, Task 24
 
-- [x] 26. Create `backend/markets/providers/kalshi_provider.py` - Kalshi plugin
+- [ ] 26. Create `backend/markets/providers/kalshi_provider.py` - Kalshi plugin
 
   **What to do**:
   - Create `KalshiProvider` subclass of `BaseMarketProvider`
@@ -1226,7 +1236,208 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 28, 30
   - **Blocked By**: Task 23, Task 24
 
-- [x] 27. Create `backend/markets/providers/paper_provider.py` - Paper trading
+- [ ] 26a. Create `backend/clients/azuro_client.py` - Shared Azuro Protocol client
+
+  **What to do**:
+  - Create `AzuroClient` with async GraphQL query support (via `httpx`)
+  - `__init__(self, graph_url: str, rpc_url: str, chain_id: int)` — read from env: `AZURO_GRAPH_URL`, `AZURO_RPC_URL`, `AZURO_CHAIN_ID`
+  - `async cached_query(self, gql: str, variables: dict = None) -> dict` — TTL cache (`AZURO_CACHE_TTL_SECONDS`, default 60 s); handle 429 with `Retry-After`
+  - `async get_markets(self, limit: int = 200, active_only: bool = True) -> list[dict]` — query Azuro subgraph; normalize to standard market dict keys
+  - `async health_check(self) -> bool` — lightweight introspection query
+  - `async sign_and_send_bet(self, private_key: str, condition_id: str, outcome_index: int, amount_wei: int) -> str` — EVM smart contract call via `web3.py`; return tx hash
+  - Default `AZURO_GRAPH_URL`: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+
+  **Test cases**:
+  - `cached_query()` makes only 1 HTTP call for 2 requests within TTL
+  - `health_check()` returns True with mock 200 response
+  - `sign_and_send_bet()` calls Web3 without leaking private key to logs
+
+  **Must NOT do**:
+  - Do NOT call The Graph without caching (hot-path protection)
+  - Do NOT log or persist private key
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high` - Async client with cache and Web3 signing
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES - Wave 4 (no plugin-system deps)
+  - **Parallel Group**: Wave 4 tasks (runs alongside Tasks 25, 26, 26d, 26e)
+  - **Blocks**: Tasks 26b, 26c
+  - **Blocked By**: None (standalone client)
+
+  **References**:
+  - `backend/data/polymarket_clob.py` — async httpx client pattern
+  - Azuro subgraph: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+  - `backend/config.py` — env var registration pattern
+
+  **QA Scenarios**:
+  ```
+  Scenario: Cache prevents double HTTP call
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_azuro_client.py::test_cache_ttl -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26a-cache.txt
+  ```
+
+- [ ] 26b. Create `backend/markets/providers/predict_fun_provider.py` - predict.fun via Azuro
+
+  **What to do**:
+  - Create `PredictFunProvider(BaseMarketProvider)` with `@market_registry.plugin`
+  - `manifest()` → name=`"predict_fun"`, platform_url=`"https://predict.fun"`, `is_live_venue=True`
+  - Delegates all data fetching to `AzuroClient` singleton
+  - `place_order()` calls `AzuroClient.sign_and_send_bet()`
+  - `cancel_order()` raises `OrderRejectedError("Azuro bets are non-cancellable")`
+  - `is_paper()` based on `SHADOW_MODE`
+
+  **Test cases**:
+  - `get_name()` → `"predict_fun"`
+  - `cancel_order()` raises `OrderRejectedError`
+  - `get_markets()` delegates to `AzuroClient.get_markets()`
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, alongside 26c)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 26a
+
+  **QA Scenarios**:
+  ```
+  Scenario: Provider registered with correct name
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_predict_fun_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26b-registered.txt
+  ```
+
+- [ ] 26c. Create `backend/markets/providers/bookmaker_xyz_provider.py` - bookmaker.xyz via Azuro
+
+  **What to do**:
+  - Create `BookmakerXyzProvider(BaseMarketProvider)` with `@market_registry.plugin`
+  - Mirror structure of `PredictFunProvider`; only change: name=`"bookmaker_xyz"`, platform_url=`"https://bookmaker.xyz"`
+  - Shares `AzuroClient` singleton with `PredictFunProvider` (verify by identity in test)
+
+  **Test cases**:
+  - `get_name()` → `"bookmaker_xyz"`
+  - Shares `AzuroClient` instance with `PredictFunProvider`
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, alongside 26b)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 26a
+
+  **QA Scenarios**:
+  ```
+  Scenario: bookmaker_xyz and predict_fun share AzuroClient
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_azuro_client_singleton -v
+    Expected Result: PASSED — both providers return same AzuroClient id()
+    Evidence: .sisyphus/evidence/task-26c-singleton.txt
+  ```
+
+- [ ] 26d. Create `backend/clients/limitless_client.py` + `limitless_provider.py` - limitless.exchange
+
+  **What to do**:
+  - Create `backend/clients/limitless_client.py`:
+    - `LimitlessClient` with base URL from `LIMITLESS_API_URL` (default `https://api.limitless.exchange`)
+    - `async get_markets(self, limit: int = 100) -> list[dict]` — `GET /markets`
+    - `async get_orderbook(self, market_id: str) -> dict` — `GET /orderbook`
+    - `async place_order(self, market_id: str, side: str, size: float, price: float, private_key: str) -> dict` — EIP-712 sign + `POST /orders`
+    - `async cancel_order(self, order_id: str, private_key: str) -> bool`
+    - `async health_check(self) -> bool` — `GET /markets?limit=1`
+  - Create `backend/markets/providers/limitless_provider.py`:
+    - `LimitlessProvider(BaseMarketProvider)` with `@market_registry.plugin`
+    - name=`"limitless"`, `is_live_venue=True`
+    - Pulls `LIMITLESS_PRIVATE_KEY` from env for signing
+
+  **Test cases**:
+  - `LimitlessProvider.get_name()` → `"limitless"`
+  - `LimitlessClient.health_check()` returns True with mock 200
+  - `place_order()` signs and POSTs correctly (mocked)
+
+  **Must NOT do**:
+  - Do NOT log the private key
+  - Do NOT use synchronous `requests` library
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, independent of Azuro tasks)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 23, Task 24
+
+  **References**:
+  - `backend/clients/kalshi_client.py` — REST client pattern
+  - Limitless API Swagger: `https://api.limitless.exchange/api-v1`
+
+  **QA Scenarios**:
+  ```
+  Scenario: LimitlessProvider registered
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_limitless_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26d-registered.txt
+  ```
+
+- [ ] 26e. Create `backend/clients/sxbet_client.py` + `sxbet_provider.py` - sx.bet
+
+  **What to do**:
+  - Create `backend/clients/sxbet_client.py`:
+    - `SXBetClient` with base URL from `SXBET_API_URL` (default `https://api.sx.bet`)
+    - `async get_sports(self) -> list[dict]` — `GET /sports`
+    - `async get_markets(self, sport_ids: list[int] = None, limit: int = 200) -> list[dict]` — `GET /markets/active`; normalize to standard dict
+    - `async get_orderbook(self, market_hash: str) -> dict` — `GET /orders?marketHashes={hash}`
+    - `async place_maker_order(self, market_hash: str, outcome_index: int, odds: float, stake_wei: int, private_key: str) -> dict` — EIP-712 sign + `POST /orders/new`
+    - `async health_check(self) -> bool` — `GET /sports`
+  - Create `backend/markets/providers/sxbet_provider.py`:
+    - `SXBetProvider(BaseMarketProvider)` with `@market_registry.plugin`
+    - name=`"sxbet"`, `is_live_venue=True`
+    - Pulls `SXBET_PRIVATE_KEY` from env
+
+  **Test cases**:
+  - `SXBetProvider.get_name()` → `"sxbet"`
+  - `SXBetClient.health_check()` True with mock 200
+  - `place_maker_order()` signs correctly (mocked)
+
+  **Must NOT do**:
+  - Do NOT log private key
+  - Do NOT block event loop with synchronous Web3 calls
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, independent of Azuro tasks)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 23, Task 24
+
+  **References**:
+  - `backend/clients/limitless_client.py` (Task 26d) — similar REST + EIP-712 pattern
+  - SX.Bet API docs: `https://docs.sx.bet/`
+
+  **QA Scenarios**:
+  ```
+  Scenario: SXBetProvider registered
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_sxbet_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26e-registered.txt
+  ```
 
   **What to do**:
   - Create `PaperProvider` subclass of `BaseMarketProvider`
@@ -1259,7 +1470,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 32 (tests)
   - **Blocked By**: Task 23, Task 24
 
-- [x] 28. Refactor `backend/strategies/order_executor.py` - Use market registry
+- [ ] 28. Refactor `backend/strategies/order_executor.py` - Use market registry
 
   **What to do**:
   - Import `market_registry`
@@ -1288,7 +1499,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 30, 32
   - **Blocked By**: Tasks 25, 26, 27, 23
 
-- [x] 29. Update `backend/core/settlement.py` - Use registry stream
+- [ ] 29. Update `backend/core/settlement.py` - Use registry stream
 
   **What to do**:
   - Import `market_registry`
@@ -1314,7 +1525,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 32 (integration tests)
   - **Blocked By**: Tasks 25, 26, 27, 28
 
-- [x] 30. Create `backend/api/v1/market_providers.py` - Market provider API
+- [ ] 30. Create `backend/api/v1/market_providers.py` - Market provider API
 
   **What to do**:
   - Create new FastAPI router
@@ -1325,6 +1536,8 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - Implement POST `/api/v1/markets/providers/{name}/disable`
   - Implement POST `/api/v1/markets/providers/{name}/disable?force=true`
   - Implement GET `/api/v1/markets/providers/{name}/markets`
+  - Implement POST `/api/v1/markets/order`
+  - Implement DELETE `/api/v1/markets/order/{venue}/{order_id}`
   - Implement GET `/api/v1/markets/positions` (aggregate)
   - Implement GET `/api/v1/markets/balance` (aggregate)
   - Add to `backend/api/v1/__init__.py`
@@ -1345,7 +1558,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend API client (task 70)
   - **Blocked By**: None
 
-- [x] 31. Create `backend/api/v1/market_orders.py` - Order management API
+- [ ] 31. Create `backend/api/v1/market_orders.py` - Order management API
 
   **What to do**:
   - Create new FastAPI router for order endpoints
@@ -1368,7 +1581,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend order controls
   - **Blocked By**: None
 
-- [x] 32. Create `backend/tests/test_market_provider_registry.py` - Unit tests
+- [ ] 32. Create `backend/tests/test_market_provider_registry.py` - Unit tests
 
   **What to do**:
   - Create test file with comprehensive tests
@@ -1395,7 +1608,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 5: AGI Core Infrastructure (Tasks 33-37)
 
-- [x] 33. Create `backend/agi/agent_state.py` - AgentState dataclass
+- [ ] 33. Create `backend/agi/agent_state.py` - AgentState dataclass
 
   **What to do**:
   - Create `AgentState` dataclass
@@ -1421,7 +1634,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 35, 36 (registry, engine depend on state)
   - **Blocked By**: Task 1
 
-- [x] 34. Create `backend/agi/base_node.py` - AGI node abstract base
+- [ ] 34. Create `backend/agi/base_node.py` - AGI node abstract base
 
   **What to do**:
   - Create `NodeManifest` dataclass with all fields
@@ -1448,7 +1661,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 35, 44-60 (nodes depend on this)
   - **Blocked By**: Task 33
 
-- [x] 35. Create `backend/agi/node_registry.py` - Node registry
+- [ ] 35. Create `backend/agi/node_registry.py` - Node registry
 
   **What to do**:
   - Subclass `PluginRegistry[NodeManifest, BaseAGINode]`
@@ -1475,7 +1688,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 44-60 (nodes depend on this)
   - **Blocked By**: Task 33, Task 34
 
-- [x] 36. Create `backend/agi/graph_engine.py` - Directed graph executor
+- [ ] 36. Create `backend/agi/graph_engine.py` - Directed graph executor
 
   **What to do**:
   - Create `GraphDefinition` dataclass with nodes, edges, entry/exit
@@ -1508,7 +1721,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 54-57 (graph definitions)
   - **Blocked By**: Task 33, Task 34, Task 35
 
-- [x] 37. Create `backend/tests/test_graph_engine.py` - Graph engine tests
+- [ ] 37. Create `backend/tests/test_graph_engine.py` - Graph engine tests
 
   **What to do**:
   - Test linear graph execution
@@ -1533,7 +1746,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 6: AGI Sandbox System (Tasks 38-43)
 
-- [x] 38. Create `backend/agi/sandbox/sandbox_manager.py` - Sandbox manager
+- [ ] 38. Create `backend/agi/sandbox/sandbox_manager.py` - Sandbox manager
 
   **What to do**:
   - Create `SandboxManager` class
@@ -1562,16 +1775,14 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 39 (validator depends on manager)
   - **Blocked By**: Task 36 (graph engine)
 
-- [x] 39. Create `backend/agi/sandbox/sandbox_validator.py` - 4-gate validator
+- [ ] 39. Create `backend/agi/sandbox/sandbox_validator.py` - 4-gate validator
 
   **What to do**:
   - Create `SandboxValidator` class with `validate(code, scenario)` method
   - Gate 1 - SYNTAX: `ast.parse()` succeeds, no forbidden imports
-  - Gate 2 - LINT: run `ruff check` subprocess with zero errors; run any existing configured security tooling, or add the required security-tool configuration as an explicit deliverable before implementation
+  - Gate 2 - LINT: run flake8 subprocess, zero errors; run bandit security
   - Gate 3 - SANDBOX BACKTEST: run sandbox with 3 scenarios (bull, bear, volatile)
-  - Gate 4 - SHADOW PROBE: 
-    - For automated tests/CI: run deterministic "shadow probe simulation" (10 simulated trades with mock data, ~30 seconds)
-    - For production validation: register strategy as SHADOW, run 24-hour live probe (separate long-running step)
+  - Gate 4 - SHADOW PROBE: register strategy as SHADOW, run 24 hours
   - Return SandboxResult with per-gate results
   - On gate failure: store failure point, return error details
   - Export in `backend/agi/sandbox/__init__.py`
@@ -1580,7 +1791,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - Gate 1 rejects forbidden imports
   - Gate 2 rejects lint errors
   - Gate 3 rejects below win rate / max drawdown
-  - Gate 4 simulation rejects strategies with critical errors (uses fast mock-based probe)
+  - Gate 4 rejects during shadow probe
   - Full pass returns success result
 
   **Recommended Agent Profile**:
@@ -1593,12 +1804,12 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 32 (integration tests)
   - **Blocked By**: Task 38
 
-- [x] 40. Create `backend/agi/sandbox/sandbox_registry.py` - Mock-only registry
+- [ ] 40. Create `backend/agi/sandbox/sandbox_registry.py` - Mock-only registry
 
   **What to do**:
   - Create `SandboxRegistry` instance with mock-only data sources
   - Only include `mock_source` in registry
-  - Reject any nodes with requires_live_data=True
+  -拒绝 any nodes with requires_live_data=True
   - Export in `backend/agi/sandbox/__init__.py`
 
   **Test cases**:
@@ -1615,7 +1826,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 38
   - **Blocked By**: Task 1
 
-- [x] 41. Create `backend/agi/sandbox/results.py` - SandboxResult dataclass
+- [ ] 41. Create `backend/agi/sandbox/results.py` - SandboxResult dataclass
 
   **What to do**:
   - Create `SandboxScenario` dataclass with name, description, mock config
@@ -1635,7 +1846,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 39
   - **Blocked By**: None
 
-- [x] 42. Create `backend/tests/test_sandbox_validator.py` - 4-gate tests
+- [ ] 42. Create `backend/tests/test_sandbox_validator.py` - 4-gate tests
 
   **What to do**:
   - Test Gate 1 rejects forbidden imports
@@ -1657,7 +1868,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 38, Task 39
 
-- [x] 43. Create `backend/tests/test_sandbox_manager.py` - Sandbox isolation tests
+- [ ] 43. Create `backend/tests/test_sandbox_manager.py` - Sandbox isolation tests
 
   **What to do**:
   - Test sandbox cannot access live DB
@@ -1679,7 +1890,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 7: AGI Nodes and Graphs (Tasks 44-60)
 
-- [x] 44. Create `backend/agi/nodes/__init__.py` - Auto-discover nodes
+- [ ] 44. Create `backend/agi/nodes/__init__.py` - Auto-discover nodes
 
   **What to do**:
   - Import `node_registry`
@@ -1699,7 +1910,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 60 (tests)
   - **Blocked By**: Task 35
 
-- [x] 45. Create `backend/agi/nodes/regime_detector_node.py` - Wrap regime detector
+- [ ] 45. Create `backend/agi/nodes/regime_detector_node.py` - Wrap regime detector
 
   **What to do**:
   - Create `RegimeDetectorNode` subclass of `BaseAGINode`
@@ -1724,7 +1935,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 55 (graph)
   - **Blocked By**: Task 35, Task 44
 
-- [x] 46. Create `backend/agi/nodes/knowledge_graph_node.py` - Wrap KG
+- [ ] 46. Create `backend/agi/nodes/knowledge_graph_node.py` - Wrap KG
 
   **What to do**:
   - Create `KnowledgeGraphNode` subclass of `BaseAGINode`
@@ -1748,7 +1959,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 55
   - **Blocked By**: Task 35, Task 44
 
-- [x] 47. Create `backend/agi/nodes/strategy_composer_node.py` - Wrap composer
+- [ ] 47. Create `backend/agi/nodes/strategy_composer_node.py` - Wrap composer
 
   **What to do**:
   - Create `StrategyComposerNode` subclass of `BaseAGINode`
@@ -1772,7 +1983,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 55
   - **Blocked By**: Task 35, Task 44
 
-- [x] 48. Create `backend/agi/nodes/strategy_synthesizer_node.py` - Wrap synthesizer
+- [ ] 48. Create `backend/agi/nodes/strategy_synthesizer_node.py` - Wrap synthesizer
 
   **What to do**:
   - Create `StrategySynthesizerNode` subclass of `BaseAGINode`
@@ -1796,7 +2007,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 56 (evolution graph)
   - **Blocked By**: Task 35, Task 44
 
-- [x] 49. Create `backend/agi/nodes/goal_engine_node.py` - Wrap goal engine
+- [ ] 49. Create `backend/agi/nodes/goal_engine_node.py` - Wrap goal engine
 
   **What to do**:
   - Create `GoalEngineNode` subclass of `BaseAGINode`
@@ -1820,7 +2031,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 55
   - **Blocked By**: Task 35, Task 44
 
-- [x] 50. Create `backend/agi/nodes/forensics_node.py` - Wrap forensics
+- [ ] 50. Create `backend/agi/nodes/forensics_node.py` - Wrap forensics
 
   **What to do**:
   - Create `ForensicsNode` subclass of `BaseAGINode`
@@ -1844,7 +2055,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 57 (forensics graph)
   - **Blocked By**: Task 35, Task 44
 
-- [x] 51. Create `backend/agi/nodes/auto_improve_node.py` - Wrap auto improve
+- [ ] 51. Create `backend/agi/nodes/auto_improve_node.py` - Wrap auto improve
 
   **What to do**:
   - Create `AutoImproveNode` subclass of `BaseAGINode`
@@ -1868,7 +2079,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 57
   - **Blocked By**: Task 35, Task 44
 
-- [x] 52. Create `backend/agi/nodes/model_calibration_node.py` - Wrap calibration
+- [ ] 52. Create `backend/agi/nodes/model_calibration_node.py` - Wrap calibration
 
   **What to do**:
   - Create `ModelCalibrationNode` subclass of `BaseAGINode`
@@ -1892,7 +2103,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 57
   - **Blocked By**: Task 35, Task 44
 
-- [x] 53. Create `backend/agi/nodes/evolution_node.py` - Wrap evolution
+- [ ] 53. Create `backend/agi/nodes/evolution_node.py` - Wrap evolution
 
   **What to do**:
   - Create `EvolutionNode` subclass of `BaseAGINode`
@@ -1916,7 +2127,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 56
   - **Blocked By**: Task 35, Task 44
 
-- [x] 54. Create `backend/agi/graphs/__init__.py` - Graph definitions
+- [ ] 54. Create `backend/agi/graphs/__init__.py` - Graph definitions
 
   **What to do**:
   - Import `graph_engine` and `node_registry`
@@ -1936,7 +2147,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 36
 
-- [x] 55. Create `backend/agi/graphs/market_analysis_graph.py` - Regime → KG → Goal
+- [ ] 55. Create `backend/agi/graphs/market_analysis_graph.py` - Regime → KG → Goal
 
   **What to do**:
   - Create `MarketAnalysisGraph` graph definition
@@ -1959,7 +2170,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 45, 46, 47, 49, 36
 
-- [x] 56. Create `backend/agi/graphs/strategy_evolution_graph.py` - Synth → Sandbox → Promote
+- [ ] 56. Create `backend/agi/graphs/strategy_evolution_graph.py` - Synth → Sandbox → Promote
 
   **What to do**:
   - Create `StrategyEvolutionGraph` graph definition
@@ -1983,7 +2194,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 48, Task 38, Task 36
 
-- [x] 57. Create `backend/agi/graphs/forensics_graph.py` - Loss → Forensics → Improve
+- [ ] 57. Create `backend/agi/graphs/forensics_graph.py` - Loss → Forensics → Improve
 
   **What to do**:
   - Create `ForensicsGraph` graph definition
@@ -2008,16 +2219,16 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 50, Task 51, Task 52, Task 53, Task 36
 
-- [x] 58. Create `backend/agi/nodes/__init__.py` - Auto-discover and reference import for all nodes
+- [ ] 58. Create `backend/agi/node_registry.py` - Reference import for all nodes
 
   **What to do**:
   - Import `node_registry` from `backend.agi.node_registry`
-  - Import all node modules in the `nodes/` directory from `backend/agi/nodes/__init__.py`
-  - Trigger registration via decorators as a side effect of module import
-  - Export `node_registry` and node package imports in `backend/agi/__init__.py`
+  - Import all node modules in nodes/ directory
+  - Register all nodes via decorators
+  - Export in `backend/agi/__init__.py`
 
   **Test cases**:
-  - All nodes registered in registry after importing `backend.agi.nodes`
+  - All nodes registered in registry
 
   **Recommended Agent Profile**:
   > - **Category**: `quick` - Import setup
@@ -2029,7 +2240,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 60
   - **Blocked By**: Task 35, Tasks 45-53
 
-- [x] 59. Refactor `backend/strategies/base.py` - Add `market_context` field
+- [ ] 59. Refactor `backend/strategies/base.py` - Add `market_context` field
 
   **What to do**:
   - Import `MultiVenueContext` from `backend.markets.multi_venue`
@@ -2053,7 +2264,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 60 (integration tests)
   - **Blocked By**: Task 6, Task 23, Task 58
 
-- [x] 60. Create `backend/tests/test_node_registry.py` and `test_sandbox_node.py` - Node tests
+- [ ] 60. Create `backend/tests/test_node_registry.py` and `test_sandbox_node.py` - Node tests
 
   **What to do**:
   - Test node registration
@@ -2076,7 +2287,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Wave 8: Integration + Frontend (Tasks 61-76)
 
-- [x] 61. Create `backend/api/v1/agi_nodes.py` - AGI node API
+- [ ] 61. Create `backend/api/v1/agi_nodes.py` - AGI node API
 
   **What to do**:
   - Create FastAPI router
@@ -2097,7 +2308,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend API client (task 71)
   - **Blocked By**: Task 35, Task 44
 
-- [x] 62. Create `backend/api/v1/agi_graphs.py` - Graph run API
+- [ ] 62. Create `backend/api/v1/agi_graphs.py` - Graph run API
 
   **What to do**:
   - Create FastAPI router
@@ -2118,7 +2329,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend API client (task 71)
   - **Blocked By**: Task 36, Task 54
 
-- [x] 63. Create `backend/api/v1/agi_sandbox.py` - Sandbox API
+- [ ] 63. Create `backend/api/v1/agi_sandbox.py` - Sandbox API
 
   **What to do**:
   - Create FastAPI router
@@ -2139,7 +2350,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Frontend API client (task 71)
   - **Blocked By**: Task 38, Task 39
 
-- [x] 64. Create `frontend/src/components/PluginStatusPanel.tsx` - Unified plugin view
+- [ ] 64. Create `frontend/src/components/PluginStatusPanel.tsx` - Unified plugin view
 
   **What to do**:
   - Create React component with tabs for all 4 registries
@@ -2164,7 +2375,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 13, 21, 30, 61, 62, 63
 
-- [x] 65. Create `frontend/src/components/VenueMonitor.tsx` - Per-venue monitoring
+- [ ] 65. Create `frontend/src/components/VenueMonitor.tsx` - Per-venue monitoring
 
   **What to do**:
   - Create React component with cards per active venue
@@ -2187,7 +2398,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 64
 
-- [x] 66. Create `frontend/src/components/SandboxMonitor.tsx` - Sandbox validation
+- [ ] 66. Create `frontend/src/components/SandboxMonitor.tsx` - Sandbox validation
 
   **What to do**:
   - Create React component listing sandbox runs
@@ -2210,7 +2421,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 64, Task 63
 
-- [x] 67. Create `frontend/src/components/AGIGraphRunner.tsx` - Graph trigger
+- [ ] 67. Create `frontend/src/components/AGIGraphRunner.tsx` - Graph trigger
 
   **What to do**:
   - Create React component with dropdown of graphs
@@ -2233,7 +2444,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 64, Task 62
 
-- [x] 68. Create `frontend/src/api/providers.ts` - AI provider API client
+- [ ] 68. Create `frontend/src/api/providers.ts` - AI provider API client
 
   **What to do**:
   - Create axios instance for `/api/v1/ai/providers` endpoints
@@ -2255,7 +2466,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 13
 
-- [x] 69. Create `frontend/src/api/data_sources.ts` - Data source API client
+- [ ] 69. Create `frontend/src/api/data_sources.ts` - Data source API client
 
   **What to do**:
   - Create axios instance for `/api/v1/data/sources` endpoints
@@ -2274,7 +2485,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 21
 
-- [x] 70. Create `frontend/src/api/market_venues.ts` - Market provider API client
+- [ ] 70. Create `frontend/src/api/market_venues.ts` - Market provider API client
 
   **What to do**:
   - Create axios instance for `/api/v1/markets/providers` and `/api/v1/markets/order` endpoints
@@ -2294,7 +2505,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Task 30
 
-- [x] 71. Update `frontend/src/api/agi.ts` - AGI client
+- [ ] 71. Update `frontend/src/api/agi.ts` - AGI client
 
   **What to do**:
   - Add sandbox and graph run endpoints
@@ -2313,7 +2524,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 61, 62, 63
 
-- [x] 72. Create `backend/tests/test_integration_ensemble.py` - AI provider integration tests
+- [ ] 72. Create `backend/tests/test_integration_ensemble.py` - AI provider integration tests
 
   **What to do**:
   - Test provider registry ensemble with registry providers
@@ -2334,7 +2545,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 10, 11, 12, 14, 68
 
-- [x] 73. Create `backend/tests/test_integration_data_strategy.py` - Data source integration
+- [ ] 73. Create `backend/tests/test_integration_data_strategy.py` - Data source integration
 
   **What to do**:
   - Test strategy context injection with data registry
@@ -2354,7 +2565,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 16, 17, 18, 20, 22, 69
 
-- [x] 74. Create `backend/tests/test_integration_order_executor.py` - Order executor tests
+- [ ] 74. Create `backend/tests/test_integration_order_executor.py` - Order executor tests
 
   **What to do**:
   - Test order executor uses market registry
@@ -2375,7 +2586,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 25, 26, 27, 28, 32, 70
 
-- [x] 75. Create `backend/tests/test_integration_sandbox_evolution.py` - Evolution tests
+- [ ] 75. Create `backend/tests/test_integration_sandbox_evolution.py` - Evolution tests
 
   **What to do**:
   - Test full evolution graph in sandbox mode
@@ -2395,7 +2606,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: None
   - **Blocked By**: Tasks 38, 39, 42, 43, 56
 
-- [x] 76. Create `backend/tests/test_integration_settlement_fills.py` - Settlement tests
+- [ ] 76. Create `backend/tests/test_integration_settlement_fills.py` - Settlement tests
 
   **What to do**:
   - Test settlement consumes fills from registry stream
@@ -2417,19 +2628,19 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 
 ### Final Verification Wave (Tasks F1-F4)
 
-- [x] F1. **Plan Compliance Audit** — `oracle`
+- [ ] F1. **Plan Compliance Audit** — `oracle`
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
 
-- [x] F2. **Code Quality Review** — `unspecified-high`
+- [ ] F2. **Code Quality Review** — `unspecified-high`
   Run `tsc --noEmit` + linter + `bun test`. Review all changed files for: `as any`/`@ts-ignore`, empty catches, console.log in prod, commented-out code, unused imports. Check AI slop: excessive comments, over-abstraction, generic names (data/result/item/temp).
   Output: `Build [PASS/FAIL] | Lint [PASS/FAIL] | Tests [N pass/N fail] | Files [N clean/N issues] | VERDICT`
 
-- [x] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
+- [ ] F3. **Real Manual QA** — `unspecified-high` (+ `playwright` skill if UI)
   Start from clean state. Execute EVERY QA scenario from EVERY task — follow exact steps, capture evidence. Test cross-task integration (features working together, not isolation). Test edge cases: empty state, invalid input, rapid actions. Test save to `.sisyphus/evidence/final-qa/`.
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [x] F4. **Scope Fidelity Check** — `deep`
+- [ ] F4. **Scope Fidelity Check** — `deep`
   For each task: read "What to do", read actual diff (git log/diff). Verify 1:1 — everything in spec was built (no missing), nothing beyond spec was built (no creep). Check "Must NOT do" compliance. Detect cross-task contamination: Task N touching Task M's files. Flag unaccounted changes.
   Output: `Tasks [N/N compliant] | Contamination [CLEAN/N issues] | Unaccounted [CLEAN/N files] | VERDICT`
 
@@ -2457,41 +2668,31 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 # Run all plugin system tests
 pytest backend/tests/test_plugin_registry.py backend/tests/test_ai_provider_registry.py backend/tests/test_data_source_registry.py backend/tests/test_market_provider_registry.py backend/tests/test_node_registry.py backend/tests/test_sandbox_validator.py backend/tests/test_sandbox_manager.py
 
-# Base URLs:
-# - Use UVICORN_API when running the API directly on the host (for example, uvicorn on port 8100)
-# - Use COMPOSE_API when running via Docker Compose with host port mapping 8000:8100
-UVICORN_API="http://localhost:8100"
-COMPOSE_API="http://localhost:8000"
+# Check AI provider system
+curl -s http://localhost:8100/api/v1/ai/providers | jq .
+curl -s -X POST http://localhost:8100/api/v1/ai/providers/claude/disable | jq .
 
-# Check AI provider system (direct uvicorn)
-curl -s "$UVICORN_API/api/v1/ai/providers" | jq .
-curl -s -X POST "$UVICORN_API/api/v1/ai/providers/claude/disable" | jq .
+# Check data source system
+curl -s http://localhost:8100/api/v1/data/sources | jq .
+curl -s -X POST http://localhost:8100/api/v1/data/sources/polymarket/disable | jq .
 
-# Check AI provider system (Docker Compose)
-curl -s "$COMPOSE_API/api/v1/ai/providers" | jq .
-curl -s -X POST "$COMPOSE_API/api/v1/ai/providers/claude/disable" | jq .
+# Check market provider system
+curl -s http://localhost:8100/api/v1/markets/providers | jq .
+curl -s -X POST http://localhost:8100/api/v1/markets/providers/polymarket/disable?force=true | jq .
 
-# Check data source system (direct uvicorn)
-curl -s "$UVICORN_API/api/v1/data/sources" | jq .
-curl -s -X POST "$UVICORN_API/api/v1/data/sources/polymarket/disable" | jq .
+# Check AGI node system
+curl -s http://localhost:8100/api/v1/agi/nodes | jq .
+curl -s http://localhost:8100/api/v1/agi/graphs | jq .
 
-# Check market provider system (direct uvicorn)
-curl -s "$UVICORN_API/api/v1/markets/providers" | jq .
-curl -s -X POST "$UVICORN_API/api/v1/markets/providers/polymarket/disable?force=true" | jq .
-
-# Check AGI node system (direct uvicorn)
-curl -s "$UVICORN_API/api/v1/agi/nodes" | jq .
-curl -s "$UVICORN_API/api/v1/agi/graphs" | jq .
-
-# Check sandbox validation (direct uvicorn)
-curl -s -X POST "$UVICORN_API/api/v1/agi/sandbox/validate" -H "Content-Type: application/json" -d '{"code": "...", "scenario": "bull_2024"}' | jq .
+# Check sandbox validation
+curl -s -X POST http://localhost:8100/api/v1/agi/sandbox/validate -H "Content-Type: application/json" -d '{"code": "...", "scenario": "bull_2024"}' | jq .
 ```
 
 ### Final Checklist
-- [x] All "Must Have" present
-- [x] All "Must NOT Have" absent
-- [x] All tests pass
-- [x] All API endpoints functional
-- [x] All frontend panels display correctly
-- [x] All documentation updated
-- [x] All ADRs created/updated
+- [ ] All "Must Have" present
+- [ ] All "Must NOT Have" absent
+- [ ] All tests pass
+- [ ] All API endpoints functional
+- [ ] All frontend panels display correctly
+- [ ] All documentation updated
+- [ ] All ADRs created/updated
