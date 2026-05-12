@@ -105,6 +105,37 @@ class ConfigRegistry:
     # Kalshi API
     KALSHI_API_URL: str = "https://api.elections.kalshi.com/trade-api/v2"
 
+    # --------------------------------------------------------------------------
+    # MARKET_PROVIDERS - Configurable prediction market provider registry
+    # --------------------------------------------------------------------------
+    # Each provider is a dict with url, ws_url, enabled, priority, and kwargs.
+    # To add a new provider, just add an entry here. The MarketProviderRegistry
+    # will auto-discover and register any provider with a matching manifest.
+    MARKET_PROVIDERS: dict = field(default_factory=lambda: {
+        "polymarket": {
+            "enabled": True,
+            "priority": 1,
+            "api_url": os.getenv("POLYMARKET_API_URL", "https://clob.polymarket.com"),
+            "gamma_url": os.getenv("GAMMA_API_URL", "https://gamma-api.polymarket.com"),
+            "data_url": os.getenv("DATA_API_URL", "https://data-api.polymarket.com"),
+            "ws_url": os.getenv("POLYMARKET_WS_URL", "wss://ws-subscriptions-clob.polymarket.com/ws/market"),
+            "min_order_usd": 5.0,
+        },
+        "kalshi": {
+            "enabled": True,
+            "priority": 2,
+            "api_url": os.getenv("KALSHI_API_URL", "https://api.elections.kalshi.com/trade-api/v2"),
+            "min_order_usd": 10.0,
+        },
+    })
+
+    # Default venue for order placement when strategy doesn't specify one
+    DEFAULT_VENUE: str = "polymarket"
+
+    # Provider fallback behavior
+    PROVIDER_FALLBACK_ENABLED: bool = os.getenv("PROVIDER_FALLBACK_ENABLED", "true").lower() == "true"
+    PROVIDER_FALLBACK_ORDER: list[str] = field(default_factory=lambda: ["polymarket", "kalshi"])
+
     # Crypto exchange APIs
     BINANCE_API_URL: str = "https://api.binance.com/api/v3"
     BINANCE_KLINES_URL: str = "https://api.binance.com/api/v3/klines"

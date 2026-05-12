@@ -1598,6 +1598,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
             state = db.query(BotState).filter_by(mode=strategy_mode).first()
             if not state:
                 raise HTTPException(status_code=404, detail="Bot state not initialized")
+            from backend.markets.provider_registry import market_registry
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1605,6 +1606,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 logger=logger,
                 params=dict(getattr(cls, "default_params", {})),
                 mode=strategy_mode,
+                market_registry=market_registry,
             )
             result = await instance.run(ctx)
 
