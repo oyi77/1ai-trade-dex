@@ -2087,4 +2087,4 @@ def get_db():
         db.close()
 
 # Re-import to ensure table registration without circular import
-from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot
+from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: E402, F401
