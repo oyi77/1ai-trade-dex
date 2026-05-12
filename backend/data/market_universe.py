@@ -58,19 +58,32 @@ class PolymarketProvider(DataProvider):
                     "active": "true" if active_only else "false",
                     "closed": "false",
                 }
-                try:
-                    resp = await client.get(
-                        f"{self._base_url}/markets",
-                        params=params,
-                    )
-                    resp.raise_for_status()
-                    batch = resp.json()
-                except Exception as e:
-                    logger.warning(
-                        "[PolymarketProvider] fetch error at offset=%d: %s",
-                        page_offset,
-                        e,
-                    )
+                max_retries = 3
+                retry_delay = 1.0
+                batch = []
+                for attempt in range(max_retries):
+                    try:
+                        resp = await client.get(
+                            f"{self._base_url}/markets",
+                            params=params,
+                        )
+                        if resp.status_code == 429:
+                            logger.warning("[PolymarketProvider] 429 Rate Limit hit at offset=%d. Retrying in %ss...", page_offset, retry_delay)
+                            await asyncio.sleep(retry_delay)
+                            retry_delay *= 2
+                            continue
+                        resp.raise_for_status()
+                        batch = resp.json()
+                        break
+                    except Exception as e:
+                        logger.warning(
+                            "[PolymarketProvider] fetch error at offset=%d: %s",
+                            page_offset,
+                            e,
+                        )
+                        break
+                else:
+                    logger.error("[PolymarketProvider] Max retries exceeded at offset=%d", page_offset)
                     break
 
                 if not batch:
@@ -133,16 +146,30 @@ class KalshiProvider(DataProvider):
                 }
                 if cursor:
                     params["cursor"] = cursor
-                try:
-                    resp = await client.get(
-                        f"{self._base_url}/markets",
-                        params=params,
-                    )
-                    resp.raise_for_status()
-                    data = resp.json()
-                    batch = data.get("markets", [])
-                except Exception as e:
-                    logger.warning("[KalshiProvider] fetch error: %s", e)
+                max_retries = 3
+                retry_delay = 1.0
+                data = {}
+                batch = []
+                for attempt in range(max_retries):
+                    try:
+                        resp = await client.get(
+                            f"{self._base_url}/markets",
+                            params=params,
+                        )
+                        if resp.status_code == 429:
+                            logger.warning("[KalshiProvider] 429 Rate Limit hit. Retrying in %ss...", retry_delay)
+                            await asyncio.sleep(retry_delay)
+                            retry_delay *= 2
+                            continue
+                        resp.raise_for_status()
+                        data = resp.json()
+                        batch = data.get("markets", [])
+                        break
+                    except Exception as e:
+                        logger.warning("[KalshiProvider] fetch error: %s", e)
+                        break
+                else:
+                    logger.error("[KalshiProvider] Max retries exceeded")
                     break
 
                 for raw in batch:
