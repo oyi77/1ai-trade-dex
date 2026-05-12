@@ -38,8 +38,8 @@ module.exports = {
     },
     {
       name: 'polyedge-frontend',
-      script: 'sh',
-      args: '-c "[ -d dist ] || npm run build && npx vite preview --host 0.0.0.0 --port ${VITE_DEV_SERVER_PORT:-5174}"',
+      script: process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      args: 'run start:prod:pm2',
       cwd: FRONTEND,
       interpreter: 'none',
       watch: false,

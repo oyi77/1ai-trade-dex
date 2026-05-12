@@ -12,10 +12,7 @@ if (Get-Command pm2 -ErrorAction SilentlyContinue) {
     Write-Host "[PM2] Stopping all services..." -ForegroundColor Green
     pm2 stop ecosystem.config.js
     Write-Host "[PM2] All services stopped." -ForegroundColor Green
-    pm2 list
 }
 else {
-    Write-Host "[INFO] Stopping Python processes..." -ForegroundColor Yellow
-    Get-Process python | Where-Object { $_.Path -like "*venv*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-    Write-Host "[DONE] All processes stopped." -ForegroundColor Green
+    Write-Host "[WARNING] PM2 not found. Please install PM2 or manually kill the processes." -ForegroundColor Yellow
 }

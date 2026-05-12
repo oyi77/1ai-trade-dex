@@ -25,6 +25,7 @@ else
 
     source venv/bin/activate
 
+    mkdir -p .omc/logs
     echo "[INFO] Starting polyedge-api (backend)..."
     DISABLE_TRADING_SCHEDULER=true PYTHONPATH="$PROJECT_DIR" nohup python run.py > .omc/logs/polyedge-api-out.log 2>&1 &
 
