@@ -28,6 +28,7 @@ class LiveExecuteStage(BaseExecutionStage):
 
         from backend.markets.provider_registry import market_registry
         platform = decision.get("platform", "polymarket")
+        market_ticker = decision.get("market_ticker", "")
 
         is_kalshi = market_ticker.startswith("KX") or platform == "kalshi"
 
@@ -47,6 +48,9 @@ class LiveExecuteStage(BaseExecutionStage):
 
     def _execute_polymarket(self, client, decision, ctx):
         token_id = decision.get("token_id")
+        direction = decision.get("direction", decision.get("side", "buy"))
+        entry_price = decision.get("entry_price", decision.get("price", 0.0))
+        size = decision.get("size", 0.0)
 
         order_type = "sell" if direction.upper() in ("NO", "SELL") else "buy"
 
@@ -71,6 +75,10 @@ class LiveExecuteStage(BaseExecutionStage):
             }
 
     def _execute_kalshi(self, client, decision, ctx):
+        market_ticker = decision.get("market_ticker", "")
+        direction = decision.get("direction", decision.get("side", "yes"))
+        entry_price = decision.get("entry_price", decision.get("price", 0.0))
+        size = decision.get("size", 0.0)
         side = "yes" if direction.upper() == "YES" else "no"
 
         try:
