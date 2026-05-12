@@ -1,6 +1,6 @@
 import pytest
 from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType
-from backend.data.source_registry import DataSourceRegistry, DataSourceRegistry
+from backend.data.source_registry import DataSourceRegistry
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 
 

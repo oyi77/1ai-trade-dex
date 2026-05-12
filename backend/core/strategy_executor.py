@@ -578,7 +578,7 @@ def _execute_decision_paper_or_kalshi(
 
         except OperationalError as exc:
             logger.error(
-                f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
+                f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}", exc_info=exc,
                 exc_info=True,
             )
             try:
@@ -1166,7 +1166,7 @@ async def _execute_decision_live_clob(
 
         except OperationalError as exc:
             logger.error(
-                f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
+                f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}", exc_info=exc,
                 exc_info=True,
             )
             try:

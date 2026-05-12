@@ -1,6 +1,7 @@
 """Mock data source for sandbox testing."""
 import random
 import os
+from backend.data.source_registry import source_registry
 from dataclasses import dataclass
 from typing import Any, Dict, List
 from datetime import datetime, timezone
@@ -24,7 +25,6 @@ class MockManifest(DataSourceManifest):
     pass
 
 
-from backend.data.source_registry import source_registry
 
 
 @source_registry.plugin

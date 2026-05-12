@@ -1,6 +1,7 @@
 """Polymarket data source plugin for the plugin system."""
 import os
 from dataclasses import dataclass
+from backend.data.source_registry import source_registry
 from typing import Any, Dict, List
 
 from backend.core.plugin_errors import DataSourceError
@@ -19,7 +20,6 @@ class PolymarketManifest(DataSourceManifest):
 
 
 # Register with the source registry
-from backend.data.source_registry import source_registry
 
 
 @source_registry.plugin

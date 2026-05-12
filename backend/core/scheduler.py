@@ -961,7 +961,7 @@ def start_scheduler():
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
             disabled_configs = db.query(StrategyConfig).filter(
-                StrategyConfig.enabled == False,
+                StrategyConfig.enabled.is_(False),
                 StrategyConfig.disabled_at.isnot(None),
             ).all()
 

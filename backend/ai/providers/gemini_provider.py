@@ -22,7 +22,7 @@ class GeminiProvider(BaseAIProvider):
         import httpx
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
                 params={"key": kwargs.get("api_key", "")},
                 json={
                     "contents": [{"parts": [{"text": prompt}]}],
