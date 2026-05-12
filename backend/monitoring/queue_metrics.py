@@ -5,13 +5,12 @@ and error rate. Metrics are computed over a rolling window in memory and exposed
 get_metrics_snapshot() for monitoring/logging.
 """
 import time
-import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Dict, Deque, Optional
 from threading import Lock
 
-logger = logging.getLogger("trading_bot.queue_metrics")
+from loguru import logger
 
 WINDOW_SIZE = 1000  # rolling window of recent samples per job type
 

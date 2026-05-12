@@ -1,14 +1,12 @@
 """Audit logging helper functions for money-related operations."""
 
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 from typing import Optional, Any, Dict
 
 from sqlalchemy.orm import Session
 
 from backend.models.database import AuditLog
-
-logger = logging.getLogger(__name__)
 
 
 def log_audit_event(

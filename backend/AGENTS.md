@@ -64,6 +64,8 @@ Python FastAPI backend — trading engine, strategy execution, AI signal generat
 - Import config: `from backend.config import settings`
 - Get DB session: `with get_db_session() as db:` (see `backend/db/utils.py`)
 - Emit events: `event_bus.emit(EventType.X, payload)` (see `backend/core/event_bus.py`)
+- **Logging**: Use `from loguru import logger` exclusively — never `import logging` or `logging.getLogger()`. Loguru auto-captures module name. Config in `backend/core/log.py`. Structured fields: `logger.info("trade executed", strategy="btc_oracle", market="BTC-UP")`. Env vars: `LOG_LEVEL`, `LOG_JSON`, `LOG_FILE`, `LOG_ROTATION`, `LOG_RETENTION`.
+- **Error handling**: Never use bare `except Exception: pass` — always add `logger.exception("descriptive message")` so errors are visible. Silent error swallowing is the #1 root cause of observability failures.
 
 ## Dependencies
 

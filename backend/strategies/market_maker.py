@@ -4,8 +4,6 @@ Market Maker Strategy for PolyEdge.
 Two-sided quoting with dynamic spread adjustment based on volatility
 and inventory skew to manage position risk.
 """
-
-import logging
 from dataclasses import dataclass
 
 from backend.strategies.base import (
@@ -18,9 +16,7 @@ from backend.core.decisions import record_decision
 from backend.models.database import Trade
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.market_maker")
-
-
+from loguru import logger
 @dataclass
 class Quote:
     bid_price: float

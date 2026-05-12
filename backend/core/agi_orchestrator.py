@@ -8,6 +8,8 @@ from typing import Any, Optional
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+from loguru import logger
+
 from backend.core.agi_types import MarketRegime, AGIGoal
 from backend.models.kg_models import Base, DecisionAuditLog
 
@@ -303,10 +305,11 @@ class AGIOrchestrator:
             self._session.add(audit)
             self._session.commit()
         except Exception:
+            logger.exception("AGIOrchestrator.emergency_stop: failed to log audit record")
             try:
                 self._session.rollback()
             except Exception:
-                pass
+                logger.exception("AGIOrchestrator.emergency_stop: rollback also failed")
 
     def _log_cycle(
         self, regime: MarketRegime, goal: AGIGoal, allocations: dict, errors: list[str]
@@ -328,10 +331,11 @@ class AGIOrchestrator:
             self._session.add(audit)
             self._session.commit()
         except Exception:
+            logger.exception("AGIOrchestrator._log_cycle: failed to log audit record")
             try:
                 self._session.rollback()
             except Exception:
-                pass
+                logger.exception("AGIOrchestrator._log_cycle: rollback also failed")
 
 
 class ErrorType(Enum):
@@ -386,7 +390,7 @@ def classify_exception(exc: BaseException) -> ErrorType:
     return ErrorType.BENIGN
 
 
-logger = __import__("logging").getLogger("trading_bot.agi_orchestrator")
+
 
 
 # Module-level circuit breaker state for TRANSIENT-failure tracking across cycles.
@@ -721,7 +725,7 @@ async def agi_improvement_cycle_job() -> None:
                         details={"errors": stats["errors"]},
                     )
             except Exception:
-                pass
+                logger.exception("[agi_improvement_cycle] failed to send critical alert via ProductionMonitor")
 
     logger.info(
         "[agi_improvement_cycle] feedback=%d meta=%d evolved=%d promoted=%d composed=%d replaced=%d cf_scored=%d errors=%d",

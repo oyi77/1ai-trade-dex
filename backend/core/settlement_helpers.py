@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import logging
 import re
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
@@ -14,8 +13,7 @@ from cachetools import TTLCache
 from backend.models.database import Trade, Signal, SettlementEvent, TradeContext
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Module-level: track consecutive 404s per market_id (bounded TTLCache: 1000 entries, 1 hour TTL)
 _market_404_counts: TTLCache = TTLCache(maxsize=1000, ttl=3600)
 

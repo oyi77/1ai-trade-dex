@@ -9,8 +9,6 @@ fire a trade.
 This strategy exploits the 2-5 second oracle latency window documented in research.
 Unlike BTC 5-min momentum (negative EV), this targets a structural market inefficiency.
 """
-
-import logging
 from datetime import datetime, timezone
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
@@ -19,8 +17,7 @@ from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 COINGECKO_PRICE_URL = f"{settings.COINGECKO_API_URL}/simple/price"
 
 
@@ -218,6 +215,7 @@ class BtcOracleStrategy(BaseStrategy):
         try:
             micro = await compute_btc_microstructure()
         except Exception:
+            logger.exception('btc_oracle: failed to fetch BTC price for oracle signal')
             micro = None
 
         if micro:

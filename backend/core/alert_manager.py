@@ -1,6 +1,4 @@
 """Alert manager for detecting and reporting critical conditions."""
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from collections import deque
@@ -8,9 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import Alert, AlertConfig
 
-logger = logging.getLogger("alert_manager")
-
-
+from loguru import logger
 class AlertManager:
     """Manages alert detection and logging for critical conditions."""
 

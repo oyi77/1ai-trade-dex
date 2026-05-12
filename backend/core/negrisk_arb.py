@@ -4,11 +4,9 @@ Neg-Risk Arbitrage Scanner for PolyEdge.
 Groups markets by event and detects opportunities where the sum of YES
 prices across mutually exclusive outcomes deviates meaningfully from 1.0.
 """
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger("trading_bot.negrisk_arb")
-
+from loguru import logger
 DEFAULT_FEE_RATE = 0.02
 DEFAULT_MIN_DEVIATION = 0.02   # minimum net deviation to flag as opportunity
 DEFAULT_MIN_OUTCOMES = 3       # require at least this many outcomes per event

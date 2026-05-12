@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from backend.models.database import KgNode, KgEdge
+from backend.models.database import KgNode, KgEdge, EvolutionLog
 
 
 class KnowledgeGraph:
@@ -137,15 +137,31 @@ def _query_martingale_lifespan(db: Session, params: Dict[str, Any]) -> List[Dict
     if not martingale_strategies:
         return [{"average_lifespan_days": 0, "count": 0}]
 
-    # Calculate lifespan from creation to death (simplified)
-    total_lifespan = 0
-    for strategy in martingale_strategies:
-        # In real implementation, query evolution_log for promotion and death events
-        # For now, use a placeholder
-        total_lifespan += 30  # 30 days average
+    genome_ids = [s.label for s in martingale_strategies]
 
-    avg_lifespan = total_lifespan / len(martingale_strategies)
-    return [{"average_lifespan_days": avg_lifespan, "count": len(martingale_strategies)}]
+    logs = db.query(EvolutionLog).filter(
+        and_(
+            EvolutionLog.genome_id.in_(genome_ids),
+            EvolutionLog.event_type.in_(["promotion", "auto_killed", "retired"])
+        )
+    ).order_by(EvolutionLog.genome_id, EvolutionLog.timestamp.asc()).all()
+
+    lifespans = []
+    current_genome = None
+    created_at = None
+    for log in logs:
+        if log.genome_id != current_genome:
+            if created_at is not None:
+                lifespans.append(0)
+            current_genome = log.genome_id
+            created_at = log.timestamp if log.event_type == "promotion" and log.from_stage == "DRAFT" else None
+        if created_at and log.event_type in ("auto_killed", "retired"):
+            days = (log.timestamp - created_at).total_seconds() / 86400
+            lifespans.append(max(0, days))
+            created_at = None
+
+    avg_lifespan = sum(lifespans) / len(lifespans) if lifespans else 0
+    return [{"average_lifespan_days": round(avg_lifespan, 1), "count": len(martingale_strategies)}]
 
 
 def _query_highest_alpha_by_category(db: Session, params: Dict[str, Any]) -> List[Dict[str, Any]]:

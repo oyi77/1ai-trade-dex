@@ -1,10 +1,7 @@
 """Portfolio optimizer using risk-parity allocation based on Sharpe ratios."""
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger("trading_bot.portfolio")
-
-
+from loguru import logger
 @dataclass
 class StrategyMetrics:
     name: str

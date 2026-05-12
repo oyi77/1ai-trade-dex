@@ -7,8 +7,6 @@ mutating or deleting historical trades.
 """
 
 from __future__ import annotations
-
-import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Iterable, Optional
@@ -20,9 +18,7 @@ from backend.config import settings
 from backend.models.audit_logger import log_audit_event
 from backend.models.database import BotState, Trade
 
-logger = logging.getLogger("trading_bot.bankroll_reconciliation")
-
-
+from loguru import logger
 @dataclass
 class BankrollReconciliationReport:
     """One-mode reconciliation result."""

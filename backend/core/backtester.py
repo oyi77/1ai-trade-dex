@@ -1,6 +1,4 @@
 """Backtesting engine — simulate strategy execution against historical market data."""
-
-import logging
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, date
@@ -10,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import Trade, Signal, SessionLocal
 
-logger = logging.getLogger("trading_bot.backtest")
-
-
+from loguru import logger
 @dataclass
 class BacktestConfig:
     strategy_name: str

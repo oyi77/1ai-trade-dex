@@ -3,10 +3,6 @@
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
-import logging
-
-logger = logging.getLogger("trading_bot")
-
 # Supported API versions
 SUPPORTED_VERSIONS = ["v1"]
 DEFAULT_VERSION = "v1"

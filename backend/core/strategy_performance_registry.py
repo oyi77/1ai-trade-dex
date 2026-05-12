@@ -11,8 +11,6 @@ This is the source of truth for:
 """
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
@@ -20,11 +18,9 @@ from dataclasses import dataclass, asdict
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, Float, String, DateTime, UniqueConstraint
 
-from backend.models.database import Base, SessionLocal, Trade
+from backend.models.database import Base, SessionLocal
 
-logger = logging.getLogger("trading_bot.performance_registry")
-
-
+from loguru import logger
 # ============================================================
 # Database schema — StrategyPerformanceSnapshot
 # ============================================================
@@ -201,6 +197,8 @@ class StrategyPerformanceRegistry:
         aggregates, updates in-memory cache, and optionally persists a
         snapshot row if `db` is provided.
         """
+        from backend.models.database import Trade
+
         session = db or SessionLocal()
         try:
             # Fetch all settled trades for this strategy
@@ -372,6 +370,8 @@ class StrategyPerformanceRegistry:
                 session.close()
 
     def _compute_coverage_days(self, strategy: str, db) -> int:
+        from backend.models.database import Trade
+
         session = db or SessionLocal()
         try:
             first_trade = session.query(Trade.timestamp).filter(
@@ -382,8 +382,8 @@ class StrategyPerformanceRegistry:
             ).order_by(Trade.timestamp.desc()).first()
             if first_trade and last_trade and first_trade[0] and last_trade[0]:
                 return max(1, (last_trade[0] - first_trade[0]).days)
-            return 0
         except Exception:
+            logger.exception("[StrategyPerformanceRegistry] Failed to compute coverage days for '%s'", strategy)
             return 0
         finally:
             if db is None:

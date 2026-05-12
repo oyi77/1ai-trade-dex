@@ -2,7 +2,7 @@
 
 import time
 from typing import Optional, List, Dict, Any
-import logging
+from loguru import logger
 
 from .base import (
     AIAnalysis,
@@ -12,8 +12,6 @@ from .base import (
     create_signal_prompt,
 )
 from .logger import get_ai_logger
-
-logger = logging.getLogger(__name__)
 
 
 class ClaudeAnalyzer(BaseAIClient):

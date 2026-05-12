@@ -1,12 +1,11 @@
 """Source-weight updater — adjusts weights from provenance-attributed trade outcomes."""
 from __future__ import annotations
-import logging
 from typing import Dict
 
 from backend.models.database import SessionLocal, Trade
 from sqlalchemy.sql import func
 
-logger = logging.getLogger("trading_bot.mesh.learning")
+from loguru import logger
 
 _source_weights: Dict[str, float] = {}
 
@@ -25,7 +24,7 @@ def update_source_weights_from_outcomes() -> Dict[str, float]:
             func.count(Trade.id).label("cnt"),
             func.count(Trade.id).filter(Trade.result == "win").label("wins"),
         ).filter(
-            Trade.settled == True,
+            Trade.settled,
             Trade.settlement_source.isnot(None),
             Trade.settlement_source != "",
         ).group_by(Trade.settlement_source).all()

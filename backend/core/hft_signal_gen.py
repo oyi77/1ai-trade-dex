@@ -1,15 +1,12 @@
 """HFT Signal Generator — deduplicates, validates, and routes HFT signals."""
 
 import asyncio
-import logging
 import time
 from typing import Optional
 
 from backend.strategies.types_hft import HFTSignal
 
-logger = logging.getLogger("trading_bot.hft_signal_gen")
-
-
+from loguru import logger
 class SignalGenerator:
     """
     HFT signal generator that deduplicates and validates signals.

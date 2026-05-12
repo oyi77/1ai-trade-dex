@@ -11,7 +11,6 @@ All order sizes in USDC. All prices in [0.01, 0.99].
 
 import asyncio
 import hashlib
-import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -35,9 +34,7 @@ from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.circuit_breaker_pybreaker import polymarket_breaker
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 def _cfg(key: str, default=None):
     return getattr(settings, key, default) if hasattr(settings, key) else default
 

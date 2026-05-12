@@ -1,5 +1,4 @@
 import os
-import logging
 
 import duckdb
 import pyarrow as pa
@@ -7,9 +6,9 @@ import pyarrow.parquet as pq
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine, text
 
-from backend.config import settings
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from backend.config import settings
 
 
 def archive_trades_to_parquet(db_path: str, parquet_path: str, days_back: int = 1) -> int:

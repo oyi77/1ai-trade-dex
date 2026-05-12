@@ -1,23 +1,21 @@
 """Centralized error logging with structured context and aggregation."""
 
-import logging
-import traceback
 import json
+import traceback
+from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, asdict
-from collections import defaultdict, deque
+
 import asyncio
+from loguru import logger
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ErrorContext:
-    """Structured error context for logging."""
     timestamp: datetime
     error_type: str
     message: str
@@ -30,9 +28,8 @@ class ErrorContext:
     details: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary with ISO-formatted timestamp."""
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
 
 
@@ -40,11 +37,10 @@ class ErrorLogger:
     """Centralized error logging with database persistence and aggregation."""
 
     def __init__(self, db_session: Optional[Session] = None):
-        """Initialize error logger with optional database session."""
         self.db_session = db_session
         self._error_buffer = []
         self._error_counts = defaultdict(int)
-        self._last_minute_errors = deque(maxlen=60)  # Track last 60 seconds
+        self._last_minute_errors = deque(maxlen=60)
         self._lock = asyncio.Lock()
 
     async def log_error(
@@ -56,7 +52,6 @@ class ErrorLogger:
         request_id: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Log error with full context: timestamp, user, endpoint, stack trace."""
         async with self._lock:
             context = ErrorContext(
                 timestamp=datetime.now(timezone.utc),
@@ -71,27 +66,24 @@ class ErrorLogger:
             )
 
             logger.error(
-                f"Error in {endpoint or 'unknown'}: {context.error_type} - {context.message}",
-                extra={
-                    "error_type": context.error_type,
-                    "endpoint": endpoint,
-                    "request_id": request_id,
-                    "user_id": user_id,
-                },
-                exc_info=error,
+                "Error in {endpoint}: {error_type} - {message}",
+                endpoint=endpoint or "unknown",
+                error_type=context.error_type,
+                message=context.message,
+                request_id=request_id,
+                user_id=user_id,
             )
 
             if self.db_session:
                 try:
                     await self._persist_error(context)
                 except Exception as e:
-                    logger.warning(f"Failed to persist error to database: {e}")
+                    logger.warning("Failed to persist error to database: {e}", e=e)
 
             self._error_counts[context.error_type] += 1
             self._last_minute_errors.append(context.timestamp)
 
     async def _persist_error(self, context: ErrorContext) -> None:
-        """Persist error to database."""
         from backend.models.database import ErrorLog
 
         error_log = ErrorLog(
@@ -110,11 +102,9 @@ class ErrorLogger:
         self.db_session.commit()
 
     async def get_error_rate(self) -> float:
-        """Get error rate in errors per minute."""
         async with self._lock:
             now = datetime.now(timezone.utc)
             one_minute_ago = now - timedelta(minutes=1)
-
             recent_errors = sum(
                 1 for ts in self._last_minute_errors if ts >= one_minute_ago
             )
@@ -123,7 +113,6 @@ class ErrorLogger:
     async def get_error_aggregation(
         self, limit: int = 100
     ) -> Dict[str, Dict[str, Any]]:
-        """Get error aggregation by type and endpoint."""
         if not self.db_session:
             return {}
 
@@ -158,11 +147,10 @@ class ErrorLogger:
                 },
             }
         except Exception as e:
-            logger.error(f"Failed to get error aggregation: {e}")
+            logger.error("Failed to get error aggregation: {e}", e=e)
             return {}
 
     async def get_recent_errors(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Get recent errors from database (last N errors)."""
         if not self.db_session:
             return []
 
@@ -192,11 +180,10 @@ class ErrorLogger:
                 for error in errors
             ]
         except Exception as e:
-            logger.error(f"Failed to get recent errors: {e}")
+            logger.error("Failed to get recent errors: {e}", e=e)
             return []
 
     async def cleanup_old_errors(self, days: int = 30) -> int:
-        """Delete errors older than specified days (default 30 days)."""
         if not self.db_session:
             return 0
 
@@ -210,10 +197,10 @@ class ErrorLogger:
                 .delete()
             )
             self.db_session.commit()
-            logger.info(f"Deleted {deleted} errors older than {days} days")
+            logger.info("Deleted {deleted} errors older than {days} days", deleted=deleted, days=days)
             return deleted
         except Exception as e:
-            logger.error(f"Failed to cleanup old errors: {e}")
+            logger.error("Failed to cleanup old errors: {e}", e=e)
             self.db_session.rollback()
             return 0
 

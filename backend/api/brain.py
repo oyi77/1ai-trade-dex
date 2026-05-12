@@ -7,8 +7,6 @@ Provides REST endpoints and WebSocket streams for the Brain Graph visualization:
 
 WebSocket endpoint registered in main.py as /ws/brain for real-time updates.
 """
-
-import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 
@@ -17,8 +15,6 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from backend.models.database import get_db, DecisionLog, SystemSettings
-
-logger = logging.getLogger("trading_bot.brain_api")
 
 router = APIRouter(prefix="/brain", tags=["brain"])
 

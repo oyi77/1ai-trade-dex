@@ -1,8 +1,6 @@
 """TradeForensics to AGI improvement integration — feeds loss patterns into proposals."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -10,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import SessionLocal, StrategyProposal
 
-logger = logging.getLogger("trading_bot.forensics_integration")
-
-
+from loguru import logger
 def generate_forensics_proposals(
     lookback_hours: int = 168,
     min_losses: int = 5,
@@ -158,7 +154,7 @@ def generate_forensics_proposals(
             try:
                 db.rollback()
             except Exception:
-                pass
+                logger.exception("[ForensicsIntegration] Rollback failed after forensics error")
         return created_ids
     finally:
         if _owned:

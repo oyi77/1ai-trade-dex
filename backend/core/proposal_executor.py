@@ -14,11 +14,12 @@ This module integrates with:
 - APScheduler for periodic impact measurement and rollback checks
 """
 
-import logging
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
+
+from loguru import logger
 
 from backend.models.database import (
     StrategyProposal,
@@ -26,8 +27,6 @@ from backend.models.database import (
     Trade,
     AuditLog
 )
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,7 +62,7 @@ class ProposalExecutor:
 
     def __init__(self):
         """Initialize the ProposalExecutor."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
     def execute_proposal(self, proposal_id: int) -> bool:
         """Execute an approved proposal by applying config changes.

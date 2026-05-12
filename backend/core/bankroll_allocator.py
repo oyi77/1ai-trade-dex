@@ -8,7 +8,6 @@ per strategy. Writes allocations into BotState for observability.
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -16,9 +15,7 @@ from backend.config import settings
 from backend.models.database import BotState, for_update
 from backend.core.strategy_ranker import StrategyRanker
 
-logger = logging.getLogger("trading_bot.bankroll_allocator")
-
-
+from loguru import logger
 class BankrollAllocator:
     """Daily daemon that rebalances capital across active strategies."""
 
@@ -55,6 +52,7 @@ class BankrollAllocator:
                     try:
                         misc = json.loads(state.misc_data) if state.misc_data else {}
                     except Exception:
+                        logger.exception("[BankrollAllocator] Failed to parse BotState.misc_data JSON")
                         misc = {}
                     misc["allocations"] = allocations
                     misc["last_allocation_ts"] = datetime.now(timezone.utc).isoformat()

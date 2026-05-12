@@ -5,7 +5,6 @@ allowing clients to subscribe to specific event channels.
 """
 import asyncio
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Set
 
@@ -15,8 +14,6 @@ from fastapi.responses import StreamingResponse
 from backend.api.auth import authorize_realtime_access
 from backend.config import settings
 from backend.core.event_bus import event_bus
-
-logger = logging.getLogger("trading_bot")
 
 # Event type to channels mapping
 EVENT_CHANNEL_MAP = {
@@ -32,6 +29,7 @@ EVENT_CHANNEL_MAP = {
     "genome_promoted": ["agi_control"],
     # New event from shadow_validation
     "genome_ready_for_paper": ["dashboard", "agi_control"],
+    "system_log": ["admin"],
 }
 
 router = APIRouter(tags=["events"])
@@ -52,8 +50,7 @@ def _should_send_event(event_type: str, requested_channels: Set[str]) -> bool:
     return bool(event_channels & requested_channels)
 
 
-@router.get("/api/events/stream")
-@router.get("/api/v1/events/stream")
+@router.get("/events/stream")
 async def events_stream(
     request: Request,
     token: str = "",

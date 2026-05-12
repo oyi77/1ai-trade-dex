@@ -1,7 +1,6 @@
 """Polymarket market scanner — fetches active markets from Gamma API."""
 
 import asyncio
-import logging
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,8 +9,7 @@ import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 GAMMA_HOST = settings.GAMMA_API_URL
 _SCAN_SEMAPHORE = asyncio.Semaphore(5)  # max 5 concurrent Gamma requests
 
@@ -73,6 +71,7 @@ async def fetch_all_active_markets(
                         try:
                             outcome_prices_raw = _json.loads(outcome_prices_raw)
                         except Exception:
+                            logger.exception("market_scanner: failed to parse outcomePrices JSON")
                             outcome_prices_raw = []
 
                     if outcome_prices_raw:

@@ -10,8 +10,6 @@ Key responsibilities:
 - Detect orphaned positions (on-chain but missing from DB)
 - Close orphaned positions with metadata tracking
 """
-
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
@@ -24,7 +22,7 @@ from backend.models.database import Trade
 from backend.core.alert_manager import AlertManager
 from backend.config import settings
 
-logger = logging.getLogger("wallet_reconciler")
+from loguru import logger
 
 
 @dataclass
@@ -86,7 +84,7 @@ class WalletReconciler:
                 "Ensure POLYMARKET_BUILDER_ADDRESS is set or client is initialized with private_key."
             )
 
-        self.logger = logging.getLogger(f"wallet_reconciler[{mode}]")
+        self.logger = logger
         self.logger.info(f"Initialized reconciler for wallet {self.wallet_address}")
 
     async def full_reconciliation(self) -> SyncResult:

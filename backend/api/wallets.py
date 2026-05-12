@@ -6,8 +6,6 @@ from typing import Optional, List
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 import json as _json
-import logging
-
 from backend.models.database import get_db, WalletConfig, BotState, for_update
 from backend.api.auth import require_admin
 from backend.config import settings
@@ -16,7 +14,7 @@ from backend.api.validation import (
     WalletConfigUpdateRequest as ValidatedWalletConfigUpdate,
 )
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 router = APIRouter(prefix="/wallets", tags=["wallets"])
 
 
@@ -55,6 +53,7 @@ def _row_to_dict(r: WalletConfig) -> dict:
         try:
             tags = _json.loads(r.tags)
         except Exception:
+            logger.exception(f"Failed to parse wallet tags JSON for wallet {r.id}")
             tags = []
     return {
         "id": r.id,

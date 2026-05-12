@@ -6,12 +6,7 @@ or division-by-zero errors downstream.
 """
 
 from __future__ import annotations
-
-import logging
-
-logger = logging.getLogger("trading_bot.probability_utils")
-
-
+from loguru import logger
 def clamp_probability(p: float, epsilon: float = 0.01) -> float:
     """Clamp a probability to [epsilon, 1.0 - epsilon].
 

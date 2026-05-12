@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from loguru import logger
+
 from backend.core.agi_types import MarketRegime, RegimeTransition
 
 
@@ -124,4 +126,4 @@ class RegimeDetector:
                 "timestamp": transition.timestamp.isoformat(),
             })
         except Exception:
-            pass
+            logger.exception("[RegimeDetector] Failed to emit regime change event")

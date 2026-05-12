@@ -25,7 +25,7 @@ from backend.data.gamma import fetch_markets
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
-logger = logging.getLogger("seed_backtest")
+from loguru import logger
 
 
 def parse_outcome_prices(outcome_prices: list, outcomes: list) -> dict:

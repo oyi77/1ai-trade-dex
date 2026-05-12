@@ -6,17 +6,16 @@ with fallback pricing, error handling, and telemetry tracking.
 """
 
 import asyncio
-import logging
 import time
 from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
 import httpx
 
+from loguru import logger
+
 from backend.models.database import Trade
 from backend.config import settings
 from backend.core.alert_manager import AlertManager
-
-logger = logging.getLogger(__name__)
 
 # Price cache with 60-second TTL
 _ticker_price_cache: Dict[str, Dict[str, float]] = {}

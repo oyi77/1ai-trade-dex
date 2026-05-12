@@ -1,15 +1,12 @@
 """KalshiProvider — DataProvider implementation for Kalshi exchange."""
 
 from __future__ import annotations
-import logging
+from loguru import logger
 from typing import List, Optional
 
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.kalshi_client import KalshiClient
 from backend.data.kalshi_markets import fetch_kalshi_markets
-
-logger = logging.getLogger(__name__)
-
 
 class KalshiProvider(DataProvider):
     @property

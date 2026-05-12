@@ -7,10 +7,9 @@ Strategies self-register via BaseStrategy.__init_subclass__.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Maps strategy name -> strategy class
 STRATEGY_REGISTRY: dict[str, type] = {}

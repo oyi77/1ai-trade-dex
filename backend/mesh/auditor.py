@@ -1,12 +1,11 @@
 """Source Performance Auditor — tracks PnL per source, adjusts weights."""
 from __future__ import annotations
-import logging
 from typing import Dict, List
 from sqlalchemy.sql import func
 
 from backend.models.database import SessionLocal, Trade
 
-logger = logging.getLogger("trading_bot.mesh.auditor")
+from loguru import logger
 
 
 def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
@@ -24,7 +23,7 @@ def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
             func.sum(Trade.pnl).label("total_pnl"),
             func.count(Trade.id).filter(Trade.result == "win").label("wins"),
         ).filter(
-            Trade.settled == True,
+            Trade.settled,
             Trade.settlement_source.isnot(None),
         ).group_by(Trade.settlement_source).having(
             func.count(Trade.id) >= min_trades

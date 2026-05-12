@@ -1,14 +1,11 @@
 """Strategy attribution: per-strategy P&L breakdown and metrics computation."""
-import logging
 import math
 from dataclasses import dataclass
 from datetime import datetime
 
 from backend.core.portfolio_optimizer import StrategyMetrics
 
-logger = logging.getLogger("trading_bot.portfolio")
-
-
+from loguru import logger
 @dataclass
 class StrategyAttribution:
     strategy: str

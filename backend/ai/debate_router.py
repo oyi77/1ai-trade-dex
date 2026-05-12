@@ -5,16 +5,14 @@ the `mirofish_enabled` flag in SystemSettings. Provides graceful fallback to
 local debate on MiroFish failures.
 """
 
-import logging
 import time
+from loguru import logger
 
 from sqlalchemy.orm import Session
 
 from backend.ai.debate_engine import DebateResult, SignalVote, run_debate
 from backend.ai.mirofish_client import MiroFishClient, MiroFishSignal
 from backend.api.settings import _get_setting
-
-logger = logging.getLogger(__name__)
 
 
 def _convert_signals_to_debate_result(

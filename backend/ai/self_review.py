@@ -5,7 +5,7 @@ postmortems for clustered losses, rolling-window signal degradation detection,
 and agent diary integration via BigBrainClient.
 """
 
-import logging
+from loguru import logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -17,7 +17,6 @@ from backend.ai.llm_router import LLMRouter
 from backend.clients.bigbrain import BigBrainClient
 from backend.models.database import SessionLocal, Trade
 
-logger = logging.getLogger(__name__)
 
 # ── Configuration defaults ────────────────────────────────────────────────
 
@@ -483,6 +482,7 @@ class SelfReview:
                             import json
                             current_params = json.loads(current_params)
                         except Exception:
+                            logger.exception("Failed to parse strategy params JSON")
                             current_params = {"kelly_fraction": 0.2, "min_edge": 0.05, "confidence_threshold": 0.5}
                     proposed = {}
                     for k, v in current_params.items():

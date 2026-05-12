@@ -1,11 +1,9 @@
 """Unified LLM provider routing layer."""
 
 import json
-import logging
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.llm_router")
-
+from loguru import logger
 ROLE_SETTING_MAP = {
     "default": "LLM_DEFAULT_PROVIDER",
     "debate_agent": "LLM_DEBATE_PROVIDER",

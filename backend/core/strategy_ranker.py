@@ -1,6 +1,4 @@
 """Strategy ranker — rank strategies by risk-adjusted return, auto-allocate bankroll."""
-
-import logging
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -10,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.ranker")
-
-
+from loguru import logger
 @dataclass
 class RankedStrategy:
     """A strategy with its computed performance metrics."""

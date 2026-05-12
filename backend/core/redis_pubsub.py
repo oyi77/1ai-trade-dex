@@ -6,14 +6,13 @@ via Redis pub/sub. Falls back gracefully to in-memory when Redis unavailable.
 
 import asyncio
 import json
-import logging
 from typing import Any, Callable, Dict, Optional
+
+from loguru import logger
 
 import redis.asyncio as redis
 from backend.core.circuit_breaker_pybreaker import redis_breaker
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 class RedisPublisher:

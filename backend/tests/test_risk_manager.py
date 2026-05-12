@@ -280,8 +280,8 @@ class TestImmutableSafetyRules:
         assert rm._safety_rules["new_strategy_ramp_pct"] == 0.01
         assert rm._safety_rules["new_strategy_min_trades"] == 20
         assert rm._safety_rules["min_archetype_diversity"] == 5
-        assert rm._safety_rules["emergency_kill_switch"] == True
-        assert rm._safety_rules["audit_trail"] == True
+        assert rm._safety_rules["emergency_kill_switch"]
+        assert rm._safety_rules["audit_trail"]
 
     def test_safety_rules_respect_env_overrides(self):
         """Test that safety rules respect environment variable overrides."""

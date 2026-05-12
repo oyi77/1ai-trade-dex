@@ -13,12 +13,10 @@ Key Features:
 - Configurable signal weight via settings (default 1.0)
 """
 
-import logging
+from loguru import logger
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

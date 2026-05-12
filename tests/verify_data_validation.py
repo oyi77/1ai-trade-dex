@@ -2,9 +2,8 @@
 """Test script to verify database validation constraints reject invalid data."""
 
 import sys
-from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
-from backend.models.database import SessionLocal, Trade, Signal, PendingApproval
+from backend.models.database import SessionLocal, Trade
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError
 
 def test_invalid_trade_insertion():
@@ -29,9 +28,9 @@ def test_invalid_trade_insertion():
             db.commit()
             print("   ❌ FAILED: Negative size was accepted!")
             return False
-        except IntegrityError as e:
+        except IntegrityError:
             db.rollback()
-            print(f"   ✅ PASSED: Database rejected negative size")
+            print("   ✅ PASSED: Database rejected negative size")
         
         print("\n2. Testing invalid price range (should fail)...")
         try:
@@ -50,9 +49,9 @@ def test_invalid_trade_insertion():
             db.commit()
             print("   ❌ FAILED: Invalid price was accepted!")
             return False
-        except IntegrityError as e:
+        except IntegrityError:
             db.rollback()
-            print(f"   ✅ PASSED: Database rejected invalid price")
+            print("   ✅ PASSED: Database rejected invalid price")
         
         print("\n3. Testing invalid confidence (should fail)...")
         try:
@@ -72,9 +71,9 @@ def test_invalid_trade_insertion():
             db.commit()
             print("   ❌ FAILED: Invalid confidence was accepted!")
             return False
-        except IntegrityError as e:
+        except IntegrityError:
             db.rollback()
-            print(f"   ✅ PASSED: Database rejected invalid confidence")
+            print("   ✅ PASSED: Database rejected invalid confidence")
         
         print("\n4. Testing valid trade (should succeed)...")
         try:

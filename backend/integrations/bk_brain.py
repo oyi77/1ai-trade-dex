@@ -1,10 +1,9 @@
 """bk-brain integration — cross-ecosystem memory sharing. Async, non-blocking."""
-import logging
 import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.bk_brain")
+from loguru import logger
 
 BK_BRAIN_URL = settings.BK_BRAIN_URL
 BK_BRAIN_ENABLED = getattr(settings, "BK_BRAIN_ENABLED", False)

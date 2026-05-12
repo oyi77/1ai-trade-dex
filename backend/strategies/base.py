@@ -16,13 +16,12 @@ Event-driven strategies may additionally override:
 Subclasses are auto-registered in the strategy registry on class creation.
 """
 
-import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional, Set
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -35,7 +34,7 @@ class StrategyContext:
     db: "Session"
     clob: object  # polymarket_clob.PolymarketCLOB | None for paper
     settings: object  # backend.config.Settings
-    logger: logging.Logger
+    logger: object  # loguru.Logger
     params: dict  # StrategyConfig.params from DB
     mode: str  # "paper" | "testnet" | "live"
 
@@ -147,7 +146,7 @@ class BaseStrategy(ABC):
                 db.close()
         except Exception as e:
             # If DB fails, don't crash the strategy — return all markets
-            logging.getLogger("trading_bot").warning(
+            logger.warning(
                 f"market_filter DB lookup failed: {e}"
             )
             return markets

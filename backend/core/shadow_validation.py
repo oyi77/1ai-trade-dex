@@ -1,14 +1,10 @@
 """Shadow genome validation job for promotion eligibility."""
-
-import logging
 from datetime import datetime, timezone
 
 from backend.models.database import SessionLocal, GenomeRegistry, EvolutionLog
 from backend.application.strategy.shadow_runner import DBSessionShadowRunner
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 def shadow_validation_job():
     """Validate all SHADOW stage genomes for promotion eligibility.
 

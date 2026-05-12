@@ -1,15 +1,12 @@
 """HFT Parallel Task Dispatcher — dispatches 100+ tasks in <100ms with timeout and overflow handling."""
 
 import asyncio
-import logging
 import time
 from typing import Callable, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 
-logger = logging.getLogger("trading_bot.hft_dispatcher")
-
-
+from loguru import logger
 class TaskStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"

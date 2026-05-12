@@ -1,14 +1,11 @@
 """
 Startup preflight checks: geoblock detection and API connectivity.
 """
-import logging
-
 import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.preflight")
-
+from loguru import logger
 CLOB_HOST = settings.CLOB_API_URL
 
 

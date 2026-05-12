@@ -1,14 +1,13 @@
 """DataMesh — parallel, timeout-isolated data ingestion with provenance."""
 from __future__ import annotations
 import asyncio
-import logging
 import time
 from typing import Dict, List, Optional
 
 from backend.mesh.base import DataQuery, RawPacket, Provenance
 from backend.mesh.registry import get, is_quarantined
 
-logger = logging.getLogger("trading_bot.mesh")
+from loguru import logger
 
 
 class DataMesh:

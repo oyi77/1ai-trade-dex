@@ -3,8 +3,6 @@
 Reads ProposalFeedback records, aggregates success patterns by (strategy, param, direction),
 and biases future evolution toward historically successful mutations.
 """
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -13,9 +11,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal
 from backend.models.outcome_tables import MetaLearningRecord, ProposalFeedback
 
-logger = logging.getLogger("trading_bot.meta_learner")
-
-
+from loguru import logger
 class MetaLearner:
     def get_biases(self, strategy: str, db: Optional[Session] = None) -> dict[str, dict]:
         """Return learned biases for a strategy's parameters.

@@ -1,12 +1,10 @@
 """AI call logging for monitoring and debugging."""
 import json
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

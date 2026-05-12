@@ -1,6 +1,4 @@
 """General market scanner — finds edge across all Polymarket markets using AI analysis."""
-
-import logging
 import math
 from datetime import datetime, timezone
 from typing import Optional
@@ -11,9 +9,7 @@ from sqlalchemy import not_
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.general")
-
-
+from loguru import logger
 async def _fetch_web_context(question: str) -> str:
     try:
         from backend.clients.websearch import get_websearch
@@ -23,6 +19,7 @@ async def _fetch_web_context(question: str) -> str:
             return ""
         return await client.search_for_market(question, max_results=3)
     except Exception as exc:
+        logger.exception("Failed to fetch web context for market enrichment")
         logger.debug(
             "[general_scanner._fetch_web_context] %s: %s",
             type(exc).__name__,
@@ -47,6 +44,7 @@ async def _fetch_brain_context(question: str) -> str:
                 parts.append(text[:200])
         return " | ".join(parts) if parts else ""
     except Exception as exc:
+        logger.exception("Failed to fetch brain context for market enrichment")
         logger.debug(
             "[general_scanner._fetch_brain_context] %s: %s",
             type(exc).__name__,
@@ -92,6 +90,7 @@ async def _run_debate_gate(
             data_sources=data_sources,
         )
     except Exception as exc:
+        logger.exception("Failed to run debate gate for general scanner")
         logger.warning(
             "[general_scanner._run_debate_gate] %s: %s - routing decision",
             type(exc).__name__,
@@ -403,6 +402,7 @@ class GeneralMarketScanner(BaseStrategy):
                 try:
                     outcome_prices_raw = _json.loads(outcome_prices_raw)
                 except Exception:
+                    logger.exception("Failed to parse outcome prices JSON")
                     continue
 
             if not outcome_prices_raw:
@@ -489,6 +489,7 @@ class GeneralMarketScanner(BaseStrategy):
                 try:
                     clob_token_ids = _json.loads(clob_token_ids)
                 except Exception:
+                    logger.exception('general_market_scanner: failed to process market batch')
                     clob_token_ids = []
             if clob_token_ids:
                 clob_token_id = str(clob_token_ids[0])

@@ -1,11 +1,8 @@
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.shadow")
-
-
+from loguru import logger
 @dataclass
 class ShadowTrade:
     market_ticker: str

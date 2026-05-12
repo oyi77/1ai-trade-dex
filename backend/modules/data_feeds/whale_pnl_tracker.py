@@ -24,7 +24,6 @@ Track Configuration:
 """
 
 import asyncio
-import logging
 import json
 from dataclasses import dataclass
 from typing import Dict, List, Optional
@@ -43,7 +42,7 @@ from backend.core.decisions import record_decision
 from backend.core.whale_discovery import WhaleDiscovery
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 GAMMA_HOST = settings.GAMMA_API_URL
 

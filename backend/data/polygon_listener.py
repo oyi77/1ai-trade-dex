@@ -1,16 +1,13 @@
 """Polygon blockchain WebSocket listener for Polymarket whale trades."""
 import asyncio
 import json
-import logging
 from typing import Optional, Callable, Awaitable
 from datetime import datetime, timezone
 
 from backend.config import settings
 from backend.models.database import SessionLocal, WhaleTransaction
 
-logger = logging.getLogger("trading_bot.polygon_listener")
-
-
+from loguru import logger
 class PolygonListener:
     def __init__(self, ws_url: Optional[str] = None, contract: Optional[str] = None,
                  min_usd: Optional[float] = None,

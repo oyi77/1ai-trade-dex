@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-import logging
+
+from loguru import logger
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -109,7 +110,7 @@ class ExperimentRunner:
             wins = sum(1 for t in shadow_trades if t.result == "win")
             total_pnl = sum(float(t.pnl or 0) for t in shadow_trades)
         except Exception as e:
-            logging.getLogger(__name__).warning(f"[ExperimentRunner] Shadow query failed for {strategy_name}: {e}")
+            logger.warning(f"[ExperimentRunner] Shadow query failed for {strategy_name}: {e}")
 
         win_rate = wins / trades if trades > 0 else 0.0
 

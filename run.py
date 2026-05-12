@@ -3,8 +3,17 @@
 import uvicorn
 from backend.models.database import init_db
 from backend.config_extensions import settings
+from backend.core.log import configure_logging
 
 if __name__ == "__main__":
+    configure_logging(
+        level=settings.LOG_LEVEL,
+        json_output=settings.LOG_JSON,
+        log_file=settings.LOG_FILE,
+        rotation=settings.LOG_ROTATION,
+        retention=settings.LOG_RETENTION,
+    )
+
     print("Initializing database...")
     init_db()
 
@@ -38,5 +47,6 @@ if __name__ == "__main__":
         "backend.api.main:app",
         host="0.0.0.0",
         port=port,
-        reload=settings.RELOAD_ON_CHANGE
+        reload=settings.RELOAD_ON_CHANGE,
+        log_config=None,
     )

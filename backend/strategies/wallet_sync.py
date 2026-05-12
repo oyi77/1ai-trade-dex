@@ -2,8 +2,6 @@
 
 Handles DB operations for tracking wallet positions and polling for new trades.
 """
-
-import logging
 from typing import Tuple
 
 import httpx
@@ -11,8 +9,7 @@ import httpx
 from backend.models.database import SessionLocal, CopyTraderEntry
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 DATA_HOST = settings.DATA_API_URL
 
 

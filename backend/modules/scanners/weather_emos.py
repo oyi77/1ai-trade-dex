@@ -23,7 +23,6 @@ Decision logic:
 
 import asyncio
 import json
-import logging
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -41,7 +40,7 @@ from backend.models.database import for_update
 def _cfg(name, default):
     return getattr(settings, name, default)
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger  # noqa: E402
 
 OPEN_METEO_BASE = settings.OPEN_METEO_API_URL
 NBM_BASE = settings.NWS_API_URL
@@ -118,6 +117,7 @@ class CalibrationState:
                     try:
                         last_updated_dt = _dt.fromisoformat(self.last_updated)
                     except Exception:
+                        logger.exception('weather_emos: failed to parse last_updated timestamp')
                         last_updated_dt = None
                 if row is None:
                     row = EMOSCalibrationState(
@@ -160,6 +160,8 @@ class CalibrationState:
                 try:
                     pairs = json.loads(row.obs_pairs_json or "[]")
                 except Exception:
+                    logger.exception("Failed to parse obs_pairs_json from database")
+                    pairs = []
                     pairs = []
                 self.obs_pairs = [tuple(p) for p in pairs]
                 self.a = row.a if row.a is not None else 0.0
@@ -368,6 +370,7 @@ def save_calibration_states(
                     else dict(state.misc_data)
                 )
             except Exception:
+                logger.exception("Failed to parse misc_data JSON for calibration state")
                 existing = {}
         cal_key = f"emos_calibration_{strategy_name}"
         existing[cal_key] = {
@@ -817,6 +820,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                                 else ctx.settings.INITIAL_BANKROLL
                             )
                 except Exception:
+                    logger.exception("Failed to retrieve bot bankroll for weather EMOS")
                     pass
 
                 kelly_size = _calculate_weather_kelly_size(

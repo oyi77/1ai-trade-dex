@@ -9,13 +9,11 @@ Fetches AI-powered prediction signals from MiroFish API with resilience patterns
 """
 
 import httpx
-import logging
 import time
+from loguru import logger
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -253,7 +251,7 @@ class MiroFishClient:
                     from backend.services.mirofish_service import get_mirofish_service
                     get_mirofish_service().record_signal_fetch(len(signals))
                 except Exception:
-                    pass
+                    logger.exception("Failed to record MiroFish signal fetch")
 
                 logger.info(
                     f"MiroFish API success: {len(signals)} signals fetched "

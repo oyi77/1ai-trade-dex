@@ -10,7 +10,7 @@ from backend.core.online_learner import OnlineLearner
 from backend.core.thompson_sampler import ThompsonSampler
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("learner_verification")
+from loguru import logger
 
 def run_verification():
     logger.info("Initializing database schemas...")

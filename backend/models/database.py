@@ -1,8 +1,9 @@
 """Database models and connection for BTC 5-min trading bot."""
 
-import logging
 import os
 from datetime import datetime, timezone
+
+from loguru import logger
 
 from sqlalchemy import (
     create_engine,
@@ -30,8 +31,6 @@ import json
 import asyncio
 
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 _is_postgres = settings.is_postgres
 
@@ -101,13 +100,15 @@ botstate_mutex = asyncio.Lock()
 
 
 def for_update(session, query):
-    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL.
+    """Add FOR UPDATE NOWAIT clause on PostgreSQL. No-op on SQLite/MySQL.
 
+    Uses NOWAIT to immediately raise OperationalError instead of blocking
+    indefinitely, preventing cascading lock timeouts across API endpoints.
     For SQLite, use ``botstate_mutex`` alongside this for read-modify-write
     patterns on BotState to prevent lost updates under concurrent async access.
     """
     if session.get_bind().dialect.name == "postgresql":
-        return query.with_for_update()
+        return query.with_for_update(nowait=True)
     return query
 
 
@@ -132,8 +133,8 @@ try:
     import backend.models.kg_models  # noqa: F401 — registers ExperimentRecord, StrategyProposal with Base.metadata
     import backend.models.outcome_tables  # noqa: F401 — registers learning tables with Base.metadata (requires kg_models first)
     import backend.models.historical_data  # noqa: F401 — registers HistoricalCandle, MarketOutcome, WeatherSnapshot
-    from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: F401
 except Exception:
+    logger.exception("database model imports failed")
     pass
 
 
@@ -1301,6 +1302,7 @@ def _publish_corruption_alert(event: str, detail: str, data: dict | None = None)
             **(data or {}),
         })
     except Exception:
+        logger.exception("database publish_corruption_alert failed")
         pass
 
 
@@ -1433,6 +1435,7 @@ def ensure_schema():
     try:
         columns = [col["name"] for col in inspector.get_columns("trades")]
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect trades columns")
         return
 
     if "event_slug" not in columns:
@@ -1476,6 +1479,7 @@ def ensure_schema():
     try:
         bot_state_columns = [col["name"] for col in inspector.get_columns("bot_state")]
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect bot_state columns (paper tracking)")
         bot_state_columns = []
 
     if bot_state_columns:
@@ -1509,6 +1513,7 @@ def ensure_schema():
     try:
         signal_columns = [col["name"] for col in inspector.get_columns("signals")]
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect signals columns")
         signal_columns = []
 
     if signal_columns:
@@ -1554,6 +1559,7 @@ def ensure_schema():
     try:
         bot_state_columns = {col["name"] for col in inspector.get_columns("bot_state")}
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect bot_state columns (mode)")
         bot_state_columns = set()
 
     if bot_state_columns and "mode" not in bot_state_columns:
@@ -1607,6 +1613,7 @@ def ensure_schema():
     try:
         bot_state_columns = [col["name"] for col in inspector.get_columns("bot_state")]
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect bot_state columns (per-track)")
         bot_state_columns = []
 
     if bot_state_columns:
@@ -1642,6 +1649,7 @@ def ensure_schema():
     try:
         copy_entry_tables = inspector.get_table_names()
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect table names")
         copy_entry_tables = []
 
     if "copy_trader_entries" not in copy_entry_tables:
@@ -1755,6 +1763,7 @@ def ensure_schema():
     try:
         existing_cols = {col["name"] for col in inspector.get_columns("trades")}
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect trades columns (state sync)")
         existing_cols = set()
 
     if existing_cols:
@@ -1822,6 +1831,7 @@ def ensure_schema():
     try:
         bot_state_columns = {col["name"] for col in inspector.get_columns("bot_state")}
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect bot_state columns (state sync)")
         bot_state_columns = set()
 
     if bot_state_columns:
@@ -1915,6 +1925,7 @@ def ensure_schema():
     try:
         strategy_config_columns = {col["name"] for col in inspector.get_columns("strategy_config")}
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect strategy_config columns")
         strategy_config_columns = set()
 
     if strategy_config_columns and "mode" not in strategy_config_columns:
@@ -1944,6 +1955,7 @@ def ensure_schema():
         proposal_columns = inspect(engine).get_columns("strategy_proposal")
         proposal_col_names = {c["name"] for c in proposal_columns} if proposal_columns else set()
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect strategy_proposal columns")
         proposal_col_names = set()
     for col, col_type in [("status", "TEXT DEFAULT 'pending'"), ("auto_promotable", "BOOLEAN DEFAULT 0"), ("proposed_params", "JSON"), ("backtest_passed", "BOOLEAN DEFAULT 0"), ("backtest_sharpe", "REAL"), ("backtest_win_rate", "REAL")]:
         if col not in proposal_col_names:
@@ -1959,6 +1971,7 @@ def ensure_schema():
     try:
         gr_cols = {c["name"] for c in inspector.get_columns("genome_registry")}
     except Exception:
+        logger.exception("database ensure_schema: failed to inspect genome_registry columns")
         gr_cols = set()
 
     for col, coltype in [
@@ -2000,6 +2013,7 @@ def log_audit(action: str, actor: str = "system", details: dict = None):
         db.add(entry)
         db.commit()
     except Exception:
+        logger.exception("database log_audit failed")
         db.rollback()
     finally:
         db.close()
@@ -2071,3 +2085,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Re-import to ensure table registration without circular import
+from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: E402, F401

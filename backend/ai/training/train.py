@@ -11,7 +11,6 @@ model + metadata under ``backend/ai/models/``.
 from __future__ import annotations
 
 import asyncio
-import logging
 import random
 from typing import List, Tuple
 
@@ -22,9 +21,7 @@ from backend.ai.training.feature_engineering import FeatureEngineer
 from backend.ai.training.model_evaluator import ModelEvaluator
 from backend.ai.training.model_trainer import ModelTrainer
 
-logger = logging.getLogger("trading_bot.training.train")
-
-
+from loguru import logger
 def _split(
     examples: List[TrainingExample], holdout_frac: float = 0.2, seed: int = 42
 ) -> Tuple[List[TrainingExample], List[TrainingExample]]:
@@ -36,7 +33,8 @@ def _split(
 
 
 async def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+    from backend.core.log import configure_logging
+    configure_logging()
 
     collector = DataCollector(page_size=100, max_pages=10)
     examples = await collector.collect()

@@ -1,6 +1,5 @@
 """SourceHealthMonitor — per-source circuit breaker and health tracking."""
 from __future__ import annotations
-import logging
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Dict
@@ -8,7 +7,7 @@ from typing import Dict
 from backend.mesh.base import SourceState, HealthStatus
 from backend.mesh.registry import list_active, quarantine, release
 
-logger = logging.getLogger("trading_bot.mesh.health")
+from loguru import logger
 
 SUCCESS_RATE_WINDOW = 20
 DEGRADED_SUCCESS_THRESHOLD = 0.90

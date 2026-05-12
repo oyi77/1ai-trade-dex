@@ -1,10 +1,9 @@
 """SourceRegistry — runtime discovery and management of DataSource plugins."""
 from __future__ import annotations
-import logging
 from typing import Dict, Optional
 from backend.mesh.base import DataSource
 
-logger = logging.getLogger("trading_bot.mesh.registry")
+from loguru import logger
 
 _registry: Dict[str, DataSource] = {}
 _quarantined: Dict[str, str] = {}

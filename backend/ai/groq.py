@@ -3,12 +3,10 @@
 import time
 import re
 from typing import Optional, Dict, Any, List
-import logging
+from loguru import logger
 
 from .base import AIAnalysis, BaseAIClient, create_classification_prompt
 from .logger import get_ai_logger
-
-logger = logging.getLogger(__name__)
 
 
 class GroqClassifier(BaseAIClient):

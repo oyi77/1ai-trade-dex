@@ -11,15 +11,13 @@ Requires custom_feature_enabled: true to receive market_resolved events.
 
 import asyncio
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 WS_URL = settings.POLYMARKET_WS_CLOB_URL
 MAX_BACKOFF_S = 60.0
 PING_INTERVAL_S = 30.0

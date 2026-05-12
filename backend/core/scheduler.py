@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-import logging
+from loguru import logger
 
 from backend.config import settings
 from backend.job_queue.worker import Worker
@@ -64,9 +64,6 @@ from backend.ai.training.train import run_training_pipeline
 from backend.mesh.auditor import audit_source_performance
 from backend.mesh.learning import update_source_weights_from_outcomes
 from backend.ai.rejection_learner import generate_rejection_proposals
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("trading_bot")
 
 scheduler: Optional[AsyncIOScheduler] = None
 
@@ -326,6 +323,7 @@ def unschedule_strategy(strategy_name: str, mode: str = "paper", interval_second
         scheduler.remove_job(job_id)
         logger.info(f"Unscheduled strategy {strategy_name} for mode {mode}")
     except Exception:
+        logger.exception(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
         logger.warning(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
 
 
@@ -508,7 +506,8 @@ def start_scheduler():
         scheduler.remove_job("wallet_sync_live")
         logger.info("Removed wallet_sync_live job (blocking DB calls — disabled)")
     except Exception:
-        pass  # Job may not exist
+        logger.exception("Failed to remove wallet_sync_live job")
+        # Job may not exist
 
     # Settlement verification disabled — contains blocking synchronous DB calls (.all() + loop)
     # that freeze the event loop for the duration of the query + resolution checks.
@@ -518,7 +517,8 @@ def start_scheduler():
         scheduler.remove_job("settlement_verify")
         logger.info("Removed settlement_verify job (blocking DB calls — disabled)")
     except Exception:
-        pass  # Job may not exist
+        logger.exception("Failed to remove settlement_verify job")
+        # Job may not exist
 
     # Start OrderbookRouter as APScheduler fallback heartbeat
     if settings.POLYMARKET_WS_ENABLED:
@@ -563,11 +563,11 @@ def start_scheduler():
     since = datetime.now(timezone.utc) - timedelta(hours=1)
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
-        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
+        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
             for mode in settings.active_modes_set:
                 trades = db.query(Trade).filter(
                     Trade.strategy == config.strategy_name,
-                    Trade.settled == True,
+                    Trade.settled,
                     Trade.timestamp >= since,
                     Trade.trading_mode == mode,
                 ).all()
@@ -594,7 +594,7 @@ def start_scheduler():
                 name = desc.split(" ")[0]
                 db.query(StrategyConfig).filter(
                     StrategyConfig.strategy_name == name,
-                    StrategyConfig.enabled == True,
+                    StrategyConfig.enabled,
                 ).update({"enabled": False})
             db.commit()
             logger.info(f"Disabled {len(disabled)} underperforming strategies: {disabled}")
@@ -877,7 +877,7 @@ def start_scheduler():
         )
         logger.info("Scheduled hourly auto-promote job for eligible proposals")
     except Exception:
-        pass
+        logger.exception("Failed to schedule auto-promote eligible proposals job")
 
     scheduler.add_job(
         audit_source_performance,
@@ -899,14 +899,14 @@ def start_scheduler():
         min_trades = getattr(settings, "AGI_AUTO_DISABLE_MIN_TRADES", 10)
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
-            for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
+            for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
                 if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
                     continue
 
                 for mode in settings.active_modes_set:
                     trades = db.query(Trade).filter(
                         Trade.strategy == config.strategy_name,
-                        Trade.settled == True,
+                        Trade.settled,
                         Trade.timestamp >= since,
                         Trade.trading_mode == mode,
                     ).all()
@@ -944,7 +944,7 @@ def start_scheduler():
         )
         logger.info("Scheduled auto-disable losing strategies job at :15 every hour")
     except Exception:
-        pass
+        logger.exception("Failed to schedule auto-disable losing strategies job")
 
     def auto_rehabilitate_strategies():
         from backend.models.database import Trade, StrategyConfig
@@ -980,7 +980,7 @@ def start_scheduler():
                 for mode in settings.active_modes_set:
                     trades = db.query(Trade).filter(
                         Trade.strategy == config.strategy_name,
-                        Trade.settled == True,
+                        Trade.settled,
                         Trade.timestamp >= since_rehab,
                         Trade.trading_mode == mode,
                     ).all()
@@ -1029,7 +1029,7 @@ def start_scheduler():
         )
         logger.info("Scheduled lite rehabilitation job at :45 every hour")
     except Exception:
-        pass
+        logger.exception("Failed to schedule auto-rehabilitate strategies job")
 
     scheduler.add_job(
         update_source_weights_from_outcomes,

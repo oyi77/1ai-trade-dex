@@ -1,5 +1,4 @@
 import json
-import logging
 import random
 from datetime import datetime, timezone
 from typing import Optional
@@ -11,7 +10,7 @@ from backend.models.outcome_tables import StrategyOutcome
 from backend.models.kg_models import ExperimentRecord
 from backend.core.agi_types import ExperimentStatus
 
-logger = logging.getLogger("trading_bot.evolver")
+from loguru import logger
 
 TUNABLE_PARAM_RANGES = {
     "min_edge": (0.01, 0.20),
@@ -97,7 +96,7 @@ class StrategyEvolver:
         existing = db.query(StrategyProposal).filter(
             StrategyProposal.strategy_name == strategy_name,
             StrategyProposal.status == "pending",
-            StrategyProposal.auto_promotable == True,
+            StrategyProposal.auto_promotable,
         ).count()
 
         if existing >= 5:

@@ -1,6 +1,4 @@
 """Dashboard API endpoints."""
-
-import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -24,8 +22,7 @@ from backend.data.btc_markets import fetch_active_btc_markets
 from backend.data.crypto import compute_btc_microstructure, fetch_crypto_price
 from backend.models.database import BotState, Trade, TradeContext, get_db, for_update
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # ── Market question cache (market_ticker → question) ──────────────────────
 _market_question_cache: dict[str, str] = {}
 _market_question_cache_built = False
@@ -43,7 +40,7 @@ def _build_market_question_cache(db: Session) -> None:
             if row.ticker and row.ticker not in _market_question_cache:
                 _market_question_cache[row.ticker] = row.ticker
     except Exception:
-        pass
+        logger.exception("Failed to build market question cache from MarketWatch")
 
     _market_question_cache_built = True
 
@@ -92,12 +89,14 @@ async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str
                                 result[ticker] = q
                                 continue
                     except Exception:
+                        logger.exception(f"Failed to resolve market question for ticker {ticker}")
                         pass
                     result[ticker] = ticker
             else:
                 for ticker in still_unresolved:
                     result[ticker] = ticker
     except Exception:
+        logger.exception("Failed to batch-resolve market questions from Gamma API")
         for ticker in still_unresolved:
             result[ticker] = ticker
 
@@ -122,10 +121,10 @@ async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str
                                 result[ticker] = question
                                 continue
                 except Exception:
-                    pass
-                # Fallback: use event_slug or ticker
+                    logger.exception(f"Failed to fetch market question for condition {ticker}")
                 result[ticker] = ticker
     except Exception:
+        logger.exception("Failed to batch-resolve market questions from Gamma API (unreachable fallback)")
         for ticker in unresolved:
             result[ticker] = ticker
 

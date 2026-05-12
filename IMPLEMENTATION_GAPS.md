@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-10 (Round 12 Complete — Full AGI vision + genome fitness feedback loop + evolution scheduler cycles. Known Gaps: 24 struck through as fixed. All 3 PRs merged. Main CI green.)
+**Last Updated:** 2026-05-12 (Logging migration to loguru complete — 153 files migrated, 152 bare except blocks fixed, InterceptHandler centralized, root cause of observability failures resolved.)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -162,7 +162,7 @@ These gaps directly block the vision of unlimited paper experimentation → cont
 
 **Audit Reports** (saved in project root for reference):
 - `SECURITY_AUDIT_REPORT.md` — Secrets exposure analysis (10 secrets in 2 files)
-- `ERROR_HANDLING_GAPS.md` — 82 locations with bare except: pass (60 production files)
+- `ERROR_HANDLING_GAPS.md` — 82 locations with bare except: pass (60 production files) — **NOW FIXED**: all 152 bare `except Exception:` blocks in production code now have `logger.exception()` calls; logging fully migrated to loguru
 - `THREAD_ASYNC_SAFETY_AUDIT.md` — 2 P0 race conditions, 2 P1, 3 P2
 - `NETWORK_RESILIENCE_AUDIT.md` — 3 critical (sync timeout, 2× WebSocket pings), 18 medium (AsyncClient timeout consistency), 6 unprotected APIs
 - `N1_QUERY_AUDIT.md` — N+1 query patterns across API layer

@@ -6,15 +6,13 @@ from fastapi import Depends, HTTPException, Header, APIRouter, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-import logging
 import os
 
 from backend.config import settings
-from backend.models.database import get_db, BotState, Trade, Signal, for_update
+from backend.models.database import get_db, BotState, Trade, Signal
 from backend.api.validation import CredentialsUpdateRequest as ValidatedCredentialsUpdate
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
@@ -625,7 +623,7 @@ async def get_admin_system(
     request: Request, db: Session = Depends(get_db), _: None = Depends(require_admin)
 ):
     """Return system health overview."""
-    state = for_update(db, db.query(BotState)).first()
+    state = db.query(BotState).first()
     pending_trades = (
         db.query(Trade)
         .filter(Trade.settled.is_(False), Trade.trading_mode.in_(settings.active_modes_set))

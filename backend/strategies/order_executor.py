@@ -2,8 +2,6 @@
 
 Handles leaderboard scoring, trader selection, and order mirroring logic.
 """
-
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -16,8 +14,7 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.monitoring.hft_metrics import record_execution
 from backend.utils.redaction import redact_sensitive
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 data_api_breaker = CircuitBreaker("data_api", failure_threshold=5, recovery_timeout=60.0)
 
 DATA_HOST = settings.DATA_API_URL

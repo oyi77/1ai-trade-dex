@@ -2,12 +2,10 @@
 import time
 import re
 import json
-import logging
+from loguru import logger
 from typing import Optional, Dict, Any, List
 
 from .base import AIAnalysis, BaseAIClient, create_classification_prompt
-
-logger = logging.getLogger(__name__)
 
 
 class CustomAIClient(BaseAIClient):

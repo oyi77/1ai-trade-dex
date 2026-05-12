@@ -8,7 +8,6 @@ the write still fails.
 
 import time
 import psutil
-import logging
 from collections import deque
 from typing import Dict, Optional
 from datetime import datetime, timezone, timedelta
@@ -16,7 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from backend.models.database import PerformanceMetric
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 _MAX_DB_RETRIES = 2
 _RETRY_DELAY_S = 0.1
@@ -233,6 +232,7 @@ class PerformanceTracker:
             logger.info(f"Cleaned up {deleted} old performance metrics (older than {days} days)")
             return deleted
         except Exception as e:
+            logger.exception("[PerformanceTracker] Failed to cleanup old metrics")
             logger.debug("Failed to cleanup old metrics: %s", e)
             db.rollback()
             return 0

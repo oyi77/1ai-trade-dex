@@ -9,10 +9,9 @@ strategy modules that trigger __init_subclass__ auto-registration.
 """
 
 import importlib
-import logging as _logging
 import os
 
-log = _logging.getLogger(__name__)
+from loguru import logger as log
 
 
 def _skip_module(module_name: str) -> bool:

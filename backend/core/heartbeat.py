@@ -1,7 +1,6 @@
 """Heartbeat and watchdog — in-memory cache, batch-flushed to DB by watchdog."""
 
 import json
-import logging
 import threading
 from datetime import datetime, timezone, timedelta
 
@@ -9,8 +8,7 @@ from sqlalchemy import text
 
 from backend.models.database import BotState, StrategyConfig
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 HEARTBEAT_PREFIX = "heartbeat:"
 _recent_alerts: dict[str, datetime] = {}  # strategy_name -> last_alert_time
 ALERT_DEDUP_WINDOW = timedelta(minutes=5)
@@ -44,7 +42,7 @@ def _flush_heartbeats() -> None:
 
     try:
         # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
-        if settings.is_postgres():
+        if settings.is_postgres:
             with get_db_session() as db:
                 for mode in settings.active_modes_set:
                     for strategy_name, ts in snapshot.items():
@@ -66,6 +64,7 @@ def _flush_heartbeats() -> None:
                         try:
                             data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
                         except Exception:
+                            logger.exception(f"heartbeat: failed to parse misc_data JSON for mode {state.mode}")
                             data = {}
                     for strategy_name, ts in snapshot.items():
                         data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
@@ -229,7 +228,7 @@ async def wallet_sync_job() -> None:
                 if cfg_mode in ("live", "testnet"):
                     modes_to_sync.add(cfg_mode)
     except Exception:
-        pass
+        logger.exception("wallet_sync_job: failed to query enabled strategy configs for wallet sync modes")
 
     for mode in settings.active_modes_set:
         if mode in ("live", "testnet"):

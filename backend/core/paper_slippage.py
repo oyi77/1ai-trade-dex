@@ -8,17 +8,13 @@ Settings are read with priority: SystemSettings DB > app_settings > default.
 The DB check enables cross-process config changes (API writes SystemSettings,
 bot process reads them on next fill).
 """
-
-import logging
 import math
 import random
 from typing import Any, Literal, Optional
 from sqlalchemy.orm import Session
 from backend.config import settings as app_settings
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class PaperSlippageSimulator:
     """Simulates realistic slippage, fees, and liquidity for paper trades."""
 

@@ -5,14 +5,13 @@ Called by online_learner after each trade settlement and by scheduler every cycl
 """
 import json
 import math
-import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 
-from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord
 
 
 def _now_utc():
@@ -122,7 +121,7 @@ class StrategyHealthMonitor:
             set_strategy_health(strategy, "max_drawdown", max_dd)
             set_strategy_health(strategy, "brier_score", brier)
         except Exception:
-            pass
+            logger.exception(f"[HealthMonitor] Failed to export strategy health metrics for '{strategy}'")
 
         return health
 

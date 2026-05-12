@@ -1,12 +1,8 @@
 """Real-time WebSocket Aggregator — aggregates multiple market data streams."""
 
 import asyncio
-import logging
 from typing import Optional
 from collections import defaultdict
-
-logger = logging.getLogger("trading_bot.ws_aggregator")
-
 
 class WSMessage:
     def __init__(self, source: str, data: dict, seq: int):

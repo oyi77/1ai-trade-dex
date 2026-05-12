@@ -13,7 +13,6 @@ State transitions:
 """
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,7 +20,7 @@ from enum import Enum
 from typing import Optional, Dict, Any
 from collections import deque
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class CircuitState(Enum):

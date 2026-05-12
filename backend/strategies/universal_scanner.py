@@ -15,7 +15,6 @@ Key optimizations:
 """
 
 import asyncio
-import logging
 import math
 import time
 from datetime import datetime, timezone
@@ -27,9 +26,7 @@ from backend.strategies.base import BaseStrategy, CycleResult, MarketInfo, Strat
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.universal_scanner")
-
-
+from loguru import logger
 def _cfg(name, default):
     return getattr(settings, name, default)
 
@@ -76,6 +73,7 @@ def _parse_prices(m: dict) -> tuple[float, float]:
             import json
             outcome_prices = json.loads(outcome_prices)
         except Exception:
+            logger.exception("Failed to parse outcome prices JSON")
             outcome_prices = ["0.5", "0.5"]
 
     yes_price = float(outcome_prices[0]) if len(outcome_prices) > 0 else 0.5
@@ -184,6 +182,7 @@ async def _fetch_web_context(question: str) -> str:
             return ""
         return await client.search_for_market(question, max_results=3)
     except Exception:
+        logger.exception("Failed to fetch web context")
         return ""
 
 
@@ -201,6 +200,7 @@ async def _fetch_brain_context(question: str) -> str:
                 parts.append(text[:200])
         return " | ".join(parts) if parts else ""
     except Exception:
+        logger.exception("Failed to fetch brain context")
         return ""
 
 

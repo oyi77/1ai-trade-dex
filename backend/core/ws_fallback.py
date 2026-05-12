@@ -6,13 +6,12 @@ strategy execution to the appropriate path:
 - WS disconnected: activates REST fallback with rate-limit protection
 """
 
-import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Callable, Awaitable
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ExecutionMode(Enum):

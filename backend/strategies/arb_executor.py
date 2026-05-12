@@ -6,14 +6,10 @@ Detects three classes of arbitrage opportunities:
   - cross_platform:  price discrepancy between Polymarket and Kalshi
   - negrisk:         sum of YES prices across mutually exclusive outcomes != 1
 """
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config import settings
-
-logger = logging.getLogger("trading_bot.arb")
-
 
 def _cfg(name, default):
     return getattr(settings, name, default)

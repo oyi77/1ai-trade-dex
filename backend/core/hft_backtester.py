@@ -1,10 +1,5 @@
 """HFT Performance Backtester — backtest HFT strategies with transaction costs and survivorship bias."""
-
-import logging
 from dataclasses import dataclass
-
-logger = logging.getLogger("trading_bot.hft_backtester")
-
 
 @dataclass
 class BacktestResult:

@@ -29,11 +29,7 @@ from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
 from backend.core.bankroll_reconciliation import fetch_pm_profile_pnl
 from backend.api.validation import StrategyConfigRequest as ValidatedStrategyConfigRequest
-import logging
-
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 def _iso(dt) -> str | None:
     """Safely convert a datetime or string to ISO format.
 
@@ -161,10 +157,10 @@ async def get_stats(
     db: Session = Depends(get_db),
     mode: Optional[str] = Query(None)
 ):
-    # Query all 3 mode states
-    paper_state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
-    testnet_state = for_update(db, db.query(BotState).filter_by(mode="testnet")).first()
-    live_state = for_update(db, db.query(BotState).filter_by(mode="live")).first()
+    # Query all 3 mode states (read-only: no for_update to avoid lock contention)
+    paper_state = db.query(BotState).filter_by(mode="paper").first()
+    testnet_state = db.query(BotState).filter_by(mode="testnet").first()
+    live_state = db.query(BotState).filter_by(mode="live").first()
 
     # Use provided mode or current mode as primary
     effective_mode = mode or settings.TRADING_MODE
@@ -213,7 +209,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "paper",
-            Trade.settled == False
+            Trade.settled == False  # noqa: E712
         )
         .scalar()
         or 0
@@ -269,7 +265,7 @@ async def get_stats(
             db.query(func.count(Trade.id))
             .filter(
                 Trade.trading_mode == effective_mode if mode is not None else Trade.trading_mode == "live",
-                Trade.settled == False
+                Trade.settled == False  # noqa: E712
             )
             .scalar()
             or 0
@@ -343,7 +339,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "testnet",
-            Trade.settled == False
+            Trade.settled == False  # noqa: E712
         )
         .scalar()
         or 0
@@ -1031,7 +1027,7 @@ async def run_scan(db: Session = Depends(get_db), _: None = Depends(require_admi
             result["weather_signals"] = len(wx_signals)
             result["weather_actionable"] = len(wx_actionable)
         except Exception:
-            logger.warning("Failed to scan for weather signals in run_scan")
+            logger.exception("Failed to scan for weather signals in run_scan")
             result["weather_signals"] = 0
             result["weather_actionable"] = 0
 
@@ -1067,6 +1063,7 @@ def _parse_json_text(raw: str | None):
     try:
         return _json.loads(raw)
     except Exception:
+        logger.exception("Failed to parse JSON in _parse_json_text, returning raw value")
         return raw
 
 
@@ -1282,6 +1279,7 @@ async def list_decisions(
         try:
             return _json.loads(raw)
         except Exception:
+            logger.exception("Failed to parse signal_data JSON in list_decisions")
             return raw
 
     return {
@@ -1330,9 +1328,7 @@ async def export_decisions(
                 try:
                     signal_data = _json.loads(d.signal_data)
                 except Exception:
-                    logger.debug(
-                        f"Failed to parse signal_data for decision {d.id}, using raw value"
-                    )
+                    logger.exception(f"Failed to parse signal_data for decision export {d.id}")
                     signal_data = d.signal_data
             row = {
                 "id": d.id,
@@ -1368,9 +1364,7 @@ async def get_decision(
         try:
             signal_data = _json.loads(decision.signal_data)
         except Exception:
-            logger.debug(
-                f"Failed to parse signal_data for decision {decision_id}, using raw value"
-            )
+            logger.exception(f"Failed to parse signal_data for decision {decision_id}")
             signal_data = decision.signal_data
 
     return {
@@ -1479,6 +1473,7 @@ async def get_strategy(
         category = getattr(inst, "category", "general")
         default_params = getattr(inst, "default_params", {})
     except Exception:
+        logger.exception(f"Failed to instantiate strategy '{name}', using fallback defaults")
         description, category, default_params = name, "unknown", {}
     return {
         "name": name,
@@ -1829,7 +1824,7 @@ async def health_check():
         from backend.core.agi_event_handlers import check_agi_health
         agi_health = check_agi_health()
     except Exception:
-        pass
+        logger.exception("Failed to check AGI health in liveness endpoint")
     return {"status": "healthy", "agi_events": agi_health}
 
 
@@ -2003,7 +1998,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         process = psutil.Process(os.getpid())
         uptime_seconds = time.time() - process.create_time()
     except Exception:
-        pass
+        logger.exception("Failed to read process uptime in health check")
 
     status = "healthy" if is_healthy else "unhealthy"
     _status_code = 200 if is_healthy else 503
@@ -2022,7 +2017,7 @@ async def detailed_health_check(db: Session = Depends(get_db)):
             Trade.created_at >= datetime.now(timezone.utc) - timedelta(hours=24)
         ).count() if db else 0
     except Exception:
-        pass
+        logger.exception("Failed to collect metrics in health check")
 
     return DetailedHealthStatus(
         status=status,

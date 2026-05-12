@@ -1,12 +1,11 @@
 """BigBrain client for PolyEdge - unified memory across all apps."""
 
 import httpx
-import logging
 from dataclasses import dataclass
 from typing import Optional, List
 from backend.config_extensions import settings
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass
@@ -68,6 +67,7 @@ class BigBrain:
             return memories
         except Exception:
             # Gracefully degrade if brain service is unavailable
+            logger.exception("Failed to search brain memories")
             return []
 
     async def _write_memory(self, wing: str, room: str, content: str) -> Optional[str]:
@@ -82,6 +82,7 @@ class BigBrain:
                 mem_id = data.get("memoryId") or data.get("id") or data.get("memory_id")
             return mem_id
         except Exception:
+            logger.exception("Failed to write memory to brain service")
             return None
 
     async def write_trade_outcome(self, trade_data: dict) -> Optional[str]:
@@ -388,4 +389,5 @@ class BigBrainClient(BigBrain):
             resp = await client.get(f"{self.base_url}/health")
             return resp.status_code == 200
         except Exception:
+            logger.exception("Failed to check brain service health")
             return False

@@ -20,7 +20,7 @@ None.
 ## For AI Agents
 
 ### Working In This Directory
-- Router is mounted in the main FastAPI app under `/api/agi/knowledge-graph`
+- Router is mounted in the FastAPI app at `/api/v1/agi/knowledge-graph`
 - Uses `KnowledgeGraph` from `backend.application.agi.knowledge_graph`
 - Returns JSON graph data for strategy evolution visualization
 

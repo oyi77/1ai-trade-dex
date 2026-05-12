@@ -14,11 +14,10 @@ Execution modes:
 """
 
 import asyncio
-import logging
 from datetime import datetime, timezone
 from typing import Optional, Callable
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 try:
     from telegram import (
@@ -530,6 +529,7 @@ class PolyEdgeBot:
             finally:
                 db.close()
         except Exception:
+            logger.exception("Failed to retrieve bot status for Telegram command")
             pass
 
         await update.message.reply_text(

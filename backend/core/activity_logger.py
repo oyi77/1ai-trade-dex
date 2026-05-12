@@ -4,18 +4,17 @@ Logs all strategy decisions (entry/exit/hold/adjustment) to the ActivityLog tabl
 with thread-safe writes and automatic retention policy enforcement.
 """
 
-import logging
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
+
+from loguru import logger
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from backend.models.database import SessionLocal, ActivityLog
 from backend.core.config_service import get_setting
-
-logger = logging.getLogger(__name__)
 
 # SQLite retry configuration for cross-process database lock contention
 # Uses exponential backoff to handle database locks between polyedge-bot and polyedge-api PM2 processes

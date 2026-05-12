@@ -1,9 +1,5 @@
 """Narrative market classifier — penalizes hype/narrative markets where base rate for 'Yes' is extremely low."""
-import logging
-
 from backend.ai.probability_utils import clamp_probability
-
-logger = logging.getLogger("trading_bot.narrative")
 
 NARRATIVE_KEYWORDS = [
     "will", "could", "might", "should", "trump", "elon", "musk", "celebrity",

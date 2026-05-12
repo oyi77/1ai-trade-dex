@@ -105,7 +105,7 @@ async def test_client(client_id, endpoint, base_url, duration):
 async def run_load_test(num_clients, endpoint, base_url, duration):
     """Run load test with multiple concurrent clients."""
     print(f"\n{'='*70}")
-    print(f"WebSocket Load Test - TopicWebSocketManager")
+    print("WebSocket Load Test - TopicWebSocketManager")
     print(f"{'='*70}")
     print(f"Endpoint: {endpoint}")
     print(f"Clients: {num_clients}")
@@ -142,7 +142,7 @@ async def run_load_test(num_clients, endpoint, base_url, duration):
     results = await asyncio.gather(*tasks, return_exceptions=True)
     monitor_task.cancel()
     
-    print(f"All clients completed.")
+    print("All clients completed.")
     
     end_time = time.time()
     
@@ -251,9 +251,9 @@ def print_report(report):
         print(f"  Mean: {lat['mean']:.2f}ms")
         
         if lat['p99'] < 200:
-            print(f"  ✓ PASS: p99 latency < 200ms")
+            print("  ✓ PASS: p99 latency < 200ms")
         else:
-            print(f"  ✗ FAIL: p99 latency >= 200ms")
+            print("  ✗ FAIL: p99 latency >= 200ms")
     else:
         print("\nLATENCY STATS: No latency data (no timestamped messages)")
     
@@ -274,7 +274,7 @@ def print_report(report):
     print(f"  Total Errors: {err['total_errors']}")
     print(f"  Exceptions: {err['exceptions']}")
     if err['unique_errors']:
-        print(f"  Sample Errors:")
+        print("  Sample Errors:")
         for error in err['unique_errors'][:5]:
             print(f"    - {error}")
     
@@ -296,7 +296,7 @@ def print_report(report):
         if not conn_ok:
             print(f"  - Connection drops detected ({conn['disconnected']} clients)")
         if not latency_ok:
-            print(f"  - Latency p99 >= 200ms")
+            print("  - Latency p99 >= 200ms")
         if not errors_ok:
             print(f"  - Errors detected ({err['total_errors']} errors, {err['exceptions']} exceptions)")
         if not cpu_ok:

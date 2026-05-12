@@ -7,15 +7,13 @@ Auto-reconnects with exponential backoff on disconnection.
 """
 import asyncio
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.orderbook")
-
+from loguru import logger
 WS_URL = settings.POLYMARKET_WS_RTDS_URL
 MAX_BACKOFF_S = 30.0
 PING_INTERVAL_S = 30.0

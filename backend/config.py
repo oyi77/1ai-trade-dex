@@ -1,17 +1,16 @@
 """Configuration settings for the BTC 5-min trading bot."""
 
 import os
-import logging
 from pydantic import model_validator, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Dict, Optional
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(override=False)
+    load_dotenv(override=True)
 except ImportError:
     pass
 
@@ -40,7 +39,50 @@ class ConfigRegistry:
     This is the single source of truth for all configuration in PolyEdge.
     All settings are organized by domain (API_ENDPOINTS, RATE_LIMITS, etc.)
     and validated at startup to fail fast with clear error messages.
+
+    Settings are read from environment variables (via .env file), falling
+    back to the hardcoded class defaults when not set.
     """
+
+    def __init__(self):
+        import dataclasses
+        from dataclasses import Field, MISSING
+
+        all_fields = {}
+        # Collect dataclass fields first (they carry type + default metadata)
+        for f in dataclasses.fields(self):
+            if f.default is not MISSING:
+                all_fields[f.name] = f.default
+            elif f.default_factory is not MISSING:
+                all_fields[f.name] = f.default_factory()
+            else:
+                all_fields[f.name] = f.type() if f.type in (dict, list, set, str, int, float, bool) else None
+
+        # Then collect plain class annotations (non-dataclass-field defaults)
+        for name, value in self.__class__.__dict__.items():
+            if name.startswith('_') or callable(value) or isinstance(value, (staticmethod, classmethod, property, Field)):
+                continue
+            if name not in all_fields:
+                all_fields[name] = value
+
+        for name, default in all_fields.items():
+            env_val = os.environ.get(name)
+            if env_val is not None:
+                if isinstance(default, bool):
+                    setattr(self, name, env_val.lower() in ('true', '1', 'yes'))
+                elif isinstance(default, int):
+                    setattr(self, name, int(env_val))
+                elif isinstance(default, float):
+                    setattr(self, name, float(env_val))
+                elif isinstance(default, (dict, list)):
+                    try:
+                        setattr(self, name, eval(env_val))
+                    except Exception:
+                        setattr(self, name, default)
+                else:
+                    setattr(self, name, env_val)
+            else:
+                setattr(self, name, default)
 
     # --------------------------------------------------------------------------
     # API_ENDPOINTS - External API URLs
@@ -140,11 +182,11 @@ class ConfigRegistry:
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  #max total exposure
     MAX_TRADE_SIZE: float = 8.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
-    PAPER_MIN_ORDER_USDC: float = 1.0  #minimum order size (paper)
+    PAPER_MIN_ORDER_USDC: float = 5.0  #minimum order size (paper — matches live to prevent hallucination)
 
     # Confidence and signal weights
     AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
-    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.25"))
+    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
 
@@ -409,6 +451,10 @@ class ConfigRegistry:
 
     # Logging
     LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = False
+    LOG_FILE: Optional[str] = None
+    LOG_ROTATION: str = "500 MB"
+    LOG_RETENTION: str = "10 days"
     API_LOG_ALL_CALLS: bool = True
 
     # WebSocket
@@ -1163,7 +1209,7 @@ class Settings(BaseSettings):
     }
     MAX_TRADE_SIZE: float = 8.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
-    PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
+    PAPER_MIN_ORDER_USDC: float = 5.0  # Simulated minimum (matches live to prevent hallucination)
     MIN_TIME_REMAINING: int = 60  # Don't trade windows closing in < 60s
     MAX_TIME_REMAINING: int = 1800  # Trade windows up to 30min out
 
@@ -1551,9 +1597,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_trading_credentials(self) -> "Settings":
-        import logging
-
-        _logger = logging.getLogger("trading_bot.config")
         for mode in self.active_modes_set:
             if mode == "live":
                 if not self.POLYMARKET_PRIVATE_KEY:
@@ -1568,7 +1611,7 @@ class Settings(BaseSettings):
                         "ACTIVE_MODES contains 'testnet' but POLYMARKET_PRIVATE_KEY is not set."
                     )
                 if not self.POLYMARKET_BUILDER_API_KEY:
-                    _logger.warning(
+                    logger.warning(
                         "ACTIVE_MODES contains 'testnet' without POLYMARKET_BUILDER_API_KEY — "
                         "CLOB order placement will use standard auth (gas fees apply). "
                         "Set Builder credentials for gasless trading via Builder Program."
@@ -1629,12 +1672,11 @@ class Settings(BaseSettings):
         In production (SHADOW_MODE=false, TRADING_MODE=live) an unset key
         leaves all admin endpoints open, which is a security risk.
         """
-        import logging as _logging
         if not self.ADMIN_API_KEY:
             _mode = getattr(self, "TRADING_MODE", "paper")
             _shadow = getattr(self, "SHADOW_MODE", True)
             if not _shadow and str(_mode).lower() == "live":
-                _logging.getLogger("trading_bot.config").critical(
+                logger.critical(
                     "ADMIN_API_KEY is not set — all admin endpoints are UNAUTHENTICATED. "
                     "Set ADMIN_API_KEY in your .env file before running in live mode."
                 )

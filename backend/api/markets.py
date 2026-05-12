@@ -1,6 +1,4 @@
 """Market data routes - BTC, Polymarket, Kalshi, Weather."""
-
-import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -14,7 +12,7 @@ from backend.data.btc_markets import fetch_active_btc_markets
 from backend.data.crypto import fetch_crypto_price
 from backend.core.errors import handle_errors
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 router = APIRouter(tags=["markets"])
 
@@ -213,6 +211,7 @@ async def get_weather_forecasts():
 
         return forecasts
     except Exception:
+        logger.exception("Failed to fetch weather forecasts")
         return []
 
 
@@ -259,6 +258,7 @@ async def get_weather_markets():
             for m in markets
         ]
     except Exception:
+        logger.exception("Failed to fetch weather markets")
         return []
 
 
@@ -274,6 +274,7 @@ async def get_weather_signals():
         signals = await scan_for_weather_signals()
         return [_weather_signal_to_response(s) for s in signals]
     except Exception:
+        logger.exception("Failed to fetch weather signals")
         return []
 
 
@@ -337,9 +338,7 @@ async def get_polymarket_markets(
             "limit": limit,
         }
     except Exception as e:
-        import logging
-
-        logging.getLogger("trading_bot").error(
+        logger.error(
             f"Failed to fetch Polymarket markets: {e}"
         )
         return {"markets": [], "total": 0, "offset": offset, "limit": limit}

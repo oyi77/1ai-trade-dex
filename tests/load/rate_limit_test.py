@@ -19,7 +19,7 @@ import asyncio
 import time
 import httpx
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -273,10 +273,10 @@ class RateLimitTester:
                             logger.error(f"  ✗ Retry-After value not an integer: {retry_after}")
                             return False
                     else:
-                        logger.error(f"  ✗ Retry-After header missing on 429 response")
+                        logger.error("  ✗ Retry-After header missing on 429 response")
                         return False
         
-        logger.error(f"  ✗ Never received 429 response")
+        logger.error("  ✗ Never received 429 response")
         return False
 
     async def run_all_tests(self, skip_reset_test: bool = True) -> Dict:
@@ -386,7 +386,7 @@ class RateLimitTester:
                 reset_status = "✓" if results["reset_works"] else "✗"
                 logger.info(f"  {reset_status} Reset Works: {results['reset_works']}")
             else:
-                logger.info(f"  ⊘ Reset Works: skipped")
+                logger.info("  ⊘ Reset Works: skipped")
         
         logger.info(f"\nMulti-IP Independent Limits: {'✓' if summary['multi_ip'] else '✗'}")
         

@@ -6,14 +6,12 @@ Usage:
 """
 import argparse
 import asyncio
-import logging
 from typing import Dict
 
 from backend.job_queue.sqlite_queue import AsyncSQLiteQueue
 from backend.models.database import SessionLocal, JobQueue
 
-logger = logging.getLogger("trading_bot.migrate_to_redis")
-logging.basicConfig(level=logging.INFO)
+from loguru import logger
 
 
 async def migrate_sqlite_to_redis() -> Dict[str, int]:

@@ -24,14 +24,10 @@ test_engine = create_engine(
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Patch database module before app import
-from backend.models import database as _db_mod
-from backend.models.database import Base
+from backend.models import database as _db_mod  # noqa: E402
+from backend.models.database import Base  # noqa: E402
 
 # Ensure all ORM models are registered with Base.metadata before create_all()
-import backend.models.kg_models  # noqa: F401 — ExperimentRecord, StrategyProposal
-import backend.models.outcome_tables  # noqa: F401 — StrategyOutcome, EvolutionLineage
-import backend.models.historical_data  # noqa: F401 — HistoricalCandle, MarketOutcome
-import backend.models.genome_registry  # noqa: F401 — GenomePerformance, GenomeShadowTrade
 try:
     from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: F401
 except Exception:

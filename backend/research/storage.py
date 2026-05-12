@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import logging
 
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +7,7 @@ from backend.models.database import SessionLocal, engine, Base, ResearchItemDB
 from backend.research.models import ResearchItem
 from backend.clients.bigbrain import BigBrainClient
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 class ResearchStorage:
@@ -60,7 +59,7 @@ class ResearchStorage:
                             content=item.content,
                         )
                     except Exception:
-                        logger.debug("BigBrain write failed for %s", item.fingerprint)
+                        logger.exception("BigBrain write failed for %s", item.fingerprint)
 
             db.commit()
         return inserted
