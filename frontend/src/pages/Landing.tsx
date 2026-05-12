@@ -281,6 +281,35 @@ export default function Landing() {
     return isLandingLanguage(savedLanguage) ? savedLanguage : getBrowserLanguage()
   })
   const t = translations[language]
+  const [stats, setStats] = useState({ trades: "162", strategies: "14+", experiments: "25" })
+
+  useEffect(() => {
+
+    Promise.all([
+
+      fetch("/api/v1/stats").then(r => r.json()).catch(() => ({})),
+
+      fetch("/api/v1/strategies").then(r => r.json()).catch(() => ({})),
+
+      fetch("/api/v1/agi/experiments").then(r => r.json()).catch(() => ({}))
+
+    ]).then(([statsData, stratsData, expsData]) => {
+
+      setStats({
+
+        trades: statsData.total_trades !== undefined ? String(statsData.total_trades) : "162",
+
+        strategies: stratsData.strategies ? String(stratsData.strategies.length) + "+" : "14+",
+
+        experiments: expsData.experiments ? String(expsData.experiments.length) : "25"
+
+      });
+
+    });
+
+  }, []);
+
+
   const repeatedTicker = useMemo(() => [...t.tickerItems, ...t.tickerItems], [t.tickerItems])
 
   useEffect(() => {
@@ -448,7 +477,7 @@ export default function Landing() {
                     transition={{ duration: 0.45, delay: 0.22 + index * 0.08 }}
                     className="border border-stone-800 bg-black/45 p-4"
                   >
-                    <div className="font-serif text-4xl font-black tracking-[-0.08em] text-amber-200">{metric.value}</div>
+                    <div className="font-serif text-4xl font-black tracking-[-0.08em] text-amber-200">{metric.label === "Trades" || metric.label === "Trade" || metric.label === "Сделки" || metric.label === "交易" ? stats.trades : metric.label === "Strategies" || metric.label === "Strategi" || metric.label === "Стратегии" || metric.label === "策略" ? stats.strategies : metric.label === "Experiments" || metric.label === "Eksperimen" || metric.label === "Эксперименты" || metric.label === "实验" ? stats.experiments : metric.value}</div>
                     <div className="mt-2 text-[10px] font-black uppercase tracking-[0.22em] text-stone-400">{metric.label}</div>
                     <div className="mt-2 text-[10px] leading-5 text-stone-600">{metric.detail}</div>
                   </motion.div>
@@ -568,7 +597,7 @@ export default function Landing() {
               <div className="mt-8 grid grid-cols-2 gap-3">
                 {t.proofMetrics.map(metric => (
                   <div key={metric.label} className="border border-stone-800 bg-stone-950/60 p-4">
-                    <div className="font-serif text-3xl font-black tracking-[-0.06em] text-emerald-200">{metric.value}</div>
+                    <div className="font-serif text-3xl font-black tracking-[-0.06em] text-emerald-200">{metric.label === "Trades" || metric.label === "Trade" || metric.label === "Сделки" || metric.label === "交易" ? stats.trades : metric.label === "Strategies" || metric.label === "Strategi" || metric.label === "Стратегии" || metric.label === "策略" ? stats.strategies : metric.label === "Experiments" || metric.label === "Eksperimen" || metric.label === "Эксперименты" || metric.label === "实验" ? stats.experiments : metric.value}</div>
                     <div className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-stone-500">{metric.label}</div>
                   </div>
                 ))}
