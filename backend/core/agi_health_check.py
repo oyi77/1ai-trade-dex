@@ -49,7 +49,7 @@ class AGIHealthChecker:
 
     def _check_strategies(self, db: Session) -> dict:
         try:
-            configs = db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all()
+            configs = db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
             if not configs:
                 return {"healthy": True, "enabled_count": 0}
 
@@ -137,7 +137,7 @@ class AGIHealthChecker:
             orphans = (
                 db.query(Trade)
                 .filter(
-                    Trade.settled == False,
+                    not Trade.settled,
                     Trade.timestamp < cutoff,
                 )
                 .count()

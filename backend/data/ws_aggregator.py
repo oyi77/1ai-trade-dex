@@ -4,7 +4,6 @@ import asyncio
 from typing import Optional
 from collections import defaultdict
 
-from loguru import logger
 class WSMessage:
     def __init__(self, source: str, data: dict, seq: int):
         self.source = source

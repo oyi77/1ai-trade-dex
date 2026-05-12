@@ -224,7 +224,7 @@ async def broadcast_livestream_snapshot():
 
 async def livestream_broadcaster():
     from backend.api.ws_manager_v2 import topic_manager
-    from backend.models.database import SessionLocal, BotState, Trade, StrategyConfig, TradeAttempt, for_update
+    from backend.models.database import SessionLocal, BotState, Trade, StrategyConfig, TradeAttempt
     import json
     import time
 

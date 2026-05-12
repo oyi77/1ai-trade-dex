@@ -20,7 +20,7 @@ def _get_router() -> _LLMRouter:
     return _router
 
 
-from loguru import logger
+from loguru import logger  # noqa: E402
 @dataclass
 class AIAnalysis:
     probability: float

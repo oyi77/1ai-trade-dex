@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from backend.api.auth import require_admin
 from backend.config import settings
-from backend.models.database import BotState, get_db, for_update
+from backend.models.database import BotState, get_db
 from sqlalchemy.orm import Session
 
 from loguru import logger

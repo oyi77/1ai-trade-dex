@@ -5,6 +5,7 @@ Fixes Gap G2 by dynamically adjusting strategy allocations based on market regim
 Uses real market data from BtcPriceSnapshot and genome data from GenomeRegistry.
 """
 
+import json
 from typing import Dict, Any, List
 from datetime import datetime, timedelta, timezone
 
@@ -51,7 +52,7 @@ def _build_market_data(db: Session) -> dict:
         .order_by(BtcPriceSnapshot.timestamp.asc())
         .all()
     )
-    prices = [s.btc_price for s in snapshots]
+    prices = [s.price for s in snapshots]
     if len(prices) < 30:
         return {"prices": [], "volumes": []}
 
@@ -147,10 +148,12 @@ def detect_regime_and_rebalance(db: Session) -> str:
 
     # Trigger mutation with risk-chromosome target for live genomes
     for genome in get_live_genomes(db):
-        if genome.strategy_genome and "meta" not in genome.strategy_genome.get("chromosomes", {}):
-            genome.strategy_genome["chromosomes"]["meta"] = {}
-        if genome.strategy_genome:
-            genome.strategy_genome["chromosomes"]["meta"]["next_mutation_target"] = "risk_chromosome"
+        try:
+            chromosomes = json.loads(genome.chromosomes_json) if genome.chromosomes_json else {}
+        except Exception:
+            chromosomes = {}
+        chromosomes.setdefault("meta", {})["next_mutation_target"] = "risk_chromosome"
+        genome.chromosomes_json = json.dumps(chromosomes)
 
     publish_event("regime_shift", {"to": regime, "confidence": confidence})
     return regime

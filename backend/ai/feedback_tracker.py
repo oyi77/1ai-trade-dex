@@ -90,13 +90,13 @@ def _measure_proposal(proposal: StrategyProposal, db: Session) -> Optional[dict]
 
     pre_trades = db.query(Trade).filter(
         Trade.strategy == strategy,
-        Trade.settled == True,
+        Trade.settled,
         Trade.timestamp < applied_at,
     ).order_by(Trade.timestamp.desc()).limit(50).all()
 
     post_trades = db.query(Trade).filter(
         Trade.strategy == strategy,
-        Trade.settled == True,
+        Trade.settled,
         Trade.timestamp >= applied_at,
     ).order_by(Trade.timestamp.asc()).limit(50).all()
 

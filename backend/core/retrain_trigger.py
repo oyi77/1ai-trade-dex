@@ -23,7 +23,7 @@ async def check_and_trigger_retraining() -> dict:
     try:
         from backend.db.utils import get_db_session
         with get_db_session() as db:
-            settled_count = db.query(Trade).filter(Trade.settled == True).count()
+            settled_count = db.query(Trade).filter(Trade.settled).count()
             if settled_count < 50:
                 return {"status": "skipped", "reason": f"only {settled_count} settled trades, need 50"}
             from backend.ai.training.train import run_training_pipeline

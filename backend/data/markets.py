@@ -1,5 +1,4 @@
 """Market data types and fetching - simplified for BTC 5-min focus."""
-from loguru import logger
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass

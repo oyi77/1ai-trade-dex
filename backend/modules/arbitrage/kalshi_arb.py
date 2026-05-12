@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
 from backend.config import settings
 
-from loguru import logger
 
 
 def _cfg(name, default):

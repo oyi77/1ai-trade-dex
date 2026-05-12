@@ -24,7 +24,7 @@ def update_source_weights_from_outcomes() -> Dict[str, float]:
             func.count(Trade.id).label("cnt"),
             func.count(Trade.id).filter(Trade.result == "win").label("wins"),
         ).filter(
-            Trade.settled == True,
+            Trade.settled,
             Trade.settlement_source.isnot(None),
             Trade.settlement_source != "",
         ).group_by(Trade.settlement_source).all()

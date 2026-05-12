@@ -1,6 +1,5 @@
 """API endpoints for strategy proposal management."""
 
-from loguru import logger
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field

@@ -4,7 +4,6 @@ import asyncio
 from dataclasses import dataclass
 from typing import Optional
 
-from loguru import logger
 @dataclass
 class OrderBookLevel:
     price: float

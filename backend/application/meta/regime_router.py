@@ -8,7 +8,6 @@ from typing import Dict
 
 from backend.config import settings
 
-from loguru import logger
 
 
 class RegimeConfidenceRouter:

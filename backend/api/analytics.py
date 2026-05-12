@@ -9,7 +9,6 @@ from backend.core.strategy_ranker import strategy_ranker
 from backend.core.calibration_tracker import get_bucket_calibration
 from backend.db.utils import get_db_session
 
-from loguru import logger
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 

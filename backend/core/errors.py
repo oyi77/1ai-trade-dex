@@ -7,7 +7,6 @@ for consistent error logging across API routes.
 
 import functools
 import inspect
-import traceback
 from typing import Callable, Any
 from fastapi import HTTPException
 
@@ -183,7 +182,7 @@ def handle_errors(
             except HTTPException:
                 raise
             except Exception as e:
-                logger.log(
+                logger.opt(exception=e).log(
                     log_level,
                     "Error in {func_name}: {error}",
                     func_name=func.__name__,
@@ -201,7 +200,7 @@ def handle_errors(
             except HTTPException:
                 raise
             except Exception as e:
-                logger.log(
+                logger.opt(exception=e).log(
                     log_level,
                     "Error in {func_name}: {error}",
                     func_name=func.__name__,

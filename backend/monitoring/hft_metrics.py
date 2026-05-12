@@ -116,7 +116,7 @@ def get_hft_summary() -> dict:
         from backend.models.database import StrategyConfig
         db = SessionLocal()
         try:
-            active = db.query(StrategyConfig).filter(StrategyConfig.enabled == True).count()
+            active = db.query(StrategyConfig).filter(StrategyConfig.enabled).count()
         finally:
             db.close()
     except Exception:

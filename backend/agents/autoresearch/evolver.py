@@ -96,7 +96,7 @@ class StrategyEvolver:
         existing = db.query(StrategyProposal).filter(
             StrategyProposal.strategy_name == strategy_name,
             StrategyProposal.status == "pending",
-            StrategyProposal.auto_promotable == True,
+            StrategyProposal.auto_promotable,
         ).count()
 
         if existing >= 5:
