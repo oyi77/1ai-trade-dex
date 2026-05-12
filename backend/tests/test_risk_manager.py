@@ -267,7 +267,10 @@ class TestImmutableSafetyRules:
     def test_safety_rules_loaded_with_defaults(self):
         """Test that safety rules are loaded with default values."""
         s = MockSettings()
-        rm = RiskManager(settings_obj=s)
+        import os
+        from unittest.mock import patch
+        with patch.dict(os.environ, clear=True):
+            rm = RiskManager(settings_obj=s)
 
         # Check that safety rules are loaded
         assert hasattr(rm, '_safety_rules')

@@ -345,14 +345,14 @@ async def _redis_log_bridge():
     """Background task that bridges logs from Redis to the internal EventBus."""
     from backend.config import settings
     import logging
-    
+
     if not settings.REDIS_ENABLED or not settings.REDIS_URL:
         return
 
     bridge_logger = logging.getLogger("backend.monitoring.bridge")
     bridge_logger.info("Starting Redis log bridge...")
     from backend.core.event_bus import event_bus
-    
+
     try:
         import redis.asyncio as aioredis
     except ImportError:
