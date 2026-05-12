@@ -845,6 +845,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         mode: Trading mode (paper, testnet, live).
     """
     from backend.core.scheduler import log_event
+    from backend.core.heartbeat import update_heartbeat as _update_heartbeat
 
     from backend.strategies.registry import STRATEGY_REGISTRY
     import json
@@ -890,7 +891,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 f"Strategy {strategy_name} not in registry — updating heartbeat anyway",
             )
 
-            update_heartbeat(strategy_name)
+            _update_heartbeat(strategy_name)
             return
 
         params = config_data["params"]
@@ -964,7 +965,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
 
-        update_heartbeat(strategy_name)
+        _update_heartbeat(strategy_name)
 
         log_event(
             "info",
@@ -977,7 +978,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
     # Heartbeat AFTER db.close() so the pool connection is returned first
     try:
-        update_heartbeat(strategy_name)
+        _update_heartbeat(strategy_name)
     except Exception:
         logger.exception(f"[scheduling_strategies] Heartbeat update failed for {strategy_name} after cycle")
 
