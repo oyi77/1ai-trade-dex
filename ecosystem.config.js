@@ -38,10 +38,9 @@ module.exports = {
     },
     {
       name: 'polyedge-frontend',
-      script: process.platform === 'win32' ? 'npm.cmd' : 'npm',
-      args: 'run start:prod:pm2',
+      script: 'node_modules/vite/bin/vite.js',
+      args: 'preview --host 0.0.0.0 --port 5174',
       cwd: FRONTEND,
-      interpreter: 'none',
       watch: false,
       restart_delay: 5000,
       max_restarts: 50,
