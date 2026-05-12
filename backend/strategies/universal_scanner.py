@@ -445,7 +445,7 @@ class UniversalScanner(BaseStrategy):
         - Stress: hard cap at 10000 markets prevents runaway
         """
         start = time.monotonic()
-        semaphore = asyncio.Semaphore(_cfg("SCANNER_SEMAPHORE_LIMIT", 50))
+        semaphore = asyncio.Semaphore(_cfg("SCANNER_SEMAPHORE_LIMIT", 5))
 
         async with httpx.AsyncClient() as client:
             # Step 1: Fetch first page to determine market availability

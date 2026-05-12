@@ -12,6 +12,8 @@ from backend.models.database import (
     Signal,
     PendingApproval,
     StrategyConfig,
+from backend.core.heartbeat import update_heartbeat
+from backend.core.heartbeat import update_heartbeat
 )
 from backend.core.signals import scan_universe_markets
 from backend.core.decisions import record_decision
@@ -433,7 +435,6 @@ async def scan_and_trade_job(mode: str):
 async def weather_scan_and_trade_job(mode: str):
     """Scan weather temperature markets and execute trades. Runs every 5 minutes."""
     from backend.core.scheduler import log_event
-    from backend.core.heartbeat import update_heartbeat as _update_hb
 
     log_event("info", f"[{mode.upper()}] Scanning weather temperature markets...")
 
@@ -457,7 +458,7 @@ async def weather_scan_and_trade_job(mode: str):
             # Still update heartbeat so watchdog knows we ran
             from backend.db.utils import get_db_session
             with get_db_session() as _hb_db:
-                _update_hb("weather_emos")
+                update_heartbeat("weather_emos")
             return
 
         from backend.db.utils import get_db_session
@@ -569,7 +570,7 @@ async def weather_scan_and_trade_job(mode: str):
             else:
                 log_event("info", f"[{mode.upper()}] No new weather trades executed")
 
-            _update_hb("weather_emos")
+            update_heartbeat("weather_emos")
 
 
     except Exception as e:
@@ -889,7 +890,6 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 "warning",
                 f"Strategy {strategy_name} not in registry — updating heartbeat anyway",
             )
-            from backend.core.heartbeat import update_heartbeat
 
             update_heartbeat(strategy_name)
             return
@@ -964,7 +964,6 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 else:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
-        from backend.core.heartbeat import update_heartbeat
 
         update_heartbeat(strategy_name)
 
