@@ -152,16 +152,16 @@ def configure_logging(
         try:
             import redis
             import json
-            
+
             # Use a connection pool to avoid recreating clients
             _redis_client = redis.from_url(settings.REDIS_URL)
-            
+
             def redis_sink(message):
                 record = message.record
                 # Avoid infinite loops from redis-py or our own monitoring
                 if record["name"].startswith(("redis", "backend.monitoring")):
                     return
-                    
+
                 try:
                     log_entry = {
                         "timestamp": record["time"].isoformat(),
@@ -170,19 +170,19 @@ def configure_logging(
                         "message": record["message"],
                         "correlation_id": record["extra"].get("correlation_id", ""),
                     }
-                    
+
                     # Add extra fields if present
                     for key, val in record["extra"].items():
                         if key != "correlation_id":
                             log_entry[key] = val
-                            
+
                     if record["exception"]:
                         log_entry["exception"] = str(record["exception"])
-                        
+
                     _redis_client.publish("logs:system", json.dumps(log_entry))
                 except Exception:
                     pass
-                    
+
             logger.add(
                 redis_sink,
                 level=level,
