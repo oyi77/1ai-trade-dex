@@ -182,11 +182,11 @@ class ConfigRegistry:
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  #max total exposure
     MAX_TRADE_SIZE: float = 8.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
-    PAPER_MIN_ORDER_USDC: float = 1.0  #minimum order size (paper)
+    PAPER_MIN_ORDER_USDC: float = 5.0  #minimum order size (paper — matches live to prevent hallucination)
 
     # Confidence and signal weights
     AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
-    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.25"))
+    PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
 
@@ -1209,7 +1209,7 @@ class Settings(BaseSettings):
     }
     MAX_TRADE_SIZE: float = 8.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
-    PAPER_MIN_ORDER_USDC: float = 1.0  # Simulated minimum for paper/testing
+    PAPER_MIN_ORDER_USDC: float = 5.0  # Simulated minimum (matches live to prevent hallucination)
     MIN_TIME_REMAINING: int = 60  # Don't trade windows closing in < 60s
     MAX_TIME_REMAINING: int = 1800  # Trade windows up to 30min out
 

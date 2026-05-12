@@ -272,8 +272,6 @@ def _execute_decision_paper_or_kalshi(
             )
 
             min_size = _cfg("MIN_ORDER_USDC", 5.0)
-            if mode == "paper":
-                min_size = _cfg("PAPER_MIN_ORDER_USDC", min(1.0, min_size))
             if adjusted_size < min_size:
                 logger.info(
                     f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
@@ -819,8 +817,6 @@ async def _execute_decision_live_clob(
             )
 
             min_size = _cfg("MIN_ORDER_USDC", 5.0)
-            if mode == "paper":
-                min_size = _cfg("PAPER_MIN_ORDER_USDC", min(1.0, min_size))
             if adjusted_size < min_size:
                 logger.info(
                     f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
