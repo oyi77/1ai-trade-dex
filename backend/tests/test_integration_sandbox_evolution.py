@@ -79,7 +79,7 @@ from datetime import datetime, timezone
 async def execute(signal):
     price = signal.get("price", 100)
     rsi = signal.get("rsi", 50)
-    
+
     if rsi < 30 and price > 95:
         return {"action": "buy", "confidence": 0.8}
     elif rsi > 70 or price < 90:
@@ -93,12 +93,12 @@ async def execute(signal):
     async def test_validate_node_with_live_data_rejection(self):
         """Test rejection of nodes requiring live data in sandbox."""
         state = {"market": "BTC-USD", "timestamp": datetime.now(timezone.utc).timestamp()}
-        
+
         with patch.object(node_registry, 'get') as mock_get:
             mock_node = MagicMock()
             mock_node.manifest.return_value = MagicMock(requires_live_data=True)
             mock_get.return_value = mock_node
-            
+
             result = await self.manager.validate_node("test_node", state)
             assert result.status == "failed"
             assert any("live data" in str(err).lower() for err in result.errors)
@@ -128,7 +128,7 @@ class StrategyGraph:
             "PriceSourceNode": [],
             "SignalProcessorNode": ["PriceSourceNode"]
         }
-    
+
     async def execute(self, context):
         results = {}
         for node in self.nodes:
@@ -183,7 +183,7 @@ async def execute(signal):
 """
         result = await self.manager.validate_strategy(draft_code)
         assert result.status == "passed"
-        
+
         sandbox_result = await self.manager.validate_strategy(draft_code, "bull_2024")
         assert sandbox_result.status == "passed"
 
@@ -209,7 +209,7 @@ from backend.core.risk_profiles import RISK_TIER_MAX_ALLOCATION
 async def execute(signal):
     risk_tier = signal.get("risk_tier", "conservative")
     max_alloc = RISK_TIER_MAX_ALLOCATION.get(risk_tier, 0.1)
-    
+
     if signal.get("confidence", 0) > 0.7:
         return {"action": "buy", "size_pct": max_alloc * 0.5, "confidence": 0.8}
     return {"action": "hold", "confidence": 0.5}
@@ -256,7 +256,7 @@ async def execute(context):
     async def test_mock_provider_with_different_scenarios(self):
         """Test mock provider with different market scenarios."""
         scenarios = ["bull_2024", "bear_2022", "sideways_2023"]
-        
+
         for scenario in scenarios:
             code = """
 async def execute(context):
@@ -274,11 +274,11 @@ from backend.data.sources.mock_source import MockDataSource
 
 async def execute(context):
     mock = MockDataSource()
-    
+
     orderbook = await mock.fetch("orderbook", {})
     candles = await mock.fetch("candles", {})
     price = await mock.fetch("price", {})
-    
+
     return {
         "orderbook": orderbook,
         "candles": candles,

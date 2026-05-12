@@ -9,13 +9,11 @@ Tests the complete strategy validation and evolution pipeline:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
 from backend.agi.sandbox.sandbox_manager import SandboxManager
 from backend.agi.sandbox.sandbox_validator import SandboxValidator
-from backend.agi.sandbox.results import SandboxResult
-from backend.agi.graph_engine import GraphEngine
 from backend.agi.node_registry import node_registry
 
 
