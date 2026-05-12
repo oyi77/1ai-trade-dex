@@ -208,7 +208,7 @@ def compute_price_bucket_calibration(
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
     trades = db.query(Trade).filter(
-        Trade.settled == True,
+        Trade.settled,
         Trade.timestamp >= cutoff,
     ).all()
 

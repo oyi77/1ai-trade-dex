@@ -34,7 +34,7 @@ class StrategyContext:
     db: "Session"
     clob: object  # polymarket_clob.PolymarketCLOB | None for paper
     settings: object  # backend.config.Settings
-    logger: logging.Logger
+    logger: object  # loguru.Logger
     params: dict  # StrategyConfig.params from DB
     mode: str  # "paper" | "testnet" | "live"
 

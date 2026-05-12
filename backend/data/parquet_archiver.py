@@ -29,7 +29,7 @@ class TradeArchiver:
 
         trades = db.query(Trade).filter(
             and_(
-                Trade.settled == True,
+                Trade.settled,
                 Trade.timestamp >= start,
                 Trade.timestamp < start.replace(day=start.day + 1) if start.day < 28 else start,
             )

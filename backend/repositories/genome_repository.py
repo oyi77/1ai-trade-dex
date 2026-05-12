@@ -9,7 +9,6 @@ from sqlalchemy import func, desc, and_
 from backend.models.database import GenomeRegistry
 from backend.models.genome_registry import GenomeShadowTrade
 
-from loguru import logger
 
 
 class GenomeRepository:

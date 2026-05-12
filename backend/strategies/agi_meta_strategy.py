@@ -2,7 +2,6 @@ from __future__ import annotations
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
 from backend.core.agi_orchestrator import AGIOrchestrator
 
-from loguru import logger
 class AGIMetaStrategy(BaseStrategy):
     """
     Autonomous Meta-Strategy for AGI Orchestration.

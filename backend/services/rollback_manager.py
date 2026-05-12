@@ -23,6 +23,7 @@ class RollbackManager:
     """Manages strategy configuration snapshots and rollback operations."""
 
     def __init__(self):
+        self.logger = logger
         self.snapshots: dict = {}
 
     def create_snapshot(self, proposal_id: int, strategy_name: str) -> bool:

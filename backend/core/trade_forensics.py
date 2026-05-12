@@ -55,7 +55,7 @@ def classify_trade_role(
 
 
 
-from loguru import logger
+from loguru import logger  # noqa: E402
 class TradeForensics:
     """Analyzes losing trades to diagnose failure modes."""
 

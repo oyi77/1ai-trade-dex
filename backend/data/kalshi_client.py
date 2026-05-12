@@ -12,7 +12,6 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
-from loguru import logger
 kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
 
 BASE_URL = settings.KALSHI_API_URL

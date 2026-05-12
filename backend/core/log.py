@@ -126,6 +126,11 @@ def configure_logging(
             enqueue=enqueue,
         )
 
+    # ── Inject correlation_id into every log record ─────────────────
+    logger.configure(patcher=lambda record: record["extra"].update(
+        correlation_id=correlation_id.get("")
+    ))
+
     # ── File sink (optional) ──────────────────────────────────────
     if log_file:
         # Always JSON to file for easy parsing

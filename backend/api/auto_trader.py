@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 from backend.models.database import PendingApproval
 from backend.api.auth import require_admin
-from loguru import logger
 router = APIRouter(prefix="/auto-trader", tags=["auto_trader"])
 
 

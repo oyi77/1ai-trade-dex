@@ -113,7 +113,7 @@ async def get_calibration(strategy: str, db: Session = Depends(get_db)):
 @router.get("/allocations", response_model=List[AllocationResponse])
 async def get_allocations(db: Session = Depends(get_db)):
     from backend.models.database import StrategyConfig
-    configs = db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all()
+    configs = db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
     strategies = [c.strategy_name for c in configs] if configs else []
     if not strategies:
         return []

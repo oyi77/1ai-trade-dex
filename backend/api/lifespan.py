@@ -19,10 +19,9 @@ from backend.core.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import get_market_websocket, shutdown_market_websocket, get_user_websocket, shutdown_user_websocket
 from backend.data.orderbook_cache import get_orderbook_cache
-from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig, for_update
+from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig
 from backend.core.mode_context import ModeExecutionContext, register_context
 from backend.core.risk_manager import RiskManager
-from backend.strategies.loader import load_all_strategies
 from backend.core.bankroll_reconciliation import reconcile_bot_state
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.db.utils import get_db_session
@@ -424,8 +423,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Register mode execution contexts for paper/testnet/live.
     # Paper and testnet don't require live CLOB connections; live gets
     # a best-effort client (warns on failure rather than crashing startup).
-    from backend.core.mode_context import ModeExecutionContext, register_context
-    from backend.core.risk_manager import RiskManager
     from backend.models.database import StrategyConfig
 
     for _mode in ["paper", "testnet", "live"]:

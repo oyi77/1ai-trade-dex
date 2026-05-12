@@ -11,7 +11,6 @@ from typing import Optional
 
 from backend.config import settings
 
-from loguru import logger
 def _cfg(name, default):
     return getattr(settings, name, default)
 

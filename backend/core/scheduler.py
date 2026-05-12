@@ -563,11 +563,11 @@ def start_scheduler():
     since = datetime.now(timezone.utc) - timedelta(hours=1)
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
-        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
+        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
             for mode in settings.active_modes_set:
                 trades = db.query(Trade).filter(
                     Trade.strategy == config.strategy_name,
-                    Trade.settled == True,
+                    Trade.settled,
                     Trade.timestamp >= since,
                     Trade.trading_mode == mode,
                 ).all()
@@ -594,7 +594,7 @@ def start_scheduler():
                 name = desc.split(" ")[0]
                 db.query(StrategyConfig).filter(
                     StrategyConfig.strategy_name == name,
-                    StrategyConfig.enabled == True,
+                    StrategyConfig.enabled,
                 ).update({"enabled": False})
             db.commit()
             logger.info(f"Disabled {len(disabled)} underperforming strategies: {disabled}")
@@ -899,14 +899,14 @@ def start_scheduler():
         min_trades = getattr(settings, "AGI_AUTO_DISABLE_MIN_TRADES", 10)
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
-            for config in db.query(StrategyConfig).filter(StrategyConfig.enabled == True).all():
+            for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
                 if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
                     continue
 
                 for mode in settings.active_modes_set:
                     trades = db.query(Trade).filter(
                         Trade.strategy == config.strategy_name,
-                        Trade.settled == True,
+                        Trade.settled,
                         Trade.timestamp >= since,
                         Trade.trading_mode == mode,
                     ).all()
@@ -961,7 +961,7 @@ def start_scheduler():
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
             disabled_configs = db.query(StrategyConfig).filter(
-                StrategyConfig.enabled == False,
+                not StrategyConfig.enabled,
                 StrategyConfig.disabled_at.isnot(None),
             ).all()
 
@@ -980,7 +980,7 @@ def start_scheduler():
                 for mode in settings.active_modes_set:
                     trades = db.query(Trade).filter(
                         Trade.strategy == config.strategy_name,
-                        Trade.settled == True,
+                        Trade.settled,
                         Trade.timestamp >= since_rehab,
                         Trade.trading_mode == mode,
                     ).all()

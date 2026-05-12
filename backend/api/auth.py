@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import os
 
 from backend.config import settings
-from backend.models.database import get_db, BotState, Trade, Signal, for_update
+from backend.models.database import get_db, BotState, Trade, Signal
 from backend.api.validation import CredentialsUpdateRequest as ValidatedCredentialsUpdate
 
 from loguru import logger

@@ -15,7 +15,6 @@ from backend.api.auth import authorize_realtime_access
 from backend.config import settings
 from backend.core.event_bus import event_bus
 
-from loguru import logger
 # Event type to channels mapping
 EVENT_CHANNEL_MAP = {
     "trade_executed": ["dashboard", "control_room"],

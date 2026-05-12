@@ -4,7 +4,6 @@ from typing import Optional
 from backend.strategies.types_hft import HFTSignal, HFTStrategyConfig
 from backend.config import settings
 
-from loguru import logger
 def _cfg(key: str, default=None):
     return getattr(settings, key, default) if hasattr(settings, key) else default
 

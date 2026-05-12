@@ -7,7 +7,6 @@ Scans leaderboard, ranks by P&L, and suggests wallets to copy.
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 
-from loguru import logger
 
 
 async def scan_leaderboard_for_profitable_wallets(

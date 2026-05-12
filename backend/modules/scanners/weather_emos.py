@@ -40,7 +40,7 @@ from backend.models.database import for_update
 def _cfg(name, default):
     return getattr(settings, name, default)
 
-from loguru import logger
+from loguru import logger  # noqa: E402
 
 OPEN_METEO_BASE = settings.OPEN_METEO_API_URL
 NBM_BASE = settings.NWS_API_URL

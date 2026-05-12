@@ -16,7 +16,6 @@ from backend.config import settings
 from backend.models.database import (
     get_db,
     BotState,
-    for_update,
 )
 
 # Wallet creation support
@@ -77,7 +76,7 @@ from fastapi.responses import JSONResponse  # noqa: E402
 @app.exception_handler(Exception)
 async def production_exception_handler(request: Request, exc: Exception):
     from loguru import logger as _err_logger
-    _err_logger.opt(exc_info=True).error(
+    _err_logger.opt(exception=exc).error(
         "Unhandled exception on {method} {path}: {exc}",
         method=request.method,
         path=request.url.path,

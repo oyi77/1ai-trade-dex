@@ -16,7 +16,6 @@ from pydantic import BaseModel
 
 from backend.models.database import get_db, DecisionLog, SystemSettings
 
-from loguru import logger
 router = APIRouter(prefix="/brain", tags=["brain"])
 
 

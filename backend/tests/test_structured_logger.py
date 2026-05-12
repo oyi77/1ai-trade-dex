@@ -1,6 +1,5 @@
 """Tests for backend/core/log.py (loguru-based logging)."""
 
-import json
 
 from backend.core.log import (
     configure_logging,
