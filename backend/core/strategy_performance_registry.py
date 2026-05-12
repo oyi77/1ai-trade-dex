@@ -18,7 +18,7 @@ from dataclasses import dataclass, asdict
 from sqlalchemy.orm import Session
 from sqlalchemy import Column, Integer, Float, String, DateTime, UniqueConstraint
 
-from backend.models.database import Base, SessionLocal, Trade
+from backend.models.database import Base, SessionLocal
 
 from loguru import logger
 # ============================================================
@@ -197,6 +197,8 @@ class StrategyPerformanceRegistry:
         aggregates, updates in-memory cache, and optionally persists a
         snapshot row if `db` is provided.
         """
+        from backend.models.database import Trade
+
         session = db or SessionLocal()
         try:
             # Fetch all settled trades for this strategy
@@ -368,6 +370,8 @@ class StrategyPerformanceRegistry:
                 session.close()
 
     def _compute_coverage_days(self, strategy: str, db) -> int:
+        from backend.models.database import Trade
+
         session = db or SessionLocal()
         try:
             first_trade = session.query(Trade.timestamp).filter(

@@ -43,6 +43,7 @@ class PolymarketProvider(DataProvider):
         active_only: bool = True,
     ) -> List[Dict[str, Any]]:
         import httpx
+        import asyncio
 
         markets: List[Dict[str, Any]] = []
         page_offset = offset
@@ -95,6 +96,8 @@ class PolymarketProvider(DataProvider):
 
                 if len(batch) < page_limit:
                     break
+                await asyncio.sleep(0.5)  # respect rate limits
+
 
         logger.info("[PolymarketProvider] fetched %d markets", len(markets))
         return markets
@@ -116,6 +119,7 @@ class KalshiProvider(DataProvider):
             return []
 
         import httpx
+        import asyncio
 
         markets: List[Dict[str, Any]] = []
 
@@ -160,6 +164,7 @@ class KalshiProvider(DataProvider):
                 cursor = data.get("cursor_next")
                 if not cursor or len(batch) < 500:
                     break
+                await asyncio.sleep(0.5)
 
         logger.info("[KalshiProvider] fetched %d markets", len(markets))
         return markets

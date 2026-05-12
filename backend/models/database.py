@@ -133,7 +133,6 @@ try:
     import backend.models.kg_models  # noqa: F401 — registers ExperimentRecord, StrategyProposal with Base.metadata
     import backend.models.outcome_tables  # noqa: F401 — registers learning tables with Base.metadata (requires kg_models first)
     import backend.models.historical_data  # noqa: F401 — registers HistoricalCandle, MarketOutcome, WeatherSnapshot
-    from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: F401
 except Exception:
     logger.exception("database model imports failed")
     pass
