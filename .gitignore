@@ -71,6 +71,8 @@ backups/
 .omc/
 .playwright-mcp/
 .sisyphus/
+!.sisyphus/
+!.sisyphus/plans/
 .claude/
 
 # Screenshots (dev only)

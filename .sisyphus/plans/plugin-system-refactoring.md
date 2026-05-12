@@ -147,11 +147,16 @@ Wave 4 (After Wave 1 - Market Provider system):
 ├── Task 24: backend/markets/providers/__init__.py - Auto-discover setup
 ├── Task 25: backend/markets/providers/polymarket_provider.py - Wrap CLOB client
 ├── Task 26: backend/markets/providers/kalshi_provider.py - Wrap kalshi_client.py
+├── Task 26a: backend/clients/azuro_client.py - Shared Azuro GraphQL/Web3 client (TTL cache)
+├── Task 26b: backend/markets/providers/predict_fun_provider.py - predict.fun via AzuroClient
+├── Task 26c: backend/markets/providers/bookmaker_xyz_provider.py - bookmaker.xyz via AzuroClient
+├── Task 26d: backend/clients/limitless_client.py + limitless_provider.py - limitless.exchange REST
+├── Task 26e: backend/clients/sxbet_client.py + sxbet_provider.py - sx.bet REST + EIP-712
 ├── Task 27: backend/markets/providers/paper_provider.py - In-memory paper trading
 ├── Task 28: backend/strategies/order_executor.py - Refactor to use market registry
 ├── Task 29: backend/core/settlement.py - Update to stream fills from registry
 ├── Task 30: backend/api/v1/market_providers.py - API endpoints for venue control
-├── Task 31: backend/tests/test_market_provider_registry.py - Unit tests
+├── Task 31: backend/tests/test_market_provider_registry.py - Unit tests (all 6 providers)
 └── Task 32: backend/tests/test_paper_provider.py - Paper provider tests
 
 Wave 5 (After Waves 1-4 - AGI core infrastructure):
@@ -214,6 +219,7 @@ Wave FINAL (After ALL tasks — 4 parallel reviews, then user okay):
 -> Present results -> Get explicit user okay
 
 Critical Path: Task 1 → Task 2 → Task 3/4/5/6/7/8 → Task 9-14/15-22/23-32/33-43/44-60 → Task 61-70 → Task 71-76 → F1-F4 → user okay
+New Provider Sub-Path (Wave 4): Task 26a → Task 26b + Task 26c (parallel, Azuro dep) | Task 26d + Task 26e (parallel, independent)
 Parallel Speedup: ~80% faster than sequential
 Max Concurrent: 8
 ```
@@ -225,6 +231,10 @@ Wave 1: - Tasks 1-8 (standalone - no dependencies)
 Wave 2: - Tasks 9-14 (deps: 1, 3, 4)
 Wave 3: - Tasks 15-22 (deps: 1, 5, 6)
 Wave 4: - Tasks 23-32 (deps: 1, 2, 7, 8)
+         - Task 26a: no deps (standalone client)
+         - Tasks 26b, 26c: dep on Task 26a
+         - Tasks 26d, 26e: no deps (independent clients)
+         - Task 31: dep on 25, 26, 26a-26e, 27
 Wave 5: - Tasks 33-37 (deps: 1, 2)
 Wave 6: - Tasks 38-43 (deps: 33-37)
 Wave 7: - Tasks 44-60 (deps: 33-37)
@@ -237,7 +247,7 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
 - **Wave 1**: 2 quick + 6 unspecified-high (infrastructure)
 - **Wave 2**: 4 quick (providers + refactor) + 1 unspecified-high (API)
 - **Wave 3**: 2 quick (sources) + 3 unspecified-high (mock, strategy context, API)
-- **Wave 4**: 1 quick + 3 unspecified-high (providers) + 3 unsp. high (executor, settlement, API, tests)
+- **Wave 4**: 1 quick + 3 unspecified-high (providers) + 5 unsp. high (new providers: azuro_client, predict_fun, bookmaker_xyz, limitless, sxbet) + 3 unsp. high (executor, settlement, API, tests)
 - **Wave 5**: 1 quick + 2 unspecified-high (state, base, registry, engine, tests)
 - **Wave 6**: 3 unspecified-high + 2 tests (sandbox system)
 - **Wave 7**: 6 unspecified-high (nodes) + 3 unsp. high (graphs, registry, tests)
@@ -1226,7 +1236,208 @@ FINAL: - Tasks F1-F4 (deps: ALL prior tasks)
   - **Blocks**: Task 28, 30
   - **Blocked By**: Task 23, Task 24
 
-- [ ] 27. Create `backend/markets/providers/paper_provider.py` - Paper trading
+- [ ] 26a. Create `backend/clients/azuro_client.py` - Shared Azuro Protocol client
+
+  **What to do**:
+  - Create `AzuroClient` with async GraphQL query support (via `httpx`)
+  - `__init__(self, graph_url: str, rpc_url: str, chain_id: int)` — read from env: `AZURO_GRAPH_URL`, `AZURO_RPC_URL`, `AZURO_CHAIN_ID`
+  - `async cached_query(self, gql: str, variables: dict = None) -> dict` — TTL cache (`AZURO_CACHE_TTL_SECONDS`, default 60 s); handle 429 with `Retry-After`
+  - `async get_markets(self, limit: int = 200, active_only: bool = True) -> list[dict]` — query Azuro subgraph; normalize to standard market dict keys
+  - `async health_check(self) -> bool` — lightweight introspection query
+  - `async sign_and_send_bet(self, private_key: str, condition_id: str, outcome_index: int, amount_wei: int) -> str` — EVM smart contract call via `web3.py`; return tx hash
+  - Default `AZURO_GRAPH_URL`: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+
+  **Test cases**:
+  - `cached_query()` makes only 1 HTTP call for 2 requests within TTL
+  - `health_check()` returns True with mock 200 response
+  - `sign_and_send_bet()` calls Web3 without leaking private key to logs
+
+  **Must NOT do**:
+  - Do NOT call The Graph without caching (hot-path protection)
+  - Do NOT log or persist private key
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high` - Async client with cache and Web3 signing
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES - Wave 4 (no plugin-system deps)
+  - **Parallel Group**: Wave 4 tasks (runs alongside Tasks 25, 26, 26d, 26e)
+  - **Blocks**: Tasks 26b, 26c
+  - **Blocked By**: None (standalone client)
+
+  **References**:
+  - `backend/data/polymarket_clob.py` — async httpx client pattern
+  - Azuro subgraph: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+  - `backend/config.py` — env var registration pattern
+
+  **QA Scenarios**:
+  ```
+  Scenario: Cache prevents double HTTP call
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_azuro_client.py::test_cache_ttl -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26a-cache.txt
+  ```
+
+- [ ] 26b. Create `backend/markets/providers/predict_fun_provider.py` - predict.fun via Azuro
+
+  **What to do**:
+  - Create `PredictFunProvider(BaseMarketProvider)` with `@market_registry.plugin`
+  - `manifest()` → name=`"predict_fun"`, platform_url=`"https://predict.fun"`, `is_live_venue=True`
+  - Delegates all data fetching to `AzuroClient` singleton
+  - `place_order()` calls `AzuroClient.sign_and_send_bet()`
+  - `cancel_order()` raises `OrderRejectedError("Azuro bets are non-cancellable")`
+  - `is_paper()` based on `SHADOW_MODE`
+
+  **Test cases**:
+  - `get_name()` → `"predict_fun"`
+  - `cancel_order()` raises `OrderRejectedError`
+  - `get_markets()` delegates to `AzuroClient.get_markets()`
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, alongside 26c)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 26a
+
+  **QA Scenarios**:
+  ```
+  Scenario: Provider registered with correct name
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_predict_fun_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26b-registered.txt
+  ```
+
+- [ ] 26c. Create `backend/markets/providers/bookmaker_xyz_provider.py` - bookmaker.xyz via Azuro
+
+  **What to do**:
+  - Create `BookmakerXyzProvider(BaseMarketProvider)` with `@market_registry.plugin`
+  - Mirror structure of `PredictFunProvider`; only change: name=`"bookmaker_xyz"`, platform_url=`"https://bookmaker.xyz"`
+  - Shares `AzuroClient` singleton with `PredictFunProvider` (verify by identity in test)
+
+  **Test cases**:
+  - `get_name()` → `"bookmaker_xyz"`
+  - Shares `AzuroClient` instance with `PredictFunProvider`
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, alongside 26b)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 26a
+
+  **QA Scenarios**:
+  ```
+  Scenario: bookmaker_xyz and predict_fun share AzuroClient
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_azuro_client_singleton -v
+    Expected Result: PASSED — both providers return same AzuroClient id()
+    Evidence: .sisyphus/evidence/task-26c-singleton.txt
+  ```
+
+- [ ] 26d. Create `backend/clients/limitless_client.py` + `limitless_provider.py` - limitless.exchange
+
+  **What to do**:
+  - Create `backend/clients/limitless_client.py`:
+    - `LimitlessClient` with base URL from `LIMITLESS_API_URL` (default `https://api.limitless.exchange`)
+    - `async get_markets(self, limit: int = 100) -> list[dict]` — `GET /markets`
+    - `async get_orderbook(self, market_id: str) -> dict` — `GET /orderbook`
+    - `async place_order(self, market_id: str, side: str, size: float, price: float, private_key: str) -> dict` — EIP-712 sign + `POST /orders`
+    - `async cancel_order(self, order_id: str, private_key: str) -> bool`
+    - `async health_check(self) -> bool` — `GET /markets?limit=1`
+  - Create `backend/markets/providers/limitless_provider.py`:
+    - `LimitlessProvider(BaseMarketProvider)` with `@market_registry.plugin`
+    - name=`"limitless"`, `is_live_venue=True`
+    - Pulls `LIMITLESS_PRIVATE_KEY` from env for signing
+
+  **Test cases**:
+  - `LimitlessProvider.get_name()` → `"limitless"`
+  - `LimitlessClient.health_check()` returns True with mock 200
+  - `place_order()` signs and POSTs correctly (mocked)
+
+  **Must NOT do**:
+  - Do NOT log the private key
+  - Do NOT use synchronous `requests` library
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, independent of Azuro tasks)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 23, Task 24
+
+  **References**:
+  - `backend/clients/kalshi_client.py` — REST client pattern
+  - Limitless API Swagger: `https://api.limitless.exchange/api-v1`
+
+  **QA Scenarios**:
+  ```
+  Scenario: LimitlessProvider registered
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_limitless_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26d-registered.txt
+  ```
+
+- [ ] 26e. Create `backend/clients/sxbet_client.py` + `sxbet_provider.py` - sx.bet
+
+  **What to do**:
+  - Create `backend/clients/sxbet_client.py`:
+    - `SXBetClient` with base URL from `SXBET_API_URL` (default `https://api.sx.bet`)
+    - `async get_sports(self) -> list[dict]` — `GET /sports`
+    - `async get_markets(self, sport_ids: list[int] = None, limit: int = 200) -> list[dict]` — `GET /markets/active`; normalize to standard dict
+    - `async get_orderbook(self, market_hash: str) -> dict` — `GET /orders?marketHashes={hash}`
+    - `async place_maker_order(self, market_hash: str, outcome_index: int, odds: float, stake_wei: int, private_key: str) -> dict` — EIP-712 sign + `POST /orders/new`
+    - `async health_check(self) -> bool` — `GET /sports`
+  - Create `backend/markets/providers/sxbet_provider.py`:
+    - `SXBetProvider(BaseMarketProvider)` with `@market_registry.plugin`
+    - name=`"sxbet"`, `is_live_venue=True`
+    - Pulls `SXBET_PRIVATE_KEY` from env
+
+  **Test cases**:
+  - `SXBetProvider.get_name()` → `"sxbet"`
+  - `SXBetClient.health_check()` True with mock 200
+  - `place_maker_order()` signs correctly (mocked)
+
+  **Must NOT do**:
+  - Do NOT log private key
+  - Do NOT block event loop with synchronous Web3 calls
+
+  **Recommended Agent Profile**:
+  > - **Category**: `unspecified-high`
+  > - **Skills**: `test-driven-development`
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 4, independent of Azuro tasks)
+  - **Blocks**: Task 31
+  - **Blocked By**: Task 23, Task 24
+
+  **References**:
+  - `backend/clients/limitless_client.py` (Task 26d) — similar REST + EIP-712 pattern
+  - SX.Bet API docs: `https://docs.sx.bet/`
+
+  **QA Scenarios**:
+  ```
+  Scenario: SXBetProvider registered
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_market_provider_registry.py::test_sxbet_registered -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-26e-registered.txt
+  ```
 
   **What to do**:
   - Create `PaperProvider` subclass of `BaseMarketProvider`
