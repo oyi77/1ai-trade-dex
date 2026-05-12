@@ -333,6 +333,7 @@ async def scan_and_trade_job(mode: str):
                 log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
                 return
 
+            from backend.markets.provider_registry import market_registry
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -340,6 +341,7 @@ async def scan_and_trade_job(mode: str):
                 logger=logger,
                 params={},
                 mode=mode,
+                market_registry=market_registry,
             )
 
             # Phase 1: Try BTC Oracle
@@ -392,6 +394,7 @@ async def scan_and_trade_job(mode: str):
                             logger=logger,
                             params=gs_params,
                             mode=mode,
+                            market_registry=market_registry,
                         )
 
                         from backend.strategies.general_market_scanner import GeneralMarketScanner
@@ -898,6 +901,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
         from backend.strategies.base import StrategyContext
         from backend.config import settings as _settings
+        from backend.markets.provider_registry import market_registry
 
         # Phase 2: Run strategy with a fresh session
         with get_db_session() as db:
@@ -908,6 +912,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 logger=logger,
                 params=params,
                 mode=effective_mode,
+                market_registry=market_registry,
             )
 
             strategy = strategy_cls()
