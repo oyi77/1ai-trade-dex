@@ -1,5 +1,5 @@
 import { POLL } from '../polling'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { NavBar } from '../components/NavBar'
 import { DataTable, ColumnDef, FilterDef } from '../components/DataTable'
@@ -17,7 +17,7 @@ const leaderboardColumns: ColumnDef<ScoredTrader>[] = [
   {
     key: 'rank',
     label: '#',
-    render: (_row, _val) => null,
+    render: () => null,
   },
   {
     key: 'pseudonym',
@@ -235,21 +235,24 @@ export default function WhaleTracker() {
       ? 'bg-amber-500'
       : 'bg-red-500'
 
-  const filteredLeaderboard = leaderboard
-    .filter((t) => {
-      const pseudonymFilter = lbQuery.state.filters['pseudonym'] ?? ''
-      const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
-      if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter.toLowerCase())) return false
-      if (!isNaN(minScore) && t.score < minScore) return false
-      return true
-    })
-    .sort((a, b) => {
-      const col = lbQuery.state.sort as keyof ScoredTrader
-      const dir = lbQuery.state.order === 'asc' ? 1 : -1
-      const av = a[col] as number
-      const bv = b[col] as number
-      return (av - bv) * dir
-    })
+  // ⚡ Bolt: Memoize filteredLeaderboard to prevent O(N) filtering and sorting on every render
+  const filteredLeaderboard = useMemo(() => {
+    return leaderboard
+      .filter((t) => {
+        const pseudonymFilter = lbQuery.state.filters['pseudonym'] ?? ''
+        const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
+        if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter.toLowerCase())) return false
+        if (!isNaN(minScore) && t.score < minScore) return false
+        return true
+      })
+      .sort((a, b) => {
+        const col = lbQuery.state.sort as keyof ScoredTrader
+        const dir = lbQuery.state.order === 'asc' ? 1 : -1
+        const av = a[col] as number
+        const bv = b[col] as number
+        return (av - bv) * dir
+      })
+  }, [leaderboard, lbQuery.state.filters, lbQuery.state.sort, lbQuery.state.order])
 
   const lbPage = lbQuery.currentPage
   const lbLimit = lbQuery.state.limit
