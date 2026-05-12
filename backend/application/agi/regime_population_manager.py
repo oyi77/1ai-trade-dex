@@ -129,33 +129,26 @@ def detect_regime_and_rebalance(db: Session) -> str:
     )
 
     prefs = REGIME_STRATEGY_PREFERENCES.get(regime, {})
-    if prefs:
+
+    changed = regime_changed(regime, db)
+    if changed and prefs:
         for archetype in prefs.get("boost", []):
-            publish_event("archetype_allocation_changed", {
-                "archetype": archetype,
-                "factor": 1.50,
-                "action": "boost",
-                "regime": regime,
-            })
+            increase_archetype_allocation(archetype, factor=1.50, db=db)
 
         for archetype in prefs.get("suppress", []):
-            publish_event("archetype_allocation_changed", {
-                "archetype": archetype,
-                "factor": 0.50,
-                "action": "suppress",
-                "regime": regime,
-            })
+            decrease_archetype_allocation(archetype, factor=0.50, db=db)
 
     # Trigger mutation with risk-chromosome target for live genomes
-    for genome in get_live_genomes(db):
-        try:
-            chromosomes = json.loads(genome.chromosomes_json) if genome.chromosomes_json else {}
-        except Exception:
-            chromosomes = {}
-        chromosomes.setdefault("meta", {})["next_mutation_target"] = "risk_chromosome"
-        genome.chromosomes_json = json.dumps(chromosomes)
+    if changed:
+        for genome in get_live_genomes(db):
+            try:
+                chromosomes = json.loads(genome.chromosomes_json) if genome.chromosomes_json else {}
+            except Exception:
+                chromosomes = {}
+            chromosomes.setdefault("meta", {})["next_mutation_target"] = "risk_chromosome"
+            genome.chromosomes_json = json.dumps(chromosomes)
 
-    publish_event("regime_shift", {"to": regime, "confidence": confidence})
+        publish_event("regime_shift", {"to": regime, "confidence": confidence})
     return regime
 
 
