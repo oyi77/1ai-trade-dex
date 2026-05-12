@@ -237,11 +237,12 @@ export default function WhaleTracker() {
 
   // ⚡ Bolt: Memoize filteredLeaderboard to prevent O(N) filtering and sorting on every render
   const filteredLeaderboard = useMemo(() => {
+    const pseudonymFilter = (lbQuery.state.filters['pseudonym'] ?? '').toLowerCase()
+    const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
+
     return leaderboard
       .filter((t) => {
-        const pseudonymFilter = lbQuery.state.filters['pseudonym'] ?? ''
-        const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
-        if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter.toLowerCase())) return false
+        if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter)) return false
         if (!isNaN(minScore) && t.score < minScore) return false
         return true
       })
