@@ -357,8 +357,18 @@ class TestRegistry:
         registry.register(PaperStage)
         registry.register(LiveStage)
 
-        decision = {"size": 100.0}
-        context = {"mode": "paper"}
+        decision = {
+            "size": 100.0,
+            "confidence": 0.8,
+            "direction": "YES",
+            "market_ticker": "test",
+        }
+        context = {
+            "mode": "paper",
+            "bankroll": 1000.0,
+            "current_exposure": 0.0,
+            "strategy_name": "test_strategy",
+        }
 
         result = registry.run_mode("paper", decision, context)
 
