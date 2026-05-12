@@ -187,7 +187,6 @@ def test_data_source_error_can_be_caught_as_ioerror():
 
 
 def test_all_modules_can_be_imported():
-    from backend.core import plugin_errors
     import backend.core.plugin_errors as pe
 
     assert hasattr(pe, "PluginNotFound")

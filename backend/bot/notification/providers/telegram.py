@@ -3,7 +3,6 @@ from backend.bot.notification.registry import registry
 from backend.bot.notifier import get_bot
 from typing import Optional
 import logging
-import os
 
 logger = logging.getLogger(__name__)
 

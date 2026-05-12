@@ -5,7 +5,7 @@ from typing import Optional
 
 from backend.api.auth import require_admin
 from backend.agi.node_registry import node_registry
-from backend.agi.graph_engine import GraphEngine, GraphDefinition
+from backend.agi.graph_engine import GraphEngine
 from backend.agi.agent_state import AgentState
 
 router = APIRouter(tags=["AGI Nodes"])

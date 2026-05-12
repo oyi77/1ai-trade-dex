@@ -1,7 +1,7 @@
 """AGI node abstract base class and manifest."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List
 
 from backend.core.plugin_registry import BasePlugin
 

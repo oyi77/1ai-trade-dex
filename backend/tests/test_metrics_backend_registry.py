@@ -3,7 +3,7 @@ import os
 from unittest.mock import AsyncMock, patch
 
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
-from backend.monitoring.backends.registry import registry, MetricsBackendRegistry
+from backend.monitoring.backends.registry import registry
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 
 

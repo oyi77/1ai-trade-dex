@@ -6,8 +6,6 @@ Tests end-to-end ensemble signal combination flows:
 - Edge and signal propagation through strategy pipeline
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from backend.ai.ensemble import (
     EnsembleSignal,
     EnsembleSignalGenerator,
@@ -228,7 +226,6 @@ class TestEnsembleIntegrationWithStrategy:
 
     def test_ensemble_enriches_strategy_signal(self):
         """Test ensemble result enriches strategy signal with confidence."""
-        from backend.strategies.base import StrategyContext
 
         signal = {
             "market_ticker": "BTC-USD",

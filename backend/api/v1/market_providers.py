@@ -5,7 +5,6 @@ from typing import Optional
 
 from backend.api.auth import require_admin
 from backend.markets.provider_registry import market_registry
-from backend.markets.order_types import OrderSide, OrderType
 from backend.core.plugin_errors import (
     MarketProviderNotFound, MarketProviderHasOpenPositions,
 )

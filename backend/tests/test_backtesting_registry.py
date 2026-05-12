@@ -1,6 +1,4 @@
-from unittest.mock import Mock, patch
 
-import pytest
 
 from backend.backtesting.base import (
     BacktestDataSourceManifest,
@@ -161,9 +159,6 @@ def test_run_backtest():
 
 
 def test_run_backtest_full_integration():
-    from backend.backtesting.data_sources.polymarket import PolymarketBacktestDataSource
-    from backend.backtesting.metrics.sharpe import SharpeRatioMetrics
-    from backend.backtesting.strategy_runners.default import DefaultStrategyRunner
 
     registry = BacktestEngineRegistry()
 

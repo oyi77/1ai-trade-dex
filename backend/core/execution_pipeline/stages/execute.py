@@ -16,7 +16,6 @@ class LiveExecuteStage(BaseExecutionStage):
         )
 
     def validate(self, decision, ctx):
-        market_ticker = decision.get("market_ticker", "")
         token_id = decision.get("token_id")
         if not token_id:
             return False
@@ -28,12 +27,7 @@ class LiveExecuteStage(BaseExecutionStage):
             return {"status": "error", "reason": "No database session"}
 
         from backend.markets.provider_registry import market_registry
-
-        market_ticker = decision.get("market_ticker", "")
         platform = decision.get("platform", "polymarket")
-        direction = decision.get("direction", "")
-        size = float(decision.get("size", 0.0))
-        entry_price = float(decision.get("entry_price", 0.5))
 
         is_kalshi = market_ticker.startswith("KX") or platform == "kalshi"
 
@@ -53,9 +47,6 @@ class LiveExecuteStage(BaseExecutionStage):
 
     def _execute_polymarket(self, client, decision, ctx):
         token_id = decision.get("token_id")
-        direction = decision.get("direction", "")
-        size = float(decision.get("size", 0.0))
-        entry_price = float(decision.get("entry_price", 0.5))
 
         order_type = "sell" if direction.upper() in ("NO", "SELL") else "buy"
 
@@ -80,10 +71,6 @@ class LiveExecuteStage(BaseExecutionStage):
             }
 
     def _execute_kalshi(self, client, decision, ctx):
-        market_ticker = decision.get("market_ticker", "")
-        direction = decision.get("direction", "")
-        size = float(decision.get("size", 0.0))
-        entry_price = float(decision.get("entry_price", 0.5))
         side = "yes" if direction.upper() == "YES" else "no"
 
         try:

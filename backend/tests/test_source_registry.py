@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType
 from backend.data.source_registry import DataSourceRegistry, DataSourceRegistry
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound

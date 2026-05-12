@@ -2,7 +2,7 @@
 import random
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from datetime import datetime, timezone
 
 from backend.core.plugin_errors import DataSourceError
@@ -137,7 +137,7 @@ class MockDataSource(BaseDataSource):
 
     def _generate_candles(self, params: Dict) -> List[Dict]:
         """Generate mock candle data."""
-        resolution = params.get("resolution", "1m")
+        _ = params.get("resolution", "1m")
         count = params.get("count", 100)
         candles = []
         price = self._config.base_price

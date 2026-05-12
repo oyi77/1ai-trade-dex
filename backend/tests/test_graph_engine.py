@@ -1,7 +1,7 @@
 """Test suite for the GraphEngine."""
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from backend.agi.graph_engine import GraphEngine, GraphDefinition
 from backend.agi.agent_state import AgentState

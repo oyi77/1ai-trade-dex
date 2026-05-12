@@ -1,5 +1,4 @@
 from decimal import Decimal
-import pytest
 from backend.markets.order_types import (
     OrderSide,
     OrderType,

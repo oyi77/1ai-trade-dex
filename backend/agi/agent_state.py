@@ -1,6 +1,6 @@
 """AGI core infrastructure: AgentState, BaseAGINode, NodeRegistry, GraphEngine."""
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 
 class AgentState:

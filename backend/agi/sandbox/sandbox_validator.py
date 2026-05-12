@@ -1,9 +1,7 @@
 """Sandbox validation - 4-gate pipeline for strategy safety."""
 import ast
 import re
-from typing import List, Optional
 
-from backend.core.plugin_errors import SandboxViolation
 from backend.agi.sandbox.results import SandboxResult
 
 

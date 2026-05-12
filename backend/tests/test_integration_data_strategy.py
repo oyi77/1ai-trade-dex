@@ -8,10 +8,9 @@ Tests the complete data pipeline from:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
 
-from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType
+from backend.data.base_source import DataType
 from backend.data.source_registry import DataSourceRegistry
 from backend.data.sources.mock_source import MockDataSource
 from backend.data.aggregator import DataAggregator, SourceResult, DataSource as AggSource

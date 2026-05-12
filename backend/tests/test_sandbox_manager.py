@@ -115,7 +115,6 @@ def analyze_market(data):
 
     @pytest.mark.asyncio
     async def test_validate_node_allows_safe_node(self):
-        from backend.agi.nodes import regime_detector_node
 
         state = {"prices": [100, 101, 102]}
         result = await self.manager.validate_node("regime_detector", state)

@@ -1,7 +1,6 @@
 import pytest
-from unittest.mock import MagicMock, patch
 
-from backend.agi.node_registry import NodeRegistry, node_registry
+from backend.agi.node_registry import NodeRegistry
 from backend.agi.base_node import BaseAGINode, NodeManifest
 from backend.agi.agent_state import AgentState
 

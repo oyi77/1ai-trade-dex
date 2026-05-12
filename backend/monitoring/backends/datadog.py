@@ -37,7 +37,6 @@ class DatadogBackend(BaseMetricsBackend):
         await self._send_metric("histogram", name, value, tags or {})
 
     async def _send_metric(self, metric_type: str, name: str, value: float, tags: Dict[str, str]) -> None:
-        import json
         import aiohttp
 
         if not self.enabled:

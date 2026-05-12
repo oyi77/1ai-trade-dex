@@ -1,11 +1,8 @@
 """Test suite for crypto exchange feed registry."""
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-import httpx
 
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
-from backend.data.crypto_feeds.registry import ExchangeFeedRegistry, get_registry, reset_registry
-from backend.data.crypto_feeds.providers import binance, coinbase, bybit, kraken, coingecko
+from backend.data.crypto_feeds.registry import ExchangeFeedRegistry
 from backend.core.plugin_errors import PluginEnvVarMissing
 
 

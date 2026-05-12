@@ -1,10 +1,10 @@
 """Directed graph executor for AGI pipeline orchestration."""
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Tuple
 from collections import defaultdict
 
 from backend.agi.agent_state import AgentState
-from backend.agi.node_registry import node_registry, NodeManifest
+from backend.agi.node_registry import node_registry
 
 
 @dataclass

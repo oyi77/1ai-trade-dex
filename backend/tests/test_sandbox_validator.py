@@ -1,9 +1,7 @@
 """Tests for sandbox validator 4-gate pipeline."""
 
-import pytest
 
-from backend.agi.sandbox.sandbox_validator import SandboxValidator, GateCheck
-from backend.agi.sandbox.results import SandboxResult
+from backend.agi.sandbox.sandbox_validator import SandboxValidator
 
 
 class TestSandboxValidator:
