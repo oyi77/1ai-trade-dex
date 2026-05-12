@@ -1,9 +1,8 @@
 """Integration tests for admin API endpoints."""
 import sys
-import types
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 # Stub out apscheduler and backend.core.scheduler before importing the app
 # so the startup event does not crash on the missing apscheduler package.
@@ -51,7 +50,7 @@ class TestAdminAuth:
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = None
         try:
-            resp = client.get("/api/admin/settings")
+            resp = client.get("/api/v1/admin/settings")
             assert resp.status_code == 200
         finally:
             settings.ADMIN_API_KEY = original
@@ -61,14 +60,14 @@ class TestAdminAuth:
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "secret"
         try:
-            resp = client.get("/api/admin/settings")
+            resp = client.get("/api/v1/admin/settings")
             assert resp.status_code == 401
         finally:
             settings.ADMIN_API_KEY = original
 
     def test_settings_get_accepts_valid_token(self, admin_client):
         """Valid bearer token returns 200."""
-        resp = admin_client.get("/api/admin/settings")
+        resp = admin_client.get("/api/v1/admin/settings")
         assert resp.status_code == 200
 
     def test_settings_post_requires_auth(self, client):
@@ -76,7 +75,7 @@ class TestAdminAuth:
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "secret"
         try:
-            resp = client.post("/api/admin/settings", json={"updates": {}})
+            resp = client.post("/api/v1/admin/settings", json={"updates": {}})
             assert resp.status_code == 401
         finally:
             settings.ADMIN_API_KEY = original
@@ -86,7 +85,7 @@ class TestAdminAuth:
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "secret"
         try:
-            resp = client.post("/api/bot/start")
+            resp = client.post("/api/v1/bot/start")
             assert resp.status_code == 401
         finally:
             settings.ADMIN_API_KEY = original
@@ -96,7 +95,7 @@ class TestAdminSettings:
     """Test GET/POST /api/admin/settings."""
 
     def test_get_returns_grouped_settings(self, admin_client):
-        resp = admin_client.get("/api/admin/settings")
+        resp = admin_client.get("/api/v1/admin/settings")
         assert resp.status_code == 200
         data = resp.json()
         assert "trading" in data
@@ -109,7 +108,7 @@ class TestAdminSettings:
         original_key = settings.POLYMARKET_API_KEY
         settings.POLYMARKET_API_KEY = "real-api-key"
         try:
-            resp = admin_client.get("/api/admin/settings")
+            resp = admin_client.get("/api/v1/admin/settings")
             data = resp.json()
             # POLYMARKET_API_KEY should be masked
             api_keys = data.get("api_keys", {})
@@ -122,7 +121,7 @@ class TestAdminSettings:
         original = settings.POLYMARKET_API_KEY
         settings.POLYMARKET_API_KEY = None
         try:
-            resp = admin_client.get("/api/admin/settings")
+            resp = admin_client.get("/api/v1/admin/settings")
             data = resp.json()
             api_keys = data.get("api_keys", {})
             assert api_keys.get("POLYMARKET_API_KEY") != "****"
@@ -133,7 +132,7 @@ class TestAdminSettings:
         """POST updates a non-secret setting."""
         original = settings.KELLY_FRACTION
         try:
-            resp = admin_client.post("/api/admin/settings", json={"updates": {"KELLY_FRACTION": "0.20"}})
+            resp = admin_client.post("/api/v1/admin/settings", json={"updates": {"KELLY_FRACTION": "0.20"}})
             assert resp.status_code == 200
             assert settings.KELLY_FRACTION == 0.20
         finally:
@@ -144,7 +143,7 @@ class TestAdminSettings:
         original = settings.POLYMARKET_API_KEY
         settings.POLYMARKET_API_KEY = "my-real-key"
         try:
-            admin_client.post("/api/admin/settings", json={"updates": {"POLYMARKET_API_KEY": "****"}})
+            admin_client.post("/api/v1/admin/settings", json={"updates": {"POLYMARKET_API_KEY": "****"}})
             assert settings.POLYMARKET_API_KEY == "my-real-key"
         finally:
             settings.POLYMARKET_API_KEY = original
@@ -155,7 +154,7 @@ class TestAdminSettings:
         import re
         env_path = ".env"
         # Attempt newline injection: embed INJECTED_KEY=evil after a \n
-        admin_client.post("/api/admin/settings", json={
+        admin_client.post("/api/v1/admin/settings", json={
             "updates": {"WEATHER_CITIES": "nyc\nINJECTED_KEY=evil"}
         })
         if os.path.exists(env_path):
@@ -170,7 +169,7 @@ class TestSystemStatus:
     """Test GET /api/admin/system."""
 
     def test_returns_system_info(self, admin_client):
-        resp = admin_client.get("/api/admin/system")
+        resp = admin_client.get("/api/v1/admin/system")
         assert resp.status_code == 200
         data = resp.json()
         assert "trading_mode" in data
