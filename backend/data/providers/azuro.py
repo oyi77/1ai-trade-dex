@@ -6,22 +6,20 @@ and Polygon. Both predict.fun and bookmaker.xyz use Azuro as their backend.
 Data is fetched via The Graph GraphQL subgraph (read-only public endpoint).
 Order placement requires EVM wallet + Web3 smart contract call.
 
-ENV VARS:
-    AZURO_GRAPH_URL  — The Graph subgraph endpoint (default: Gnosis xDai)
-    AZURO_RPC_URL    — EVM JSON-RPC endpoint for transaction broadcast
-    AZURO_CHAIN_ID   — Chain ID: 100 (Gnosis) or 137 (Polygon)
-    AZURO_CACHE_TTL_SECONDS — GraphQL response cache TTL (default: 60)
+Config is read from the ``provider_credentials`` DB table via
+:class:`~backend.core.provider_config_store.ProviderConfigStore`, with ENV
+var fallback using the convention ``AZURO_{KEY_UPPER}`` (e.g. ``AZURO_GRAPH_URL``).
 """
 
 from __future__ import annotations
 
-import os
 import time
 from typing import Optional
 
 import httpx
 from loguru import logger
 
+from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
 _AZURO_GRAPH_URL_DEFAULT = (
@@ -53,6 +51,9 @@ class AzuroProvider(DataProvider):
 
     NOTE: This is a shared base class. PredictFunProvider and BookmakerXyzProvider
     both delegate to this class — they differ only in platform_name and platform_url.
+
+    Config is read lazily from :data:`~backend.core.provider_config_store.provider_config`
+    on first access so that the DB connection is not required at import time.
     """
 
     def __init__(
@@ -62,12 +63,14 @@ class AzuroProvider(DataProvider):
         cache_ttl: int = 60,
     ) -> None:
         self._platform = platform
-        self._graph_url = graph_url or os.getenv(
-            "AZURO_GRAPH_URL", _AZURO_GRAPH_URL_DEFAULT
+        self._graph_url = graph_url or provider_config.get(
+            platform, "graph_url", _AZURO_GRAPH_URL_DEFAULT
         )
-        self._rpc_url = os.getenv("AZURO_RPC_URL", "")
-        self._chain_id = int(os.getenv("AZURO_CHAIN_ID", "100"))
-        self._cache_ttl = int(os.getenv("AZURO_CACHE_TTL_SECONDS", str(cache_ttl)))
+        self._rpc_url = provider_config.get(platform, "rpc_url", "")
+        self._chain_id = int(provider_config.get(platform, "chain_id", "100"))
+        self._cache_ttl = int(
+            provider_config.get(platform, "cache_ttl_seconds", str(cache_ttl))
+        )
         self._cache: dict = {}
         self._cache_ts: float = 0.0
 
@@ -153,16 +156,16 @@ class AzuroProvider(DataProvider):
     ) -> dict:
         """Place a bet on Azuro via smart contract call.
 
-        Requires AZURO_RPC_URL and private_key in kwargs or env.
+        private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Returns {"tx_hash": "0x...", "status": "submitted"} on success.
         """
-        private_key: str = kwargs.get("private_key", "") or os.getenv(
-            "WEB3_PRIVATE_KEY_AZURO", ""
+        private_key: str = kwargs.get("private_key", "") or provider_config.get(
+            self._platform, "private_key"
         )
 
         if not private_key or not self._rpc_url:
             logger.warning(
-                "AzuroProvider.place_order: missing AZURO_RPC_URL or private key — "
+                "AzuroProvider.place_order: missing rpc_url or private key — "
                 "returning dry-run result"
             )
             return {"tx_hash": "", "status": "dry_run", "platform": self._platform}

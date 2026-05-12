@@ -53,6 +53,7 @@ from backend.api.brain import router as brain_router
 from backend.api.errors import router as errors_router
 from backend.api.metrics_endpoint import router as metrics_router
 from backend.api.alerts import router as alerts_router
+from backend.api.provider_credentials import router as provider_credentials_router
 
 # Plugin system API routers
 from backend.api.v1.ai_providers import router as ai_providers_router
@@ -145,6 +146,7 @@ app.include_router(ai_providers_router, prefix="/api/v1")
 app.include_router(data_sources_router, prefix="/api/v1")
 app.include_router(market_providers_router, prefix="/api/v1")
 app.include_router(agi_router, prefix="/api/v1/agi")
+app.include_router(provider_credentials_router, prefix="/api/v1")
 
 # Knowledge Graph router for Wave 10
 from backend.api.agi.kg_router import kg_router  # noqa: E402

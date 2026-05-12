@@ -5,24 +5,23 @@ limitless.exchange is a CLOB + AMM prediction market on Base blockchain.
 REST API:  https://api.limitless.exchange  (Swagger: /api-v1)
 WebSocket: wss://ws.limitless.exchange
 
+Config is read from the ``provider_credentials`` DB table via
+:class:`~backend.core.provider_config_store.ProviderConfigStore`, with ENV
+var fallback using the convention ``LIMITLESS_{KEY_UPPER}``.
+
 Authentication:
 - Public reads (markets, orderbook) require no auth.
 - Order placement requires EIP-712 wallet signature via eth_account.
-
-ENV VARS:
-    LIMITLESS_API_URL  — REST base URL (default: https://api.limitless.exchange)
-    LIMITLESS_WS_URL   — WebSocket URL (default: wss://ws.limitless.exchange)
-    LIMITLESS_PRIVATE_KEY — EVM private key for order signing (never logged)
 """
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import httpx
 from loguru import logger
 
+from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
 _LIMITLESS_API_DEFAULT = "https://api.limitless.exchange"
@@ -32,7 +31,9 @@ class LimitlessProvider(DataProvider):
     """DataProvider for limitless.exchange CLOB+AMM prediction market."""
 
     def __init__(self) -> None:
-        self._base_url = os.getenv("LIMITLESS_API_URL", _LIMITLESS_API_DEFAULT).rstrip("/")
+        self._base_url = provider_config.get(
+            "limitless", "api_url", _LIMITLESS_API_DEFAULT
+        ).rstrip("/")
 
     @property
     def platform_name(self) -> str:
@@ -97,7 +98,7 @@ class LimitlessProvider(DataProvider):
             return {"bids": [], "asks": [], "market_id": market_id}
 
     async def get_positions(self) -> list[PositionEntry]:
-        wallet = os.getenv("LIMITLESS_WALLET_ADDRESS", "")
+        wallet = provider_config.get("limitless", "wallet_address")
         if not wallet:
             return []
         try:
@@ -123,7 +124,7 @@ class LimitlessProvider(DataProvider):
         ]
 
     async def get_balance(self) -> BalanceInfo:
-        wallet = os.getenv("LIMITLESS_WALLET_ADDRESS", "")
+        wallet = provider_config.get("limitless", "wallet_address")
         if not wallet:
             return BalanceInfo(available=0.0, locked=0.0, total=0.0)
         try:
@@ -145,10 +146,12 @@ class LimitlessProvider(DataProvider):
     ) -> dict:
         """Place a limit order via EIP-712 signed payload.
 
-        Requires LIMITLESS_PRIVATE_KEY env var or private_key kwarg.
+        private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26d.
         """
-        private_key: str = kwargs.get("private_key", os.getenv("LIMITLESS_PRIVATE_KEY", ""))
+        private_key: str = kwargs.get("private_key", "") or provider_config.get(
+            "limitless", "private_key"
+        )
         if not private_key:
             logger.warning("LimitlessProvider.place_order: no private key — dry-run")
             return {"orderId": "", "status": "dry_run", "platform": "limitless"}
@@ -165,7 +168,7 @@ class LimitlessProvider(DataProvider):
         return {"orderId": "", "status": "dry_run", "platform": "limitless"}
 
     async def cancel_order(self, order_id: str) -> bool:
-        private_key: str = os.getenv("LIMITLESS_PRIVATE_KEY", "")
+        private_key: str = provider_config.get("limitless", "private_key")
         if not private_key:
             logger.warning("LimitlessProvider.cancel_order: no private key")
             return False

@@ -6,19 +6,19 @@ REST API:  https://api.sx.bet
 - Public reads (sports, leagues, fixtures, markets, orders) require NO auth.
 - Order placement requires EIP-712 wallet signature (Polygon mainnet).
 
-ENV VARS:
-    SXBET_API_URL     — REST base URL (default: https://api.sx.bet)
-    SXBET_PRIVATE_KEY — EVM private key for order signing on Polygon (never logged)
+Config is read from the ``provider_credentials`` DB table via
+:class:`~backend.core.provider_config_store.ProviderConfigStore`, with ENV
+var fallback using the convention ``SXBET_{KEY_UPPER}``.
 """
 
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 import httpx
 from loguru import logger
 
+from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
 _SXBET_API_DEFAULT = "https://api.sx.bet"
@@ -28,7 +28,9 @@ class SXBetProvider(DataProvider):
     """DataProvider for sx.bet P2P sports prediction market."""
 
     def __init__(self) -> None:
-        self._base_url = os.getenv("SXBET_API_URL", _SXBET_API_DEFAULT).rstrip("/")
+        self._base_url = provider_config.get(
+            "sxbet", "api_url", _SXBET_API_DEFAULT
+        ).rstrip("/")
 
     @property
     def platform_name(self) -> str:
@@ -109,7 +111,7 @@ class SXBetProvider(DataProvider):
 
     async def get_positions(self) -> list[PositionEntry]:
         """Fetch open maker orders for own wallet (proxy for positions)."""
-        wallet = os.getenv("SXBET_WALLET_ADDRESS", "")
+        wallet = provider_config.get("sxbet", "wallet_address")
         if not wallet:
             return []
         try:
@@ -149,10 +151,12 @@ class SXBetProvider(DataProvider):
     ) -> dict:
         """Place a maker order via EIP-712 signed payload.
 
-        Requires SXBET_PRIVATE_KEY env var or private_key kwarg.
+        private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26e.
         """
-        private_key: str = kwargs.get("private_key", os.getenv("SXBET_PRIVATE_KEY", ""))
+        private_key: str = kwargs.get("private_key", "") or provider_config.get(
+            "sxbet", "private_key"
+        )
         if not private_key:
             logger.warning("SXBetProvider.place_order: no private key — dry-run")
             return {"orderHash": "", "status": "dry_run", "platform": "sxbet"}
