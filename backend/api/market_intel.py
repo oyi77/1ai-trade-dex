@@ -11,9 +11,7 @@ from backend.models.database import (
     Trade,
     WhaleTransaction,
 )
-import logging
-
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 router = APIRouter(tags=["market_intel"])
 
 

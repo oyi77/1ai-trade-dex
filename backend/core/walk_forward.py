@@ -1,6 +1,4 @@
 """Walk-forward backtesting engine with parameter sweep support."""
-
-import logging
 import itertools
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -10,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.backtester import BacktestConfig, BacktestEngine, BacktestResult
 
-logger = logging.getLogger("trading_bot.walkforward")
-
-
+from loguru import logger
 @dataclass
 class WalkForwardWindow:
     """A single in-sample / out-of-sample window."""

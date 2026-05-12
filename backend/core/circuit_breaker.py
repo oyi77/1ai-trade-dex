@@ -1,14 +1,13 @@
 import asyncio
 import functools
-import logging
 import time
 from enum import Enum
 from typing import Any, Callable
 
+from loguru import logger
+
 from backend.config import settings
 from backend.core.errors import CircuitOpenError
-
-logger = logging.getLogger(__name__)
 
 _STATE_VALUES = {0: 0, 1: 1, 2: 2}
 
@@ -145,7 +144,7 @@ class CircuitBreaker:
             state_value = {State.OPEN: 0, State.HALF_OPEN: 1, State.CLOSED: 2}.get(new_state, 0)
             set_circuit_breaker_state(self.name, state_value)
         except Exception:
-            pass
+            logger.exception(f"CircuitBreaker '{self.name}': failed to update metrics state to {new_state}")
 
         if new_state == State.CLOSED:
             self.failure_count = 0

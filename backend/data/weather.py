@@ -1,6 +1,5 @@
 """Weather data fetcher using Open-Meteo Ensemble API and NWS observations."""
 import httpx
-import logging
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -12,8 +11,7 @@ import time
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Circuit breaker for Open-Meteo API calls
 openmeteo_breaker = CircuitBreaker("open_meteo")
 
@@ -403,6 +401,7 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
             try:
                 return abs(datetime.fromisoformat(ts.replace("Z", "+00:00")).hour - 12)
             except Exception:
+                logger.debug("weather metar timestamp parse failed")
                 return 99
 
         chosen = min(features, key=_nearest_noon_hour)

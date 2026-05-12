@@ -1,11 +1,10 @@
 """Knowledge Graph API router.
-
-Wave 10: Knowledge Graph (Part 10) — Provides /api/agi/knowledge-graph/query endpoint.
-"""
+Wave 10: Knowledge Graph (Part 10). Mounted at /api/v1/agi/knowledge-graph via main.py."""
 
 import json
 from typing import Optional
 
+from loguru import logger
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
@@ -13,7 +12,7 @@ from backend.models.database import get_db
 from backend.application.agi.knowledge_graph import KnowledgeGraph
 
 
-kg_router = APIRouter(prefix="/api/agi/knowledge-graph", tags=["agi"])
+kg_router = APIRouter(prefix="/agi/knowledge-graph", tags=["agi"])
 
 
 @kg_router.get("/query")
@@ -47,6 +46,7 @@ async def query_knowledge_graph(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.exception("Knowledge graph query execution failed")
         raise HTTPException(status_code=500, detail=f"Query execution failed: {e}")
 
 

@@ -15,7 +15,6 @@ Data flow:
 
 import asyncio
 import json
-import logging
 import time
 from typing import Optional
 
@@ -24,7 +23,7 @@ import httpx
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 GAMMA_HOST = settings.GAMMA_API_URL
 CLOB_HOST = settings.CLOB_API_URL
@@ -45,6 +44,7 @@ def _extract_clob_token_id(market_data: dict) -> Optional[str]:
             try:
                 clob_token_ids = json.loads(clob_token_ids)
             except Exception:
+                logger.exception("Failed to parse CLOB token IDs JSON")
                 clob_token_ids = []
         if isinstance(clob_token_ids, list) and clob_token_ids:
             return str(clob_token_ids[0])
@@ -337,7 +337,7 @@ class CopyTraderStrategy(BaseStrategy):
             finally:
                 db.close()
         except Exception:
-            pass
+            logger.exception("Failed to retrieve bot bankroll for copy trader")
         return 1000.0  # safe default
 
     async def _fetch_active_condition_ids(self) -> set[str]:

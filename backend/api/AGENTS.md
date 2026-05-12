@@ -52,7 +52,7 @@ FastAPI routers — all HTTP endpoints, WebSocket handlers, SSE streams, middlew
 - **Realtime auth is centralized in `auth.py:authorize_realtime_access()`** — wire all new SSE and WebSocket routes through it. Never add a new realtime endpoint that bypasses auth.
 - **SSE is the canonical realtime channel** — `events/sse_router.py` is the single SSE source. Do not add a second SSE endpoint in `websockets_routes.py` (this was a past bug, now fixed).
 - **Never import from `backend/strategies/` or `backend/core/` directly in routers** — routers call service/core functions, they do not instantiate strategies.
-- All routers use `prefix="/api/v1/..."` — maintain this convention for new routers.
+- All routers use `prefix="/api/v1/..."` — maintain this convention for new routers. REST routes use `/api/v1/`, WebSocket routes use `/ws/`.
 - Request validation models live in `validation.py` — add new Pydantic models there, not inline in route handlers.
 
 ### Adding a New Endpoint

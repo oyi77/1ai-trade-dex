@@ -1,7 +1,6 @@
 """Request timeout middleware for FastAPI."""
 
 import asyncio
-import logging
 import time
 from typing import Callable
 
@@ -11,9 +10,7 @@ from starlette.responses import JSONResponse
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class TimeoutMiddleware(BaseHTTPMiddleware):
     """Middleware to enforce request timeouts on all API endpoints."""
 

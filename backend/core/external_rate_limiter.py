@@ -11,16 +11,15 @@ This module provides an async rate limiter that:
 
 import asyncio
 import functools
-import logging
 import random
 import time
 from typing import Any, Callable
 
+from loguru import logger
+
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.errors import RateLimitError
-
-logger = logging.getLogger(__name__)
 
 
 class ExternalRateLimiter:
@@ -241,6 +240,7 @@ class ExternalRateLimiter:
 
             except Exception:
                 # For non-rate-limit errors, let circuit breaker handle it
+                logger.exception(f"ExternalRateLimiter {self.name}: unexpected error during rate-limited call")
                 raise
 
         # Max attempts exhausted

@@ -1,16 +1,15 @@
 import math
-import logging
 import json
 from typing import Dict, Any
 from sqlalchemy.orm import Session
+
+from loguru import logger
 
 from backend.models.outcome_tables import StrategyOutcome, ParamChange
 from backend.models.database import StrategyConfig
 from backend.core.outcome_repository import record_param_change, mark_param_reverted
 from backend.core.walk_forward import WalkForwardValidator
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 def _cfg(key: str, default=None):
@@ -57,6 +56,7 @@ class SafeParamTuner:
         try:
             params = json.loads(config.params) if isinstance(config.params, str) else config.params
         except Exception:
+            logger.exception(f"[SafeParamTuner] {strategy}: failed to parse strategy config params")
             return {}
 
         if not isinstance(params, dict):

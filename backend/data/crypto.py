@@ -1,8 +1,8 @@
 """Crypto price data fetcher using CoinGecko + Binance APIs."""
 import httpx
-import logging
 import math
 import time
+from loguru import logger
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
@@ -11,8 +11,6 @@ from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.core.retry import retry
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 # Per-exchange circuit breakers for the BTC kline fallback chain
 # Increased tolerance: settings.CB_FAILURE_THRESHOLD failures before opening, settings.CB_RECOVERY_TIMEOUT recovery window

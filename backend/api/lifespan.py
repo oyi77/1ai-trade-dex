@@ -1,16 +1,17 @@
 """Lifespan management for FastAPI application - startup and shutdown handlers."""
 
 import asyncio
-import logging
 import signal
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from loguru import logger
 from fastapi import FastAPI
 from sqlalchemy.exc import OperationalError
 
 from backend.config import settings
+from backend.core.log import configure_logging
 from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
 from backend.core.task_manager import TaskManager
@@ -24,10 +25,7 @@ from backend.core.risk_manager import RiskManager
 from backend.strategies.loader import load_all_strategies
 from backend.core.bankroll_reconciliation import reconcile_bot_state
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
-# from backend.api.graceful_shutdown import GracefulShutdownHandler
 from backend.db.utils import get_db_session
-
-logger = logging.getLogger("trading_bot")
 
 
 def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
@@ -347,36 +345,57 @@ _polymarket_ws_tasks = {"market": None, "user": None}
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI lifespan context manager - handles startup and shutdown."""
+    import time as _time
+    start_time = _time.time()
+    
     global _app_ref
     _app_ref = app
+
+    # Initialize loguru logging (replaces old stdlib logging setup)
+    configure_logging(
+        level=settings.LOG_LEVEL,
+        json_output=settings.LOG_JSON,
+        log_file=settings.LOG_FILE,
+        rotation=settings.LOG_ROTATION,
+        retention=settings.LOG_RETENTION,
+    )
 
     # --- Startup ---
     from datetime import datetime, timezone as _tz
 
+    logger.info("[LIFESPAN] Starting lifespan")
     app.state.start_time = datetime.now(_tz.utc)
     app.state.task_manager = TaskManager()
+    logger.info(f"[LIFESPAN] TaskManager created in {_time.time() - start_time:.2f}s")
 
-    logger.info("All lifespan startup tasks (except TaskManager init) temporarily skipped.")
-
-    # Initialize graceful shutdown handler
-    shutdown_handler = GracefulShutdownHandler(app)
-    shutdown_handler.register_handlers()
-    app.state.shutdown_handler = shutdown_handler
+    if "sqlite" in settings.DATABASE_URL:
+        try:
+            from sqlalchemy import text
+            with get_db_session() as db:
+                db.execute(text("PRAGMA busy_timeout=1000"))
+                logger.info("  SQLite busy_timeout set to 1000ms")
+        except Exception as exc:
+            logger.debug(f"SQLite busy_timeout setup failed: {exc}")
+    logger.info(f"[LIFESPAN] After DB setup in {_time.time() - start_time:.2f}s")
 
     # Set WebSocket task managers
     brain_stream.set_task_manager(app.state.task_manager)
     activity_stream.set_task_manager(app.state.task_manager)
     proposals.set_task_manager(app.state.task_manager)
     livestream.set_task_manager(app.state.task_manager)
+    logger.info(f"[LIFESPAN] WebSocket managers set in {_time.time() - start_time:.2f}s")
 
     logger.info("=" * 60)
     logger.info("BTC 5-MIN TRADING BOT v3.0")
     logger.info("=" * 60)
-    logger.info("Initializing database...")
 
+    _t0 = _time.time()
+    logger.info("Initializing database...")
     from backend.models.database import init_db
     init_db()
+    logger.info(f"  init_db done in {_time.time()-_t0:.1f}s")
 
+    _t1 = _time.time()
     try:
         from alembic.config import Config
         from alembic import command
@@ -389,6 +408,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             _ctx = MigrationContext.configure(_conn)
             _current_rev = _ctx.get_current_revision()
 
+        logger.info(f"  alembic check: rev={_current_rev!r} in {_time.time()-_t1:.1f}s")
         if _current_rev is None:
             command.stamp(_alembic_cfg, "head")
             logger.info("Fresh DB detected — stamped at Alembic head")
@@ -398,73 +418,40 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.warning("Alembic migration check skipped — continuing: %s", exc)
 
-    logger.info("Seeding initial settings...")
+    logger.info("[LIFESPAN] API Lifespan startup completed")
+    logger.info("[LIFESPAN] Lifespan duration: {:.2f}s".format(_time.time() - start_time))
 
-    # Register ModeExecutionContext for each active mode
-    try:
-        for mode in ["paper", "testnet", "live"]:
-            if not settings.is_mode_active(mode) and mode != "paper":
-                continue
-            logger.info(f"Attempting to initialize clob_client for mode: {mode}")
-            try:
-                clob_client = clob_from_settings(mode=mode)
-            except Exception:
-                clob_client = None
-            risk_manager = RiskManager()
-            with get_db_session() as db:
-                logger.info(f"  - Opened DB session for mode: {mode}")
-                configs = db.query(StrategyConfig).filter(
-                    StrategyConfig.mode == mode,
-                    StrategyConfig.enabled == True  # noqa: E712
-                ).all()
+    # Register mode execution contexts for paper/testnet/live.
+    # Paper and testnet don't require live CLOB connections; live gets
+    # a best-effort client (warns on failure rather than crashing startup).
+    from backend.core.mode_context import ModeExecutionContext, register_context
+    from backend.core.risk_manager import RiskManager
+    from backend.models.database import StrategyConfig
 
-                logger.info(f"  - Getting mode strategies for mode: {mode}")
-                mode_strategies = __import__('backend.strategies.registry', fromlist=['STRATEGY_REGISTRY']).STRATEGY_REGISTRY
+    for _mode in ["paper", "testnet", "live"]:
+        from backend.db.utils import get_db_session as _get_db
+        with _get_db() as _db:
+            _configs = {}
+            for _cfg in _db.query(StrategyConfig).all():
+                _configs[_cfg.strategy_name] = _cfg
 
-                # Ensure all enabled strategies for the mode have an entry in StrategyConfig
-                for strategy_name, strategy_cls in mode_strategies.items():
-                    if not any(cfg.strategy_name == strategy_name for cfg in configs):
-                        # Create a default config for newly activated strategy in this mode
-                        default_config = StrategyConfig(
-                            strategy_name=strategy_name,
-                            mode=mode,
-                            enabled=True,  # Default to enabled
-                            risk_tier="moderate",
-                            params=getattr(strategy_cls, "default_params", {}),  # Use default params from strategy
-                            created_at=datetime.now(_tz.utc),
-                            updated_at=datetime.now(_tz.utc),
-                        )
-                        db.add(default_config)
-                        db.commit()
-                        logger.info(f"  - Created default config for strategy '{strategy_name}' in mode '{mode}'")
+            _clob = None
+            if _mode == "live":
+                try:
+                    _clob = clob_from_settings(mode="live")
+                    await _clob.__aenter__()
+                except Exception as _exc:
+                    logger.warning(f"[LIFESPAN] Live CLOB init deferred: {_exc}")
+                    _clob = None
 
-                # Initialize ModeExecutionContext for the mode
-                context = ModeExecutionContext(
-                    mode=mode,
-                    clob_client=clob_client,
-                    risk_manager=risk_manager,
-                )
-                register_context(mode, context)
-                logger.info(f"ModeExecutionContext initialized for {mode.upper()} mode")
-
-        logger.info("")
-
-    except Exception as e:
-        logger.error(f"Failed to initialize mode contexts: {e}", exc_info=True)
-
-    # Load all strategies BEFORE starting scheduler
-    logger.info("Loading trading strategies...")
-    load_all_strategies()
-    logger.info(
-        f"  - Strategies loaded: {', '.join(sorted(__import__('backend.strategies.registry', fromlist=['STRATEGY_REGISTRY']).STRATEGY_REGISTRY.keys()))}"
-    )
-
-    _seed_strategy_configs()
-
-    # Scheduler runs in the bot (orchestrator) process, not the API process.
-    # The bot calls orchestrator.start() → start_scheduler() directly.
-    # API lifespan should NOT start the scheduler to avoid circular imports.
-    logger.info("API Lifespan startup completed.")
+            _ctx = ModeExecutionContext(
+                mode=_mode,
+                clob_client=_clob,
+                risk_manager=RiskManager(),
+                strategy_configs=_configs,
+            )
+            register_context(_mode, _ctx)
+            logger.info(f"[LIFESPAN] Registered mode context for {_mode} (clob={'SET' if _clob else 'NONE'}, strategies={len(_configs)})")
 
     yield
 
@@ -501,7 +488,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     try:
                         await ws.close(code=1001, reason="Server shutting down")
                     except Exception:
-                        pass
+                        logger.exception("Failed to close WebSocket connection during shutdown")
             logger.info(f"   ✓ Closed {ws_count} WebSocket connections")
         except Exception as e:
             logger.debug(f"WebSocket shutdown skipped: {e}")
@@ -598,7 +585,7 @@ async def _startup_wallet_sync():
                     with get_db_session() as reconciler_db:
                         reconciler = WalletReconciler(clob, reconciler_db, mode)
                         result = await reconciler.full_reconciliation()
-                        state = for_update(reconciler_db, reconciler_db.query(BotState)).first()
+                        state = reconciler_db.query(BotState).first()
                         if state:
                             state.last_sync_at = result.last_sync_at
                             reconciler_db.commit()
@@ -616,7 +603,7 @@ async def _startup_wallet_sync():
         logger.warning(f"Wallet sync failed: {e}", exc_info=True)
 
 
-def _seed_strategy_configs() -> None:
+async def _seed_strategy_configs() -> None:
     """Seed default strategy configurations into the database.
 
     API startup must remain available even if the bot process is holding a
@@ -696,4 +683,4 @@ def _seed_strategy_configs() -> None:
                 max_attempts,
                 backoff,
             )
-            time.sleep(backoff)
+            await asyncio.sleep(backoff)

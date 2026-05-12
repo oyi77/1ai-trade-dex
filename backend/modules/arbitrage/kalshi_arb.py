@@ -7,13 +7,12 @@ there is a guaranteed profit equal to (1 - sum_of_prices) minus fees.
 Status: SCAFFOLD — requires KALSHI_API_KEY to activate.
 Seeded as enabled=False until credentials are configured.
 """
-import logging
 from dataclasses import dataclass
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 def _cfg(name, default):

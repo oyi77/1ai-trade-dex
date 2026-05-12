@@ -24,11 +24,9 @@ try:
     from eth_account import Account
 except ImportError:
     Account = None
-    import logging
+    from loguru import logger as _import_logger
 
-    logging.getLogger("trading_bot").warning(
-        "eth_account not available - wallet creation disabled"
-    )
+    _import_logger.warning("eth_account not available - wallet creation disabled")
 from backend.api.auth import router as auth_router
 from backend.api.markets import router as markets_router
 from backend.api.trading import (
@@ -59,9 +57,7 @@ from backend.api.learning import router as learning_router
 
 from backend.api.lifespan import lifespan
 from pydantic import BaseModel
-import logging
-
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 
@@ -80,10 +76,12 @@ from fastapi.responses import JSONResponse  # noqa: E402
 
 @app.exception_handler(Exception)
 async def production_exception_handler(request: Request, exc: Exception):
-    import logging as _logging
-    _logging.getLogger("trading_bot").error(
-        f"Unhandled exception on {request.method} {request.url.path}: {exc}",
-        exc_info=True,
+    from loguru import logger as _err_logger
+    _err_logger.opt(exc_info=True).error(
+        "Unhandled exception on {method} {path}: {exc}",
+        method=request.method,
+        path=request.url.path,
+        exc=exc,
     )
     return JSONResponse(
         status_code=500,
@@ -121,24 +119,19 @@ app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(activities_router, prefix="/api/v1")
 app.include_router(proposals_router, prefix="/api/v1")
-# Backward-compatible proposal routes for older dashboard/tests that still call
-# /api/proposals while the canonical path is /api/v1/proposals.
-app.include_router(proposals_router, prefix="/api")
-app.include_router(admin_router, prefix="/api")
 app.include_router(admin_router, prefix="/api/v1")
-# /api/bot/start alias for tests and older clients (canonical: /api/v1/bot/start)
-app.include_router(system_router, prefix="/api")
+app.include_router(system_router, prefix="/api/v1")
 app.include_router(brain_router, prefix="/api/v1")
 app.include_router(errors_router, prefix="/api/v1")
 app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
-app.include_router(shared_data_router)
+app.include_router(shared_data_router, prefix="/api/v1")
 app.include_router(learning_router, prefix="/api/v1")
 app.include_router(agi_router, prefix="/api/v1/agi")
 
 # Knowledge Graph router for Wave 10
 from backend.api.agi.kg_router import kg_router  # noqa: E402
-app.include_router(kg_router)
+app.include_router(kg_router, prefix="/api/v1")
 
 from backend.api.dashboard import router as dashboard_router  # noqa: E402
 app.include_router(dashboard_router, prefix="/api/v1")
@@ -149,7 +142,7 @@ app.include_router(sync_router, prefix="/api/v1")
 from backend.api.websockets_routes import router as websockets_router  # noqa: E402
 from backend.api.events.sse_router import router as sse_events_router  # noqa: E402
 
-app.include_router(sse_events_router)
+app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)
 
 # Add metrics middleware for automatic tracking
@@ -214,20 +207,6 @@ class FrontendBacktestRequest(BaseModel):
 
 
 # Core endpoints
-@app.get("/api/health")
-async def api_health_alias(db: Session = Depends(get_db)):
-    return await health_check(db)
-
-
-@app.get("/")
-async def root():
-    return {
-        "status": "ok",
-        "message": "BTC 5-Min Trading Bot API v3.0",
-        "simulation_mode": settings.SIMULATION_MODE,
-    }
-
-
 @app.get("/api/v1/health")
 async def health_check(db: Session = Depends(get_db)):
     """Return system health including per-strategy heartbeat and dependency status."""
@@ -316,7 +295,7 @@ async def health_check(db: Session = Depends(get_db)):
         checks["db_pool"] = {"status": "error", "error": str(e)}
         logger.warning(f"Failed to get pool stats: {e}")
 
-    bot_state = for_update(db, db.query(BotState)).first()
+    bot_state = db.query(BotState).first()
     agi_health = {}
     try:
         from backend.core.agi_event_handlers import check_agi_health

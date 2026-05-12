@@ -8,6 +8,8 @@ import os
 import httpx
 from typing import List
 
+from loguru import logger
+
 CITY_REGISTRY = {
     # USA (existing 11 cities)
     "new_york":     {"lat": 40.7128,  "lon": -74.0060,  "country": "US", "tz": "America/New_York"},
@@ -73,4 +75,5 @@ async def fetch_polynimbus_markets(tags: List[str] = ["weather"]) -> List[dict]:
                 return data
             return []
     except Exception:
+        logger.exception("polynimbus market fetch failed")
         return []

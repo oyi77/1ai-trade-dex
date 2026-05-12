@@ -8,7 +8,6 @@ The in-memory ShadowRunner from backend.core.shadow_mode remains available for
 backward compatibility and is marked as deprecated.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -18,7 +17,7 @@ from backend.models.database import SessionLocal, ShadowTrade
 from backend.core.shadow_mode import ShadowPerformance  # Reuse existing dataclass
 from backend.domain.evolution.shadow_metrics import compute_shadow_metrics
 
-logger = logging.getLogger("trading_bot.shadow")
+from loguru import logger
 
 
 class DBSessionShadowRunner:
@@ -46,6 +45,7 @@ class DBSessionShadowRunner:
             try:
                 self.db.close()
             except Exception:
+                logger.exception("Failed to close database session")
                 pass  # Ignore errors when closing
             self.db = None
             self.owns_db = False
@@ -291,6 +291,7 @@ class DBSessionShadowRunner:
             db.query(ShadowTrade).delete()
             db.commit()
         except Exception:
+            logger.exception("Transaction failed, rolling back")
             db.rollback()
             raise
         finally:

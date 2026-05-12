@@ -1,8 +1,6 @@
 """AGI system health check — validates strategy health, data freshness, budget, orphaned positions."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -11,9 +9,7 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 from backend.models.database import SessionLocal, Trade, StrategyConfig, BotState, for_update
 
-logger = logging.getLogger("trading_bot.agi_health")
-
-
+from loguru import logger
 class AGIHealthChecker:
     """Runs periodic system health checks for the AGI autonomy loop."""
 

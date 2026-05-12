@@ -9,7 +9,6 @@ Target: <200ms detection + execution.
 """
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -18,9 +17,7 @@ from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.cross_market_arb")
-
-
+from loguru import logger
 def _cfg(name, default):
     return getattr(settings, name, default)
 
@@ -153,6 +150,7 @@ async def _place_order_retry(clob, token_id: str, side: str, price: float,
         return await breaker.call(_do_order)
 
     except Exception:
+        logger.exception("Cross-market arb order placement failed (retry %d)", retry_count)
         if retry_count < settings.ARB_MAX_RETRIES:
             wait = settings.CROSS_MARKET_ARB_RETRY_WAIT_BASE * (2 ** retry_count)
             await asyncio.sleep(wait)

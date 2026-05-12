@@ -1,15 +1,13 @@
 """RSS news feed aggregation for sentiment signals."""
 import asyncio
 import hashlib
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.feeds")
-
+from loguru import logger
 DEFAULT_FEEDS = [
     "https://feeds.bbci.co.uk/news/rss.xml",
     "https://feeds.reuters.com/reuters/businessNews",

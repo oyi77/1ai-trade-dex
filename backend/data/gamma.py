@@ -6,8 +6,6 @@ to retrieve active markets from the Polymarket Gamma API.
 
 Rate limiting: Uses ExternalRateLimiter with RATE_LIMIT_GAMMA config.
 """
-
-import logging
 import asyncio
 from typing import Any, Optional
 
@@ -17,8 +15,7 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Circuit breaker for transient failures
 gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
 

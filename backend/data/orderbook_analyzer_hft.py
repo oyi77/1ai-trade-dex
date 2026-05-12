@@ -1,13 +1,10 @@
 """Order Book HFT Analyzer — real-time spread and liquidity analysis for HFT."""
 
 import asyncio
-import logging
 from dataclasses import dataclass
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.orderbook_hft")
-
-
+from loguru import logger
 @dataclass
 class OrderBookLevel:
     price: float

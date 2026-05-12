@@ -5,10 +5,9 @@ Each handler returns structured results with error classification:
 - permanent: invalid data that should fail immediately
 """
 
-import logging
 from typing import Dict, Any
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 _TRANSIENT_ERRORS = (ConnectionError, TimeoutError, OSError)
 

@@ -1,12 +1,11 @@
 """Abstract base classes for signal generators."""
 
-import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass

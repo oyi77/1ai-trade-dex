@@ -6,7 +6,6 @@ necromancy analysis, and regime rebalancing.
 """
 
 import json
-import logging
 import statistics
 from datetime import datetime, timezone
 from itertools import cycle
@@ -37,7 +36,7 @@ from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.models.database import GenomeRegistry, EvolutionLog, ShadowTrade
 from backend.models.genome_registry import GenomePerformance
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 SHADOW_TO_PAPER_MIN_TRADES = 20
 SHADOW_TO_PAPER_MIN_WIN_RATE = 0.45
@@ -60,6 +59,7 @@ def _safe_load_json(raw: str | None) -> dict:
         parsed = json.loads(raw)
         return parsed if isinstance(parsed, dict) else {}
     except Exception:
+        logger.exception("Failed to parse JSON genome data")
         return {}
 
 

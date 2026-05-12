@@ -1,12 +1,11 @@
 """Source Performance Auditor — tracks PnL per source, adjusts weights."""
 from __future__ import annotations
-import logging
 from typing import Dict, List
 from sqlalchemy.sql import func
 
 from backend.models.database import SessionLocal, Trade
 
-logger = logging.getLogger("trading_bot.mesh.auditor")
+from loguru import logger
 
 
 def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:

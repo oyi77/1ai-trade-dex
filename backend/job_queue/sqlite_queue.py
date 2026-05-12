@@ -7,11 +7,10 @@ ThreadPoolExecutor to run synchronous SQLAlchemy operations in async context.
 RQ-003: AsyncSQLiteQueue implementation
 """
 import asyncio
-import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-logger = logging.getLogger("trading_bot.sqlite_queue")
+from loguru import logger
 
 
 def _now() -> datetime:

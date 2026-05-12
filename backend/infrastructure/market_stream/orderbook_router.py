@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Awaitable, Optional
@@ -7,7 +6,7 @@ from typing import Callable, Dict, List, Awaitable, Optional
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 @dataclass

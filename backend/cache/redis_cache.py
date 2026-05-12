@@ -4,7 +4,6 @@ Redis-backed cache with circuit-breaker fallback to SQLiteCache.
 RQ-014: Redis cache with circuit-breaker fallback to SQLite
 """
 import json
-import logging
 import time
 from typing import Optional, Any
 
@@ -14,7 +13,7 @@ from redis.exceptions import RedisError
 from backend.job_queue.abstract import AbstractCache
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 class CircuitBreaker:

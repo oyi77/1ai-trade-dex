@@ -8,9 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.database import get_db, Signal, CopyTraderEntry
 from backend.config import settings
-import logging
-
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 router = APIRouter(prefix="/copy", tags=["copy_trading"])
 
 

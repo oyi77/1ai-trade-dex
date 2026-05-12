@@ -9,6 +9,8 @@ from sqlalchemy.orm import sessionmaker, Session
 from backend.core.agi_types import StrategyBlock, MarketRegime
 from backend.models.kg_models import Base, ExperimentRecord
 
+from loguru import logger
+
 
 class ComposedStrategy:
     def __init__(
@@ -160,6 +162,7 @@ class StrategyComposer:
                 pnl=result.total_pnl,
             )
         except Exception:
+            logger.exception("[StrategyComposer] Backtest failed for '%s'", composed.name)
             return BacktestResult(
                 strategy_name=composed.name,
                 regime=regime.value,

@@ -3,15 +3,12 @@
 import asyncio
 import inspect
 import json
-import logging
 from dataclasses import dataclass
 from typing import List
 
 from backend.ai.base import get_ai_client
 
-logger = logging.getLogger("trading_bot.sentiment")
-
-
+from loguru import logger
 @dataclass
 class SentimentResult:
     score: float  # -1.0 (very negative) .. 1.0 (very positive)

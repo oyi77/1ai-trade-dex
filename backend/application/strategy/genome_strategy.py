@@ -1,12 +1,11 @@
 """Genome-backed strategy template used by compiled genome classes."""
 
-import logging
 from typing import Dict, Any, Optional, TypedDict
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
 from backend.domain.genome.models import StrategyGenome
 
-logger = logging.getLogger("trading_bot.genome_compiler")
+from loguru import logger
 
 # Default configuration constants
 DEFAULT_KELLY_FRACTION = 0.25

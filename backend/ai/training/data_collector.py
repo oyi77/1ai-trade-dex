@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json as _json
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -17,8 +16,7 @@ import httpx
 from backend.ai.training.feature_engineering import FeatureEngineer
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.training.data_collector")
-
+from loguru import logger
 GAMMA_HOST = settings.GAMMA_API_URL
 
 
@@ -108,7 +106,8 @@ class DataCollector:
 
 async def collect_main():
     """CLI entry point: ``python -m backend.ai.training.data_collector``."""
-    logging.basicConfig(level=logging.INFO)
+    from backend.core.log import configure_logging
+    configure_logging()
     collector = DataCollector()
     examples = await collector.collect()
     print(f"Collected {len(examples)} training examples")

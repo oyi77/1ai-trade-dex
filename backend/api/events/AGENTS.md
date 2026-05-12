@@ -11,7 +11,7 @@ Server-Sent Events (SSE) router with channel-based filtering. Allows frontend cl
 | File | Description |
 |------|-------------|
 | `__init__.py` | Package marker |
-| `sse_router.py` | Channel-aware SSE router — `/api/events/stream` with parameterized channel subscriptions |
+| `sse_router.py` | Channel-aware SSE router — `/api/v1/events/stream` with parameterized channel subscriptions |
 
 ## Subdirectories
 
@@ -21,7 +21,7 @@ None.
 
 ### Working In This Directory
 - Events are published via `backend.core.event_bus.publish_event()`
-- SSE clients connect to `/api/events/stream?channels=trades,signals,health`
+- SSE clients connect to `/api/v1/events/stream?channels=trades,signals,health`
 - Channel-to-event-type mapping defined in `sse_router.py`
 
 ### Testing Requirements

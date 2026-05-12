@@ -5,7 +5,6 @@ complete BaseStrategy subclasses that can be auto-registered and tested in SHADO
 """
 
 import importlib
-import logging
 import os
 import sys
 import textwrap
@@ -16,14 +15,11 @@ from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal, StrategyConfig
 from backend.models.outcome_tables import StrategyOutcome
 
-logger = logging.getLogger("trading_bot.strategy_composer")
+from loguru import logger
 
 STRATEGY_TEMPLATE = '''"""Auto-generated strategy by AGI Strategy Composer."""
-import logging
+from loguru import logger
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
-
-logger = logging.getLogger(__name__)
-
 
 class {class_name}(BaseStrategy):
     name = "{strategy_name}"

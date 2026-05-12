@@ -13,7 +13,6 @@ Provider selection is controlled via settings:
 """
 
 import httpx
-import logging
 import re
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
@@ -21,7 +20,7 @@ from datetime import datetime, timezone
 
 from backend.config import settings
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 TAVILY_API_URL = settings.TAVILY_API_URL
 EXA_API_URL = settings.EXA_API_URL

@@ -2,7 +2,6 @@
 
 import httpx
 import json
-import logging
 import re
 import time
 from datetime import datetime, timezone
@@ -14,8 +13,7 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.data.market_types import UnifiedMarketView
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 GAMMA_API = settings.GAMMA_API_URL
 
 gamma_breaker = CircuitBreaker("gamma_api")

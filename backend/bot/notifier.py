@@ -5,13 +5,12 @@ All other modules call notify_*() without holding a bot reference.
 """
 
 import asyncio
-import logging
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.bot.telegram_bot import PolyEdgeBot
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 _bot: Optional["PolyEdgeBot"] = None
 
 

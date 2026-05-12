@@ -12,15 +12,12 @@ If SIMMER_API_KEY is missing, calls return empty data structures rather than
 raising — keeping the system resilient when the integration is unconfigured.
 """
 from __future__ import annotations
-
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
 import httpx
 
-logger = logging.getLogger("trading_bot.simmer")
-
+from loguru import logger
 # Default config — read at call time so env changes during runtime are honored
 DEFAULT_SIMMER_API_URL = "https://api.simmer.io"
 DEFAULT_TIMEOUT = 15.0

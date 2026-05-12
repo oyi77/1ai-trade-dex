@@ -1,15 +1,12 @@
 """Experiment tracker — version parameter sets and track which configs produce best results."""
 
 import json
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("trading_bot.experiments")
-
-
+from loguru import logger
 class ExperimentTracker:
     """Track parameter experiments for strategies, compare results, promote winners."""
 

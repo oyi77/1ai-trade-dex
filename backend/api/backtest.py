@@ -8,8 +8,6 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
-import logging
 from backend.models.database import get_db, Signal
 from backend.models.backtest import BacktestRun, BacktestTrade
 from backend.strategies.registry import (
@@ -20,8 +18,7 @@ from backend.strategies.loader import load_all_strategies
 from backend.api.auth import require_admin
 from backend.api.validation import BacktestRunRequest as ValidatedBacktestRunRequest
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 _collection_tasks: Dict[str, Dict[str, Any]] = {}
 
 

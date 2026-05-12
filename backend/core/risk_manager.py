@@ -1,7 +1,6 @@
 """Risk manager — validates trades against position size, exposure, drawdown, and confidence rules."""
 
 import json
-import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -14,9 +13,7 @@ from backend.monitoring.hft_metrics import record_signal
 from backend.monitoring.metrics import increment_risk_rejection
 from sqlalchemy import func, or_
 
-logger = logging.getLogger("trading_bot.risk")
-
-
+from loguru import logger
 def _not_backfill_settlement_source():
     """Include normal settlements and exclude only explicit historical backfills."""
 

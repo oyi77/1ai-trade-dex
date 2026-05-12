@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import logging
 import re
 from typing import List, Tuple
 
@@ -12,7 +11,7 @@ import feedparser
 
 from backend.research.models import ResearchItem
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 _ENTITY_PATTERNS: list[re.Pattern] = [
     re.compile(

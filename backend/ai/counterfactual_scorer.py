@@ -13,7 +13,6 @@ This engine:
 """
 
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -25,8 +24,7 @@ from backend.models.historical_data import MarketOutcome
 from backend.models.outcome_tables import BlockedSignalCounterfactual, CounterfactualInsight
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.counterfactual_scorer")
-
+from loguru import logger
 DIRECTION_UP_ALIASES = {"up", "yes", "UP", "YES", "buy", "BUY"}
 DIRECTION_DOWN_ALIASES = {"down", "no", "DOWN", "NO", "sell", "SELL"}
 

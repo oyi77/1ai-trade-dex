@@ -1,5 +1,4 @@
 """Kalshi weather temperature market fetcher."""
-import logging
 import re
 from datetime import date
 from typing import Dict, List, Optional
@@ -7,8 +6,7 @@ from typing import Dict, List, Optional
 from backend.data.kalshi_client import KalshiClient, kalshi_credentials_present
 from backend.data.weather_markets import WeatherMarket
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 # Kalshi series tickers for high-temperature markets by city
 CITY_SERIES: Dict[str, str] = {
     "nyc": "KXHIGHNY",

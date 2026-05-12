@@ -2,8 +2,6 @@
 Production monitoring and alerting system
 Detects anomalies and sends alerts via Slack/Discord webhooks
 """
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from pathlib import Path
@@ -14,8 +12,7 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.utils.redaction import redact_sensitive
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 webhook_breaker = CircuitBreaker(
     "webhook",
     failure_threshold=settings.CB_FAILURE_THRESHOLD,

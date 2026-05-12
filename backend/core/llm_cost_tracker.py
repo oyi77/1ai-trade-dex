@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from backend.models.database import SessionLocal
 from backend.models.kg_models import LLMCostRecord as LLMCostRecordDB
 
+from loguru import logger
+
 
 DAILY_BUDGET_DEFAULT = 10.0
 COST_LIMITS = {
@@ -75,7 +77,7 @@ class LLMCostTracker:
             db.add(db_record)
             db.commit()
         except Exception:
-            pass
+            logger.exception("[LLMCostTracker] Failed to persist cost record to database")
         finally:
             db.close()
 

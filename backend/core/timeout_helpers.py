@@ -1,13 +1,11 @@
 """Timeout helper utilities for external API calls."""
 
 import asyncio
-import logging
 from typing import Callable, TypeVar, Any
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 T = TypeVar('T')
 
 

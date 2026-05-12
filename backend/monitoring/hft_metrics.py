@@ -2,6 +2,8 @@
 
 from prometheus_client import Counter, Histogram, Gauge
 
+from loguru import logger
+
 hft_latency_ms = Histogram(
     'hft_latency_ms', 'HFT execution latency',
     buckets=[5, 10, 25, 50, 100, 250, 500]
@@ -86,6 +88,7 @@ def get_hft_summary() -> dict:
     try:
         total_signals = int(hft_signals_total._value.get())
     except Exception:
+        logger.exception("[HFT Metrics] Failed to read hft_signals_total counter")
         total_signals = 0
 
     try:
@@ -93,16 +96,19 @@ def get_hft_summary() -> dict:
         total_count = sum(s.get('count', 0) if isinstance(s, dict) else 0 for s in latency_samples) if latency_samples else 0
         avg_latency_ms = (hft_execution_latency_seconds._sum.get() / max(total_count, 1)) * 1000 if total_count > 0 else 0.0
     except Exception:
+        logger.exception("[HFT Metrics] Failed to compute avg_latency_ms")
         avg_latency_ms = 0.0
 
     try:
         arb_count = int(hft_arb_opportunities._value.get())
     except Exception:
+        logger.exception("[HFT Metrics] Failed to read hft_arb_opportunities counter")
         arb_count = 0
 
     try:
         whale_count = int(hft_whale_activities._value.get())
     except Exception:
+        logger.exception("[HFT Metrics] Failed to read hft_whale_activities counter")
         whale_count = 0
 
     try:
@@ -114,6 +120,7 @@ def get_hft_summary() -> dict:
         finally:
             db.close()
     except Exception:
+        logger.exception("[HFT Metrics] Failed to query active strategies count")
         active = 0
 
     return {

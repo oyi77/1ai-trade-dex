@@ -7,16 +7,12 @@ Handles:
 - Old backups (>30 days, keep weekly)
 - Disk space monitoring
 """
-
-import logging
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Any
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class CleanupStats:
     """Track cleanup operation statistics."""
 

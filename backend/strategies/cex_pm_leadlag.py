@@ -12,9 +12,6 @@ Reuses `compute_btc_microstructure()` (multi-exchange aggregation cached 30s).
 Markets discovered via `fetch_active_btc_markets()` which returns structured
 `BtcMarket` objects with 5-min UP/DOWN windows and direct CLOB token IDs.
 """
-
-import logging
-
 import httpx
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
@@ -24,8 +21,7 @@ from backend.data.crypto import compute_btc_microstructure
 from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 PM_MIDPOINT_URL = f"{settings.CLOB_API_URL}/midpoint"
 
 
@@ -163,6 +159,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                         db=ctx.db,
                     )
                 except Exception:
+                    logger.exception("Failed to record CEX-PM lead-lag decision")
                     pass
 
                 if decision == "BUY":

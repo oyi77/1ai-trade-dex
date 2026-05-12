@@ -9,7 +9,6 @@ Target: <100ms detection + front-run.
 """
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -19,7 +18,7 @@ import httpx
 from backend.strategies.base import BaseStrategy, CycleResult, MarketEvent, StrategyContext
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.whale_frontrun")
+from loguru import logger
 
 
 def _cfg(name, default):
@@ -175,6 +174,7 @@ class WhaleFrontrun(BaseStrategy):
                                 if token_id:
                                     token_ids.add(token_id)
                         except Exception:
+                            logger.exception("Failed to parse whale position token IDs")
                             continue
 
                         await asyncio.sleep(0.3)
@@ -434,6 +434,8 @@ class WhaleFrontrun(BaseStrategy):
                 timestamp=time.time(),
             )
         except Exception:
+            logger.exception("Failed to parse whale frontrun signal message")
+            return None
             return None
 
     async def stop(self) -> None:

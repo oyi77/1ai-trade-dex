@@ -2,15 +2,12 @@
 Capture positions before they close/disappear from Polymarket API
 This ensures we don't lose historical trade data
 """
-
-import logging
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from backend.models.database import Trade
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 async def capture_closing_position(trade: Trade, cashPnl: float, db: Session) -> bool:
     """
     Capture position data BEFORE it closes and disappears from API

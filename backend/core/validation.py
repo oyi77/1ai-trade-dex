@@ -1,10 +1,9 @@
-import logging
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 
-from backend.config import settings
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from backend.config import settings
 
 
 class ValidationError(Exception):

@@ -1,14 +1,11 @@
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
 
 from backend.config import settings
 from backend.core.event_bus import subscribe_handler, publish_event
 
-logger = logging.getLogger("trading_bot.agi_events")
-
+from loguru import logger
 USE_EVENT_BUS_HANDLERS = getattr(settings, "USE_EVENT_BUS_HANDLERS", True)
 
 

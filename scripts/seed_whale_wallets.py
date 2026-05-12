@@ -27,7 +27,7 @@ from backend.config import settings
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
-logger = logging.getLogger("seed_whale_wallets")
+from loguru import logger
 
 DB_PATH = Path(__file__).resolve().parent.parent / "tradingbot.db"
 

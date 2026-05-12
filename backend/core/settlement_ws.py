@@ -6,16 +6,13 @@ settle trades immediately instead of waiting for the next settlement cycle.
 """
 
 import asyncio
-import logging
 from typing import Optional, Set
 
 from backend.data.ws_client import CLOBWebSocket, SettlementEvent
 from backend.models.database import SessionLocal, Trade
 from backend.core.task_manager import TaskManager
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class SettlementWebSocketHandler:
     """
     Listens to Polymarket WebSocket for market_resolved events and settles

@@ -7,13 +7,11 @@ This module provides deterministic analysis based on trade data from the databas
 without external API calls or LLM integration (that comes in Wave 4b).
 """
 
-import logging
+from loguru import logger
 from typing import Dict, Any, List
 
 from backend.models import database as db_mod
 from backend.models.database import Trade
-
-logger = logging.getLogger(__name__)
 
 
 class TradeAnalyzer:
@@ -21,7 +19,7 @@ class TradeAnalyzer:
 
     def __init__(self):
         """Initialize the TradeAnalyzer."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self._session_factory = db_mod.SessionLocal
 
     def analyze_trade(self, trade_id: int) -> Dict[str, Any]:

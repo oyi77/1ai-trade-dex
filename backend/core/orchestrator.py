@@ -1,7 +1,6 @@
 """PolyEdge top-level orchestrator — wires together CLOB, Telegram, scheduler, and strategies."""
 
 import asyncio
-import logging
 import signal
 from typing import Optional, Dict
 
@@ -11,9 +10,7 @@ from backend.config import settings
 from backend.data.polymarket_clob import PolymarketCLOB, clob_from_settings, clob_breaker
 from backend.core.risk_profiles import apply_profile, get_active_profile_name
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class Orchestrator:
     """Top-level coordinator. Create one per process."""
 
@@ -426,10 +423,8 @@ async def _auto_execute_weather(signals: list, clob: Optional[PolymarketCLOB]) -
 async def main() -> None:
     """Run the orchestrator until interrupted."""
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-    )
+    from backend.core.log import configure_logging
+    configure_logging()
 
     orchestrator = Orchestrator()
 

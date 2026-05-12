@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 import httpx
+from loguru import logger
 from backend.config import settings
 
 @dataclass
@@ -15,8 +16,7 @@ class PolymeteoResolution:
 async def fetch_polymeteo_resolutions(city: str, start_date: str, end_date: str) -> List[PolymeteoResolution]:
     api_key = getattr(settings, "POLYMETEO_API_KEY", None)
     if not api_key:
-        import logging
-        logging.getLogger(__name__).warning("POLYMETEO_API_KEY not set")
+        logger.warning("POLYMETEO_API_KEY not set")
         return []
     api_url = getattr(settings, "POLYMETEO_API_URL", "https://api.polymeteo.com")
     async with httpx.AsyncClient() as client:

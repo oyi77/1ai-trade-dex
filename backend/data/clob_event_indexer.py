@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from backend.config import settings
-
-import logging
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.clob_event_indexer")
-
+from loguru import logger
 CLOB_CONTRACT = "0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E"
 ORDER_FILLED_TOPIC = "0xd0a08e8c493f9c94f29311604c9de1b4e8c8d4c06bd0c789af57f2d65bfec0f6"
 DEFAULT_BLOCK_CHUNK = 10000

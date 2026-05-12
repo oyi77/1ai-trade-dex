@@ -1,12 +1,7 @@
 """Scheduled job wrappers for AGI-loop components (self-review, research)."""
-
-import logging
-
 from sqlalchemy import distinct
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 def _get_active_market_queries() -> list[str]:
     """Extract market topic queries from recent trades and signals."""
     try:
@@ -22,6 +17,7 @@ def _get_active_market_queries() -> list[str]:
             )
             return [t[0].replace("-", " ").replace("_", " ") for t in tickers if t[0]]
     except Exception:
+        logger.exception("[AGI Jobs] Failed to get active market queries")
         return []
 
 

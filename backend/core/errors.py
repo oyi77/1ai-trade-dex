@@ -5,15 +5,17 @@ This module provides a structured exception hierarchy and a decorator
 for consistent error logging across API routes.
 """
 
-import logging
 import functools
 import inspect
 import traceback
 from typing import Callable, Any
 from fastapi import HTTPException
 
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+_LOG_LEVEL_MAP = {
+    "DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50,
+}
 
 
 # =============================================================================
@@ -154,7 +156,7 @@ class CircuitOpenError(ExternalAPIError):
 
 
 def handle_errors(
-    log_level: int = logging.ERROR,
+    log_level: str = "ERROR",
     reraise: bool = True,
     default_response: Any = None,
 ) -> Callable:
@@ -162,7 +164,7 @@ def handle_errors(
     Decorator for consistent error handling and logging in API routes.
 
     Args:
-        log_level: Logging level to use (default: ERROR)
+        log_level: Loguru level name (default: "ERROR")
         reraise: Whether to re-raise the exception (default: True)
         default_response: Optional default response to return on error
 
@@ -179,20 +181,15 @@ def handle_errors(
             try:
                 return await func(*args, **kwargs)
             except HTTPException:
-                # FastAPI HTTPExceptions should pass through
                 raise
             except Exception as e:
-                # Log the error with context
                 logger.log(
                     log_level,
-                    f"Error in {func.__name__}: {str(e)}",
-                    extra={
-                        "function": func.__name__,
-                        "error_type": type(e).__name__,
-                        "traceback": traceback.format_exc(),
-                    },
+                    "Error in {func_name}: {error}",
+                    func_name=func.__name__,
+                    error=str(e),
+                    error_type=type(e).__name__,
                 )
-
                 if reraise:
                     raise
                 return default_response
@@ -206,19 +203,15 @@ def handle_errors(
             except Exception as e:
                 logger.log(
                     log_level,
-                    f"Error in {func.__name__}: {str(e)}",
-                    extra={
-                        "function": func.__name__,
-                        "error_type": type(e).__name__,
-                        "traceback": traceback.format_exc(),
-                    },
+                    "Error in {func_name}: {error}",
+                    func_name=func.__name__,
+                    error=str(e),
+                    error_type=type(e).__name__,
                 )
-
                 if reraise:
                     raise
                 return default_response
 
-        # Return appropriate wrapper based on whether function is async
         if inspect.iscoroutinefunction(func):
             return async_wrapper
         else:

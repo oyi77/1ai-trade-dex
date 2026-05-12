@@ -1,7 +1,6 @@
 """PolymarketBook DataSource — live order book, Gamma API markets, and whale positions."""
 from __future__ import annotations
 import asyncio
-import logging
 import time
 from datetime import datetime, timezone
 
@@ -10,7 +9,7 @@ import httpx
 from backend.mesh.base import DataSource, DataQuery, RawPacket, Provenance, HealthStatus, SourceState
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.sources.polymarket_book")
+from loguru import logger
 
 GAMMA_URL = settings.GAMMA_API_URL
 
@@ -67,6 +66,9 @@ class PolymarketBook(DataSource):
             resp = await asyncio.wait_for(client.get(f"{GAMMA_URL}/markets?limit=1"), timeout=5.0)
             ok = resp.status_code == 200
         except Exception:
+            logger.exception("Polymarket book health check failed")
+            ok = False
+            logger.exception('polymarket_book: failed to fetch orderbook snapshot')
             ok = False
         total = max(self._success_count + self._fail_count, 1)
         return HealthStatus(

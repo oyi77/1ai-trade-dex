@@ -4,13 +4,12 @@ Broadcasts proposal status changes to all connected WebSocket clients when
 proposals are approved, rejected, or created.
 """
 
-import logging
 import asyncio
 from typing import Dict, Any
 from datetime import datetime, timezone
 from backend.core.task_manager import TaskManager
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _task_manager: TaskManager | None = None
 

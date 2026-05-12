@@ -9,17 +9,16 @@ Supports:
 - Feature 4: Proposal approval/execution → strategy P&L
 """
 
-import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from dataclasses import dataclass
+
+from loguru import logger
 
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from backend.models.database import ActivityLog, Trade, Signal, StrategyProposal
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

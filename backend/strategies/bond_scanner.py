@@ -1,6 +1,4 @@
 """High-probability bond scanner — buy near-certain outcomes for guaranteed-ish returns."""
-
-import logging
 from datetime import datetime, timezone
 
 import httpx
@@ -13,8 +11,7 @@ from backend.strategies.base import (
 )
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.bonds")
-
+from loguru import logger
 GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 
 

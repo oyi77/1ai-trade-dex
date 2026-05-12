@@ -1,11 +1,8 @@
 from __future__ import annotations
-import logging
-
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
 from backend.core.agi_orchestrator import AGIOrchestrator
 
-logger = logging.getLogger("trading_bot.strategies.agi_meta")
-
+from loguru import logger
 class AGIMetaStrategy(BaseStrategy):
     """
     Autonomous Meta-Strategy for AGI Orchestration.

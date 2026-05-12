@@ -1,13 +1,10 @@
 """Auto-research — fetches live market context with strict timeouts."""
 import asyncio
-import logging
 import httpx
 
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.research")
-
-
+from loguru import logger
 async def gather_market_context(market_id: str, query: str) -> str:
     """Fetch live market research context. Returns summary or 'LIVE_DATA_UNAVAILABLE' on failure."""
     try:

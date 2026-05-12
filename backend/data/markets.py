@@ -1,12 +1,10 @@
 """Market data types and fetching - simplified for BTC 5-min focus."""
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass
 
 from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

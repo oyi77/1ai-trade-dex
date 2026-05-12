@@ -1,14 +1,11 @@
 """Trade Archiver — archives settled trades to Parquet for fast analytical queries."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger("trading_bot.parquet_archiver")
-
+from loguru import logger
 DATA_DIR = Path("data/trades")
 
 

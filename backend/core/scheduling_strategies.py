@@ -2,7 +2,6 @@
 
 import asyncio
 import gc
-import logging
 from datetime import datetime, timezone
 from sqlalchemy import func
 
@@ -18,12 +17,7 @@ from backend.core.signals import scan_universe_markets
 from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
-logger = logging.getLogger("trading_bot")
-
-
-
-
-
+from loguru import logger
 def _get_bankroll_for_mode(state, mode: str) -> float:
     """Read the correct bankroll field based on trading mode."""
     if mode == "paper":
@@ -218,7 +212,7 @@ async def _execute_trade(
 
         notify_btc_signal(signal, None)
     except Exception:
-        pass
+        logger.exception(f"[scheduling_strategies] BTC signal notification failed for {getattr(signal, 'market', None)}")
 
     mode_label = f"[{mode.upper()}] " if mode != "paper" else ""
     log_event(
@@ -300,7 +294,7 @@ async def _queue_for_approval(
             },
         )
     except Exception:
-        pass
+        logger.exception(f"[scheduling_strategies] Event broadcast 'signal_found' failed for {getattr(signal, 'market', None)}")
 
     log_event(
         "info",
@@ -387,6 +381,7 @@ async def scan_and_trade_job(mode: str):
                             try:
                                 gs_params = _json.loads(gs_config.params)
                             except Exception:
+                                logger.exception("[scheduling_strategies] Failed to parse general_scanner StrategyConfig params JSON")
                                 pass
 
                         gs_ctx = StrategyContext(
@@ -874,6 +869,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 try:
                     params = json.loads(config.params)
                 except Exception:
+                    logger.exception(f"[scheduling_strategies] Failed to parse StrategyConfig params JSON for {strategy_name}")
                     pass
             effective_mode = mode or config.trading_mode or settings.TRADING_MODE
             return {"params": params, "effective_mode": effective_mode}
@@ -985,7 +981,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     try:
         update_heartbeat(strategy_name)
     except Exception:
-        pass
+        logger.exception(f"[scheduling_strategies] Heartbeat update failed for {strategy_name} after cycle")
 
     gc.collect()
 

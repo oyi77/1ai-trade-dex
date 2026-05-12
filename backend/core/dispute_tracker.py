@@ -4,12 +4,10 @@ Dispute risk tracker for PolyEdge.
 Assesses the likelihood of market resolution disputes based on category,
 resolution criteria clarity, volume at stake, and time pressure.
 """
-import logging
 from dataclasses import dataclass
 from enum import Enum
 
-logger = logging.getLogger("trading_bot.disputes")
-
+from loguru import logger
 # Categories historically associated with higher dispute rates
 _HIGH_DISPUTE_CATEGORIES = {"politics", "legal", "regulatory"}
 

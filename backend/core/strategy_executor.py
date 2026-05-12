@@ -1,7 +1,6 @@
 """Execute strategy decisions — create trades in paper mode, place orders in live mode."""
 
 import asyncio
-import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -19,7 +18,7 @@ from backend.core.paper_slippage import get_simulator
 from sqlalchemy import or_
 from sqlalchemy.exc import OperationalError
 
-logger = logging.getLogger("trading_bot.executor")
+from loguru import logger
 risk_manager = RiskManager()
 
 # Per-asset locks allow concurrent execution across different markets while
@@ -82,7 +81,7 @@ def _record_unexpected_attempt_failure(
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.exception("[strategy_executor] db.rollback failed after TradeAttempt record failure")
         logger.warning(
             "[strategy_executor.execute_decision] failed to record unexpected TradeAttempt failure: %s",
             record_exc,
@@ -1284,7 +1283,7 @@ async def execute_quote(
             try:
                 db.rollback()
             except Exception:
-                pass
+                logger.exception("[execute_quote] db.rollback failed after quote execution failure")
             return None
 
 

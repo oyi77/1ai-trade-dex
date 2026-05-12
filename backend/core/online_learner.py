@@ -1,6 +1,7 @@
 import json
-import logging
 from datetime import datetime, timezone
+
+from loguru import logger
 
 from sqlalchemy.orm import Session
 
@@ -9,8 +10,6 @@ from backend.core.trading_calibration import TradingCalibration
 from backend.core.thompson_sampler import ThompsonSampler
 from backend.core.strategy_health import StrategyHealthMonitor
 from backend.core.safe_param_tuner import SafeParamTuner
-
-logger = logging.getLogger(__name__)
 
 _calibration = TradingCalibration()
 _sampler = ThompsonSampler()
@@ -23,6 +22,7 @@ def _health_enabled() -> bool:
         from backend.config import settings
         return getattr(settings, "AGI_STRATEGY_HEALTH_ENABLED", True)
     except Exception:
+        logger.exception("[OnlineLearner] Failed to read AGI_STRATEGY_HEALTH_ENABLED setting")
         return True
 
 
@@ -52,6 +52,7 @@ def _load_persisted_weights(strategy: str, db: Session) -> None:
             bd.beta = float(cal_data[1])
         logger.info("[OnlineLearner] Loaded persisted weights for '%s'", strategy)
     except Exception as e:
+        logger.exception("[OnlineLearner] Failed to load persisted weights for '%s'", strategy)
         logger.debug("[OnlineLearner] Could not load weights for '%s': %s", strategy, e)
 
 
@@ -87,6 +88,7 @@ def _persist_weights(strategy: str, db: Session) -> None:
             strategy, ts_alpha, ts_beta, cal_data[0], cal_data[1],
         )
     except Exception as e:
+        logger.exception("[OnlineLearner] Failed to persist weights for '%s'", strategy)
         logger.warning("[OnlineLearner] Failed to persist weights for '%s': %s", strategy, e)
 
 
@@ -100,7 +102,7 @@ class OnlineLearner:
                 if ctx and ctx.strategy_name:
                     strategy = ctx.strategy_name
             except Exception:
-                pass
+                logger.exception("[OnlineLearner] Failed to look up trade context for attribution")
         strategy = strategy or "general_scanner"
 
         _load_persisted_weights(strategy, db)
@@ -156,4 +158,5 @@ class OnlineLearner:
                 names = ["btc_oracle", "weather_emos", "copy_trader"]
             return self.get_allocation(names, total_capital=1.0)
         except Exception:
+            logger.exception("[OnlineLearner] Failed to get strategy rankings")
             return {}

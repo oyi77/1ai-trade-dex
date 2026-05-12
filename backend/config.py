@@ -1,13 +1,12 @@
 """Configuration settings for the BTC 5-min trading bot."""
 
 import os
-import logging
 from pydantic import model_validator, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 from typing import Dict, Optional
 from dataclasses import dataclass, field
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from dotenv import load_dotenv
@@ -409,6 +408,10 @@ class ConfigRegistry:
 
     # Logging
     LOG_LEVEL: str = "INFO"
+    LOG_JSON: bool = False
+    LOG_FILE: Optional[str] = None
+    LOG_ROTATION: str = "500 MB"
+    LOG_RETENTION: str = "10 days"
     API_LOG_ALL_CALLS: bool = True
 
     # WebSocket
@@ -1551,9 +1554,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _validate_trading_credentials(self) -> "Settings":
-        import logging
-
-        _logger = logging.getLogger("trading_bot.config")
         for mode in self.active_modes_set:
             if mode == "live":
                 if not self.POLYMARKET_PRIVATE_KEY:
@@ -1568,7 +1568,7 @@ class Settings(BaseSettings):
                         "ACTIVE_MODES contains 'testnet' but POLYMARKET_PRIVATE_KEY is not set."
                     )
                 if not self.POLYMARKET_BUILDER_API_KEY:
-                    _logger.warning(
+                    logger.warning(
                         "ACTIVE_MODES contains 'testnet' without POLYMARKET_BUILDER_API_KEY — "
                         "CLOB order placement will use standard auth (gas fees apply). "
                         "Set Builder credentials for gasless trading via Builder Program."
@@ -1629,12 +1629,11 @@ class Settings(BaseSettings):
         In production (SHADOW_MODE=false, TRADING_MODE=live) an unset key
         leaves all admin endpoints open, which is a security risk.
         """
-        import logging as _logging
         if not self.ADMIN_API_KEY:
             _mode = getattr(self, "TRADING_MODE", "paper")
             _shadow = getattr(self, "SHADOW_MODE", True)
             if not _shadow and str(_mode).lower() == "live":
-                _logging.getLogger("trading_bot.config").critical(
+                logger.critical(
                     "ADMIN_API_KEY is not set — all admin endpoints are UNAUTHENTICATED. "
                     "Set ADMIN_API_KEY in your .env file before running in live mode."
                 )

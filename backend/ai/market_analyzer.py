@@ -1,7 +1,6 @@
 """AI market analyzer with multi-provider routing for prediction markets."""
 
 import json
-import logging
 import re
 import time
 from dataclasses import dataclass
@@ -21,9 +20,7 @@ def _get_router() -> _LLMRouter:
     return _router
 
 
-logger = logging.getLogger("trading_bot.ai")
-
-
+from loguru import logger
 @dataclass
 class AIAnalysis:
     probability: float

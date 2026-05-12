@@ -1,13 +1,10 @@
 """HFT Latency Optimizer — enforces latency budgets and manages cache invalidation."""
 
 import time
-import logging
 from typing import Optional, Any
 from dataclasses import dataclass
 
-logger = logging.getLogger("trading_bot.latency_optimizer")
-
-
+from loguru import logger
 @dataclass
 class LatencyBudget:
     scan_ms: float

@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
+from loguru import logger
 from backend.models.outcome_tables import StrategyOutcome, ParamChange
 
 
@@ -15,8 +16,6 @@ def compute_reward(trade, recent_sharpe: float = 1.0, recent_drawdown_pct: float
 
 def record_outcome(trade, db) -> Optional[StrategyOutcome]:
     """Insert a StrategyOutcome from a settled Trade. Returns None on error or duplicate."""
-    import logging
-    _logger = logging.getLogger(__name__)
     try:
         trade_id = getattr(trade, 'id', None)
         if trade_id is not None:
@@ -48,7 +47,8 @@ def record_outcome(trade, db) -> Optional[StrategyOutcome]:
         db.commit()
         return outcome
     except Exception as e:
-        _logger.warning(f"[outcome_repository] record_outcome failed for trade {getattr(trade, 'id', '?')}: {e}")
+        logger.exception("[outcome_repository] record_outcome failed for trade %s", getattr(trade, 'id', '?'))
+        logger.warning(f"[outcome_repository] record_outcome failed for trade {getattr(trade, 'id', '?')}: {e}")
         db.rollback()
         return None
 
@@ -79,6 +79,7 @@ def get_strategy_stats(strategy: str, market_type: Optional[str], db) -> Optiona
             'avg_pnl': avg_pnl,
         }
     except Exception:
+        logger.exception("[outcome_repository] get_strategy_stats failed for strategy '%s'", strategy)
         return None
 
 
@@ -91,6 +92,7 @@ def get_recent_outcomes(strategy: str, limit: int, db) -> List[StrategyOutcome]:
                 .limit(limit)
                 .all())
     except Exception:
+        logger.exception("[outcome_repository] get_recent_outcomes failed for strategy '%s'", strategy)
         return []
 
 
@@ -111,6 +113,7 @@ def record_param_change(strategy: str, param: str, old_val: float, new_val: floa
         db.commit()
         return change
     except Exception:
+        logger.exception("[outcome_repository] record_param_change failed for strategy '%s'", strategy)
         db.rollback()
         return None
 
@@ -124,13 +127,12 @@ def mark_param_reverted(change_id: int, post_sharpe: float, db) -> None:
             change.post_change_sharpe = post_sharpe
             db.commit()
     except Exception:
+        logger.exception("[outcome_repository] mark_param_reverted failed for change_id %s", change_id)
         db.rollback()
 
 
 def backfill_missing_outcomes(db) -> int:
     """Backfill strategy_outcomes for settled trades missing outcomes. Returns count."""
-    import logging
-    _logger = logging.getLogger(__name__)
     try:
         from backend.models.database import Trade
         existing_ids = set(r[0] for r in db.query(StrategyOutcome.trade_id).all())
@@ -146,8 +148,9 @@ def backfill_missing_outcomes(db) -> int:
             outcome = record_outcome(t, db)
             if outcome:
                 count += 1
-        _logger.info(f"[outcome_repository] Backfilled {count} missing outcomes from {len(missing)} settled trades")
+        logger.info(f"[outcome_repository] Backfilled {count} missing outcomes from {len(missing)} settled trades")
         return count
     except Exception as e:
-        _logger.warning(f"[outcome_repository] backfill failed: {e}")
+        logger.exception("[outcome_repository] backfill failed")
+        logger.warning(f"[outcome_repository] backfill failed: {e}")
         return 0

@@ -10,21 +10,20 @@ Features:
 - Admin-only rollback operations
 """
 
-import logging
 from typing import Optional
 from datetime import datetime, timezone
 
 import backend.models.database as _db_mod
 from backend.models.database import StrategyProposal, StrategyConfig
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class RollbackManager:
     """Manages strategy configuration snapshots and rollback operations."""
 
     def __init__(self):
-        self.logger = logging.getLogger(__name__)
+        self.snapshots: dict = {}
 
     def create_snapshot(self, proposal_id: int, strategy_name: str) -> bool:
         """Create a snapshot of current strategy configuration before proposal execution.

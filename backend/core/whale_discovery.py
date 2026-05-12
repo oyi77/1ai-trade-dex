@@ -1,15 +1,11 @@
 """Dynamic whale discovery — seeds candidates and computes scores."""
-
-import logging
 from typing import List
 
 from backend.models.database import WalletConfig
 from backend.core.whale_scoring import calculate_whale_score
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.whale_discovery")
-
-
+from loguru import logger
 class WhaleDiscovery:
     async def discover(self, min_trades: int = 10) -> List[dict]:
         """

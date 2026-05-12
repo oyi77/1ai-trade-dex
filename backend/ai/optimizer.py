@@ -6,12 +6,9 @@ Analyzes trading performance and suggests parameter adjustments using AI provide
 
 import json
 import re
-import logging
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 class ParameterOptimizer:
     """
     Analyzes trading bot performance and uses AI to suggest parameter improvements.

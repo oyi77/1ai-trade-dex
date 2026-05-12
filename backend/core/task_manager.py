@@ -1,8 +1,7 @@
 import asyncio
-import logging
 from typing import Any, Coroutine, Set
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class TaskManager:

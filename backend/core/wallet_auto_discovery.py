@@ -4,11 +4,10 @@ Auto-discover profitable Polymarket wallets from leaderboard.
 Scans leaderboard, ranks by P&L, and suggests wallets to copy.
 """
 
-import logging
 from typing import List, Dict, Any
 from datetime import datetime, timezone
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 async def scan_leaderboard_for_profitable_wallets(

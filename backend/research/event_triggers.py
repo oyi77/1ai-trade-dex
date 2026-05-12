@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 import re
 import time
 from typing import Any, Dict
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 _debounce: dict[str, float] = {}
 DEBOUNCE_SECONDS = 300  # 5 min per market_ticker

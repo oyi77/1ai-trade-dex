@@ -9,7 +9,7 @@ from backend.models.database import Base, engine, SessionLocal
 from backend.models.kg_models import Base as KGBase
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("agi_e2e_test")
+from loguru import logger
 
 def run_test():
     logger.info("Initializing database schemas...")

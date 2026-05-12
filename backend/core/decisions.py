@@ -5,7 +5,6 @@ Every strategy must call record_decision() for EVERY BUY/SKIP/SELL/HOLD/ERROR
 evaluation — including skips. This creates the audit trail and ML training dataset.
 """
 import json
-import logging
 import time
 from datetime import datetime, timezone
 
@@ -13,8 +12,7 @@ from sqlalchemy.exc import OperationalError
 
 from backend.models.database import DecisionLog
 
-logger = logging.getLogger("trading_bot")
-
+from loguru import logger
 _DB_LOCKED_MAX_RETRIES = 3
 _DB_LOCKED_RETRY_DELAY = 0.5
 
@@ -90,6 +88,7 @@ def record_decision(
             try:
                 db.rollback()
             except Exception:
+                logger.exception("record_decision: failed to rollback after OperationalError")
                 pass
             time.sleep(_DB_LOCKED_RETRY_DELAY)
         except Exception as e:
@@ -100,7 +99,7 @@ def record_decision(
             try:
                 db.rollback()
             except Exception:
-                pass
+                logger.exception("record_decision: rollback failed after unhandled exception")
             return None
     return None
 

@@ -1,8 +1,6 @@
 """Historical data collector — BTC candles, market outcomes, weather snapshots."""
 
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -11,9 +9,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.historical_data")
-
-
+from loguru import logger
 class HistoricalDataCollector:
     """Collects and stores historical market data from live feeds."""
 
@@ -68,7 +64,7 @@ class HistoricalDataCollector:
                 try:
                     db.rollback()
                 except Exception:
-                    pass
+                    logger.exception("[HistoricalDataCollector] Rollback failed after BTC candle collection error")
             return 0
         finally:
             if _owned:
@@ -111,7 +107,7 @@ class HistoricalDataCollector:
                 try:
                     db.rollback()
                 except Exception:
-                    pass
+                    logger.exception("[HistoricalDataCollector] Rollback failed after market outcome collection error")
             return 0
         finally:
             if _owned:
@@ -160,7 +156,7 @@ class HistoricalDataCollector:
                 try:
                     db.rollback()
                 except Exception:
-                    pass
+                    logger.exception("[HistoricalDataCollector] Rollback failed after weather snapshot collection error")
             return 0
         finally:
             if _owned:

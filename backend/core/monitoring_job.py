@@ -1,7 +1,4 @@
 """Background monitoring job for system health checks."""
-
-import logging
-
 from backend.core.alert_manager import AlertManager, get_system_metrics
 from backend.core.circuit_breaker_pybreaker import (
     db_breaker,
@@ -10,9 +7,7 @@ from backend.core.circuit_breaker_pybreaker import (
     redis_breaker
 )
 
-logger = logging.getLogger("monitoring_job")
-
-
+from loguru import logger
 async def run_monitoring_check():
     """
     Run periodic system monitoring checks and trigger alerts.

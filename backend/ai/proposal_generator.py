@@ -11,7 +11,7 @@ This module integrates with:
 - API endpoints for approval workflow
 """
 
-import logging
+from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -20,8 +20,6 @@ from backend.models.database import Trade
 from backend.ai.trade_analyzer import TradeAnalyzer
 from backend.ai.claude import ClaudeAnalyzer
 from backend.config import settings
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -43,7 +41,7 @@ class ProposalGenerator:
 
     def __init__(self):
         """Initialize the ProposalGenerator."""
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.trade_analyzer = TradeAnalyzer()
         self.claude_analyzer = ClaudeAnalyzer()
 

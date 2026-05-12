@@ -1,7 +1,6 @@
 """Signal generator for weather temperature markets using ensemble forecasts."""
 
 import asyncio
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -15,9 +14,7 @@ from backend.data.weather import fetch_ensemble_forecast
 from backend.data.weather_markets import WeatherMarket, fetch_polymarket_weather_markets
 from backend.models.database import Signal
 
-logger = logging.getLogger("trading_bot")
-
-
+from loguru import logger
 @dataclass
 class WeatherTradingSignal:
     """A trading signal for a weather temperature market."""

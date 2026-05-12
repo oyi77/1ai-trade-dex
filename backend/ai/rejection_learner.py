@@ -7,8 +7,6 @@ Example: if strategy X keeps hitting ORDER_TOO_SMALL, this module proposes incre
 kelly_fraction or lowering min_edge threshold so future trades exceed the minimum order size.
 """
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List
 
@@ -16,8 +14,7 @@ from sqlalchemy.sql import func
 
 from backend.models.database import TradeAttempt, StrategyConfig, StrategyProposal
 
-logger = logging.getLogger("trading_bot.rejection_learner")
-
+from loguru import logger
 LOOKBACK_DAYS = 7
 MIN_REJECTIONS = 10
 
@@ -115,6 +112,7 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
                     try:
                         data = _json.loads(data)
                     except Exception:
+                        logger.exception("Failed to parse signal data JSON")
                         data = {}
 
                 if "model_probability" in data:
@@ -278,6 +276,7 @@ def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[s
                         import json as _json
                         current_params = _json.loads(raw_params) if isinstance(raw_params, str) else (raw_params or {})
                     except Exception:
+                        logger.exception("Failed to parse strategy params JSON")
                         current_params = {}
                     proposed = {}
                     for key, multiplier in param_changes.items():

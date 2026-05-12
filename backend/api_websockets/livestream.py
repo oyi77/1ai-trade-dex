@@ -1,11 +1,10 @@
-import logging
 import asyncio
 from typing import Dict, Any, List
 from datetime import datetime, timezone
 from backend.core.signals import TradingSignal
 
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _task_manager = None
 
@@ -342,7 +341,7 @@ async def livestream_broadcaster():
                 try:
                     db = SessionLocal()
                     try:
-                        bot_state = for_update(db, db.query(BotState)).first()
+                        bot_state = db.query(BotState).first()
                         if bot_state:
                             await topic_manager.broadcast("livestream", {
                                 "type": "bot_state",

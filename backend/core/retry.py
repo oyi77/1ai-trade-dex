@@ -3,14 +3,13 @@
 import asyncio
 import functools
 import inspect
-import logging
 import random
 import time
 from typing import Callable
 
-from backend.config import settings
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from backend.config import settings
 
 
 def retry(

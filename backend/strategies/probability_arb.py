@@ -9,7 +9,6 @@ Target: <100ms detection + execution.
 """
 
 import asyncio
-import logging
 import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -18,8 +17,7 @@ from typing import AsyncIterator, Optional
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
-logger = logging.getLogger("trading_bot.prob_arb")
-
+from loguru import logger
 _execution_breaker_active = asyncio.Semaphore(1)
 _pending_arbs: dict[str, dict] = {}
 
@@ -173,6 +171,7 @@ async def _place_order_with_retry(
         return result.order_id if hasattr(result, "order_id") else None
 
     except Exception:
+        logger.exception("Probability arb order placement failed (retry %d)", retry_count)
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
             wait = settings.PROB_ARB_RETRY_BACKOFF_BASE * (settings.PROB_ARB_RETRY_BACKOFF_MULTIPLIER ** retry_count)
             await asyncio.sleep(wait)

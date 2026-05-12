@@ -13,13 +13,12 @@ State transitions:
 - Any → RUNNING (restart)
 """
 
-import logging
 import time
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Dict, Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class ServiceState(str, Enum):

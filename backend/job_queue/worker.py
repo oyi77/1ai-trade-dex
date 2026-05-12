@@ -8,7 +8,6 @@ RQ-006: Worker implementation for job queue processing
 """
 
 import asyncio
-import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Set
@@ -19,7 +18,7 @@ from backend.monitoring.queue_metrics import get_queue_metrics, JobTimer
 from backend.core.task_manager import TaskManager
 
 
-logger = logging.getLogger("trading_bot")
+from loguru import logger
 
 
 class Worker:
@@ -178,6 +177,7 @@ class Worker:
                     finally:
                         _session.close()
                 except Exception:
+                    logger.exception("Failed to update job error in database")
                     pass
                 logger.error(f"Job {job_id} permanent error: {error_msg}")
 
