@@ -50,6 +50,11 @@ from backend.api.errors import router as errors_router
 from backend.api.metrics_endpoint import router as metrics_router
 from backend.api.alerts import router as alerts_router
 
+# Plugin system API routers
+from backend.api.v1.ai_providers import router as ai_providers_router
+from backend.api.v1.data_sources import router as data_sources_router
+from backend.api.v1.market_providers import router as market_providers_router
+
 # HFT shared data service
 from backend.data.shared_service import router as shared_data_router
 from backend.api.learning import router as learning_router
@@ -126,6 +131,11 @@ app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(shared_data_router, prefix="/api/v1")
 app.include_router(learning_router, prefix="/api/v1")
+
+# Plugin system API routes
+app.include_router(ai_providers_router, prefix="/api/v1")
+app.include_router(data_sources_router, prefix="/api/v1")
+app.include_router(market_providers_router, prefix="/api/v1")
 app.include_router(agi_router, prefix="/api/v1/agi")
 
 # Knowledge Graph router for Wave 10
