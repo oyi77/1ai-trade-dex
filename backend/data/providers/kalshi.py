@@ -6,7 +6,30 @@ from typing import List, Optional
 
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.kalshi_client import KalshiClient
-from backend.data.kalshi_markets import fetch_kalshi_markets
+
+
+async def _fetch_kalshi_markets(limit: int = 100) -> list[dict]:
+    """Fetch active Kalshi markets via KalshiClient.get_markets()."""
+    client = KalshiClient()
+    try:
+        data = await client.get_markets(params={"limit": min(limit, 1000), "status": "open"})
+    except Exception as exc:
+        logger.warning("_fetch_kalshi_markets error: {}", exc)
+        return []
+    markets = data.get("markets", [])
+    return [
+        {
+            "market_id": m.get("ticker", ""),
+            "ticker": m.get("ticker", ""),
+            "question": m.get("title", ""),
+            "category": m.get("category", ""),
+            "volume_24h": float(m.get("volume_24h", 0) or 0),
+            "last_price": float(m.get("last_price", 0.5)),
+            "liquidity": 0.0,
+            "created_at": m.get("open_time", ""),
+        }
+        for m in markets
+    ]
 
 class KalshiProvider(DataProvider):
     @property
@@ -15,14 +38,14 @@ class KalshiProvider(DataProvider):
 
     async def health_check(self) -> bool:
         try:
-            markets = await fetch_kalshi_markets(limit=1)
+            markets = await _fetch_kalshi_markets(limit=1)
             return bool(markets)
         except Exception:
             logger.debug("Kalshi health check failed")
             return False
 
     async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:
-        market_dicts = await fetch_kalshi_markets(limit=limit)
+        market_dicts = await _fetch_kalshi_markets(limit=limit)
         if category:
             market_dicts = [m for m in market_dicts if m.get("category") == category]
         return [

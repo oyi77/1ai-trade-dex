@@ -4,23 +4,26 @@
 
 > **Quick Summary**: Extend 1ai-poly-trader (post PR #95 merge) with three interlocking features:
 > (1) N↔N wallet-strategy allocation matrix with weighted order fan-out,
-> (2) full Polymarket + Kalshi conformance to the `MarketProviderPlugin` abstraction introduced in PR #95,
+> (2) full six-platform provider plugin conformance to the `MarketProviderPlugin` abstraction — Polymarket, Kalshi, **predict.fun (Azuro)**, **bookmaker.xyz (Azuro)**, **limitless.exchange**, and **sx.bet**,
 > (3) a copy-trade subsystem with on-chain leaderboard and internal cross-strategy signal sources, governed by per-source `CopyPolicy`.
 >
 > **Deliverables**:
 > - `TradingWallet` ORM + `WalletAllocation` ORM + `CopyPolicy` ORM + Alembic migration
 > - `WalletRouter` service (weighted fan-out, min-size guard, per-wallet circuit breaker)
 > - `PolymarketProvider` + `KalshiProvider` plugin classes conforming to `MarketProviderPlugin`
+> - `AzuroClient` shared GraphQL/Web3 client + `PredictFunProvider` + `BookmakerXyzProvider` plugins
+> - `LimitlessClient` REST/WS client + `LimitlessProvider` plugin
+> - `SXBetClient` REST client + `SXBetProvider` plugin
 > - `CopySource` ABC + `LeaderboardCopySource` + `InternalMirrorSource` implementations
 > - `CopyPolicyEngine` (filter/scale/validate per policy)
 > - Extended `AutoTrader` fan-out hook + `BankrollAllocator` per-wallet cap
 > - REST API extensions: wallet-allocation CRUD, copy-policy CRUD, copy-trade mutations
-> - Frontend: WalletMatrix panel, CopyPolicy panel, ProviderStatus panel
+> - Frontend: WalletMatrix panel, CopyPolicy panel, ProviderStatus panel (6 providers)
 > - 1 Alembic migration covering all new tables
 >
-> **Estimated Effort**: XL
-> **Parallel Execution**: YES — 5 waves
- > **Critical Path**: Task 1 → Task 3 → Task 8 → Task 14 → Task 20 → Task 23 → F1-F4
+> **Estimated Effort**: XL (increased from original — +4 providers adds ~8 tasks)
+> **Parallel Execution**: YES — 6 waves (Wave 2 expanded)
+> **Critical Path**: Task 1 → Task 3 → Task 7a → Task 8 → Task 14 → Task 20 → Task 23 → F1-F4
 
 ---
 
@@ -28,25 +31,31 @@
 
 ### Original Request
 > "help me make a high quality and comprehensive planning to make sure this codebase supports: multi wallet per strategy / multi market provider / copy trades / this new features will be using this PR as the base, so it require this PR to be merged first: https://github.com/oyi77/1ai-poly-trader/pull/95"
+>
+> **Updated scope (post-plan review)**: Add four additional market providers — predict.fun, limitless.exchange, bookmaker.xyz, sx.bet — to the provider plugin system.
 
 ### Interview Summary
 **Key Discussions**:
 - PR #95 (plugin-system-refactoring) must be merged before any work begins; plan assumes its contracts are available
 - `WalletConfig` (line 727 `database.py`) is a watch-list (address + metadata only), NOT a credential store — a new `TradingWallet` ORM is required for credentials
 - N↔N means every strategy can fan-out to multiple wallets proportional to allocation weight; per-wallet min-size guard (~$1 on PM)
-- Provider abstraction = PM + Kalshi conform to `MarketProviderPlugin`; no new providers needed
+- Provider abstraction = PM + Kalshi + predict.fun + bookmaker.xyz + limitless.exchange + sx.bet conform to `MarketProviderPlugin`
 - Copy sources = on-chain PM leaderboard + internal cross-strategy mirroring; each source has its own `CopyPolicy` (size cap, confidence floor, cooldown)
 - Copy-trade signals enter the standard pipeline (risk check → sandbox gate → order fan-out)
 - `BotState.active_wallet` becomes a fallback/view (highest-weight wallet), not a routing source
 
-**Research Findings**:
-- PR #95 introduces: `PluginRegistry`, `MarketProviderPlugin`, `DataSourceRegistry`, `MultiVenueContext`, `SandboxManager`, `NodeRegistry`, `GraphEngine`
-- `StrategyContext` (PR #95 task 59) gains `market_context: MultiVenueContext` and `data_registry: DataSourceRegistry`
-- `OrderExecutor` (PR #95) is refactored to use `market_registry.get(venue)` — wallet fan-out hooks here
-- `AutoTrader.execute_signal(signal, bankroll, current_exposure, mode)` is the primary fan-out intercept point
-- `BankrollAllocator` caps per-strategy at 50%; `crazy` profile = 1% live cap — must remain respected
-- `IMMUTABLE_SAFETY_RULES`: max_total_exposure=0.95, max_single_strategy_pct=0.25, daily_loss_floor=-0.10 — non-bypassable
-- 34 Alembic migrations already exist; new ORMs need one new migration
+**Research Findings — New Providers**:
+- **predict.fun** — Frontend built on **Azuro Protocol** (Gnosis Chain / Polygon). Data via The Graph GraphQL subgraph (`https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`). Order placement requires EVM wallet + smart contract call (no REST trading API). Auth: wallet address + Web3 signing. Requires `web3` Python library + RPC node URL.
+- **bookmaker.xyz** — Also built on **Azuro Protocol** (same on-chain contracts and GraphQL endpoint as predict.fun). Share a single `AzuroClient`; distinguish providers by frontend URL / `platform` tag only.
+- **limitless.exchange** — CLOB + AMM prediction market on **Base blockchain**. REST API: `https://api.limitless.exchange` (Swagger at `/api-v1`). WebSocket: `wss://ws.limitless.exchange`. Public reads (markets, orderbook) need no auth. Trading requires EIP-712 wallet signature.
+- **sx.bet** — Peer-to-peer sports prediction market on **Polygon**. REST API: `https://api.sx.bet`. Public reads (sports, leagues, fixtures, markets, orders) need no auth. Order placement requires EIP-712 wallet signature. Supported operations: maker orders (post) + taker fills.
+
+**Research Findings — Shared Infrastructure**:
+- predict.fun + bookmaker.xyz share all on-chain data — one `AzuroClient` wraps The Graph GraphQL queries and serves both providers
+- limitless.exchange and sx.bet each need a dedicated REST client; both use async `httpx` + EIP-712 signing
+- EIP-712 signing for limitless.exchange and sx.bet: use `eth_account` from `web3` library (already a transitive dependency via `py-clob-client`)
+- New `chain` values for `TradingWallet.chain`: extend enum to `"polymarket" | "kalshi" | "azuro" | "limitless" | "sxbet"`
+- ENV vars required: `AZURO_GRAPH_URL`, `AZURO_RPC_URL`, `AZURO_CHAIN_ID`, `LIMITLESS_API_URL`, `LIMITLESS_WS_URL`, `SXBET_API_URL`, `WEB3_PRIVATE_KEY_AZURO`, `WEB3_PRIVATE_KEY_LIMITLESS`, `WEB3_PRIVATE_KEY_SXBET`
 
 ### Metis Review
 **Identified Gaps** (addressed):
@@ -54,13 +63,17 @@
 - On-chain leader discovery: PM Data API `/data-api/v2/activity?user={addr}` + leaderboard endpoint; polled every 5 min via scheduler
 - Copy latency budget: best-effort async; no hard SLA; `CopyPolicy.max_delay_seconds` soft gate
 - `BotState.active_wallet` migration: additive only — existing field preserved as fallback
+- **[Added v2]** predict.fun + bookmaker.xyz integration: Azuro Protocol only exposes read-only GraphQL; order placement requires Web3 smart contract transactions — `is_read_only` flag on providers that cannot yet execute live orders
+- **[Added v2]** `TradingWallet.chain` must be an enum-like string to support all 5 chains; validated at ORM level; API docs updated to reflect all valid chain values
+- **[Added v2]** The Graph free tier rate-limits at 1000 req/day — `AzuroClient` must implement local TTL cache (default 60 s) and respect `Retry-After`
+- **[Added v2]** `web3` library is already a transitive dependency (`py-clob-client → web3`); no new top-level dependency needed; verify with `pip show web3`
 
 ---
 
 ## Work Objectives
 
 ### Core Objective
-Add N↔N wallet routing, PM+Kalshi provider plugin conformance, and a copy-trade subsystem to the post-PR-#95 codebase without breaking existing single-wallet, single-provider, or manual-trade flows.
+Add N↔N wallet routing, six-platform provider plugin conformance (PM, Kalshi, predict.fun, bookmaker.xyz, limitless.exchange, sx.bet), and a copy-trade subsystem to the post-PR-#95 codebase without breaking existing single-wallet, single-provider, or manual-trade flows.
 
 ### Concrete Deliverables
 - `backend/models/trading_wallet.py` — `TradingWallet`, `WalletAllocation`, `CopyPolicy` ORMs
@@ -68,6 +81,13 @@ Add N↔N wallet routing, PM+Kalshi provider plugin conformance, and a copy-trad
 - `backend/core/wallet_router.py` — `WalletRouter` (weighted fan-out, circuit breaker per wallet)
 - `backend/plugins/providers/polymarket_provider.py` — `PolymarketProvider(MarketProviderPlugin)`
 - `backend/plugins/providers/kalshi_provider.py` — `KalshiProvider(MarketProviderPlugin)`
+- `backend/clients/azuro_client.py` — shared Azuro GraphQL/Web3 client (TTL cache, rate-limit guard)
+- `backend/plugins/providers/predict_fun_provider.py` — `PredictFunProvider(MarketProviderPlugin)` — read+order via Azuro
+- `backend/plugins/providers/bookmaker_xyz_provider.py` — `BookmakerXyzProvider(MarketProviderPlugin)` — thin Azuro wrapper
+- `backend/clients/limitless_client.py` — async REST + WS client for limitless.exchange
+- `backend/plugins/providers/limitless_provider.py` — `LimitlessProvider(MarketProviderPlugin)`
+- `backend/clients/sxbet_client.py` — async REST client for sx.bet
+- `backend/plugins/providers/sxbet_provider.py` — `SXBetProvider(MarketProviderPlugin)`
 - `backend/core/copy_engine.py` — `CopySource` ABC, `LeaderboardCopySource`, `InternalMirrorSource`, `CopyPolicyEngine`
 - `backend/core/auto_trader.py` — extended with `WalletRouter` fan-out
 - `backend/core/bankroll_allocator.py` — extended with per-wallet allocation awareness
@@ -76,9 +96,10 @@ Add N↔N wallet routing, PM+Kalshi provider plugin conformance, and a copy-trad
 - `backend/api/copy_trading.py` — extended with mutation routes (enable/disable source, update policy)
 - `frontend/src/components/WalletMatrix.tsx` — N↔N allocation grid
 - `frontend/src/components/CopyPolicyPanel.tsx` — per-source policy editor
-- `frontend/src/components/ProviderStatusPanel.tsx` — PM+Kalshi live status
+- `frontend/src/components/ProviderStatusPanel.tsx` — live status for all 6 providers
 - `docs/architecture/adr-007-multi-wallet-routing.md`
 - `docs/architecture/adr-008-copy-trade-architecture.md`
+- `docs/architecture/adr-009-extended-provider-integration.md` — Azuro/limitless/sxbet integration decisions
 - `AGENTS.md` updates (root + backend/ + frontend/)
 
 ### Definition of Done
@@ -86,29 +107,35 @@ Add N↔N wallet routing, PM+Kalshi provider plugin conformance, and a copy-trad
 - [ ] `cd frontend && npm run build` exits 0
 - [ ] All new REST endpoints return 200/201 on happy path (verified via curl)
 - [ ] `WalletRouter` fan-out confirmed: 2 wallets × 1 signal → 2 child orders in DB
-- [ ] `PolymarketProvider` and `KalshiProvider` listed in `GET /api/v1/markets/providers`
+- [ ] All 6 providers listed in `GET /api/v1/markets/providers`
 - [ ] Copy signal from leaderboard source creates `CopyTraderEntry` row
 - [ ] `IMMUTABLE_SAFETY_RULES` not modified anywhere in diff
+- [ ] `AzuroClient` health check returns `True` (GraphQL endpoint reachable)
+- [ ] `LimitlessProvider` and `SXBetProvider` listed with `is_read_only=False` (live order capable)
 
 ### Must Have
 - `TradingWallet` stores encrypted private key (Fernet); key never logged
 - Per-wallet allocation weight validated: sum of weights per strategy must not exceed 1.0
 - `WalletRouter` respects `IMMUTABLE_SAFETY_RULES` and `BankrollAllocator` caps per wallet
-- Min-order guard: child order < $1 (PM) or $0.01 (Kalshi) → skip + log, never reject parent signal
+- Min-order guard: child order < $1 (PM/Azuro/Limitless/SXBet) or $0.01 (Kalshi) → skip + log, never reject parent signal
 - `CopyPolicy` gates: size cap, confidence floor, max_delay_seconds, enabled flag
 - All copy signals pass through `SandboxManager.run_strategy_in_sandbox()` validation gate
 - Existing `WalletConfig` (watch-list) untouched — no column drops or renames
 - Existing `BotState.active_wallet` preserved as fallback
+- `AzuroClient` implements TTL cache (default 60 s) — do not hammer The Graph free tier
+- `LimitlessProvider` and `SXBetProvider` must expose `is_read_only=False` to confirm live-order capability
+- `PredictFunProvider` and `BookmakerXyzProvider` must expose `is_read_only=True` until smart-contract order execution is fully implemented and tested
 
 ### Must NOT Have (Guardrails)
 - No modification to `IMMUTABLE_SAFETY_RULES` dict
-- No new market provider beyond PM + Kalshi (abstraction only)
 - No removal of existing single-wallet code paths (additive only)
 - No hardcoded private keys or secrets in source files
 - No direct DB writes bypassing ORM layer
 - No AI slop: no `data`/`result`/`item`/`temp` variable names, no empty except blocks, no `as Any` casts
 - No `WalletConfig` column drops or schema changes (read-only from new code)
 - No synchronous HTTP calls inside signal hot path (use async throughout)
+- No uncached calls to The Graph API in hot paths (must go through `AzuroClient.cached_query()`)
+- No new Python top-level dependencies unless strictly necessary (`web3` and `eth_account` are already available)
 
 ---
 
@@ -141,35 +168,41 @@ Wave 1 (Foundation — start immediately, all independent):
 ├── Task 2:  Alembic migration for all 3 new tables                     [quick]
 ├── Task 3:  CopySource ABC + CopyPolicy dataclass                      [quick]
 ├── Task 4:  ADR-007 multi-wallet routing doc                           [writing]
-└── Task 5:  ADR-008 copy-trade architecture doc                        [writing]
+├── Task 5:  ADR-008 copy-trade architecture doc                        [writing]
+└── Task 5b: ADR-009 extended provider integration doc                  [writing]
 
-Wave 2 (Core services — after Wave 1):
+Wave 2 (Core provider plugins + wallet router — after Wave 1):
 ├── Task 6:  WalletRouter (weighted fan-out, min-size guard, CB)        [unspecified-high]
 ├── Task 7:  PolymarketProvider plugin (MarketProviderPlugin)           [unspecified-high]
-├── Task 8:  KalshiProvider plugin (MarketProviderPlugin)               [unspecified-high]
-├── Task 9:  LeaderboardCopySource implementation                       [unspecified-high]
-└── Task 10: InternalMirrorSource implementation                        [unspecified-high]
+├── Task 7a: KalshiProvider plugin (MarketProviderPlugin)               [unspecified-high]
+├── Task 7b: AzuroClient shared client (GraphQL + TTL cache)            [unspecified-high]
+├── Task 7c: PredictFunProvider plugin (wraps AzuroClient, read-only)   [unspecified-high]
+├── Task 7d: BookmakerXyzProvider plugin (wraps AzuroClient, read-only) [unspecified-high]
+├── Task 7e: LimitlessClient + LimitlessProvider plugin                 [unspecified-high]
+├── Task 7f: SXBetClient + SXBetProvider plugin                         [unspecified-high]
+├── Task 8 → renumbered to 8:  LeaderboardCopySource implementation     [unspecified-high]
+└── Task 9 → renumbered to 9:  InternalMirrorSource implementation      [unspecified-high]
 
 Wave 3 (Integration — after Wave 2):
-├── Task 11: CopyPolicyEngine (filter/scale/validate)                   [unspecified-high]
-├── Task 12: AutoTrader fan-out extension (WalletRouter hook)           [unspecified-high]
-├── Task 13: BankrollAllocator per-wallet cap extension                 [unspecified-high]
-├── Task 14: API — wallet_allocations.py (TradingWallet + WalletAllocation CRUD) [unspecified-high]
-└── Task 15: API — copy_policy.py CRUD + copy_trading.py mutations      [unspecified-high]
+├── Task 10: CopyPolicyEngine (filter/scale/validate)                   [unspecified-high]
+├── Task 11: AutoTrader fan-out extension (WalletRouter hook)           [unspecified-high]
+├── Task 12: BankrollAllocator per-wallet cap extension                 [unspecified-high]
+├── Task 13: API — wallet_allocations.py (TradingWallet + WalletAllocation CRUD) [unspecified-high]
+└── Task 14: API — copy_policy.py CRUD + copy_trading.py mutations      [unspecified-high]
 
 Wave 4 (Tests + Frontend — after Wave 3):
-├── Task 16: pytest — WalletRouter unit tests                           [unspecified-high]
-├── Task 17: pytest — CopyPolicyEngine + CopySource unit tests          [unspecified-high]
-├── Task 18: pytest — PolymarketProvider + KalshiProvider plugin tests  [unspecified-high]
-├── Task 19: pytest — API integration tests (wallet_allocations, copy_policy) [unspecified-high]
-├── Task 20: Frontend — WalletMatrix.tsx                                [visual-engineering]
-├── Task 21: Frontend — CopyPolicyPanel.tsx                             [visual-engineering]
-└── Task 22: Frontend — ProviderStatusPanel.tsx                         [visual-engineering]
+├── Task 15: pytest — WalletRouter unit tests                           [unspecified-high]
+├── Task 16: pytest — CopyPolicyEngine + CopySource unit tests          [unspecified-high]
+├── Task 17: pytest — all 6 provider plugin tests (PM+Kalshi+Azuro+Limitless+SXBet) [unspecified-high]
+├── Task 18: pytest — API integration tests (wallet_allocations, copy_policy) [unspecified-high]
+├── Task 19: Frontend — WalletMatrix.tsx                                [visual-engineering]
+├── Task 20: Frontend — CopyPolicyPanel.tsx                             [visual-engineering]
+└── Task 21: Frontend — ProviderStatusPanel.tsx (6 providers)           [visual-engineering]
 
 Wave 5 (Docs + Cleanup — after Wave 4):
-├── Task 23: Update AGENTS.md (root + backend/ + frontend/)             [writing]
-├── Task 24: Update IMPLEMENTATION_GAPS.md                              [writing]
-└── Task 25: Update .env.example (WALLET_FERNET_KEY + new vars)         [quick]
+├── Task 22: Update AGENTS.md (root + backend/ + frontend/)             [writing]
+├── Task 23: Update IMPLEMENTATION_GAPS.md                              [writing]
+└── Task 24: Update .env.example (WALLET_FERNET_KEY + all new provider vars) [quick]
 
 Wave FINAL (4 parallel reviews):
 ├── Task F1: Plan compliance audit                                       [oracle]
@@ -183,39 +216,45 @@ Wave FINAL (4 parallel reviews):
 
 | Task | Depends On | Blocks |
 |------|-----------|--------|
-| 1 | — | 2, 6, 9, 10, 11, 12, 13, 14, 15 |
+| 1 | — | 2, 6, 8, 9, 10, 11, 12, 13, 14 |
 | 2 | 1 | (migration must run before tests) |
-| 3 | — | 9, 10, 11 |
-| 4 | — | 23 |
-| 5 | — | 23 |
-| 6 | 1 | 12, 16 |
-| 7 | PR#95 merged | 18 |
-| 8 | PR#95 merged | 18 |
-| 9 | 1, 3 | 11, 17 |
-| 10 | 1, 3 | 11, 17 |
-| 11 | 9, 10 | 17, 19 |
-| 12 | 6, 1 | 16, 19 |
-| 13 | 1 | 16, 19 |
-| 14 | 1 | 19 |
-| 15 | 1, 3 | 19 |
-| 16 | 12, 13 | F1-F4 |
-| 17 | 11 | F1-F4 |
-| 18 | 7, 8 | F1-F4 |
-| 19 | 14, 15, 12 | F1-F4 |
+| 3 | — | 8, 9, 10 |
+| 4 | — | 22 |
+| 5 | — | 22 |
+| 5b | — | 22 |
+| 6 | 1 | 11, 15 |
+| 7 | PR#95 merged | 17 |
+| 7a | PR#95 merged | 17 |
+| 7b | — | 7c, 7d, 17 |
+| 7c | 7b | 17 |
+| 7d | 7b | 17 |
+| 7e | PR#95 merged | 17 |
+| 7f | PR#95 merged | 17 |
+| 8 | 1, 3 | 10, 16 |
+| 9 | 1, 3 | 10, 16 |
+| 10 | 8, 9 | 16, 18 |
+| 11 | 6, 1 | 15, 18 |
+| 12 | 1 | 15, 18 |
+| 13 | 1 | 18 |
+| 14 | 1, 3 | 18 |
+| 15 | 11, 12 | F1-F4 |
+| 16 | 10 | F1-F4 |
+| 17 | 7, 7a, 7c, 7d, 7e, 7f | F1-F4 |
+| 18 | 13, 14, 11 | F1-F4 |
+| 19 | 13 | F1-F4 |
 | 20 | 14 | F1-F4 |
-| 21 | 15 | F1-F4 |
-| 22 | 7, 8 | F1-F4 |
-| 23 | 20, 21, 22 | F4 |
-| 24 | 23 | F4 |
-| 25 | 1 | F1 |
+| 21 | 7, 7a, 7c, 7d, 7e, 7f | F1-F4 |
+| 22 | 19, 20, 21 | F4 |
+| 23 | 22 | F4 |
+| 24 | 1 | F1 |
 
 ### Agent Dispatch Summary
 
-- **Wave 1**: 5 agents — T1,T2,T25→`quick`; T4,T5→`writing`; T3→`quick`
-- **Wave 2**: 5 agents — T6–T10→`unspecified-high`
-- **Wave 3**: 5 agents — T11–T15→`unspecified-high`
-- **Wave 4**: 7 agents — T16–T19→`unspecified-high`; T20–T22→`visual-engineering`
-- **Wave 5**: 3 agents — T23,T24→`writing`; T25→`quick`
+- **Wave 1**: 6 agents — T1,T2→`quick`; T4,T5,T5b→`writing`; T3→`quick`
+- **Wave 2**: 10 agents — T6–T9→`unspecified-high`; T7a–T7f→`unspecified-high`
+- **Wave 3**: 5 agents — T10–T14→`unspecified-high`
+- **Wave 4**: 7 agents — T15–T18→`unspecified-high`; T19–T21→`visual-engineering`
+- **Wave 5**: 3 agents — T22,T23→`writing`; T24→`quick`
 - **FINAL**: 4 agents — F1→`oracle`; F2,F3→`unspecified-high`; F4→`deep`
 
 ---
@@ -228,7 +267,7 @@ Wave FINAL (4 parallel reviews):
 
   **What to do**:
   - Create `backend/models/trading_wallet.py` with three SQLAlchemy 2.0 ORM models:
-    1. `TradingWallet`: `id` (int PK), `label` (str unique), `chain` (str: "polymarket"|"kalshi"), `address` (str unique), `encrypted_private_key` (Text, nullable — Fernet encrypted), `api_key` (str nullable — for Kalshi), `encrypted_api_secret` (Text nullable — Fernet encrypted), `enabled` (bool default True), `is_paper` (bool default False), `created_at` (DateTime), `notes` (Text nullable)
+    1. `TradingWallet`: `id` (int PK), `label` (str unique), `chain` (str — one of `"polymarket"`, `"kalshi"`, `"azuro"`, `"limitless"`, `"sxbet"`), `address` (str unique), `encrypted_private_key` (Text, nullable — Fernet encrypted), `api_key` (str nullable — for Kalshi), `encrypted_api_secret` (Text nullable — Fernet encrypted), `enabled` (bool default True), `is_paper` (bool default False), `created_at` (DateTime), `notes` (Text nullable)
     2. `WalletAllocation`: `id` (int PK), `strategy_name` (str FK→`strategy_configs.strategy_name`), `wallet_id` (int FK→`trading_wallets.id`), `weight` (Float, 0.0–1.0), `max_exposure_usd` (Float nullable), `enabled` (bool default True), `updated_at` (DateTime). UniqueConstraint on (`strategy_name`, `wallet_id`).
     3. `CopyPolicy`: `id` (int PK), `source_name` (str unique — e.g. "leaderboard", "internal_mirror"), `enabled` (bool default True), `max_size_usd` (Float default 50.0), `confidence_floor` (Float default 0.6), `max_delay_seconds` (int default 30), `size_scale_factor` (Float default 1.0), `cooldown_seconds` (int default 60), `updated_at` (DateTime)
   - Use `Base` from `backend/models/database.py` (do NOT create a new Base)
@@ -458,6 +497,49 @@ Wave FINAL (4 parallel reviews):
 
 ---
 
+- [ ] 5b. ADR-009 — Extended Provider Integration (Azuro / limitless / sx.bet)
+
+  **What to do**:
+  - Create `docs/architecture/adr-009-extended-provider-integration.md`
+  - Sections: Status (Accepted), Context, Decision, Consequences, Alternatives Considered
+  - **Context**: Four new market providers added beyond the original PM+Kalshi scope: predict.fun and bookmaker.xyz (both built on Azuro Protocol on Gnosis/Polygon); limitless.exchange (CLOB+AMM on Base, REST API); sx.bet (P2P sports on Polygon, REST API).
+  - **Decision points to document**:
+    - predict.fun + bookmaker.xyz share a single `AzuroClient` — no code duplication
+    - Azuro order placement via Web3 smart contract transactions (not a REST API)
+    - `is_read_only=False` for all four providers (live orders supported via Web3 signing)
+    - The Graph free-tier rate limits require mandatory TTL cache in `AzuroClient`
+    - `web3` / `eth_account` libraries are already transitively available — no new top-level deps
+    - `LIMITLESS_PRIVATE_KEY`, `SXBET_PRIVATE_KEY`, `WEB3_PRIVATE_KEY_AZURO` stored encrypted (Fernet, same as `WALLET_FERNET_KEY` pattern)
+  - Include a provider comparison table: name, chain, API type, auth mechanism, order cancellable
+
+  **Recommended Agent Profile**:
+  - **Category**: `writing`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 1)
+  - **Blocks**: Task 22 (AGENTS.md update references this ADR)
+  - **Blocked By**: None
+
+  **Acceptance Criteria**:
+  - [ ] File exists at `docs/architecture/adr-009-extended-provider-integration.md`
+  - [ ] Contains provider comparison table with all 6 providers
+
+  **QA Scenarios**:
+  ```
+  Scenario: ADR file exists and has required sections
+    Tool: Bash
+    Steps:
+      1. grep -E "^## (Status|Context|Decision|Consequences)" docs/architecture/adr-009-extended-provider-integration.md
+    Expected Result: 4 matching lines
+    Evidence: .sisyphus/evidence/task-5b-adr-sections.txt
+  ```
+
+  **Commit**: YES (groups with Tasks 4, 5)
+  - Message: `docs(adr): ADR-009 extended provider integration (Azuro/Limitless/SXBet)`
+
+---
+
 - [ ] 6. WalletRouter — weighted fan-out service
 
   **What to do**:
@@ -638,7 +720,289 @@ Wave FINAL (4 parallel reviews):
 
 ---
 
-- [ ] 9. LeaderboardCopySource implementation
+- [ ] 7b. AzuroClient — shared Azuro Protocol GraphQL client
+
+  **What to do**:
+  - Create `backend/clients/azuro_client.py`
+  - Class `AzuroClient`:
+    - `__init__(self, graph_url: str, rpc_url: str, chain_id: int)` — read from `AZURO_GRAPH_URL`, `AZURO_RPC_URL`, `AZURO_CHAIN_ID`
+    - `async cached_query(self, gql: str, variables: dict = None) -> dict` — send GraphQL POST to `AZURO_GRAPH_URL`; cache result in `_cache: dict[str, (float, dict)]` with TTL from `AZURO_CACHE_TTL_SECONDS` (default 60); respect `Retry-After` header on 429
+    - `async get_markets(self, limit: int = 200, active_only: bool = True) -> list[dict]` — query Azuro subgraph for active events/outcomes; normalize to `MarketEntry`-compatible dict keys: `market_id`, `question`, `current_price`, `volume_24h`, `status`, `platform`
+    - `async health_check(self) -> bool` — introspection query `{__typename}` to verify endpoint reachable
+    - `async sign_and_send_bet(self, private_key: str, condition_id: str, outcome_index: int, amount_wei: int) -> str` — use `web3.py` + `eth_account` to sign and broadcast bet tx to RPC; return tx hash
+  - Default graph URL: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+  - All network I/O via `httpx.AsyncClient`; rate-limit guard: max 1 req/s to The Graph
+
+  **Must NOT do**:
+  - Do NOT call The Graph in hot paths without going through `cached_query()`
+  - Do NOT store private keys in memory beyond the call scope of `sign_and_send_bet()`
+  - Do NOT hardcode chain IDs or graph URLs — all from env vars
+
+  **Recommended Agent Profile**:
+  - **Category**: `unspecified-high`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (standalone client, no PR #95 dependency)
+  - **Parallel Group**: Wave 2 (alongside Tasks 7, 7a, 7e, 7f)
+  - **Blocks**: Tasks 7c, 7d
+  - **Blocked By**: None
+
+  **References**:
+  - `backend/data/polymarket_clob.py` — async httpx client pattern to mirror
+  - `backend/data/kalshi_client.py` — credential + circuit-breaker pattern
+  - Azuro subgraph: `https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai`
+
+  **Acceptance Criteria**:
+  - [ ] `python -c "from backend.clients.azuro_client import AzuroClient; print('OK')"` → OK
+  - [ ] `await AzuroClient().health_check()` returns `True` in integration test with mock httpx
+
+  **QA Scenarios**:
+  ```
+  Scenario: health_check returns True with mock endpoint
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_azuro_client.py::test_health_check_ok -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-7b-health-check.txt
+
+  Scenario: cached_query caches result
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_azuro_client.py::test_cache_ttl -v
+    Expected Result: PASSED — second call within TTL returns cached dict without HTTP
+    Evidence: .sisyphus/evidence/task-7b-cache.txt
+  ```
+
+  **Commit**: YES (standalone)
+  - Message: `feat(clients): AzuroClient shared GraphQL/Web3 client for Azuro Protocol`
+  - Files: `backend/clients/azuro_client.py`, `backend/config.py` (add AZURO_* vars)
+
+---
+
+- [ ] 7c. PredictFunProvider — Azuro-backed MarketProviderPlugin (read + order)
+
+  **What to do**:
+  - Create `backend/plugins/providers/predict_fun_provider.py`
+  - Class `PredictFunProvider` decorated with `@market_registry.plugin`
+  - Wraps `AzuroClient` (injected in `__init__` or constructed from env vars)
+  - Implements `MarketProviderPlugin`:
+    - `get_name(self) -> str` → `"predict_fun"`
+    - `async get_markets(self, query: str = "") -> list[MarketInfo]` — delegate to `AzuroClient.get_markets()`; tag `platform="predict_fun"`
+    - `async get_balance(self, wallet_address: str) -> float` — query ERC-20 balance of LP token on Azuro pool via `AzuroClient` Web3
+    - `async place_order(self, order: OrderRequest) -> OrderResult` — call `AzuroClient.sign_and_send_bet()`; on success return `OrderResult(order_id=tx_hash, status="submitted")`
+    - `async cancel_order(self, order_id: str) -> bool` — Azuro bets are not cancellable; raise `OrderRejectedError("Azuro bets are final")`
+    - `is_paper(self) -> bool`
+    - `is_read_only(self) -> bool` → `False` (supports live orders via smart contract)
+  - Propagate `platform_url = "https://predict.fun"` in manifest
+
+  **Must NOT do**:
+  - Do NOT duplicate `AzuroClient` HTTP logic — delegate 100%
+  - Do NOT implement cancel as no-op — raise the correct error
+
+  **Recommended Agent Profile**:
+  - **Category**: `unspecified-high`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 2, same group as 7d)
+  - **Parallel Group**: Wave 2
+  - **Blocks**: Task 17
+  - **Blocked By**: Task 7b (AzuroClient), PR #95 merged
+
+  **References**:
+  - `backend/plugins/providers/polymarket_provider.py` (Task 7) — structure to mirror
+  - `backend/clients/azuro_client.py` (Task 7b)
+  - `.sisyphus/plans/plugin-system-refactoring.md` tasks 23–32 — `MarketProviderPlugin` interface
+
+  **Acceptance Criteria**:
+  - [ ] `GET /api/v1/markets/providers` includes `{"name": "predict_fun", "is_read_only": false}`
+  - [ ] `cancel_order()` raises `OrderRejectedError`
+
+  **QA Scenarios**:
+  ```
+  Scenario: provider listed with is_read_only=false
+    Tool: Bash (curl)
+    Steps:
+      1. curl -s http://localhost:8100/api/v1/markets/providers | python -m json.tool | grep -A5 predict_fun
+    Expected Result: name=predict_fun, is_read_only=false
+    Evidence: .sisyphus/evidence/task-7c-provider-list.txt
+  ```
+
+  **Commit**: YES (groups with Task 7d)
+  - Message: `feat(plugins): PredictFunProvider via Azuro Protocol`
+  - Files: `backend/plugins/providers/predict_fun_provider.py`
+
+---
+
+- [ ] 7d. BookmakerXyzProvider — Azuro-backed MarketProviderPlugin
+
+  **What to do**:
+  - Create `backend/plugins/providers/bookmaker_xyz_provider.py`
+  - Class `BookmakerXyzProvider` decorated with `@market_registry.plugin`
+  - Identical structure to `PredictFunProvider` but:
+    - `get_name(self) -> str` → `"bookmaker_xyz"`
+    - `platform_url = "https://bookmaker.xyz"`
+    - Sports market tag applied to `MarketInfo.category` field (Azuro sports events)
+  - Shares the same `AzuroClient` instance (pass via DI or registry singleton)
+
+  **Must NOT do**:
+  - Do NOT create a second `AzuroClient` class or copy-paste client code
+  - Do NOT use a different graph URL unless bookmaker.xyz launches its own subgraph
+
+  **Recommended Agent Profile**:
+  - **Category**: `unspecified-high`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (same Wave 2 group as 7c)
+  - **Blocks**: Task 17
+  - **Blocked By**: Task 7b, PR #95 merged
+
+  **References**:
+  - `backend/plugins/providers/predict_fun_provider.py` (Task 7c) — copy structure, change name/URL
+  - `backend/clients/azuro_client.py` (Task 7b)
+
+  **Acceptance Criteria**:
+  - [ ] `GET /api/v1/markets/providers` includes `{"name": "bookmaker_xyz", ...}`
+  - [ ] Both `predict_fun` and `bookmaker_xyz` share `AzuroClient` singleton (confirmed by identity check in test)
+
+  **QA Scenarios**:
+  ```
+  Scenario: provider listed
+    Tool: Bash (curl)
+    Steps:
+      1. curl -s http://localhost:8100/api/v1/markets/providers | python -m json.tool | grep bookmaker_xyz
+    Expected Result: name=bookmaker_xyz in response
+    Evidence: .sisyphus/evidence/task-7d-provider-list.txt
+  ```
+
+  **Commit**: YES (groups with Task 7c)
+  - Message: `feat(plugins): BookmakerXyzProvider via shared AzuroClient`
+  - Files: `backend/plugins/providers/bookmaker_xyz_provider.py`
+
+---
+
+- [ ] 7e. LimitlessClient + LimitlessProvider — limitless.exchange plugin
+
+  **What to do**:
+  - Create `backend/clients/limitless_client.py`:
+    - Class `LimitlessClient`:
+      - Base URL from `LIMITLESS_API_URL` (default `https://api.limitless.exchange`)
+      - `async get_markets(self, limit: int = 100) -> list[dict]` — `GET /markets`
+      - `async get_orderbook(self, market_id: str) -> dict` — `GET /orderbook?marketId={market_id}`
+      - `async get_portfolio(self, wallet_address: str) -> dict` — `GET /portfolio/{wallet_address}`
+      - `async place_order(self, market_id: str, side: str, size: float, price: float, private_key: str) -> dict` — sign EIP-712 order with `eth_account.sign_typed_data()` then `POST /orders`
+      - `async cancel_order(self, order_id: str, private_key: str) -> bool` — `DELETE /orders/{order_id}` with signed payload
+      - `async health_check(self) -> bool` — `GET /markets?limit=1`; return True on 200
+  - Create `backend/plugins/providers/limitless_provider.py`:
+    - Class `LimitlessProvider` decorated with `@market_registry.plugin`
+    - Implements full `MarketProviderPlugin`; pulls `LIMITLESS_PRIVATE_KEY` from env for signing
+    - `get_name(self) -> str` → `"limitless"`
+    - `is_read_only(self) -> bool` → `False`
+
+  **Must NOT do**:
+  - Do NOT log or persist the private key string at any point
+  - Do NOT use synchronous `requests` — use async `httpx` throughout
+
+  **Recommended Agent Profile**:
+  - **Category**: `unspecified-high`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 2, independent of Azuro tasks)
+  - **Blocks**: Task 17, Task 21
+  - **Blocked By**: PR #95 merged
+
+  **References**:
+  - `backend/clients/kalshi_client.py` — async httpx + auth pattern
+  - `backend/plugins/providers/kalshi_provider.py` (Task 7a) — plugin structure
+  - Limitless API Swagger: `https://api.limitless.exchange/api-v1`
+
+  **Acceptance Criteria**:
+  - [ ] `GET /api/v1/markets/providers` includes `{"name": "limitless", "is_read_only": false}`
+  - [ ] `LimitlessClient.health_check()` returns True (mocked in test)
+
+  **QA Scenarios**:
+  ```
+  Scenario: LimitlessProvider listed and healthy
+    Tool: Bash (curl)
+    Steps:
+      1. curl -s http://localhost:8100/api/v1/markets/providers | python -m json.tool | grep limitless
+    Expected Result: name=limitless in response
+    Evidence: .sisyphus/evidence/task-7e-provider-list.txt
+
+  Scenario: LimitlessClient.get_markets returns list
+    Tool: Bash (pytest)
+    Steps:
+      1. pytest backend/tests/test_limitless_client.py::test_get_markets_mock -v
+    Expected Result: PASSED
+    Evidence: .sisyphus/evidence/task-7e-get-markets.txt
+  ```
+
+  **Commit**: YES (standalone)
+  - Message: `feat(clients,plugins): LimitlessClient + LimitlessProvider for limitless.exchange`
+  - Files: `backend/clients/limitless_client.py`, `backend/plugins/providers/limitless_provider.py`, `backend/config.py` (add LIMITLESS_API_URL, LIMITLESS_PRIVATE_KEY)
+
+---
+
+- [ ] 7f. SXBetClient + SXBetProvider — sx.bet plugin
+
+  **What to do**:
+  - Create `backend/clients/sxbet_client.py`:
+    - Class `SXBetClient`:
+      - Base URL from `SXBET_API_URL` (default `https://api.sx.bet`)
+      - `async get_sports(self) -> list[dict]` — `GET /sports`
+      - `async get_markets(self, sport_ids: list[int] = None, limit: int = 200) -> list[dict]` — `GET /markets/active`; normalize to `market_id`, `question`, `current_price`, `volume_24h`, `status`, `platform="sxbet"`
+      - `async get_orderbook(self, market_hash: str) -> dict` — `GET /orders?marketHashes={market_hash}`
+      - `async place_maker_order(self, market_hash: str, outcome_index: int, odds: float, stake_wei: int, private_key: str) -> dict` — build EIP-712 maker order, sign with `eth_account.sign_typed_data()`, `POST /orders/new`
+      - `async fill_taker_order(self, order_hash: str, stake_wei: int, private_key: str) -> dict` — `POST /orders/fill`
+      - `async health_check(self) -> bool` — `GET /sports`; True on 200
+  - Create `backend/plugins/providers/sxbet_provider.py`:
+    - Class `SXBetProvider` decorated with `@market_registry.plugin`
+    - Implements full `MarketProviderPlugin`; pulls `SXBET_PRIVATE_KEY` from env
+    - `get_name(self) -> str` → `"sxbet"`
+    - `is_read_only(self) -> bool` → `False`
+    - `async get_positions(self, wallet_address: str) -> list[Position]` — query Polygon chain for open SX positions via `GET /orders?maker={wallet_address}`
+
+  **Must NOT do**:
+  - Do NOT log private key
+  - Do NOT block event loop with synchronous Web3 calls
+
+  **Recommended Agent Profile**:
+  - **Category**: `unspecified-high`
+  - **Skills**: []
+
+  **Parallelization**:
+  - **Can Run In Parallel**: YES (Wave 2, independent)
+  - **Blocks**: Task 17, Task 21
+  - **Blocked By**: PR #95 merged
+
+  **References**:
+  - `backend/clients/limitless_client.py` (Task 7e) — similar REST + EIP-712 pattern
+  - SX.Bet API docs: `https://docs.sx.bet/`
+
+  **Acceptance Criteria**:
+  - [ ] `GET /api/v1/markets/providers` includes `{"name": "sxbet", "is_read_only": false}`
+  - [ ] `SXBetClient.health_check()` returns True in test
+
+  **QA Scenarios**:
+  ```
+  Scenario: SXBetProvider listed
+    Tool: Bash (curl)
+    Steps:
+      1. curl -s http://localhost:8100/api/v1/markets/providers | python -m json.tool | grep sxbet
+    Expected Result: name=sxbet in response
+    Evidence: .sisyphus/evidence/task-7f-provider-list.txt
+  ```
+
+  **Commit**: YES (standalone)
+  - Message: `feat(clients,plugins): SXBetClient + SXBetProvider for sx.bet`
+  - Files: `backend/clients/sxbet_client.py`, `backend/plugins/providers/sxbet_provider.py`, `backend/config.py` (add SXBET_API_URL, SXBET_PRIVATE_KEY)
+
+---
+
+- [ ] 8. (formerly 7a) KalshiProvider — MarketProviderPlugin implementation
 
   **What to do**:
   - Create `backend/core/copy_sources/leaderboard_source.py`
@@ -1125,17 +1489,26 @@ Wave FINAL (4 parallel reviews):
 
 ---
 
-- [ ] 18. pytest — PolymarketProvider + KalshiProvider plugin tests
+- [ ] 17. pytest — all 6 provider plugin tests (PM + Kalshi + Azuro + Limitless + SXBet)
 
   **What to do**:
   - Create `tests/test_market_providers.py`
-  - Tests (all using `httpx.MockTransport` or `respx` for HTTP mocking):
+  - Tests (all using `httpx.MockTransport` or `respx` for HTTP mocking; Web3 calls mocked with `unittest.mock.patch`):
     - `test_polymarket_provider_get_name`: → `"polymarket"`
     - `test_kalshi_provider_get_name`: → `"kalshi"`
+    - `test_predict_fun_provider_get_name`: → `"predict_fun"`
+    - `test_bookmaker_xyz_provider_get_name`: → `"bookmaker_xyz"`
+    - `test_limitless_provider_get_name`: → `"limitless"`
+    - `test_sxbet_provider_get_name`: → `"sxbet"`
     - `test_polymarket_place_order_success`: mock CLOB → `OrderResult.success=True`
     - `test_kalshi_place_order_success`: mock Kalshi API → `OrderResult.success=True`
-    - `test_polymarket_circuit_breaker`: 5 consecutive failures → circuit opens, 6th call raises `CircuitOpenError`
-    - `test_provider_registry_has_both`: `market_registry.list()` includes `"polymarket"` and `"kalshi"`
+    - `test_limitless_place_order_success`: mock `LimitlessClient.place_order` → `OrderResult.success=True`
+    - `test_sxbet_place_maker_order_success`: mock `SXBetClient.place_maker_order` → success
+    - `test_predict_fun_cancel_raises`: `PredictFunProvider.cancel_order()` → raises `OrderRejectedError`
+    - `test_bookmaker_xyz_cancel_raises`: `BookmakerXyzProvider.cancel_order()` → raises `OrderRejectedError`
+    - `test_azuro_client_cache_ttl`: two sequential `cached_query()` calls → only 1 HTTP request made
+    - `test_polymarket_circuit_breaker`: 5 consecutive failures → circuit opens
+    - `test_all_six_providers_in_registry`: `market_registry.list()` includes all 6 names
 
   **Recommended Agent Profile**:
   - **Category**: `unspecified-high`
@@ -1145,23 +1518,23 @@ Wave FINAL (4 parallel reviews):
   - **Can Run In Parallel**: YES
   - **Parallel Group**: Wave 4
   - **Blocks**: F1-F4
-  - **Blocked By**: Tasks 7, 8
+  - **Blocked By**: Tasks 7, 7a, 7b, 7c, 7d, 7e, 7f
 
   **Acceptance Criteria**:
-  - [ ] `pytest tests/test_market_providers.py -v` → all 6 tests PASSED
+  - [ ] `pytest tests/test_market_providers.py -v` → all 15 tests PASSED
 
   **QA Scenarios**:
   ```
-  Scenario: All provider tests pass
+  Scenario: All 15 provider tests pass
     Tool: Bash
     Steps:
       1. pytest tests/test_market_providers.py -v 2>&1
-    Expected Result: 6 passed, 0 failed
-    Evidence: .sisyphus/evidence/task-18-pytest.txt
+    Expected Result: 15 passed, 0 failed
+    Evidence: .sisyphus/evidence/task-17-pytest.txt
   ```
 
   **Commit**: YES (standalone)
-  - Message: `test(plugins): PolymarketProvider and KalshiProvider unit tests`
+  - Message: `test(plugins): all 6 provider plugin unit tests`
 
 ---
 
@@ -1310,12 +1683,14 @@ Wave FINAL (4 parallel reviews):
 
 ---
 
-- [ ] 22. Frontend — ProviderStatusPanel.tsx
+- [ ] 21. Frontend — ProviderStatusPanel.tsx
 
   **What to do**:
   - Create `frontend/src/components/ProviderStatusPanel.tsx`
   - Fetch from `GET /api/v1/markets/providers` (PR #95 endpoint)
-  - Per-provider card: name, status (connected/error), aggregate balance (from `GET /api/v1/markets/balance`), open positions count
+  - Per-provider card: name, status (connected/error/read-only), aggregate balance (from `GET /api/v1/markets/balance`), open positions count, `is_read_only` badge
+  - Show all 6 providers: polymarket, kalshi, predict_fun, bookmaker_xyz, limitless, sxbet
+  - `is_read_only=true` providers show "Data Only" badge (no trading indicator)
   - Refresh button + auto-poll at `VITE_POLL_NORMAL_MS`
   - Error state: red badge if provider circuit breaker is open
 
@@ -1326,33 +1701,41 @@ Wave FINAL (4 parallel reviews):
   **Parallelization**:
   - **Can Run In Parallel**: YES
   - **Parallel Group**: Wave 4
-  - **Blocks**: Tasks 23, F3
-  - **Blocked By**: Tasks 7, 8
+  - **Blocks**: Tasks 22, F3
+  - **Blocked By**: Tasks 7, 7a, 7b, 7c, 7d, 7e, 7f
 
   **Acceptance Criteria**:
   - [ ] `npm run build` exits 0
-  - [ ] ProviderStatusPanel renders both polymarket and kalshi cards
+  - [ ] ProviderStatusPanel renders all 6 provider cards
 
   **QA Scenarios**:
   ```
-  Scenario: Both providers shown
+  Scenario: All 6 providers shown
     Tool: Playwright
     Steps:
       1. Navigate to http://localhost:5173/dashboard/providers
-      2. Assert cards with text "polymarket" and "kalshi" present
-    Expected Result: both cards render
-    Evidence: .sisyphus/evidence/task-22-providers.png
+      2. Assert cards with text "polymarket", "kalshi", "predict_fun", "bookmaker_xyz", "limitless", "sxbet" present
+    Expected Result: 6 provider cards render
+    Evidence: .sisyphus/evidence/task-21-providers.png
+
+  Scenario: is_read_only badge shown for predict_fun and bookmaker_xyz
+    Tool: Playwright
+    Steps:
+      1. Navigate to http://localhost:5173/dashboard/providers
+      2. Assert "Data Only" badge on predict_fun and bookmaker_xyz cards
+    Expected Result: 2 "Data Only" badges visible
+    Evidence: .sisyphus/evidence/task-21-readonly-badges.png
   ```
 
-  **Commit**: YES (groups with Tasks 20, 21)
-  - Message: `feat(frontend): ProviderStatusPanel live provider status`
+  **Commit**: YES (groups with Tasks 19, 20)
+  - Message: `feat(frontend): ProviderStatusPanel for all 6 market providers`
 
 ---
 
-- [ ] 23. Update AGENTS.md files (root + backend/ + frontend/)
+- [ ] 22. Update AGENTS.md files (root + backend/ + frontend/)
 
   **What to do**:
-  - `AGENTS.md` (root): Add new files to Key Files table: `backend/models/trading_wallet.py`, `backend/core/wallet_router.py`, `backend/core/copy_engine.py`, `backend/core/copy_source.py`, `backend/core/copy_sources/leaderboard_source.py`, `backend/core/copy_sources/internal_mirror_source.py`, `backend/plugins/providers/polymarket_provider.py`, `backend/plugins/providers/kalshi_provider.py`, `backend/api/wallet_allocations.py`, `backend/api/copy_policy.py`. Update ADR list to include ADR-007, ADR-008. Update Common Patterns section with wallet routing and copy-trade notes.
+  - `AGENTS.md` (root): Add new files to Key Files table: `backend/models/trading_wallet.py`, `backend/core/wallet_router.py`, `backend/core/copy_engine.py`, `backend/core/copy_source.py`, `backend/core/copy_sources/leaderboard_source.py`, `backend/core/copy_sources/internal_mirror_source.py`, `backend/clients/azuro_client.py`, `backend/clients/limitless_client.py`, `backend/clients/sxbet_client.py`, `backend/plugins/providers/polymarket_provider.py`, `backend/plugins/providers/kalshi_provider.py`, `backend/plugins/providers/predict_fun_provider.py`, `backend/plugins/providers/bookmaker_xyz_provider.py`, `backend/plugins/providers/limitless_provider.py`, `backend/plugins/providers/sxbet_provider.py`, `backend/api/wallet_allocations.py`, `backend/api/copy_policy.py`. Update ADR list to include ADR-007, ADR-008, ADR-009. Update Common Patterns section with wallet routing and copy-trade notes, and note all 6 supported market provider chains.
   - `backend/AGENTS.md`: Add entries for all new backend files. Update strategy governance section to note copy signals enter standard pipeline.
   - `frontend/AGENTS.md`: Add entries for `WalletMatrix.tsx`, `CopyPolicyPanel.tsx`, `ProviderStatusPanel.tsx`.
 
@@ -1419,7 +1802,7 @@ Wave FINAL (4 parallel reviews):
 
 ---
 
-- [ ] 25. Update .env.example
+- [ ] 24. Update .env.example
 
   **What to do**:
   - Add to `.env.example`:
@@ -1431,8 +1814,25 @@ Wave FINAL (4 parallel reviews):
     KALSHI_API_URL=https://trading-api.kalshi.com/trade-api/v2
     KALSHI_API_KEY=
     KALSHI_API_SECRET=
+
+    # Azuro Protocol (predict.fun + bookmaker.xyz)
+    AZURO_GRAPH_URL=https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai
+    AZURO_RPC_URL=  # e.g. https://rpc.ankr.com/gnosis or https://polygon-rpc.com
+    AZURO_CHAIN_ID=100  # 100=Gnosis, 137=Polygon
+    AZURO_CACHE_TTL_SECONDS=60
+    WEB3_PRIVATE_KEY_AZURO=  # EVM private key for Azuro order placement (Fernet-encrypted in DB; raw key in env for dev only)
+
+    # Limitless Exchange (limitless.exchange)
+    LIMITLESS_API_URL=https://api.limitless.exchange
+    LIMITLESS_WS_URL=wss://ws.limitless.exchange
+    LIMITLESS_PRIVATE_KEY=  # EVM private key for EIP-712 order signing
+
+    # SX.Bet (sx.bet) — Polygon P2P sports market
+    SXBET_API_URL=https://api.sx.bet
+    SXBET_PRIVATE_KEY=  # EVM private key for EIP-712 order signing (Polygon)
     ```
   - Add `cryptography` to `requirements.txt` if not already present (Fernet is from `cryptography` package)
+  - Verify `web3` is in `requirements.txt` (should be transitive via `py-clob-client`); add explicit line if absent
 
   **Recommended Agent Profile**:
   - **Category**: `quick`
@@ -1440,22 +1840,22 @@ Wave FINAL (4 parallel reviews):
 
   **Parallelization**:
   - **Can Run In Parallel**: YES
-  - **Parallel Group**: Wave 5 (with Tasks 23, 24)
+  - **Parallel Group**: Wave 5 (with Tasks 22, 23)
   - **Blocks**: F4
   - **Blocked By**: None (can start at Wave 5 in parallel; no code deps)
 
   **QA Scenarios**:
   ```
-  Scenario: WALLET_FERNET_KEY documented in .env.example
+  Scenario: All new env vars documented
     Tool: Bash
     Steps:
-      1. grep "WALLET_FERNET_KEY" .env.example
-    Expected Result: line found
-    Evidence: .sisyphus/evidence/task-25-env.txt
+      1. grep -E "WALLET_FERNET_KEY|AZURO_GRAPH_URL|LIMITLESS_API_URL|SXBET_API_URL" .env.example
+    Expected Result: all 4 variable names found
+    Evidence: .sisyphus/evidence/task-24-env.txt
   ```
 
-  **Commit**: YES (groups with Tasks 23, 24)
-  - Message: `chore: add WALLET_FERNET_KEY and Kalshi vars to .env.example`
+  **Commit**: YES (groups with Tasks 22, 23)
+  - Message: `chore: add all new provider and wallet vars to .env.example`
 
 ---
 
