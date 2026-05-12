@@ -264,7 +264,7 @@ class CrossMarketArb(BaseStrategy):
                 return markets
         except Exception:
             pass
-        
+
         # Legacy fallback
         if venue == "polymarket":
             return await self._fetch_polymarket_markets()

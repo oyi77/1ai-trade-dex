@@ -71,7 +71,7 @@ def test_disabled_provider_raises():
 def test_list_available_returns_healthy_enabled():
     registry = ProviderRegistry("test_registry")
     registry.register(MockAIProvider)
-    
+
     class DisabledProvider(MockAIProvider):
         @classmethod
         def manifest(cls):
@@ -85,7 +85,7 @@ def test_list_available_returns_healthy_enabled():
 
     registry.register(DisabledProvider)
     registry.set_enabled("disabled_provider", False)
-    
+
     manifests = registry.list_available()
     assert len(manifests) == 1
     assert manifests[0].name == "mock_provider"
@@ -94,7 +94,7 @@ def test_list_available_returns_healthy_enabled():
 def test_get_best_provider_returns_best():
     registry = ProviderRegistry("test_registry")
     registry.register(MockAIProvider)
-    
+
     class BetterProvider(MockAIProvider):
         @classmethod
         def manifest(cls):
@@ -108,11 +108,11 @@ def test_get_best_provider_returns_best():
             )
 
     registry.register(BetterProvider)
-    
+
     provider = registry.get_best_provider(["test"])
     assert provider is not None
     assert provider.manifest().name == "mock_provider"
-    
+
     registry.set_enabled("mock_provider", False)
     registry.set_enabled("better_provider", False)
     provider = registry.get_best_provider(["nonexistent"])

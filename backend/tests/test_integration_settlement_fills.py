@@ -20,7 +20,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=True
         )
-        
+
         assert fill.venue == "polymarket"
         assert fill.filled_size == Decimal("10.5")
         assert fill.is_final is True
@@ -36,7 +36,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=True
         )
-        
+
         assert fill.is_final is True
         assert fill.venue_order_id == "order_456"
 
@@ -51,7 +51,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=False
         )
-        
+
         final = NormalizedFillEvent(
             venue="polymarket",
             venue_order_id="order_1",
@@ -62,7 +62,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=True
         )
-        
+
         assert partial.is_final is False
         assert final.is_final is True
 
@@ -77,7 +77,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=True
         )
-        
+
         Kalshi_event = NormalizedFillEvent(
             venue="kalshi",
             venue_order_id="kalshi_order",
@@ -88,7 +88,7 @@ class TestFillEventProcessing:
             fill_timestamp=datetime.now(timezone.utc).timestamp(),
             is_final=True
         )
-        
+
         assert Polymarket_event.venue == "polymarket"
         assert Kalshi_event.venue == "kalshi"
 
@@ -106,10 +106,10 @@ class TestTradeSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
-        
+
         expected_pnl = (1.0 - 0.60) * 100
         assert pnl == expected_pnl
         assert pnl > 0
@@ -126,10 +126,10 @@ class TestTradeSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
-        
+
         expected_loss = -(0.60 * 100)
         assert pnl == expected_loss
         assert pnl < 0
@@ -146,10 +146,10 @@ class TestTradeSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
-        
+
         expected_pnl = (1.0 - 0.50) * 100
         assert pnl == expected_pnl
         assert pnl > 0
@@ -166,10 +166,10 @@ class TestTradeSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
-        
+
         expected_loss = -(0.50 * 100)
         assert pnl == expected_loss
         assert pnl < 0
@@ -179,10 +179,10 @@ class TestMarketSettlementIntegration:
     def test_token_id_recognition(self):
         valid_token = "1000000000000000000000000000000000000000000000000000000000000000001"
         assert _looks_like_token_id(valid_token) is True
-        
+
         invalid_token = "short"
         assert _looks_like_token_id(invalid_token) is False
-        
+
         slug_like = "BTC-USD-slug"
         assert _looks_like_token_id(slug_like) is False
 
@@ -201,7 +201,7 @@ class TestMarketSettlementIntegration:
         )
         db.add(settlement)
         db.commit()
-        
+
         retrieved = db.query(Trade).filter(Trade.market_ticker == "BTC-USD").first()
         assert retrieved is not None
         assert retrieved.settled is True
@@ -227,13 +227,13 @@ class TestMarketSettlementIntegration:
             size=100,
             source="kalshi"
         )
-        
+
         db.add_all([Polymarket_trade, Kalshi_trade])
         db.commit()
-        
+
         Polymarket_retrieved = db.query(Trade).filter(Trade.source == "polymarket").first()
         Kalshi_retrieved = db.query(Trade).filter(Trade.source == "kalshi").first()
-        
+
         assert Polymarket_retrieved.market_ticker == "BTC-USD"
         assert Kalshi_retrieved.market_ticker == "TEMP-NYC"
 
@@ -262,10 +262,10 @@ class TestPnLSettlementIntegration:
                 is_final=True
             )
         ]
-        
+
         total_size = sum(f.filled_size for f in fills)
         avg_price = sum(f.filled_price * f.filled_size for f in fills) / total_size
-        
+
         assert total_size == Decimal("100")
         assert avg_price == Decimal("0.61")
 
@@ -280,16 +280,16 @@ class TestPnLSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         if trade.pnl > 0:
             trade.result = "win"
         elif trade.pnl < 0:
             trade.result = "loss"
         else:
             trade.result = "push"
-        
+
         db.commit()
-        
+
         retrieved = db.query(Trade).filter_by(id=trade.id).first()
         assert retrieved.result == "win"
 
@@ -306,7 +306,7 @@ class TestPnLSettlementIntegration:
         )
         db.add(trade)
         db.commit()
-        
+
         retrieved = db.query(Trade).filter_by(id=trade.id).first()
         assert retrieved.settlement_time is not None
         assert retrieved.result == "win"

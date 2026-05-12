@@ -31,7 +31,7 @@ class TestDataSourceRegistryIntegration:
     def test_register_and_retrieve_mock_source(self):
         """Test mock source registration and retrieval."""
         self.registry.register(MockDataSource)
-        
+
         source = self.registry.get("mock")
         assert source is not None
         assert isinstance(source, MockDataSource)
@@ -40,13 +40,13 @@ class TestDataSourceRegistryIntegration:
     def test_get_for_type_filters_by_datatype(self):
         """Test filtering sources by data type."""
         self.registry.register(MockDataSource)
-        
+
         price_sources = self.registry.get_for_type(DataType.PRICE)
         assert len(price_sources) >= 1
-        
+
         orderbook_sources = self.registry.get_for_type(DataType.ORDERBOOK)
         assert len(orderbook_sources) >= 1
-        
+
         unsupported_sources = self.registry.get_for_type(DataType.WEATHER)
         assert len(unsupported_sources) >= 1
 
@@ -54,10 +54,10 @@ class TestDataSourceRegistryIntegration:
         """Test that enabling/disabling sources updates registry state."""
         self.registry.register(MockDataSource)
         assert self.registry._enabled["mock"] is True
-        
+
         self.registry.set_enabled("mock", False)
         assert self.registry._enabled["mock"] is False
-        
+
         self.registry.set_enabled("mock", True)
         assert self.registry._enabled["mock"] is True
 
@@ -72,7 +72,7 @@ class TestDataAggregatorIntegration:
         """Test fetching from a single registered source."""
         async def fetch_price():
             return {"price": 100.50, "timestamp": datetime.now(timezone.utc).timestamp()}
-        
+
         source = AggSource(
             name="test_source",
             fetch_fn=fetch_price,
@@ -80,7 +80,7 @@ class TestDataAggregatorIntegration:
             enabled=True
         )
         self.aggregator.register_source("price_feed", source)
-        
+
         import asyncio
         result = asyncio.run(self.aggregator.fetch("price_feed"))
         assert isinstance(result, SourceResult)
@@ -91,15 +91,15 @@ class TestDataAggregatorIntegration:
         """Test that higher priority sources are tried first."""
         async def fetch_priority_0():
             return {"price": 100.0, "source": "high_priority"}
-        
+
         async def fetch_priority_1():
             return {"price": 101.0, "source": "low_priority"}
-        
-        self.aggregator.register_source("price_feed", 
+
+        self.aggregator.register_source("price_feed",
             AggSource("high_priority", fetch_priority_0, priority=0))
         self.aggregator.register_source("price_feed",
             AggSource("low_priority", fetch_priority_1, priority=1))
-        
+
         import asyncio
         result = asyncio.run(self.aggregator.fetch("price_feed"))
         assert result.source == "high_priority"
@@ -108,20 +108,20 @@ class TestDataAggregatorIntegration:
     def test_fallback_to_lower_priority_on_failure(self):
         """Test fallback to lower priority source when higher fails."""
         call_count = {"primary": 0, "secondary": 0}
-        
+
         async def fetch_fails():
             call_count["primary"] += 1
             raise Exception("Source unavailable")
-        
+
         async def fetch_succeeds():
             call_count["secondary"] += 1
             return {"price": 99.50}
-        
+
         self.aggregator.register_source("price_feed",
             AggSource("primary", fetch_fails, priority=0))
         self.aggregator.register_source("price_feed",
             AggSource("secondary", fetch_succeeds, priority=1))
-        
+
         import asyncio
         result = asyncio.run(self.aggregator.fetch("price_feed"))
         assert call_count["primary"] == 1
@@ -133,13 +133,13 @@ class TestDataAggregatorIntegration:
         """Test that mock source provides data to strategy context."""
         registry = DataSourceRegistry("strategy_test")
         registry.register(MockDataSource)
-        
+
         source = registry.get("mock")
         data = await source.fetch(DataType.PRICE, {"market": "BTC-USD"})
-        
+
         assert "price" in data or "data" in data
         assert isinstance(data, dict)
-        
+
         registry.set_enabled("mock", False)
         assert registry._enabled["mock"] is False
 
@@ -159,20 +159,20 @@ class TestStrategyDataFlowIntegration:
         registry.register(MockDataSource)
         price_sources = registry.get_for_type(DataType.PRICE)
         assert len(price_sources) >= 1
-        
+
         orderbook_sources = registry.get_for_type(DataType.ORDERBOOK)
         assert len(orderbook_sources) >= 1
 
     def test_strategy_receives_data_from_multiple_sources(self):
         """Test strategy integration with multi-source aggregator."""
         aggregator = DataAggregator(cache_ttl=30.0)
-        
+
         async def fetch_data():
             return {"price": 50000.0, "volume": 1000}
-        
+
         aggregator.register_source("btc_price",
             AggSource("mock_provider", fetch_data, priority=0))
-        
+
         import asyncio
         result = asyncio.run(aggregator.fetch("btc_price"))
         assert result.data["price"] == 50000.0
@@ -186,6 +186,6 @@ class TestStrategyDataFlowIntegration:
         source = registry.get("mock")
         data1 = await source.fetch(DataType.CANDLES, {"market": "BTC-USD", "interval": "5m"})
         data2 = await source.fetch(DataType.CANDLES, {"market": "BTC-USD", "interval": "5m"})
-        
+
         assert data1 is not None
         assert data2 is not None

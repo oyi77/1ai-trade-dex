@@ -201,7 +201,7 @@ def test_registry_singleton():
 
 def test_reset_registry():
     ExchangeFeedRegistry.reset()
-    
+
     class TestFeed(BaseExchangeFeed):
         @classmethod
         def manifest(cls):

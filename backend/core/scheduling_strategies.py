@@ -8,8 +8,6 @@ from sqlalchemy import func
 from backend.config import settings
 from backend.models.database import (
     Trade,
-from backend.core.heartbeat import update_heartbeat
-
     BotState,
     Signal,
     PendingApproval,
@@ -21,6 +19,8 @@ from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
 from loguru import logger
+
+
 def _get_bankroll_for_mode(state, mode: str) -> float:
     """Read the correct bankroll field based on trading mode."""
     if mode == "paper":

@@ -71,20 +71,20 @@ def test_register_backend_missing_env_vars():
 
 def test_record_metric_broadcasts_to_all():
     registry.register(MockBackend)
-    
+
     with patch.object(MockBackend, "increment_counter", new_callable=AsyncMock) as mock_method:
         registry.record_metric("counter", "test_metric", 10)
-    
+
     assert mock_method.called
 
 
 def test_disabled_backend_skipped():
     registry.register(MockBackend)
     registry._enabled["mock_backend"] = False
-    
+
     with patch.object(MockBackend, "increment_counter", new_callable=AsyncMock) as mock_method:
         registry.record_metric("counter", "test_metric", 10)
-    
+
     assert not mock_method.called
 
 
@@ -116,7 +116,7 @@ def test_auto_discover():
     os.environ["DATADOG_API_KEY"] = "test-key"
     os.environ["AWS_ACCESS_KEY_ID"] = "test"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
-    
+
     registry.reset()
     registry.auto_discover("backend.monitoring.backends")
     backends = registry.list_available()
@@ -126,9 +126,9 @@ def test_auto_discover():
 
 def test_health_check_all():
     import asyncio
-    
+
     async def async_test():
         result = await registry.health_check_all()
         assert isinstance(result, dict)
-    
+
     asyncio.run(async_test())

@@ -80,10 +80,10 @@ class ProviderRegistry(PluginRegistry[ProviderManifest, BaseAIProvider]):
         if name not in self._plugins:
             from backend.core.plugin_errors import PluginNotFound
             raise PluginNotFound(f"AI provider '{name}' not found")
-        
+
         self._enabled[name] = enabled
         logger.info(f"AI provider '{name}' {'enabled' if enabled else 'disabled'}")
-        
+
         async def _set_enabled_async():
             async with botstate_mutex:
                 session_factory = self._get_session_factory()
