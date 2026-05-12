@@ -847,3 +847,150 @@ export async function moveKanbanCard(experimentId: number, targetStatus: string,
   const { data } = await adminApi.post(`/agi/kanban/${experimentId}/move`, { target_status: targetStatus, reason: reason ?? null })
   return data
 }
+
+// ── Plugin System ────────────────────────────────────────────────────────────
+
+export interface PluginStatus {
+  name: string
+  enabled: boolean
+  version: string
+  last_updated: string
+  status: 'healthy' | 'warning' | 'error'
+  error_message?: string
+  metrics?: {
+    requests_total: number
+    requests_success: number
+    requests_failed: number
+    avg_latency_ms: number
+  }
+}
+
+export interface PluginStatusResponse {
+  plugins: PluginStatus[]
+}
+
+export async function fetchPluginStatus(): Promise<PluginStatusResponse> {
+  const { data } = await api.get<PluginStatusResponse>('/agi/plugins/status')
+  return data
+}
+
+// ── Venue Monitor ────────────────────────────────────────────────────────────
+
+export interface VenueMetric {
+  name: string
+  value: number | string
+  trend?: 'up' | 'down' | 'neutral'
+  change?: number
+}
+
+export interface VenueStatus {
+  venue: string
+  connected: boolean
+  last_seen: string
+  metrics: VenueMetric[]
+  status: 'healthy' | 'warning' | 'error'
+  latency_ms: number
+  issues?: string[]
+}
+
+export interface VenueDataResponse {
+  venues: VenueStatus[]
+}
+
+export async function fetchVenueData(): Promise<VenueDataResponse> {
+  const { data } = await api.get<VenueDataResponse>('/agi/venue/status')
+  return data
+}
+
+// ── AGI Sandbox ──────────────────────────────────────────────────────────────
+
+export interface SandboxScenario {
+  name: string
+  description: string
+}
+
+export interface SandboxValidationResult {
+  run_id: string
+  timestamp: string
+  scenario: string
+  status: 'pending' | 'validating' | 'completed' | 'failed'
+  result?: {
+    success: boolean
+    message?: string
+    errors?: string[]
+    warnings?: string[]
+    metrics?: {
+      validation_time_ms: number
+      lines_of_code: number
+      gate_passed: number
+      total_gates: number
+    }
+  }
+}
+
+export interface SandboxResponse {
+  scenarios: SandboxScenario[]
+  results: SandboxValidationResult[]
+}
+
+export async function fetchSandboxScenarios(): Promise<SandboxResponse> {
+  const { data } = await api.get<SandboxResponse>('/agi/sandbox/scenarios')
+  return data
+}
+
+export async function fetchSandboxResults(): Promise<SandboxResponse> {
+  const { data } = await api.get<SandboxResponse>('/agi/sandbox/results')
+  return data
+}
+
+// ── AGI Graphs ───────────────────────────────────────────────────────────────
+
+export interface AGIGraphNode {
+  id: string
+  label: string
+  type: string
+  status: string
+  data?: any
+}
+
+export interface AGIGraphEdge {
+  source: string
+  target: string
+  label?: string
+}
+
+export interface AGIGraph {
+  name: string
+  nodes: AGIGraphNode[]
+  edges: AGIGraphEdge[]
+}
+
+export interface AGIRunResult {
+  run_id: string
+  graph_name: string
+  timestamp: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  result?: {
+    success: boolean
+    data?: any
+    errors?: string[]
+  }
+}
+
+export interface AGIGraphsResponse {
+  graphs: AGIGraph[]
+}
+
+export interface AGIRunResultsResponse {
+  results: AGIRunResult[]
+}
+
+export async function fetchAGIGraphs(): Promise<AGIGraphsResponse> {
+  const { data } = await api.get<AGIGraphsResponse>('/agi/graphs')
+  return data
+}
+
+export async function fetchAGIRunResult(): Promise<AGIRunResultsResponse> {
+  const { data } = await api.get<AGIRunResultsResponse>('/agi/graphs/runs')
+  return data
+}
