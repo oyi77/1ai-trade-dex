@@ -12,10 +12,9 @@ from backend.models.database import (
     Signal,
     PendingApproval,
     StrategyConfig,
-from backend.core.heartbeat import update_heartbeat
-from backend.core.heartbeat import update_heartbeat
 )
 from backend.core.signals import scan_universe_markets
+from backend.core.heartbeat import update_heartbeat
 from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
