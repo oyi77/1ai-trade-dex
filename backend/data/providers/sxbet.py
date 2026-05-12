@@ -63,7 +63,7 @@ class SXBetProvider(DataProvider):
         entries: list[MarketEntry] = []
         for m in raw_markets[:limit]:
             # SX.bet markets have marketHash as the unique ID
-            market_hash = m.get("marketHash", m.get("gameId", ""))
+            market_hash = m.get("marketHash") or m.get("gameId") or ""
             outcome_names: list = m.get("outcomeNames", [])
             question = " vs ".join(outcome_names) if outcome_names else m.get("label", "")
 
