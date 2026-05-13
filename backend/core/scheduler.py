@@ -1,4 +1,4 @@
-"""Background scheduler for BTC 5-min autonomous trading.
+"""Background scheduler for multi-strategy autonomous trading.
 
 This module manages the APScheduler instance and scheduling configuration.
 The actual job functions are in scheduling_strategies.py.
@@ -391,15 +391,14 @@ def _register_event_driven_strategies() -> None:
                 handler=strategy.on_market_event,
                 fallback_handler=executor.on_ws_disconnected,
             )
-            logger.info("EventBus: registered '%s' with %d tokens, %d event types",
-                         name, len(tokens), len(events))
+            logger.info(f"EventBus: registered '{name}' with {len(tokens)} tokens, {len(events)} event types")
         except Exception as e:
             logger.warning(f"[DEBUG] Failed to register strategy {name} for event bus: {e}")
     logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
 
 def start_scheduler():
-    """Start the background scheduler for BTC 5-min trading."""
+    """Start the background scheduler for multi-strategy trading."""
     global scheduler, queue, worker, worker_task
 
     if scheduler is not None and scheduler.running:
@@ -532,15 +531,35 @@ def start_scheduler():
 
         # Connect to WebSocket and register router as handler
         if settings.POLYMARKET_WS_CLOB_URL:
-            ws_config = WebSocketConfig(
-                channel=ChannelType.MARKET,
-                asset_ids=[]  # Will be populated dynamically by strategies
-            )
-            ws_client = PolymarketWebSocket(ws_config)
-            orderbook_router.register_with_websocket(ws_client)
-            asyncio.create_task(ws_client.connect())
+            async def _start_market_ws() -> None:
+                subscribed_tokens = set()
+                try:
+                    from backend.core.event_bus import event_bus
 
-            logger.info("OrderbookRouter initialized with WebSocket connection")
+                    subscribed_tokens.update(event_bus.get_all_subscribed_tokens())
+                except Exception:
+                    logger.exception("Failed to read strategy WS subscriptions from EventBus")
+
+                try:
+                    from backend.core.market_scanner import fetch_short_duration_token_ids
+
+                    short_tokens = await fetch_short_duration_token_ids(
+                        limit=settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
+                    )
+                    subscribed_tokens.update(short_tokens)
+                except Exception:
+                    logger.exception("Failed to preload short-duration WS tokens")
+
+                ws_config = WebSocketConfig(
+                    channel=ChannelType.MARKET,
+                    asset_ids=list(subscribed_tokens)[:settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT],
+                )
+                ws_client = PolymarketWebSocket(ws_config)
+                orderbook_router.register_with_websocket(ws_client)
+                await ws_client.connect()
+
+            asyncio.create_task(_start_market_ws())
+            logger.info("OrderbookRouter WebSocket startup task scheduled")
         else:
             logger.warning("POLYMARKET_WS_CLOB_URL not configured, OrderbookRouter running in fallback mode")
 
@@ -1145,7 +1164,7 @@ def start_scheduler():
 
         log_event(
             "success",
-            "BTC 5-min trading scheduler started with queue worker",
+            "Multi-strategy trading scheduler started with queue worker",
             {
                 "worker_enabled": bool(use_local_worker),
                 "scan_interval": f"{scan_seconds}s",
@@ -1159,7 +1178,7 @@ def start_scheduler():
         logger.info("JOB_WORKER_ENABLED=False - using APScheduler for job execution")
         log_event(
             "success",
-            "BTC 5-min trading scheduler started",
+            "Multi-strategy trading scheduler started",
             {
                 "worker_enabled": False,
                 "scan_interval": f"{scan_seconds}s",

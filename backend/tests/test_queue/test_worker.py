@@ -95,6 +95,37 @@ async def test_worker_processes_job(queue, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_worker_dispatches_weather_scan(queue, monkeypatch):
+    """Worker dispatches weather_scan jobs to the registered handler."""
+    q, Session = queue
+    seen_payloads = []
+
+    async def _fake_weather_scan(payload):
+        seen_payloads.append(payload)
+        return {"success": True, "message": "weather ok"}
+
+    import backend.job_queue.handlers as handlers_mod
+
+    monkeypatch.setattr(handlers_mod, "weather_scan", _fake_weather_scan)
+    job_id = await q.enqueue("weather_scan", {"mode": "paper"})
+
+    worker = Worker(q, max_concurrent=1)
+    task = asyncio.create_task(worker.start())
+    _reached_zero = await _wait_for_pending_zero(q, timeout=5.0)
+    await asyncio.sleep(0.3)
+    await worker.stop()
+    await asyncio.wait_for(task, timeout=3.0)
+
+    db = Session()
+    try:
+        row = db.query(JobQueue).filter(JobQueue.id == int(job_id)).first()
+        assert row.status == "completed"
+        assert seen_payloads == [{"mode": "paper"}]
+    finally:
+        db.close()
+
+
+@pytest.mark.asyncio
 async def test_worker_handles_timeout(queue, monkeypatch):
     """Worker marks job failed/pending with 'timed out' in error_message."""
     q, Session = queue

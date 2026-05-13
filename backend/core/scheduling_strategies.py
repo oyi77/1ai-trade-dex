@@ -306,20 +306,18 @@ async def _queue_for_approval(
 
 
 async def scan_and_trade_job(mode: str):
-    """Run BTC Oracle strategy with General Scanner fallback. Runs every minute.
+    """Run enabled registry strategies for a mode.
 
-    Priority:
-    1. BTC Oracle — short-duration BTC binary markets
-    2. General Scanner (fallback) — AI-powered edge detection across all markets
-
-    The general scanner is called when BTC Oracle finds no actionable signals,
-    which is common since short-duration BTC markets are rare on Polymarket.
+    This legacy market-scan heartbeat used to run only BtcOracleStrategy and then
+    optionally fall back to the general scanner. It now uses StrategyConfig plus
+    STRATEGY_REGISTRY so the bot can scan every enabled strategy instead of only
+    BTC 5-minute markets.
     """
     from backend.core.scheduler import log_event
-    from backend.strategies.btc_oracle import BtcOracleStrategy
     from backend.strategies.base import StrategyContext
+    from backend.strategies.registry import STRATEGY_REGISTRY
 
-    log_event("info", f"[{mode.upper()}] Running market scan...")
+    log_event("info", f"[{mode.upper()}] Running registry-driven market scan...")
 
     from backend.db.utils import get_db_session
     try:
@@ -333,98 +331,85 @@ async def scan_and_trade_job(mode: str):
                 log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
                 return
 
-            ctx = StrategyContext(
-                db=db,
-                clob=None,
-                settings=settings,
-                logger=logger,
-                params={},
-                mode=mode,
+            import json as _json
+            from backend.core.strategy_executor import execute_decisions
+
+            configs = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.enabled.is_(True))
+                .filter(
+                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode.is_(None))
+                )
+                .all()
+            )
+            total_decisions = 0
+            total_trades = 0
+
+            for config in configs:
+                strategy_cls = STRATEGY_REGISTRY.get(config.strategy_name)
+                if strategy_cls is None:
+                    continue
+                params = {}
+                if config.params:
+                    try:
+                        params = _json.loads(config.params)
+                    except Exception:
+                        logger.exception(
+                            "[scheduling_strategies] Failed to parse StrategyConfig params JSON for %s",
+                            config.strategy_name,
+                        )
+                strategy_ctx = StrategyContext(
+                    db=db,
+                    clob=None,
+                    settings=settings,
+                    logger=logger,
+                    params=params,
+                    mode=mode,
+                )
+                strategy = strategy_cls()
+                result = await strategy.run(strategy_ctx)
+                buy_decisions = [
+                    d
+                    for d in getattr(result, "decisions", [])
+                    if isinstance(d, dict)
+                    and d.get("decision") == "BUY"
+                    and (d.get("market_ticker") or d.get("token_id"))
+                ]
+                total_decisions += len(buy_decisions)
+
+                if not buy_decisions:
+                    log_event(
+                        "info",
+                        f"[{mode.upper()}] {config.strategy_name}: no actionable signals (errors={len(result.errors)})",
+                    )
+                    continue
+
+                decisions_copy = []
+                for decision in buy_decisions:
+                    copied = dict(decision)
+                    copied.setdefault("market_ticker", copied.get("token_id"))
+                    copied["trading_mode"] = mode
+                    decisions_copy.append(copied)
+                executed = await execute_decisions(decisions_copy, config.strategy_name, mode=mode)
+                total_trades += len(executed)
+                log_event(
+                    "success",
+                    f"[{mode.upper()}] {config.strategy_name}: executed {len(executed)} trade(s)",
+                )
+
+            log_event(
+                "info",
+                f"[{mode.upper()}] Registry market scan done: strategies={len(configs)} decisions={total_decisions} trades={total_trades}",
             )
 
-            # Phase 1: Try BTC Oracle
-            strategy = BtcOracleStrategy()
-            result = await strategy.run(ctx)
-
-            buy_decisions = [
-                d
-                for d in getattr(result, "decisions", [])
-                if isinstance(d, dict)
-                and d.get("decision") == "BUY"
-                and d.get("market_ticker")
-            ]
-
-            if buy_decisions:
-                try:
-                    from backend.core.strategy_executor import execute_decisions
-
-                    executed = await execute_decisions(buy_decisions, "btc_oracle", mode=mode)
-                    log_event("success", f"[{mode.upper()}] BTC Oracle: executed {len(executed)} trade(s)")
-                except Exception as exec_err:
-                    log_event("error", f"[{mode.upper()}] BTC Oracle execution failed: {exec_err}")
-            else:
-                log_event("info", f"[{mode.upper()}] BTC Oracle: no actionable signals — trying general scanner")
-
-                # Phase 2: Fallback to General Scanner when BTC Oracle finds nothing
-                try:
-                    from backend.models.database import StrategyConfig
-
-                    gs_config = db.query(StrategyConfig).filter(
-                        StrategyConfig.strategy_name == "general_scanner",
-                        StrategyConfig.enabled.is_(True),
-                    ).first()
-
-                    if gs_config and settings.AI_ENABLED:
-                        import json as _json
-
-                        gs_params = {}
-                        if gs_config.params:
-                            try:
-                                gs_params = _json.loads(gs_config.params)
-                            except Exception:
-                                logger.exception("[scheduling_strategies] Failed to parse general_scanner StrategyConfig params JSON")
-                                pass
-
-                        gs_ctx = StrategyContext(
-                            db=db,
-                            clob=None,
-                            settings=settings,
-                            logger=logger,
-                            params=gs_params,
-                            mode=mode,
-                        )
-
-                        from backend.strategies.general_market_scanner import GeneralMarketScanner
-
-                        gs = GeneralMarketScanner()
-                        gs_result = await gs.run(gs_ctx)
-
-                        gs_buy = [
-                            d
-                            for d in getattr(gs_result, "decisions", [])
-                            if isinstance(d, dict)
-                            and d.get("decision") == "BUY"
-                            and d.get("market_ticker")
-                        ]
-
-                        if gs_buy:
-                            from backend.core.strategy_executor import execute_decisions
-
-                            executed = await execute_decisions(gs_buy, "general_scanner", mode=mode)
-                            log_event("success", f"[{mode.upper()}] General Scanner: executed {len(executed)} trade(s)")
-                        else:
-                            log_event("info", f"[{mode.upper()}] General Scanner: no actionable signals (errors={len(gs_result.errors)})")
-                    else:
-                        if not gs_config:
-                            log_event("info", f"[{mode.upper()}] General Scanner disabled in config")
-                        if not settings.AI_ENABLED:
-                            log_event("info", f"[{mode.upper()}] AI_ENABLED=false, skipping general scanner")
-                except Exception as gs_err:
-                    log_event("error", f"[{mode.upper()}] General Scanner fallback error: {gs_err}")
-                    logger.exception(f"General Scanner fallback error mode={mode}")
-
-            state.last_run = datetime.now(timezone.utc)
-            db.commit()
+            try:
+                state.last_run = datetime.now(timezone.utc)
+                db.commit()
+            except Exception as last_run_err:
+                db.rollback()
+                logger.warning(
+                    f"[{mode.upper()}] Market scan completed but last_run update failed: {last_run_err}"
+                )
 
     except Exception as e:
         log_event("error", f"[{mode.upper()}] Market scan error: {str(e)}")

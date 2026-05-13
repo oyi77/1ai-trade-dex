@@ -64,7 +64,7 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ### Infrastructure
 | File | Description |
 |------|-------------|
-| `event_bus.py` | SSE broadcast and internal event dispatch — replaces module-level globals from old monolithic main.py |
+| `event_bus.py` | SSE broadcast and internal event dispatch — routes WebSocket strategy BUY decisions through `strategy_executor` with StrategyConfig mode semantics |
 | `mode_context.py` | Trading mode context (paper/live/shadow) |
 | `shadow_mode.py` | Shadow mode execution — runs strategies without placing real orders |
 | `shadow_validation.py` | Shadow mode trade validation |
@@ -110,7 +110,7 @@ async with botstate_mutex:
 
 ### Scheduler Job Registry
 Jobs are registered in `scheduler.py` and implemented in `scheduling_strategies.py`:
-- `scan_and_trade_job` — main signal scan + execution loop
+- `scan_and_trade_job` — registry-driven signal scan + execution loop across enabled strategies
 - `settlement_job` — resolves open positions
 - `strategy_cycle_job` — per-strategy execution cycle
 - `autonomous_promotion_job` — AGI experiment promotion (every 6h)
