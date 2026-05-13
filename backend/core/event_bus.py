@@ -13,12 +13,17 @@ Strategy subscriptions enable event-driven execution:
 - WS disconnect triggers fallback notification to affected strategies
 """
 import asyncio
+import inspect
+import os
+import threading
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Callable, Awaitable, Optional, Set
 
 from loguru import logger
+
+_HANDLER_TIMEOUT_SECONDS = float(os.getenv("EVENT_BUS_HANDLER_TIMEOUT_SECONDS", "15.0"))
 
 EventHandler = Callable[[str, Dict[str, Any]], Awaitable[None]]
 StrategyHandler = Callable[["MarketEvent"], Awaitable[Optional[dict]]]
@@ -63,6 +68,7 @@ class EventBus:
         self._subscribers: List[asyncio.Queue] = []
         self._history: deque = deque(maxlen=history_maxlen)
         self._handlers: Dict[str, List[EventHandler]] = defaultdict(list)
+        self._background_tasks: Set[asyncio.Task[Any]] = set()
 
         # Strategy subscriptions: {strategy_name: StrategySubscription}
         self._strategy_subs: Dict[str, StrategySubscription] = {}
@@ -190,7 +196,10 @@ class EventBus:
         for sub in self._strategy_subs.values():
             self.publish("ws_disconnected_strategy", {"strategy_name": sub.strategy_name})
             if sub.fallback_handler:
-                asyncio.ensure_future(sub.fallback_handler())
+                self._schedule_task(
+                    sub.fallback_handler(),
+                    f"fallback handler for strategy '{sub.strategy_name}'",
+                )
 
     @property
     def ws_connected(self) -> bool:
@@ -222,7 +231,13 @@ class EventBus:
         # Typed handlers (backend modules)
         for handler in self._handlers.get(event_type, []):
             try:
-                asyncio.ensure_future(handler(event_type, data))
+                result = handler(event_type, data)
+                if not inspect.isawaitable(result):
+                    continue
+                self._schedule_task(
+                    result,
+                    f"event handler for '{event_type}' ({getattr(handler, '__name__', repr(handler))})",
+                )
             except Exception as exc:
                 logger.warning(f"Event handler failed for '{event_type}': {exc}")
 
@@ -241,19 +256,76 @@ class EventBus:
             event = MarketEvent(token_id=token_id, event_type=event_type, data=data)
             try:
                 t0 = time.time()
-                asyncio.ensure_future(self._invoke_handler(strategy_name, sub.handler, event, t0))
+                self._schedule_task(
+                    self._invoke_handler(strategy_name, sub.handler, event, t0),
+                    f"strategy dispatch for '{strategy_name}'",
+                )
             except Exception as exc:
                 logger.warning(f"Strategy dispatch failed for '{strategy_name}': {exc}")
 
+    def _schedule_task(self, coro: Awaitable[Any], context: str) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._schedule_thread(coro, context)
+            return
+
+        try:
+            task = loop.create_task(coro)
+        except Exception:
+            close = getattr(coro, "close", None)
+            if callable(close):
+                close()
+            raise
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        task.add_done_callback(lambda t, ctx=context: self._log_task_result(t, ctx))
+
+    def _schedule_thread(self, coro: Awaitable[Any], context: str) -> None:
+        def _runner() -> None:
+            try:
+                asyncio.run(coro)
+            except asyncio.CancelledError:
+                logger.debug(f"Cancelled background task: {context}")
+            except Exception as exc:
+                logger.opt(exception=True).warning(
+                    f"Background task failed for {context}: {exc}"
+                )
+
+        thread = threading.Thread(
+            target=_runner,
+            name=f"event-bus-{context[:40]}",
+            daemon=True,
+        )
+        thread.start()
+
+    @staticmethod
+    def _log_task_result(task: asyncio.Task[Any], context: str) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            logger.debug(f"Cancelled background task: {context}")
+        except Exception as exc:
+            logger.opt(exception=True).warning(
+                f"Background task failed for {context}: {exc}"
+            )
+
     async def _invoke_handler(self, strategy_name: str, handler: StrategyHandler, event: MarketEvent, t0: float) -> None:
         try:
-            result = await handler(event)
+            result = await asyncio.wait_for(
+                handler(event),
+                timeout=_HANDLER_TIMEOUT_SECONDS,
+            )
             elapsed = (time.time() - t0) * 1000
             self._dispatch_times.append(elapsed)
             self._events_dispatched += 1
             if result:
                 logger.debug(f"Strategy '{strategy_name}' returned decision: {result.get('decision', '?')} ({elapsed:.1f}ms)")
                 await self._execute_strategy_decision(strategy_name, result)
+        except asyncio.TimeoutError:
+            logger.error(
+                f"Strategy '{strategy_name}' handler timed out after {_HANDLER_TIMEOUT_SECONDS:.1f}s"
+            )
         except Exception as exc:
             logger.opt(exception=True).error(f"Strategy '{strategy_name}' handler crashed: {exc}")
 

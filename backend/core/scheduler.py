@@ -5,6 +5,7 @@ The actual job functions are in scheduling_strategies.py.
 """
 
 import asyncio
+import datetime as dt_module
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -478,7 +479,16 @@ def start_scheduler():
     )
 
     # Watchdog: check strategy heartbeats every 30s
-    from backend.core.heartbeat import watchdog_job, wallet_sync_job
+    from backend.core.heartbeat import watchdog_job, wallet_sync_job, liveness_file_job
+
+    scheduler.add_job(
+        liveness_file_job,
+        IntervalTrigger(seconds=20),
+        id="liveness_file",
+        replace_existing=True,
+        max_instances=1,
+        next_run_time=dt_module.datetime.now(dt_module.timezone.utc) + dt_module.timedelta(seconds=5),
+    )
 
     scheduler.add_job(
         watchdog_job,
@@ -486,6 +496,7 @@ def start_scheduler():
         id="watchdog",
         replace_existing=True,
         max_instances=1,
+        next_run_time=dt_module.datetime.now(dt_module.timezone.utc) + dt_module.timedelta(seconds=5),
     )
 
     # Wallet balance sync: fetch live CLOB balance every 60s

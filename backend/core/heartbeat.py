@@ -1,13 +1,15 @@
 """Heartbeat and watchdog — in-memory cache, batch-flushed to DB by watchdog."""
 
+import asyncio
 import json
 import os
 import threading
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
-from backend.models.database import BotState, StrategyConfig
+from backend.models.database import BotState, SessionLocal, StrategyConfig
 
 from loguru import logger
 HEARTBEAT_PREFIX = "heartbeat:"
@@ -19,65 +21,109 @@ _pending_heartbeats: dict[str, str] = {}
 _hb_lock = threading.Lock()
 
 
+def _is_lock_timeout_error(exc: Exception) -> bool:
+    """Return True for PostgreSQL lock-timeout / lock-not-available failures."""
+
+    if isinstance(exc, OperationalError):
+        orig = getattr(exc, "orig", None)
+        pgcode = getattr(orig, "pgcode", None)
+        if pgcode == "55P03":
+            return True
+
+    message = str(exc).lower()
+    return (
+        "lock timeout" in message
+        or "locknotavailable" in message
+        or "could not obtain lock" in message
+        or "canceling statement due to lock timeout" in message
+    )
+
+
 def update_heartbeat(strategy_name: str) -> None:
     """Record heartbeat in memory — no DB write (watchdog flushes batch)."""
     ts = datetime.now(timezone.utc).isoformat()
     with _hb_lock:
         _pending_heartbeats[strategy_name] = ts
 
+    # Refresh external liveness immediately from real strategy activity so the
+    # guardian reflects event-loop health even when the DB heartbeat flush is
+    # delayed by BotState lock contention.
+    _touch_heartbeat_file()
 
-def _flush_heartbeats() -> None:
+
+def _flush_heartbeats() -> bool:
     """Write all pending heartbeats to DB in a single transaction.
 
     Uses atomic jsonb_set() for PostgreSQL to avoid lock contention.
     Falls back to SQLAlchemy ORM for SQLite.
     """
     from backend.config import settings
-    from backend.db.utils import get_db_session
-
     with _hb_lock:
         if not _pending_heartbeats:
-            return
+            return True
         snapshot = dict(_pending_heartbeats)
-        _pending_heartbeats.clear()
 
+    db = SessionLocal()
     try:
         # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
         if settings.is_postgres:
+            db.execute(text("SET LOCAL lock_timeout = '2s'"))
+            db.execute(text("SET LOCAL statement_timeout = '5s'"))
+            acquired = db.execute(
+                text("SELECT pg_try_advisory_xact_lock(hashtext('polyedge_heartbeat_flush'))")
+            ).scalar()
+            if not acquired:
+                db.rollback()
+                logger.debug("heartbeat flush skipped: another flusher is active")
+                return False
+
             heartbeat_patch = json.dumps(
                 {
                     f"{HEARTBEAT_PREFIX}{strategy_name}": ts
-                    for strategy_name, ts in snapshot.items()
+                for strategy_name, ts in snapshot.items()
                 }
             )
-            with get_db_session() as db:
-                heartbeat_stmt = text(
-                    "UPDATE bot_state "
-                    "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
-                    "WHERE mode = :mode"
+            heartbeat_stmt = text(
+                "UPDATE bot_state "
+                "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
+                "WHERE mode = :mode"
+            )
+            for mode in settings.active_modes_set:
+                db.execute(
+                    heartbeat_stmt,
+                    {"heartbeat_patch": heartbeat_patch, "mode": mode},
                 )
-                for mode in settings.active_modes_set:
-                    db.execute(
-                        heartbeat_stmt,
-                        {"heartbeat_patch": heartbeat_patch, "mode": mode},
-                    )
-                db.commit()
+            db.commit()
         else:
-            with get_db_session() as db:
-                for state in db.query(BotState).all():
-                    data = {}
-                    if state.misc_data:
-                        try:
-                            data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
-                        except Exception:
-                            logger.exception(f"heartbeat: failed to parse misc_data JSON for mode {state.mode}")
-                            data = {}
-                    for strategy_name, ts in snapshot.items():
-                        data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-                    state.misc_data = json.dumps(data)
-                db.commit()
+            for state in db.query(BotState).all():
+                data = {}
+                if state.misc_data:
+                    try:
+                        data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
+                    except Exception:
+                        logger.exception(f"heartbeat: failed to parse misc_data JSON for mode {state.mode}")
+                        data = {}
+                for strategy_name, ts in snapshot.items():
+                    data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+                state.misc_data = json.dumps(data)
+            db.commit()
+        with _hb_lock:
+            for strategy_name, ts in snapshot.items():
+                if _pending_heartbeats.get(strategy_name) == ts:
+                    _pending_heartbeats.pop(strategy_name, None)
+        return True
     except Exception as e:
-        logger.warning(f"heartbeat flush failed: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            logger.exception("heartbeat rollback failed after flush error")
+        if _is_lock_timeout_error(e):
+            logger.warning("heartbeat flush deferred due to BotState contention")
+        else:
+            logger.warning(f"heartbeat flush failed: {e}")
+        return False
+    finally:
+        db.close()
 
 
 def get_strategy_health(db) -> list[dict]:
@@ -148,10 +194,12 @@ async def watchdog_job() -> None:
     """
     from backend.core.decisions import record_decision
 
-    _flush_heartbeats()
-
     # Touch heartbeat file for external liveness monitoring
     _touch_heartbeat_file()
+
+    if not _flush_heartbeats():
+        logger.warning("[WATCHDOG] Skipping stale heartbeat checks until heartbeat flush succeeds")
+        return
 
     from backend.db.utils import get_db_session
     with get_db_session() as db:
@@ -251,6 +299,9 @@ async def wallet_sync_job() -> None:
                 cfg_mode = cfg.trading_mode
                 if cfg_mode in ("live", "testnet"):
                     modes_to_sync.add(cfg_mode)
+    except asyncio.CancelledError:
+        logger.info("wallet_sync_job cancelled during shutdown")
+        return
     except Exception:
         logger.exception("wallet_sync_job: failed to query enabled strategy configs for wallet sync modes")
 
@@ -267,8 +318,11 @@ async def wallet_sync_job() -> None:
 
             clob = clob_from_settings(mode=sync_mode)
             async with clob:
-                await clob.create_or_derive_api_key()
-                balance_data = await clob.get_wallet_balance()
+                await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=30.0)
+                balance_data = await asyncio.wait_for(
+                    clob.get_wallet_balance(),
+                    timeout=30.0,
+                )
                 usdc_balance = balance_data.get("usdc_balance", 0.0)
                 error = balance_data.get("error")
 
@@ -277,6 +331,9 @@ async def wallet_sync_job() -> None:
                     logger.info(
                         f"wallet_sync: {sync_mode} balance = ${usdc_balance:.2f}"
                     )
+        except asyncio.CancelledError:
+            logger.info("wallet_sync_job cancelled during shutdown")
+            return
         except Exception as e:
             logger.warning(f"wallet_sync_job ({sync_mode}) failed: {e}")
 
@@ -314,7 +371,17 @@ def _touch_heartbeat_file() -> None:
     and needs a force restart.
     """
     try:
+        os.makedirs(os.path.dirname(HEARTBEAT_FILE), exist_ok=True)
         with open(HEARTBEAT_FILE, 'w') as f:
             f.write(datetime.now(timezone.utc).isoformat())
     except OSError:
         pass  # Non-critical — don't crash watchdog for a file write failure
+
+
+async def liveness_file_job() -> None:
+    """Lightweight external liveness tick.
+
+    This job intentionally avoids DB work so guardian health reflects whether the
+    event loop is alive, not whether BotState writes are contended.
+    """
+    _touch_heartbeat_file()

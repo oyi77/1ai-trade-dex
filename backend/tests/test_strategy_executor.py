@@ -313,6 +313,103 @@ class TestBotStateLockHandling:
         assert execute_mock.call_count == 2
         sleep_mock.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    async def test_trade_persists_when_post_trade_botstate_update_fails(self):
+        """BotState follow-up failure must not roll back an already-created trade."""
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+        from backend.core import strategy_executor as se
+        from backend.models.database import Trade, TradeAttempt
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, paper_bankroll=500.0)
+        db.close()
+
+        register_context("paper", ModeExecutionContext(
+            mode="paper",
+            clob_client=AsyncMock(),
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+            patch.object(se, "_apply_post_trade_botstate_update", return_value=False),
+        ):
+            mock_settings.TRADING_MODE = "paper"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(market_ticker="persist-market", size=5.0),
+                "persist_strategy",
+                "paper",
+            )
+
+        assert result is not None
+
+        check_db = TestSession()
+        try:
+            trade = (
+                check_db.query(Trade)
+                .filter(Trade.market_ticker == "persist-market")
+                .first()
+            )
+            assert trade is not None
+
+            attempt = (
+                check_db.query(TradeAttempt)
+                .filter(TradeAttempt.market_ticker == "persist-market")
+                .first()
+            )
+            assert attempt is not None
+            assert attempt.status == "EXECUTED"
+            assert attempt.trade_id == trade.id
+
+            state = check_db.query(BotState).filter_by(mode="paper").first()
+            assert state.paper_bankroll == pytest.approx(500.0)
+        finally:
+            check_db.close()
+
+    def test_post_trade_botstate_update_sets_short_transaction_timeouts(self):
+        """Best-effort BotState sync must fast-fail instead of waiting on stale locks."""
+        from backend.core import strategy_executor as se
+
+        calls: list[str] = []
+
+        class Bind:
+            class Dialect:
+                name = "postgresql"
+
+            dialect = Dialect()
+
+        class FakeSession:
+            def get_bind(self):
+                return Bind()
+
+            def execute(self, statement, *_args, **_kwargs):
+                calls.append(str(statement))
+
+        db = FakeSession()
+
+        with patch.object(se, "_update_botstate_after_trade") as update_mock:
+            se._prepare_short_botstate_transaction(db)
+            se._update_botstate_after_trade(db, "paper", 50.0)
+
+        assert "SET LOCAL lock_timeout = '2s'" in calls
+        assert "SET LOCAL statement_timeout = '5s'" in calls
+        update_mock.assert_called_once_with(db, "paper", 50.0)
+
 
 class TestAttemptSizingRejection:
     @pytest.mark.asyncio
@@ -550,6 +647,164 @@ class TestUpdatesBankroll:
             assert state.paper_trades == 1
         finally:
             check_db.close()
+
+    @pytest.mark.asyncio
+    async def test_trade_persists_when_post_commit_botstate_sync_fails(self):
+        """Trade/attempt persistence must survive follow-up BotState sync failure."""
+        from backend.models.database import Trade, TradeAttempt
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, paper_bankroll=500.0)
+        db.close()
+
+        register_context("paper", ModeExecutionContext(
+            mode="paper",
+            clob_client=AsyncMock(),
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.strategy_executor._apply_post_trade_botstate_update", return_value=False),
+        ):
+            mock_settings.TRADING_MODE = "paper"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(market_ticker="paper-botstate-sync-fail", size=5.0),
+                "test_strategy",
+                "paper",
+            )
+
+        assert result is not None
+
+        check_db = TestSession()
+        try:
+            trade = (
+                check_db.query(Trade)
+                .filter(Trade.market_ticker == "paper-botstate-sync-fail")
+                .first()
+            )
+            assert trade is not None
+
+            attempt = (
+                check_db.query(TradeAttempt)
+                .filter(TradeAttempt.market_ticker == "paper-botstate-sync-fail")
+                .first()
+            )
+            assert attempt is not None
+            assert attempt.status == "EXECUTED"
+            assert attempt.reason_code == "EXECUTED_TRADE_OPENED"
+            assert attempt.trade_id == trade.id
+
+            state = check_db.query(BotState).filter_by(mode="paper").first()
+            assert state.paper_bankroll == pytest.approx(500.0)
+            assert state.paper_trades == 0
+        finally:
+            check_db.close()
+
+
+class TestHeartbeatFlush:
+    def test_failed_flush_preserves_pending_heartbeats(self):
+        """Failed heartbeat DB flush must retain pending in-memory entries."""
+        from backend.core import heartbeat as hb
+
+        class FailingSession:
+            def execute(self, *_args, **_kwargs):
+                raise RuntimeError("db locked")
+
+            def rollback(self):
+                pass
+
+            def close(self):
+                pass
+
+        def failing_session():
+            return FailingSession()
+
+        hb._pending_heartbeats.clear()
+        hb._pending_heartbeats["strategy-a"] = "2026-05-14T01:00:00+00:00"
+
+        with patch("backend.core.heartbeat.SessionLocal", failing_session), patch(
+            "backend.core.heartbeat.logger.warning"
+        ) as warning_mock:
+            flushed = hb._flush_heartbeats()
+
+        assert flushed is False
+        assert hb._pending_heartbeats == {
+            "strategy-a": "2026-05-14T01:00:00+00:00"
+        }
+        warning_mock.assert_called_once_with("heartbeat flush failed: db locked")
+
+        hb._pending_heartbeats.clear()
+
+    def test_lock_timeout_flush_logs_concise_warning(self):
+        """Expected BotState lock contention should not emit raw SQL stack text."""
+        from sqlalchemy.exc import OperationalError
+        from backend.core import heartbeat as hb
+
+        class Orig:
+            pgcode = "55P03"
+
+            def __str__(self):
+                return "canceling statement due to lock timeout"
+
+        class FailingSession:
+            def execute(self, *_args, **_kwargs):
+                raise OperationalError("UPDATE bot_state SET misc_data", {}, Orig())
+
+            def rollback(self):
+                pass
+
+            def close(self):
+                pass
+
+        hb._pending_heartbeats.clear()
+        hb._pending_heartbeats["strategy-a"] = "2026-05-14T01:00:00+00:00"
+
+        with patch("backend.core.heartbeat.SessionLocal", lambda: FailingSession()), patch(
+            "backend.core.heartbeat.logger.warning"
+        ) as warning_mock:
+            flushed = hb._flush_heartbeats()
+
+        assert flushed is False
+        warning_mock.assert_called_once_with("heartbeat flush deferred due to BotState contention")
+
+        hb._pending_heartbeats.clear()
+
+    @pytest.mark.asyncio
+    async def test_watchdog_skips_stale_checks_when_flush_fails(self):
+        """Watchdog should not emit stale errors from old DB data when flush fails."""
+        from backend.core import heartbeat as hb
+
+        def fail_flush():
+            return False
+
+        def should_not_open_session():
+            raise RuntimeError("db locked")
+
+        with patch("backend.core.heartbeat._flush_heartbeats", fail_flush), patch(
+            "backend.db.utils.get_db_session", should_not_open_session
+        ), patch("backend.core.heartbeat.logger.warning") as warning_mock:
+            await hb.watchdog_job()
+
+        warning_mock.assert_called_once_with(
+            "[WATCHDOG] Skipping stale heartbeat checks until heartbeat flush succeeds"
+        )
 
 
 class TestCreatesSignalRecord:
@@ -810,7 +1065,6 @@ class TestLiveModeCallsCLOB:
             assert attempt.order_id is None
         finally:
             check_db.close()
-
     @pytest.mark.asyncio
     async def test_testnet_with_polymarket_token_uses_simulated_path(self):
         """Testnet Polymarket token decisions must not use live CLOB placement."""

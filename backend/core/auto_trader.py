@@ -1,5 +1,7 @@
 """Auto-trader: routes high-confidence signals to immediate execution,
 low-confidence signals to a manual approval queue."""
+import asyncio
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -90,12 +92,15 @@ class AutoTrader:
 
         if self.wallet_router:
             try:
-                child_orders = await self.wallet_router.fan_out(
-                    signal_size=decision.adjusted_size,
-                    condition_id=signal.get("token_id"),
-                    side=signal.get("side", "BUY"),
-                    strategy_name=strategy,
-                    bankroll=bankroll,
+                child_orders = await asyncio.wait_for(
+                    self.wallet_router.fan_out(
+                        signal_size=decision.adjusted_size,
+                        condition_id=signal.get("token_id"),
+                        side=signal.get("side", "BUY"),
+                        strategy_name=strategy,
+                        bankroll=bankroll,
+                    ),
+                    timeout=30.0,
                 )
                 if not child_orders:
                     return ExecutionResult(False, False, "no active wallets for strategy")
@@ -112,11 +117,14 @@ class AutoTrader:
 
         try:
             async with self.clob_factory() as clob:
-                result = await clob.place_limit_order(
-                    token_id=signal.get("token_id"),
-                    side=signal.get("side", "BUY"),
-                    price=float(signal.get("price", 0.0)),
-                    size=decision.adjusted_size,
+                result = await asyncio.wait_for(
+                    clob.place_limit_order(
+                        token_id=signal.get("token_id"),
+                        side=signal.get("side", "BUY"),
+                        price=float(signal.get("price", 0.0)),
+                        size=decision.adjusted_size,
+                    ),
+                    timeout=30.0,
                 )
             if result.success:
                 record_signal(strategy=strategy, signal_type="auto_approved")

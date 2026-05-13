@@ -12,12 +12,34 @@ set -euo pipefail
 HEARTBEAT_FILE="${POLYEDGE_ROOT:-/home/openclaw/projects/polyedge}/.omc/bot-heartbeat.tmp"
 HEARTBEAT_MAX_AGE="${BOT_HEARTBEAT_MAX_AGE:-120}"
 CHECK_INTERVAL="${BOT_CHECK_INTERVAL:-30}"
+STARTUP_GRACE_SECONDS="${BOT_STARTUP_GRACE_SECONDS:-180}"
 
-echo "[guardian] Starting polyedge-bot guardian (max_age=${HEARTBEAT_MAX_AGE}s, interval=${CHECK_INTERVAL}s)"
+bot_pid() {
+    pm2 pid polyedge-bot 2>/dev/null | tr -d '[:space:]'
+}
+
+bot_uptime_seconds() {
+    local pid
+    pid="$(bot_pid)"
+    if [[ -z "${pid}" || "${pid}" == "0" ]]; then
+        echo 0
+        return
+    fi
+
+    ps -o etimes= -p "${pid}" 2>/dev/null | tr -d '[:space:]' || echo 0
+}
+
+echo "[guardian] Starting polyedge-bot guardian (max_age=${HEARTBEAT_MAX_AGE}s, interval=${CHECK_INTERVAL}s, startup_grace=${STARTUP_GRACE_SECONDS}s)"
 echo "[guardian] Monitoring heartbeat file: ${HEARTBEAT_FILE}"
 
 while true; do
     sleep "${CHECK_INTERVAL}"
+
+    uptime="$(bot_uptime_seconds)"
+    if [[ "${uptime}" -lt "${STARTUP_GRACE_SECONDS}" ]]; then
+        echo "[guardian] Startup grace active (bot uptime: ${uptime}s < ${STARTUP_GRACE_SECONDS}s); skipping stale-heartbeat check"
+        continue
+    fi
 
     if [[ ! -f "${HEARTBEAT_FILE}" ]]; then
         echo "[guardian] WARNING: Heartbeat file missing. If bot was just started, this is expected for the first ~60s."

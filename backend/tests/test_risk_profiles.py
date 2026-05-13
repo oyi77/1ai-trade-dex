@@ -1,6 +1,8 @@
 import os
 from unittest.mock import patch
 
+from sqlalchemy import text
+
 from backend.core.risk_profiles import (
     PRESETS,
     RiskProfile,
@@ -68,6 +70,20 @@ class TestGetProfile:
         with patch.dict(os.environ, {"RISK_PROFILE": "aggressive"}):
             name = get_active_profile_name()
             assert name == "aggressive"
+
+    def test_missing_table_falls_back_without_exception_log(self, db):
+        db.execute(text("DROP TABLE risk_profiles"))
+        db.commit()
+
+        with patch("backend.core.risk_profiles.logger.warning") as warning_mock, patch(
+            "backend.core.risk_profiles.logger.exception"
+        ) as exception_mock:
+            profile = get_profile("safe", db=db)
+
+        assert profile.name == "safe"
+        warning_mock.assert_called_once()
+        exception_mock.assert_not_called()
+        assert db.execute(text("SELECT 1")).scalar() == 1
 
 
 class TestApplyProfile:
@@ -152,3 +168,17 @@ class TestDBBackedProfiles:
         assert len(all_profiles) >= 4
         assert "safe" in all_profiles
         assert "normal" in all_profiles
+
+    def test_list_profiles_missing_table_returns_presets_without_exception_log(self, db):
+        db.execute(text("DROP TABLE risk_profiles"))
+        db.commit()
+
+        with patch("backend.core.risk_profiles.logger.warning") as warning_mock, patch(
+            "backend.core.risk_profiles.logger.exception"
+        ) as exception_mock:
+            all_profiles = list_profiles(db=db)
+
+        assert set(PRESETS).issubset(all_profiles)
+        warning_mock.assert_called_once()
+        exception_mock.assert_not_called()
+        assert db.execute(text("SELECT 1")).scalar() == 1
