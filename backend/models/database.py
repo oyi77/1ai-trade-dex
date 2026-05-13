@@ -88,6 +88,7 @@ def configure_postgres_lock_timeout(engine_obj):
         cursor = dbapi_conn.cursor()
         cursor.execute("SET lock_timeout = '5s'")
         cursor.execute("SET statement_timeout = '30s'")
+        cursor.execute("SET idle_in_transaction_session_timeout = '60s'")
         cursor.close()
 
 

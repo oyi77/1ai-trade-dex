@@ -911,46 +911,44 @@ def start_scheduler():
     def auto_disable_losing_strategies():
         from backend.models.database import Trade, StrategyConfig
         from backend.config import settings
+        from backend.db.utils import get_db_session
         from datetime import datetime, timezone, timedelta
 
-        db = SessionLocal()
         disabled = []
         min_trades = getattr(settings, "AGI_AUTO_DISABLE_MIN_TRADES", 10)
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
-            for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-                if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
-                    continue
-
-                for mode in settings.active_modes_set:
-                    trades = db.query(Trade).filter(
-                        Trade.strategy == config.strategy_name,
-                        Trade.settled,
-                        Trade.timestamp >= since,
-                        Trade.trading_mode == mode,
-                    ).all()
-
-                    if len(trades) < min_trades:
+            with get_db_session() as db:
+                for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
+                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
                         continue
 
-                    wins = sum(1 for t in trades if t.result == 'win')
-                    win_rate = wins / len(trades)
-                    pnl = sum(t.pnl for t in trades if t.pnl)
+                    for mode in settings.active_modes_set:
+                        trades = db.query(Trade).filter(
+                            Trade.strategy == config.strategy_name,
+                            Trade.settled,
+                            Trade.timestamp >= since,
+                            Trade.trading_mode == mode,
+                        ).all()
 
-                    if win_rate < 0.30 or pnl < -50.0:
-                        config.enabled = False
-                        config.disabled_at = datetime.now(timezone.utc)
-                        disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                        logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                        break
+                        if len(trades) < min_trades:
+                            continue
+
+                        wins = sum(1 for t in trades if t.result == 'win')
+                        win_rate = wins / len(trades)
+                        pnl = sum(t.pnl for t in trades if t.pnl)
+
+                        if win_rate < 0.30 or pnl < -50.0:
+                            config.enabled = False
+                            config.disabled_at = datetime.now(timezone.utc)
+                            disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                            logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                            break
 
             if disabled:
-                db.commit()
                 logger.info(f"Auto-disabled {len(disabled)} losing strategies: {disabled}")
         except Exception as e:
             logger.warning(f"Auto-disable check failed: {e}")
-        finally:
-            db.close()
 
     try:
         scheduler.add_job(
@@ -968,74 +966,71 @@ def start_scheduler():
     def auto_rehabilitate_strategies():
         from backend.models.database import Trade, StrategyConfig
         from backend.config import settings
+        from backend.db.utils import get_db_session
         from datetime import datetime, timezone, timedelta
 
         cooldown_hours = getattr(settings, "AGI_REHAB_LITE_COOLDOWN_HOURS", 1)
         re_disable_hours = getattr(settings, "AGI_REHAB_LITE_RE_DISABLE_HOURS", 4)
         wr_threshold = getattr(settings, "AGI_REHAB_LITE_WIN_RATE_THRESHOLD", 0.30)
 
-        db = SessionLocal()
         rehabilitated = []
         re_disabled = []
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
-            disabled_configs = db.query(StrategyConfig).filter(
-                StrategyConfig.enabled == False,
-                StrategyConfig.disabled_at.isnot(None),
-            ).all()
+            with get_db_session() as db:
+                disabled_configs = db.query(StrategyConfig).filter(
+                    StrategyConfig.enabled.is_(False),
+                    StrategyConfig.disabled_at.isnot(None),
+                ).all()
 
-            for config in disabled_configs:
-                if config.strategy_name in ('agi_orchestrator',):
-                    continue
-
-                disabled_at = config.disabled_at
-                if disabled_at and disabled_at.tzinfo is None:
-                    disabled_at = disabled_at.replace(tzinfo=timezone.utc)
-
-                if not disabled_at or disabled_at > cutoff:
-                    continue
-
-                since_rehab = disabled_at
-                for mode in settings.active_modes_set:
-                    trades = db.query(Trade).filter(
-                        Trade.strategy == config.strategy_name,
-                        Trade.settled,
-                        Trade.timestamp >= since_rehab,
-                        Trade.trading_mode == mode,
-                    ).all()
-
-                    if len(trades) < 3:
+                for config in disabled_configs:
+                    if config.strategy_name in ('agi_orchestrator',):
                         continue
 
-                    wins = sum(1 for t in trades if t.result == 'win')
-                    win_rate = wins / len(trades) if trades else 0
+                    disabled_at = config.disabled_at
+                    if disabled_at and disabled_at.tzinfo is None:
+                        disabled_at = disabled_at.replace(tzinfo=timezone.utc)
 
-                    if win_rate < wr_threshold:
-                        config.disabled_at = datetime.now(timezone.utc) + timedelta(hours=re_disable_hours - cooldown_hours)
-                        re_disabled.append(f"{config.strategy_name}: WR={win_rate:.0%} < {wr_threshold:.0%}, extended disable {re_disable_hours}h")
-                        logger.warning(
-                            f"Re-disable {config.strategy_name}: WR={win_rate:.0%} below {wr_threshold:.0%}, extended for {re_disable_hours}h"
+                    if not disabled_at or disabled_at > cutoff:
+                        continue
+
+                    since_rehab = disabled_at
+                    for mode in settings.active_modes_set:
+                        trades = db.query(Trade).filter(
+                            Trade.strategy == config.strategy_name,
+                            Trade.settled,
+                            Trade.timestamp >= since_rehab,
+                            Trade.trading_mode == mode,
+                        ).all()
+
+                        if len(trades) < 3:
+                            continue
+
+                        wins = sum(1 for t in trades if t.result == 'win')
+                        win_rate = wins / len(trades) if trades else 0
+
+                        if win_rate < wr_threshold:
+                            config.disabled_at = datetime.now(timezone.utc) + timedelta(hours=re_disable_hours - cooldown_hours)
+                            re_disabled.append(f"{config.strategy_name}: WR={win_rate:.0%} < {wr_threshold:.0%}, extended disable {re_disable_hours}h")
+                            logger.warning(
+                                f"Re-disable {config.strategy_name}: WR={win_rate:.0%} below {wr_threshold:.0%}, extended for {re_disable_hours}h"
+                            )
+                            break
+                    else:
+                        config.enabled = True
+                        config.trading_mode = 'paper'
+                        config.disabled_at = None
+                        rehabilitated.append(config.strategy_name)
+                        logger.info(
+                            f"Rehabilitated {config.strategy_name} in paper mode (cooldown {cooldown_hours}h elapsed)"
                         )
-                        break
-                else:
-                    config.enabled = True
-                    config.trading_mode = 'paper'
-                    config.disabled_at = None
-                    rehabilitated.append(config.strategy_name)
-                    logger.info(
-                        f"Rehabilitated {config.strategy_name} in paper mode (cooldown {cooldown_hours}h elapsed)"
-                    )
 
-            if rehabilitated or re_disabled:
-                db.commit()
-                if rehabilitated:
-                    logger.info(f"Lite-rehabilitated {len(rehabilitated)} strategies: {rehabilitated}")
-                if re_disabled:
-                    logger.info(f"Extended disable for {len(re_disabled)} strategies: {re_disabled}")
+            if rehabilitated:
+                logger.info(f"Lite-rehabilitated {len(rehabilitated)} strategies: {rehabilitated}")
+            if re_disabled:
+                logger.info(f"Extended disable for {len(re_disabled)} strategies: {re_disabled}")
         except Exception as e:
             logger.warning(f"Lite rehabilitation check failed: {e}")
-        finally:
-            db.close()
 
     try:
         scheduler.add_job(
