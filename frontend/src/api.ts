@@ -994,3 +994,83 @@ export async function fetchAGIRunResult(): Promise<AGIRunResultsResponse> {
   const { data } = await api.get<AGIRunResultsResponse>('/agi/graphs/runs')
   return data
 }
+
+// --- Multi-Wallet & Copy-Trade API ---
+export interface TradingWallet {
+  id: number
+  label: string
+  chain: string
+  address: string
+  has_private_key: boolean
+  api_key: string | null
+  has_api_secret: boolean
+  enabled: boolean
+  is_paper: boolean
+  created_at: string
+  notes: string | null
+}
+
+export interface WalletAllocation {
+  id: number
+  wallet_id: number
+  strategy_name: string
+  weight: number
+  max_exposure_usd: number | null
+  enabled: boolean
+}
+
+export interface CopyPolicy {
+  id: number
+  source_name: string
+  enabled: boolean
+  max_size_usd: number
+  confidence_floor: number
+  max_delay_seconds: number
+  size_scale_factor: number
+  cooldown_seconds: number
+}
+
+export async function fetchTradingWallets(): Promise<{items: TradingWallet[]}> {
+  const { data } = await api.get('/wallet-allocations/wallets')
+  return data
+}
+
+export async function createTradingWallet(payload: Partial<TradingWallet>): Promise<TradingWallet> {
+  const { data } = await api.post('/wallet-allocations/wallets', payload)
+  return data
+}
+
+export async function updateTradingWallet(id: number, payload: Partial<TradingWallet>): Promise<TradingWallet> {
+  const { data } = await api.put(`/wallet-allocations/wallets/${id}`, payload)
+  return data
+}
+
+export async function fetchWalletAllocations(): Promise<{items: WalletAllocation[]}> {
+  const { data } = await api.get('/wallet-allocations/allocations')
+  return data
+}
+
+export async function createWalletAllocation(payload: Partial<WalletAllocation>): Promise<WalletAllocation> {
+  const { data } = await api.post('/wallet-allocations/allocations', payload)
+  return data
+}
+
+export async function updateWalletAllocation(id: number, payload: Partial<WalletAllocation>): Promise<WalletAllocation> {
+  const { data } = await api.put(`/wallet-allocations/allocations/${id}`, payload)
+  return data
+}
+
+export async function fetchCopyPolicies(): Promise<{items: CopyPolicy[]}> {
+  const { data } = await api.get('/copy-policy/')
+  return data
+}
+
+export async function createCopyPolicy(payload: Partial<CopyPolicy>): Promise<CopyPolicy> {
+  const { data } = await api.post('/copy-policy/', payload)
+  return data
+}
+
+export async function updateCopyPolicy(id: number, payload: Partial<CopyPolicy>): Promise<CopyPolicy> {
+  const { data } = await api.put(`/copy-policy/${id}`, payload)
+  return data
+}
