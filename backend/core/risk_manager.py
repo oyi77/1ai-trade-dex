@@ -97,7 +97,7 @@ class RiskManager:
         self._safety_rules = self._load_safety_rules()
 
     def _get_bankroll(self, db, mode: str) -> float:
-        state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+        state = db.query(BotState).filter_by(mode=mode).first()
         if state and state.bankroll is not None:
             return float(state.bankroll)
         return self.s.INITIAL_BANKROLL
@@ -186,7 +186,12 @@ class RiskManager:
             elif direction.upper() == 'YES':
                 confidence = confidence * (1 - bias_weight * 0.5)
             if confidence != original_conf:
-                logger.info("[risk_manager] Applied NO-bias: %s -> %.2f -> %.2f", direction, original_conf, confidence)
+                logger.info(
+                    "[risk_manager] Applied NO-bias: {} -> {:.2f} -> {:.2f}",
+                    direction,
+                    original_conf,
+                    confidence,
+                )
 
         cat_enabled = getattr(self.s, 'CATEGORY_CONFIDENCE_ENABLED', False)
         if cat_enabled and category:
@@ -195,7 +200,13 @@ class RiskManager:
             if multiplier != 1.0:
                 pre_cat = confidence
                 confidence = min(1.0, confidence * multiplier)
-                logger.info("[risk_manager] Applied category multiplier: %s %.2f x%.2f -> %.2f", category, pre_cat, multiplier, confidence)
+                logger.info(
+                    "[risk_manager] Applied category multiplier: {} {:.2f} x{:.2f} -> {:.2f}",
+                    category,
+                    pre_cat,
+                    multiplier,
+                    confidence,
+                )
 
         if not self._breaker_enabled_for_mode("daily_loss", effective_mode):
             logger.debug(
@@ -235,10 +246,12 @@ class RiskManager:
             max_position = available_cash * self.s.MAX_POSITION_FRACTION
         else:
             max_position = bankroll * self.s.MAX_POSITION_FRACTION
+        max_capacity = max_position
         adjusted = min(size, max_position)
 
         # Global max trade size ceiling (immutable safety rule)
         adjusted = min(adjusted, self.s.MAX_TRADE_SIZE)
+        max_capacity = min(max_capacity, self.s.MAX_TRADE_SIZE)
 
         # Paper/testnet bankroll is available cash because entry execution
         # deducts stake immediately; total exposure limits must use equity
@@ -248,8 +261,10 @@ class RiskManager:
         exposure_base = bankroll if effective_mode == "live" else bankroll + current_exposure
         # Use immutable safety rule for max total exposure
         max_exposure = exposure_base * self._safety_rules["max_total_exposure"]
+        exposure_room = max(0.0, max_exposure - current_exposure)
+        max_capacity = min(max_capacity, exposure_room)
         if current_exposure + adjusted > max_exposure:
-            adjusted = max(0.0, max_exposure - current_exposure)
+            adjusted = exposure_room
             if adjusted <= 0:
                 record_signal(strategy=strategy_name or "unknown", signal_type="rejected_exposure")
                 increment_risk_rejection(strategy=strategy_name or "unknown", reason="exposure")
@@ -261,6 +276,7 @@ class RiskManager:
             return RiskDecision(False, f"slippage {slippage:.4f} > tolerance", 0.0)
 
         # Per-strategy allocation: use AGI allocation if available, otherwise equal-weight fallback
+        effective_cap = None
         if strategy_name and db is not None:
             strategy_allocation = self._get_strategy_allocation(
                 strategy_name, bankroll, db
@@ -274,10 +290,34 @@ class RiskManager:
             effective_cap = remaining_cap if remaining_cap is not None else strategy_allocation
             # Use the tighter of strategy allocation and remaining budget
             adjusted = min(adjusted, effective_cap)
+            max_capacity = min(max_capacity, effective_cap)
             logger.info(
                 f"[risk_manager] Strategy {strategy_name} allocation: ${strategy_allocation:.2f}, "
                 f"remaining: ${effective_cap:.2f}, adjusted size: ${adjusted:.2f}"
             )
+
+        min_order_usdc = (
+            self.s.PAPER_MIN_ORDER_USDC
+            if effective_mode == "paper"
+            else self.s.MIN_ORDER_USDC
+        )
+        if 0 < adjusted < min_order_usdc:
+            if max_capacity >= min_order_usdc:
+                adjusted = min_order_usdc
+                logger.info(
+                    "[risk_manager] Raised %s trade size to venue minimum: $%.2f -> $%.2f",
+                    effective_mode,
+                    adjusted,
+                    adjusted,
+                )
+            else:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_min_order")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="min_order")
+                return RiskDecision(
+                    False,
+                    f"size ${adjusted:.2f} below minimum order ${min_order_usdc:.2f}",
+                    0.0,
+                )
 
         return RiskDecision(True, "ok", adjusted)
 
@@ -322,7 +362,7 @@ class RiskManager:
                 # Reads DB-backed initial (which includes top-ups) when available.
                 effective_initial = self.s.INITIAL_BANKROLL
                 if db is not None:
-                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
+                    state = db.query(BotState).filter_by(mode=effective_mode).first()
                     if state is not None:
                         if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                             effective_initial = float(state.paper_initial_bankroll)
@@ -351,7 +391,11 @@ class RiskManager:
                     breach_reason=breach_reason,
                 )
         except Exception as e:
-                logger.error(f"[risk_manager.check_drawdown] {type(e).__name__}: {e}", exc_info=True)
+                logger.opt(exception=True).error(
+                    "[risk_manager.check_drawdown] {}: {}",
+                    type(e).__name__,
+                    e,
+                )
                 return DrawdownStatus(
                     0.0,
                     0.0,
@@ -393,7 +437,11 @@ class RiskManager:
                     daily_limit = self.s.DAILY_LOSS_LIMIT
                 return daily_pnl <= -daily_limit
         except Exception as e:
-                logger.error(f"[risk_manager._daily_loss_exceeded] {type(e).__name__}: {e}", exc_info=True)
+                logger.opt(exception=True).error(
+                    "[risk_manager._daily_loss_exceeded] {}: {}",
+                    type(e).__name__,
+                    e,
+                )
                 return True
         finally:
                 if owns_db:
@@ -418,7 +466,11 @@ class RiskManager:
                 count = query.scalar() or 0
                 return count > 0
         except Exception as e:
-                logger.error(f"[risk_manager._has_unsettled_trade] {type(e).__name__}: {e}", exc_info=True)
+                logger.opt(exception=True).error(
+                    "[risk_manager._has_unsettled_trade] {}: {}",
+                    type(e).__name__,
+                    e,
+                )
                 return True
         finally:
                 if owns_db:
@@ -435,7 +487,11 @@ class RiskManager:
             )
             return enabled_count
         except Exception as e:
-            logger.error(f"[risk_manager._count_enabled_strategies] {type(e).__name__}: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                "[risk_manager._count_enabled_strategies] {}: {}",
+                type(e).__name__,
+                e,
+            )
             return 0
 
     def _get_strategy_allocation(self, strategy_name: str, bankroll: float, db) -> float:
@@ -559,7 +615,7 @@ class RiskManager:
             # Use the higher of current bankroll or effective initial bankroll
             effective_initial = self.s.INITIAL_BANKROLL
             if db is not None:
-                state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
+                state = db.query(BotState).filter_by(mode=effective_mode).first()
                 if state is not None:
                     if effective_mode == "paper" and state.paper_initial_bankroll is not None:
                         effective_initial = float(state.paper_initial_bankroll)
@@ -628,7 +684,11 @@ class RiskManager:
             return False, None
 
         except Exception as e:
-            logger.error(f"[risk_manager.check_drawdown_floors] {type(e).__name__}: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                "[risk_manager.check_drawdown_floors] {}: {}",
+                type(e).__name__,
+                e,
+            )
             return False, f"error_during_floor_check: {type(e).__name__}"
         finally:
             if owns_db:
@@ -642,7 +702,11 @@ class RiskManager:
         except ImportError:
             logger.warning(f"[risk_manager] Event bus not available, skipping SSE event: {event_type}")
         except Exception as e:
-            logger.error(f"[risk_manager._publish_event] {type(e).__name__}: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                "[risk_manager._publish_event] {}: {}",
+                type(e).__name__,
+                e,
+            )
 
     def _get_regime_multiplier(self, strategy_name: Optional[str] = None) -> float:
         """Get current regime confidence multiplier from RegimeConfidenceRouter."""
