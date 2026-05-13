@@ -218,7 +218,7 @@ async def health_check(db: Session = Depends(get_db)):
         db.execute(func.now())
         checks["database"] = {"status": "ok"}
     except Exception as e:
-        checks["database"] = {"status": "error", "error": str(e)}
+        checks["database"] = {"status": "error", "error": "database unavailable"}
         overall_status = "degraded"
         logger.error(
             f"[api.main.health_check] {type(e).__name__}: Database health check failed: {e}",
@@ -235,7 +235,7 @@ async def health_check(db: Session = Depends(get_db)):
             checks["redis"] = {"status": "ok"}
             r.close()
         except Exception as e:
-            checks["redis"] = {"status": "error", "error": str(e)}
+            checks["redis"] = {"status": "error", "error": "redis unavailable"}
             if overall_status == "ok":
                 overall_status = "degraded"
             logger.warning(
@@ -258,7 +258,10 @@ async def health_check(db: Session = Depends(get_db)):
                 "balance": str(balance.get("usdc_balance", 0.0)),
             }
         else:
-            checks["polymarket_clob"] = {"status": "error", "error": balance["error"]}
+            checks["polymarket_clob"] = {
+                "status": "error",
+                "error": "wallet balance unavailable",
+            }
             if overall_status == "ok":
                 overall_status = "degraded"
     except asyncio.TimeoutError:
@@ -267,7 +270,10 @@ async def health_check(db: Session = Depends(get_db)):
             overall_status = "degraded"
         logger.warning("Polymarket CLOB health check timed out")
     except Exception as e:
-        checks["polymarket_clob"] = {"status": "error", "error": str(e)}
+        checks["polymarket_clob"] = {
+            "status": "error",
+            "error": "wallet balance unavailable",
+        }
         if overall_status == "ok":
             overall_status = "degraded"
         logger.warning(
@@ -301,7 +307,7 @@ async def health_check(db: Session = Depends(get_db)):
             "queue_size": pool.size() - pool.checkedout() - pool.overflow(),
         }
     except Exception as e:
-        checks["db_pool"] = {"status": "error", "error": str(e)}
+        checks["db_pool"] = {"status": "error", "error": "db pool unavailable"}
         logger.warning(f"Failed to get pool stats: {e}")
 
     bot_state = db.query(BotState).first()
@@ -310,7 +316,8 @@ async def health_check(db: Session = Depends(get_db)):
         from backend.core.agi_event_handlers import check_agi_health
         agi_health = check_agi_health()
     except Exception as e:
-        agi_health = {"status": "error", "error": str(e)}
+        agi_health = {"status": "error", "error": "agi health unavailable"}
+        logger.warning(f"Failed to get AGI health: {e}")
 
     response = {
         "status": overall_status,
