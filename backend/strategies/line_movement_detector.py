@@ -28,6 +28,7 @@ from backend.strategies.base import (
 )
 from backend.core.decisions import record_decision_standalone
 from backend.config import settings
+from backend.ai.probability_utils import clamp_probability
 
 from loguru import logger
 def _cfg(name, default):
@@ -279,11 +280,12 @@ class LineMovementDetectorStrategy(BaseStrategy):
 
         action = "BUY"
         side = "yes" if direction == "up" else "no"
-        entry_price = (
+        raw_entry_price = (
             movement.current_price
             if direction == "up"
             else round(1.0 - movement.current_price, 4)
         )
+        entry_price = round(clamp_probability(float(raw_entry_price)), 4)
 
         record_decision_standalone(
             self.name,
@@ -293,7 +295,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
             signal_data={
                 "price_change_pct": movement.price_change_pct,
                 "direction": direction,
-                "current_price": movement.current_price,
+                "current_price": clamp_probability(float(movement.current_price)),
                 "price_1h_ago": movement.price_1h_ago,
                 "volume_24h": movement.volume_24h,
                 "news_context": news_context[:500] if news_context else "",
@@ -341,9 +343,9 @@ class LineMovementDetectorStrategy(BaseStrategy):
             "edge": abs(movement.price_change_pct) / 100,
             "entry_price": entry_price,
             "model_probability": confidence,
-            "market_probability": movement.current_price,
+            "market_probability": clamp_probability(float(movement.current_price)),
             "size": size,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "strategy_name": self.name,
             "token_id": movement.token_id,
             "condition_id": movement.condition_id,

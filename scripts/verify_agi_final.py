@@ -30,7 +30,7 @@ assert entity is not None
 assert entity.properties['value'] == 42
 retrieved = kg.get_entity('entity1')
 assert retrieved is not None
-print(f"✅ KnowledgeGraph: entity stored and retrieved")
+print("✅ KnowledgeGraph: entity stored and retrieved")
 
 # Test StrategyComposer
 composer = StrategyComposer()
@@ -87,15 +87,15 @@ print(f"✅ AGIOrchestrator: status type={type(status).__name__}")
 
 # Test DynamicPromptEngine
 engine2 = DynamicPromptEngine()
-print(f"✅ DynamicPromptEngine: instantiated")
+print("✅ DynamicPromptEngine: instantiated")
 
 # Test StrategySynthesizer
 synthesizer = StrategySynthesizer()
-print(f"✅ StrategySynthesizer: instantiated")
+print("✅ StrategySynthesizer: instantiated")
 
 # Test ExperimentRunner
 runner = ExperimentRunner()
-print(f"✅ ExperimentRunner: instantiated")
+print("✅ ExperimentRunner: instantiated")
 
 print()
 print("="*60)

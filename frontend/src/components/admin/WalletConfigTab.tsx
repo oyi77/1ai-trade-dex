@@ -14,6 +14,10 @@ import {
   type WalletBalance,
 } from '../../api'
 
+import { WalletMatrix } from './WalletMatrix'
+import { CopyPolicyPanel } from './CopyPolicyPanel'
+import { ProviderStatusPanel } from './ProviderStatusPanel'
+
 export function WalletConfigTab() {
   const qc = useQueryClient()
   const [address, setAddress] = useState('')
@@ -112,8 +116,12 @@ export function WalletConfigTab() {
 
   return (
     <div className="space-y-4">
-      <div className="text-[10px] text-neutral-500 uppercase tracking-wider">
-        Wallet Config — {total} total
+      <ProviderStatusPanel />
+      <WalletMatrix />
+      <CopyPolicyPanel />
+      
+      <div className="text-[10px] text-neutral-500 uppercase tracking-wider mt-12 pt-8 border-t border-neutral-800">
+        Legacy Wallet Config — {total} total
       </div>
       <div className="border border-neutral-800 overflow-x-auto">
         <table className="w-full text-[10px] font-mono min-w-[400px]">

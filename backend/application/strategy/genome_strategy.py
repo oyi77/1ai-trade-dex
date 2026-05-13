@@ -2,6 +2,7 @@
 
 from typing import Dict, Any, Optional, TypedDict
 
+from backend.config import settings
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
 from backend.domain.genome.models import StrategyGenome
 
@@ -293,7 +294,7 @@ class GenomeStrategy(BaseStrategy):
             "suggested_size": size,
             "model_probability": confidence,
             "market_probability": market.yes_price,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "strategy_name": self.name,
             "genome_id": self.genome.genome_id,
             "order_type": execution.get("order_type", "limit"),

@@ -891,7 +891,7 @@ class GeneralMarketScanner(BaseStrategy):
                 "model_probability": ai_prob,
                 "raw_ai_probability": raw_ai_prob,
                 "market_probability": market_price,
-                "platform": "polymarket",
+                "platform": settings.DEFAULT_VENUE,
                 "strategy_name": self.name,
                 "volume": volume,
                 "reasoning": reasoning,

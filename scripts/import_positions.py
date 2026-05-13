@@ -58,7 +58,7 @@ async def import_positions_from_data_api(wallet_address: str, mode: str = "live"
             existing = db.query(Trade).filter(
                 Trade.market_ticker == asset_id,
                 Trade.trading_mode == mode,
-                Trade.settled == False
+                not Trade.settled
             ).first()
             
             if existing:
@@ -86,7 +86,7 @@ async def import_positions_from_data_api(wallet_address: str, mode: str = "live"
         
         db.commit()
         
-        print(f"\nImport Summary:")
+        print("\nImport Summary:")
         print(f"  Imported: {imported}")
         print(f"  Updated: {updated}")
         print(f"  Total open positions: {imported + updated}")
@@ -96,7 +96,7 @@ async def import_positions_from_data_api(wallet_address: str, mode: str = "live"
         if state:
             state.last_sync_at = datetime.now(timezone.utc)
             db.commit()
-            print(f"  BotState updated")
+            print("  BotState updated")
         
         return imported, updated
         
@@ -131,7 +131,7 @@ async def main():
         async with httpx.AsyncClient() as client:
             result = await calculate_position_market_value("live", db, client)
         
-        print(f"\nPosition Valuation:")
+        print("\nPosition Valuation:")
         print(f"  Position Cost: ${result['position_cost']:.2f}")
         print(f"  Position Market Value: ${result['position_market_value']:.2f}")
         print(f"  Unrealized PnL: ${result['unrealized_pnl']:.2f}")

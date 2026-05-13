@@ -45,6 +45,7 @@ _metrics: Dict[str, Any] = {
     "strategy_health_metrics": {},
     "bot_state_fields": {},
     "maker_edge_capture_rate": 0.0,
+    "ai_provider_health_check_failures_total": 0,
 }
 
 
@@ -309,6 +310,13 @@ def get_metrics() -> str:
         ])
         for field, value in _metrics.get("bot_state_fields", {}).items():
             lines.append(f'polyedge_bot_state_gauge{{field="{field}"}} {value:.4f}')
+
+        lines.extend([
+            "",
+            "# HELP polyedge_ai_provider_health_check_failures_total AI provider health check failures",
+            "# TYPE polyedge_ai_provider_health_check_failures_total counter",
+            f"polyedge_ai_provider_health_check_failures_total {_metrics['ai_provider_health_check_failures_total']}",
+        ])
 
         lines.append("")
 

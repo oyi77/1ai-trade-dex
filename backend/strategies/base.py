@@ -43,9 +43,23 @@ class StrategyContext:
         from backend.data.provider import DataProvider
     providers: dict[str, "DataProvider"] = field(default_factory=dict)
 
+    if TYPE_CHECKING:
+        from backend.markets.provider_registry import MarketProviderRegistry
+    market_registry: Optional["MarketProviderRegistry"] = None
+
+    DEFAULT_VENUE: str = "polymarket"
+
     @property
     def primary_provider(self):
-        return self.providers.get("polymarket")
+        return self.providers.get(self.DEFAULT_VENUE)
+
+    def get_market_provider(self, venue: str = None):
+        if self.market_registry is None:
+            return None
+        try:
+            return self.market_registry.get(venue or self.DEFAULT_VENUE)
+        except Exception:
+            return None
 
 
 @dataclass

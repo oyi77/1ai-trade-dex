@@ -340,7 +340,7 @@ class WhalePNLTrackerStrategy(BaseStrategy):
                                 "suggested_size": position.size * copy_fraction,
                                 "model_probability": min(whale_score, 1.0),
                                 "market_probability": market_prob,
-                                "platform": "polymarket",
+                                "platform": settings.DEFAULT_VENUE,
                                 "strategy_name": self.name,
                                 "reasoning": f"whale {position.wallet[:8]}... score={whale_score:.2f} side={position.side}",
                             }

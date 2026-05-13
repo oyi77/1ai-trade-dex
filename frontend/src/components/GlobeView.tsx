@@ -2,15 +2,6 @@ import { useEffect, useRef, useMemo, useCallback } from 'react'
 import Globe from 'react-globe.gl'
 import type { WeatherForecast, WeatherSignal } from '../types'
 
-function hasWebGL(): boolean {
-  try {
-    const canvas = document.createElement('canvas')
-    return !!(canvas.getContext('webgl') || canvas.getContext('webgl2') || canvas.getContext('experimental-webgl'))
-  } catch {
-    return false
-  }
-}
-
 interface Props {
   forecasts: WeatherForecast[]
   signals: WeatherSignal[]
@@ -84,15 +75,6 @@ function buildRegionArcs(markers: CityMarker[]): ArcData[] {
 export function GlobeView({ forecasts, signals }: Props) {
   const globeRef = useRef<any>(null)
 
-  if (!hasWebGL()) {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-neutral-600">
-        <div className="text-[10px] uppercase tracking-wider mb-1">Globe Unavailable</div>
-        <div className="text-[9px] text-neutral-700">WebGL not supported in this browser</div>
-      </div>
-    )
-  }
-
   const markers: CityMarker[] = useMemo(() => {
     const keys = forecasts.length > 0
       ? [...new Set(forecasts.map(f => f.city_key))]
@@ -143,7 +125,9 @@ export function GlobeView({ forecasts, signals }: Props) {
             renderer.dispose()
             renderer.forceContextLoss()
           }
-        } catch (e) {}
+        } catch {
+          // WebGL cleanup is best-effort; ignore errors during disposal
+        }
       }
     }
   }, [])

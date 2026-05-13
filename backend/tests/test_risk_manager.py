@@ -1,4 +1,5 @@
 import json
+import os
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 
@@ -266,6 +267,7 @@ class TestDrawdownFloors:
 class TestImmutableSafetyRules:
     """Tests for immutable safety rules enforcement (Task 13)."""
 
+    @patch.dict(os.environ, {}, clear=True)
     def test_safety_rules_loaded_with_defaults(self):
         """Test that safety rules are loaded with default values."""
         s = MockSettings()

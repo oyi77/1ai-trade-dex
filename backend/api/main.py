@@ -37,9 +37,11 @@ from backend.api.copy_trading import router as copy_trading_router
 from backend.api.arbitrage import router as arbitrage_router
 from backend.api.market_intel import router as market_intel_router
 from backend.api.auto_trader import router as auto_trader_router
-from backend.api.system import router as system_router
+from backend.api.system import health_check as system_liveness_check, router as system_router
 from backend.api.backtest import router as backtest_router
 from backend.api.wallets import router as wallets_router
+from backend.api.wallet_allocations import router as wallet_allocations_router
+from backend.api.copy_policy import router as copy_policy_router
 from backend.api.analytics import router as analytics_router
 from backend.api.settings import router as settings_router
 from backend.api.activities import router as activities_router
@@ -51,6 +53,11 @@ from backend.api.brain import router as brain_router
 from backend.api.errors import router as errors_router
 from backend.api.metrics_endpoint import router as metrics_router
 from backend.api.alerts import router as alerts_router
+
+# Plugin system API routers
+from backend.api.v1.ai_providers import router as ai_providers_router
+from backend.api.v1.data_sources import router as data_sources_router
+from backend.api.v1.market_providers import router as market_providers_router
 
 # HFT shared data service
 from backend.data.shared_service import router as shared_data_router
@@ -116,18 +123,24 @@ app.include_router(events_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
 app.include_router(backtest_router, prefix="/api/v1")
 app.include_router(wallets_router, prefix="/api/v1")
+app.include_router(wallet_allocations_router, prefix="/api/v1")
+app.include_router(copy_policy_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(activities_router, prefix="/api/v1")
 app.include_router(proposals_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
-app.include_router(system_router, prefix="/api/v1")
 app.include_router(brain_router, prefix="/api/v1")
 app.include_router(errors_router, prefix="/api/v1")
 app.include_router(metrics_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(shared_data_router, prefix="/api/v1")
 app.include_router(learning_router, prefix="/api/v1")
+
+# Plugin system API routes
+app.include_router(ai_providers_router, prefix="/api/v1")
+app.include_router(data_sources_router, prefix="/api/v1")
+app.include_router(market_providers_router, prefix="/api/v1")
 app.include_router(agi_router, prefix="/api/v1/agi")
 
 # Knowledge Graph router for Wave 10
@@ -145,6 +158,13 @@ from backend.api.events.sse_router import router as sse_events_router  # noqa: E
 
 app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)
+
+
+@app.get("/api/health", include_in_schema=False)
+async def legacy_api_health_check():
+    """Backward-compatible liveness alias for legacy monitors."""
+
+    return await system_liveness_check()
 
 # Add metrics middleware for automatic tracking
 @app.middleware("http")

@@ -86,8 +86,7 @@ def record_decision(
             if "database is locked" not in str(e).lower() or attempt >= _DB_LOCKED_MAX_RETRIES - 1:
                 logger.warning(
                     f"record_decision: OperationalError for {strategy}/{market_ticker}, "
-                    f"rolling back session: {e}",
-                    extra={"component": "decisions"},
+                    f"rolling back session: {e}"
                 )
                 try:
                     db.rollback()
@@ -106,8 +105,7 @@ def record_decision(
             time.sleep(_DB_LOCKED_RETRY_DELAY)
         except Exception as e:
             logger.error(
-                f"record_decision failed for {strategy}/{market_ticker}: {e}",
-                extra={"component": "decisions"},
+                f"record_decision failed for {strategy}/{market_ticker}: {e}"
             )
             try:
                 db.rollback()

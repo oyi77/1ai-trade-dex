@@ -6,10 +6,6 @@ Requirements: matplotlib, numpy, Pillow, ffmpeg
 Output: docs/paper/supplementary_video.mp4 (1920x1080, 30fps, H.264)
 """
 
-import os
-import sys
-import textwrap
-import numpy as np
 from pathlib import Path
 
 # Use Agg backend (no GUI)

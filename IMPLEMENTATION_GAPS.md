@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-12 (Logging migration to loguru complete — 153 files migrated, 152 bare except blocks fixed, InterceptHandler centralized, root cause of observability failures resolved.)
+**Last Updated:** 2026-05-14 (Trade persistence and heartbeat flush lock-contention hardening updated after `bot_state` rollback audit.)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -13,6 +13,10 @@ Format:
 ---
 
 ## Fixed
+
+**Bot runtime hardening** → **Fixed** (2026-05-14): Closed the remaining freeze-prone runtime gaps in `backend/core/auto_trader.py`, `backend/core/strategy_executor.py`, `backend/core/heartbeat.py`, and `backend/core/event_bus.py`. Added the missing `asyncio` import for live auto-trader timeouts, corrected the live CLOB execution indentation/syntax path, bounded wallet-sync/CLOB waits with `asyncio.wait_for(...)`, ensured heartbeat-file directories are created before touching the liveness file, and replaced raw fire-and-forget event-bus scheduling with tracked background tasks that retain strong references and log exceptions/cancellations explicitly. Verified with `ruff check` on all modified backend files and targeted pytest (`32 passed`).
+
+**Trade persistence vs `bot_state` contention hardening** → **Fixed** (2026-05-14): Updated `backend/core/strategy_executor.py` so trade/audit/attempt persistence commits before best-effort `BotState` counter sync, preventing `psycopg2.errors.LockNotAvailable` on `bot_state` from rolling back durable trade records after `RISK_APPROVED`. Updated `backend/core/heartbeat.py` so `_pending_heartbeats` are only removed after a successful DB flush, preserving watchdog state through lock-timeout failures. Added regressions in `backend/tests/test_strategy_executor.py` covering post-trade `BotState` sync failure and failed heartbeat flush retention. Verified with targeted pytest (`35 passed`).
 
 ~~**[AGI-1] No strategy time_horizon or risk_tier classification**~~ → **Fixed** (2026-05-09): Added `time_horizon` and `risk_tier` columns to `StrategyConfig` via Alembic migration `a9f3c1e2b4d5`. Added `conservative` and `crazy` presets to `backend/core/risk_profiles.py`. Added `RISK_TIER_MAX_ALLOCATION` dict. `StrategyRanker.auto_allocate()` already reads `risk_tier` — added `trading_mode` param to fix signature mismatch. `FronttestValidator.can_go_live()` now skips 14-day gate for `crazy`-tier strategies via `_get_strategy_risk_tier()` helper.
 
@@ -407,3 +411,6 @@ These gaps directly block the vision of unlimited paper experimentation → cont
 - **De-scoping**: Add under "Intentionally De-Scoped" with a brief reason (cost, complexity, out-of-scope for current milestone).
 
 **Never remove a gap entirely.** History matters: seeing what was broken and how it was fixed is more valuable than a clean list.
+
+## Missing MarketProviderPlugin implementations
+Due to PR #95 not being merged on this branch, KalshiProvider and PolymarketProvider are not fully implemented. They need to be added once MarketProviderPlugin is available.

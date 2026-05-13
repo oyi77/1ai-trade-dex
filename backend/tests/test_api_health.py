@@ -6,6 +6,16 @@ import pytest
 
 
 class TestHealth:
+    def test_legacy_api_health_alias_returns_200(self, client):
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "healthy"
+
+    def test_health_live_alias_returns_200(self, client):
+        resp = client.get("/api/v1/health/live")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "healthy"
+
     def test_health_returns_200(self, client):
         resp = client.get("/api/v1/health/dependencies")
         assert resp.status_code == 200

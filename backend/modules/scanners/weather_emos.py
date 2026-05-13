@@ -855,7 +855,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                         "suggested_size": trade_size,
                         "model_probability": calibrated_p,
                         "market_probability": market_mid,
-                        "platform": "polymarket",
+                        "platform": settings.DEFAULT_VENUE,
                         "strategy_name": self.name,
                         "market_type": "weather",
                         "reasoning": f"EMOS: calibrated_p={calibrated_p:.3f} market={market_mid:.3f} edge={edge:+.3f}",

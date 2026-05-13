@@ -347,7 +347,7 @@ class UniversalScanner(BaseStrategy):
             volume=volume,
             category=data.get("category", ""),
             context="",
-            data_sources=["polymarket_ws"],
+            data_sources=[f"{settings.DEFAULT_VENUE}_ws"],
             db=None,
         )
 

@@ -555,7 +555,16 @@ class RiskManager:
             return None
 
     def _get_confidence_threshold(self, trading_mode: str, strategy_name: Optional[str] = None) -> float:
-        base_confidence = getattr(self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE)
+        """Get confidence threshold for trade approval, respecting regime routing."""
+        is_paper = (trading_mode or "").lower() in ("paper", "shadow")
+        if is_paper:
+            base_confidence = getattr(
+                self.s, "PAPER_AUTO_APPROVE_MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
+            )
+        else:
+            base_confidence = getattr(
+                self.s, "MIN_CONFIDENCE", self.s.AUTO_APPROVE_MIN_CONFIDENCE
+            )
 
         if getattr(self.s, 'REGIME_ROUTING_ENABLED', False):
             regime_multiplier = self._get_regime_multiplier(strategy_name)

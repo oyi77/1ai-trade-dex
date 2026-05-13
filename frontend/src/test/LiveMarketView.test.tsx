@@ -10,7 +10,7 @@ class MockWS {
   readyState = 1;
   send = vi.fn();
   close = vi.fn();
-  constructor(_url: string) { setTimeout(() => this.onopen?.({} as Event), 0); }
+  constructor(url: string) { void url; setTimeout(() => this.onopen?.({} as Event), 0); }
 }
 
 describe('LiveMarketView', () => {

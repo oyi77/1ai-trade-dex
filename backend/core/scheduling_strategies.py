@@ -19,6 +19,8 @@ from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
 from loguru import logger
+
+
 def _get_bankroll_for_mode(state, mode: str) -> float:
     """Read the correct bankroll field based on trading mode."""
     if mode == "paper":
@@ -198,7 +200,7 @@ async def _execute_trade(
         "confidence": signal.confidence,
         "model_probability": signal.model_probability,
         "token_id": token_id,
-        "platform": "polymarket",
+        "platform": settings.DEFAULT_VENUE,
         "reasoning": f"edge {signal.edge:.3f} >= threshold, {signal.direction} @ {entry_price:.0%}",
     }
 
@@ -333,6 +335,7 @@ async def scan_and_trade_job(mode: str):
 
             import json as _json
             from backend.core.strategy_executor import execute_decisions
+            from backend.markets.provider_registry import market_registry
 
             configs = (
                 db.query(StrategyConfig)
@@ -365,6 +368,7 @@ async def scan_and_trade_job(mode: str):
                     logger=logger,
                     params=params,
                     mode=mode,
+                    market_registry=market_registry,
                 )
                 strategy = strategy_cls()
                 result = await strategy.run(strategy_ctx)
@@ -543,6 +547,12 @@ async def weather_scan_and_trade_job(mode: str):
                     "direction": signal.direction,
                     "size": trade_size,
                     "edge": signal.edge,
+                    "confidence": signal.model_probability,
+                    "model_probability": signal.model_probability,
+                    "token_id": token_id,
+                    "platform": settings.DEFAULT_VENUE,
+                    "market_type": "weather",
+                    "reasoning": f"weather signal: {signal.market.city_name}",
                     "city": signal.market.city_name,
                 },
             )
@@ -724,28 +734,42 @@ async def auto_trader_job(mode: str):
                 .scalar()
                 or 0.0
             )
-            signal_ids = [sig.id for sig in signals]
+            signal_rows = [
+                {
+                    "id": sig.id,
+                    "market_ticker": sig.market_ticker,
+                    "direction": sig.direction,
+                    "confidence": sig.confidence,
+                    "edge": sig.edge,
+                    "model_probability": sig.model_probability,
+                    "token_id": sig.token_id,
+                    "track_name": sig.track_name,
+                }
+                for sig in signals
+            ]
+            signal_ids = [sig["id"] for sig in signal_rows]
 
         executed = 0
         queued = 0
         skipped = 0
         processed_signal_ids = []
-        for sig in signals:
-                token_id = getattr(sig, "token_id", None)
-                if mode in ("testnet", "live") and not token_id and not sig.market_ticker.startswith("KX"):
-                    processed_signal_ids.append(sig.id)
+        for sig in signal_rows:
+                token_id = sig["token_id"]
+                market_ticker = sig["market_ticker"]
+                if mode in ("testnet", "live") and not token_id and not market_ticker.startswith("KX"):
+                    processed_signal_ids.append(sig["id"])
                     skipped += 1
                     continue
 
                 signal_dict = {
-                    "market_id": sig.market_ticker,
-                    "market_ticker": sig.market_ticker,
-                    "side": "BUY" if (sig.direction or "yes") == "yes" else "SELL",
-                    "confidence": getattr(sig, "confidence", 0.0) or 0.0,
+                    "market_id": market_ticker,
+                    "market_ticker": market_ticker,
+                    "side": "BUY" if (sig["direction"] or "yes") == "yes" else "SELL",
+                    "confidence": sig["confidence"] or 0.0,
                     "size": min(settings.MAX_TRADE_SIZE, bankroll * settings.KELLY_FRACTION),
-                    "price": getattr(sig, "model_probability", 0.5) or 0.5,
+                    "price": sig["model_probability"] or 0.5,
                     "token_id": token_id,
-                    "strategy": getattr(sig, "track_name", "unknown"),
+                    "strategy": sig["track_name"] or "unknown",
                 }
                 result = await trader.execute_signal(
                     signal_dict,
@@ -758,25 +782,25 @@ async def auto_trader_job(mode: str):
 
                     trade_size = min(settings.MAX_TRADE_SIZE, (bankroll or 100.0) * settings.KELLY_FRACTION)
                     decision = {
-                        "market_ticker": sig.market_ticker,
-                        "direction": sig.direction or "yes",
+                        "market_ticker": market_ticker,
+                        "direction": sig["direction"] or "yes",
                         "size": trade_size,
-                        "entry_price": getattr(sig, "model_probability", 0.5) or 0.5,
-                        "edge": getattr(sig, "edge", 0.0) or 0.0,
-                        "confidence": getattr(sig, "confidence", 0.0) or 0.0,
-                        "model_probability": getattr(sig, "model_probability", None),
+                        "entry_price": sig["model_probability"] or 0.5,
+                        "edge": sig["edge"] or 0.0,
+                        "confidence": sig["confidence"] or 0.0,
+                        "model_probability": sig["model_probability"],
                         "token_id": token_id,
-                        "platform": "kalshi" if sig.market_ticker.startswith("KX") else "polymarket",
+                        "platform": "kalshi" if market_ticker.startswith("KX") else settings.DEFAULT_VENUE,
                     }
-                    source_strategy = getattr(sig, "track_name", None)
+                    source_strategy = sig["track_name"]
                     if not source_strategy:
-                        logger.warning(f"Signal {sig.id} has no track_name — skipping auto-trader")
-                        sig.executed = True
+                        logger.warning(f"Signal {sig['id']} has no track_name — skipping auto-trader")
                         skipped += 1
+                        processed_signal_ids.append(sig["id"])
                         continue
                     exec_result = await execute_decision(decision, source_strategy, mode=mode)
                     if exec_result is not None:
-                        processed_signal_ids.append(sig.id)
+                        processed_signal_ids.append(sig["id"])
                         executed += 1
                         current_exposure += trade_size
                 elif result.pending_approval:
@@ -784,7 +808,7 @@ async def auto_trader_job(mode: str):
                 else:
                     # Mark as processed even when skipped/rejected so we don't
                     # re-attempt the same stale signal every cycle.
-                    processed_signal_ids.append(sig.id)
+                    processed_signal_ids.append(sig["id"])
                     skipped += 1
 
         if processed_signal_ids:
@@ -803,6 +827,9 @@ async def auto_trader_job(mode: str):
                 "[ALERT] auto_trader processed %d signals but created 0 trade attempts — check filters",
                 len(signal_ids),
             )
+    except asyncio.CancelledError:
+        logger.info(f"auto_trader_job({mode}) cancelled during shutdown")
+        return
     except Exception as e:
         log_event("error", f"auto_trader_job error: {e}")
 
@@ -897,6 +924,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
         from backend.strategies.base import StrategyContext
         from backend.config import settings as _settings
+        from backend.markets.provider_registry import market_registry
 
         # Phase 2: Run strategy with a fresh session
         with get_db_session() as db:
@@ -907,6 +935,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 logger=logger,
                 params=params,
                 mode=effective_mode,
+                market_registry=market_registry,
             )
 
             strategy = strategy_cls()
@@ -970,6 +999,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
         )
 
+    except asyncio.CancelledError:
+        logger.info(f"strategy_cycle_job({strategy_name}) cancelled during shutdown")
+        return
     except Exception as e:
         log_event("error", f"Strategy cycle job failed for {strategy_name}: {e}")
         logger.exception(f"strategy_cycle_job({strategy_name})")

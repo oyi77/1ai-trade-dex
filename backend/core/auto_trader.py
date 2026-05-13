@@ -1,5 +1,7 @@
 """Auto-trader: routes high-confidence signals to immediate execution,
 low-confidence signals to a manual approval queue."""
+import asyncio
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -20,9 +22,10 @@ class ExecutionResult:
 
 
 class AutoTrader:
-    def __init__(self, risk_manager, clob_factory=None):
+    def __init__(self, risk_manager, clob_factory=None, wallet_router=None):
         self.risk = risk_manager
         self.clob_factory = clob_factory
+        self.wallet_router = wallet_router
 
     async def execute_signal(
         self, signal: Dict[str, Any], bankroll: float, current_exposure: float, mode: str
@@ -87,13 +90,41 @@ class AutoTrader:
                 order_id=f"paper-{datetime.now(timezone.utc).timestamp()}",
             )
 
+        if self.wallet_router:
+            try:
+                child_orders = await asyncio.wait_for(
+                    self.wallet_router.fan_out(
+                        signal_size=decision.adjusted_size,
+                        condition_id=signal.get("token_id"),
+                        side=signal.get("side", "BUY"),
+                        strategy_name=strategy,
+                        bankroll=bankroll,
+                    ),
+                    timeout=30.0,
+                )
+                if not child_orders:
+                    return ExecutionResult(False, False, "no active wallets for strategy")
+
+                record_signal(strategy=strategy, signal_type="auto_approved_fanout")
+                increment_trade_execution(strategy=strategy, result="live_fanout")
+                return ExecutionResult(
+                    True, False, f"live auto-execute fan-out to {len(child_orders)} wallets", order_id=f"fanout-{datetime.now(timezone.utc).timestamp()}"
+                )
+            except Exception as e:
+                logger.exception("auto_trader live fan-out error")
+                record_signal(strategy=strategy, signal_type="rejected_error")
+                return ExecutionResult(False, False, f"fan-out error: {e}")
+
         try:
             async with self.clob_factory() as clob:
-                result = await clob.place_limit_order(
-                    token_id=signal.get("token_id"),
-                    side=signal.get("side", "BUY"),
-                    price=float(signal.get("price", 0.0)),
-                    size=decision.adjusted_size,
+                result = await asyncio.wait_for(
+                    clob.place_limit_order(
+                        token_id=signal.get("token_id"),
+                        side=signal.get("side", "BUY"),
+                        price=float(signal.get("price", 0.0)),
+                        size=decision.adjusted_size,
+                    ),
+                    timeout=30.0,
                 )
             if result.success:
                 record_signal(strategy=strategy, signal_type="auto_approved")

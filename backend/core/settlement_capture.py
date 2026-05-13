@@ -58,7 +58,7 @@ async def ensure_position_captured(market_ticker: str, db: Session) -> Optional[
     """
     trade = db.query(Trade).filter(
         Trade.market_ticker == market_ticker,
-        Trade.settled == False
+        Trade.settled.is_(False)
     ).first()
 
     if not trade:

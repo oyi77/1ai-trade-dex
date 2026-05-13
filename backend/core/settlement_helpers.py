@@ -610,13 +610,29 @@ async def _fetch_kalshi_resolution(ticker: str) -> Tuple[bool, Optional[float]]:
 
 
 async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float]]:
-    """Platform-aware resolution dispatch.
+    """Platform-aware resolution dispatch via market registry.
 
     Returns: (is_resolved, settlement_value) where settlement_value ∈ {0.0, 1.0}.
     Routes to Kalshi or Polymarket based on trade.platform; defaults to polymarket
     when platform is missing (legacy rows).
+
+    Tries market provider registry first, falls back to legacy platform-specific
+    resolution functions when registry is unavailable.
     """
     platform = (getattr(trade, "platform", None) or "polymarket").lower()
+
+    # Try registered provider first
+    try:
+        from backend.markets.provider_registry import market_registry
+        provider = market_registry.get(platform)
+        if provider and hasattr(provider, 'resolve_market'):
+            is_resolved, value = await provider.resolve_market(trade.market_ticker)
+            if is_resolved:
+                return True, value
+    except Exception:
+        pass
+
+    # Legacy fallback
     if platform == "kalshi":
         return await _fetch_kalshi_resolution(trade.market_ticker)
     return await fetch_polymarket_resolution(

@@ -437,7 +437,7 @@ class CopyTraderStrategy(BaseStrategy):
             "size": min(10.0, size * 0.01),
             "direction": "yes" if price > 0.50 else "no",
             "model_probability": price,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "strategy_name": self.name,
             "reasoning": "copy_trader_ws_event",
         }
@@ -594,7 +594,7 @@ class CopyTraderStrategy(BaseStrategy):
                         "suggested_size": signal.our_size,
                         "model_probability": confidence,
                         "market_probability": signal.market_price,
-                        "platform": "polymarket",
+                        "platform": settings.DEFAULT_VENUE,
                         "strategy_name": "copy_trader",
                         "reasoning": signal.reasoning,
                     }

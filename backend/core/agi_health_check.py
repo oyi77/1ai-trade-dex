@@ -137,7 +137,7 @@ class AGIHealthChecker:
             orphans = (
                 db.query(Trade)
                 .filter(
-                    Trade.settled == False,
+                    Trade.settled.is_(False),
                     Trade.timestamp < cutoff,
                 )
                 .count()

@@ -7,7 +7,6 @@ sys.path.insert(0, ".")
 from backend.models.database import Base, engine, SessionLocal, Trade
 from backend.models.outcome_tables import Base as OutcomeBase, StrategyOutcome
 from backend.core.online_learner import OnlineLearner
-from backend.core.thompson_sampler import ThompsonSampler
 
 logging.basicConfig(level=logging.INFO)
 from loguru import logger

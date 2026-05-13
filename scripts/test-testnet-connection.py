@@ -28,8 +28,8 @@ async def test_testnet():
     print("=" * 60)
     print("POLYMARKET TESTNET MODE TEST (Builder Program on Mainnet CLOB)")
     print("=" * 60)
-    print(f"  CLOB Host:  https://clob.polymarket.com")
-    print(f"  Chain ID:   137 (Polygon mainnet)")
+    print("  CLOB Host:  https://clob.polymarket.com")
+    print("  Chain ID:   137 (Polygon mainnet)")
     print(f"  PK set:     {'YES' if pk else 'NO'}")
     print(f"  Builder key: {'YES' if builder_key else 'NO'}")
     print()
@@ -78,9 +78,9 @@ async def test_testnet():
                     print(f"  ✓ API Key derived: {api_creds.api_key[:20]}...")
                     print(f"  ✓ API Secret: {api_creds.api_secret[:10]}...")
                 else:
-                    print(f"  ✗ API credential derivation returned None")
+                    print("  ✗ API credential derivation returned None")
             else:
-                print(f"  ✗ ClobClient not initialized")
+                print("  ✗ ClobClient not initialized")
         except Exception as e:
             print(f"  ✗ Failed: {e}")
 
@@ -102,9 +102,9 @@ async def test_testnet():
                     usdc_balance = float(balance.get("balance", 0)) / 1e6
                     print(f"  ✓ USDC Balance: {usdc_balance:.2f}")
                 else:
-                    print(f"  ~ No balance data")
+                    print("  ~ No balance data")
             else:
-                print(f"  ✗ ClobClient not initialized")
+                print("  ✗ ClobClient not initialized")
         except Exception as e:
             print(f"  ~ Balance check failed: {e}")
 
@@ -116,7 +116,7 @@ async def test_testnet():
                 can_builder = clob._clob_client.can_builder_auth()
                 print(f"  ✓ Builder auth capable: {can_builder}")
             else:
-                print(f"  ✗ Builder credentials not configured")
+                print("  ✗ Builder credentials not configured")
         except Exception as e:
             print(f"  ~ Builder auth check: {e}")
 

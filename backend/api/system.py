@@ -209,7 +209,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "paper",
-            Trade.settled == False  # noqa: E712
+            not Trade.settled  # noqa: E712
         )
         .scalar()
         or 0
@@ -268,7 +268,7 @@ async def get_stats(
             db.query(func.count(Trade.id))
             .filter(
                 Trade.trading_mode == effective_mode if mode is not None else Trade.trading_mode == "live",
-                Trade.settled == False  # noqa: E712
+                not Trade.settled  # noqa: E712
             )
             .scalar()
             or 0
@@ -342,7 +342,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "testnet",
-            Trade.settled == False  # noqa: E712
+            not Trade.settled  # noqa: E712
         )
         .scalar()
         or 0
@@ -1210,7 +1210,7 @@ async def trade_attempts_summary(
         "executed": executed,
         "blocked": blocked,
         "execution_rate": executed / total if total else 0.0,
-        "last_attempt_at": latest.created_at.isoformat() if latest and latest.created_at else None,
+        "last_attempt_at": _iso(latest.created_at) if latest and latest.created_at else None,
         "by_status": by_status,
         "by_mode": by_mode,
         "top_blockers": top_blockers,
@@ -1601,6 +1601,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
             state = db.query(BotState).filter_by(mode=strategy_mode).first()
             if not state:
                 raise HTTPException(status_code=404, detail="Bot state not initialized")
+            from backend.markets.provider_registry import market_registry
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1608,6 +1609,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 logger=logger,
                 params=dict(getattr(cls, "default_params", {})),
                 mode=strategy_mode,
+                market_registry=market_registry,
             )
             result = await instance.run(ctx)
 
@@ -1829,6 +1831,13 @@ async def health_check():
     except Exception:
         logger.exception("Failed to check AGI health in liveness endpoint")
     return {"status": "healthy", "agi_events": agi_health}
+
+
+@router.get("/health/live", response_model=HealthStatus, include_in_schema=False)
+async def health_live_check():
+    """Backward-compatible liveness alias for common /health/live probes."""
+
+    return await health_check()
 
 
 @router.get("/health/agi")

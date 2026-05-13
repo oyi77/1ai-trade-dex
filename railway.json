@@ -5,7 +5,7 @@
   },
   "deploy": {
     "startCommand": "python run.py",
-    "healthcheckPath": "/api/health",
+    "healthcheckPath": "/api/v1/health/ready",
     "restartPolicyType": "ON_FAILURE"
   }
 }

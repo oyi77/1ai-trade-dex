@@ -28,6 +28,16 @@ class Orchestrator:
         self._running = True
         logger.info("Orchestrator starting...")
 
+        # Publish a startup heartbeat immediately so the external guardian
+        # does not treat cold start as an event-loop freeze before the
+        # scheduler's watchdog job begins touching the file.
+        try:
+            from backend.core.heartbeat import _touch_heartbeat_file
+
+            _touch_heartbeat_file()
+        except Exception as exc:
+            logger.debug(f"Startup heartbeat touch failed (non-fatal): {exc}")
+
         # Reset CLOB circuit breaker to ensure we start in CLOSED state
         clob_breaker.reset()
 
@@ -264,7 +274,7 @@ class Orchestrator:
             "confidence": getattr(signal, "model_probability", 0.5),
             "model_probability": getattr(signal, "model_probability", 0.5),
             "token_id": token_id,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "market_type": "weather",
             "reasoning": "weather copy trade",
         }

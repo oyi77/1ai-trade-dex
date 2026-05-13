@@ -170,7 +170,7 @@ def seed_presets(db: Optional[Session] = None) -> None:
                 db.add(profile.to_row())
         db.commit()
     except Exception as e:
-        logger.warning("[risk_profiles] Seed failed: %s", e)
+        logger.warning(f"[risk_profiles] Seed failed: {e}")
         logger.exception("[risk_profiles] Seed failed")
         try:
             db.rollback()
@@ -193,8 +193,14 @@ def get_profile(name: Optional[str] = None, db: Optional[Session] = None) -> Ris
         row = db.query(RiskProfileRow).filter_by(name=key).first()
         if row:
             return _row_to_profile(row)
-    except Exception:
-        logger.exception("[risk_profiles] Failed to get profile from database")
+    except Exception as exc:
+        _rollback_read_failure(db)
+        if _is_missing_risk_profiles_table_error(exc):
+            logger.warning(
+                f"[risk_profiles] risk_profiles table missing; using preset fallback for '{key}'"
+            )
+        else:
+            logger.exception("[risk_profiles] Failed to get profile from database")
     finally:
         if _owned:
             db.close()
@@ -202,7 +208,7 @@ def get_profile(name: Optional[str] = None, db: Optional[Session] = None) -> Ris
     preset = PRESETS.get(key)
     if preset:
         return preset
-    logger.warning("[risk_profiles] Unknown profile '%s', falling back to '%s'", key, DEFAULT_PROFILE)
+    logger.warning(f"[risk_profiles] Unknown profile '{key}', falling back to '{DEFAULT_PROFILE}'")
     return PRESETS[DEFAULT_PROFILE]
 
 
@@ -214,8 +220,12 @@ def list_profiles(db: Optional[Session] = None) -> Dict[str, RiskProfile]:
         rows = db.query(RiskProfileRow).all()
         for row in rows:
             result[row.name] = _row_to_profile(row)
-    except Exception:
-        logger.exception("[risk_profiles] Failed to list profiles from database")
+    except Exception as exc:
+        _rollback_read_failure(db)
+        if _is_missing_risk_profiles_table_error(exc):
+            logger.warning("[risk_profiles] risk_profiles table missing; serving preset profiles only")
+        else:
+            logger.exception("[risk_profiles] Failed to list profiles from database")
     finally:
         if _owned:
             db.close()
@@ -268,7 +278,7 @@ def update_profile(name: str, updates: dict, db: Optional[Session] = None) -> Ri
         db.commit()
         return _row_to_profile(row)
     except Exception:
-        logger.exception("[risk_profiles] Failed to update profile '%s'", name)
+        logger.exception(f"[risk_profiles] Failed to update profile '{name}'")
         db.rollback()
         raise
     finally:
@@ -289,7 +299,7 @@ def delete_profile(name: str, db: Optional[Session] = None) -> bool:
         db.commit()
         return True
     except Exception:
-        logger.exception("[risk_profiles] Failed to delete profile '%s'", name)
+        logger.exception(f"[risk_profiles] Failed to delete profile '{name}'")
         db.rollback()
         return False
     finally:
@@ -318,7 +328,7 @@ def apply_profile(name: Optional[str] = None, db: Optional[Session] = None) -> R
 
     _persist_profile_name(profile.name)
 
-    logger.info("[risk_profiles] Applied profile '%s' to runtime settings", profile.display_name)
+    logger.info(f"[risk_profiles] Applied profile '{profile.display_name}' to runtime settings")
     return profile
 
 
@@ -365,4 +375,25 @@ def _persist_profile_name(name: str) -> None:
         os.environ["RISK_PROFILE"] = name
     except Exception as e:
         logger.exception("[risk_profiles] Failed to persist RISK_PROFILE to .env")
-        logger.warning("[risk_profiles] Failed to persist RISK_PROFILE to .env: %s", e)
+        logger.warning(f"[risk_profiles] Failed to persist RISK_PROFILE to .env: {e}")
+
+
+def _rollback_read_failure(db: Session) -> None:
+    try:
+        db.rollback()
+    except Exception:
+        logger.exception("[risk_profiles] Rollback failed after read error")
+
+
+def _is_missing_risk_profiles_table_error(exc: Exception) -> bool:
+    error_parts = [str(exc)]
+    original_error = getattr(exc, "orig", None)
+    if original_error is not None:
+        error_parts.append(str(original_error))
+
+    error_text = " ".join(error_parts).lower()
+    return "risk_profiles" in error_text and (
+        "does not exist" in error_text
+        or "no such table" in error_text
+        or "undefinedtable" in error_text
+    )

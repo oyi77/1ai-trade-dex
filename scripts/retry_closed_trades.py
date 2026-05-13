@@ -11,7 +11,6 @@ from backend.models.database import SessionLocal, Trade
 from backend.core.settlement_helpers import (
     fetch_polymarket_resolution,
     calculate_pnl,
-    process_settled_trade,
 )
 import logging
 
@@ -26,7 +25,7 @@ async def retry_closed_trades():
             db.query(Trade)
             .filter(
                 Trade.result == "closed",
-                Trade.settlement_value == None
+                Trade.settlement_value.is_(None)
             )
             .all()
         )
@@ -58,13 +57,13 @@ async def retry_closed_trades():
                 logger.info(f"  ✓ Resolved: settlement_value={settlement_value}, pnl=${pnl:.2f}, result={trade.result}")
                 fixed += 1
             else:
-                logger.info(f"  ✗ Market not resolved yet, keeping as 'closed'")
+                logger.info("  ✗ Market not resolved yet, keeping as 'closed'")
         
         if fixed > 0:
             db.commit()
             logger.info(f"\n✓ Fixed {fixed} trades")
         else:
-            logger.info(f"\n✗ No trades could be resolved")
+            logger.info("\n✗ No trades could be resolved")
         
         return fixed
         

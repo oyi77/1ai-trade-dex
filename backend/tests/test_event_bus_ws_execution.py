@@ -62,3 +62,26 @@ async def test_event_bus_ignores_non_buy_decision(monkeypatch):
     await bus._execute_strategy_decision("ws_strategy", {"decision": "SKIP", "token_id": "token_1"})
 
     assert calls == []
+
+
+def test_event_bus_publish_async_handler_from_sync_thread_completes():
+    """Sync executor threads can publish async handlers without a running event loop."""
+    import threading
+    import time
+
+    bus = EventBus()
+    done = threading.Event()
+
+    async def handler(event_type, data):
+        assert event_type == "trade_executed"
+        assert data["trade_id"] == 123
+        done.set()
+
+    bus.subscribe_handler("trade_executed", handler)
+    bus.publish("trade_executed", {"trade_id": 123})
+
+    deadline = time.monotonic() + 2.0
+    while not done.is_set() and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    assert done.is_set()

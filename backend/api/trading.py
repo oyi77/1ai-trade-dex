@@ -385,7 +385,7 @@ async def simulate_trade(
         "confidence": signal.confidence,
         "model_probability": signal.model_probability,
         "token_id": token_id,
-        "platform": "polymarket",
+        "platform": settings.DEFAULT_VENUE,
         "reasoning": f"manual simulate: edge {signal.edge:.3f} {signal.direction} @ {entry_price:.0%}",
         "market_type": "btc",
     }

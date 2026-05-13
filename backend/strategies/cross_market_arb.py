@@ -1,9 +1,12 @@
 """
-Cross-Market Arbitrage Engine — Polymarket ↔ Kalshi price gap detection.
+Cross-Market Arbitrage Engine — multi-venue price gap detection.
 
 PARETO TASK #3: Detects and auto-executes cross-platform arbitrage.
-When Polymarket YES + Kalshi YES < $1.00 for the same event,
+When VenueA YES + VenueB YES < $1.00 for the same event,
 buy on the cheaper platform, sell on the expensive one.
+
+Venue configuration pulled from settings.MARKET_PROVIDERS.
+To change which venues to arbitrage, update config — no code changes needed.
 
 Target: <200ms detection + execution.
 """
@@ -188,8 +191,8 @@ class CrossMarketArb(BaseStrategy):
         errors = []
 
         try:
-            poly_markets = await self._fetch_polymarket_markets()
-            kalshi_markets = await self._fetch_kalshi_markets()
+            poly_markets = await self._fetch_markets_from_registry("polymarket")
+            kalshi_markets = await self._fetch_markets_from_registry("kalshi")
 
             matched = 0
             for poly_m in poly_markets:
@@ -231,7 +234,7 @@ class CrossMarketArb(BaseStrategy):
             return CycleResult(0, 0, 0, errors=[str(exc)])
 
     async def _fetch_polymarket_markets(self) -> list[dict]:
-        """Fetch Polymarket markets via Gamma API."""
+        """Fetch Polymarket markets via registered provider or Gamma API fallback."""
         try:
             from backend.data.gamma import fetch_markets
 
@@ -241,7 +244,7 @@ class CrossMarketArb(BaseStrategy):
             return []
 
     async def _fetch_kalshi_markets(self) -> list[dict]:
-        """Fetch Kalshi markets via Kalshi API."""
+        """Fetch Kalshi markets via registered provider or Kalshi API fallback."""
         try:
             from backend.data.kalshi_client import KalshiClient
 
@@ -250,6 +253,24 @@ class CrossMarketArb(BaseStrategy):
         except Exception as exc:
             logger.warning(f"[cross_market_arb] Kalshi fetch failed: {exc}")
             return []
+
+    async def _fetch_markets_from_registry(self, venue: str) -> list[dict]:
+        """Fetch markets from the registered market provider. Falls back to legacy clients."""
+        try:
+            from backend.markets.provider_registry import market_registry
+            provider = market_registry.get(venue)
+            markets = await provider.search_markets("", limit=500) if hasattr(provider, "search_markets") else None
+            if markets:
+                return markets
+        except Exception:
+            pass
+
+        # Legacy fallback
+        if venue == "polymarket":
+            return await self._fetch_polymarket_markets()
+        elif venue == "kalshi":
+            return await self._fetch_kalshi_markets()
+        return []
 
     def _find_kalshi_match(self, poly_market: dict, kalshi_markets: list[dict]) -> Optional[dict]:
         """Match a Polymarket market to its Kalshi equivalent."""

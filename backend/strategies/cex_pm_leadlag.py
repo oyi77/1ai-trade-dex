@@ -179,7 +179,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                             "suggested_size": max_size,
                             "model_probability": implied_prob,
                             "market_probability": target_mid,
-                            "platform": "polymarket",
+                            "platform": settings.DEFAULT_VENUE,
                             "strategy_name": self.name,
                             "reasoning": (
                                 f"CEX 1m momentum {micro.momentum_1m:+.4f} → "

@@ -213,7 +213,7 @@ settings.RISK_MAX_WEEKLY_LOSS_PCT        # 0.20 (20%)
 System-level configuration:
 
 ```python
-settings.DATABASE_URL                    # "sqlite:///./tradingbot.db"
+settings.DATABASE_URL                    # "postgresql://user:password@localhost:5432/polyedge"
 settings.TRADING_MODE                    # "paper" | "testnet" | "live"
 settings.SHADOW_MODE                     # True (development mode)
 settings.LOG_LEVEL                       # "INFO" | "DEBUG" | "WARNING"
@@ -347,7 +347,7 @@ BTC_ORACLE_MIN_EDGE=0.03
 # ============================================================
 # SYSTEM - System Settings
 # ============================================================
-DATABASE_URL=sqlite:///./tradingbot.db
+DATABASE_URL=postgresql://user:password@localhost:5432/polyedge
 TRADING_MODE=paper
 LOG_LEVEL=INFO
 ```
