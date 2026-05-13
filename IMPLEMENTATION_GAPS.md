@@ -407,3 +407,6 @@ These gaps directly block the vision of unlimited paper experimentation → cont
 - **De-scoping**: Add under "Intentionally De-Scoped" with a brief reason (cost, complexity, out-of-scope for current milestone).
 
 **Never remove a gap entirely.** History matters: seeing what was broken and how it was fixed is more valuable than a clean list.
+
+## Missing MarketProviderPlugin implementations
+Due to PR #95 not being merged on this branch, KalshiProvider and PolymarketProvider are not fully implemented. They need to be added once MarketProviderPlugin is available.

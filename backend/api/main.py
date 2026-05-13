@@ -38,6 +38,8 @@ from backend.api.auto_trader import router as auto_trader_router
 from backend.api.system import router as system_router
 from backend.api.backtest import router as backtest_router
 from backend.api.wallets import router as wallets_router
+from backend.api.wallet_allocations import router as wallet_allocations_router
+from backend.api.copy_policy import router as copy_policy_router
 from backend.api.analytics import router as analytics_router
 from backend.api.settings import router as settings_router
 from backend.api.activities import router as activities_router
@@ -119,6 +121,8 @@ app.include_router(events_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
 app.include_router(backtest_router, prefix="/api/v1")
 app.include_router(wallets_router, prefix="/api/v1")
+app.include_router(wallet_allocations_router, prefix="/api/v1")
+app.include_router(copy_policy_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(activities_router, prefix="/api/v1")
