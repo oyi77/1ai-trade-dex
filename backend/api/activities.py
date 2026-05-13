@@ -25,9 +25,17 @@ class CreateActivityRequest(BaseModel):
 
 
 def get_db():
-    from backend.db.utils import get_db_session
-    with get_db_session() as db:
+    from backend.models.database import SessionLocal
+
+    db = SessionLocal()
+    try:
         yield db
+    finally:
+        try:
+            db.rollback()
+        except Exception as exc:
+            logger.debug("activities get_db rollback failed: {!r}", exc)
+        db.close()
 
 
 @router.get("")
@@ -83,11 +91,13 @@ async def get_activities(
                 "trading_mode": activity.mode
             })
 
-        return {
+        response = {
             "activities": result,
             "count": len(result),
             "limit": limit
         }
+        db.rollback()
+        return response
     except Exception as e:
         logger.error(f"Failed to retrieve activities: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -105,7 +115,7 @@ async def get_activity_by_id(
         if not activity:
             raise HTTPException(status_code=404, detail=f"Activity {activity_id} not found")
 
-        return {
+        response = {
             "id": activity.id,
             "timestamp": activity.timestamp.isoformat(),
             "strategy_name": activity.strategy_name,
@@ -115,6 +125,8 @@ async def get_activity_by_id(
             "mode": activity.mode,
             "trading_mode": activity.mode
         }
+        db.rollback()
+        return response
     except HTTPException:
         raise
     except Exception as e:
@@ -155,6 +167,9 @@ async def create_activity(
             "trading_mode": activity.mode
         }
 
+        # End the request transaction before the awaited websocket broadcast so
+        # API readers do not show up as idle-in-transaction while clients drain.
+        db.rollback()
         await broadcast_activity(response_data)
 
         return response_data
