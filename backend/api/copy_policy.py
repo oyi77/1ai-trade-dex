@@ -1,13 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 
 from backend.models.database import get_db
 from backend.models.trading_wallet import CopyPolicy
 from backend.api.auth import require_admin
-from loguru import logger
 
 router = APIRouter(prefix="/copy-policy", tags=["copy_policy"])
 
@@ -67,7 +65,7 @@ def update_copy_policy(policy_id: int, body: CopyPolicyUpdate, db: Session = Dep
     row = db.query(CopyPolicy).filter_by(id=policy_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="CopyPolicy not found")
-    
+
     if body.enabled is not None:
         row.enabled = body.enabled
     if body.max_size_usd is not None:
@@ -80,7 +78,7 @@ def update_copy_policy(policy_id: int, body: CopyPolicyUpdate, db: Session = Dep
         row.size_scale_factor = body.size_scale_factor
     if body.cooldown_seconds is not None:
         row.cooldown_seconds = body.cooldown_seconds
-        
+
     db.commit()
     db.refresh(row)
     return _policy_to_dict(row)
