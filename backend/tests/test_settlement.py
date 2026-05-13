@@ -521,7 +521,11 @@ async def test_reconcile_positions_targets_live_open_trades(db):
     async def fake_clob_factory(*args, **kwargs):
         yield SimpleNamespace(get_trader_positions=AsyncMock(return_value=[]))
 
-    with patch("backend.data.polymarket_clob.clob_from_settings", side_effect=fake_clob_factory), patch.object(settings, "TRADING_MODE", "live"):
+    with (
+        patch("backend.data.polymarket_clob.clob_from_settings", side_effect=fake_clob_factory),
+        patch.object(settings, "TRADING_MODE", "live"),
+        patch.object(settings, "POLYMARKET_BUILDER_ADDRESS", "0xFAKE_TEST_WALLET"),
+    ):
         trades_to_close = await reconcile_positions(db)
 
     assert live_trade.id in trades_to_close
