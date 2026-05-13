@@ -5,8 +5,8 @@ from backend.models.database import StrategyConfig
 
 
 @pytest.mark.asyncio
-async def test_event_bus_executes_buy_decision_for_strategy_config_modes(monkeypatch, test_db):
-    test_db.add(
+async def test_event_bus_executes_buy_decision_for_strategy_config_modes(monkeypatch, db):
+    db.add(
         StrategyConfig(
             strategy_name="ws_strategy",
             enabled=True,
@@ -14,7 +14,7 @@ async def test_event_bus_executes_buy_decision_for_strategy_config_modes(monkeyp
             interval_seconds=60,
         )
     )
-    test_db.commit()
+    db.commit()
     calls = []
 
     async def fake_execute_decision(decision, strategy_name, mode="paper", db=None):
