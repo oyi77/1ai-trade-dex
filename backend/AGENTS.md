@@ -12,6 +12,8 @@ Python FastAPI backend — trading engine, strategy execution, AI signal generat
 |------|-------------|
 | `__init__.py` | Package marker |
 | `config.py` | Central configuration — all env var bindings, feature flags, external API URLs |
+| `api/main.py` | FastAPI app entrypoint; `/api/v1/health` uses bounded dependency checks so slow CLOB/RPC calls degrade health instead of hanging requests |
+| `core/market_scanner.py` | Polymarket market scanner — active-market pagination plus near-expiry CLOB token discovery for WebSocket subscriptions |
 
 ## Subdirectories
 
