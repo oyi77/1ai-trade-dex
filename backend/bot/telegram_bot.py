@@ -675,15 +675,15 @@ class PolyEdgeBot:
             await update.message.reply_text(f"Error: {e}")
 
     async def _cmd_scan(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
-        """Trigger an immediate BTC scan."""
+        """Trigger an immediate multi-strategy market scan."""
         if not self._is_admin(update):
             await update.message.reply_text("❌ Admin only.")
             return
-        await update.message.reply_text("🔍 Running BTC scan...")
+        await update.message.reply_text("🔍 Running multi-strategy market scan...")
         try:
             from backend.core.scheduler import scan_and_trade_job
 
-            await scan_and_trade_job()
+            await scan_and_trade_job("paper")
             await update.message.reply_text(
                 "✅ Scan complete. Check /positions for results."
             )

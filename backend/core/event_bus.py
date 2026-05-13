@@ -114,7 +114,7 @@ class EventBus:
         for tid in token_ids:
             if strategy_name not in self._token_index[tid]:
                 self._token_index[tid].append(strategy_name)
-        logger.info("Strategy '%s' subscribed: %d tokens, %d event types", strategy_name, len(token_ids), len(event_types))
+        logger.info(f"Strategy '{strategy_name}' subscribed: {len(token_ids)} tokens, {len(event_types)} event types")
 
     def unsubscribe_strategy(self, strategy_name: str) -> None:
         sub = self._strategy_subs.pop(strategy_name, None)
@@ -126,7 +126,7 @@ class EventBus:
                         del self._token_index[tid]
                 except (ValueError, KeyError):
                     pass
-            logger.info("Strategy '%s' unsubscribed", strategy_name)
+            logger.info(f"Strategy '{strategy_name}' unsubscribed")
 
     def get_strategy_tokens(self, strategy_name: str) -> Set[str]:
         sub = self._strategy_subs.get(strategy_name)
@@ -149,7 +149,7 @@ class EventBus:
             if strategy_name not in self._token_index[tid]:
                 self._token_index[tid].append(strategy_name)
         sub.token_ids = token_ids
-        logger.debug("Strategy '%s' tokens updated: +%d -%d", strategy_name, len(added), len(removed))
+        logger.debug(f"Strategy '{strategy_name}' tokens updated: +{len(added)} -{len(removed)}")
 
     def get_all_subscribed_tokens(self) -> Set[str]:
         tokens: Set[str] = set()
@@ -224,7 +224,7 @@ class EventBus:
             try:
                 asyncio.ensure_future(handler(event_type, data))
             except Exception as exc:
-                logger.warning("Event handler failed for '%s': %s", event_type, exc)
+                logger.warning(f"Event handler failed for '{event_type}': {exc}")
 
         # Strategy dispatch (token-filtered)
         token_id = data.get("asset_id") or data.get("token_id", "")
@@ -243,7 +243,7 @@ class EventBus:
                 t0 = time.time()
                 asyncio.ensure_future(self._invoke_handler(strategy_name, sub.handler, event, t0))
             except Exception as exc:
-                logger.warning("Strategy dispatch failed for '%s': %s", strategy_name, exc)
+                logger.warning(f"Strategy dispatch failed for '{strategy_name}': {exc}")
 
     async def _invoke_handler(self, strategy_name: str, handler: StrategyHandler, event: MarketEvent, t0: float) -> None:
         try:
@@ -252,9 +252,61 @@ class EventBus:
             self._dispatch_times.append(elapsed)
             self._events_dispatched += 1
             if result:
-                logger.debug("Strategy '%s' returned decision: %s (%.1fms)", strategy_name, result.get("decision", "?"), elapsed)
+                logger.debug(f"Strategy '{strategy_name}' returned decision: {result.get('decision', '?')} ({elapsed:.1f}ms)")
+                await self._execute_strategy_decision(strategy_name, result)
         except Exception as exc:
-            logger.error("Strategy '%s' handler crashed: %s", strategy_name, exc, exc_info=True)
+            logger.opt(exception=True).error(f"Strategy '{strategy_name}' handler crashed: {exc}")
+
+    async def _execute_strategy_decision(self, strategy_name: str, decision: Dict[str, Any]) -> None:
+        """Execute a BUY decision returned by an event-driven strategy handler."""
+
+        if decision.get("decision") != "BUY":
+            return
+        market_ticker = decision.get("market_ticker") or decision.get("token_id")
+        if not market_ticker:
+            logger.warning(f"Strategy '{strategy_name}' returned BUY decision without market_ticker/token_id")
+            return
+
+        from backend.core.strategy_executor import execute_decision
+
+        modes = self._execution_modes_for_strategy(strategy_name)
+
+        for mode in modes:
+            decision_copy = dict(decision)
+            decision_copy.setdefault("market_ticker", market_ticker)
+            decision_copy.setdefault("platform", "polymarket")
+            decision_copy["trading_mode"] = mode
+            try:
+                executed = await execute_decision(decision_copy, strategy_name, mode=mode)
+                if executed:
+                    logger.info(f"Strategy '{strategy_name}' executed WS decision in {mode} mode for {market_ticker}")
+            except Exception as exc:
+                logger.exception(f"Strategy '{strategy_name}' WS decision execution failed in {mode} mode: {exc}")
+
+    def _execution_modes_for_strategy(self, strategy_name: str) -> list[str]:
+        """Resolve WS execution modes using the same StrategyConfig semantics as scheduled cycles."""
+
+        try:
+            from backend.config import settings
+            from backend.db.utils import get_db_session
+            from backend.models.database import StrategyConfig
+
+            with get_db_session() as db:
+                config = (
+                    db.query(StrategyConfig)
+                    .filter(StrategyConfig.strategy_name == strategy_name)
+                    .first()
+                )
+                effective_mode = config.trading_mode if config else getattr(settings, "TRADING_MODE", "paper")
+
+            if effective_mode == "live":
+                return ["paper", "live"]
+            if effective_mode in ("paper", "testnet"):
+                return [effective_mode]
+            return sorted(getattr(settings, "active_modes_set", {"paper"}))
+        except Exception:
+            logger.exception(f"Failed to resolve WS execution modes for strategy '{strategy_name}'")
+            return ["paper"]
 
     # ── Statistics / health ──
 

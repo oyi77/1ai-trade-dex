@@ -397,3 +397,46 @@ class TestImmutableSafetyRules:
         assert decision.allowed is True
         assert decision.adjusted_size == 50.0
         assert "ok" in decision.reason.lower()
+
+    def test_live_trade_below_minimum_is_rejected_when_caps_leave_no_room(self):
+        s = MockSettings()
+        s.MIN_ORDER_USDC = 5.0
+        s.MAX_TRADE_SIZE = 4.89
+        s.MAX_POSITION_FRACTION = 1.0
+        rm = RiskManager(settings_obj=s)
+
+        decision = rm.validate_trade(
+            size=10.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.90,
+            market_ticker="TEST-LIVE",
+            mode="live",
+            strategy_name="test_strategy",
+            direction="up",
+        )
+
+        assert decision.allowed is False
+        assert "below minimum order" in decision.reason
+        assert decision.adjusted_size == 0.0
+
+    def test_paper_trade_size_is_raised_to_minimum_when_caps_allow_it(self):
+        s = MockSettings()
+        s.PAPER_MIN_ORDER_USDC = 5.0
+        s.MAX_TRADE_SIZE = 10.0
+        s.MAX_POSITION_FRACTION = 1.0
+        rm = RiskManager(settings_obj=s)
+
+        decision = rm.validate_trade(
+            size=4.89,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.90,
+            market_ticker="TEST-PAPER",
+            mode="paper",
+            strategy_name="test_strategy",
+            direction="up",
+        )
+
+        assert decision.allowed is True
+        assert decision.adjusted_size == 5.0

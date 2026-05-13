@@ -16,7 +16,7 @@ Low-level infrastructure components — real-time market stream routing and WebS
 
 | File | Description |
 |------|-------------|
-| `market_stream/orderbook_router.py` | `OrderbookRouter` — routes real-time order book updates from WebSocket feeds to registered strategy callbacks; uses circuit breaker for feed resilience |
+| `market_stream/orderbook_router.py` | `OrderbookRouter` — adapts Polymarket WebSocket snapshots and routes real-time order book updates to registered strategy callbacks; uses circuit breaker for feed resilience |
 | `market_stream/__init__.py` | Package marker |
 
 ## For AI Agents

@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from backend.models.database import SessionLocal
 
 from loguru import logger
+from sqlalchemy.exc import PendingRollbackError
+
 
 @contextmanager
 def get_db_session():
@@ -12,6 +14,14 @@ def get_db_session():
         for attempt in range(5):
             try:
                 db.commit()
+                return
+            except PendingRollbackError:
+                # Session is already in DEACTIVE state due to a prior failed flush.
+                # The transaction is already rolled back — just exit cleanly without re-raising.
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
                 return
             except Exception as commit_err:
                 db.rollback()

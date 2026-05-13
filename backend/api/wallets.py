@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 import json as _json
 from backend.models.database import get_db, WalletConfig, BotState, for_update
+from backend.db.utils import get_db_session
 from backend.api.auth import require_admin
 from backend.config import settings
 from backend.api.validation import (
@@ -237,9 +238,11 @@ async def get_wallet_balance(
         }
 
     # If not forcing refresh and we have a valid cache, use it
-    if not force_refresh and row.balance_cache:
+    cached_balance = row.balance_cache
+
+    if not force_refresh and cached_balance:
         try:
-            cached = _json.loads(row.balance_cache)
+            cached = _json.loads(cached_balance)
             # Cache is valid for 5 minutes
             last_updated = cached.get("last_updated")
             if last_updated:
@@ -257,6 +260,11 @@ async def get_wallet_balance(
                     }
         except Exception as e:
             logger.debug(f"Balance cache parse error: {e}")
+
+    try:
+        db.rollback()
+    except Exception as rollback_err:
+        logger.debug(f"Wallet balance prefetch rollback failed: {rollback_err}")
 
     # Try to fetch live balance from Polymarket if we have credentials.
     # NOTE: The CLOB client is authenticated with the bot's private key, so it
@@ -289,18 +297,26 @@ async def get_wallet_balance(
             async with clob_from_settings(mode=active_trading_modes[0]) as clob:
                 balance_data = await clob.get_wallet_balance()
 
-                if balance_data.get("error") is None:
-                    usdc_balance = balance_data.get("usdc_balance", 0.0)
+                raw_usdc_balance = balance_data.get("usdc_balance") if balance_data.get("error") is None else None
+                if isinstance(raw_usdc_balance, (int, float)):
+                    usdc_balance = float(raw_usdc_balance)
                     last_updated = datetime.now(timezone.utc).isoformat()
 
-                    # Update cache in DB
-                    row.balance_cache = _json.dumps(
+                    cache_payload = _json.dumps(
                         {
                             "usdc_balance": usdc_balance,
                             "last_updated": last_updated,
                         }
                     )
-                    db.commit()
+
+                    with get_db_session() as write_db:
+                        wallet_row = (
+                            write_db.query(WalletConfig)
+                            .filter(WalletConfig.address == address)
+                            .first()
+                        )
+                        if wallet_row is not None:
+                            wallet_row.balance_cache = cache_payload
 
                     return {
                         "address": address,
@@ -312,9 +328,9 @@ async def get_wallet_balance(
             logger.warning(f"Failed to fetch live balance for {address[:10]}...: {e}")
 
     # Fallback to cache or return 0
-    if row.balance_cache:
+    if cached_balance:
         try:
-            cached = _json.loads(row.balance_cache)
+            cached = _json.loads(cached_balance)
             return {
                 "address": address,
                 "usdc_balance": cached.get("usdc_balance", 0.0),

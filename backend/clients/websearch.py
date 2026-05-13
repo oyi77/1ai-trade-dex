@@ -267,21 +267,19 @@ class WebSearchClient:
         try:
             return await search_methods[provider](query, max_results)
         except Exception as e:
-            logger.warning("Primary search (%s) failed: %s", provider, e)
+            logger.warning(f"Primary search ({provider}) failed: {e}")
             fallback = self.settings.WEBSEARCH_FALLBACK_PROVIDER.lower()
             if fallback != provider and fallback in search_methods:
                 try:
                     return await search_methods[fallback](query, max_results)
                 except Exception as fallback_err:
-                    logger.warning(
-                        "Fallback search (%s) failed: %s", fallback, fallback_err
-                    )
+                    logger.warning(f"Fallback search ({fallback}) failed: {fallback_err}")
 
             if provider != "duckduckgo":
                 try:
                     return await self._search_duckduckgo(query, max_results)
                 except Exception as ddg_err:
-                    logger.error("All search providers failed. Last error: %s", ddg_err)
+                    logger.warning(f"All search providers failed. Last error: {ddg_err}")
 
             return WebSearchResponse(query=query, results=[], source="failed")
 
@@ -296,7 +294,7 @@ class WebSearchClient:
             response = await self.search(search_query, max_results)
             return response.to_context_string(max_results)
         except Exception as e:
-            logger.debug("search_for_market failed for '%s': %s", question, e)
+            logger.debug(f"search_for_market failed for '{question}': {e}")
             return ""
 
     async def close(self):

@@ -237,6 +237,83 @@ class TestRiskRejection:
             check_db.close()
 
 
+class TestBotStateLockHandling:
+    @pytest.mark.asyncio
+    async def test_preflight_bot_state_read_does_not_lock_before_risk_rejection(self):
+        """Risk-rejected trades should not acquire BotState FOR UPDATE during preflight."""
+        from backend.core.risk_manager import RiskDecision, RiskManager
+        from backend.core.mode_context import register_context, ModeExecutionContext
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db)
+        db.close()
+
+        mock_rm = MagicMock(spec=RiskManager)
+        mock_rm.validate_trade.return_value = RiskDecision(
+            allowed=False, reason="risk rejected", adjusted_size=0.0
+        )
+        register_context("paper", ModeExecutionContext(
+            mode="paper",
+            clob_client=AsyncMock(),
+            risk_manager=mock_rm,
+            strategy_configs={},
+        ))
+
+        def fail_if_called(*_args, **_kwargs):
+            raise AssertionError("BotState preflight should not use FOR UPDATE")
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.models.database.for_update", side_effect=fail_if_called),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "paper"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(market_ticker="no-lock-risk-reject"),
+                "test_strategy",
+                "paper",
+            )
+
+        assert result is None
+        mock_rm.validate_trade.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_decision_retries_bot_state_lock_contention(self):
+        """Transient BotState lock contention retries the whole execution."""
+        from backend.core import strategy_executor as se
+
+        expected = {"id": 123, "market_ticker": "retry-market"}
+        with (
+            patch.object(
+                se,
+                "_execute_decision_paper_or_kalshi",
+                side_effect=[se._BotStateLockRetry("locked"), expected],
+            ) as execute_mock,
+            patch.object(se.asyncio, "sleep", new=AsyncMock()) as sleep_mock,
+        ):
+            result = await se.execute_decision(
+                _make_decision(market_ticker="retry-market"),
+                "retry_strategy",
+                "paper",
+            )
+
+        assert result == expected
+        assert execute_mock.call_count == 2
+        sleep_mock.assert_awaited_once()
+
+
 class TestAttemptSizingRejection:
     @pytest.mark.asyncio
     async def test_order_below_minimum_records_attempt_reason(self):
@@ -420,6 +497,60 @@ class TestUpdatesBankroll:
         finally:
             check_db.close()
 
+    @pytest.mark.asyncio
+    async def test_trade_creation_uses_atomic_botstate_update_without_for_update(self):
+        """Successful paper trades update BotState without SELECT ... FOR UPDATE."""
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, paper_bankroll=500.0)
+        db.close()
+
+        register_context("paper", ModeExecutionContext(
+            mode="paper",
+            clob_client=AsyncMock(),
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        def fail_if_called(*_args, **_kwargs):
+            raise AssertionError("Trade creation should use atomic UPDATE, not FOR UPDATE")
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.models.database.for_update", side_effect=fail_if_called),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "paper"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(market_ticker="atomic-bankroll-market", size=5.0),
+                "test_strategy",
+                "paper",
+            )
+
+        assert result is not None
+
+        check_db = TestSession()
+        try:
+            state = check_db.query(BotState).filter_by(mode="paper").first()
+            assert state.paper_bankroll == pytest.approx(495.0)
+            assert state.paper_trades == 1
+        finally:
+            check_db.close()
+
 
 class TestCreatesSignalRecord:
     @pytest.mark.asyncio
@@ -594,3 +725,65 @@ class TestLiveModeCallsCLOB:
         assert result is not None
         mock_clob.place_limit_order.assert_awaited_once()
         assert result["clob_order_id"] == "live-order-xyz"
+
+    @pytest.mark.asyncio
+    async def test_testnet_with_polymarket_token_uses_simulated_path(self):
+        """Testnet Polymarket token decisions must not use live CLOB placement."""
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, bankroll=1000.0, paper_bankroll=1000.0, mode="testnet")
+        db.close()
+
+        mock_clob = AsyncMock()
+        mock_clob.place_limit_order = AsyncMock()
+        register_context("testnet", ModeExecutionContext(
+            mode="testnet",
+            clob_client=mock_clob,
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "testnet"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(
+                    market_ticker="testnet-token-market",
+                    token_id="123456789",
+                    size=5.0,
+                ),
+                "testnet_strategy",
+                "testnet",
+            )
+
+        assert result is not None
+        mock_clob.place_limit_order.assert_not_called()
+
+        check_db = TestSession()
+        try:
+            trade = (
+                check_db.query(Trade)
+                .filter(Trade.market_ticker == "testnet-token-market")
+                .first()
+            )
+            assert trade is not None
+            assert trade.trading_mode == "testnet"
+        finally:
+            check_db.close()

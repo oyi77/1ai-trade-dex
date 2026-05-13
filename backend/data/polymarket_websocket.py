@@ -16,6 +16,7 @@ Official Docs: https://docs.polymarket.com/developers/CLOB/websocket/wss-overvie
 """
 
 import asyncio
+import inspect
 import json
 import time
 from dataclasses import dataclass, field
@@ -178,7 +179,7 @@ class PolymarketWebSocket:
             try:
                 await self._connect_and_run()
             except Exception as e:
-                logger.error(f"WebSocket error: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"WebSocket error: {e}")
 
                 if self._running:
                     logger.info(f"Reconnecting in {self._reconnect_delay:.1f}s...")
@@ -291,27 +292,31 @@ class PolymarketWebSocket:
                 logger.debug("Received PONG")
                 return
 
-            # Parse JSON event
-            event = json.loads(message)
-            event_type = event.get("event_type")
+            payload = json.loads(message)
+            events = payload if isinstance(payload, list) else [payload]
 
-            if event_type == EventType.BOOK.value:
-                await self._handle_orderbook(event)
-            elif event_type == EventType.LAST_TRADE_PRICE.value:
-                await self._handle_trade(event)
-            elif event_type == EventType.PRICE_CHANGE.value:
-                await self._handle_price_change(event)
-            elif event_type == EventType.USER_ORDER.value:
-                await self._handle_user_order(event)
-            elif event_type == EventType.USER_TRADE.value:
-                await self._handle_user_trade(event)
-            else:
-                logger.debug(f"Unknown event type: {event_type}")
+            for event in events:
+                if not isinstance(event, dict):
+                    continue
+                event_type = event.get("event_type")
+
+                if event_type == EventType.BOOK.value:
+                    await self._handle_orderbook(event)
+                elif event_type == EventType.LAST_TRADE_PRICE.value:
+                    await self._handle_trade(event)
+                elif event_type == EventType.PRICE_CHANGE.value:
+                    await self._handle_price_change(event)
+                elif event_type == EventType.USER_ORDER.value:
+                    await self._handle_user_order(event)
+                elif event_type == EventType.USER_TRADE.value:
+                    await self._handle_user_trade(event)
+                else:
+                    logger.debug(f"Unknown event type: {event_type}")
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse message: {e}")
         except Exception as e:
-            logger.error(f"Error handling message: {e}", exc_info=True)
+            logger.opt(exception=True).error(f"Error handling message: {e}")
 
     async def _handle_orderbook(self, event: Dict[str, Any]) -> None:
         """Handle orderbook snapshot/update"""
@@ -324,11 +329,20 @@ class PolymarketWebSocket:
             hash=event.get("hash"),
         )
 
+        try:
+            from backend.core.event_bus import event_bus
+
+            event_bus.publish(EventType.BOOK.value, event)
+        except Exception:
+            logger.exception("Failed to publish orderbook event to EventBus")
+
         for handler in self._orderbook_handlers:
             try:
-                handler(snapshot)
+                result = handler(snapshot)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
-                logger.error(f"Orderbook handler error: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"Orderbook handler error: {e}")
 
     async def _handle_trade(self, event: Dict[str, Any]) -> None:
         """Handle trade execution"""
@@ -340,11 +354,20 @@ class PolymarketWebSocket:
             timestamp=event["timestamp"],
         )
 
+        try:
+            from backend.core.event_bus import event_bus
+
+            event_bus.publish(EventType.LAST_TRADE_PRICE.value, event)
+        except Exception:
+            logger.exception("Failed to publish trade event to EventBus")
+
         for handler in self._trade_handlers:
             try:
-                handler(trade)
+                result = handler(trade)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
-                logger.error(f"Trade handler error: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"Trade handler error: {e}")
 
     async def _handle_price_change(self, event: Dict[str, Any]) -> None:
         """Handle price level changes"""
@@ -357,27 +380,40 @@ class PolymarketWebSocket:
                 timestamp=event["timestamp"],
             )
 
+            try:
+                from backend.core.event_bus import event_bus
+
+                event_bus.publish(EventType.PRICE_CHANGE.value, {**change, "timestamp": event["timestamp"]})
+            except Exception:
+                logger.exception("Failed to publish price_change event to EventBus")
+
             for handler in self._price_change_handlers:
                 try:
-                    handler(price_change)
+                    result = handler(price_change)
+                    if inspect.isawaitable(result):
+                        await result
                 except Exception as e:
-                    logger.error(f"Price change handler error: {e}", exc_info=True)
+                    logger.opt(exception=True).error(f"Price change handler error: {e}")
 
     async def _handle_user_order(self, event: Dict[str, Any]) -> None:
         """Handle user order update"""
         for handler in self._user_order_handlers:
             try:
-                handler(event)
+                result = handler(event)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
-                logger.error(f"User order handler error: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"User order handler error: {e}")
 
     async def _handle_user_trade(self, event: Dict[str, Any]) -> None:
         """Handle user trade fill"""
         for handler in self._user_trade_handlers:
             try:
-                handler(event)
+                result = handler(event)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
-                logger.error(f"User trade handler error: {e}", exc_info=True)
+                logger.opt(exception=True).error(f"User trade handler error: {e}")
 
     async def disconnect(self) -> None:
         """Gracefully disconnect from WebSocket"""

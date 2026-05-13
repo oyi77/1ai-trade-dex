@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Callable, Dict, List, Awaitable, Optional
+from typing import Callable, Dict, List, Awaitable, Optional, Any
 
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
@@ -21,13 +21,14 @@ class OrderbookUpdate:
 
     def to_snapshot(self) -> 'OrderbookSnapshot':
         """Convert update to snapshot format"""
+        timestamp = self.timestamp / 1000 if self.timestamp > 10_000_000_000 else self.timestamp
         return OrderbookSnapshot(
             market_id=self.market_id,
             best_bid_yes=float(self.bids_yes[0]['price']) if self.bids_yes else 0.0,
             best_ask_yes=float(self.asks_yes[0]['price']) if self.asks_yes else 0.0,
             best_bid_no=float(self.bids_no[0]['price']) if self.bids_no else 0.0,
             best_ask_no=float(self.asks_no[0]['price']) if self.asks_no else 0.0,
-            timestamp=datetime.fromtimestamp(self.timestamp)
+            timestamp=datetime.fromtimestamp(timestamp)
         )
 
 
@@ -93,15 +94,14 @@ class OrderbookRouter:
         total_handlers = sum(len(handlers) for handlers in self._handlers.values())
         if total_handlers >= settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT:
             logger.warning(
-                "ws_subscription_limit_reached: limit=%d",
-                settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
+                f"ws_subscription_limit_reached: limit={settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT}"
             )
             return
 
         if market_id not in self._handlers:
             self._handlers[market_id] = []
         self._handlers[market_id].append(handler)
-        logger.debug("Registered handler for market %s", market_id)
+        logger.debug(f"Registered handler for market {market_id}")
 
     async def _dispatch_loop(self) -> None:
         """Reads from queue and dispatches to registered handlers"""
@@ -124,19 +124,20 @@ class OrderbookRouter:
                         )
                     except Exception as e:
                         logger.error(
-                            "ws_handler_error: market_id=%s error=%s",
-                            update.market_id,
-                            str(e)
+                            f"ws_handler_error: market_id={update.market_id} error={e}"
                         )
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error("dispatch_loop_error: %s", str(e))
+                logger.error(f"dispatch_loop_error: {e}")
                 await asyncio.sleep(1)
 
-    async def _on_orderbook_update(self, update: OrderbookUpdate) -> None:
+    async def _on_orderbook_update(self, update: Any) -> None:
         """Callback from PolymarketWebSocket - queue the update"""
         try:
+            if not isinstance(update, OrderbookUpdate):
+                update = self._adapt_ws_snapshot(update)
+
             self._snapshots[update.market_id] = update.to_snapshot()
 
             # Drop oldest item if queue is full
@@ -145,7 +146,19 @@ class OrderbookRouter:
 
             await self._queue.put(update)
         except Exception as e:
-            logger.error("queue_orderbook_update_error", error=str(e))
+            logger.opt(exception=True).error(f"queue_orderbook_update_error: {e}")
+
+    def _adapt_ws_snapshot(self, snapshot: Any) -> OrderbookUpdate:
+        """Adapt backend.data.polymarket_websocket.OrderbookSnapshot to router format."""
+
+        return OrderbookUpdate(
+            market_id=str(getattr(snapshot, "asset_id", "") or getattr(snapshot, "market", "")),
+            bids_yes=list(getattr(snapshot, "bids", []) or []),
+            asks_yes=list(getattr(snapshot, "asks", []) or []),
+            bids_no=[],
+            asks_no=[],
+            timestamp=int(getattr(snapshot, "timestamp", 0) or 0),
+        )
 
     def get_snapshot(self, market_id: str) -> Optional[OrderbookSnapshot]:
         """Get latest snapshot for market"""

@@ -3,6 +3,8 @@
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, AsyncMock
+from types import SimpleNamespace
+from contextlib import asynccontextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -415,6 +417,21 @@ class TestProcessSettledTrade:
         assert trade.settlement_time is not None
         assert trade.settlement_time.replace(tzinfo=timezone.utc) >= before
 
+    async def test_online_learner_failure_rolls_back_and_does_not_abort_settlement(self, db):
+        trade = _make_trade(db)
+        trade_id = trade.id
+
+        with patch("backend.core.online_learner.OnlineLearner.on_trade_settled", side_effect=RuntimeError("boom {pk_1}")):
+            result = await process_settled_trade(trade, True, 1.0, 6.0, db)
+
+        assert result is True
+        assert trade.settled is True
+        assert trade.result == "win"
+        db.commit()
+        db.flush()
+        events = db.query(SettlementEvent).filter(SettlementEvent.trade_id == trade_id).all()
+        assert len(events) == 1
+
 
 # ---------------------------------------------------------------------------
 # Deduplication — same market_ticker not settled twice
@@ -490,3 +507,21 @@ class TestDeduplication:
             assert all_tickers == {"DEDUP-MKT"}
         finally:
             session.close()
+
+
+@pytest.mark.asyncio
+async def test_reconcile_positions_targets_live_open_trades(db):
+    from backend.core.settlement_helpers import reconcile_positions
+
+    live_trade = _make_trade(db, market_ticker="LIVE-MKT", trading_mode="live")
+    _make_trade(db, market_ticker="PAPER-MKT", trading_mode="paper")
+    db.commit()
+
+    @asynccontextmanager
+    async def fake_clob_factory(*args, **kwargs):
+        yield SimpleNamespace(get_trader_positions=AsyncMock(return_value=[]))
+
+    with patch("backend.data.polymarket_clob.clob_from_settings", side_effect=fake_clob_factory), patch.object(settings, "TRADING_MODE", "live"):
+        trades_to_close = await reconcile_positions(db)
+
+    assert live_trade.id in trades_to_close

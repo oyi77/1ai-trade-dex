@@ -140,6 +140,9 @@ async def auto_add_profitable_wallets(
     current = db.query(WalletConfig).filter(WalletConfig.enabled.is_(True)).all()
     current_addresses = [w.address for w in current]
 
+    # Close the read transaction before the awaited leaderboard scan.
+    db.rollback()
+
     # Get suggestions
     suggested = await auto_suggest_wallets_to_copy(
         db,

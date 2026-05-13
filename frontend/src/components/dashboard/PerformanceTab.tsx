@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { POLL } from '../../polling'
 import { useQuery } from '@tanstack/react-query'
 import { useStats } from '../../hooks/useStats'
@@ -45,46 +46,61 @@ export function PerformanceTab() {
 
   const strategies: StrategyHealth[] = health?.strategies ?? []
   const strategyPnL: StrategyPnL[] = strategyStatsData?.strategies ?? []
+  const todayKey = new Date().toDateString()
 
   // Filter trades by selected mode before calculating metrics
-  const filteredTrades = allTrades.filter((t) =>
-    selectedMode === 'all' || t.trading_mode === selectedMode
-  )
+  // ⚡ Bolt: Memoized derived state to prevent O(N) recalculation on every render
+  const filteredTrades = useMemo(() =>
+    allTrades.filter((t) => selectedMode === 'all' || t.trading_mode === selectedMode),
+  [allTrades, selectedMode])
 
   // Filter equity curve by selected mode
-  const filteredEquityCurve = (dashboardData?.equity_curve ?? [])
+  const filteredEquityCurve = useMemo(() => dashboardData?.equity_curve ?? [], [dashboardData])
 
-  const paperTrades = filteredTrades.filter((t) => t.trading_mode === 'paper')
-  const liveTrades = filteredTrades.filter((t) => t.trading_mode === 'live')
-  const paperWins = paperTrades.filter((t) => t.result === 'win').length
-  const paperSettled = paperTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
-  const liveWins = liveTrades.filter((t) => t.result === 'win').length
-  const liveSettled = liveTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
+  // ⚡ Bolt: Memoized complex trade filtering for mode metrics
+  const chartData = useMemo(() => {
+    const paperTrades = filteredTrades.filter((t) => t.trading_mode === 'paper')
+    const liveTrades = filteredTrades.filter((t) => t.trading_mode === 'live')
+    const paperWins = paperTrades.filter((t) => t.result === 'win').length
+    const paperSettled = paperTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
+    const liveWins = liveTrades.filter((t) => t.result === 'win').length
+    const liveSettled = liveTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
 
-  const chartData = [
-    { name: 'Paper', winRate: paperSettled > 0 ? (paperWins / paperSettled) * 100 : 0 },
-    { name: 'Live', winRate: liveSettled > 0 ? (liveWins / liveSettled) * 100 : 0 },
-  ]
+    return [
+      { name: 'Paper', winRate: paperSettled > 0 ? (paperWins / paperSettled) * 100 : 0 },
+      { name: 'Live', winRate: liveSettled > 0 ? (liveWins / liveSettled) * 100 : 0 },
+    ]
+  }, [filteredTrades])
 
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-  const dailyPnl = filteredTrades
-    .filter((t) => t.timestamp && new Date(t.timestamp) >= todayStart)
-    .reduce((s: number, t) => s + (t.pnl ?? 0), 0)
+  // ⚡ Bolt: Memoized daily PNL reduction
+  const dailyPnl = useMemo(() => {
+    const todayStart = new Date(todayKey)
+    todayStart.setHours(0, 0, 0, 0)
+    return filteredTrades
+      .filter((t) => t.timestamp && new Date(t.timestamp) >= todayStart)
+      .reduce((s: number, t) => s + (t.pnl ?? 0), 0)
+  }, [filteredTrades, todayKey])
 
-  const avgTradeSize = filteredTrades.length > 0
-    ? filteredTrades.reduce((s: number, t) => s + (t.size ?? 0), 0) / filteredTrades.length
-    : 0
+  // ⚡ Bolt: Memoized average trade size computation
+  const avgTradeSize = useMemo(() =>
+    filteredTrades.length > 0
+      ? filteredTrades.reduce((s: number, t) => s + (t.size ?? 0), 0) / filteredTrades.length
+      : 0,
+  [filteredTrades])
 
   // Filter strategy stats by selected mode
   const filteredStrategyPnL = strategyPnL
 
-  // Recalculate totals from filtered strategy data
-  const totalWins = filteredStrategyPnL.reduce((s, r) => s + r.wins, 0)
-  const totalLosses = filteredStrategyPnL.reduce((s, r) => s + r.losses, 0)
-  const totalPending = filteredStrategyPnL.reduce((s, r) => s + r.pending, 0)
-  const totalPnlSum = filteredStrategyPnL.reduce((s, r) => s + r.total_pnl, 0)
-  const totalTrades = totalWins + totalLosses
-  const overallWinRate = totalTrades > 0 ? totalWins / totalTrades : 0
+  // ⚡ Bolt: Memoized aggregated strategy stats to avoid reduce loops on re-render
+  const { totalWins, totalLosses, totalPending, totalPnlSum, totalTrades, overallWinRate } = useMemo(() => {
+    const totalWins = filteredStrategyPnL.reduce((s, r) => s + r.wins, 0)
+    const totalLosses = filteredStrategyPnL.reduce((s, r) => s + r.losses, 0)
+    const totalPending = filteredStrategyPnL.reduce((s, r) => s + r.pending, 0)
+    const totalPnlSum = filteredStrategyPnL.reduce((s, r) => s + r.total_pnl, 0)
+    const totalTrades = totalWins + totalLosses
+    const overallWinRate = totalTrades > 0 ? totalWins / totalTrades : 0
+    return { totalWins, totalLosses, totalPending, totalPnlSum, totalTrades, overallWinRate }
+  }, [filteredStrategyPnL])
 
   return (
     <div className="flex flex-col gap-4 p-4 overflow-y-auto h-full">

@@ -22,7 +22,7 @@ FastAPI routers — all HTTP endpoints, WebSocket handlers, SSE streams, middlew
 | `analytics.py` | Analytics and performance endpoints |
 | `backtest.py` | Backtesting endpoints |
 | `alerts.py` | Alert configuration and history endpoints |
-| `activities.py` | Activity log endpoints |
+| `activities.py` | Activity log endpoints; uses a plain request-scoped session with rollback-on-close so read polling never commits or holds transactions open |
 | `brain.py` | AI brain / decision log endpoints |
 | `learning.py` | Online learning endpoints |
 | `arbitrage.py` | Arbitrage opportunity endpoints |
@@ -54,6 +54,7 @@ FastAPI routers — all HTTP endpoints, WebSocket handlers, SSE streams, middlew
 - **Never import from `backend/strategies/` or `backend/core/` directly in routers** — routers call service/core functions, they do not instantiate strategies.
 - All routers use `prefix="/api/v1/..."` — maintain this convention for new routers. REST routes use `/api/v1/`, WebSocket routes use `/ws/`.
 - Request validation models live in `validation.py` — add new Pydantic models there, not inline in route handlers.
+- If a route queries the DB and then `await`s websocket/SSE broadcast or other network work, end the DB transaction first (commit/rollback or snapshot into plain dicts). Read-only polling endpoints should explicitly rollback before long awaits/returns when they use dependency-scoped sessions; do not leave request sessions idle-in-transaction during fan-out or dashboard polling.
 
 ### Adding a New Endpoint
 1. Add the route to the appropriate existing router file (or create a new one for a new domain)
