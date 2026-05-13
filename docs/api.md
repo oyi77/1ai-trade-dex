@@ -48,9 +48,10 @@ All API endpoints are versioned using the `/v1` prefix. The current version is *
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Basic health check (load balancers) |
-| `/health/ready` | GET | Readiness check (dependencies) |
-| `/health/detailed` | GET | Detailed system status |
+| `/api/v1/health` | GET | Basic health check |
+| `/api/health` | GET | Legacy liveness alias for existing monitors; prefer `/api/v1/health` for new integrations |
+| `/api/v1/health/ready` | GET | Readiness check (dependencies, preferred for load balancers) |
+| `/api/v1/health/detailed` | GET | Detailed system status |
 | `/api/v1/health/dependencies` | GET | Application dependency health with database, Redis, bounded Polymarket CLOB wallet-balance check, strategy heartbeat, DB pool, AGI event status, and trading mode. Dependency failures return sanitized public error labels; internal exception details are logged server-side only. |
 
 See `docs/operations/monitoring.md` for health check details.
@@ -131,6 +132,8 @@ Returns paginated attempt rows ordered newest-first by default.
 ### `GET /api/v1/trade-attempts/summary`
 
 Returns aggregate operator data for the Control Room header: total attempts, executed attempts, blocked/rejected/failed attempts, execution rate, top blocker reason codes, and recent blockers.
+
+Attempts that pass risk checks but fail before broker order acknowledgement are finalized as `FAILED` rather than remaining in `RISK_APPROVED`, so the summary endpoint can surface live/testnet execution handoff failures alongside risk blockers. Timestamp fields are serialized defensively from either database-native datetimes or legacy text values.
 
 ## WebSocket Endpoints
 

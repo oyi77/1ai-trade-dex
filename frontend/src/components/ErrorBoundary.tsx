@@ -21,6 +21,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static getDerivedStateFromError(_error: Error): Partial<State> {
     return { hasError: true };
   }

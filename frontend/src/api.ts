@@ -590,7 +590,7 @@ export interface StrategyHealth {
 }
 
 export async function fetchHealth(): Promise<{ strategies: StrategyHealth[]; bot_running: boolean }> {
-  const { data } = await api.get('/health')
+  const { data } = await api.get('/health/ready')
   return data
 }
 

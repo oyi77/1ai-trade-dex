@@ -1210,7 +1210,7 @@ async def trade_attempts_summary(
         "executed": executed,
         "blocked": blocked,
         "execution_rate": executed / total if total else 0.0,
-        "last_attempt_at": latest.created_at.isoformat() if latest and latest.created_at else None,
+        "last_attempt_at": _iso(latest.created_at) if latest and latest.created_at else None,
         "by_status": by_status,
         "by_mode": by_mode,
         "top_blockers": top_blockers,
@@ -1831,6 +1831,13 @@ async def health_check():
     except Exception:
         logger.exception("Failed to check AGI health in liveness endpoint")
     return {"status": "healthy", "agi_events": agi_health}
+
+
+@router.get("/health/live", response_model=HealthStatus, include_in_schema=False)
+async def health_live_check():
+    """Backward-compatible liveness alias for common /health/live probes."""
+
+    return await health_check()
 
 
 @router.get("/health/agi")

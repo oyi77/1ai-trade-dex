@@ -1000,6 +1000,12 @@ async def _execute_decision_live_clob(
                         db.commit()
                         return None
                 if clob_order_id is None:
+                    attempt_recorder.record_failed(
+                        "CLOB execution produced no order id",
+                        phase="execution",
+                        adjusted_size=adjusted_size,
+                    )
+                    db.commit()
                     return None
                 alert_manager.check_high_slippage(
                     trade_id=0, expected_price=entry_price, actual_price=fill_price,

@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSSEEvents } from './useSSEEvents';
-import { API_BASE, getAdminApiKey } from '../api';
+import { API_BASE } from '../api';
 
 // Mock EventSource
 class MockEventSource {
@@ -63,7 +63,7 @@ describe('useSSEEvents', () => {
 
   it('connects with channels parameter when provided', () => {
     const channels = ['dashboard', 'agi_control'];
-    const { result } = renderHook(() => useSSEEvents({ channels }), { wrapper });
+    renderHook(() => useSSEEvents({ channels }), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
       `${API_BASE}/api/events/stream?channels=dashboard%2Cagi_control`
@@ -71,7 +71,7 @@ describe('useSSEEvents', () => {
   });
 
   it('connects without channels parameter when not provided', () => {
-    const { result } = renderHook(() => useSSEEvents(), { wrapper });
+    renderHook(() => useSSEEvents(), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
       `${API_BASE}/api/events/stream`
@@ -79,7 +79,7 @@ describe('useSSEEvents', () => {
   });
 
   it('connects without channels parameter when not provided', () => {
-    const { result } = renderHook(() => useSSEEvents(), { wrapper });
+    renderHook(() => useSSEEvents(), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
       `${API_BASE}/api/events/stream`
@@ -111,7 +111,7 @@ describe('useSSEEvents', () => {
 
   it('invalidates queries on trade_executed event', async () => {
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    const { result } = renderHook(() => useSSEEvents(), { wrapper });
+    renderHook(() => useSSEEvents(), { wrapper });
 
     const esInstance = MockEventSource.mockInstances[0];
 

@@ -727,6 +727,91 @@ class TestLiveModeCallsCLOB:
         assert result["clob_order_id"] == "live-order-xyz"
 
     @pytest.mark.asyncio
+    async def test_live_clob_success_without_order_id_records_failed_attempt(self):
+        """Live CLOB handoff must not leave attempts stuck at RISK_APPROVED."""
+        from backend.data.polymarket_clob import OrderResult
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade, TradeAttempt
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
+        db.close()
+
+        mock_order_result = OrderResult(
+            success=True,
+            order_id=None,
+            fill_price=0.56,
+            fill_size=5.0,
+        )
+
+        mock_clob = AsyncMock()
+        mock_clob.place_limit_order = AsyncMock(return_value=mock_order_result)
+        mock_clob.create_or_derive_api_key = AsyncMock()
+        mock_clob.__aenter__ = AsyncMock(return_value=mock_clob)
+        mock_clob.__aexit__ = AsyncMock(return_value=False)
+
+        register_context("live", ModeExecutionContext(
+            mode="live",
+            clob_client=mock_clob,
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "live"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(
+                    market_ticker="live-market-no-order-id",
+                    token_id="token-abc-123",
+                    size=5.0,
+                ),
+                "live_strategy",
+                "live",
+            )
+
+        assert result is None
+        mock_clob.place_limit_order.assert_awaited_once()
+
+        check_db = TestSession()
+        try:
+            trade = (
+                check_db.query(Trade)
+                .filter(Trade.market_ticker == "live-market-no-order-id")
+                .first()
+            )
+            assert trade is None
+
+            attempt = (
+                check_db.query(TradeAttempt)
+                .filter(TradeAttempt.market_ticker == "live-market-no-order-id")
+                .first()
+            )
+            assert attempt is not None
+            assert attempt.status == "FAILED"
+            assert attempt.phase == "execution"
+            assert attempt.reason_code == "FAILED_BROKER_REJECTED"
+            assert attempt.trade_id is None
+            assert attempt.order_id is None
+        finally:
+            check_db.close()
+
+    @pytest.mark.asyncio
     async def test_testnet_with_polymarket_token_uses_simulated_path(self):
         """Testnet Polymarket token decisions must not use live CLOB placement."""
         from backend.core.mode_context import register_context, ModeExecutionContext

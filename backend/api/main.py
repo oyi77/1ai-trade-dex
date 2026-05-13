@@ -37,7 +37,7 @@ from backend.api.copy_trading import router as copy_trading_router
 from backend.api.arbitrage import router as arbitrage_router
 from backend.api.market_intel import router as market_intel_router
 from backend.api.auto_trader import router as auto_trader_router
-from backend.api.system import router as system_router
+from backend.api.system import health_check as system_liveness_check, router as system_router
 from backend.api.backtest import router as backtest_router
 from backend.api.wallets import router as wallets_router
 from backend.api.wallet_allocations import router as wallet_allocations_router
@@ -130,7 +130,6 @@ app.include_router(settings_router, prefix="/api/v1")
 app.include_router(activities_router, prefix="/api/v1")
 app.include_router(proposals_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
-app.include_router(system_router, prefix="/api/v1")
 app.include_router(brain_router, prefix="/api/v1")
 app.include_router(errors_router, prefix="/api/v1")
 app.include_router(metrics_router, prefix="/api/v1")
@@ -159,6 +158,13 @@ from backend.api.events.sse_router import router as sse_events_router  # noqa: E
 
 app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)
+
+
+@app.get("/api/health", include_in_schema=False)
+async def legacy_api_health_check():
+    """Backward-compatible liveness alias for legacy monitors."""
+
+    return await system_liveness_check()
 
 # Add metrics middleware for automatic tracking
 @app.middleware("http")

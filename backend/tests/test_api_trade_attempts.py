@@ -73,3 +73,35 @@ class TestTradeAttemptsApi:
         assert data["execution_rate"] == 0.5
         assert data["top_blockers"][0]["reason_code"] == "REJECTED_DRAWDOWN_BREAKER"
         assert data["recent_blockers"][0]["market_ticker"] == "DRAW-MARKET"
+
+    def test_trade_attempts_summary_handles_string_created_at(self, client, db):
+        from backend.models.database import TradeAttempt
+        from backend.api.system import _iso
+
+        assert _iso("2026-05-13 22:00:01.648328+07") == "2026-05-13 22:00:01.648328+07"
+
+        db.add(TradeAttempt(
+            attempt_id="attempt-summary-string-date",
+            correlation_id="corr-summary-string-date",
+            strategy="cex_pm_leadlag",
+            mode="paper",
+            market_ticker="STRING-DATE-MARKET",
+            status="FAILED",
+            phase="execution",
+            reason_code="FAILED_BROKER_REJECTED",
+            reason="CLOB execution produced no order id",
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+        db.connection().exec_driver_sql(
+            "UPDATE trade_attempts SET created_at = ? WHERE attempt_id = ?",
+            ("2026-05-13 22:00:01.648328+07", "attempt-summary-string-date"),
+        )
+        db.commit()
+
+        resp = client.get("/api/v1/trade-attempts/summary?mode=paper")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["last_attempt_at"]
+        assert data["recent_blockers"][0]["created_at"]

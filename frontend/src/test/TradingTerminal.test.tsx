@@ -10,6 +10,7 @@ class MockWS {
   readyState = 1;
   send = vi.fn();
   close = vi.fn();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(_url: string) { setTimeout(() => this.onopen?.({} as Event), 0); }
 }
 
