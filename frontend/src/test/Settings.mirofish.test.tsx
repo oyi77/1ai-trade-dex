@@ -60,7 +60,7 @@ describe('Settings - MiroFish UI', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    ;(mockAxios.get as any).mockResolvedValue({
+    void (mockAxios.get as any).mockResolvedValue({
       data: mockSettingsData,
     })
   })
@@ -79,7 +79,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('displays error when settings fail to load', async () => {
-      ;(mockAxios.get as any).mockRejectedValueOnce({
+      void (mockAxios.get as any).mockRejectedValueOnce({
         response: {
           data: { detail: 'Failed to fetch settings' },
         },
@@ -95,7 +95,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('retries loading settings when retry button clicked', async () => {
-      ;(mockAxios.get as any)
+      void (mockAxios.get as any)
         .mockRejectedValueOnce({
           response: { data: { detail: 'Network error' } },
         })
@@ -134,10 +134,10 @@ describe('Settings - MiroFish UI', () => {
 
     it('toggles MiroFish on and shows credential inputs', async () => {
       const enabledSettings = { ...mockSettingsData, mirofish_enabled: true }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: enabledSettings,
       })
-      ;(mockAxios.put as any).mockResolvedValue({
+      void (mockAxios.put as any).mockResolvedValue({
         data: { ...enabledSettings, mirofish_enabled: false },
       })
 
@@ -185,7 +185,7 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_key: 'test-key-123',
       }
 
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
 
@@ -218,7 +218,7 @@ describe('Settings - MiroFish UI', () => {
         ...mockSettingsData,
         mirofish_enabled: true,
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithEnabled,
       })
     })
@@ -233,7 +233,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('updates API URL when user types', async () => {
-      ;(mockAxios.put as any).mockResolvedValue({ data: mockSettingsData })
+      void (mockAxios.put as any).mockResolvedValue({ data: mockSettingsData })
 
       render(<Settings />)
 
@@ -255,7 +255,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('updates API Key when user types', async () => {
-      ;(mockAxios.put as any).mockResolvedValue({ data: mockSettingsData })
+      void (mockAxios.put as any).mockResolvedValue({ data: mockSettingsData })
 
       render(<Settings />)
 
@@ -277,7 +277,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('disables inputs while saving', async () => {
-      ;(mockAxios.put as any).mockImplementation(
+      void (mockAxios.put as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: mockSettingsData }), 100)
@@ -307,7 +307,7 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_url: 'https://api.mirofish.ai',
         mirofish_api_key: 'test-key-123',
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
     })
@@ -321,7 +321,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('shows loading state while testing', async () => {
-      ;(mockAxios.post as any).mockImplementation(
+      void (mockAxios.post as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: { success: true } }), 100)
@@ -343,7 +343,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('disables button while testing', async () => {
-      ;(mockAxios.post as any).mockImplementation(
+      void (mockAxios.post as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: { success: true } }), 100)
@@ -365,7 +365,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('shows success message on successful connection', async () => {
-      ;(mockAxios.post as any).mockResolvedValue({
+      void (mockAxios.post as any).mockResolvedValue({
         data: { success: true },
       })
 
@@ -389,7 +389,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('shows error message on connection failure', async () => {
-      ;(mockAxios.post as any).mockResolvedValue({
+      void (mockAxios.post as any).mockResolvedValue({
         data: { success: false, error: 'Invalid API key' },
       })
 
@@ -408,7 +408,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('shows error on network timeout', async () => {
-      ;(mockAxios.post as any).mockRejectedValue({
+      void (mockAxios.post as any).mockRejectedValue({
         response: {
           data: { detail: 'Connection timeout' },
         },
@@ -429,7 +429,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('shows error on authentication failure', async () => {
-      ;(mockAxios.post as any).mockRejectedValue({
+      void (mockAxios.post as any).mockRejectedValue({
         response: {
           data: { detail: 'Unauthorized: Invalid credentials' },
         },
@@ -456,7 +456,7 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_url: '',
         mirofish_api_key: '',
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsNoCreds,
       })
 
@@ -511,15 +511,15 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_key: 'test-key-123',
       }
 
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
 
-      ;(mockAxios.post as any).mockResolvedValue({
+      void (mockAxios.post as any).mockResolvedValue({
         data: { success: true },
       })
 
-      ;(mockAxios.put as any).mockResolvedValue({
+      void (mockAxios.put as any).mockResolvedValue({
         data: settingsWithCreds,
       })
 
@@ -547,11 +547,11 @@ describe('Settings - MiroFish UI', () => {
         ...mockSettingsData,
         mirofish_enabled: true,
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithEnabled,
       })
 
-      ;(mockAxios.put as any).mockResolvedValue({
+      void (mockAxios.put as any).mockResolvedValue({
         data: settingsWithEnabled,
       })
 
@@ -577,13 +577,13 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_url: 'https://api.mirofish.ai',
         mirofish_api_key: 'test-key-123',
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
     })
 
     it('displays timeout error', async () => {
-      ;(mockAxios.post as any).mockRejectedValue({
+      void (mockAxios.post as any).mockRejectedValue({
         response: {
           data: { detail: 'Request timeout after 30s' },
         },
@@ -604,7 +604,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('displays auth failure error', async () => {
-      ;(mockAxios.post as any).mockRejectedValue({
+      void (mockAxios.post as any).mockRejectedValue({
         response: {
           data: { detail: 'Authentication failed: Invalid API key' },
         },
@@ -625,7 +625,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('displays connection error', async () => {
-      ;(mockAxios.post as any).mockRejectedValue({
+      void (mockAxios.post as any).mockRejectedValue({
         response: {
           data: { detail: 'Failed to connect to MiroFish API' },
         },
@@ -646,7 +646,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('handles network error without response', async () => {
-      ;(mockAxios.post as any).mockRejectedValue(new Error('Network error'))
+      void (mockAxios.post as any).mockRejectedValue(new Error('Network error'))
 
       render(<Settings />)
 
@@ -671,13 +671,13 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_url: 'https://api.mirofish.ai',
         mirofish_api_key: 'test-key-123',
       }
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
     })
 
     it('shows saving indicator when updating settings', async () => {
-      ;(mockAxios.put as any).mockImplementation(
+      void (mockAxios.put as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: mockSettingsData }), 100)
@@ -699,7 +699,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('disables test button while saving', async () => {
-      ;(mockAxios.put as any).mockImplementation(
+      void (mockAxios.put as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: mockSettingsData }), 100)
@@ -723,7 +723,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('disables toggle while saving', async () => {
-      ;(mockAxios.put as any).mockImplementation(
+      void (mockAxios.put as any).mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve({ data: mockSettingsData }), 100)
@@ -759,15 +759,15 @@ describe('Settings - MiroFish UI', () => {
         mirofish_api_key: 'test-key-123',
       }
 
-      ;(mockAxios.get as any).mockResolvedValue({
+      void (mockAxios.get as any).mockResolvedValue({
         data: settingsWithCreds,
       })
 
-      ;(mockAxios.post as any).mockResolvedValue({
+      void (mockAxios.post as any).mockResolvedValue({
         data: { success: true },
       })
 
-      ;(mockAxios.put as any).mockResolvedValue({
+      void (mockAxios.put as any).mockResolvedValue({
         data: settingsWithCreds,
       })
 
