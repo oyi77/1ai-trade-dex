@@ -21,7 +21,7 @@ React 18 + TypeScript dashboard for monitoring and controlling the PolyEdge trad
 | `src/utils/retryFetch.ts` | Fetch wrapper with retry logic |
 | `src/contexts/ModeFilterContext.tsx` | Trading mode filter context (paper/live/shadow) |
 | `vite.config.ts` | Vite build configuration |
-| `package.json` | Node dependencies and scripts |
+| `package.json` | Node dependencies and scripts; `build:docs` skips gracefully when sibling `../polyedge-docs` checkout is absent |
 | `playwright.config.ts` | E2E test configuration |
 
 ## Subdirectories
