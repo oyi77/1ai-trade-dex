@@ -1,5 +1,7 @@
 """FastAPI backend for BTC 5-min trading bot dashboard."""
 
+import asyncio
+
 from fastapi import (
     FastAPI,
     Depends,
@@ -220,7 +222,7 @@ class FrontendBacktestRequest(BaseModel):
 
 
 # Core endpoints
-@app.get("/api/v1/health")
+@app.get("/api/v1/health/dependencies")
 async def health_check(db: Session = Depends(get_db)):
     """Return system health including per-strategy heartbeat and dependency status."""
     checks = {}
@@ -230,7 +232,7 @@ async def health_check(db: Session = Depends(get_db)):
         db.execute(func.now())
         checks["database"] = {"status": "ok"}
     except Exception as e:
-        checks["database"] = {"status": "error", "error": str(e)}
+        checks["database"] = {"status": "error", "error": "database unavailable"}
         overall_status = "degraded"
         logger.error(
             f"[api.main.health_check] {type(e).__name__}: Database health check failed: {e}",
@@ -247,7 +249,7 @@ async def health_check(db: Session = Depends(get_db)):
             checks["redis"] = {"status": "ok"}
             r.close()
         except Exception as e:
-            checks["redis"] = {"status": "error", "error": str(e)}
+            checks["redis"] = {"status": "error", "error": "redis unavailable"}
             if overall_status == "ok":
                 overall_status = "degraded"
             logger.warning(
@@ -257,21 +259,35 @@ async def health_check(db: Session = Depends(get_db)):
     else:
         checks["redis"] = {"status": "not_configured", "fallback": "sqlite"}
 
-    # Polymarket CLOB connectivity
+    # Polymarket CLOB connectivity. Keep this bounded: health checks must not
+    # hang the API when an exchange/RPC dependency is slow.
     try:
         from backend.data.polymarket_clob import clob_from_settings
 
         client = clob_from_settings()
-        ok_resp = client.get_ok()
-        balance = client.get_wallet_balance()
-        if ok_resp:
-            checks["polymarket_clob"] = {"status": "ok", "balance": str(balance)}
+        balance = await asyncio.wait_for(client.get_wallet_balance(), timeout=5.0)
+        if not balance.get("error"):
+            checks["polymarket_clob"] = {
+                "status": "ok",
+                "balance": str(balance.get("usdc_balance", 0.0)),
+            }
         else:
-            checks["polymarket_clob"] = {"status": "error", "error": "get_ok returned falsy"}
+            checks["polymarket_clob"] = {
+                "status": "error",
+                "error": "wallet balance unavailable",
+            }
             if overall_status == "ok":
                 overall_status = "degraded"
+    except asyncio.TimeoutError:
+        checks["polymarket_clob"] = {"status": "error", "error": "health check timed out"}
+        if overall_status == "ok":
+            overall_status = "degraded"
+        logger.warning("Polymarket CLOB health check timed out")
     except Exception as e:
-        checks["polymarket_clob"] = {"status": "error", "error": str(e)}
+        checks["polymarket_clob"] = {
+            "status": "error",
+            "error": "wallet balance unavailable",
+        }
         if overall_status == "ok":
             overall_status = "degraded"
         logger.warning(
@@ -305,7 +321,7 @@ async def health_check(db: Session = Depends(get_db)):
             "queue_size": pool.size() - pool.checkedout() - pool.overflow(),
         }
     except Exception as e:
-        checks["db_pool"] = {"status": "error", "error": str(e)}
+        checks["db_pool"] = {"status": "error", "error": "db pool unavailable"}
         logger.warning(f"Failed to get pool stats: {e}")
 
     bot_state = db.query(BotState).first()
@@ -314,9 +330,10 @@ async def health_check(db: Session = Depends(get_db)):
         from backend.core.agi_event_handlers import check_agi_health
         agi_health = check_agi_health()
     except Exception as e:
-        agi_health = {"status": "error", "error": str(e)}
+        agi_health = {"status": "error", "error": "agi health unavailable"}
+        logger.warning(f"Failed to get AGI health: {e}")
 
-    return {
+    response = {
         "status": overall_status,
         "dependencies": checks,
         "strategies": healths,
@@ -325,6 +342,8 @@ async def health_check(db: Session = Depends(get_db)):
         "bot_running": bot_state.is_running if bot_state else False,
         "trading_mode": settings.TRADING_MODE,
     }
+    db.rollback()
+    return response
 
 
 

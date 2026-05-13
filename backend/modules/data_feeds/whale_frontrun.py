@@ -144,48 +144,46 @@ class WhaleFrontrun(BaseStrategy):
             return
 
         try:
-            from backend.models.database import SessionLocal, WalletConfig
+            from backend.db.utils import get_db_session
+            from backend.models.database import WalletConfig
 
-            db = SessionLocal()
-            try:
+            with get_db_session() as db:
                 wallets = (
                     db.query(WalletConfig)
-                    .filter(WalletConfig.whale_score > 0.5, WalletConfig.enabled.is_(True))
+                    .filter(WalletConfig.whale_score > 0.35, WalletConfig.enabled.is_(True))
                     .all()
                 )
+                wallet_addresses = [wallet.address for wallet in wallets]
 
-                data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
-                token_ids: set[str] = set()
+            data_url = _cfg("DATA_API_URL", "https://data-api.polymarket.com")
+            token_ids: set[str] = set()
 
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    for w in wallets:
-                        try:
-                            resp = await client.get(
-                                f"{data_url}/positions",
-                                params={"user": w.address, "limit": 50},
-                            )
-                            if resp.status_code != 200:
-                                continue
-
-                            positions = resp.json()
-                            rows = positions if isinstance(positions, list) else positions.get("data", [])
-                            for pos in rows:
-                                token_id = pos.get("asset", pos.get("token_id", ""))
-                                if token_id:
-                                    token_ids.add(token_id)
-                        except Exception:
-                            logger.exception("Failed to parse whale position token IDs")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                for wallet_address in wallet_addresses:
+                    try:
+                        resp = await client.get(
+                            f"{data_url}/positions",
+                            params={"user": wallet_address, "limit": 50},
+                        )
+                        if resp.status_code != 200:
                             continue
 
-                        await asyncio.sleep(0.3)
+                        positions = resp.json()
+                        rows = positions if isinstance(positions, list) else positions.get("data", [])
+                        for pos in rows:
+                            token_id = pos.get("asset", pos.get("token_id", ""))
+                            if token_id:
+                                token_ids.add(token_id)
+                    except Exception:
+                        logger.exception("Failed to parse whale position token IDs")
+                        continue
 
-                self.subscribed_tokens = token_ids
-                self._tokens_resolved = True
-                logger.info(f"[whale_frontrun] Resolved {len(token_ids)} tokens from {len(wallets)} whale wallets")
-                await self.register_with_event_bus()
+                    await asyncio.sleep(0.3)
 
-            finally:
-                db.close()
+            self.subscribed_tokens = token_ids
+            self._tokens_resolved = True
+            logger.info(f"[whale_frontrun] Resolved {len(token_ids)} tokens from {len(wallet_addresses)} whale wallets")
+            await self.register_with_event_bus()
 
         except Exception as exc:
             logger.warning(f"[whale_frontrun] Token resolution failed: {exc}")
@@ -302,7 +300,7 @@ class WhaleFrontrun(BaseStrategy):
             db = SessionLocal()
             try:
                 wallets = db.query(WalletConfig).filter(
-                    WalletConfig.whale_score > 0.5
+                    WalletConfig.whale_score > 0.35
                 ).order_by(WalletConfig.whale_score.desc()).limit(5).all()
             finally:
                 db.close()

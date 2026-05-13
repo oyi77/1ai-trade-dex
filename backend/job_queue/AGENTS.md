@@ -16,8 +16,8 @@ Async job queue abstraction with pluggable backends (SQLite Phase 1, Redis Phase
 | `sqlite_queue.py` | AsyncSQLiteQueue: async SQLite-backed queue using ThreadPoolExecutor for sync DB operations; stores jobs in JobQueue table; PRIORITY_MAP for ordering |
 | `redis_queue.py` | RedisQueue: arq-based Redis job queue for Phase 2; enqueue via Redis, workers managed by arq framework |
 | `sqlite_cache.py` | SQLiteCache: TTL-based cache for idempotency keys and dedup; async interface wrapping SQLite in thread pool |
-| `handlers.py` | Job handlers (async functions): market_scan, settlement, signal_generation, backtest_run; wrap existing scheduler logic for queue execution |
-| `worker.py` | Worker class: continuous loop polling queue, enforcing max_concurrent limit, dispatching jobs to handlers, tracking timeouts/failures, metrics recording |
+| `handlers.py` | Job handlers (async functions): market_scan, weather_scan, settlement, signal_generation, backtest_run; wrap existing scheduler logic for queue execution |
+| `worker.py` | Worker class: continuous loop polling queue, enforcing max_concurrent limit, dispatching market/weather/settlement/signal jobs to handlers, tracking timeouts/failures, metrics recording |
 | `arq_settings.py` | arq settings (job timeout, max retries, queue name prefixes) for Redis worker configuration |
 | `migrate_jobs.py` | Migration utility: transfer pending/failed jobs from old queue system to new one |
 | `migrate_to_redis.py` | Migration script: bulk migration from SQLite to Redis (one-time operation for Phase 2) |

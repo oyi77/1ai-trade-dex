@@ -249,7 +249,7 @@ class CrossMarketArb(BaseStrategy):
             from backend.data.kalshi_client import KalshiClient
 
             client = KalshiClient()
-            return await client.get_markets(limit=500)
+            return await client.get_markets(params={"limit": 500})
         except Exception as exc:
             logger.warning(f"[cross_market_arb] Kalshi fetch failed: {exc}")
             return []

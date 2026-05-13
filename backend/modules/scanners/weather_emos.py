@@ -384,7 +384,14 @@ def save_calibration_states(
             for city, cs in states.items()
         }
         state.misc_data = json.dumps(existing)
-        db.commit()
+        try:
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise
     except Exception as e:
         logger.warning(f"Could not save calibration states: {e}")
 
@@ -883,6 +890,10 @@ class WeatherEMOSStrategy(BaseStrategy):
                                 ctx.db.add(new_trade)
                                 ctx.db.commit()
                             except Exception as db_err:
+                                try:
+                                    ctx.db.rollback()
+                                except Exception:
+                                    pass
                                 result.errors.append(
                                     f"Trade record failed {market.ticker}: {db_err}"
                                 )

@@ -5,3 +5,7 @@
 ## 2024-05-10 - [React Re-renders on WebSocket Data Updates]
 **Learning:** In dashboards powered by fast-polling or WebSocket streams (e.g. `useStats` hook triggering rapid component updates), derived array calculations like `.filter()`, `.map()`, and especially `.sort()` within the render body can block the UI thread and consume heavy CPU if unmemoized. This codebase frequently renders long lists of trade arrays that should not be re-calculated unless the specific array reference or filters change.
 **Action:** When updating dashboard tabs and data grids handling lists of trades or streams, wrap expensive array transformations and aggregations in `useMemo` so that rapid state updates from independent contexts (like stats or health ticks) don't force redundant iterations over unchanged data.
+
+## 2024-05-24 - [Avoid lockfile changes when optimizing]
+**Learning:** In a heavily configured frontend setup using pnpm and Vite, running `npm run` or installing dependencies indiscriminately just to get linting/tests working can severely pollute lockfiles and break cross-platform builds by unlinking platform specific packages like `esbuild`.
+**Action:** When making minor React performance optimizations, do NOT touch package.json or install new versions of build tools (like Vite) just to fix testing environments. Restore any untracked lockfile modifications before creating a PR to ensure safe, localized optimization.

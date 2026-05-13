@@ -17,6 +17,8 @@ class _MockSettings:
     MAX_POSITION_FRACTION: float = 0.05
     MAX_TRADE_SIZE: float = 50.0  # Added - global max position cap enforced by RiskManager
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.50
+    PAPER_MIN_ORDER_USDC: float = 5.0
+    MIN_ORDER_USDC: float = 5.0
     SLIPPAGE_TOLERANCE: float = 0.02
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20

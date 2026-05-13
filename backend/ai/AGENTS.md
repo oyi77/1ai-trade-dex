@@ -49,6 +49,7 @@ LLM routing, multi-agent debate, signal parsing, market analysis, and ML model t
 - **Debate engine is Bull/Bear/Judge** — Bull and Bear use cheap models (Groq), Judge uses the smart model (Claude when available). Do not swap roles without updating `ROLE_SETTING_MAP` in `llm_router.py`.
 - Model artifacts in `models/` are versioned by hash in `model_hashes.json` — verify integrity with `model_integrity.py` before using a loaded model.
 - Training scripts in `training/` are offline — they do not run during normal bot operation.
+- AGI synthesis/composition code must not keep a DB session open while awaiting LLMs or backtests. Read prompt/backtest inputs with a short-lived session, close it, then await external work, and reopen a fresh session only for registration/writeback.
 
 ### Testing Requirements
 - Mock all LLM API calls — never make real API calls in tests (cost + flakiness)

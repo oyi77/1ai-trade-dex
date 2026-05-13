@@ -26,7 +26,7 @@ from backend.strategies.base import (
     CycleResult,
     MarketInfo,
 )
-from backend.core.decisions import record_decision
+from backend.core.decisions import record_decision_standalone
 from backend.config import settings
 
 from loguru import logger
@@ -261,8 +261,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
         confidence = self._calculate_confidence(movement, news_context)
 
         if confidence < params["min_confidence_to_signal"]:
-            record_decision(
-                ctx.db,
+            record_decision_standalone(
                 self.name,
                 movement.ticker,
                 "SKIP",
@@ -286,8 +285,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
             else round(1.0 - movement.current_price, 4)
         )
 
-        record_decision(
-            ctx.db,
+        record_decision_standalone(
             self.name,
             movement.ticker,
             action,

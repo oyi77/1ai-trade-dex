@@ -26,7 +26,7 @@ Market data providers, exchange clients, WebSocket feeds, and data aggregation. 
 | `orderbook_cache.py` | Order book caching layer |
 | `orderbook_hft_ws.py` | HFT WebSocket order book feed |
 | `orderbook_ws.py` | Standard WebSocket order book feed |
-| `polymarket_websocket.py` | Polymarket WebSocket client |
+| `polymarket_websocket.py` | Polymarket WebSocket client — publishes `book`, `last_trade_price`, and `price_change` events to `EventBus` for strategy execution |
 | `ws_aggregator.py` | WebSocket feed aggregator |
 | `ws_client.py` | Generic WebSocket client base |
 | `whale_monitor_ws.py` | On-chain whale wallet monitoring via WebSocket |
@@ -61,6 +61,7 @@ Market data providers, exchange clients, WebSocket feeds, and data aggregation. 
 
 ### Common Patterns
 - Discover markets: `scanner = MarketUniverseScanner(); markets = await scanner.scan()`
+- Subscribe near-expiry CLOB market events: `await fetch_short_duration_token_ids(...)` from `backend.core.market_scanner`; pass returned token IDs as Polymarket WS `asset_ids`
 - Get CLOB balance: `clob = PolymarketCLOB(settings); balance = await clob.get_usdc_balance()`
 - Fetch Gamma markets: `gamma = GammaClient(settings); markets = await gamma.get_markets(category="crypto")`
 

@@ -27,6 +27,7 @@ Whale tracking and signal feed modules. These modules track large trader activit
 ### Common Patterns
 - Implement `Strategy` interface from `backend.strategies.base`
 - Use `@register_strategy()` decorator for registry discovery
+- Snapshot DB-backed wallet/config rows before awaited HTTP calls; never keep a SQLAlchemy session open while polling external feeds
 
 ## Dependencies
 

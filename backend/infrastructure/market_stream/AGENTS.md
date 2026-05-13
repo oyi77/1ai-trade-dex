@@ -11,7 +11,7 @@ Real-time market stream infrastructure. Routes orderbook updates from WebSocket 
 | File | Description |
 |------|-------------|
 | `__init__.py` | Package marker |
-| `orderbook_router.py` | Orderbook update router — defines `OrderbookUpdate` dataclass and dispatches real-time orderbook data to subscribers with circuit-breaker protection |
+| `orderbook_router.py` | Orderbook update router — adapts Polymarket WS snapshots into `OrderbookUpdate` and dispatches real-time orderbook data to subscribers with circuit-breaker protection |
 
 ## Subdirectories
 

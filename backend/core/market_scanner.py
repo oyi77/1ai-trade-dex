@@ -2,7 +2,9 @@
 
 import asyncio
 import math
+import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -134,6 +136,65 @@ async def fetch_markets_by_keywords(
         for m in all_markets
         if any(kw in m.question.lower() or kw in m.slug.lower() for kw in kw_lower)
     ]
+
+
+async def fetch_short_duration_token_ids(
+    limit: int | None = None,
+    max_hours_to_resolution: float | None = None,
+    min_volume: float | None = None,
+) -> list[str]:
+    """Return CLOB token IDs for active markets resolving soon.
+
+    This feeds the public Polymarket market WebSocket subscription. The market
+    channel requires outcome token IDs (`asset_ids`), not condition IDs.
+    """
+
+    max_hours = max_hours_to_resolution if max_hours_to_resolution is not None else getattr(
+        settings, "SHORT_MARKET_MAX_HOURS_TO_RESOLUTION", 24.0
+    )
+    min_vol = min_volume if min_volume is not None else getattr(
+        settings, "SHORT_MARKET_MIN_VOLUME", 100.0
+    )
+    subscription_limit = int(limit or getattr(settings, "POLYMARKET_WS_SUBSCRIPTION_LIMIT", 200))
+    markets = await fetch_all_active_markets(limit=getattr(settings, "SCANNER_MAX_MARKETS", 10000))
+    now = datetime.now(timezone.utc)
+    scored: list[tuple[float, list[str]]] = []
+
+    for market in markets:
+        if market.volume < min_vol:
+            continue
+        if not market.end_date:
+            continue
+        try:
+            end_dt = datetime.fromisoformat(market.end_date.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        hours_remaining = (end_dt - now).total_seconds() / 3600.0
+        if hours_remaining <= 0 or hours_remaining > max_hours:
+            continue
+        raw_token_ids = market.metadata.get("clobTokenIds") or []
+        if isinstance(raw_token_ids, str):
+            try:
+                raw_token_ids = json.loads(raw_token_ids)
+            except json.JSONDecodeError:
+                raw_token_ids = []
+        token_ids = [str(token_id) for token_id in raw_token_ids if token_id]
+        if token_ids:
+            scored.append((market.volume, token_ids))
+
+    tokens: list[str] = []
+    seen: set[str] = set()
+    for _volume, token_ids in sorted(scored, key=lambda item: item[0], reverse=True):
+        for token_id in token_ids:
+            if token_id in seen:
+                continue
+            seen.add(token_id)
+            tokens.append(token_id)
+            if len(tokens) >= subscription_limit:
+                logger.info(f"market_scanner: selected {len(tokens)} short-duration WS token IDs")
+                return tokens
+    logger.info(f"market_scanner: selected {len(tokens)} short-duration WS token IDs")
+    return tokens
 
 
 async def _fetch_page(client: httpx.AsyncClient, params: dict) -> list[dict]:

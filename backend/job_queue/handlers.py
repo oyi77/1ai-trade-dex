@@ -42,8 +42,8 @@ async def market_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
         from backend.core.scheduler import scan_and_trade_job
 
-        # Execute the market scan logic
-        await scan_and_trade_job()
+        mode = str(payload.get("mode") or "paper")
+        await scan_and_trade_job(mode)
 
         return {
             "success": True,
@@ -173,8 +173,9 @@ async def weather_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
     try:
         from backend.core.scheduling_strategies import weather_scan_and_trade_job
 
-        # Execute the weather scan logic
-        await weather_scan_and_trade_job()
+        # Execute the weather scan logic in the requested mode, defaulting to paper
+        # for queued jobs so worker-triggered scans never place live orders implicitly.
+        await weather_scan_and_trade_job(mode=payload.get("mode", "paper"))
 
         return {
             "success": True,

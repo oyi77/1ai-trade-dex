@@ -363,7 +363,7 @@ class ConfigRegistry:
     LINE_MOVE_MIN_LIQUIDITY: float = 5000.0
     LINE_MOVE_LOOKBACK_HOURS: float = 1.0
     LINE_MOVE_WEB_SEARCH_ENABLED: bool = True
-    LINE_MOVE_MIN_CONFIDENCE_TO_SIGNAL: float = 0.6
+    LINE_MOVE_MIN_CONFIDENCE_TO_SIGNAL: float = 0.5
 
     # BTC Momentum
     BTC_MOMENTUM_MAX_TRADE_FRACTION: float = 0.03
@@ -420,8 +420,8 @@ class ConfigRegistry:
     # --------------------------------------------------------------------------
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tradingbot.db")
-    POSTGRES_POOL_SIZE: int = 10
-    POSTGRES_MAX_OVERFLOW: int = 20
+    POSTGRES_POOL_SIZE: int = 5
+    POSTGRES_MAX_OVERFLOW: int = 5
     POSTGRES_POOL_TIMEOUT: int = 30
     POSTGRES_POOL_RECYCLE: int = 3600
     POSTGRES_SSL_MODE: str = "prefer"
@@ -1126,8 +1126,8 @@ class Settings(BaseSettings):
         return v
 
     # PostgreSQL pool settings (used when DATABASE_URL starts with postgresql://)
-    POSTGRES_POOL_SIZE: int = 20
-    POSTGRES_MAX_OVERFLOW: int = 40
+    POSTGRES_POOL_SIZE: int = 5
+    POSTGRES_MAX_OVERFLOW: int = 5
     POSTGRES_POOL_TIMEOUT: int = 30
     POSTGRES_POOL_RECYCLE: int = 3600
     POSTGRES_SSL_MODE: str = "prefer"
@@ -1312,6 +1312,8 @@ class Settings(BaseSettings):
     POLYMARKET_USER_WS_ENABLED: bool = False
     POLYMARKET_WS_SUBSCRIPTION_LIMIT: int = 200
     WS_HANDLER_TIMEOUT_MS: int = 100
+    SHORT_MARKET_MAX_HOURS_TO_RESOLUTION: float = 24.0
+    SHORT_MARKET_MIN_VOLUME: float = 100.0
 
     # Job Queue Settings
     JOB_WORKER_ENABLED: bool = True  # Required for trading — enables APScheduler strategy cycles
@@ -1761,4 +1763,3 @@ if __name__ == "__main__":
     print(f"  API endpoints configured: {len([k for k in dir(settings) if k.endswith('_URL') and not k.startswith('_')])}")
     print(f"  Jobs enabled: {settings.JOB_WORKER_ENABLED}")
     print(f"  AGI autonomy: {settings.AGI_AUTO_PROMOTE}")
-
