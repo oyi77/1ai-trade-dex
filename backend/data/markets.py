@@ -1,9 +1,10 @@
-"""Market data types and fetching - simplified for BTC 5-min focus."""
+"""Market data types and generic market fetching."""
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass
 
 from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
+from backend.core.market_scanner import fetch_all_active_markets
 
 
 @dataclass
@@ -47,6 +48,42 @@ def btc_market_to_market_data(btc: BtcMarket) -> MarketData:
 
 
 async def fetch_all_markets(**kwargs) -> List[MarketData]:
-    """Fetch all markets - currently only BTC 5-min markets."""
-    btc_markets = await fetch_active_btc_markets()
-    return [btc_market_to_market_data(m) for m in btc_markets]
+    """Fetch active markets across the Polymarket universe.
+
+    Falls back to the BTC helper only if broad Gamma market scanning fails.
+    """
+    try:
+        markets = await fetch_all_active_markets(
+            category=kwargs.get("category"),
+            limit=kwargs.get("limit"),
+        )
+        results: list[MarketData] = []
+        for market in markets:
+            settlement_time = None
+            if market.end_date:
+                try:
+                    settlement_time = datetime.fromisoformat(market.end_date.replace("Z", "+00:00"))
+                except ValueError:
+                    settlement_time = None
+            results.append(
+                MarketData(
+                    platform="polymarket",
+                    ticker=market.ticker,
+                    title=market.question or market.slug,
+                    category=market.category or "general",
+                    subcategory=None,
+                    yes_price=market.yes_price,
+                    no_price=market.no_price,
+                    volume=market.volume,
+                    settlement_time=settlement_time,
+                    event_slug=market.slug,
+                    window_end=settlement_time,
+                )
+            )
+        return results
+    except Exception:
+        from loguru import logger
+
+        logger.exception("fetch_all_markets broad scan failed; falling back to BTC markets")
+        btc_markets = await fetch_active_btc_markets()
+        return [btc_market_to_market_data(m) for m in btc_markets]
