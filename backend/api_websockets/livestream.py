@@ -248,18 +248,22 @@ async def livestream_broadcaster():
                 try:
                     db = SessionLocal()
                     try:
-                        strategies = db.query(StrategyConfig).all()
-                        for cfg in strategies:
-                            status = "thinking" if cfg.enabled else "idle"
-                            await broadcast_strategy_pulse(cfg.strategy_name, status)
+                        strategy_pulses = [
+                            (cfg.strategy_name, "thinking" if cfg.enabled else "idle")
+                            for cfg in db.query(StrategyConfig).all()
+                        ]
                     finally:
                         db.close()
+
+                    for strategy_name, status in strategy_pulses:
+                        await broadcast_strategy_pulse(strategy_name, status)
                 except Exception as e:
                     logger.debug(f"Livestream strategy pulse error: {e}")
 
             if now - last_trade_check > 2:
                 last_trade_check = now
                 try:
+                    trade_data = None
                     db = SessionLocal()
                     try:
                         recent_trade = (
@@ -278,15 +282,18 @@ async def livestream_broadcaster():
                                 "settled": recent_trade.settled,
                                 "timestamp": recent_trade.timestamp.isoformat() if recent_trade.timestamp else "",
                             }
-                            await broadcast_trade_event(trade_data)
                     finally:
                         db.close()
+
+                    if trade_data is not None:
+                        await broadcast_trade_event(trade_data)
                 except Exception as e:
                     logger.debug(f"Livestream trade check error: {e}")
 
             if now - last_arena_check > 5:
                 last_arena_check = now
                 try:
+                    arena_payload = None
                     db = SessionLocal()
                     try:
                         recent_attempt = (
@@ -321,38 +328,50 @@ async def livestream_broadcaster():
                             bull_text += "\nConclusion: Market supports signal."
                             bear_text += f"\nRisk check: {'Passed' if recent_attempt.status == 'executed' else 'Blocked'}"
 
-                            await broadcast_debate_update(
-                                bull_text=bull_text,
-                                bear_text=bear_text,
-                                verdict=dir_bias.lower() if dir_bias.lower() in ["bull", "bear", "up", "down"] else None,
-                                is_debating=False
-                            )
-
-                            await broadcast_thought_log(f"Analyzed {market} (bias: {dir_bias.upper()}). Confidence: {conf*100:.1f}%, Edge: {edge*100:.1f}%. Result: {recent_attempt.status.upper()}")
-                            if reason:
-                                await broadcast_thought_log(f"Reasoning keys: {reason}")
+                            arena_payload = {
+                                "bull_text": bull_text,
+                                "bear_text": bear_text,
+                                "verdict": dir_bias.lower() if dir_bias.lower() in ["bull", "bear", "up", "down"] else None,
+                                "summary": f"Analyzed {market} (bias: {dir_bias.upper()}). Confidence: {conf*100:.1f}%, Edge: {edge*100:.1f}%. Result: {recent_attempt.status.upper()}",
+                                "reason": reason,
+                            }
 
                     finally:
                         db.close()
+
+                    if arena_payload is not None:
+                        await broadcast_debate_update(
+                            bull_text=arena_payload["bull_text"],
+                            bear_text=arena_payload["bear_text"],
+                            verdict=arena_payload["verdict"],
+                            is_debating=False,
+                        )
+                        await broadcast_thought_log(arena_payload["summary"])
+                        if arena_payload["reason"]:
+                            await broadcast_thought_log(f"Reasoning keys: {arena_payload['reason']}")
                 except Exception as e:
                     logger.debug(f"Livestream arena check error: {e}")
 
             if now - last_trade_check > 10:
                 try:
+                    bot_state_payload = None
                     db = SessionLocal()
                     try:
                         bot_state = db.query(BotState).first()
                         if bot_state:
-                            await topic_manager.broadcast("livestream", {
+                            bot_state_payload = {
                                 "type": "bot_state",
                                 "bankroll": float(bot_state.bankroll or 0),
                                 "total_pnl": float(bot_state.total_pnl or 0),
                                 "total_trades": bot_state.total_trades or 0,
                                 "is_running": bot_state.is_running,
                                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                            })
+                            }
                     finally:
                         db.close()
+
+                    if bot_state_payload is not None:
+                        await topic_manager.broadcast("livestream", bot_state_payload)
                 except Exception as e:
                     logger.debug(f"Livestream bot state error: {e}")
 
