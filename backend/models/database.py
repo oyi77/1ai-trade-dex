@@ -100,15 +100,20 @@ botstate_mutex = asyncio.Lock()
 
 
 def for_update(session, query):
-    """Add FOR UPDATE NOWAIT clause on PostgreSQL. No-op on SQLite/MySQL.
+    """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL.
 
-    Uses NOWAIT to immediately raise OperationalError instead of blocking
-    indefinitely, preventing cascading lock timeouts across API endpoints.
+    Uses a blocking FOR UPDATE (without NOWAIT) so concurrent strategy jobs
+    wait for the lock instead of immediately raising OperationalError.  The
+    previous NOWAIT behaviour caused a cascade: the lock loser raised
+    OperationalError whose message contained SQLAlchemy bind-param dicts like
+    ``{'mode_1': 'paper'}``; loguru then tried to format that string and
+    raised ``KeyError: "'mode_1'"``, crashing the strategy job.
+
     For SQLite, use ``botstate_mutex`` alongside this for read-modify-write
     patterns on BotState to prevent lost updates under concurrent async access.
     """
     if session.get_bind().dialect.name == "postgresql":
-        return query.with_for_update(nowait=True)
+        return query.with_for_update()
     return query
 
 

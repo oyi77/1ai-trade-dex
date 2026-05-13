@@ -82,10 +82,9 @@ def _record_unexpected_attempt_failure(
             db.rollback()
         except Exception:
             logger.exception("[strategy_executor] db.rollback failed after TradeAttempt record failure")
-        logger.warning(
+        logger.opt(exception=True).warning(
             "[strategy_executor.execute_decision] failed to record unexpected TradeAttempt failure: %s",
             record_exc,
-            exc_info=True,
         )
 
 
@@ -534,9 +533,8 @@ def _execute_decision_paper_or_kalshi(
                     },
                 )
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: event broadcast failed (non-fatal): {e}",
-                    exc_info=True,
                 )
 
             try:
@@ -569,16 +567,14 @@ def _execute_decision_paper_or_kalshi(
             return trade_dict
 
         except OperationalError as exc:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
-                exc_info=True,
             )
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed after OperationalError (non-fatal): {e}",
-                    exc_info=True,
                 )
             return None
         except Exception as exc:
@@ -588,9 +584,8 @@ def _execute_decision_paper_or_kalshi(
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed (non-fatal): {e}",
-                    exc_info=True,
                 )
             if attempt_recorder is not None:
                 _record_unexpected_attempt_failure(
@@ -903,7 +898,7 @@ async def _execute_decision_live_clob(
                         return None
                     except Exception as clob_err:
                         err_str = f"{type(clob_err).__name__}: {clob_err}"
-                        logger.error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}", exc_info=True)
+                        logger.opt(exception=True).error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}")
                         if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
                             try:
                                 fresh_mid = await context.clob_client.get_mid_price(token_id)
@@ -1122,9 +1117,8 @@ async def _execute_decision_live_clob(
                     },
                 )
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: event broadcast failed (non-fatal): {e}",
-                    exc_info=True,
                 )
 
             try:
@@ -1157,16 +1151,14 @@ async def _execute_decision_live_clob(
             return trade_dict
 
         except OperationalError as exc:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
-                exc_info=True,
             )
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed after OperationalError (non-fatal): {e}",
-                    exc_info=True,
                 )
             return None
         except Exception as exc:
@@ -1176,9 +1168,8 @@ async def _execute_decision_live_clob(
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed (non-fatal): {e}",
-                    exc_info=True,
                 )
             if attempt_recorder is not None:
                 _record_unexpected_attempt_failure(
@@ -1275,7 +1266,7 @@ async def execute_quote(
                     return {"quote_placed": True, "orders": results}
 
         except Exception as e:
-            logger.error("[execute_quote] Failed: %s", e, exc_info=True)
+            logger.opt(exception=True).error("[execute_quote] Failed: %s", e)
             try:
                 db.rollback()
             except Exception:

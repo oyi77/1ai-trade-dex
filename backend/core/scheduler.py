@@ -355,7 +355,7 @@ def _load_strategy_jobs() -> None:
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
                 .filter(
-                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode is None)
+                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode.is_(None))
                 )
                 .all()
             )
