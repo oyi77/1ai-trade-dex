@@ -46,6 +46,7 @@ export function PerformanceTab() {
 
   const strategies: StrategyHealth[] = health?.strategies ?? []
   const strategyPnL: StrategyPnL[] = strategyStatsData?.strategies ?? []
+  const todayKey = new Date().toDateString()
 
   // Filter trades by selected mode before calculating metrics
   // ⚡ Bolt: Memoized derived state to prevent O(N) recalculation on every render
@@ -73,11 +74,12 @@ export function PerformanceTab() {
 
   // ⚡ Bolt: Memoized daily PNL reduction
   const dailyPnl = useMemo(() => {
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+    const todayStart = new Date(todayKey)
+    todayStart.setHours(0, 0, 0, 0)
     return filteredTrades
       .filter((t) => t.timestamp && new Date(t.timestamp) >= todayStart)
       .reduce((s: number, t) => s + (t.pnl ?? 0), 0)
-  }, [filteredTrades])
+  }, [filteredTrades, todayKey])
 
   // ⚡ Bolt: Memoized average trade size computation
   const avgTradeSize = useMemo(() =>

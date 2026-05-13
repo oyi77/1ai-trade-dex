@@ -41,6 +41,7 @@ None — all dashboard components are at root level of `dashboard/`.
 - Use `useStats()` hook for general dashboard stats (called by OverviewTab)
 - Use `useTableQuery()` hook for paginated table data (used by MarketsTab, TradesTab)
 - Use `useTradeEvents()` hook for real-time trade updates
+- Time-based dashboard metrics (for example "today" rollups) must invalidate on local date rollover, not only when fetched data arrays change
 - Handle empty/loading states gracefully — show placeholder tables or "No data" message
 - All times shown in user's local timezone — use date-fns for formatting
 
