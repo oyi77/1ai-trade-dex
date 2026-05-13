@@ -1,7 +1,7 @@
 """add_provider_credentials_table
 
-Revision ID: a1b2c3d4e5f6
-Revises: 2c10e32ae3fa
+Revision ID: 4e6c9a19200f
+Revises: 8f98f43940f4
 Create Date: 2026-05-12 21:00:00.000000
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a1b2c3d4e5f6'
-down_revision: Union[str, Sequence[str], None] = '2c10e32ae3fa'
+revision: str = '4e6c9a19200f'
+down_revision: Union[str, Sequence[str], None] = '8f98f43940f4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
