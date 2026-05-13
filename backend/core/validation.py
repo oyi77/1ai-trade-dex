@@ -1,5 +1,4 @@
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
 
 from loguru import logger
 
@@ -199,10 +198,4 @@ def log_validation_error(error: ValidationError, context: str = "") -> None:
     if error.value is not None:
         log_msg += f" (value: {error.value})"
 
-    logger.error(log_msg, extra={
-        "validation_error": True,
-        "field": error.field,
-        "value": error.value,
-        "context": context,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
+    logger.error(log_msg)
