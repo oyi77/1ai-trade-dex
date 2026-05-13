@@ -94,7 +94,7 @@ describe('Settings - MiroFish UI', () => {
     })
 
     it('retries loading settings when retry button clicked', async () => {
-      (mockAxios.get as any)
+      void (mockAxios.get as any)
         .mockRejectedValueOnce({
           response: { data: { detail: 'Network error' } },
         })
