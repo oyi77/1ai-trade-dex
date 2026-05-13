@@ -727,6 +727,12 @@ class TestHeartbeatFlush:
             def execute(self, *_args, **_kwargs):
                 raise RuntimeError("db locked")
 
+            def query(self, *_args):
+                return self
+
+            def all(self):
+                raise RuntimeError("db locked")
+
             def rollback(self):
                 pass
 
@@ -766,6 +772,13 @@ class TestHeartbeatFlush:
         class FailingSession:
             def execute(self, *_args, **_kwargs):
                 raise OperationalError("UPDATE bot_state SET misc_data", {}, Orig())
+
+            def query(self, *_args):
+                mock_query = MagicMock()
+                mock_query.all.side_effect = OperationalError(
+                    "UPDATE bot_state SET misc_data", {}, Orig()
+                )
+                return mock_query
 
             def rollback(self):
                 pass
