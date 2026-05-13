@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && npm run build:docs",
-    "build:docs": "cd ../polyedge-docs && npm install && npm run build && cp -r build ../frontend/dist/docs",
+    "build:docs": "if [ -d ../polyedge-docs ]; then cd ../polyedge-docs && npm install && npm run build && cp -r build ../frontend/dist/docs; else echo 'Skipping docs build: ../polyedge-docs not found'; fi",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,7 +29,6 @@
     "react-leaflet": "^4.2.1",
     "react-map-gl": "^7.1.7",
     "react-router-dom": "^7.14.0",
-    "react-simple-maps": "^3.0.0",
     "reactflow": "^11.11.4",
     "recharts": "2.12.7",
     "three": "^0.182.0"
