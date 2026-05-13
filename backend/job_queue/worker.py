@@ -219,6 +219,8 @@ class Worker:
         # Dispatch based on job type
         if job.job_type == "market_scan":
             result = await handlers.market_scan(job.payload)
+        elif job.job_type == "weather_scan":
+            result = await handlers.weather_scan(job.payload)
         elif job.job_type == "settlement_check":
             result = await handlers.settlement_check(job.payload)
         elif job.job_type == "signal_generation":
