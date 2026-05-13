@@ -17,22 +17,32 @@ class WhaleDiscovery:
         results = []
         from backend.db.utils import get_db_session
         with get_db_session() as db:
-            wallets = db.query(WalletConfig).all()
-            for w in wallets:
-                history = await self._fetch_history(w.address)
-                if len(history) < min_trades:
-                    continue
-                days = self._estimate_days(history)
-                score = calculate_whale_score(history, days_active=days)
-                w.whale_score = score
-                results.append(
-                    {
-                        "wallet": w.address,
-                        "score": score,
-                        "trade_count": len(history),
-                    }
-                )
-            db.commit()
+            wallet_addresses = [wallet.address for wallet in db.query(WalletConfig).all()]
+
+        score_by_wallet: dict[str, float] = {}
+        for wallet_address in wallet_addresses:
+            history = await self._fetch_history(wallet_address)
+            if len(history) < min_trades:
+                continue
+            days = self._estimate_days(history)
+            score = calculate_whale_score(history, days_active=days)
+            score_by_wallet[wallet_address] = score
+            results.append(
+                {
+                    "wallet": wallet_address,
+                    "score": score,
+                    "trade_count": len(history),
+                }
+            )
+
+        if score_by_wallet:
+            with get_db_session() as db:
+                for wallet in (
+                    db.query(WalletConfig)
+                    .filter(WalletConfig.address.in_(list(score_by_wallet.keys())))
+                    .all()
+                ):
+                    wallet.whale_score = score_by_wallet[wallet.address]
         results.sort(key=lambda r: r["score"], reverse=True)
         return results
 
