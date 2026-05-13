@@ -312,7 +312,7 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         agi_health = {"status": "error", "error": str(e)}
 
-    return {
+    response = {
         "status": overall_status,
         "dependencies": checks,
         "strategies": healths,
@@ -321,6 +321,8 @@ async def health_check(db: Session = Depends(get_db)):
         "bot_running": bot_state.is_running if bot_state else False,
         "trading_mode": settings.TRADING_MODE,
     }
+    db.rollback()
+    return response
 
 
 

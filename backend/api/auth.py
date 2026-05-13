@@ -674,7 +674,7 @@ async def get_admin_system(
             if not v
         ]
 
-    return {
+    response = {
         "trading_mode": settings.TRADING_MODE,
         "active_modes": sorted(settings.active_modes_set),
         "bot_running": state.is_running if state else False,
@@ -700,6 +700,8 @@ async def get_admin_system(
             2: "Poly-EOA (PK maps to proxy)",
         }.get(settings.POLYMARKET_SIGNATURE_TYPE, "Unknown"),
     }
+    db.rollback()
+    return response
 
 
 @router.post("/alerts/test")

@@ -188,7 +188,7 @@ async def admin_post_settings(body: SettingsUpdateRequest):
 async def admin_get_system(db: Session = Depends(get_db)):
     """Return lightweight system / bot status."""
     bot_state = db.query(BotState).first()
-    return {
+    response = {
         "trading_mode": settings.TRADING_MODE,
         "bot_running": bot_state.is_running if bot_state else False,
         "active_modes": settings.ACTIVE_MODES,
@@ -196,6 +196,8 @@ async def admin_get_system(db: Session = Depends(get_db)):
         "total_trades": bot_state.total_trades if bot_state else 0,
         "total_pnl": bot_state.total_pnl if bot_state else 0.0,
     }
+    db.rollback()
+    return response
 
 
 # ---------------------------------------------------------------------------
