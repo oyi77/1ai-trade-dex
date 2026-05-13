@@ -1281,6 +1281,8 @@ class Settings(BaseSettings):
     POLYMARKET_USER_WS_ENABLED: bool = False
     POLYMARKET_WS_SUBSCRIPTION_LIMIT: int = 200
     WS_HANDLER_TIMEOUT_MS: int = 100
+    SHORT_MARKET_MAX_HOURS_TO_RESOLUTION: float = 24.0
+    SHORT_MARKET_MIN_VOLUME: float = 100.0
 
     # Job Queue Settings
     JOB_WORKER_ENABLED: bool = True  # Required for trading — enables APScheduler strategy cycles
@@ -1730,4 +1732,3 @@ if __name__ == "__main__":
     print(f"  API endpoints configured: {len([k for k in dir(settings) if k.endswith('_URL') and not k.startswith('_')])}")
     print(f"  Jobs enabled: {settings.JOB_WORKER_ENABLED}")
     print(f"  AGI autonomy: {settings.AGI_AUTO_PROMOTE}")
-
