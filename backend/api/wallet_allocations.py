@@ -1,14 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
-import json as _json
 
 from backend.models.database import get_db
 from backend.models.trading_wallet import TradingWallet, WalletAllocation
 from backend.api.auth import require_admin
-from loguru import logger
 
 router = APIRouter(prefix="/wallet-allocations", tags=["wallet_allocations"])
 
@@ -100,7 +97,7 @@ def update_trading_wallet(wallet_id: int, body: TradingWalletUpdate, db: Session
     row = db.query(TradingWallet).filter_by(id=wallet_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Wallet not found")
-    
+
     if body.label is not None:
         row.label = body.label
     if body.chain is not None:
@@ -119,7 +116,7 @@ def update_trading_wallet(wallet_id: int, body: TradingWalletUpdate, db: Session
         row.is_paper = body.is_paper
     if body.notes is not None:
         row.notes = body.notes
-        
+
     db.commit()
     db.refresh(row)
     return _wallet_to_dict(row)
@@ -157,14 +154,14 @@ def update_allocation(alloc_id: int, body: WalletAllocationUpdate, db: Session =
     row = db.query(WalletAllocation).filter_by(id=alloc_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Allocation not found")
-    
+
     if body.weight is not None:
         row.weight = body.weight
     if body.max_exposure_usd is not None:
         row.max_exposure_usd = body.max_exposure_usd
     if body.enabled is not None:
         row.enabled = body.enabled
-        
+
     db.commit()
     db.refresh(row)
     return _alloc_to_dict(row)

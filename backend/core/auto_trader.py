@@ -104,7 +104,7 @@ class AutoTrader:
                 )
                 if not child_orders:
                     return ExecutionResult(False, False, "no active wallets for strategy")
-                
+
                 record_signal(strategy=strategy, signal_type="auto_approved_fanout")
                 increment_trade_execution(strategy=strategy, result="live_fanout")
                 return ExecutionResult(
