@@ -31,9 +31,9 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ### Settlement
 | File | Description |
 |------|-------------|
-| `settlement.py` | Core settlement logic — resolves trades, updates BotState; must hold `botstate_mutex` |
+| `settlement.py` | Core settlement logic — resolves trades, updates BotState; must hold `botstate_mutex`; wallet-gone positions may become `closed_unresolved` to release exposure when external resolution lags |
 | `settlement_capture.py` | Captures settlement events from exchange |
-| `settlement_helpers.py` | Settlement utility functions and `TransactionEvent` emission |
+| `settlement_helpers.py` | Settlement utility functions, `SettlementEvent`/`TransactionEvent` emission, and live position reconciliation; optional analytics/learner hooks must be rollback-isolated from the main settlement transaction |
 | `settlement_ws.py` | WebSocket-based settlement event listener |
 | `auto_redeem.py` | Automatic position redemption after market resolution |
 
@@ -58,13 +58,13 @@ The trading engine — execution routing, risk management, settlement, circuit b
 | File | Description |
 |------|-------------|
 | `scheduler.py` | APScheduler instance and job registration |
-| `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `strategy_cycle_job`, etc. |
+| `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `strategy_cycle_job`, etc.; DB sessions must stay short and never remain open across awaited network calls |
 | `task_manager.py` | Async task lifecycle management |
 
 ### Infrastructure
 | File | Description |
 |------|-------------|
-| `event_bus.py` | SSE broadcast and internal event dispatch — replaces module-level globals from old monolithic main.py |
+| `event_bus.py` | SSE broadcast and internal event dispatch — routes WebSocket strategy BUY decisions through `strategy_executor` with StrategyConfig mode semantics |
 | `mode_context.py` | Trading mode context (paper/live/shadow) |
 | `shadow_mode.py` | Shadow mode execution — runs strategies without placing real orders |
 | `shadow_validation.py` | Shadow mode trade validation |
@@ -95,9 +95,10 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ## For AI Agents
 
 ### Critical Safety Rules
-- **`botstate_mutex` is mandatory for BotState read-modify-write** — always acquire `botstate_mutex` before reading BotState if you intend to write. See `strategy_executor.py` and `settlement.py` for the pattern. Skipping this causes lost updates under concurrent execution.
+- **`botstate_mutex` is mandatory for BotState read-modify-write** — acquire it only around the short mutation section, and prefer a single atomic SQL `UPDATE` for counters/balances. Use `for_update()` only when code must inspect and mutate structured state in the same window. Preflight/risk reads should use plain reads so PM2 scheduler/API processes do not block trade execution on long `BotState` row locks. See `strategy_executor.py` and `settlement.py` for the pattern. Skipping atomic mutation or the mutation lock causes lost updates under concurrent execution.
 - **`risk_manager.py`, `circuit_breaker.py`, and `settlement.py` must not be weakened without an ADR** — these are the last line of defense before real money moves. Any change that relaxes a limit, bypasses a check, or alters settlement logic requires a new ADR in `docs/architecture/`.
 - **`settlement.py` is append-only for trade records** — never mutate historical `Trade` rows to explain rejected attempts. Use `TradeAttemptRecorder` instead (see `adr-003`).
+- **Optional settlement hooks must be isolated** — learner/forensics/performance/brain integrations are best-effort and must never roll back the primary `Trade` + `SettlementEvent` writes.
 - **`auto_trader.py` is an execution router, not a strategy** — trade attribution uses `Signal.track_name` to preserve the originating strategy name.
 
 ### BotState Pattern
@@ -108,9 +109,13 @@ async with botstate_mutex:
     db.commit()
 ```
 
+### Session Lifetime Rule
+- **Never hold a SQLAlchemy session open across awaited network I/O** — snapshot DB rows first, close/commit the session, then call external APIs. Re-open a fresh session only for the mutation/writeback step. This is especially important in scheduler jobs and data-feed discovery loops, otherwise PostgreSQL accumulates `idle in transaction` sessions and exhausts connection slots.
+- This also applies to AGI/LLM flows and websocket broadcasts: prompt-building reads and API response reads must end their transaction before `await`ing Claude, backtests, or realtime fan-out.
+
 ### Scheduler Job Registry
 Jobs are registered in `scheduler.py` and implemented in `scheduling_strategies.py`:
-- `scan_and_trade_job` — main signal scan + execution loop
+- `scan_and_trade_job` — registry-driven signal scan + execution loop across enabled strategies
 - `settlement_job` — resolves open positions
 - `strategy_cycle_job` — per-strategy execution cycle
 - `autonomous_promotion_job` — AGI experiment promotion (every 6h)

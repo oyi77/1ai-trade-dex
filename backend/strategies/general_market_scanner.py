@@ -469,12 +469,13 @@ class GeneralMarketScanner(BaseStrategy):
                     bb = float(best_bid)
                     ba = float(best_ask)
                     if ba > bb > 0:
+                        spread = float(gamma_spread) if gamma_spread is not None else ba - bb
                         ob_imbalance = (
                             bb / ba - 1.0
                         ) * 10  # rough imbalance [-1,1] scale
                         context_parts.append(
                             f"ORDER_BOOK: best_bid={bb:.4f}, best_ask={ba:.4f}, "
-                            f"spread={gamma_spread:.4f if gamma_spread else (ba-bb):.4f}, "
+                            f"spread={spread:.4f}, "
                             f"imbalance={ob_imbalance:+.2f}"
                         )
                 except (ValueError, TypeError):
@@ -890,7 +891,7 @@ class GeneralMarketScanner(BaseStrategy):
                 "model_probability": ai_prob,
                 "raw_ai_probability": raw_ai_prob,
                 "market_probability": market_price,
-                "platform": "polymarket",
+                "platform": settings.DEFAULT_VENUE,
                 "strategy_name": self.name,
                 "volume": volume,
                 "reasoning": reasoning,

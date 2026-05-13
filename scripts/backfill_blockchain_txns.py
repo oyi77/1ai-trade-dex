@@ -5,7 +5,6 @@ Imports all USDC transfers to/from the wallet
 """
 
 import asyncio
-from datetime import datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -78,7 +77,7 @@ async def backfill_transactions():
             text("SELECT SUM(amount) FROM blockchain_transactions WHERE type IN ('withdrawal', 'trade_buy')")
         ).fetchone()[0] or 0
         
-        print(f"\n✅ Backfill complete!")
+        print("\n✅ Backfill complete!")
         print(f"   Imported: {imported} transactions")
         print(f"   Total deposits: ${total_deposits:.2f}")
         print(f"   Total withdrawals: ${total_withdrawals:.2f}")

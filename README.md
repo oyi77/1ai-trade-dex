@@ -151,7 +151,7 @@ Starts the backend API + Redis. See `docker-compose.yml` for configuration.
 │  └───────────┘ └───────────┘ └───────────┘ └───────────────────────┘ │
 │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────────────┐ │
 │  │  Order    │ │Settlement │ │  Signal   │ │ Job Queue             │ │
-│  │ Executor  │ │  Engine   │ │Calibration│ │ (Redis / SQLite)      │ │
+│  │ Executor  │ │  Engine   │ │Calibration│ │ (Redis / PostgreSQL)      │ │
 │  └───────────┘ └───────────┘ └───────────┘ └───────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
                                │
@@ -167,7 +167,7 @@ Starts the backend API + Redis. See `docker-compose.yml` for configuration.
                                │
                                ▼
 ┌──────────────────────────────────────────────────────────────────────┐
-│  INFRASTRUCTURE: SQLite DB │ Redis Queue │ APScheduler │ Prometheus  │
+│  INFRASTRUCTURE: PostgreSQL DB │ Redis Queue │ APScheduler │ Prometheus  │
 │  DEPLOY: Docker Compose │ Railway (backend) │ Vercel (frontend)     │
 │  NOTIFY: Telegram │ Discord                                          │
 └──────────────────────────────────────────────────────────────────────┘

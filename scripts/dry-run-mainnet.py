@@ -16,10 +16,8 @@ Tests:
 """
 
 import asyncio
-import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -350,8 +348,8 @@ async def test_settlement_flow():
 
     db = SessionLocal()
     try:
-        pending = db.query(Trade).filter(Trade.settled == False).count()
-        settled = db.query(Trade).filter(Trade.settled == True).count()
+        pending = db.query(Trade).filter(not Trade.settled).count()
+        settled = db.query(Trade).filter(Trade.settled).count()
         state = db.query(BotState).first()
 
         if state:

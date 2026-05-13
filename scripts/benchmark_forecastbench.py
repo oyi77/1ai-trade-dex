@@ -1,5 +1,4 @@
 """ForecastBench AI ensemble benchmarking against published baselines."""
-import json
 
 from backend.models.database import SessionLocal, Trade
 

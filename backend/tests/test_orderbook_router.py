@@ -7,6 +7,7 @@ from backend.infrastructure.market_stream.orderbook_router import (
     OrderbookRouter,
     OrderbookUpdate
 )
+from backend.data.polymarket_websocket import OrderbookSnapshot as WsOrderbookSnapshot
 from backend.config import settings
 
 
@@ -117,6 +118,29 @@ async def test_on_orderbook_update_queues_update(router: OrderbookRouter, sample
 
     queued_update = await router._queue.get()
     assert queued_update.market_id == sample_update.market_id
+
+
+@pytest.mark.asyncio
+async def test_on_orderbook_update_adapts_polymarket_ws_snapshot(router: OrderbookRouter):
+    """PolymarketWebSocket sends OrderbookSnapshot, not OrderbookUpdate."""
+    snapshot = WsOrderbookSnapshot(
+        asset_id="token_1",
+        market="condition_1",
+        bids=[{"price": "0.40", "size": "25"}],
+        asks=[{"price": "0.44", "size": "30"}],
+        timestamp=1_700_000_000_000,
+    )
+
+    await router._on_orderbook_update(snapshot)
+
+    queued_update = await router._queue.get()
+    assert queued_update.market_id == "token_1"
+    assert queued_update.bids_yes == snapshot.bids
+    assert queued_update.asks_yes == snapshot.asks
+    stored = router.get_snapshot("token_1")
+    assert stored is not None
+    assert stored.best_bid_yes == 0.40
+    assert stored.best_ask_yes == 0.44
 
 
 @pytest.mark.asyncio

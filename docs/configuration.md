@@ -8,7 +8,7 @@ The Polyedge bot supports multiple database backends to suit different deploymen
 
 | Database Type | Use Case | Recommended Driver/URL Format | Notes |
 |---|---|---|---|
-| **SQLite** | Local development, testing, lightweight deployments | `sqlite:///./tradingbot.db` | Default. Simple, file-based, no external server needed. Best for getting started quickly. |
+| **SQLite** | Local development, testing, lightweight deployments | `postgresql://user:password@localhost:5432/polyedge` | Default. Simple, file-based, no external server needed. Best for getting started quickly. |
 | **PostgreSQL** | Production environments, high performance, scalability, data integrity | `postgresql+psycopg2://user:password@host:5432/mydatabase` | Recommended for production due to robustness, advanced features, and strong community support. Requires `psycopg2` driver. |
 | **MySQL** | Production environments, widely adopted, good performance | `mysql+pymysql://user:password@host:3306/mydatabase` | Supported for production. Requires `pymysql` driver. **Important**: It is highly recommended to use the `+pymysql` dialect in your `DATABASE_URL` for better compatibility and performance with SQLAlchemy. The application will issue a warning if `mysql://` is used without `+pymysql`. |
 | **MongoDB** | Future integration | N/A | Not currently supported. Integration would require a significant architectural change, including replacing SQLAlchemy with an ODM like MongoEngine and implementing a Repository Pattern due to its non-relational nature. |

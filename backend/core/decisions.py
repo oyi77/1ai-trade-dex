@@ -8,7 +8,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from backend.models.database import DecisionLog
 
@@ -69,12 +69,24 @@ def record_decision(
             db.add(row)
             db.flush()
             return row
+        except PendingRollbackError as e:
+            # Session is in DEACTIVE state due to a prior failed flush.
+            # Rollback to recover the session, then return None — do not retry.
+            logger.warning(
+                f"record_decision: PendingRollbackError for {strategy}/{market_ticker}, "
+                f"rolling back to recover session: {e}",
+                extra={"component": "decisions"},
+            )
+            try:
+                db.rollback()
+            except Exception:
+                logger.error(f"record_decision: rollback also failed for {strategy}/{market_ticker}")
+            return None
         except OperationalError as e:
             if "database is locked" not in str(e).lower() or attempt >= _DB_LOCKED_MAX_RETRIES - 1:
                 logger.warning(
                     f"record_decision: OperationalError for {strategy}/{market_ticker}, "
-                    f"rolling back session: {e}",
-                    extra={"component": "decisions"},
+                    f"rolling back session: {e}"
                 )
                 try:
                     db.rollback()
@@ -93,8 +105,7 @@ def record_decision(
             time.sleep(_DB_LOCKED_RETRY_DELAY)
         except Exception as e:
             logger.error(
-                f"record_decision failed for {strategy}/{market_ticker}: {e}",
-                extra={"component": "decisions"},
+                f"record_decision failed for {strategy}/{market_ticker}: {e}"
             )
             try:
                 db.rollback()

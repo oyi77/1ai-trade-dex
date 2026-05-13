@@ -623,46 +623,49 @@ async def agi_improvement_cycle_job() -> None:
         from backend.core.strategy_synthesizer import StrategySynthesizer
         from backend.core.agi_types import MarketRegime as _MR
         from backend.core.knowledge_graph import KnowledgeGraph
+        from backend.db.utils import get_db_session
 
         # Build KG context for the synthesizer prompt
         _kg_ctx: dict = {}
         try:
-            _kg = KnowledgeGraph(session=db)
-            _kg_ctx = {
-                "recent_regimes": [
-                    e.properties.get("value")
-                    for e in _kg.query_by_type("regime", limit=5)
-                    if e.properties.get("value")
-                ],
-                "best_strategies": [
-                    e.properties for e in _kg.query_by_type("strategy", limit=5)
-                ],
-            }
+            with get_db_session() as kg_db:
+                _kg = KnowledgeGraph(session=kg_db)
+                _kg_ctx = {
+                    "recent_regimes": [
+                        e.properties.get("value")
+                        for e in _kg.query_by_type("regime", limit=5)
+                        if e.properties.get("value")
+                    ],
+                    "best_strategies": [
+                        e.properties for e in _kg.query_by_type("strategy", limit=5)
+                    ],
+                }
         except Exception as _kg_err:
             logger.debug("[agi_improvement_cycle] KG context fetch failed (non-fatal): %s", _kg_err)
 
-        synthesizer = StrategySynthesizer(session=db)
-        generated = await synthesizer.generate_strategy(
-            description="New strategy for current market regime",
-            regime=_MR.UNKNOWN,
-            kg_context=_kg_ctx,
-        )
-        if generated.validation_passed:
-            exp_id = synthesizer.register_generated(generated)
-            stats["strategies_composed"] = 1
-            stats["stage_results"]["composition"] = "ok"
-            logger.info(
-                "[agi_improvement_cycle] Synthesized strategy '%s' passed all gates → SHADOW (exp_id=%s)",
-                generated.name, exp_id,
+        with get_db_session() as synth_db:
+            synthesizer = StrategySynthesizer(session=synth_db)
+            generated = await synthesizer.generate_strategy(
+                description="New strategy for current market regime",
+                regime=_MR.UNKNOWN,
+                kg_context=_kg_ctx,
             )
-        else:
-            stats["strategies_composed"] = 0
-            failed_gates = [k for k, v in generated.gate_results.items() if not v.get("passed", True)]
-            stats["stage_results"]["composition"] = f"gate_failed:{failed_gates}"
-            logger.warning(
-                "[agi_improvement_cycle] Synthesized strategy '%s' failed gates: %s",
-                generated.name, failed_gates,
-            )
+            if generated.validation_passed:
+                exp_id = synthesizer.register_generated(generated)
+                stats["strategies_composed"] = 1
+                stats["stage_results"]["composition"] = "ok"
+                logger.info(
+                    "[agi_improvement_cycle] Synthesized strategy '%s' passed all gates → SHADOW (exp_id=%s)",
+                    generated.name, exp_id,
+                )
+            else:
+                stats["strategies_composed"] = 0
+                failed_gates = [k for k, v in generated.gate_results.items() if not v.get("passed", True)]
+                stats["stage_results"]["composition"] = f"gate_failed:{failed_gates}"
+                logger.warning(
+                    "[agi_improvement_cycle] Synthesized strategy '%s' failed gates: %s",
+                    generated.name, failed_gates,
+                )
     except Exception as e:
         etype = classify_exception(e)
         stats["stage_results"]["composition"] = f"error:{etype.value}"

@@ -73,21 +73,26 @@ class StrategyComposer:
     async def compose_new_strategy(self, db: Optional[Session] = None) -> Optional[dict]:
         """Analyze market data and generate a new strategy. Returns metadata dict or None."""
         _owned = db is None
-        db = db or SessionLocal()
+        write_db = db or SessionLocal()
+        read_db = SessionLocal()
         try:
-            prompt = self._build_prompt(db)
+            try:
+                prompt = self._build_prompt(read_db)
+            finally:
+                read_db.close()
+
             strategy_code = await self._generate_with_claude(prompt)
             if not strategy_code:
                 return None
 
-            result = self._validate_and_register(strategy_code, db)
+            result = self._validate_and_register(strategy_code, write_db)
             return result
         except Exception as e:
             logger.error("[StrategyComposer] Failed: %s", e)
             return None
         finally:
             if _owned:
-                db.close()
+                write_db.close()
 
     def _build_prompt(self, db: Session) -> str:
         outcomes = db.query(StrategyOutcome).all()

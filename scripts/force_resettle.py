@@ -19,7 +19,7 @@ async def force_resettle_expired():
     try:
         expired = (
             db.query(Trade)
-            .filter(Trade.result == "expired", Trade.settled == True)
+            .filter(Trade.result == "expired", Trade.settled)
             .all()
         )
 

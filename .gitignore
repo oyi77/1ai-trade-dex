@@ -71,6 +71,7 @@ backups/
 .omc/
 .playwright-mcp/
 .sisyphus/
+!.sisyphus/
 !.sisyphus/plans/
 .claude/
 

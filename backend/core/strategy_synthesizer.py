@@ -85,6 +85,10 @@ class StrategySynthesizer:
         if self._owns_session:
             self._session.close()
 
+    def _new_bound_session(self) -> Session:
+        bind = self._session.get_bind()
+        return sessionmaker(bind=bind)()
+
     @property
     def _daily_budget(self) -> float:
         try:
@@ -123,8 +127,14 @@ class StrategySynthesizer:
             from backend.ai.strategy_composer import StrategyComposer
             composer = StrategyComposer()
 
-            # compose_new_strategy uses the DB session for outcome history
-            result = await composer.compose_new_strategy(db=self._session)
+            compose_db = self._new_bound_session()
+            try:
+                # compose_new_strategy reads from the DB for outcome history, but
+                # the read session must not stay open while awaiting the LLM.
+                result = await composer.compose_new_strategy(db=compose_db)
+            finally:
+                compose_db.close()
+
             if result and result.get("code"):
                 code = result["code"]
                 strategy_name = result.get("strategy_name", f"synth_{self._generation_count}")
@@ -236,7 +246,11 @@ class StrategySynthesizer:
                 initial_bankroll=100.0,
             )
             engine = BacktestEngine(config)
-            result = await engine.run(db=self._session)
+            backtest_db = self._new_bound_session()
+            try:
+                result = await engine.run(db=backtest_db)
+            finally:
+                backtest_db.close()
 
             sharpe = result.sharpe_ratio
             max_dd = result.max_drawdown

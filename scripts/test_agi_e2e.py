@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, ".")
 
 from backend.api.main import app
-from backend.models.database import Base, engine, SessionLocal
+from backend.models.database import Base, engine
 from backend.models.kg_models import Base as KGBase
 
 logging.basicConfig(level=logging.INFO)

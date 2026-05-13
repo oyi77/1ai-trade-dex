@@ -11,7 +11,6 @@ Usage:
 import argparse
 import asyncio
 import logging
-import math
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -388,7 +387,7 @@ async def seed_from_existing_paper_trades(days_back: int = 90) -> int:
             .filter(
                 Trade.timestamp >= start,
                 Trade.trading_mode == "paper",
-                Trade.settled == True,
+                Trade.settled,
             )
             .count()
         )

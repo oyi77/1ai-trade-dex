@@ -43,9 +43,23 @@ class StrategyContext:
         from backend.data.provider import DataProvider
     providers: dict[str, "DataProvider"] = field(default_factory=dict)
 
+    if TYPE_CHECKING:
+        from backend.markets.provider_registry import MarketProviderRegistry
+    market_registry: Optional["MarketProviderRegistry"] = None
+
+    DEFAULT_VENUE: str = "polymarket"
+
     @property
     def primary_provider(self):
-        return self.providers.get("polymarket")
+        return self.providers.get(self.DEFAULT_VENUE)
+
+    def get_market_provider(self, venue: str = None):
+        if self.market_registry is None:
+            return None
+        try:
+            return self.market_registry.get(venue or self.DEFAULT_VENUE)
+        except Exception:
+            return None
 
 
 @dataclass
@@ -196,21 +210,6 @@ class BaseStrategy(ABC):
         - Catches unexpected exceptions so the scheduler loop stays alive
         """
         start = time.monotonic()
-        try:
-            from backend.models.database import StrategyConfig
-            config = ctx.db.query(StrategyConfig).filter(
-                StrategyConfig.strategy_name == self.name
-            ).first()
-            if config is not None and not config.enabled:
-                return CycleResult(
-                    decisions_recorded=0,
-                    trades_attempted=0,
-                    trades_placed=0,
-                    errors=[],
-                    cycle_duration_ms=0.0,
-                )
-        except Exception as e:
-            ctx.logger.debug("[%s] State preparation failed: %s", self.name, e)
 
         try:
             result = await self.run_cycle(ctx)

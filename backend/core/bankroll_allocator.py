@@ -166,6 +166,54 @@ class BankrollAllocator:
             # Just apply a small global discount if there are overconfident buckets
             if biased_buckets:
                 logger.info(f"[BankrollAllocator] Overconfident buckets detected: {biased_buckets}")
+                # For simplicity, discount all by 5% if there's any global overconfidence
+                return {s: a * 0.95 for s, a in allocations.items()}
+
+            return allocations
+        except Exception as e:
+            logger.warning(f"[BankrollAllocator] Calibration feedback failed: {e}")
+            return allocations
+
+    def get_wallet_allocation(self, strategy_name: str, total_allocation: float) -> dict[int, float]:
+        from backend.db.utils import get_db_session
+        from backend.models.trading_wallet import WalletAllocation
+        
+        try:
+            with get_db_session() as db:
+                rows = db.query(WalletAllocation).filter(
+                    WalletAllocation.strategy_name == strategy_name,
+                    WalletAllocation.enabled.is_(True)
+                ).all()
+                
+                if not rows:
+                    return {}
+                    
+                total_weight = sum(r.weight for r in rows)
+                if total_weight <= 0:
+                    return {}
+                    
+                result = {}
+                for row in rows:
+                    raw_allocation = total_allocation * (row.weight / total_weight)
+                    if row.max_exposure_usd is not None:
+                        result[row.wallet_id] = min(raw_allocation, row.max_exposure_usd)
+                    else:
+                        result[row.wallet_id] = raw_allocation
+                        
+                return result
+        except Exception as e:
+            logger.error(f"[BankrollAllocator] get_wallet_allocation failed for {strategy_name}: {e}")
+            return {}
+
+            # Find biased buckets (bias_direction == 'overconfident')
+            biased_buckets = {b["bucket"] for b in buckets if b.get("bias_direction") == "overconfident"}
+            if not biased_buckets:
+                return allocations
+
+            # We don't have per-strategy bucket data in the simple version
+            # Just apply a small global discount if there are overconfident buckets
+            if biased_buckets:
+                logger.info(f"[BankrollAllocator] Overconfident buckets detected: {biased_buckets}")
                 adjusted = {k: v * 0.95 for k, v in allocations.items()}
                 return adjusted
 

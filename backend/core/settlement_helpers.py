@@ -5,7 +5,7 @@ import json
 import re
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 import httpx
 from cachetools import TTLCache
@@ -610,13 +610,29 @@ async def _fetch_kalshi_resolution(ticker: str) -> Tuple[bool, Optional[float]]:
 
 
 async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float]]:
-    """Platform-aware resolution dispatch.
+    """Platform-aware resolution dispatch via market registry.
 
     Returns: (is_resolved, settlement_value) where settlement_value ∈ {0.0, 1.0}.
     Routes to Kalshi or Polymarket based on trade.platform; defaults to polymarket
     when platform is missing (legacy rows).
+
+    Tries market provider registry first, falls back to legacy platform-specific
+    resolution functions when registry is unavailable.
     """
     platform = (getattr(trade, "platform", None) or "polymarket").lower()
+
+    # Try registered provider first
+    try:
+        from backend.markets.provider_registry import market_registry
+        provider = market_registry.get(platform)
+        if provider and hasattr(provider, 'resolve_market'):
+            is_resolved, value = await provider.resolve_market(trade.market_ticker)
+            if is_resolved:
+                return True, value
+    except Exception:
+        pass
+
+    # Legacy fallback
     if platform == "kalshi":
         return await _fetch_kalshi_resolution(trade.market_ticker)
     return await fetch_polymarket_resolution(
@@ -1087,9 +1103,11 @@ async def process_settled_trade(
         for decision in decisions:
             decision.outcome = outcome
     except Exception as e:
-        logger.debug(
-            f"[settlement_helpers.process_settled_trade] {type(e).__name__}: DecisionLog outcome backfill failed for {trade.market_ticker}: {e}",
-            exc_info=True
+        logger.opt(exception=True).debug(
+            "[settlement_helpers.process_settled_trade] {}: DecisionLog outcome backfill failed for {}: {!r}",
+            type(e).__name__,
+            trade.market_ticker,
+            e,
         )
 
     # Update linked signal
@@ -1109,9 +1127,11 @@ async def process_settled_trade(
                 try:
                     await _record_weather_observation(trade, settlement_value, db)
                 except Exception as e:
-                    logger.debug(
-                        f"[settlement_helpers.process_settled_trade] {type(e).__name__}: Weather calibration update skipped: {e}",
-                        exc_info=True
+                    logger.opt(exception=True).debug(
+                        "[settlement_helpers.process_settled_trade] {}: Weather calibration update skipped for {}: {!r}",
+                        type(e).__name__,
+                        trade.market_ticker,
+                        e,
                     )
 
     # Write outcome to BigBrain (unified memory)
@@ -1132,9 +1152,11 @@ async def process_settled_trade(
             }
         )
     except Exception as e:
-        logger.debug(
-            f"[settlement_helpers.process_settled_trade] {type(e).__name__}: BigBrain write_trade_outcome failed: {e}",
-            exc_info=True
+        logger.opt(exception=True).debug(
+            "[settlement_helpers.process_settled_trade] {}: BigBrain write_trade_outcome failed for trade {}: {!r}",
+            type(e).__name__,
+            trade.id,
+            e,
         )
 
     # Record calibration outcome for model validation
@@ -1143,20 +1165,44 @@ async def process_settled_trade(
 
         calibration_tracker.record_outcome(db, trade.market_ticker, settlement_value)
     except Exception as e:
-        logger.debug(
-            f"[settlement_helpers.process_settled_trade] {type(e).__name__}: Calibration record failed: {e}",
-            exc_info=True
+        logger.opt(exception=True).debug(
+            "[settlement_helpers.process_settled_trade] {}: Calibration record failed for {}: {!r}",
+            type(e).__name__,
+            trade.market_ticker,
+            e,
         )
+
+    # Flush settlement state before optional learner work so any learner-session
+    # rollback/savepoint cleanup cannot erase the main settlement changes.
+    db.flush()
 
     # Trigger realtime RL learner — fire-and-forget, never blocks settlement
     try:
         from backend.core.online_learner import OnlineLearner
 
         learner = OnlineLearner()
-        learner.on_trade_settled(trade, db)
+        learner_session_factory = sessionmaker(
+            bind=db.connection(),
+            autocommit=False,
+            autoflush=False,
+            join_transaction_mode="create_savepoint",
+        )
+        learner_db = learner_session_factory()
+        try:
+            learner_trade = learner_db.query(Trade).filter(Trade.id == trade.id).first()
+            if learner_trade is not None:
+                learner.on_trade_settled(learner_trade, learner_db)
+        except Exception:
+            learner_db.rollback()
+            raise
+        finally:
+            learner_db.close()
     except Exception as e:
         logger.warning(
-            f"[settlement_helpers.process_settled_trade] {type(e).__name__}: online_learner hook failed for trade {getattr(trade, 'id', '?')}: {e}",
+            "[settlement_helpers.process_settled_trade] {}: online_learner hook failed for trade {}: {}",
+            type(e).__name__,
+            getattr(trade, "id", "?"),
+            e,
         )
 
     # Trade forensics: analyze losing trades for patterns (non-blocking)
@@ -1165,14 +1211,22 @@ async def process_settled_trade(
             from backend.core.trade_forensics import trade_forensics
             await trade_forensics.analyze_losing_trade(trade.id)
         except Exception as e:
-            logger.debug(f"[settlement_helpers] Trade forensics failed for trade {trade.id}: {e}")
+            logger.opt(exception=True).debug(
+                "[settlement_helpers] Trade forensics failed for trade {}: {!r}",
+                trade.id,
+                e,
+            )
 
     if trade.strategy:
         try:
             from backend.core.strategy_performance_registry import strategy_performance_registry
             strategy_performance_registry.update_from_settlement(trade.strategy, db=db)
         except Exception as e:
-            logger.debug(f"[settlement_helpers] Performance registry update failed for {trade.strategy}: {e}")
+            logger.opt(exception=True).debug(
+                "[settlement_helpers] Performance registry update failed for {}: {!r}",
+                trade.strategy,
+                e,
+            )
 
     # Record TransactionEvent for settlement P&L (ledger entry)
     try:
@@ -1195,7 +1249,11 @@ async def process_settled_trade(
         )
         db.add(event)
     except Exception as e:
-        logger.debug(f"[settlement_helpers] TransactionEvent recording failed for trade {trade.id}: {e}")
+        logger.opt(exception=True).debug(
+            "[settlement_helpers] TransactionEvent recording failed for trade {}: {!r}",
+            trade.id,
+            e,
+        )
 
     return True
 
@@ -1216,7 +1274,8 @@ async def reconcile_positions(db: Session) -> List[int]:
     from backend.config import settings
     from backend.models.database import Trade
 
-    if settings.TRADING_MODE == "paper":
+    effective_mode = settings.TRADING_MODE
+    if effective_mode == "paper":
         logger.debug("Skipping position reconciliation in paper mode")
         return []
 
@@ -1227,7 +1286,7 @@ async def reconcile_positions(db: Session) -> List[int]:
         return []
 
     try:
-        async with clob_from_settings() as clob:
+        async with clob_from_settings(mode=effective_mode) as clob:
             positions = await clob.get_trader_positions(wallet_address)
 
         active_positions = set()
@@ -1245,7 +1304,7 @@ async def reconcile_positions(db: Session) -> List[int]:
             db.query(Trade)
             .filter(
                 Trade.settled.is_(False),
-                Trade.trading_mode == "paper",
+                Trade.trading_mode == effective_mode,
                 Trade.platform == "polymarket",
             )
             .all()

@@ -1,6 +1,5 @@
 """Optimize Kelly fraction per strategy using historical Trade data."""
 import argparse
-import sys
 
 from backend.models.database import SessionLocal, Trade, StrategyConfig
 

@@ -43,18 +43,23 @@ def _flush_heartbeats() -> None:
     try:
         # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
         if settings.is_postgres:
+            heartbeat_patch = json.dumps(
+                {
+                    f"{HEARTBEAT_PREFIX}{strategy_name}": ts
+                    for strategy_name, ts in snapshot.items()
+                }
+            )
             with get_db_session() as db:
+                heartbeat_stmt = text(
+                    "UPDATE bot_state "
+                    "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
+                    "WHERE mode = :mode"
+                )
                 for mode in settings.active_modes_set:
-                    for strategy_name, ts in snapshot.items():
-                        key_path = f"{{heartbeat:{strategy_name}}}"
-                        db.execute(
-                            text(
-                                "UPDATE bot_state "
-                                "SET misc_data = jsonb_set(COALESCE(misc_data::jsonb, '{}'::jsonb), :key, :val, true) "
-                                "WHERE mode = :mode"
-                            ),
-                            {"key": key_path, "val": json.dumps(ts), "mode": mode},
-                        )
+                    db.execute(
+                        heartbeat_stmt,
+                        {"heartbeat_patch": heartbeat_patch, "mode": mode},
+                    )
                 db.commit()
         else:
             with get_db_session() as db:
@@ -148,23 +153,22 @@ async def watchdog_job() -> None:
                 threshold = max(h["interval_seconds"] * 4, 300)
                 if h["lag_seconds"] > threshold:
                     logger.error(
-                    f"[WATCHDOG] Strategy {h['name']} heartbeat stale: "
-                    f"lag={h['lag_seconds']}s threshold={threshold}s",
-                    extra={"component": "watchdog"},
-                )
-                record_decision(
-                    db,
-                    "watchdog",
-                    h["name"],
-                    "ERROR",
-                    signal_data={
-                        "lag_seconds": h["lag_seconds"],
-                        "healthy": False,
-                        "sources": ["heartbeat_watchdog"],
-                    },
-                    reason=f"Heartbeat stale: {h['lag_seconds']:.0f}s since last cycle",
-                )
-                db.commit()
+                        f"[WATCHDOG] Strategy {h['name']} heartbeat stale: "
+                        f"lag={h['lag_seconds']}s threshold={threshold}s"
+                    )
+                    record_decision(
+                        db,
+                        "watchdog",
+                        h["name"],
+                        "ERROR",
+                        signal_data={
+                            "lag_seconds": h["lag_seconds"],
+                            "healthy": False,
+                            "sources": ["heartbeat_watchdog"],
+                        },
+                        reason=f"Heartbeat stale: {h['lag_seconds']:.0f}s since last cycle",
+                    )
+                    db.commit()
 
                 # Send Telegram alert if configured (with dedup window)
                 try:

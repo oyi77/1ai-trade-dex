@@ -209,7 +209,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "paper",
-            Trade.settled == False  # noqa: E712
+            not Trade.settled  # noqa: E712
         )
         .scalar()
         or 0
@@ -226,6 +226,9 @@ async def get_stats(
 
     live_bankroll, live_cached_account_pnl, live_cached_trades, live_cached_wins, live_initial = _live_cache_values(live_state)
 
+    # End the read transaction before network I/O so stats polling does not sit
+    # idle-in-transaction while waiting on Polymarket profile calls.
+    db.rollback()
     live_profile_pnl = await fetch_pm_profile_pnl() if (effective_mode == "live" or mode is None) else None
     live_account_pnl = float(live_profile_pnl) if live_profile_pnl is not None else live_cached_account_pnl
 
@@ -265,7 +268,7 @@ async def get_stats(
             db.query(func.count(Trade.id))
             .filter(
                 Trade.trading_mode == effective_mode if mode is not None else Trade.trading_mode == "live",
-                Trade.settled == False  # noqa: E712
+                not Trade.settled  # noqa: E712
             )
             .scalar()
             or 0
@@ -339,7 +342,7 @@ async def get_stats(
         db.query(func.count(Trade.id))
         .filter(
             Trade.trading_mode == "testnet",
-            Trade.settled == False  # noqa: E712
+            not Trade.settled  # noqa: E712
         )
         .scalar()
         or 0
@@ -1598,6 +1601,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
             state = db.query(BotState).filter_by(mode=strategy_mode).first()
             if not state:
                 raise HTTPException(status_code=404, detail="Bot state not initialized")
+            from backend.markets.provider_registry import market_registry
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1605,6 +1609,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 logger=logger,
                 params=dict(getattr(cls, "default_params", {})),
                 mode=strategy_mode,
+                market_registry=market_registry,
             )
             result = await instance.run(ctx)
 

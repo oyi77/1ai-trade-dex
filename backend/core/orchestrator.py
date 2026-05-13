@@ -264,7 +264,7 @@ class Orchestrator:
             "confidence": getattr(signal, "model_probability", 0.5),
             "model_probability": getattr(signal, "model_probability", 0.5),
             "token_id": token_id,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "market_type": "weather",
             "reasoning": "weather copy trade",
         }

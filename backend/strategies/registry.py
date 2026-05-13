@@ -178,6 +178,27 @@ def is_strategy_enabled(name: str, db=None) -> bool:
         return True  # on error, default to enabled
 
 
+def get_strategy_class(strategy_name: str) -> type:
+    """Return the strategy class for a given strategy name.
+
+    Args:
+        strategy_name: The name of the strategy to retrieve.
+
+    Returns:
+        The strategy class.
+
+    Raises:
+        KeyError: Strategy name not found in registry.
+    """
+    if strategy_name not in STRATEGY_REGISTRY:
+        available = ", ".join(sorted(STRATEGY_REGISTRY.keys())) or "(none loaded)"
+        raise KeyError(
+            f"Strategy '{strategy_name}' not found in registry. "
+            f"Available strategies: {available}"
+        )
+    return STRATEGY_REGISTRY[strategy_name]
+
+
 def list_strategies() -> list[StrategyMeta]:
     """Return StrategyMeta for every registered strategy.
 

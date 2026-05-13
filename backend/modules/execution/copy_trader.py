@@ -379,18 +379,20 @@ class CopyTraderStrategy(BaseStrategy):
         Return union of: leaderboard top-N + enabled WalletConfig rows.
         WalletConfig rows are always included (user-curated, may not score well).
         """
+        from backend.db.utils import get_db_session
         from backend.models.database import WalletConfig
 
         max_wallets = ctx.params.get("max_wallets", 20)
         min_score = ctx.params.get("min_score", 30.0)
 
         # 1. Get user-configured wallets
-        user_wallets = [
-            w.address
-            for w in ctx.db.query(WalletConfig)
-            .filter(WalletConfig.enabled.is_(True))
-            .all()
-        ]
+        with get_db_session() as db:
+            user_wallets = [
+                wallet.address
+                for wallet in db.query(WalletConfig)
+                .filter(WalletConfig.enabled.is_(True))
+                .all()
+            ]
 
         # 2. Get leaderboard top wallets
         leaderboard_wallets = []
@@ -435,7 +437,7 @@ class CopyTraderStrategy(BaseStrategy):
             "size": min(10.0, size * 0.01),
             "direction": "yes" if price > 0.50 else "no",
             "model_probability": price,
-            "platform": "polymarket",
+            "platform": settings.DEFAULT_VENUE,
             "strategy_name": self.name,
             "reasoning": "copy_trader_ws_event",
         }
@@ -592,7 +594,7 @@ class CopyTraderStrategy(BaseStrategy):
                         "suggested_size": signal.our_size,
                         "model_probability": confidence,
                         "market_probability": signal.market_price,
-                        "platform": "polymarket",
+                        "platform": settings.DEFAULT_VENUE,
                         "strategy_name": "copy_trader",
                         "reasoning": signal.reasoning,
                     }

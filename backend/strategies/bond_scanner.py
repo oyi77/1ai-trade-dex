@@ -293,7 +293,7 @@ class BondScannerStrategy(BaseStrategy):
                 "confidence": confidence,
                 "model_probability": qualifying_price,
                 "market_probability": qualifying_price,
-                "platform": "polymarket",
+                "platform": settings.DEFAULT_VENUE,
                 "strategy_name": self.name,
                 "days_to_resolution": round(days_to_resolution, 2),
                 "market_end_date": end_date_str,

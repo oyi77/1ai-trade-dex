@@ -411,7 +411,7 @@ server {
 **Backend** (`.env`):
 ```bash
 # Database
-DATABASE_URL=sqlite:///./polyedge.db
+DATABASE_URL=postgresql://user:password@localhost:5432/polyedge
 
 # Redis (optional)
 REDIS_URL=redis://localhost:6379/0
@@ -434,7 +434,7 @@ INITIAL_BANKROLL=10000.0
 
 # Job Queue
 JOB_WORKER_ENABLED=false
-JOB_QUEUE_URL=sqlite:///./job_queue.db
+JOB_QUEUE_URL=postgresql://user:password@localhost:5432/job_queue
 
 # Monitoring
 PROMETHEUS_ENABLED=true

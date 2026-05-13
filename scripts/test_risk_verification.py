@@ -12,11 +12,10 @@ Tests all risk management components:
 
 import asyncio
 import pytest
-from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 
-from backend.core.risk_manager import RiskManager, RiskDecision, DrawdownStatus
+from backend.core.risk_manager import RiskManager
 from backend.core.signals import calculate_kelly_size
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError, State
 from backend.config import settings

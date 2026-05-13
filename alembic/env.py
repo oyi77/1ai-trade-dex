@@ -69,12 +69,10 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    import time
 
     retries = 5
     delay = 1  # delay in seconds between retries
 
-    from sqlalchemy.exc import DatabaseError
 
     with connectable.connect() as connection:
         context.configure(

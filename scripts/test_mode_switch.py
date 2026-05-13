@@ -1,6 +1,5 @@
 import asyncio
 import httpx
-import sys
 
 from backend.config import settings
 

@@ -23,7 +23,6 @@ from backend.models.database import SessionLocal, Trade, BotState, EquitySnapsho
 from backend.core.settlement_helpers import (
     fetch_polymarket_resolution,
     calculate_pnl,
-    process_settled_trade,
 )
 from backend.config import settings
 import logging
@@ -42,8 +41,8 @@ async def backfill_missing_settlement_data(db):
     broken_trades = (
         db.query(Trade)
         .filter(
-            Trade.settled == True,
-            (Trade.settlement_value == None) | (Trade.pnl == None)
+            Trade.settled,
+            (Trade.settlement_value.is_(None)) | (Trade.pnl.is_(None))
         )
         .all()
     )
@@ -110,7 +109,7 @@ async def sync_bot_state(db):
                 func.sum(case((Trade.result == "win", 1), else_=0)),
             )
             .filter(
-                Trade.settled == True,
+                Trade.settled,
                 Trade.trading_mode == mode,
                 Trade.result.in_(["win", "loss"]),
                 Trade.source == "bot"
@@ -126,7 +125,7 @@ async def sync_bot_state(db):
         # Count open trades
         open_count = (
             db.query(func.count(Trade.id))
-            .filter(Trade.settled == False, Trade.trading_mode == mode)
+            .filter(not Trade.settled, Trade.trading_mode == mode)
             .scalar() or 0
         )
         
@@ -209,7 +208,7 @@ async def create_equity_snapshots(db):
         # Calculate open exposure
         open_exposure = (
             db.query(func.sum(Trade.size))
-            .filter(Trade.settled == False, Trade.trading_mode == mode)
+            .filter(not Trade.settled, Trade.trading_mode == mode)
             .scalar() or 0.0
         )
         
@@ -245,8 +244,8 @@ async def verify_fixes(db):
     broken_count = (
         db.query(func.count(Trade.id))
         .filter(
-            Trade.settled == True,
-            (Trade.settlement_value == None) | (Trade.pnl == None)
+            Trade.settled,
+            (Trade.settlement_value.is_(None)) | (Trade.pnl.is_(None))
         )
         .scalar() or 0
     )
@@ -275,7 +274,7 @@ async def verify_fixes(db):
         actual_settled = (
             db.query(func.count(Trade.id))
             .filter(
-                Trade.settled == True,
+                Trade.settled,
                 Trade.trading_mode == mode,
                 Trade.result.in_(["win", "loss"]),
                 Trade.source == "bot"
@@ -292,9 +291,9 @@ async def verify_fixes(db):
         
         logger.info(f"   {mode}: state={state_count}, actual={actual_settled}")
         if state_count == actual_settled:
-            logger.info(f"      ✓ PASS")
+            logger.info("      ✓ PASS")
         else:
-            logger.warning(f"      ✗ FAIL: Mismatch")
+            logger.warning("      ✗ FAIL: Mismatch")
     
     logger.info("\n" + "=" * 80)
     logger.info("VERIFICATION COMPLETE")

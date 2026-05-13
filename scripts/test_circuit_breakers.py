@@ -10,9 +10,6 @@ from sqlalchemy.exc import OperationalError
 import pybreaker
 from backend.core.circuit_breaker_pybreaker import (
     db_breaker,
-    polymarket_breaker,
-    kalshi_breaker,
-    redis_breaker,
     get_breaker_status
 )
 
@@ -50,7 +47,7 @@ async def test_db_circuit_breaker():
     except pybreaker.CircuitBreakerError as e:
         logger.info(f"✓ Request rejected: {type(e).__name__}")
     
-    logger.info(f"\nWaiting 60 seconds for circuit to transition to HALF_OPEN...")
+    logger.info("\nWaiting 60 seconds for circuit to transition to HALF_OPEN...")
     await asyncio.sleep(61)
     
     logger.info(f"Circuit state after timeout: {db_breaker.current_state}")

@@ -15,7 +15,7 @@ from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
@@ -32,6 +32,74 @@ _trade_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRADES)
 # Threading lock for BotState mutations inside thread-offloaded execution.
 # Used instead of asyncio.Lock when running in a thread pool.
 _botstate_threading_lock = threading.Lock()
+_MAX_LOCK_RETRY_ATTEMPTS = 4
+_LOCK_RETRY_BASE_DELAY_SECONDS = 0.2
+
+
+class _BotStateLockRetry(RuntimeError):
+    """Signal that trade execution should retry after BotState lock contention."""
+
+
+def _is_lock_timeout_error(exc: OperationalError) -> bool:
+    """Return True for PostgreSQL lock-timeout / lock-not-available failures."""
+
+    orig = getattr(exc, "orig", None)
+    pgcode = getattr(orig, "pgcode", None)
+    if pgcode == "55P03":
+        return True
+
+    message = str(exc).lower()
+    return (
+        "lock timeout" in message
+        or "locknotavailable" in message
+        or "could not obtain lock" in message
+        or "canceling statement due to lock timeout" in message
+    )
+
+
+def _lock_retry_delay(attempt: int) -> float:
+    return _LOCK_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
+
+
+def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
+    """Atomically update BotState counters without taking an ORM row lock."""
+
+    if mode == "paper":
+        paper_balance_after_trade = (
+            func.coalesce(BotState.paper_bankroll, 0.0) - adjusted_size
+        )
+        db.execute(
+            update(BotState)
+            .where(BotState.mode == mode)
+            .values(
+                paper_bankroll=case(
+                    (paper_balance_after_trade < 0.0, 0.0),
+                    else_=paper_balance_after_trade,
+                ),
+                paper_trades=func.coalesce(BotState.paper_trades, 0) + 1,
+            )
+        )
+    elif mode == "testnet":
+        testnet_balance_after_trade = (
+            func.coalesce(BotState.testnet_bankroll, 0.0) - adjusted_size
+        )
+        db.execute(
+            update(BotState)
+            .where(BotState.mode == mode)
+            .values(
+                testnet_bankroll=case(
+                    (testnet_balance_after_trade < 0.0, 0.0),
+                    else_=testnet_balance_after_trade,
+                ),
+                testnet_trades=func.coalesce(BotState.testnet_trades, 0) + 1,
+            )
+        )
+    elif mode == "live":
+        db.execute(
+            update(BotState)
+            .where(BotState.mode == mode)
+            .values(total_trades=func.coalesce(BotState.total_trades, 0) + 1)
+        )
 
 
 async def _get_asset_lock(asset_key: str) -> asyncio.Lock:
@@ -82,10 +150,9 @@ def _record_unexpected_attempt_failure(
             db.rollback()
         except Exception:
             logger.exception("[strategy_executor] db.rollback failed after TradeAttempt record failure")
-        logger.warning(
+        logger.opt(exception=True).warning(
             "[strategy_executor.execute_decision] failed to record unexpected TradeAttempt failure: %s",
             record_exc,
-            exc_info=True,
         )
 
 
@@ -164,8 +231,7 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
-            from backend.models.database import for_update as _for_update
-            state = _for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+            state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
                 logger.info(
                     f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
@@ -326,22 +392,30 @@ def _execute_decision_paper_or_kalshi(
             is_kalshi = market_ticker.startswith("KX") or platform == "kalshi"
             if is_kalshi and mode in ("testnet", "live"):
                 try:
-                    from backend.data.kalshi_client import KalshiClient
-                    _client = KalshiClient()
+                    from backend.markets.provider_registry import market_registry
+                    _client = market_registry.get("kalshi")
                     logger.info(
-                        f"[{mode.upper()}][{strategy_name}] Kalshi order simulated for {market_ticker} (live Kalshi order placement TBD)"
+                        f"[{mode.upper()}][{strategy_name}] Kalshi order via registry for {market_ticker}"
                     )
                 except Exception as kalshi_err:
-                    logger.error(
-                        f"[strategy_executor] Kalshi execution error for {market_ticker}: {kalshi_err}"
+                    logger.warning(
+                        f"[strategy_executor] Kalshi registry lookup failed for {market_ticker}: {kalshi_err}"
+                        f" — falling back to legacy client"
                     )
-                    attempt_recorder.record_failed(
-                        f"Kalshi execution error: {kalshi_err}",
-                        phase="execution",
-                        adjusted_size=adjusted_size,
-                    )
-                    db.commit()
-                    return None
+                    try:
+                        from backend.data.kalshi_client import KalshiClient
+                        _client = KalshiClient()
+                    except Exception as legacy_err:
+                        logger.error(
+                            f"[strategy_executor] Kalshi execution error: {legacy_err}"
+                        )
+                        attempt_recorder.record_failed(
+                            f"Kalshi execution error: {legacy_err}",
+                            phase="execution",
+                            adjusted_size=adjusted_size,
+                        )
+                        db.commit()
+                        return None
                 clob_order_id = None
                 fill_price = entry_price
 
@@ -430,21 +504,10 @@ def _execute_decision_paper_or_kalshi(
                 user_id=f"strategy:{strategy_name}",
             )
 
-            # Use threading lock for BotState mutation when running in thread pool
+            # Serialize the short BotState mutation in-process, but rely on a
+            # single atomic SQL UPDATE instead of a SELECT ... FOR UPDATE row lock.
             with _botstate_threading_lock:
-                fresh_state = _for_update(db, db.query(BotState).filter_by(mode=mode)).first()
-                if mode == "paper" and fresh_state:
-                    fresh_state.paper_bankroll = max(
-                        0.0, (fresh_state.paper_bankroll or 0.0) - adjusted_size
-                    )
-                    fresh_state.paper_trades = (fresh_state.paper_trades or 0) + 1
-                elif mode == "testnet" and fresh_state:
-                    fresh_state.testnet_bankroll = max(
-                        0.0, (fresh_state.testnet_bankroll or 0.0) - adjusted_size
-                    )
-                    fresh_state.testnet_trades = (fresh_state.testnet_trades or 0) + 1
-                elif mode == "live" and fresh_state:
-                    fresh_state.total_trades = (fresh_state.total_trades or 0) + 1
+                _update_botstate_after_trade(db, mode, adjusted_size)
                 db.commit()
 
             signal_data = {
@@ -534,9 +597,8 @@ def _execute_decision_paper_or_kalshi(
                     },
                 )
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: event broadcast failed (non-fatal): {e}",
-                    exc_info=True,
                 )
 
             try:
@@ -569,17 +631,17 @@ def _execute_decision_paper_or_kalshi(
             return trade_dict
 
         except OperationalError as exc:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
-                exc_info=True,
             )
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed after OperationalError (non-fatal): {e}",
-                    exc_info=True,
                 )
+            if _is_lock_timeout_error(exc):
+                raise _BotStateLockRetry(str(exc)) from exc
             return None
         except Exception as exc:
             logger.exception(
@@ -588,9 +650,8 @@ def _execute_decision_paper_or_kalshi(
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed (non-fatal): {e}",
-                    exc_info=True,
                 )
             if attempt_recorder is not None:
                 _record_unexpected_attempt_failure(
@@ -620,27 +681,47 @@ async def execute_decision(
         async with asset_lock:
             # Paper/testnet/Kalshi: no async CLOB calls — offload entirely to thread
             is_live_clob = (
-                mode in ("testnet", "live")
+                mode == "live"
                 and not (decision.get("market_ticker", "").startswith("KX") or decision.get("platform") == "kalshi")
                 and decision.get("token_id") is not None
             )
-            if not is_live_clob:
-                if db is not None:
-                    # db was provided (e.g. in tests) — run synchronously to
-                    # avoid crossing thread boundaries with a caller-owned session
-                    return _execute_decision_paper_or_kalshi(
+            for lock_attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
+                try:
+                    if not is_live_clob:
+                        if db is not None:
+                            # db was provided (e.g. in tests) — run synchronously to
+                            # avoid crossing thread boundaries with a caller-owned session
+                            return _execute_decision_paper_or_kalshi(
+                                decision, strategy_name, mode, db,
+                            )
+                        return await asyncio.to_thread(
+                            _execute_decision_paper_or_kalshi,
+                            decision, strategy_name, mode,
+                        )
+
+                    # Live mode with CLOB: must stay on event loop for async HTTP calls
+                    # but still wrap DB ops where possible
+                    return await _execute_decision_live_clob(
                         decision, strategy_name, mode, db,
                     )
-                return await asyncio.to_thread(
-                    _execute_decision_paper_or_kalshi,
-                    decision, strategy_name, mode,
-                )
-            else:
-                # Live mode with CLOB: must stay on event loop for async HTTP calls
-                # but still wrap DB ops where possible
-                return await _execute_decision_live_clob(
-                    decision, strategy_name, mode, db,
-                )
+                except _BotStateLockRetry:
+                    if lock_attempt >= _MAX_LOCK_RETRY_ATTEMPTS - 1:
+                        logger.opt(exception=True).error(
+                            "[strategy_executor.execute_decision] BotState lock contention persisted after {} attempts for {}",
+                            _MAX_LOCK_RETRY_ATTEMPTS,
+                            decision.get("market_ticker", ""),
+                        )
+                        return None
+
+                    delay = _lock_retry_delay(lock_attempt)
+                    logger.warning(
+                        "[strategy_executor.execute_decision] BotState lock contention for {}; retrying in {:.2f}s (attempt {}/{})",
+                        decision.get("market_ticker", ""),
+                        delay,
+                        lock_attempt + 1,
+                        _MAX_LOCK_RETRY_ATTEMPTS,
+                    )
+                    await asyncio.sleep(delay)
 
 
 async def _execute_decision_live_clob(
@@ -662,7 +743,6 @@ async def _execute_decision_live_clob(
 
     from backend.db.utils import get_db_session
     from contextlib import nullcontext
-    from backend.models.database import for_update as _for_update
     owns_db = db is None
     ctx = get_db_session() if owns_db else nullcontext(db)
     with ctx as db:
@@ -710,7 +790,7 @@ async def _execute_decision_live_clob(
                 db.commit()
                 return None
 
-            state = _for_update(db, db.query(BotState).filter_by(mode=mode)).first()
+            state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
                 logger.info(
                     f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
@@ -903,7 +983,7 @@ async def _execute_decision_live_clob(
                         return None
                     except Exception as clob_err:
                         err_str = f"{type(clob_err).__name__}: {clob_err}"
-                        logger.error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}", exc_info=True)
+                        logger.opt(exception=True).error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}")
                         if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
                             try:
                                 fresh_mid = await context.clob_client.get_mid_price(token_id)
@@ -1020,19 +1100,7 @@ async def _execute_decision_live_clob(
             )
 
             async with botstate_mutex:
-                fresh_state = _for_update(db, db.query(BotState).filter_by(mode=mode)).first()
-                if mode == "paper" and fresh_state:
-                    fresh_state.paper_bankroll = max(
-                        0.0, (fresh_state.paper_bankroll or 0.0) - adjusted_size
-                    )
-                    fresh_state.paper_trades = (fresh_state.paper_trades or 0) + 1
-                elif mode == "testnet" and fresh_state:
-                    fresh_state.testnet_bankroll = max(
-                        0.0, (fresh_state.testnet_bankroll or 0.0) - adjusted_size
-                    )
-                    fresh_state.testnet_trades = (fresh_state.testnet_trades or 0) + 1
-                elif mode == "live" and fresh_state:
-                    fresh_state.total_trades = (fresh_state.total_trades or 0) + 1
+                _update_botstate_after_trade(db, mode, adjusted_size)
                 db.commit()
 
             signal_data = {
@@ -1122,9 +1190,8 @@ async def _execute_decision_live_clob(
                     },
                 )
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: event broadcast failed (non-fatal): {e}",
-                    exc_info=True,
                 )
 
             try:
@@ -1157,17 +1224,17 @@ async def _execute_decision_live_clob(
             return trade_dict
 
         except OperationalError as exc:
-            logger.error(
+            logger.opt(exception=True).error(
                 f"[strategy_executor.execute_decision] OperationalError: execute_decision failed for {market_ticker}: {exc}",
-                exc_info=True,
             )
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed after OperationalError (non-fatal): {e}",
-                    exc_info=True,
                 )
+            if _is_lock_timeout_error(exc):
+                raise _BotStateLockRetry(str(exc)) from exc
             return None
         except Exception as exc:
             logger.exception(
@@ -1176,9 +1243,8 @@ async def _execute_decision_live_clob(
             try:
                 db.rollback()
             except Exception as e:
-                logger.warning(
+                logger.opt(exception=True).warning(
                     f"[strategy_executor.execute_decision] {type(e).__name__}: db.rollback failed (non-fatal): {e}",
-                    exc_info=True,
                 )
             if attempt_recorder is not None:
                 _record_unexpected_attempt_failure(
@@ -1275,7 +1341,7 @@ async def execute_quote(
                     return {"quote_placed": True, "orders": results}
 
         except Exception as e:
-            logger.error("[execute_quote] Failed: %s", e, exc_info=True)
+            logger.opt(exception=True).error("[execute_quote] Failed: %s", e)
             try:
                 db.rollback()
             except Exception:

@@ -9,7 +9,7 @@ from core.strategy_composer import StrategyComposer, StrategyBlock
 from core.strategy_allocator import RegimeAwareAllocator
 from core.agi_goal_engine import AGIGoalEngine, AGIGoal, MarketRegime
 from core.self_debugger import SelfDebugger
-from core.llm_cost_tracker import LLMCostTracker, BudgetExceededError
+from core.llm_cost_tracker import LLMCostTracker
 from core.agi_promotion_pipeline import AGIPromotionPipeline
 from core.causal_reasoning import CausalReasoner
 from core.agi_orchestrator import AGIOrchestrator
@@ -39,7 +39,7 @@ assert kg.add_entity("test", "entity1", {"value": 42}) == True
 entity = kg.get_entity("entity1")
 assert entity is not None
 assert entity.properties["value"] == 42
-print(f"✅ KnowledgeGraph works: entity stored and retrieved")
+print("✅ KnowledgeGraph works: entity stored and retrieved")
 
 # Test 3: StrategyComposer
 print("\n--- StrategyComposer ---")
@@ -119,17 +119,17 @@ print(f"✅ AGIOrchestrator works: status type={type(status).__name__}")
 # Test 11: DynamicPromptEngine
 print("\n--- DynamicPromptEngine ---")
 engine2 = DynamicPromptEngine()
-print(f"✅ DynamicPromptEngine works: instantiated")
+print("✅ DynamicPromptEngine works: instantiated")
 
 # Test 12: StrategySynthesizer
 print("\n--- StrategySynthesizer ---")
 synthesizer = StrategySynthesizer()
-print(f"✅ StrategySynthesizer works: instantiated")
+print("✅ StrategySynthesizer works: instantiated")
 
 # Test 13: ExperimentRunner
 print("\n--- ExperimentRunner ---")
 runner = ExperimentRunner()
-print(f"✅ ExperimentRunner works: instantiated")
+print("✅ ExperimentRunner works: instantiated")
 
 print("\n" + "="*60)
 print("🎉 ALL 15 CORE AGI MODULES FULLY VERIFIED")
