@@ -398,7 +398,12 @@ class StrategyHealthMonitor:
         from backend.models.database import Trade
         return (
             db.query(Trade)
-            .filter(Trade.strategy == strategy, Trade.settled == 1, Trade.trading_mode == trading_mode, Trade.result.in_(["win", "loss"]))
+            .filter(
+                Trade.strategy == strategy,
+                Trade.settled.is_(True),
+                Trade.trading_mode == trading_mode,
+                Trade.result.in_(["win", "loss"]),
+            )
             .order_by(Trade.settlement_time.asc())
             .all()
         )
