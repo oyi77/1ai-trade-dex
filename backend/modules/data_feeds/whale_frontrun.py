@@ -150,7 +150,7 @@ class WhaleFrontrun(BaseStrategy):
             try:
                 wallets = (
                     db.query(WalletConfig)
-                    .filter(WalletConfig.whale_score > 0.5, WalletConfig.enabled.is_(True))
+                    .filter(WalletConfig.whale_score > 0.35, WalletConfig.enabled.is_(True))
                     .all()
                 )
 
@@ -302,7 +302,7 @@ class WhaleFrontrun(BaseStrategy):
             db = SessionLocal()
             try:
                 wallets = db.query(WalletConfig).filter(
-                    WalletConfig.whale_score > 0.5
+                    WalletConfig.whale_score > 0.35
                 ).order_by(WalletConfig.whale_score.desc()).limit(5).all()
             finally:
                 db.close()
