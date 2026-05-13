@@ -26,6 +26,7 @@ Trade execution support modules. The `copy_trader` module mirrors top trader pos
 ### Common Patterns
 - Implements `Strategy` interface from `backend.strategies.base`
 - Uses `@register_strategy("copy_trader")` decorator
+- Read wallet/config snapshots in a short-lived DB session before awaiting leaderboard or market HTTP calls; only use the cycle session for immediate writes that commit before the next await
 
 ## Dependencies
 
