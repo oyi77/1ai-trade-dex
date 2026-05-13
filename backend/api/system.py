@@ -226,6 +226,9 @@ async def get_stats(
 
     live_bankroll, live_cached_account_pnl, live_cached_trades, live_cached_wins, live_initial = _live_cache_values(live_state)
 
+    # End the read transaction before network I/O so stats polling does not sit
+    # idle-in-transaction while waiting on Polymarket profile calls.
+    db.rollback()
     live_profile_pnl = await fetch_pm_profile_pnl() if (effective_mode == "live" or mode is None) else None
     live_account_pnl = float(live_profile_pnl) if live_profile_pnl is not None else live_cached_account_pnl
 

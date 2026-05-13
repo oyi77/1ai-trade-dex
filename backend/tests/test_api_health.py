@@ -74,6 +74,34 @@ class TestHealth:
             "balance": "12.34",
         }
 
+    def test_health_sanitizes_clob_error_details(self, client, monkeypatch):
+        internal_error = "Traceback secret: private rpc failure"
+
+        class FailingClob:
+            get_wallet_balance = AsyncMock(
+                return_value={"usdc_balance": 0.0, "token_balances": {}, "error": internal_error}
+            )
+
+        monkeypatch.setattr(
+            "backend.data.polymarket_clob.clob_from_settings",
+            lambda: FailingClob(),
+        )
+        monkeypatch.setattr(
+            "backend.core.agi_event_handlers.check_agi_health",
+            lambda: {},
+        )
+
+        resp = client.get("/api/v1/health/dependencies")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["status"] == "degraded"
+        assert data["dependencies"]["polymarket_clob"] == {
+            "status": "error",
+            "error": "wallet balance unavailable",
+        }
+        assert internal_error not in resp.text
+
 
 class TestStats:
     def test_stats_returns_200(self, client):

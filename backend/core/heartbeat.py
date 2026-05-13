@@ -43,18 +43,23 @@ def _flush_heartbeats() -> None:
     try:
         # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
         if settings.is_postgres:
+            heartbeat_patch = json.dumps(
+                {
+                    f"{HEARTBEAT_PREFIX}{strategy_name}": ts
+                    for strategy_name, ts in snapshot.items()
+                }
+            )
             with get_db_session() as db:
+                heartbeat_stmt = text(
+                    "UPDATE bot_state "
+                    "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
+                    "WHERE mode = :mode"
+                )
                 for mode in settings.active_modes_set:
-                    for strategy_name, ts in snapshot.items():
-                        key_path = f"{{heartbeat:{strategy_name}}}"
-                        db.execute(
-                            text(
-                                "UPDATE bot_state "
-                                "SET misc_data = jsonb_set(COALESCE(misc_data::jsonb, '{}'::jsonb), :key, :val, true) "
-                                "WHERE mode = :mode"
-                            ),
-                            {"key": key_path, "val": json.dumps(ts), "mode": mode},
-                        )
+                    db.execute(
+                        heartbeat_stmt,
+                        {"heartbeat_patch": heartbeat_patch, "mode": mode},
+                    )
                 db.commit()
         else:
             with get_db_session() as db:

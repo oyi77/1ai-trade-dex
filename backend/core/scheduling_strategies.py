@@ -446,6 +446,11 @@ async def weather_scan_and_trade_job(mode: str):
             return
 
         from backend.db.utils import get_db_session
+
+        MAX_TRADES_PER_SCAN = settings.MAX_TRADES_PER_SCAN
+        MIN_TRADE_SIZE = 10
+        MAX_WEATHER_ALLOCATION = 500.0
+
         with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state:
@@ -456,10 +461,7 @@ async def weather_scan_and_trade_job(mode: str):
                 log_event("info", f"[{mode.upper()}] Bot is paused, skipping weather trades")
                 return
 
-            MAX_TRADES_PER_SCAN = settings.MAX_TRADES_PER_SCAN
-            MIN_TRADE_SIZE = 10
-            MAX_WEATHER_ALLOCATION = 500.0
-
+            bankroll = _get_bankroll_for_mode(state, mode)
             weather_pending = (
                 db.query(func.coalesce(func.sum(Trade.size), 0.0))
                 .filter(
@@ -469,92 +471,94 @@ async def weather_scan_and_trade_job(mode: str):
                 )
                 .scalar()
             )
-
-            if weather_pending >= MAX_WEATHER_ALLOCATION:
-                log_event(
-                    "info",
-                    f"[{mode.upper()}] Weather allocation limit reached: ${weather_pending:.0f}/${MAX_WEATHER_ALLOCATION:.0f}",
+            existing_market_ids = {
+                row[0]
+                for row in db.query(Trade.market_ticker)
+                .filter(
+                    Trade.settled.is_(False),
+                    Trade.trading_mode == mode,
                 )
-                return
+                .all()
+            }
 
-            trades_executed = 0
-            for signal in actionable[:MAX_TRADES_PER_SCAN]:
-                existing = (
-                    db.query(Trade)
-                    .filter(
-                        Trade.market_ticker == signal.market.market_id,
-                        Trade.settled.is_(False),
-                        Trade.trading_mode == mode,
-                    )
-                    .first()
-                )
+        if weather_pending >= MAX_WEATHER_ALLOCATION:
+            log_event(
+                "info",
+                f"[{mode.upper()}] Weather allocation limit reached: ${weather_pending:.0f}/${MAX_WEATHER_ALLOCATION:.0f}",
+            )
+            return
 
-                if existing:
-                    continue
+        trades_executed = 0
+        for signal in actionable[:MAX_TRADES_PER_SCAN]:
+            if signal.market.market_id in existing_market_ids:
+                continue
 
-                trade_size = min(signal.suggested_size, settings.WEATHER_MAX_TRADE_SIZE)
-                trade_size = max(trade_size, MIN_TRADE_SIZE)
+            trade_size = min(signal.suggested_size, settings.WEATHER_MAX_TRADE_SIZE)
+            trade_size = max(trade_size, MIN_TRADE_SIZE)
 
-                bankroll = _get_bankroll_for_mode(state, mode)
-                if bankroll < MIN_TRADE_SIZE:
-                    log_event("warning", f"[{mode.upper()}] Bankroll too low: ${bankroll:.2f}")
-                    break
+            if bankroll < MIN_TRADE_SIZE:
+                log_event("warning", f"[{mode.upper()}] Bankroll too low: ${bankroll:.2f}")
+                break
 
-                if trades_executed >= MAX_TRADES_PER_SCAN:
-                    break
+            if trades_executed >= MAX_TRADES_PER_SCAN:
+                break
 
-                from backend.core.strategy_executor import execute_decision
+            from backend.core.strategy_executor import execute_decision
 
-                entry_price = (
-                    signal.market.yes_price
-                    if signal.direction == "yes"
-                    else signal.market.no_price
-                )
-                token_id = (
-                    getattr(signal.market, "token_id", None) or signal.market.market_id
-                )
+            entry_price = (
+                signal.market.yes_price
+                if signal.direction == "yes"
+                else signal.market.no_price
+            )
+            token_id = (
+                getattr(signal.market, "token_id", None) or signal.market.market_id
+            )
 
-                decision = {
-                    "market_ticker": signal.market.market_id,
-                    "event_slug": signal.market.slug,
+            decision = {
+                "market_ticker": signal.market.market_id,
+                "event_slug": signal.market.slug,
+                "direction": signal.direction,
+                "size": trade_size,
+                "entry_price": entry_price,
+                "edge": signal.edge,
+                "confidence": signal.model_probability,
+                "model_probability": signal.model_probability,
+                "token_id": token_id,
+                "platform": "polymarket",
+                "market_type": "weather",
+                "reasoning": f"weather signal: {signal.market.city_name}",
+            }
+            result = await execute_decision(decision, "weather_emos", mode=mode)
+            if result is None:
+                continue
+
+            trades_executed += 1
+            existing_market_ids.add(signal.market.market_id)
+            log_event(
+                "trade",
+                f"[{mode.upper()}] WX {signal.market.city_name}: {signal.direction.upper()} "
+                f"${trade_size:.0f} @ {entry_price:.0%}",
+                {
+                    "slug": signal.market.slug,
                     "direction": signal.direction,
                     "size": trade_size,
-                    "entry_price": entry_price,
                     "edge": signal.edge,
-                    "confidence": signal.model_probability,
-                    "model_probability": signal.model_probability,
-                    "token_id": token_id,
-                    "platform": "polymarket",
-                    "market_type": "weather",
-                    "reasoning": f"weather signal: {signal.market.city_name}",
-                }
-                result = await execute_decision(decision, "weather_emos", mode=mode)
-                if result is None:
-                    continue
+                    "city": signal.market.city_name,
+                },
+            )
 
-                trades_executed += 1
-                log_event(
-                    "trade",
-                    f"[{mode.upper()}] WX {signal.market.city_name}: {signal.direction.upper()} "
-                    f"${trade_size:.0f} @ {entry_price:.0%}",
-                    {
-                        "slug": signal.market.slug,
-                        "direction": signal.direction,
-                        "size": trade_size,
-                        "edge": signal.edge,
-                        "city": signal.market.city_name,
-                    },
-                )
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode=mode).first()
+            if state:
+                state.last_run = datetime.now(timezone.utc)
+                db.commit()
 
-            state.last_run = datetime.now(timezone.utc)
-            db.commit()
+        if trades_executed > 0:
+            log_event("success", f"[{mode.upper()}] Executed {trades_executed} weather trade(s)")
+        else:
+            log_event("info", f"[{mode.upper()}] No new weather trades executed")
 
-            if trades_executed > 0:
-                log_event("success", f"[{mode.upper()}] Executed {trades_executed} weather trade(s)")
-            else:
-                log_event("info", f"[{mode.upper()}] No new weather trades executed")
-
-            update_heartbeat("weather_emos")
+        update_heartbeat("weather_emos")
 
 
     except Exception as e:
@@ -720,14 +724,16 @@ async def auto_trader_job(mode: str):
                 .scalar()
                 or 0.0
             )
+            signal_ids = [sig.id for sig in signals]
 
-            executed = 0
-            queued = 0
-            skipped = 0
-            for sig in signals:
+        executed = 0
+        queued = 0
+        skipped = 0
+        processed_signal_ids = []
+        for sig in signals:
                 token_id = getattr(sig, "token_id", None)
                 if mode in ("testnet", "live") and not token_id and not sig.market_ticker.startswith("KX"):
-                    sig.executed = True
+                    processed_signal_ids.append(sig.id)
                     skipped += 1
                     continue
 
@@ -770,7 +776,7 @@ async def auto_trader_job(mode: str):
                         continue
                     exec_result = await execute_decision(decision, source_strategy, mode=mode)
                     if exec_result is not None:
-                        sig.executed = True
+                        processed_signal_ids.append(sig.id)
                         executed += 1
                         current_exposure += trade_size
                 elif result.pending_approval:
@@ -778,18 +784,25 @@ async def auto_trader_job(mode: str):
                 else:
                     # Mark as processed even when skipped/rejected so we don't
                     # re-attempt the same stale signal every cycle.
-                    sig.executed = True
+                    processed_signal_ids.append(sig.id)
                     skipped += 1
-            db.commit()
-            log_event(
-                "info",
-                f"AutoTrader cycle: executed={executed} queued={queued} skipped={skipped}",
-            )
-            if len(signals) >= 5 and executed == 0 and queued == 0:
-                logger.warning(
-                    "[ALERT] auto_trader processed %d signals but created 0 trade attempts — check filters",
-                    len(signals),
+
+        if processed_signal_ids:
+            with get_db_session() as db:
+                db.query(Signal).filter(Signal.id.in_(processed_signal_ids)).update(
+                    {Signal.executed: True}, synchronize_session=False
                 )
+                db.commit()
+
+        log_event(
+            "info",
+            f"AutoTrader cycle: executed={executed} queued={queued} skipped={skipped}",
+        )
+        if len(signal_ids) >= 5 and executed == 0 and queued == 0:
+            logger.warning(
+                "[ALERT] auto_trader processed %d signals but created 0 trade attempts — check filters",
+                len(signal_ids),
+            )
     except Exception as e:
         log_event("error", f"auto_trader_job error: {e}")
 
@@ -980,21 +993,22 @@ async def sync_live_wallet():
     """Reconcile live wallet every 30 seconds."""
     from backend.db.utils import get_db_session
     try:
-        with get_db_session() as db:
-            from backend.core.wallet_reconciliation import WalletReconciler
-            from backend.data.polymarket_clob import clob_from_settings
+        from backend.core.wallet_reconciliation import WalletReconciler
+        from backend.data.polymarket_clob import clob_from_settings
+        from backend.core.bankroll_reconciliation import reconcile_bot_state
 
-            logger.info("[sync_live_wallet] Starting reconciliation...")
-            clob = clob_from_settings(mode="live")
-            async with clob:
-                await clob.create_or_derive_api_key()
+        logger.info("[sync_live_wallet] Starting reconciliation...")
+        clob = clob_from_settings(mode="live")
+        async with clob:
+            await clob.create_or_derive_api_key()
+            with get_db_session() as db:
                 reconciler = WalletReconciler(clob, db, "live")
                 result = await reconciler.full_reconciliation()
 
-            logger.info("[sync_live_wallet] Reconciliation done, reading BotState...")
-            state = db.query(BotState).first()
-            logger.info("[sync_live_wallet] BotState read done")
-            if state:
+        logger.info("[sync_live_wallet] Reconciliation done, updating BotState timestamp...")
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode="live").first()
+            if state and result.last_sync_at:
                 state.last_sync_at = result.last_sync_at
                 try:
                     db.flush()
@@ -1002,10 +1016,9 @@ async def sync_live_wallet():
                     logger.warning(f"[sync_live_wallet] flush failed: {flush_err}")
                     db.rollback()
 
-            from backend.core.bankroll_reconciliation import reconcile_bot_state
-
-            logger.info("[sync_live_wallet] Calling reconcile_bot_state...")
-            try:
+        logger.info("[sync_live_wallet] Calling reconcile_bot_state...")
+        try:
+            with get_db_session() as db:
                 await reconcile_bot_state(
                     db,
                     modes=("live",),
@@ -1013,16 +1026,16 @@ async def sync_live_wallet():
                     commit=True,
                     source="live_wallet_sync_reconcile",
                 )
-                logger.info("[sync_live_wallet] reconcile_bot_state done")
-            except Exception as recon_err:
-                logger.error(f"[sync_live_wallet] reconcile_bot_state failed: {recon_err}", exc_info=True)
+            logger.info("[sync_live_wallet] reconcile_bot_state done")
+        except Exception as recon_err:
+            logger.exception(f"[sync_live_wallet] reconcile_bot_state failed: {recon_err}")
 
-            logger.info(
-                f"Live wallet sync: imported={result.imported_count}, "
-                f"updated={result.updated_count}, closed={result.closed_count}"
-            )
+        logger.info(
+            f"Live wallet sync: imported={result.imported_count}, "
+            f"updated={result.updated_count}, closed={result.closed_count}"
+        )
     except Exception as e:
-        logger.error(f"Live wallet sync failed: {e}", exc_info=True)
+        logger.exception(f"Live wallet sync failed: {e}")
 
 
 async def verify_settlement_blockchain():

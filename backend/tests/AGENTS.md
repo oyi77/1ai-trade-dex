@@ -41,6 +41,7 @@ Comprehensive unit and integration test suite for PolyEdge backend. `conftest.py
 | `test_dispute_tracker.py` | Dispute detection and resolution |
 | `test_notification_router.py` | Event notification routing to Telegram, dashboard |
 | `test_alert_engine.py` | Alert generation and delivery |
+| `test_db_session_boundaries.py` | Regression tests that guard against holding DB sessions open across awaited network work |
 | `test_ensemble.py` | Multi-signal ensemble and confidence weighting |
 | `test_goldsky_client.py` | Goldsky webhooks and data ingestion |
 | `test_polygon_listener.py` | Polygon.io listener integration |

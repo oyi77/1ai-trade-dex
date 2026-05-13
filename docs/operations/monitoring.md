@@ -60,6 +60,8 @@ Current known examples this feature is designed to make visible:
 - Paper candidates with risk-adjusted size around `$0.93` rejected because minimum paper order is `$1.00`.
 - Testnet candidates rejected by max exposure.
 
+Settlement reliability matters here too: stale live positions can exhaust exposure and make fresh live attempts show `REJECTED_ORDER_TOO_SMALL`. Settlement/reconciliation must continue even if optional analytics hooks (health scoring, online learning, forensics) fail, otherwise Control Room will show only secondary blockers while exposure remains artificially locked.
+
 ## PnL Visibility and Loss Trades
 
 The dashboard separates **account PnL** from **trade-ledger PnL** so operators do not confuse live wallet equity with paper/testnet learning history.

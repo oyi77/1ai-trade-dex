@@ -211,11 +211,19 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                 f"Position reconciliation: trade {trade.id} settled with resolution (pnl=${pnl:+.2f})"
                             )
                         else:
-                            trade.settled = False
-                            trade.settlement_source = "reconcile_pending_resolution"
+                            trade.settled = True
+                            trade.result = "closed_unresolved"
+                            trade.settlement_time = now
+                            trade.settlement_source = "closed_unresolved"
+                            if trade.pnl is None:
+                                trade.pnl = 0.0
+                            if trade.settlement_value is None:
+                                trade.settlement_value = 0.0
                             logger.warning(
-                                f"Position reconciliation: trade {trade.id} position gone but resolution unavailable — "
-                                f"leaving unsettled for next cycle (market={trade.market_ticker})"
+                                "Position reconciliation: trade {} position gone but resolution unavailable — "
+                                "marking closed_unresolved to release exposure (market={})",
+                                trade.id,
+                                trade.market_ticker,
                             )
 
                         closed_count += 1
@@ -263,7 +271,10 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         f"Position reconciliation: processed {closed_count} trades"
                     )
         except Exception as e:
-            logger.error(f"Position reconciliation failed: {e}", exc_info=True)
+            logger.opt(exception=True).error(
+                "Position reconciliation failed: {}",
+                e,
+            )
             alert_manager.check_failed_settlement(
                 trade_id=0,
                 reason=f"Position reconciliation failed: {e}",
