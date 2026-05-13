@@ -248,9 +248,14 @@ export function WhaleTrackerTab() {
       .sort((a, b) => {
         const col = lbQuery.state.sort as keyof ScoredTrader
         const dir = lbQuery.state.order === 'asc' ? 1 : -1
-        const av = a[col] as number
-        const bv = b[col] as number
-        return (av - bv) * dir
+        const av = a[col] as ScoredTrader[keyof ScoredTrader]
+        const bv = b[col] as ScoredTrader[keyof ScoredTrader]
+
+        if (typeof av === 'string' && typeof bv === 'string') {
+          return av.localeCompare(bv) * dir
+        }
+
+        return (Number(av) - Number(bv)) * dir
       })
   }, [leaderboard, lbQuery.state.filters, lbQuery.state.sort, lbQuery.state.order])
 
