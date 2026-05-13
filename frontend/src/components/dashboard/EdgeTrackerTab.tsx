@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { fetchEdgePerformance, EdgePerformanceTrack } from '../../api'
 import { useModeFilter } from '../../hooks/useModeFilter'
@@ -10,11 +10,7 @@ export function EdgeTrackerTab() {
   const [days, setDays] = useState(7)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadEdgePerformance()
-  }, [days])
-
-  async function loadEdgePerformance() {
+  const loadEdgePerformance = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -29,7 +25,11 @@ export function EdgeTrackerTab() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [days, selectedMode])
+
+  useEffect(() => {
+    loadEdgePerformance()
+  }, [loadEdgePerformance])
 
   const trackColors: Record<string, string> = {
     realtime: 'bg-blue-700',

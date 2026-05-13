@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -19,7 +19,7 @@ export function Backtest() {
     queryKey: ['backtest-strategies'],
     queryFn: fetchBacktestStrategies,
   })
-  const strategies = strategiesResponse?.strategies || []
+  const strategies = useMemo(() => strategiesResponse?.strategies || [], [strategiesResponse?.strategies])
 
   const { data: history = { runs: [], total: 0 } } = useQuery({
     queryKey: ['backtest-history'],
@@ -56,17 +56,17 @@ export function Backtest() {
     }
   }
 
-  const getDefaultParams = (strategyName: string) => {
+  const getDefaultParams = useCallback((strategyName: string) => {
     if (!strategies || !Array.isArray(strategies)) return {}
     const strategy = strategies.find((s: any) => s.name === strategyName)
     return strategy?.default_params || {}
-  }
+  }, [strategies])
 
   useEffect(() => {
     if (selectedStrategy) {
       setStrategyParams(getDefaultParams(selectedStrategy))
     }
-  }, [selectedStrategy, strategies])
+  }, [getDefaultParams, selectedStrategy])
 
   return (
     <div className="p-6 space-y-6">
