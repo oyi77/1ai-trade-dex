@@ -7,7 +7,7 @@ from typing import Optional
 import threading
 
 from backend.config import settings
-from backend.models.database import Trade, Signal, BotState, StrategyConfig, SessionLocal, botstate_mutex
+from backend.models.database import Trade, Signal, BotState, StrategyConfig, botstate_mutex
 from backend.core.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
@@ -113,21 +113,18 @@ def _prepare_short_botstate_transaction(db) -> None:
 
 
 def _run_short_botstate_update(mode: str, adjusted_size: float) -> None:
-    """Run one isolated BotState update with caller-owned error handling."""
+    """Run one isolated BotState update with caller-owned error handling.
 
-    state_db = SessionLocal()
-    try:
+    Uses get_db_session() from backend.db.utils so that tests can patch
+    SessionLocal and the follow-up BotState update runs against the same
+    in-memory database as the trade commit.
+    """
+
+    from backend.db.utils import get_db_session
+
+    with get_db_session() as state_db:
         _prepare_short_botstate_transaction(state_db)
         _update_botstate_after_trade(state_db, mode, adjusted_size)
-        state_db.commit()
-    except Exception:
-        try:
-            state_db.rollback()
-        except Exception:
-            logger.exception("[strategy_executor] BotState follow-up rollback failed")
-        raise
-    finally:
-        state_db.close()
 
 
 def _commit_session_with_retry(db, *, label: str) -> None:
