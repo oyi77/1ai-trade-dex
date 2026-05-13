@@ -615,7 +615,7 @@ async def execute_decision(
         async with asset_lock:
             # Paper/testnet/Kalshi: no async CLOB calls — offload entirely to thread
             is_live_clob = (
-                mode in ("testnet", "live")
+                mode == "live"
                 and not (decision.get("market_ticker", "").startswith("KX") or decision.get("platform") == "kalshi")
                 and decision.get("token_id") is not None
             )

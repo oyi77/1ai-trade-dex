@@ -594,3 +594,65 @@ class TestLiveModeCallsCLOB:
         assert result is not None
         mock_clob.place_limit_order.assert_awaited_once()
         assert result["clob_order_id"] == "live-order-xyz"
+
+    @pytest.mark.asyncio
+    async def test_testnet_with_polymarket_token_uses_simulated_path(self):
+        """Testnet Polymarket token decisions must not use live CLOB placement."""
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, bankroll=1000.0, paper_bankroll=1000.0, mode="testnet")
+        db.close()
+
+        mock_clob = AsyncMock()
+        mock_clob.place_limit_order = AsyncMock()
+        register_context("testnet", ModeExecutionContext(
+            mode="testnet",
+            clob_client=mock_clob,
+            risk_manager=RiskManager(),
+            strategy_configs={},
+        ))
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "testnet"
+
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(
+                    market_ticker="testnet-token-market",
+                    token_id="123456789",
+                    size=5.0,
+                ),
+                "testnet_strategy",
+                "testnet",
+            )
+
+        assert result is not None
+        mock_clob.place_limit_order.assert_not_called()
+
+        check_db = TestSession()
+        try:
+            trade = (
+                check_db.query(Trade)
+                .filter(Trade.market_ticker == "testnet-token-market")
+                .first()
+            )
+            assert trade is not None
+            assert trade.trading_mode == "testnet"
+        finally:
+            check_db.close()
