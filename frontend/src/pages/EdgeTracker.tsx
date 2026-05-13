@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { fetchEdgePerformance, EdgePerformanceTrack } from '../api'
 
@@ -8,11 +8,7 @@ export default function EdgeTracker() {
   const [days, setDays] = useState(7)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadEdgePerformance()
-  }, [days])
-
-  async function loadEdgePerformance() {
+  const loadEdgePerformance = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -23,7 +19,11 @@ export default function EdgeTracker() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [days])
+
+  useEffect(() => {
+    loadEdgePerformance()
+  }, [loadEdgePerformance])
 
   const trackColors: Record<string, string> = {
     legacy: 'bg-neutral-700',
