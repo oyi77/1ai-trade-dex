@@ -1,5 +1,5 @@
 import { POLL } from '../../polling'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DataTable, ColumnDef, FilterDef } from '../DataTable'
 import { useTableQuery } from '../../hooks/useTableQuery'
@@ -17,7 +17,7 @@ const leaderboardColumns: ColumnDef<ScoredTrader>[] = [
   {
     key: 'rank',
     label: '#',
-    render: (_row, _val) => null,
+    render: () => null,
   },
   {
     key: 'pseudonym',
@@ -235,30 +235,43 @@ export function WhaleTrackerTab() {
       ? 'bg-amber-500'
       : 'bg-red-500'
 
-  const filteredLeaderboard = leaderboard
-    .filter((t) => {
-      const pseudonymFilter = lbQuery.state.filters['pseudonym'] ?? ''
-      const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
-      if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter.toLowerCase())) return false
-      if (!isNaN(minScore) && t.score < minScore) return false
-      return true
-    })
-    .sort((a, b) => {
-      const col = lbQuery.state.sort as keyof ScoredTrader
-      const dir = lbQuery.state.order === 'asc' ? 1 : -1
-      const av = a[col] as number
-      const bv = b[col] as number
-      return (av - bv) * dir
-    })
+  // ⚡ Bolt: Memoize filtered and sorted leaderboard to prevent expensive sorting on every render
+  const filteredLeaderboard = useMemo(() => {
+    return leaderboard
+      .filter((t) => {
+        const pseudonymFilter = lbQuery.state.filters['pseudonym'] ?? ''
+        const minScore = parseFloat(lbQuery.state.filters['min_score'] ?? '')
+        if (pseudonymFilter && !t.pseudonym.toLowerCase().includes(pseudonymFilter.toLowerCase())) return false
+        if (!isNaN(minScore) && t.score < minScore) return false
+        return true
+      })
+      .sort((a, b) => {
+        const col = lbQuery.state.sort as keyof ScoredTrader
+        const dir = lbQuery.state.order === 'asc' ? 1 : -1
+        const av = a[col]
+        const bv = b[col]
+        if (typeof av === 'string' && typeof bv === 'string') {
+          return av.localeCompare(bv) * dir
+        }
+        return (Number(av) - Number(bv)) * dir
+      })
+  }, [leaderboard, lbQuery.state.filters, lbQuery.state.sort, lbQuery.state.order])
 
   const lbPage = lbQuery.currentPage
   const lbLimit = lbQuery.state.limit
-  const lbSlice = filteredLeaderboard.slice(lbPage * lbLimit, (lbPage + 1) * lbLimit)
 
-  const lbWithRank = lbSlice.map((t, i) => ({
-    ...t,
-    rank: lbPage * lbLimit + i + 1,
-  })) as unknown as ScoredTrader[]
+  // ⚡ Bolt: Memoize pagination slice
+  const lbSlice = useMemo(() => {
+    return filteredLeaderboard.slice(lbPage * lbLimit, (lbPage + 1) * lbLimit)
+  }, [filteredLeaderboard, lbPage, lbLimit])
+
+  // ⚡ Bolt: Memoize ranking map to prevent recreating objects unnecessarily
+  const lbWithRank = useMemo(() => {
+    return lbSlice.map((t, i) => ({
+      ...t,
+      rank: lbPage * lbLimit + i + 1,
+    })) as unknown as ScoredTrader[]
+  }, [lbSlice, lbPage, lbLimit])
 
   const leaderboardColumnsWithRank: ColumnDef<ScoredTrader>[] = [
     {
