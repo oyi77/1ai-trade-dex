@@ -1,27 +1,78 @@
+import asyncio
+from unittest.mock import AsyncMock
+
 import pytest
 """Tests for /api/v1/health, /api/v1/stats, /api/v1/dashboard endpoints."""
 
 
 class TestHealth:
     def test_health_returns_200(self, client):
-        resp = client.get("/api/v1/health")
+        resp = client.get("/api/v1/health/dependencies")
         assert resp.status_code == 200
 
     def test_health_has_status_key(self, client):
-        resp = client.get("/api/v1/health")
+        resp = client.get("/api/v1/health/dependencies")
         data = resp.json()
         assert "status" in data
         assert data["status"] in ("ok", "degraded", "healthy")
 
     def test_health_has_dependencies(self, client):
-        resp = client.get("/api/v1/health")
+        resp = client.get("/api/v1/health/dependencies")
         data = resp.json()
         assert "dependencies" in data or "status" in data
 
     def test_health_has_timestamp(self, client):
-        resp = client.get("/api/v1/health")
+        resp = client.get("/api/v1/health/dependencies")
         data = resp.json()
         assert "timestamp" in data or "status" in data
+
+    def test_health_degrades_when_clob_check_times_out(self, client, monkeypatch):
+        class SlowClob:
+            async def get_wallet_balance(self):
+                await asyncio.sleep(10)
+
+        monkeypatch.setattr(
+            "backend.data.polymarket_clob.clob_from_settings",
+            lambda: SlowClob(),
+        )
+        monkeypatch.setattr(
+            "backend.core.agi_event_handlers.check_agi_health",
+            lambda: {},
+        )
+
+        resp = client.get("/api/v1/health/dependencies")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["status"] == "degraded"
+        assert data["dependencies"]["polymarket_clob"] == {
+            "status": "error",
+            "error": "health check timed out",
+        }
+
+    def test_health_reports_clob_balance(self, client, monkeypatch):
+        class HealthyClob:
+            get_wallet_balance = AsyncMock(
+                return_value={"usdc_balance": 12.34, "token_balances": {}, "error": None}
+            )
+
+        monkeypatch.setattr(
+            "backend.data.polymarket_clob.clob_from_settings",
+            lambda: HealthyClob(),
+        )
+        monkeypatch.setattr(
+            "backend.core.agi_event_handlers.check_agi_health",
+            lambda: {},
+        )
+
+        resp = client.get("/api/v1/health/dependencies")
+        data = resp.json()
+
+        assert resp.status_code == 200
+        assert data["dependencies"]["polymarket_clob"] == {
+            "status": "ok",
+            "balance": "12.34",
+        }
 
 
 class TestStats:

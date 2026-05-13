@@ -1,5 +1,7 @@
 """FastAPI backend for BTC 5-min trading bot dashboard."""
 
+import asyncio
+
 from fastapi import (
     FastAPI,
     Depends,
@@ -206,7 +208,7 @@ class FrontendBacktestRequest(BaseModel):
 
 
 # Core endpoints
-@app.get("/api/v1/health")
+@app.get("/api/v1/health/dependencies")
 async def health_check(db: Session = Depends(get_db)):
     """Return system health including per-strategy heartbeat and dependency status."""
     checks = {}
@@ -243,19 +245,27 @@ async def health_check(db: Session = Depends(get_db)):
     else:
         checks["redis"] = {"status": "not_configured", "fallback": "sqlite"}
 
-    # Polymarket CLOB connectivity
+    # Polymarket CLOB connectivity. Keep this bounded: health checks must not
+    # hang the API when an exchange/RPC dependency is slow.
     try:
         from backend.data.polymarket_clob import clob_from_settings
 
         client = clob_from_settings()
-        ok_resp = client.get_ok()
-        balance = client.get_wallet_balance()
-        if ok_resp:
-            checks["polymarket_clob"] = {"status": "ok", "balance": str(balance)}
+        balance = await asyncio.wait_for(client.get_wallet_balance(), timeout=5.0)
+        if not balance.get("error"):
+            checks["polymarket_clob"] = {
+                "status": "ok",
+                "balance": str(balance.get("usdc_balance", 0.0)),
+            }
         else:
-            checks["polymarket_clob"] = {"status": "error", "error": "get_ok returned falsy"}
+            checks["polymarket_clob"] = {"status": "error", "error": balance["error"]}
             if overall_status == "ok":
                 overall_status = "degraded"
+    except asyncio.TimeoutError:
+        checks["polymarket_clob"] = {"status": "error", "error": "health check timed out"}
+        if overall_status == "ok":
+            overall_status = "degraded"
+        logger.warning("Polymarket CLOB health check timed out")
     except Exception as e:
         checks["polymarket_clob"] = {"status": "error", "error": str(e)}
         if overall_status == "ok":
