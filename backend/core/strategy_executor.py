@@ -569,7 +569,7 @@ def _execute_decision_paper_or_kalshi(
                 except OperationalError:
                     db.rollback()
                     if _db_attempt < 2:
-                        time.sleep(0.5 * (_db_attempt + 1))
+                        await asyncio.sleep(0.5 * (_db_attempt + 1))
                     else:
                         raise
 
@@ -1168,7 +1168,7 @@ async def _execute_decision_live_clob(
                 except OperationalError:
                     db.rollback()
                     if _db_attempt < 2:
-                        time.sleep(0.5 * (_db_attempt + 1))
+                        await asyncio.sleep(0.5 * (_db_attempt + 1))
                     else:
                         raise
 

@@ -1,6 +1,7 @@
 """Heartbeat and watchdog — in-memory cache, batch-flushed to DB by watchdog."""
 
 import json
+import os
 import threading
 from datetime import datetime, timezone, timedelta
 
@@ -140,10 +141,17 @@ def get_strategy_health(db) -> list[dict]:
 
 
 async def watchdog_job() -> None:
-    """APScheduler watchdog — flush heartbeats, check for stale strategies."""
+    """APScheduler watchdog — flush heartbeats, check for stale strategies.
+
+    Also touches a heartbeat file for external liveness monitoring
+    so PM2 or an external monitor can detect event-loop freezes.
+    """
     from backend.core.decisions import record_decision
 
     _flush_heartbeats()
+
+    # Touch heartbeat file for external liveness monitoring
+    _touch_heartbeat_file()
 
     from backend.db.utils import get_db_session
     with get_db_session() as db:
@@ -189,27 +197,39 @@ async def watchdog_job() -> None:
 
 
 def _send_telegram_alert_sync(message: str) -> None:
-    """Fire-and-forget Telegram message (sync, for watchdog use)."""
-    import httpx
+    """Fire-and-forget Telegram message (sync, for watchdog use).
+
+    Runs in a thread to avoid blocking the event loop when Telegram API is slow.
+    """
     from backend.config import settings
 
     token = settings.TELEGRAM_BOT_TOKEN
     if not token:
         return
-    admin_ids = getattr(settings, "TELEGRAM_ADMIN_CHAT_IDS", "")
-    with httpx.Client() as client:
-        for chat_id in str(admin_ids).split(","):
-            chat_id = chat_id.strip()
-            if not chat_id:
-                continue
-            try:
-                client.post(
-                    f"{settings.TELEGRAM_API_BASE}/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": message},
-                    timeout=5.0,
-                )
-            except Exception:
-                logger.warning("Failed to send Telegram heartbeat alert")
+
+    def _do_send():
+        import httpx
+        admin_ids = getattr(settings, "TELEGRAM_ADMIN_CHAT_IDS", "")
+        try:
+            with httpx.Client() as client:
+                for chat_id in str(admin_ids).split(","):
+                    chat_id = chat_id.strip()
+                    if not chat_id:
+                        continue
+                    try:
+                        client.post(
+                            f"{settings.TELEGRAM_API_BASE}/bot{token}/sendMessage",
+                            json={"chat_id": chat_id, "text": message},
+                            timeout=5.0,
+                        )
+                    except Exception:
+                        logger.warning("Failed to send Telegram heartbeat alert")
+        except Exception as exc:
+            logger.debug(f"Telegram alert thread failed: {exc}")
+
+    import threading
+    t = threading.Thread(target=_do_send, daemon=True)
+    t.start()
 
 
 async def wallet_sync_job() -> None:
@@ -281,3 +301,20 @@ def _sync_balance_to_db(balance: float, mode: str) -> None:
                 logger.debug(f"wallet_sync: {mode} balance updated to ${state.bankroll:.2f}")
     except Exception as e:
         logger.warning(f"wallet_sync: {mode} balance update failed: {e}")
+
+
+HEARTBEAT_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.omc', 'bot-heartbeat.tmp')
+
+
+def _touch_heartbeat_file() -> None:
+    """Touch a heartbeat file for external liveness monitoring.
+
+    An external monitor script can check this file's modification time.
+    If older than a threshold (e.g., 2 min), the bot event loop is frozen
+    and needs a force restart.
+    """
+    try:
+        with open(HEARTBEAT_FILE, 'w') as f:
+            f.write(datetime.now(timezone.utc).isoformat())
+    except OSError:
+        pass  # Non-critical — don't crash watchdog for a file write failure
