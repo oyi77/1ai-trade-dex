@@ -6,8 +6,9 @@ from decimal import Decimal
 
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest
 from backend.markets.order_types import (
+    NormalizedOrder,
     NormalizedOrderResult, NormalizedBalance,
-    OrderStatus, VenueCapability,
+    OrderSide, OrderStatus, OrderType, VenueCapability,
 )
 from backend.markets.provider_registry import MarketProviderRegistry
 from backend.core.plugin_errors import (
@@ -186,6 +187,60 @@ def test_list_all():
     manifests = registry.list_all()
     assert len(manifests) == 1
     assert manifests[0].name == "mock_venue"
+
+
+@pytest.mark.asyncio
+async def test_polymarket_provider_rejects_live_order_without_price():
+    with patch.dict(
+        os.environ,
+        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        clear=False,
+    ):
+        from backend.markets.providers.polymarket_provider import PolymarketProvider
+
+    provider = PolymarketProvider(paper_mode=False)
+    order = NormalizedOrder(
+        market_id="12345678901234567890",
+        side=OrderSide.YES,
+        order_type=OrderType.LIMIT,
+        size=Decimal("10"),
+    )
+
+    result = await provider.place_order(order)
+
+    assert result.status == OrderStatus.REJECTED
+    assert "limit price" in result.raw["error"]
+
+
+def test_kalshi_provider_builds_v2_order_payload():
+    with patch.dict(
+        os.environ,
+        {"KALSHI_API_KEY_ID": "test-key", "KALSHI_PRIVATE_KEY_PATH": "/tmp/test.pem"},
+        clear=False,
+    ):
+        from backend.markets.providers.kalshi_provider import KalshiProvider
+
+    provider = KalshiProvider(paper_mode=False)
+    order = NormalizedOrder(
+        market_id="FED-26MAY-T3.00",
+        side=OrderSide.NO,
+        order_type=OrderType.LIMIT,
+        size=Decimal("2"),
+        price=Decimal("0.37"),
+        client_order_id="client-1",
+    )
+
+    payload = provider._to_kalshi_order(order)
+
+    assert payload == {
+        "ticker": "FED-26MAY-T3.00",
+        "action": "buy",
+        "side": "no",
+        "count_fp": "2.00",
+        "type": "limit",
+        "client_order_id": "client-1",
+        "no_price_dollars": 0.37,
+    }
 
 
 if __name__ == "__main__":

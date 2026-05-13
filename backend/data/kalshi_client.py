@@ -98,9 +98,19 @@ class KalshiClient:
         """Fetch a single market by ticker."""
         return await self.get(f"/markets/{ticker}")
 
+    async def get_orderbook(self, ticker: str) -> dict:
+        """Fetch the order book for a market ticker."""
+        return await self.get(f"/markets/{ticker}/orderbook")
+
     async def get_balance(self) -> dict:
         """Get portfolio balance (useful for auth test)."""
         return await self.get("/portfolio/balance")
+
+    async def get_positions(self) -> list[dict]:
+        """Fetch open portfolio positions."""
+        response = await self.get("/portfolio/positions")
+        positions = response.get("positions", response.get("market_positions", []))
+        return positions if isinstance(positions, list) else []
 
     async def _request(self, method: str, path: str, json: Optional[Dict[str, Any]] = None) -> dict:
         full_path = f"/trade-api/v2{path}"
@@ -116,10 +126,34 @@ class KalshiClient:
         return await _kalshi_breaker.call(_fetch)
 
     async def batch_create_orders(self, orders: list[dict]) -> dict:
-        return await self._request("POST", "/portfolio/batch_create_orders", json={"orders": orders})
+        return await self._request("POST", "/portfolio/orders/batched", json={"orders": orders})
 
     async def batch_cancel_orders(self, order_ids: list[str]) -> dict:
-        return await self._request("DELETE", "/portfolio/batch_cancel_orders", json={"order_ids": order_ids})
+        return await self._request("DELETE", "/portfolio/orders/batched", json={"ids": order_ids})
+
+    async def place_order(self, market_id: str, side: str, size: int, price: float) -> dict:
+        """Place a single limit order using Kalshi's standard v2 order schema."""
+        side_value = side.lower()
+        action = "sell" if side_value == "sell" else "buy"
+        outcome_side = "no" if side_value == "no" else "yes"
+        payload: Dict[str, Any] = {
+            "ticker": market_id,
+            "action": action,
+            "side": outcome_side,
+            "count_fp": f"{size:.2f}",
+            "type": "limit",
+            "client_order_id": f"polyedge-{int(time.time() * 1000)}",
+        }
+        if outcome_side == "yes":
+            payload["yes_price_dollars"] = price
+        else:
+            payload["no_price_dollars"] = price
+        return await self._request("POST", "/portfolio/orders", json=payload)
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """Cancel a single order by delegating to the batched cancel endpoint."""
+        response = await self.batch_cancel_orders([order_id])
+        return bool(response)
 
     async def amend_order(self, order_id: str, new_price: float = None, new_size: int = None) -> dict:
         payload: Dict[str, Any] = {"order_id": order_id}
