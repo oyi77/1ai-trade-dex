@@ -7,7 +7,7 @@ from typing import Optional
 import threading
 
 from backend.config import settings
-from backend.models.database import Trade, Signal, BotState, StrategyConfig, botstate_mutex
+from backend.models.database import Trade, Signal, BotState, StrategyConfig, SessionLocal, botstate_mutex
 from backend.core.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
@@ -15,7 +15,7 @@ from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import case, func, or_, update
+from sqlalchemy import case, func, or_, text, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
@@ -100,6 +100,126 @@ def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
             .where(BotState.mode == mode)
             .values(total_trades=func.coalesce(BotState.total_trades, 0) + 1)
         )
+
+
+def _prepare_short_botstate_transaction(db) -> None:
+    """Keep best-effort BotState updates from waiting behind stale row locks."""
+
+    if db.get_bind().dialect.name != "postgresql":
+        return
+
+    db.execute(text("SET LOCAL lock_timeout = '2s'"))
+    db.execute(text("SET LOCAL statement_timeout = '5s'"))
+
+
+def _run_short_botstate_update(mode: str, adjusted_size: float) -> None:
+    """Run one isolated BotState update with caller-owned error handling."""
+
+    state_db = SessionLocal()
+    try:
+        _prepare_short_botstate_transaction(state_db)
+        _update_botstate_after_trade(state_db, mode, adjusted_size)
+        state_db.commit()
+    except Exception:
+        try:
+            state_db.rollback()
+        except Exception:
+            logger.exception("[strategy_executor] BotState follow-up rollback failed")
+        raise
+    finally:
+        state_db.close()
+
+
+def _commit_session_with_retry(db, *, label: str) -> None:
+    """Commit the current SQLAlchemy session with bounded retries."""
+
+    for attempt in range(3):
+        try:
+            db.commit()
+            return
+        except OperationalError:
+            db.rollback()
+            if attempt < 2:
+                time.sleep(0.5 * (attempt + 1))
+            else:
+                raise
+
+
+async def _commit_session_with_retry_async(db, *, label: str) -> None:
+    """Async variant of bounded SQLAlchemy commit retries."""
+
+    for attempt in range(3):
+        try:
+            db.commit()
+            return
+        except OperationalError:
+            db.rollback()
+            if attempt < 2:
+                await asyncio.sleep(0.5 * (attempt + 1))
+            else:
+                raise
+
+
+def _apply_post_trade_botstate_update(mode: str, adjusted_size: float) -> bool:
+    """Best-effort BotState counter update after trade persistence is committed."""
+
+    last_exc: OperationalError | None = None
+    for attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
+        try:
+            with _botstate_threading_lock:
+                _run_short_botstate_update(mode, adjusted_size)
+            return True
+        except OperationalError as exc:
+            if not _is_lock_timeout_error(exc):
+                logger.opt(exception=exc).error(
+                    "[strategy_executor] post-trade BotState update failed for mode={} adjusted_size={}",
+                    mode,
+                    adjusted_size,
+                )
+                return False
+            last_exc = exc
+            if attempt < _MAX_LOCK_RETRY_ATTEMPTS - 1:
+                time.sleep(_lock_retry_delay(attempt))
+
+    logger.warning(
+        "[strategy_executor] trade persisted but BotState follow-up update skipped after {} lock-timeout attempts for mode={} adjusted_size={}: {}",
+        _MAX_LOCK_RETRY_ATTEMPTS,
+        mode,
+        adjusted_size,
+        last_exc,
+    )
+    return False
+
+
+async def _apply_post_trade_botstate_update_async(mode: str, adjusted_size: float) -> bool:
+    """Async best-effort BotState counter update after trade persistence is committed."""
+
+    last_exc: OperationalError | None = None
+    for attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
+        try:
+            async with botstate_mutex:
+                _run_short_botstate_update(mode, adjusted_size)
+            return True
+        except OperationalError as exc:
+            if not _is_lock_timeout_error(exc):
+                logger.opt(exception=exc).error(
+                    "[strategy_executor] async post-trade BotState update failed for mode={} adjusted_size={}",
+                    mode,
+                    adjusted_size,
+                )
+                return False
+            last_exc = exc
+            if attempt < _MAX_LOCK_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(_lock_retry_delay(attempt))
+
+    logger.warning(
+        "[strategy_executor] trade persisted but async BotState follow-up update skipped after {} lock-timeout attempts for mode={} adjusted_size={}: {}",
+        _MAX_LOCK_RETRY_ATTEMPTS,
+        mode,
+        adjusted_size,
+        last_exc,
+    )
+    return False
 
 
 async def _get_asset_lock(asset_key: str) -> asyncio.Lock:
@@ -504,12 +624,6 @@ def _execute_decision_paper_or_kalshi(
                 user_id=f"strategy:{strategy_name}",
             )
 
-            # Serialize the short BotState mutation in-process, but rely on a
-            # single atomic SQL UPDATE instead of a SELECT ... FOR UPDATE row lock.
-            with _botstate_threading_lock:
-                _update_botstate_after_trade(db, mode, adjusted_size)
-                db.commit()
-
             signal_data = {
                 "direction": direction,
                 "model_probability": model_probability,
@@ -562,16 +676,12 @@ def _execute_decision_paper_or_kalshi(
                 risk_reason=risk.reason,
             )
 
-            for _db_attempt in range(3):
-                try:
-                    db.commit()
-                    break
-                except OperationalError:
-                    db.rollback()
-                    if _db_attempt < 2:
-                        time.sleep(0.5 * (_db_attempt + 1))
-                    else:
-                        raise
+            _commit_session_with_retry(
+                db,
+                label=f"trade+signal persistence {market_ticker} ({mode})",
+            )
+
+            _apply_post_trade_botstate_update(mode, adjusted_size)
 
             trade_dict = {
                 "id": trade.id,
@@ -952,9 +1062,15 @@ async def _execute_decision_live_clob(
                 for clob_attempt in range(2):
                     try:
                         async with context.clob_client as clob:
-                            await clob.create_or_derive_api_key()
-                            result = await clob.place_limit_order(
-                                token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
+                            await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=30.0)
+                            result = await asyncio.wait_for(
+                                clob.place_limit_order(
+                                    token_id=token_id,
+                                    side="BUY",
+                                    price=entry_price,
+                                    size=adjusted_size,
+                                ),
+                                timeout=30.0,
                             )
                         if result.success:
                             clob_order_id = result.order_id
@@ -967,7 +1083,10 @@ async def _execute_decision_live_clob(
                         logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_msg}")
                         if clob_attempt == 0 and "order_version_mismatch" in err_msg.lower():
                             try:
-                                fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                fresh_mid = await asyncio.wait_for(
+                                    context.clob_client.get_mid_price(token_id),
+                                    timeout=15.0,
+                                )
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying with refreshed mid price {entry_price:.4f}"
@@ -983,10 +1102,24 @@ async def _execute_decision_live_clob(
                         return None
                     except Exception as clob_err:
                         err_str = f"{type(clob_err).__name__}: {clob_err}"
+                        if isinstance(clob_err, KeyError) and str(clob_err) == "'error'":
+                            err_str = "CLOB order rejected by broker response"
+                            logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_str}")
+                            attempt_recorder.record_rejected(
+                                err_str,
+                                phase="execution",
+                                reason_code="REJECTED_BROKER_ORDER",
+                                adjusted_size=adjusted_size,
+                            )
+                            db.commit()
+                            return None
                         logger.opt(exception=True).error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}")
                         if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
                             try:
-                                fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                fresh_mid = await asyncio.wait_for(
+                                    context.clob_client.get_mid_price(token_id),
+                                    timeout=15.0,
+                                )
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying after exception with refreshed mid price {entry_price:.4f}"
@@ -1105,10 +1238,6 @@ async def _execute_decision_live_clob(
                 user_id=f"strategy:{strategy_name}",
             )
 
-            async with botstate_mutex:
-                _update_botstate_after_trade(db, mode, adjusted_size)
-                db.commit()
-
             signal_data = {
                 "direction": direction,
                 "model_probability": model_probability,
@@ -1161,16 +1290,12 @@ async def _execute_decision_live_clob(
                 risk_reason=risk.reason,
             )
 
-            for _db_attempt in range(3):
-                try:
-                    db.commit()
-                    break
-                except OperationalError:
-                    db.rollback()
-                    if _db_attempt < 2:
-                        await asyncio.sleep(0.5 * (_db_attempt + 1))
-                    else:
-                        raise
+            await _commit_session_with_retry_async(
+                db,
+                label=f"trade+signal persistence {market_ticker} ({mode})",
+            )
+
+            await _apply_post_trade_botstate_update_async(mode, adjusted_size)
 
             trade_dict = {
                 "id": trade.id,

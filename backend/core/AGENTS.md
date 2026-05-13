@@ -11,8 +11,8 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ### Execution & Routing
 | File | Description |
 |------|-------------|
-| `auto_trader.py` | Execution router — routes high-confidence signals to immediate execution, low-confidence to approval queue. **Not a strategy.** |
-| `strategy_executor.py` | Creates trades in paper mode, places orders in live mode; acquires `botstate_mutex` before bankroll mutation |
+| `auto_trader.py` | Execution router — routes high-confidence signals to immediate execution, low-confidence to approval queue. **Not a strategy.** Live CLOB calls must stay timeout-bounded. |
+| `strategy_executor.py` | Creates trades in paper mode, places orders in live mode; trade/attempt persistence must commit before any best-effort `BotState` counter sync so `bot_state` lock contention cannot roll back durable trade records; all live CLOB waits must stay bounded so the bot cannot hang indefinitely on broker I/O |
 | `signals.py` | Signal model and signal routing logic |
 | `trade_attempts.py` | `TradeAttemptRecorder` — durable ledger for all execution attempts (executed and rejected) |
 | `trade_role.py` | Trade role classification utilities |
@@ -22,7 +22,7 @@ The trading engine — execution routing, risk management, settlement, circuit b
 |------|-------------|
 | `risk_manager.py` | Validates trades against position size, exposure, drawdown, confidence, and per-strategy allocation caps |
 | `risk_manager_hft.py` | HFT-specific risk manager with tighter latency constraints |
-| `risk_profiles.py` | Static risk profile presets — safe/normal/aggressive/extreme |
+| `risk_profiles.py` | Risk profile presets + DB-backed overrides; missing `risk_profiles` table must fall back to presets without startup traceback spam |
 | `circuit_breaker.py` | Circuit breaker implementation (CLOSED/OPEN/HALF_OPEN state machine) |
 | `circuit_breaker_pybreaker.py` | pybreaker-based circuit breaker variant |
 | `market_risk.py` | Market-level risk calculations |
@@ -64,7 +64,7 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ### Infrastructure
 | File | Description |
 |------|-------------|
-| `event_bus.py` | SSE broadcast and internal event dispatch — routes WebSocket strategy BUY decisions through `strategy_executor` with StrategyConfig mode semantics |
+| `event_bus.py` | SSE broadcast and internal event dispatch — routes WebSocket strategy BUY decisions through `strategy_executor` with StrategyConfig mode semantics; background tasks must keep strong references and log callback failures |
 | `mode_context.py` | Trading mode context (paper/live/shadow) |
 | `shadow_mode.py` | Shadow mode execution — runs strategies without placing real orders |
 | `shadow_validation.py` | Shadow mode trade validation |
@@ -96,6 +96,8 @@ The trading engine — execution routing, risk management, settlement, circuit b
 
 ### Critical Safety Rules
 - **`botstate_mutex` is mandatory for BotState read-modify-write** — acquire it only around the short mutation section, and prefer a single atomic SQL `UPDATE` for counters/balances. Use `for_update()` only when code must inspect and mutate structured state in the same window. Preflight/risk reads should use plain reads so PM2 scheduler/API processes do not block trade execution on long `BotState` row locks. See `strategy_executor.py` and `settlement.py` for the pattern. Skipping atomic mutation or the mutation lock causes lost updates under concurrent execution.
+- **Trade persistence must not share the same commit boundary as best-effort `BotState` follow-up sync** — if a `bot_state` row is lock-contended, the already-created `Trade`, `TradeAttempt`, and audit rows must stay durable. Persist the trade/attempt first, then run `BotState` counter updates in a short isolated follow-up transaction with bounded retries.
+- **Heartbeat flushes must preserve `_pending_heartbeats` on DB failure** — only drop in-memory heartbeat entries after the `bot_state.misc_data` write succeeds, otherwise watchdog health can regress even while strategy activity continues.
 - **`risk_manager.py`, `circuit_breaker.py`, and `settlement.py` must not be weakened without an ADR** — these are the last line of defense before real money moves. Any change that relaxes a limit, bypasses a check, or alters settlement logic requires a new ADR in `docs/architecture/`.
 - **`settlement.py` is append-only for trade records** — never mutate historical `Trade` rows to explain rejected attempts. Use `TradeAttemptRecorder` instead (see `adr-003`).
 - **Optional settlement hooks must be isolated** — learner/forensics/performance/brain integrations are best-effort and must never roll back the primary `Trade` + `SettlementEvent` writes.
@@ -112,6 +114,8 @@ async with botstate_mutex:
 ### Session Lifetime Rule
 - **Never hold a SQLAlchemy session open across awaited network I/O** — snapshot DB rows first, close/commit the session, then call external APIs. Re-open a fresh session only for the mutation/writeback step. This is especially important in scheduler jobs and data-feed discovery loops, otherwise PostgreSQL accumulates `idle in transaction` sessions and exhausts connection slots.
 - This also applies to AGI/LLM flows and websocket broadcasts: prompt-building reads and API response reads must end their transaction before `await`ing Claude, backtests, or realtime fan-out.
+- **External broker/network awaits in bot paths must be timeout-bounded** — wallet sync, auto-trader, and live strategy execution must wrap CLOB/API awaits with `asyncio.wait_for(...)` (or equivalent bounded helper) so PM2 can recover from true hangs instead of waiting forever.
+- **Fire-and-forget asyncio work must be tracked** — background tasks in `event_bus.py` must be created via a helper that stores strong references, removes completed tasks, ignores normal cancellation, and logs real exceptions.
 
 ### Scheduler Job Registry
 Jobs are registered in `scheduler.py` and implemented in `scheduling_strategies.py`:
