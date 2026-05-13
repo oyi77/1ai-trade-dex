@@ -51,7 +51,7 @@ All API endpoints are versioned using the `/v1` prefix. The current version is *
 | `/health` | GET | Basic health check (load balancers) |
 | `/health/ready` | GET | Readiness check (dependencies) |
 | `/health/detailed` | GET | Detailed system status |
-| `/api/v1/health/dependencies` | GET | Application dependency health with database, Redis, bounded Polymarket CLOB wallet-balance check, strategy heartbeat, DB pool, AGI event status, and trading mode |
+| `/api/v1/health/dependencies` | GET | Application dependency health with database, Redis, bounded Polymarket CLOB wallet-balance check, strategy heartbeat, DB pool, AGI event status, and trading mode. Dependency failures return sanitized public error labels; internal exception details are logged server-side only. |
 
 See `docs/operations/monitoring.md` for health check details.
 
