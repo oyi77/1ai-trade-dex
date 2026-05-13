@@ -569,7 +569,7 @@ def _execute_decision_paper_or_kalshi(
                 except OperationalError:
                     db.rollback()
                     if _db_attempt < 2:
-                        await asyncio.sleep(0.5 * (_db_attempt + 1))
+                        time.sleep(0.5 * (_db_attempt + 1))
                     else:
                         raise
 
