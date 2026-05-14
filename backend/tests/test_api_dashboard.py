@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.api import dashboard as dashboard_api
+from backend.core.bankroll_reconciliation import PolymarketProfileTradeStats
 from backend.models.database import BotState, Trade
 
 
@@ -152,6 +153,75 @@ class TestStatsEndpoint:
         assert data["realized_pnl"] == 5.0
         assert data["live"]["account_pnl"] == 25.740828
         assert data["live"]["realized_pnl"] == 5.0
+
+    def test_stats_live_exposes_profile_traded_count_separately_from_ledger_rows(self, client, db):
+        live_state = db.query(BotState).filter_by(mode="live").first()
+        db.info["allow_live_financial_update"] = True
+        live_state.bankroll = 130.0
+        live_state.total_pnl = 8.0
+        db.commit()
+        db.info.pop("allow_live_financial_update", None)
+
+        db.add_all(
+            [
+                Trade(
+                    market_ticker=f"LIVE-LEDGER-{idx}",
+                    platform="polymarket",
+                    direction="up",
+                    entry_price=0.5,
+                    size=10.0,
+                    settled=True,
+                    result="win",
+                    pnl=5.0,
+                    trading_mode="live",
+                )
+                for idx in range(3)
+            ]
+        )
+        db.commit()
+
+        with patch(
+            "backend.api.system.fetch_pm_profile_pnl",
+            AsyncMock(return_value=25.740828),
+        ), patch(
+            "backend.api.system.fetch_pm_profile_trade_stats",
+            AsyncMock(
+                return_value=PolymarketProfileTradeStats(
+                    traded_count=287,
+                    closed_count=188,
+                    winning_count=147,
+                    losing_count=41,
+                    open_position_count=103,
+                    stale_open_position_count=91,
+                    redeemable_position_count=96,
+                    open_position_value=402.16,
+                    open_position_initial_value=2549.56,
+                )
+            ),
+        ):
+            resp = client.get("/api/v1/stats?mode=live")
+
+        data = resp.json()
+        assert data["total_trades"] == 287
+        assert data["winning_trades"] == 147
+        assert data["win_rate"] == pytest.approx(147 / 188)
+        assert data["live"]["trades"] == 287
+        assert data["live"]["wins"] == 147
+        assert data["live"]["win_rate"] == pytest.approx(147 / 188)
+        assert data["live"]["ledger_trades"] == 3
+        assert data["live"]["ledger_wins"] == 3
+        assert data["live_profile_traded_count"] == 287
+        assert data["live"]["profile_traded_count"] == 287
+        assert data["live_profile_closed_count"] == 188
+        assert data["live_profile_winning_count"] == 147
+        assert data["open_trades"] == 103
+        assert data["open_exposure"] == pytest.approx(402.16)
+        assert data["live_profile_open_count"] == 103
+        assert data["live_profile_stale_open_count"] == 91
+        assert data["live_profile_redeemable_count"] == 96
+        assert data["live"]["profile_open_count"] == 103
+        assert data["live"]["profile_stale_open_count"] == 91
+        assert data["live"]["profile_redeemable_count"] == 96
 
     def test_stats_floors_simulated_bankroll_without_hiding_negative_pnl(self, client, db):
         paper_state = db.query(BotState).filter_by(mode="paper").first()

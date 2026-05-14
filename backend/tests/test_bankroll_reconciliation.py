@@ -4,7 +4,11 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.core.bankroll_reconciliation import reconcile_bot_state
+from backend.core.bankroll_reconciliation import (
+    fetch_pm_profile_trade_stats,
+    fetch_pm_traded_count,
+    reconcile_bot_state,
+)
 from backend.models.database import Base, BotState, Trade
 
 
@@ -266,3 +270,117 @@ def test_live_bot_state_financial_fields_can_be_updated_by_reconciliation(db_ses
     db_session.refresh(state)
     assert state.bankroll == pytest.approx(182.40)
     assert state.total_pnl == pytest.approx(82.40)
+
+
+@pytest.mark.asyncio
+async def test_fetch_pm_traded_count_uses_polymarket_traded_endpoint(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"user": "0xabc", "traded": 287}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, **kwargs):
+            requests.append((url, kwargs))
+            return FakeResponse()
+
+    monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+
+    count = await fetch_pm_traded_count("0xABC")
+
+    assert count == 287
+    assert requests[0][0].endswith("/traded")
+    assert requests[0][1]["params"] == {"user": "0xabc"}
+
+
+@pytest.mark.asyncio
+async def test_fetch_pm_profile_trade_stats_groups_closed_rows_by_market(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def json(self):
+            return self.payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, **kwargs):
+            requests.append((url, kwargs))
+            if url.endswith("/traded"):
+                return FakeResponse({"user": "0xabc", "traded": 4})
+            if url.endswith("/positions"):
+                offset = kwargs["params"].get("offset", 0)
+                if offset > 0:
+                    return FakeResponse([])
+                return FakeResponse(
+                    [
+                        {
+                            "slug": "open-a",
+                            "endDate": "2026-05-13",
+                            "redeemable": True,
+                            "currentValue": 7.5,
+                            "initialValue": 10.0,
+                        },
+                        {
+                            "slug": "open-b",
+                            "endDate": "2999-01-01",
+                            "redeemable": False,
+                            "currentValue": 3.0,
+                            "initialValue": 5.0,
+                        },
+                    ]
+                )
+            offset = kwargs["params"].get("offset", 0)
+            if offset > 0:
+                return FakeResponse([])
+            return FakeResponse(
+                [
+                    {"slug": "market-a", "realizedPnl": 3.0},
+                    {"slug": "market-a", "realizedPnl": -1.0},
+                    {"slug": "market-b", "realizedPnl": -2.0},
+                    {"slug": "market-c", "realizedPnl": 0.0},
+                ]
+            )
+
+    monkeypatch.setattr("httpx.AsyncClient", FakeClient)
+
+    stats = await fetch_pm_profile_trade_stats("0xABC")
+
+    assert stats is not None
+    assert stats.traded_count == 4
+    assert stats.closed_count == 2
+    assert stats.winning_count == 1
+    assert stats.losing_count == 1
+    assert stats.win_rate == pytest.approx(0.5)
+    assert stats.open_position_count == 2
+    assert stats.stale_open_position_count == 1
+    assert stats.redeemable_position_count == 1
+    assert stats.open_position_value == pytest.approx(10.5)
+    assert stats.open_position_initial_value == pytest.approx(15.0)
+    assert requests[0][0].endswith("/traded")
+    assert requests[1][0].endswith("/closed-positions")
+    assert requests[2][0].endswith("/positions")

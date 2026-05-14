@@ -20,7 +20,8 @@ export function StatsCards() {
   const wins = modeData ? modeData.wins : stats.wins
   const trades = modeData ? modeData.trades : stats.trades
   const bankroll = modeData ? (modeData.available_balance ?? modeData.bankroll) : stats.availableBalance
-  const winRate = modeData && modeData.trades > 0 ? (modeData.wins / modeData.trades * 100) : stats.winRate
+  const winRate = modeData ? (modeData.win_rate * 100) : stats.winRate
+  const winDenominator = modeData?.profile_closed_count ?? stats.stats.live_profile_closed_count ?? trades
   const initialBankroll = modeData?.initial_bankroll ?? stats.stats.initial_bankroll
   const returnPercent = modeData && initialBankroll > 0 ? (modeData.pnl / initialBankroll * 100) : stats.returnPercent
   const mode = selectedMode === 'all' ? stats.mode : selectedMode
@@ -30,6 +31,8 @@ export function StatsCards() {
   // Show actual per-mode stats regardless of which mode is active
   const openExposure = modeData ? (modeData.open_exposure ?? 0) : stats.openExposure
   const openTrades = modeData ? (modeData.open_trades ?? 0) : stats.openTrades
+  const staleOpenTrades = modeData?.profile_stale_open_count ?? stats.stats.live_profile_stale_open_count ?? 0
+  const redeemableTrades = modeData?.profile_redeemable_count ?? stats.stats.live_profile_redeemable_count ?? 0
   const totalEquity = modeData ? (modeData.total_balance ?? modeData.bankroll) : stats.totalEquity
   const settledTrades = modeData ? modeData.trades : stats.settledTrades
   const unrealizedPnl = modeData ? (modeData.unrealized_pnl ?? 0) : stats.unrealizedPnl
@@ -104,7 +107,7 @@ export function StatsCards() {
           {winRate.toFixed(0)}%
         </span>
         <span className="text-[10px] text-neutral-600 tabular-nums">
-          {wins}/{trades}
+          {wins}/{winDenominator}
         </span>
       </motion.div>
 
@@ -121,7 +124,9 @@ export function StatsCards() {
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
         <span className="text-[10px] text-neutral-600 uppercase">Open</span>
         <span className="text-sm font-semibold tabular-nums text-amber-400">{openTrades}</span>
-        <span className="text-[10px] text-neutral-600 tabular-nums">${openExposure.toFixed(0)} locked</span>
+        <span className="text-[10px] text-neutral-600 tabular-nums">
+          ${openExposure.toFixed(0)} locked{redeemableTrades > 0 ? ` · ${redeemableTrades} redeemable` : staleOpenTrades > 0 ? ` · ${staleOpenTrades} stale` : ''}
+        </span>
       </motion.div>
     </div>
   )

@@ -27,7 +27,10 @@ from backend.models.database import (
 )
 from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
-from backend.core.bankroll_reconciliation import fetch_pm_profile_pnl
+from backend.core.bankroll_reconciliation import (
+    fetch_pm_profile_pnl,
+    fetch_pm_profile_trade_stats,
+)
 from backend.api.validation import StrategyConfigRequest as ValidatedStrategyConfigRequest
 from loguru import logger
 def _iso(dt) -> str | None:
@@ -94,6 +97,14 @@ class BotStats(BaseModel):
     live: dict = {}
     live_ledger_pnl: float = 0.0
     live_profile_pnl: float = 0.0
+    live_profile_traded_count: Optional[int] = None
+    live_ledger_trades: int = 0
+    live_ledger_wins: int = 0
+    live_profile_closed_count: Optional[int] = None
+    live_profile_winning_count: Optional[int] = None
+    live_profile_open_count: Optional[int] = None
+    live_profile_stale_open_count: Optional[int] = None
+    live_profile_redeemable_count: Optional[int] = None
     active_mode: List[str] = ["paper"]
     open_exposure: float = 0.0
     open_trades: int = 0
@@ -229,7 +240,18 @@ async def get_stats(
     # End the read transaction before network I/O so stats polling does not sit
     # idle-in-transaction while waiting on Polymarket profile calls.
     db.rollback()
-    live_profile_pnl = await fetch_pm_profile_pnl() if (effective_mode == "live" or mode is None) else None
+    if effective_mode == "live" or mode is None:
+        live_profile_pnl, live_profile_trade_stats = await asyncio.gather(
+            fetch_pm_profile_pnl(),
+            fetch_pm_profile_trade_stats(),
+        )
+        live_profile_traded_count = (
+            live_profile_trade_stats.traded_count if live_profile_trade_stats else None
+        )
+    else:
+        live_profile_pnl = None
+        live_profile_trade_stats = None
+        live_profile_traded_count = None
     live_account_pnl = float(live_profile_pnl) if live_profile_pnl is not None else live_cached_account_pnl
 
     # Always query live-mode trades from actual DB for ledger analytics, but do
@@ -277,6 +299,12 @@ async def get_stats(
         live_trades = live_settled_trades + live_open_trades_count
 
         live_win_rate = live_wins / live_trades if live_trades > 0 else 0.0
+        live_ledger_trades = live_trades
+        live_ledger_wins = live_wins
+        if live_profile_trade_stats is not None:
+            live_trades = live_profile_trade_stats.traded_count
+            live_wins = live_profile_trade_stats.winning_count
+            live_win_rate = live_profile_trade_stats.win_rate
 
         orphaned_count = (
             db.query(func.count(Trade.id))
@@ -307,6 +335,8 @@ async def get_stats(
         live_trades = live_cached_trades
         live_wins = live_cached_wins
         live_win_rate = live_wins / live_trades if live_trades > 0 else 0.0
+        live_ledger_trades = live_cached_trades
+        live_ledger_wins = live_cached_wins
 
     testnet_settled_trades = (
         db.query(func.count(Trade.id))
@@ -470,6 +500,9 @@ async def get_stats(
         )
         open_trades_count = live_unrealized["open_trades"]
         open_exposure_amount = live_unrealized["open_exposure"]
+        if live_profile_trade_stats is not None:
+            open_trades_count = live_profile_trade_stats.open_position_count
+            open_exposure_amount = live_profile_trade_stats.open_position_value
         unrealized_pnl = live_unrealized["unrealized_pnl"]
         position_cost = live_unrealized["position_cost"]
         position_market_value = live_unrealized["position_market_value"]
@@ -503,6 +536,10 @@ async def get_stats(
         display_pnl = live_account_pnl
         display_realized_pnl = live_ledger_pnl
         display_account_pnl = live_account_pnl
+
+    if effective_mode == "live" and live_profile_trade_stats is not None:
+        open_trades_count = live_profile_trade_stats.open_position_count
+        open_exposure_amount = live_profile_trade_stats.open_position_value
 
     return BotStats(
         bankroll=display_bankroll,
@@ -578,10 +615,54 @@ async def get_stats(
             "position_market_value": live_unrealized["position_market_value"],
             "ledger_pnl": live_ledger_pnl,
             "profile_pnl": live_account_pnl,
+            "profile_traded_count": live_profile_traded_count,
+            "profile_closed_count": (
+                live_profile_trade_stats.closed_count if live_profile_trade_stats else None
+            ),
+            "profile_winning_count": (
+                live_profile_trade_stats.winning_count if live_profile_trade_stats else None
+            ),
+            "profile_open_count": (
+                live_profile_trade_stats.open_position_count if live_profile_trade_stats else None
+            ),
+            "profile_stale_open_count": (
+                live_profile_trade_stats.stale_open_position_count if live_profile_trade_stats else None
+            ),
+            "profile_redeemable_count": (
+                live_profile_trade_stats.redeemable_position_count if live_profile_trade_stats else None
+            ),
+            "profile_open_value": (
+                live_profile_trade_stats.open_position_value if live_profile_trade_stats else None
+            ),
+            "profile_open_initial_value": (
+                live_profile_trade_stats.open_position_initial_value if live_profile_trade_stats else None
+            ),
+            "ledger_trades": live_ledger_trades,
+            "ledger_wins": live_ledger_wins,
+            "ledger_open_trades": live_unrealized["open_trades"],
+            "ledger_open_exposure": live_unrealized["open_exposure"],
             "initial_bankroll": live_initial,
         },
         live_ledger_pnl=live_ledger_pnl,
         live_profile_pnl=live_account_pnl,
+        live_profile_traded_count=live_profile_traded_count,
+        live_ledger_trades=live_ledger_trades,
+        live_ledger_wins=live_ledger_wins,
+        live_profile_closed_count=(
+            live_profile_trade_stats.closed_count if live_profile_trade_stats else None
+        ),
+        live_profile_winning_count=(
+            live_profile_trade_stats.winning_count if live_profile_trade_stats else None
+        ),
+        live_profile_open_count=(
+            live_profile_trade_stats.open_position_count if live_profile_trade_stats else None
+        ),
+        live_profile_stale_open_count=(
+            live_profile_trade_stats.stale_open_position_count if live_profile_trade_stats else None
+        ),
+        live_profile_redeemable_count=(
+            live_profile_trade_stats.redeemable_position_count if live_profile_trade_stats else None
+        ),
         active_mode=list(settings.active_modes_set),
         open_exposure=open_exposure_amount,
         open_trades=open_trades_count,

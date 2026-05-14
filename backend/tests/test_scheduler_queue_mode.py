@@ -60,6 +60,54 @@ def test_settlement_check_has_misfire_grace_for_transient_lock_delays():
     ), "settlement_check needs grace time to catch up after bounded DB lock waits"
 
 
+def test_auto_redeem_is_registered_for_crash_recovery_when_enabled():
+    """Automatic redemption must survive scheduler restarts when explicitly enabled."""
+
+    source = Path("backend/core/scheduler.py").read_text()
+    tree = ast.parse(source)
+
+    registry = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "JOB_FUNCTION_REGISTRY"
+            for target in node.targets
+        )
+    )
+    registry_source = ast.unparse(registry)
+    assert "auto_redeem_job" in registry_source
+
+    persist_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "_persist_and_add_job"
+    ]
+
+    auto_redeem_calls = [
+        node
+        for node in persist_calls
+        if any(
+            keyword.arg == "id"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "auto_redeem"
+            for keyword in node.keywords
+        )
+    ]
+    assert auto_redeem_calls, "auto_redeem must be persisted when scheduled"
+    assert all(
+        any(
+            keyword.arg == "misfire_grace_time"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value >= 60
+            for keyword in call.keywords
+        )
+        for call in auto_redeem_calls
+    ), "auto_redeem needs grace time so brief scheduler stalls do not skip cleanup"
+
+
 def test_postgres_for_update_applies_transaction_local_lock_timeouts():
     """BotState row locks must fail fast without moving async jobs to another loop."""
 

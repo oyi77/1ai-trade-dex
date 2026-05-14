@@ -50,6 +50,10 @@ To migrate your data from SQLite (e.g., development setup) to a more robust prod
 | `POLYMARKET_WALLET_ADDRESS` | None | Public wallet/proxy address used to fetch live Polymarket open-position value for bankroll reconciliation. Safe to document, but set it to the wallet shown in Polymarket/CLOB. |
 | `POLYMARKET_BUILDER_ADDRESS` | None | Optional Builder proxy/funder address. If present, live equity reconciliation uses this before `POLYMARKET_WALLET_ADDRESS`. |
 | `POLYMARKET_SIGNATURE_TYPE` | 0 | CLOB signature type: 0 for EOA, 1 for Poly-Proxy, 2 for Poly-EOA. |
+| `AUTO_REDEEM_ENABLED` | False | Enables the scheduled Polymarket redeemable-position cleanup job. |
+| `AUTO_REDEEM_DRY_RUN` | True | Keeps scheduled cleanup reporting-only by default. Set to `False` only when the scheduler should submit live on-chain/relayer redemption transactions. |
+| `AUTO_REDEEM_INTERVAL_SECONDS` | 3600 | Interval for the scheduled auto-redeem job. |
+| `AUTO_REDEEM_TIMEOUT_SECONDS` | 120.0 | Timeout for one scheduled redemption batch. |
 
 Live `BotState.bankroll`/`total_pnl` are derived caches. The source of truth is CLOB USDC cash plus Polymarket Data API open-position value; see `docs/architecture/adr-002-live-equity-source.md`.
 
@@ -75,4 +79,4 @@ Live `BotState.bankroll`/`total_pnl` are derived caches. The source of truth is 
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `WEATHER_ENABLED` | True | Enable/disable weather tr
+| `WEATHER_ENABLED` | True | Enable/disable weather trading strategies. |

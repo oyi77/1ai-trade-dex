@@ -100,6 +100,19 @@ export interface PnlModeStats {
   position_cost?: number
   position_market_value?: number
   ledger_pnl?: number
+  profile_pnl?: number
+  profile_traded_count?: number | null
+  profile_closed_count?: number | null
+  profile_winning_count?: number | null
+  profile_open_count?: number | null
+  profile_stale_open_count?: number | null
+  profile_redeemable_count?: number | null
+  profile_open_value?: number | null
+  profile_open_initial_value?: number | null
+  ledger_trades?: number
+  ledger_wins?: number
+  ledger_open_trades?: number
+  ledger_open_exposure?: number
   initial_bankroll?: number
 }
 
@@ -132,6 +145,14 @@ export interface BotStats {
   position_market_value?: number
   live_ledger_pnl?: number
   live_profile_pnl?: number
+  live_profile_traded_count?: number | null
+  live_ledger_trades?: number
+  live_ledger_wins?: number
+  live_profile_closed_count?: number | null
+  live_profile_winning_count?: number | null
+  live_profile_open_count?: number | null
+  live_profile_stale_open_count?: number | null
+  live_profile_redeemable_count?: number | null
 }
 
 export interface EquityPoint {

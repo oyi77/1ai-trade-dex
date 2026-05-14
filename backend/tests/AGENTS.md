@@ -18,6 +18,7 @@ Comprehensive unit and integration test suite for PolyEdge backend. `conftest.py
 | `test_api_decisions.py` | Signal approval/rejection workflow tests |
 | `test_api_dashboard.py` | Dashboard data aggregation endpoint |
 | `test_scheduler_queue_mode.py` | Scheduler queue-mode regression tests, including keeping `settlement_check` scheduled while market scans are worker-routed |
+| `test_auto_redeem_scheduler.py` | Scheduled auto-redeem safety tests for missing credentials, dry-run defaults, and scheduler wiring |
 | `test_api_phase2.py` | Phase 2 feature tests (whale listener, news, auto-trader, arbitrage) |
 | `test_auto_trader.py` | Auto-trader signal → trade execution pipeline |
 | `test_strategy_executor.py` | Strategy cycle execution, error handling, context wiring |

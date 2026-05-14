@@ -122,7 +122,7 @@ export function useStats() {
     bankroll,
     availableBalance,
     totalBalance,
-    winRate: trades > 0 ? (wins / trades * 100) : 0,
+    winRate: active ? (active.win_rate * 100) : (stats.win_rate * 100),
     returnPercent: initialBankroll > 0 ? (totalPnl / initialBankroll * 100) : 0,
     isRunning: stats.is_running,
     lastRun: stats.last_run,

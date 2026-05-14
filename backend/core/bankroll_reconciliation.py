@@ -56,6 +56,26 @@ class BankrollReconciliationReport:
         return data
 
 
+@dataclass(frozen=True)
+class PolymarketProfileTradeStats:
+    """Profile-level Polymarket market-count statistics."""
+
+    traded_count: int
+    closed_count: int
+    winning_count: int
+    losing_count: int
+    open_position_count: int = 0
+    stale_open_position_count: int = 0
+    redeemable_position_count: int = 0
+    open_position_value: float = 0.0
+    open_position_initial_value: float = 0.0
+
+    @property
+    def win_rate(self) -> float:
+        denominator = self.winning_count + self.losing_count
+        return self.winning_count / denominator if denominator > 0 else 0.0
+
+
 def get_polymarket_wallet_address() -> Optional[str]:
     """Return the wallet/proxy address used by Polymarket Data API."""
 
@@ -230,6 +250,199 @@ async def fetch_pm_profile_pnl(wallet: Optional[str] = None) -> Optional[float]:
         return round(float(pnl_value), 6)
     except Exception as exc:
         logger.warning("PM profile PnL fetch failed: %s", exc)
+        return None
+
+
+async def fetch_pm_traded_count(wallet: Optional[str] = None) -> Optional[int]:
+    """Fetch Polymarket profile "markets traded" count for a wallet.
+
+    Polymarket's public profile "Predictions" total is backed by the Data API
+    `/traded` endpoint. This is a market/profile-level count, not equivalent to
+    the local Trade ledger row count where one market/order can produce multiple
+    rows across settlement, import, and strategy bookkeeping paths.
+    """
+
+    wallet_address = wallet or get_polymarket_wallet_address()
+    if not wallet_address:
+        return None
+
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"{settings.DATA_API_URL}/traded",
+                params={"user": wallet_address.lower()},
+                headers={"User-Agent": "polyedge-finance"},
+            )
+
+        if resp.status_code != 200:
+            logger.warning(
+                "PM traded-count fetch returned HTTP %s for wallet %s",
+                resp.status_code,
+                wallet_address[:10],
+            )
+            return None
+
+        data = resp.json()
+        if not isinstance(data, dict):
+            return None
+
+        traded = data.get("traded")
+        if traded is None:
+            return None
+
+        return int(traded)
+    except Exception as exc:
+        logger.warning("PM traded-count fetch failed: %s", exc)
+        return None
+
+
+async def fetch_pm_profile_trade_stats(
+    wallet: Optional[str] = None,
+) -> Optional[PolymarketProfileTradeStats]:
+    """Fetch profile-aligned Polymarket trade count and closed-market W/L.
+
+    `/traded` returns the public profile markets-traded count. The
+    `/closed-positions` endpoint can include multiple rows for one market, so we
+    group by market slug/condition and sum realized PnL before classifying each
+    closed market as win/loss/flat.
+    """
+
+    wallet_address = wallet or get_polymarket_wallet_address()
+    if not wallet_address:
+        return None
+
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(
+            timeout=12.0,
+            headers={"User-Agent": "polyedge-finance"},
+        ) as client:
+            traded_resp = await client.get(
+                f"{settings.DATA_API_URL}/traded",
+                params={"user": wallet_address.lower()},
+            )
+            if traded_resp.status_code != 200:
+                logger.warning(
+                    "PM traded-count fetch returned HTTP %s for wallet %s",
+                    traded_resp.status_code,
+                    wallet_address[:10],
+                )
+                return None
+
+            traded_data = traded_resp.json()
+            if not isinstance(traded_data, dict) or traded_data.get("traded") is None:
+                return None
+            traded_count = int(traded_data["traded"])
+
+            closed_pnl_by_market: dict[str, float] = {}
+            offset = 0
+            limit = 50
+            while True:
+                closed_resp = await client.get(
+                    f"{settings.DATA_API_URL}/closed-positions",
+                    params={
+                        "user": wallet_address.lower(),
+                        "limit": limit,
+                        "offset": offset,
+                    },
+                )
+                if closed_resp.status_code != 200:
+                    logger.warning(
+                        "PM closed-position fetch returned HTTP %s for wallet %s",
+                        closed_resp.status_code,
+                        wallet_address[:10],
+                    )
+                    return None
+
+                rows = closed_resp.json()
+                if not isinstance(rows, list):
+                    return None
+                if not rows:
+                    break
+
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    market_key = (
+                        row.get("slug")
+                        or row.get("conditionId")
+                        or row.get("asset")
+                    )
+                    if not market_key:
+                        continue
+                    realized = row.get("realizedPnl")
+                    closed_pnl_by_market[str(market_key)] = (
+                        closed_pnl_by_market.get(str(market_key), 0.0)
+                        + float(realized or 0.0)
+                    )
+
+                if len(rows) < limit:
+                    break
+                offset += limit
+
+            open_positions: list[dict] = []
+            offset = 0
+            while True:
+                positions_resp = await client.get(
+                    f"{settings.DATA_API_URL}/positions",
+                    params={
+                        "user": wallet_address.lower(),
+                        "limit": limit,
+                        "offset": offset,
+                    },
+                )
+                if positions_resp.status_code != 200:
+                    logger.warning(
+                        "PM open-position fetch returned HTTP %s for wallet %s",
+                        positions_resp.status_code,
+                        wallet_address[:10],
+                    )
+                    return None
+
+                position_rows = positions_resp.json()
+                if not isinstance(position_rows, list):
+                    return None
+                if not position_rows:
+                    break
+
+                open_positions.extend(row for row in position_rows if isinstance(row, dict))
+                if len(position_rows) < limit:
+                    break
+                offset += limit
+
+            winning_count = sum(1 for pnl in closed_pnl_by_market.values() if pnl > 0)
+            losing_count = sum(1 for pnl in closed_pnl_by_market.values() if pnl < 0)
+            today = datetime.now(timezone.utc).date().isoformat()
+            stale_open_position_count = sum(
+                1
+                for row in open_positions
+                if str(row.get("endDate") or "")[:10] < today
+            )
+            redeemable_position_count = sum(
+                1 for row in open_positions if bool(row.get("redeemable"))
+            )
+            open_position_value = sum(
+                float(row.get("currentValue") or 0.0) for row in open_positions
+            )
+            open_position_initial_value = sum(
+                float(row.get("initialValue") or 0.0) for row in open_positions
+            )
+            return PolymarketProfileTradeStats(
+                traded_count=traded_count,
+                closed_count=winning_count + losing_count,
+                winning_count=winning_count,
+                losing_count=losing_count,
+                open_position_count=len(open_positions),
+                stale_open_position_count=stale_open_position_count,
+                redeemable_position_count=redeemable_position_count,
+                open_position_value=round(open_position_value, 6),
+                open_position_initial_value=round(open_position_initial_value, 6),
+            )
+    except Exception as exc:
+        logger.warning("PM profile trade stats fetch failed: %s", exc)
         return None
 
 

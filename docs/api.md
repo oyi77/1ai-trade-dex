@@ -84,6 +84,16 @@ See `docs/operations/monitoring.md` for monitoring details.
 
 For live mode, `total_pnl` / `account_pnl` follow the public Polymarket account/profile PnL semantics when the upstream profile PnL API is available. `realized_pnl` remains the local settled-trade ledger PnL so realized and account-level PnL are not conflated.
 
+Live trade counts are split by source semantics:
+- In live mode, `total_trades` and nested `live.trades` prefer Polymarket Data API `/traded`, matching the public profile "Predictions" / markets-traded count.
+- Live `win_rate` and `live.wins` prefer profile-level closed-market outcomes grouped from Data API `/closed-positions`; multiple closed position rows for one market are summed before win/loss classification.
+- `live_profile_traded_count` / `live.profile_traded_count`, `live_profile_closed_count` / `live.profile_closed_count`, and `live_profile_winning_count` / `live.profile_winning_count` expose those profile values explicitly.
+- `open_trades` / `live.open_trades` and `open_exposure` / `live.open_exposure` prefer Polymarket `/positions` open-position count and current value in live mode.
+- `live.profile_stale_open_count` counts profile open positions whose `endDate` is before today, and `live.profile_redeemable_count` counts open positions already marked redeemable by Polymarket.
+- `live.ledger_trades`, `live.ledger_wins`, `live.ledger_open_trades`, and `live.ledger_open_exposure` expose local `Trade` ledger-row diagnostics only.
+
+Redeemable Polymarket positions can be cleaned up manually with `POST /api/v1/redeem?dry_run=true|false`. The same redemption path can run automatically from the scheduler when `AUTO_REDEEM_ENABLED=True`; it defaults to `AUTO_REDEEM_DRY_RUN=True`, runs every `AUTO_REDEEM_INTERVAL_SECONDS` (default 3600s), and uses `POLYMARKET_BUILDER_ADDRESS`/`POLYMARKET_WALLET_ADDRESS` plus `POLYMARKET_PRIVATE_KEY`. Set `AUTO_REDEEM_DRY_RUN=False` only when live on-chain/relayer redemption should actually submit transactions.
+
 The nested `paper`, `testnet`, and `live` objects expose the same `available_balance`, `total_balance`, `realized_pnl`, and `account_pnl` fields per mode.
 
 ## Trade Control Room Endpoints

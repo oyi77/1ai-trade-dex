@@ -834,6 +834,64 @@ async def auto_trader_job(mode: str):
         log_event("error", f"auto_trader_job error: {e}")
 
 
+async def auto_redeem_job() -> None:
+    """Automatically redeem resolved Polymarket positions when explicitly enabled."""
+    from backend.core.scheduler import log_event
+
+    if not getattr(settings, "AUTO_REDEEM_ENABLED", False):
+        return
+
+    wallet = (
+        getattr(settings, "POLYMARKET_BUILDER_ADDRESS", None)
+        or getattr(settings, "POLYMARKET_WALLET_ADDRESS", None)
+        or ""
+    )
+    private_key = getattr(settings, "POLYMARKET_PRIVATE_KEY", None) or ""
+
+    if not wallet or not private_key:
+        log_event(
+            "warning",
+            "Auto-redeem skipped: POLYMARKET_BUILDER_ADDRESS/POLYMARKET_WALLET_ADDRESS or POLYMARKET_PRIVATE_KEY not set",
+        )
+        return
+
+    dry_run = bool(getattr(settings, "AUTO_REDEEM_DRY_RUN", True))
+    timeout_seconds = float(getattr(settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 120.0))
+
+    try:
+        from backend.core.auto_redeem import redeem_all_redeemable
+
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                redeem_all_redeemable,
+                wallet=wallet,
+                private_key=private_key,
+                builder_api_key=getattr(settings, "POLYMARKET_BUILDER_API_KEY", None),
+                builder_secret=getattr(settings, "POLYMARKET_BUILDER_SECRET", None),
+                builder_passphrase=getattr(settings, "POLYMARKET_BUILDER_PASSPHRASE", None),
+                dry_run=dry_run,
+            ),
+            timeout=timeout_seconds,
+        )
+        status = "dry-run" if dry_run else "executed"
+        log_event(
+            "info",
+            f"Auto-redeem {status}: attempted={result.total_attempted} redeemed={result.total_redeemed} failed={result.total_failed}",
+            {
+                "attempted": result.total_attempted,
+                "redeemed": result.total_redeemed,
+                "failed": result.total_failed,
+                "dry_run": dry_run,
+                "errors": result.errors,
+            },
+        )
+    except asyncio.TimeoutError:
+        log_event("error", f"Auto-redeem timed out after {timeout_seconds:.0f}s")
+    except Exception as e:
+        log_event("error", f"Auto-redeem failed: {e}")
+        logger.exception("auto_redeem_job failed")
+
+
 async def heartbeat_job():
     """Periodic heartbeat. Runs every minute."""
     from backend.core.scheduler import log_event

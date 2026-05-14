@@ -58,7 +58,7 @@ The trading engine — execution routing, risk management, settlement, circuit b
 | File | Description |
 |------|-------------|
 | `scheduler.py` | APScheduler instance and job registration; queue-worker mode keeps `settlement_check` scheduled directly until a periodic queue producer exists so live exposure can be released reliably |
-| `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `strategy_cycle_job`, etc.; DB sessions must stay short and never remain open across awaited network calls |
+| `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `auto_redeem_job`, `strategy_cycle_job`, etc.; DB sessions must stay short and never remain open across awaited network calls |
 | `task_manager.py` | Async task lifecycle management |
 
 ### Infrastructure
@@ -126,6 +126,7 @@ Jobs are registered in `scheduler.py` and implemented in `scheduling_strategies.
 - `bankroll_allocation_job` — daily capital allocation
 - `heartbeat_job` — system health heartbeat
 - `market_universe_scan_job` — market discovery
+- `auto_redeem_job` — optional Polymarket redeemable-position cleanup; gated by `AUTO_REDEEM_ENABLED` and dry-run by default
 
 ### Testing Requirements
 - Use in-memory SQLite and stub `apscheduler` (see `tests/conftest.py`)
