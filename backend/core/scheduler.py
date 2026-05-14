@@ -426,6 +426,7 @@ def start_scheduler():
         id="settlement_check",
         max_instances=1,
         replace_existing=True,
+        misfire_grace_time=60,
     )
 
     # Heartbeat every minute

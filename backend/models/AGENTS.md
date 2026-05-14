@@ -57,7 +57,7 @@ SQLAlchemy ORM models, session factory, and database connection management. All 
 - **Schema changes require an Alembic migration** — run `alembic revision --autogenerate -m "description"` then `alembic upgrade head`. Never modify existing migration files.
 - **`botstate_mutex` must be imported and used for all BotState read-modify-write operations** — it is defined in `database.py` and exported for use in `core/`. See `backend/core/AGENTS.md` for the pattern.
 - **`BotState` is a singleton** — there is exactly one row. Always query with `.first()` and guard against `None`.
-- **`for_update()` is a helper for `SELECT FOR UPDATE`** — use it when acquiring a row lock inside a mutex-protected block.
+- **`for_update()` is a helper for bounded `SELECT FOR UPDATE`** — use it when acquiring a row lock inside a mutex-protected block. On PostgreSQL it applies transaction-local `lock_timeout`/`statement_timeout` before locking so stale transactions fail fast instead of starving scheduler jobs.
 - **`Trade` rows are append-only** — never mutate historical trade records to explain rejected attempts. Use `TradeAttempt` instead (ADR-003).
 - `StrategyConfig.enabled` is the authoritative enabled/disabled flag — the AGI health check writes to this column; do not bypass it.
 

@@ -100,11 +100,38 @@ Base = declarative_base()
 botstate_mutex = asyncio.Lock()
 
 
+POSTGRES_LOCK_TIMEOUT = "5s"
+POSTGRES_STATEMENT_TIMEOUT = "30s"
+
+
+def _apply_postgres_lock_timeouts(session) -> None:
+    """Bound lock waits inside the current PostgreSQL transaction.
+
+    Long-running scheduler jobs share the same AsyncIOScheduler event loop. If
+    a stale PostgreSQL transaction holds the singleton BotState row, waiting
+    indefinitely on SELECT ... FOR UPDATE can starve unrelated jobs such as
+    settlement checks. SET LOCAL scopes these limits to the active transaction:
+    the lock wait fails fast and rollback clears the settings, while SQLite and
+    other dialects keep their existing no-op behavior.
+    """
+    if session.get_bind().dialect.name != "postgresql":
+        return
+
+    session.execute(
+        text(
+            "SET LOCAL "
+            f"lock_timeout = '{POSTGRES_LOCK_TIMEOUT}', "
+            f"statement_timeout = '{POSTGRES_STATEMENT_TIMEOUT}'"
+        )
+    )
+
+
 def for_update(session, query):
     """Add FOR UPDATE clause on PostgreSQL. No-op on SQLite/MySQL.
 
-    Uses a blocking FOR UPDATE (without NOWAIT) so concurrent strategy jobs
-    wait for the lock instead of immediately raising OperationalError.  The
+    Uses a bounded blocking FOR UPDATE (without NOWAIT) so concurrent strategy
+    jobs can wait briefly for the lock instead of immediately raising
+    OperationalError or hanging behind stale transactions.  The
     previous NOWAIT behaviour caused a cascade: the lock loser raised
     OperationalError whose message contained SQLAlchemy bind-param dicts like
     ``{'mode_1': 'paper'}``; loguru then tried to format that string and
@@ -114,6 +141,7 @@ def for_update(session, query):
     patterns on BotState to prevent lost updates under concurrent async access.
     """
     if session.get_bind().dialect.name == "postgresql":
+        _apply_postgres_lock_timeouts(session)
         return query.with_for_update()
     return query
 
