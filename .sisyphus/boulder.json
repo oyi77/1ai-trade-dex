@@ -1,0 +1,201 @@
+{
+  "active_plan": "/home/openclaw/projects/1ai-poly-trader/.sisyphus/plans/polyedge-improvements.md",
+  "started_at": "2026-05-13T18:43:38.270Z",
+  "session_ids": [
+    "ses_1de2597cfffeYG6T5zbG7jLLmz"
+  ],
+  "session_origins": {
+    "ses_1de2597cfffeYG6T5zbG7jLLmz": "direct"
+  },
+  "plan_name": "polyedge-improvements",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Add `SideLockError` and `check_side_lock()` to RiskManager**",
+      "session_id": "ses_1dd58a9baffeEJqzWdj6IDb3fX",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T18:47:38.664Z"
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "**Add `EdgeFilterError` and `check_edge()` to RiskManager**",
+      "session_id": "ses_1dd5518b5ffeH8VT4VOCzrEr3j",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T18:48:22.604Z"
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "**Add `MIN_EDGE_PP` config and wire `check_edge()` into `validate_trade()`**",
+      "session_id": "ses_1dd5428edffeZWQVwL9b7Bk8WC",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T18:58:47.505Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "**Add `check_strategy_performance()` to circuit_breaker.py**",
+      "session_id": "ses_1dd4ac957ffeXG8oYIH8ThWh12",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:00:29.010Z"
+    },
+    "todo:6": {
+      "task_key": "todo:6",
+      "task_label": "6",
+      "task_title": "**Test: `test_side_lock.py` — RED phase (must FAIL before side lock impl)**",
+      "session_id": "ses_1dd48289dfferFG1ZcvD6CcmVX",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:03:54.182Z"
+    },
+    "todo:7": {
+      "task_key": "todo:7",
+      "task_label": "7",
+      "task_title": "**Add `get_bucket_win_rate()` to calibration.py**",
+      "session_id": "ses_1dd4549f8ffejgEu1FhAinRjjR",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:06:22.796Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "**Add `kelly_fraction()` with Quarter-Kelly to calibration.py**",
+      "session_id": "ses_1dd437aa7ffeTtfucqnMmRdXje",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:08:12.219Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "**Replace btc_oracle static Kelly with `calibration.kelly_fraction()`**",
+      "session_id": "ses_1dd3f5a1affeuKpDkmQvMEKRoH",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:13:39.291Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "**Test: `test_edge_filter.py` — RED phase (must FAIL before T2-T3 impl)**",
+      "session_id": "ses_1dd36b505ffehO8jJ1XZd0MBxc",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:21:35.243Z"
+    },
+    "todo:11": {
+      "task_key": "todo:11",
+      "task_label": "11",
+      "task_title": "**Test: `test_bucket_kelly.py` — RED phase (must FAIL before T7-T8 impl)**",
+      "session_id": "ses_1dd33cba0ffeUx247hePW00Kpr",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:24:35.059Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "**Add `TokenBucketRateLimiter` class in order_executor.py**",
+      "session_id": "ses_1dd324322ffe32ezoXViPxhsok",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:26:15.562Z"
+    },
+    "todo:13": {
+      "task_key": "todo:13",
+      "task_label": "13",
+      "task_title": "**Add maker-first execution: limit order → 15s wait → taker escalation**",
+      "session_id": "ses_1dd30bdb5ffeam24UD71IDlbhw",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:34:58.394Z"
+    },
+    "todo:14": {
+      "task_key": "todo:14",
+      "task_label": "14",
+      "task_title": "**Integrate TokenBucketRateLimiter into strategy_executor.py**",
+      "session_id": "ses_1dd272f77ffe6tF1iD1cgi0DWZ",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:38:44.642Z"
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "**Test: `test_token_bucket.py` — RED phase (must FAIL before T12 impl)**",
+      "session_id": "ses_1dd25ce20ffeYLRSLk2u1nmel8",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:47:11.172Z"
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "**Test: `test_maker_first.py` — RED phase (must FAIL before T13 impl)**",
+      "session_id": "ses_1dd1e3f2bffeB65y8Ip5wN2qxW",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:53:01.200Z"
+    },
+    "todo:17": {
+      "task_key": "todo:17",
+      "task_label": "17",
+      "task_title": "**Create `position_monitor.py` with stale-position scan logic**",
+      "session_id": "ses_1dd18de58ffe70zbyF5IOyhkrS",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T19:57:29.239Z"
+    },
+    "todo:18": {
+      "task_key": "todo:18",
+      "task_label": "18",
+      "task_title": "**Add APScheduler job for position_monitor in scheduler.py**",
+      "session_id": "ses_1dd14ce1cffePupx1Y71T5VOYz",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T20:13:23.990Z"
+    },
+    "todo:19": {
+      "task_key": "todo:19",
+      "task_label": "19",
+      "task_title": "**Create `scripts/close_stale_positions.py` with --dry-run + --execute**",
+      "session_id": "ses_1dd049b0dffe3XhhjpHyhW6yHP",
+      "agent": "Sisyphus-Junior",
+      "updated_at": "2026-05-13T20:51:45.637Z"
+    },
+    "todo:20": {
+      "task_key": "todo:20",
+      "task_label": "20",
+      "task_title": "**Test: `test_position_monitor.py` — RED phase (must FAIL before T17 impl)**",
+      "session_id": "ses_1dce2aa1efferwGmu80Rd7z1sF",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T20:57:31.104Z"
+    },
+    "todo:21": {
+      "task_key": "todo:21",
+      "task_label": "21",
+      "task_title": "**Integration test: `close_stale_positions.py` script end-to-end**",
+      "session_id": "ses_1dcd32ec7ffewiUxE4Qm8hFXco",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-13T21:15:51.343Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_1dc53a574ffeYYfSq9t4fpPi7l",
+      "agent": "Sisyphus-Junior",
+      "updated_at": "2026-05-13T23:43:02.957Z"
+    }
+  }
+}

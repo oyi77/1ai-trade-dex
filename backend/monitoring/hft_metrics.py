@@ -56,6 +56,11 @@ hft_open_positions = Gauge(
     ["strategy"]
 )
 
+maker_fill_rate = Counter(
+    "maker_fill_rate", "Maker-first order fill outcomes",
+    ["market_id", "filled"]
+)
+
 
 def record_signal(strategy: str, signal_type: str):
     hft_signals_total.labels(strategy=strategy, signal_type=signal_type).inc()
@@ -82,6 +87,17 @@ def record_arb(type_: str, profit: float):
 def record_whale(action: str, size: float):
     bucket = "large" if size > 100000 else "medium" if size > 50000 else "small"
     hft_whale_activities.labels(action=action, size_bucket=bucket).inc()
+
+
+def record_maker_fill_rate(market_id: str, filled: bool) -> None:
+    """Record whether a maker-first order was filled at maker price or escalated to taker."""
+    try:
+        maker_fill_rate.labels(
+            market_id=market_id or "unknown",
+            filled="true" if filled else "false",
+        ).inc()
+    except Exception:
+        logger.exception("[HFT Metrics] Failed to record maker_fill_rate")
 
 
 def get_hft_summary() -> dict:

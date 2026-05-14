@@ -13,6 +13,8 @@ from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
 from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
+from backend.core.errors import RateLimitError
+from backend.core.external_rate_limiter import TokenBucketRateLimiter
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
 from sqlalchemy import case, func, or_, update
@@ -28,6 +30,23 @@ _trade_locks: dict[str, asyncio.Lock] = {}
 _trade_locks_mutex = asyncio.Lock()
 MAX_CONCURRENT_TRADES = 3
 _trade_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRADES)
+
+_rate_limiter: Optional[TokenBucketRateLimiter] = None
+
+
+def _get_rate_limiter() -> TokenBucketRateLimiter:
+    """Lazily instantiate the global rate limiter."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        from backend.config import settings
+
+        _rate_limiter = TokenBucketRateLimiter(
+            per_market_limit=int(getattr(settings, "ORDER_RATE_LIMIT_PER_MARKET", 1)),
+            per_market_window=10.0,
+            global_limit=int(getattr(settings, "ORDER_RATE_LIMIT_GLOBAL", 3)),
+            global_window=1.0,
+        )
+    return _rate_limiter
 
 # Threading lock for BotState mutations inside thread-offloaded execution.
 # Used instead of asyncio.Lock when running in a thread pool.
@@ -676,6 +695,17 @@ async def execute_decision(
     Live CLOB paths acquire locks on event loop then call CLOB async.
     """
     asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
+    market_id = str(asset_key)
+
+    # Rate limit check
+    try:
+        _get_rate_limiter().acquire(market_id)
+    except RateLimitError:
+        logger.warning(
+            "[execute_decision] Rate limit exceeded for {} — skipping trade", market_id
+        )
+        return None
+
     asset_lock = await _get_asset_lock(str(asset_key))
     async with _trade_semaphore:
         async with asset_lock:
@@ -722,6 +752,170 @@ async def execute_decision(
                         _MAX_LOCK_RETRY_ATTEMPTS,
                     )
                     await asyncio.sleep(delay)
+
+
+# Maker-first execution config (overridable via settings).
+MAKER_WAIT_SECONDS = float(getattr(settings, "MAKER_WAIT_SECONDS", 15.0))
+MAKER_POLL_INTERVAL_SECONDS = float(getattr(settings, "MAKER_POLL_INTERVAL_SECONDS", 2.0))
+MAKER_FIRST_ENABLED = bool(getattr(settings, "MAKER_FIRST_ENABLED", True))
+
+
+async def _maker_first_execute(
+    clob,
+    token_id: str,
+    side: str,
+    price: float,
+    size: float,
+    strategy_name: str,
+    mode: str,
+    market_ticker: str,
+):
+    """Execute an order maker-first with taker escalation.
+
+    Workflow:
+      1. Place maker (GTC limit) order at `price`.
+      2. Poll `get_open_orders` up to MAKER_WAIT_SECONDS; if order is no
+         longer in the open-orders set, treat as filled.
+      3. If still open after the wait, cancel and submit the remaining size
+         as a taker (IOC) order crossing the spread.
+
+    Returns the *terminal* OrderResult-like object that callers should treat
+    as the final fill (with attributes `success`, `order_id`, `fill_price`,
+    `fill_size`, `error`). When taker escalation runs, fill_size is the
+    cumulative amount filled across both legs.
+    """
+    from types import SimpleNamespace
+
+    maker_result = await clob.place_limit_order(
+        token_id=token_id,
+        side=side,
+        price=price,
+        size=size,
+        order_type="GTC",
+    )
+    if not maker_result.success:
+        logger.warning(
+            f"[{mode.upper()}][{strategy_name}] Maker order rejected for {market_ticker}: "
+            f"{maker_result.error}"
+        )
+        return maker_result
+
+    maker_filled = float(getattr(maker_result, "fill_size", 0.0) or 0.0)
+    maker_fill_price = getattr(maker_result, "fill_price", None) or price
+    maker_order_id = maker_result.order_id
+
+    # Fully filled on placement → no wait needed.
+    if maker_filled >= size - 1e-9:
+        logger.info(
+            f"[{mode.upper()}][{strategy_name}] Maker order fully filled on placement: "
+            f"{maker_order_id} ({maker_filled:.4f}@{maker_fill_price:.4f})"
+        )
+        return maker_result
+
+    logger.info(
+        f"[{mode.upper()}][{strategy_name}] Maker order resting ({maker_order_id}); "
+        f"waiting up to {MAKER_WAIT_SECONDS:.1f}s for fill"
+    )
+
+    waited = 0.0
+    while waited < MAKER_WAIT_SECONDS:
+        await asyncio.sleep(MAKER_POLL_INTERVAL_SECONDS)
+        waited += MAKER_POLL_INTERVAL_SECONDS
+        try:
+            open_orders = await clob.get_open_orders()
+        except Exception as poll_err:
+            logger.warning(
+                f"[{mode.upper()}][{strategy_name}] get_open_orders failed during maker wait: {poll_err}"
+            )
+            continue
+        still_open = any(
+            (o.get("id") or o.get("orderID") or o.get("order_id")) == maker_order_id
+            for o in (open_orders or [])
+        )
+        if not still_open:
+            logger.info(
+                f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} no longer open — treating as filled"
+            )
+            # Synthesize a filled result; broker confirms fill via settlement reconciliation.
+            return SimpleNamespace(
+                success=True,
+                order_id=maker_order_id,
+                fill_price=maker_fill_price,
+                fill_size=size,
+                error=None,
+            )
+
+    # Timed out — cancel and escalate to taker for remaining size.
+    logger.warning(
+        f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} unfilled after "
+        f"{MAKER_WAIT_SECONDS:.1f}s; cancelling and escalating to taker"
+    )
+    try:
+        cancelled = await clob.cancel_order(maker_order_id)
+        logger.info(
+            f"[{mode.upper()}][{strategy_name}] Cancel maker {maker_order_id}: success={cancelled}"
+        )
+    except Exception as cancel_err:
+        logger.error(
+            f"[{mode.upper()}][{strategy_name}] Cancel of maker {maker_order_id} failed: {cancel_err}"
+        )
+
+    remaining = size - maker_filled
+    if remaining <= 0:
+        return maker_result
+
+    # Cross the spread for taker IOC: BUY at price+1 tick, SELL at price-1 tick (capped to [0.01, 0.99]).
+    tick = 0.01
+    if side.upper() == "BUY":
+        taker_price = min(0.99, price + tick)
+    else:
+        taker_price = max(0.01, price - tick)
+
+    logger.info(
+        f"[{mode.upper()}][{strategy_name}] Escalating to taker IOC: "
+        f"size={remaining:.4f} @ {taker_price:.4f}"
+    )
+    taker_result = await clob.place_limit_order(
+        token_id=token_id,
+        side=side,
+        price=taker_price,
+        size=remaining,
+        order_type="FAK",  # Fill-and-Kill (IOC) — taker
+    )
+    if not taker_result.success:
+        logger.error(
+            f"[{mode.upper()}][{strategy_name}] Taker escalation rejected: {taker_result.error}"
+        )
+        # Preserve any maker-leg fill in the returned error result.
+        if maker_filled > 0:
+            return SimpleNamespace(
+                success=True,
+                order_id=maker_order_id,
+                fill_price=maker_fill_price,
+                fill_size=maker_filled,
+                error=f"Taker escalation rejected: {taker_result.error}",
+            )
+        return taker_result
+
+    taker_filled = float(getattr(taker_result, "fill_size", 0.0) or 0.0)
+    taker_fill_price = getattr(taker_result, "fill_price", None) or taker_price
+    total_filled = maker_filled + taker_filled
+
+    # Weighted-average fill price across legs.
+    if total_filled > 0:
+        avg_price = (
+            (maker_fill_price * maker_filled) + (taker_fill_price * taker_filled)
+        ) / total_filled
+    else:
+        avg_price = maker_fill_price
+
+    return SimpleNamespace(
+        success=True,
+        order_id=taker_result.order_id or maker_order_id,
+        fill_price=avg_price,
+        fill_size=total_filled,
+        error=None,
+    )
 
 
 async def _execute_decision_live_clob(
@@ -953,9 +1147,21 @@ async def _execute_decision_live_clob(
                     try:
                         async with context.clob_client as clob:
                             await clob.create_or_derive_api_key()
-                            result = await clob.place_limit_order(
-                                token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
-                            )
+                            if MAKER_FIRST_ENABLED:
+                                result = await _maker_first_execute(
+                                    clob,
+                                    token_id=token_id,
+                                    side="BUY",
+                                    price=entry_price,
+                                    size=adjusted_size,
+                                    strategy_name=strategy_name,
+                                    mode=mode,
+                                    market_ticker=market_ticker,
+                                )
+                            else:
+                                result = await clob.place_limit_order(
+                                    token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
+                                )
                         if result.success:
                             clob_order_id = result.order_id
                             fill_price = result.fill_price or fill_price

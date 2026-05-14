@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
-from collections import defaultdict
 
 from backend.config import settings
 from backend.models.database import (
@@ -431,46 +430,6 @@ async def settle_trades_endpoint(
 # ============================================================================
 
 
-@router.get("/calibration")
-async def get_calibration(
-    db: Session = Depends(get_db),
-):
-    """Return calibration data: predicted probability vs actual win rate."""
-    signals = db.query(Signal).filter(Signal.outcome_correct.isnot(None)).all()
-
-    if not signals:
-        return {"buckets": [], "summary": None}
-
-    # Bucket signals by model_probability into 5% bins
-
-    buckets_data = defaultdict(lambda: {"predicted_sum": 0.0, "correct": 0, "total": 0})
-
-    for s in signals:
-        # Bin by 5% increments
-        bin_start = int(s.model_probability * 100 // 5) * 5
-        bin_end = bin_start + 5
-        bucket_key = f"{bin_start}-{bin_end}%"
-
-        buckets_data[bucket_key]["predicted_sum"] += s.model_probability
-        buckets_data[bucket_key]["total"] += 1
-        if s.outcome_correct:
-            buckets_data[bucket_key]["correct"] += 1
-
-    buckets = []
-    for bucket_key in sorted(buckets_data.keys()):
-        d = buckets_data[bucket_key]
-        buckets.append(
-            CalibrationBucket(
-                bucket=bucket_key,
-                predicted_avg=d["predicted_sum"] / d["total"],
-                actual_rate=d["correct"] / d["total"],
-                count=d["total"],
-            )
-        )
-
-    summary = _compute_calibration_summary(db)
-
-    return {"buckets": buckets, "summary": summary}
 
 
 # ============================================================================
