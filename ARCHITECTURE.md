@@ -380,6 +380,56 @@ These scheduler-run daemons implement the complete experiment lifecycle without 
 
 ---
 
+## Execution Path Invariants (Critical Architecture Rules)
+
+**IMPORTANT:** These rules prevent systems-level bugs that affect multiple execution paths simultaneously.
+
+### Rule 1: Duplicate Position Prevention [EXEC-1]
+
+**Requirement:** Every executor's `execute*()` method MUST check for existing open positions before opening new trades.
+
+**Why:** Without this check, the system opens multiple positions on the same market when rapid signals arrive, burning capital through duplicate commission/slippage (observed in production: 15 positions = $500 vs 1 position = $50).
+
+**Applies to:**
+- `HFTExecutor.execute()` ✓ (fixed 2026-05-15)
+- `AutoTrader.execute_signal()` ✓ (fixed 2026-05-15)
+- `StrategyExecutor.execute()` ✓ (already has check)
+
+**Implementation:**
+```python
+# At START of execute*() method, before any trade logic:
+existing = db.query(Trade).filter(
+    Trade.market_id == signal.market_id,
+    Trade.event_slug == signal.event_slug,
+    Trade.settled == False,
+    Trade.trading_mode == TRADING_MODE
+).first()
+
+if existing:
+    logger.info(f"Duplicate position blocked: {existing.id} still open")
+    return cancelled_or_rejected_result
+```
+
+**Testing:** All executor classes must pass:
+```python
+def test_duplicate_position_blocked(executor):
+    result1 = executor.execute(signal, 1000)
+    assert result1.success
+    
+    result2 = executor.execute(signal, 1000)  # Same signal
+    assert not result2.success
+    assert "duplicate" in result2.error.lower()
+```
+
+**Why This Matters for AGI:** This rule prevents a class of bugs that AGI alone cannot catch:
+- **Split execution paths:** 3 different `execute()` methods, only 1 originally had the check
+- **Implicit assumptions:** No written requirement saying "all execute() must check duplicates"
+- **Cross-file consistency:** Rule applies across multiple files independently
+
+See [PREVENTION_FRAMEWORK.md](docs/PREVENTION_FRAMEWORK.md) for full analysis.
+
+---
+
 ## Key Configuration
 
 All configuration via environment variables (see `.env.example`):

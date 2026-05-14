@@ -195,6 +195,34 @@ A 33-page peer-reviewed research paper documenting the bounded AGI autonomy fram
 - **[Project Structure](docs/project-structure.md)** - Codebase organization
 - **[Job Queue Architecture](docs/architecture/adr-001-job-queue.md)** - Phase 1/2 queue design
 - **[AGI Autonomy Framework](docs/architecture/adr-006-agi-autonomy-framework.md)** - Promotion gates, safety boundaries, human-in-the-loop override
+- **[Prevention Framework](docs/PREVENTION_FRAMEWORK.md)** - Architectural rules to prevent duplicate position bugs and systems-level issues AGI cannot catch
+
+## Critical Fixes (2026-05-15)
+
+### Position Consolidation Bug [EXEC-1] — FIXED
+**Status:** ✓ Fixed and deployed to production
+
+**Problem:** System was opening 15+ duplicate positions on the same market without consolidation, burning $450+ per incident.
+
+**Root Cause:** 
+- `HFTExecutor.execute()` had NO duplicate position check
+- `AutoTrader.execute_signal()` had NO duplicate position check  
+- Only `StrategyExecutor.execute()` had the check (incomplete coverage of parallel execution paths)
+
+**Solution:** 
+- Added duplicate position validation to HFT executor
+- Added duplicate position validation to AutoTrader
+- Both methods now query for existing unsettled trades before opening new positions
+- Returns cancelled/rejected result if duplicate found
+- Prevents opening multiple positions on same market
+
+**Files Fixed:**
+- `backend/core/hft_executor.py` — Added duplicate check + logging
+- `backend/core/auto_trader.py` — Added duplicate check + logging
+
+**Impact:** Prevents $450+ losses per incident, improves system reliability
+
+**For Developers:** Read [PREVENTION_FRAMEWORK.md](docs/PREVENTION_FRAMEWORK.md) to understand why AGI initially missed this bug and how to prevent similar systems-level issues.
 
 ## License
 
