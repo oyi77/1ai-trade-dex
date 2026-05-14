@@ -135,4 +135,95 @@ MiroFish debate system is now fully enabled and production-ready:
 - Comprehensive health monitoring with latency and error rate tracking
 - Integration with market question routing for trade decision support
 
+---
+
+## Architectural Rules & Invariants
+
+These rules are enforced to prevent system-level bugs that AGI alone cannot catch (e.g., split execution paths, implicit assumptions).
+
+### Rule 1: Execution Path Consistency
+
+**Requirement:** Every class with `execute*()` method MUST check for duplicate positions before opening a new trade.
+
+**Why:** Prevents opening multiple positions on same market without consolidation (see [EXEC-1] bug fix).
+
+**Applies to:**
+- `backend/core/hft_executor.py::HFTExecutor.execute()`
+- `backend/core/auto_trader.py::AutoTrader.execute_signal()`
+- `backend/core/strategy_executor.py::StrategyExecutor.execute()`
+
+**Implementation Pattern:**
+```python
+# At start of execute*() method, before any trade logic:
+existing = db.query(Trade).filter(
+    Trade.market_id == signal.market_id,
+    Trade.event_slug == signal.event_slug,
+    Trade.settled == False,
+    Trade.trading_mode == mode
+).first()
+
+if existing:
+    logger.info(f"Duplicate position blocked: {existing.id} still open")
+    return rejected_or_cancelled_result
+```
+
+**Testing:** Every executor class MUST have a test:
+```python
+def test_duplicate_position_blocked(executor_class):
+    result1 = executor_class.execute(signal, bankroll)
+    assert result1.success
+    
+    result2 = executor_class.execute(signal, bankroll)  # Same signal
+    assert not result2.success
+    assert "duplicate" in result2.error.lower()
+```
+
+**Enforcement:**
+- Static check: `grep -l "def execute" backend/core/*.py | xargs -I {} sh -c 'grep -q "existing.*Trade\|duplicate" {} || echo "FAIL: {}"'`
+- Type check: `mypy --strict backend/core/hft_executor.py backend/core/auto_trader.py`
+- Test: Run `pytest -k duplicate_position` before deployment
+
+---
+
+## CI/CD Checks (Mandatory)
+
+Add to GitHub Actions workflow:
+
+```yaml
+- name: "Lint: Check all execute*() methods have duplicate checks"
+  run: |
+    for file in $(find backend/core -name "*.py" -exec grep -l "def execute" {} \;); do
+      if ! grep -q "existing.*Trade\|duplicate" "$file"; then
+        echo "FAIL: $file missing duplicate position check"
+        exit 1
+      fi
+    done
+
+- name: "Type: Strict mypy check"
+  run: mypy --strict backend/core/hft_executor.py backend/core/auto_trader.py
+
+- name: "Test: Duplicate position blocking"
+  run: pytest -k duplicate_position -v
+```
+
+---
+
+## Production Monitoring
+
+Add alerts for:
+
+1. **High Duplication Rate:** If >3 trades on same market per minute
+   ```python
+   trades_per_market = group_by(recent_trades, key="market_id")
+   for market, trades in trades_per_market.items():
+       if len(trades) > 3:
+           alert(f"HIGH_DUPLICATION: {market} has {len(trades)} trades/min")
+   ```
+
+2. **Undefined Method Errors:** Any `AttributeError: ... has no attribute ...` on execute paths
+   ```python
+   if "AttributeError" in log and "execute" in log:
+       alert("CRITICAL: Undefined method in execute path")
+   ```
+
 <!-- MANUAL: -->
