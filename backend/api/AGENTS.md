@@ -1,86 +1,59 @@
+# API LAYER
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
 
-# backend/api
+**Module**: `backend/api/` — FastAPI REST endpoints, 189 routes
 
-## Purpose
-FastAPI routers — all HTTP endpoints, WebSocket handlers, SSE streams, middleware, and the ASGI app factory. Modularized from a former monolithic `main.py`; see `docs/architecture/API_STRUCTURE.md` for the full modularization history.
+## PURPOSE
 
-## Key Files
+REST API layer: 189 endpoints across 10+ routers. FastAPI with CORS, lifespan-managed, Prometheus metrics.
 
-| File | Description |
-|------|-------------|
-| `main.py` | ASGI app factory — mounts all routers, CORS middleware, lifespan handler |
-| `lifespan.py` | FastAPI lifespan context — startup/shutdown hooks for scheduler, DB, Redis |
-| `auth.py` | Admin auth routes + `authorize_realtime_access()` — cookie session and legacy API key validation |
-| `dashboard.py` | Dashboard data endpoints — BotState, stats, equity |
-| `trading.py` | Trade management endpoints |
-| `markets.py` | Market data and discovery endpoints |
-| `admin.py` | Admin control endpoints — strategy enable/disable, mode switching |
-| `settings.py` | Settings read/write endpoints including risk profile |
-| `proposals.py` | Strategy improvement proposal endpoints |
-| `analytics.py` | Analytics and performance endpoints |
-| `backtest.py` | Backtesting endpoints |
-| `alerts.py` | Alert configuration and history endpoints |
-| `activities.py` | Activity log endpoints; uses a plain request-scoped session with rollback-on-close so read polling never commits or holds transactions open |
-| `brain.py` | AI brain / decision log endpoints |
-| `learning.py` | Online learning endpoints |
-| `arbitrage.py` | Arbitrage opportunity endpoints |
-| `copy_trading.py` | Copy trading monitor endpoints |
-| `market_intel.py` | Market intelligence endpoints |
-| `wallets.py` | Wallet management endpoints |
-| `sync.py` | Data sync endpoints |
-| `system.py` | System health and status endpoints |
-| `metrics_endpoint.py` | Prometheus metrics scrape endpoint |
-| `auto_trader.py` | Auto-trader control endpoints |
-| `agi_routes.py` | AGI experiment and genome endpoints |
-| `agi/kg_router.py` | Knowledge graph endpoints |
-| `events/sse_router.py` | SSE event stream — channel-aware, cookie-authenticated |
-| `websockets_routes.py` | WebSocket routes — secured with `authorize_realtime_access()` |
-| `ws_manager_v2.py` | WebSocket connection manager |
-| `errors.py` | Global exception handlers |
-| `validation.py` | Pydantic request/response models |
-| `versioning.py` | API versioning utilities |
-| `rate_limiter.py` | Per-IP rate limiting middleware |
-| `connection_limits.py` | WebSocket connection limit enforcement |
-| `timeout_middleware.py` | Request timeout middleware |
+## ENTRY POINT
 
-## For AI Agents
+`main.py` (2234 LOC) — FastAPI app entrypoint  
+Lifespan events: app startup/shutdown handlers  
+CORS: configured for cross-origin requests  
+Metrics: Prometheus instrumentation
 
-### Working In This Directory
-- **All new endpoints must be added to `docs/api.md`** — it is the authoritative REST API reference.
-- **Realtime auth is centralized in `auth.py:authorize_realtime_access()`** — wire all new SSE and WebSocket routes through it. Never add a new realtime endpoint that bypasses auth.
-- **SSE is the canonical realtime channel** — `events/sse_router.py` is the single SSE source. Do not add a second SSE endpoint in `websockets_routes.py` (this was a past bug, now fixed).
-- **Never import from `backend/strategies/` or `backend/core/` directly in routers** — routers call service/core functions, they do not instantiate strategies.
-- All routers use `prefix="/api/v1/..."` — maintain this convention for new routers. REST routes use `/api/v1/`, WebSocket routes use `/ws/`.
-- Request validation models live in `validation.py` — add new Pydantic models there, not inline in route handlers.
-- If a route queries the DB and then `await`s websocket/SSE broadcast or other network work, end the DB transaction first (commit/rollback or snapshot into plain dicts). Read-only polling endpoints should explicitly rollback before long awaits/returns when they use dependency-scoped sessions; do not leave request sessions idle-in-transaction during fan-out or dashboard polling.
+## ROUTE STRUCTURE
 
-### Adding a New Endpoint
-1. Add the route to the appropriate existing router file (or create a new one for a new domain)
-2. If creating a new router, register it in `main.py`
-3. Add Pydantic request/response models to `validation.py`
-4. Add the endpoint to `docs/api.md`
+| Router | Purpose | File | Endpoints |
+|--------|---------|------|-----------|
+| **auth** | Authentication, user management | auth.py (734 LOC) | ~15 |
+| **markets** | Market queries, CLOB data | markets.py | ~20 |
+| **trading** | Trade execution, history | trading.py | ~25 |
+| **copy_trading** | Leaderboard copy trading | copy_trading.py | ~15 |
+| **arbitrage** | Cross-exchange arbitrage | arbitrage.py | ~10 |
+| **market_intel** | AI signals, market analysis | market_intel.py | ~20 |
+| **auto_trader** | Automated strategy execution | auto_trader.py | ~15 |
+| **system** | Health checks, system status | system.py (2234 LOC) | ~20 |
+| **risk** | Risk management queries | risk.py | ~15 |
+| **admin** | Admin operations, settings | settings.py (928 LOC) | ~40 |
 
-### Testing Requirements
-- Use `TestClient(app)` from `fastapi.testclient`
-- Override `get_db` dependency with in-memory SQLite session
-- Test auth: verify 401 for unauthenticated requests to protected endpoints
-- Test SSE: verify `authorize_realtime_access()` is called
+## CRITICAL RULES
 
-### Common Patterns
-- Auth dependency: `admin: bool = Depends(require_admin)`
-- DB dependency: `db: Session = Depends(get_db)`
-- Emit SSE event: `await event_bus.emit(EventType.TRADE_EXECUTED, payload)`
+### Health Checks
+- `/api/v1/health` uses **bounded dependency checks**
+- Slow RPC calls degrade health, NOT hang requests
+- Tiered checks: fast → medium → slow (with timeouts)
 
-## Dependencies
+### Error Handling
+- Never bare `except Exception: pass`
+- Always `logger.exception("descriptive")` with request context
+- Return structured error responses (status codes + error details)
 
-### Internal
-- `backend.core` — business logic called by routers
-- `backend.models.database` — ORM models and `get_db`
-- `backend.config` — `settings`
+### Session Management
+- Use bounded DB sessions (no long-lived sessions)
+- Proper async/await (FastAPI native)
 
-### External
-- `fastapi` — routing, dependency injection, WebSocket
-- `pydantic` — request/response validation
-- `sqlalchemy` — DB session via `get_db`
+## ANTI-PATTERNS
+
+- ❌ Synchronous RPC calls in endpoints
+- ❌ Silent exceptions (logger.exception required)
+- ❌ No timeout on external API calls
+- ❌ Unbounded DB query results
+
+## TESTING
+
+```bash
+pytest backend/tests/ -k "api" -v
+```

@@ -1,69 +1,89 @@
+# FRONTEND DASHBOARD
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
 
-# frontend
+**Module**: `frontend/` — React 18 + TypeScript dashboard (23K LOC)
 
-## Purpose
-React 18 + TypeScript dashboard for monitoring and controlling the PolyEdge trading bot. Provides real-time trade feeds, strategy management, admin controls, AGI oversight, and market intelligence views. Built with Vite; deployed to Vercel.
+## PURPOSE
 
-## Key Files
+React dashboard for trading bot monitoring, strategy control, market intelligence. Real-time polling via configurable intervals. Vite build tool.
 
-| File | Description |
-|------|-------------|
-| `src/main.tsx` | App entry point — React root, query client setup |
-| `src/App.tsx` | Root component — routing, auth gate, layout |
-| `src/api.ts` | Axios client, WebSocket URL builder, all REST API calls |
-| `src/api/agi.ts` | AGI-specific API calls |
-| `src/types.ts` | Shared TypeScript interfaces for API response shapes |
-| `src/types/features.ts` | Feature-specific type definitions |
-| `src/polling.ts` | Polling interval constants (`POLL.FAST/NORMAL/SLOW/VERY_SLOW`) |
-| `src/utils/auth.ts` | CSRF token and legacy API key helpers |
-| `src/utils/retryFetch.ts` | Fetch wrapper with retry logic |
-| `src/contexts/ModeFilterContext.tsx` | Trading mode filter context (paper/live/shadow) |
-| `vite.config.ts` | Vite build configuration |
-| `package.json` | Node dependencies and scripts |
-| `playwright.config.ts` | E2E test configuration |
+## STRUCTURE
 
-## Subdirectories
+```
+frontend/src/
+├── components/      # 30+ React components
+│   ├── dashboard/   # Dashboard tabs (Overview, Markets, Whales)
+│   ├── admin/       # Settings, AITab, SettingsEditor
+│   └── ...
+├── pages/           # Page containers (Landing, LiveStream, MiroFish, etc.)
+├── hooks/           # Custom React hooks
+├── test/            # Vitest unit tests
+├── e2e/             # Playwright E2E tests
+├── api.ts           # Fetch client (1076 LOC, all API interactions)
+├── types.ts         # TypeScript types (350 LOC)
+├── polling.ts       # Configurable polling intervals
+├── App.tsx          # Root component
+├── main.tsx         # Vite entry point
+├── index.css        # Global styles
+└── contexts/, utils/  # Helpers
+```
 
-| Directory | Purpose |
-|-----------|---------|
-| `src/components/` | Reusable UI components (see `src/components/AGENTS.md`) |
-| `src/pages/` | Top-level page components — one per route |
-| `src/hooks/` | Custom React hooks — data fetching, WebSocket, SSE |
-| `src/test/` | Vitest unit tests and mocks |
-| `e2e/` | Playwright end-to-end tests |
+## KEY MODULES
 
-## For AI Agents
+| File | LOC | Purpose |
+|------|-----|---------|
+| `api.ts` | 1076 | Fetch client, all API interactions |
+| `pages/Landing.tsx` | 680 | Entry page, trading interface |
+| `pages/LiveStream.tsx` | 604 | Real-time trade stream |
+| `components/admin/SettingsTab.tsx` | 543 | Settings UI |
+| `components/TradeNotifications.tsx` | 531 | Trade alerts |
+| `pages/MiroFish.tsx` | 484 | MiroFish page |
+| `components/admin/SettingsEditor.tsx` | 451 | Settings editor |
+| `pages/WhaleTracker.tsx` | 410 | Whale tracking UI |
+| `components/dashboard/OverviewTab.tsx` | 423 | Dashboard overview |
+| `types.ts` | 350 | TypeScript types |
 
-### Working In This Directory
-- **Never append auth tokens to SSE/WS URLs** — realtime connections use cookie auth (`withCredentials: true`). The legacy `token=ADMIN_API_KEY` fallback is for backward compatibility only; new code must not rely on it.
-- **Use `POLL.*` constants from `src/polling.ts`** for all polling intervals — never hardcode millisecond values.
-- **API base URL is dynamic** — always use `API_BASE` from `src/api.ts`, never hardcode `localhost` or production URLs.
-- All data fetching uses `@tanstack/react-query`; use `useQuery`/`useMutation` patterns, not raw `useEffect` + `fetch`.
-- Feature flags from the backend are surfaced via the settings API — do not add frontend-only feature flags.
+## POLLING CONFIGURATION
 
-### Testing Requirements
-- Unit tests: `cd frontend && npm test` (Vitest)
-- E2E tests: `cd frontend && npx playwright test`
-- Test files live in `src/test/` (unit) and `e2e/` (E2E)
-- Mock API responses using `src/test/mocks.ts`
+Configurable intervals (see `polling.ts`):
 
-### Common Patterns
-- Data fetching: `useQuery({ queryKey: ['key'], queryFn: apiFn, refetchInterval: POLL.NORMAL })`
-- Mutations with cache invalidation: `useMutation({ mutationFn, onSuccess: () => queryClient.invalidateQueries(['key']) })`
-- WebSocket connections: use `useWebSocket` hook from `src/hooks/useWebSocket.ts`
-- SSE connections: use `useSSEEvents` hook from `src/hooks/useSSEEvents.ts`
+```typescript
+VITE_POLL_FAST_MS       // Fast polling (real-time trades)
+VITE_POLL_NORMAL_MS     // Normal polling (strategy updates)
+VITE_POLL_SLOW_MS       // Slow polling (market data)
+VITE_POLL_VERY_SLOW_MS  // Very slow polling (analytics)
+```
 
-## Dependencies
+## BUILD & DEPLOY
 
-### External
-- `react` 18 + `react-dom` — UI framework
-- `@tanstack/react-query` — server state management
-- `axios` — HTTP client
-- `framer-motion` — animations
-- `lucide-react` — icons
-- `recharts` — charting
-- `vite` — build tool
-- `vitest` — unit test runner
-- `@playwright/test` — E2E test runner
+```bash
+npm run dev        # Vite dev server
+npm run build      # Production build
+npm run test       # Vitest unit tests
+npm run e2e        # Playwright E2E tests
+```
+
+Build output: `frontend/dist/`
+
+## CONVENTIONS
+
+- Components use React hooks (no class components)
+- State management: React Context (see `contexts/`)
+- Async API calls: use `api.ts` fetch client
+- Tests: Vitest for unit tests, Playwright for E2E
+- TypeScript: strict mode required
+
+## ANTI-PATTERNS
+
+- ❌ Direct fetch calls outside `api.ts`
+- ❌ Long-lived polling intervals (respect server load)
+- ❌ Silent API errors (error logging required)
+- ❌ Non-memoized expensive components
+
+## TESTING
+
+```bash
+npm run test                     # Vitest
+npm run e2e                      # Playwright
+pytest frontend/e2e/            # If Python-based E2E exists
+```

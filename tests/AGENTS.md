@@ -1,69 +1,64 @@
+# TEST SUITE
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
 
-# tests
+**Module**: `tests/` — pytest test coverage (24 files)
 
-## Purpose
-Root-level integration tests for the PolyEdge backend. Tests here exercise cross-cutting concerns — API endpoints, settlement flows, signal parsing, WebSocket behavior, and AGI autonomous loop integration. Unit tests for individual modules live in `backend/tests/`.
+## PURPOSE
 
-## Key Files
+Python pytest test suite: strategy execution, settlement, reconciliation, API endpoints, reliability.
 
-| File | Description |
-|------|-------------|
-| `conftest.py` | Shared pytest fixtures — in-memory SQLite DB, apscheduler stubs, session factory |
-| `test_admin_api.py` | Admin API endpoint integration tests |
-| `test_agi_autonomous_loop.py` | AGI promotion/demotion lifecycle integration tests |
-| `test_backtest_data.py` | Backtest data validation tests |
-| `test_backtest_gate.py` | Backtest gate enforcement tests |
-| `test_clob.py` | CLOB API client tests |
-| `test_copy_trader.py` | Copy trader strategy tests |
-| `test_graceful_shutdown.py` | Graceful shutdown behavior tests |
-| `test_settlement.py` | Settlement flow integration tests |
-| `test_signal_engine.py` | Signal generation and routing tests |
-| `test_signal_parser.py` | AI signal parser tests |
-| `test_validation.py` | Input validation tests |
-| `test_ws_client.py` | WebSocket client tests |
-| `test_ws_reconnect.py` | WebSocket reconnection logic tests |
-| `verify_data_validation.py` | Data validation verification script (run manually) |
+## TEST STRUCTURE
 
-## Subdirectories
+| Test Category | Purpose | Files |
+|---------------|---------|-------|
+| **Strategy** | Strategy executor, logic | test_strategy_executor.py (1150 LOC) |
+| **Settlement** | Settlement, reconciliation | test_settlement_*.py |
+| **Reliability** | Error recovery, edge cases | reliability/ |
+| **API** | API endpoint tests | test_api_*.py |
+| **Unit** | Individual function tests | Various |
 
-| Directory | Purpose |
-|-----------|---------|
-| `fixtures/` | Static JSON fixtures — sample signals, trades, proposals, audit logs |
-| `load/` | Load and stress tests — WebSocket and rate limit testing |
-| `reliability/` | Error recovery and reliability tests |
+## KEY TEST FILES
 
-## For AI Agents
+- `test_strategy_executor.py` (1150 LOC) — Executor tests (largest)
+- `test_queue/` — Job queue tests
+- `reliability/` — Error recovery tests
+- `SHUTDOWN_TEST_RESULTS.md` — Recent test run results
+- `TASK_32_COMPLETION.md` — Test completion tracking
 
-### Working In This Directory
-- **Always use in-memory SQLite for test isolation** — `conftest.py` provides `TestSessionLocal`; never connect to the production DB in tests.
-- **Stub `apscheduler` and `backend.core.scheduler` before importing the app** — the scheduler starts background jobs on import; tests that skip this stub will hang or fail. See `conftest.py` for the pattern.
-- **Never run tests with live API credentials** — set `SHADOW_MODE=true` and mock external API calls.
-- Load tests in `load/` are not part of the standard `pytest` run — execute them manually against a running instance.
-- `verify_*.py` scripts are manual verification tools, not pytest tests — run them explicitly, not via `pytest`.
+## CONVENTIONS
 
-### Testing Requirements
-- Run all tests: `pytest` from project root
-- Run a specific file: `pytest tests/test_settlement.py -v`
-- Run with coverage: `pytest --cov=backend`
-- Load tests: `python tests/load/websocket_load_test.py` (requires running server)
+- Fixtures: pytest `conftest.py` for shared setup
+- Markers: `@pytest.mark.slow` for long tests
+- Mocking: mock external APIs (Polymarket, Kalshi)
+- Database: isolated test DB (not production)
+- Assertions: descriptive assertion messages
 
-### Common Patterns
-- Use `TestClient(app)` from `fastapi.testclient` for API tests
-- Override DB dependency: `app.dependency_overrides[get_db] = lambda: TestSessionLocal()`
-- Mock external calls: `@patch("backend.data.gamma.GammaClient.get_markets")`
-- Async tests: mark with `@pytest.mark.asyncio`
+## CRITICAL TESTS
 
-## Dependencies
+- Settlement transaction rollback scenarios
+- Stale position handling (closed_unresolved state)
+- Auto-kill strategy governance (win rate <30%)
+- Health check timeout handling
 
-### Internal
-- `backend.api.main` — FastAPI app under test
-- `backend.models.database` — ORM models and Base for schema creation
-- `conftest.py` — shared fixtures
+## RUNNING TESTS
 
-### External
-- `pytest` — test runner
-- `pytest-asyncio` — async test support
-- `fastapi.testclient` — ASGI test client
-- `unittest.mock` — mocking utilities
+```bash
+pytest tests/ -v                              # All tests
+pytest tests/test_strategy_executor.py -v    # Executor tests
+pytest tests/ -m slow -v                      # Long tests
+pytest tests/ -k "settlement" -v              # Settlement tests
+pytest tests/ --tb=short                      # Short traceback
+```
+
+## ANTI-PATTERNS
+
+- ❌ Tests without mocking external APIs
+- ❌ Tests that use production database
+- ❌ Flaky tests with timing dependencies
+- ❌ No teardown (leaves test data)
+
+## NOTES
+
+- See test_results.txt for recent runs
+- E2E tests in frontend/e2e/ (Playwright)
+- Non-blocking E2E: Playwright tests use `|| true` in CI (failures don't break build)

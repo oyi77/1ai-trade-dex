@@ -1,229 +1,155 @@
-<!-- Generated: 2026-04-10 | Updated: 2026-05-09 -->
+# PROJECT KNOWLEDGE BASE
 
-# polyedge
+**Generated:** 2026-05-14 20:53:49 UTC  
+**Commit:** 0fa0dbb  
+**Branch:** main
 
-## Purpose
-Polyedge is a full-stack automated prediction market trading bot targeting Polymarket and Kalshi. It combines AI-powered signal generation, multi-strategy execution, real-time market data aggregation, and a React dashboard for monitoring and control. The system supports paper trading (shadow mode), live trading with risk controls, and comprehensive backtesting.
+## OVERVIEW
 
-## Key Files
+**PolyEdge**: Automated prediction market trading bot (Polymarket + Kalshi). 187K LOC Python backend + 23K LOC TypeScript frontend. Combines AI-powered signals, 12+ trading strategies, evolutionary AGI composition, real-time market data, and React dashboard with bounded autonomy.
 
-| File | Description |
-|------|-------------|
-| `main.py` | Entry point redirect — prints message to use `python run.py` instead |
-| `run.py` | True application entry point — starts FastAPI server and background workers |
-| `requirements.txt` | Python package dependencies |
-| `docker-compose.yml` | Multi-service container setup (app + Redis) |
-| `Dockerfile` | Backend container build |
-| `ecosystem.config.js` | PM2 process manager configuration for production (removed mirofish-mock process) |
-| `railway.json` | Railway.app deployment configuration |
-| `vercel.json` | Vercel edge configuration for frontend |
-| `pytest.ini` | Test runner configuration |
-| `.env.example` | Required environment variable template |
-| `ARCHITECTURE.md` | High-level system architecture overview |
-| `README.md` | Project overview and setup guide |
-| `POLYMARKET_SETUP.md` | Polymarket API credential setup guide |
-| `IMPLEMENTATION_GAPS.md` | Known gaps and incomplete features |
-| `tests/test_backtest_data.py` | Backtest data validation tests |
-| `backend/core/autonomous_promoter.py` | Experiment lifecycle daemon — auto-promotes DRAFT→SHADOW→PAPER→LIVE_TRIAL→LIVE_PROMOTED, demotes killed strategies to PAPER with improvement loop, health-based kill checks |
-| `backend/core/bankroll_allocator.py` | Daily capital allocator — computes allocations via `StrategyRanker` with risk-tier caps, persists to `BotState.misc_data` |
-| `backend/core/trade_forensics.py` | Per-loss trade analysis — diagnoses root causes, aggregates pattern insights |
-| `backend/core/strategy_synthesizer.py` | LLM-powered strategy synthesis with 4-gate validation (syntax→lint→backtest→sandbox); only validated strategies enter SHADOW |
-| `backend/core/knowledge_graph.py` | KG with `query_by_type()` and `query_relations()` helpers; read during AGI cycle to inform strategy composition |
-| `backend/core/risk_profiles.py` | 6 risk presets (safe/conservative/moderate/aggressive/extreme/crazy) + `RISK_TIER_MAX_ALLOCATION` dict |
-| `backend/core/forensics_integration.py` | Forensics→improvement pipeline; broken strategies get parameter overhaul; `_has_active_experiment()` excludes RETIRED |
-| `backend/core/auto_improve.py` | Per-strategy rollback dict (`_last_param_change[strategy_key]`); independent rollback windows per strategy |
-| `backend/core/fronttest_validator.py` | Paper-trial gate; crazy-tier strategies skip 14-day minimum via `_get_strategy_risk_tier()` |
-| `backend/core/agi_jobs.py` | AGI scheduled jobs including new `model_calibration_check_job` (Brier drift → retrain trigger) |
-| `backend/data/market_universe.py` | MarketUniverseScanner — universal market discovery across platforms using DataProvider ABC with configurable TTL cache |
-| `backend/models/genome_registry.py` | ORM models for genome persistence — GenomeRegistry, GenomePerformance, GenomeShadowTrade |
-| `backend/models/trading_wallet.py` | ORM models for multi-wallet execution (`TradingWallet`, `WalletAllocation`, `CopyPolicy`) |
-| `backend/repositories/genome_repository.py` | Repository layer — CRUD operations for genome persistence |
-| `backend/application/strategy/genome_compiler.py` | GenomeCompiler — runtime translation of StrategyGenome into executable BaseStrategy subclass |
-| `backend/application/strategy/genome_strategy.py` | Genome strategy template — executes chromosome-mapped entry/exit/risk/execution logic at runtime |
-| `docs/architecture/adr-006-agi-autonomy-framework.md` | AGI autonomy governance — promotion gates, safety boundaries, human-in-the-loop override |
+## STRUCTURE
 
-## Subdirectories
-
-| Directory | Purpose |
-|-----------|---------|
-| `backend/` | Python FastAPI backend — trading engine, strategies, data feeds, AI (see `backend/AGENTS.md`) |
-| `frontend/` | React/TypeScript dashboard — monitoring UI, admin controls (see `frontend/AGENTS.md`) |
-| `docs/` | Architecture docs, API reference, how-it-works guides (see `docs/AGENTS.md`) |
-| `tests/` | Integration tests at project root level (see `tests/AGENTS.md`) |
-| `scripts/` | Operational scripts: seed, verify, backup, health-check, migration (see `scripts/AGENTS.md`) |
-| `.github/` | GitHub Actions CI workflow |
-| `alembic/` | Database migration framework (standard Alembic setup) |
-| `backend/modules/` | Infra modules (NOT alpha strategies): data feeds, execution helpers, arbitrage, scanners (see `backend/modules/AGENTS.md`) |
-
-## For AI Agents
-
-### Working In This Directory
-- **MANDATORY: Documentation Sync** — Every code change MUST be accompanied by updating all affected documentation. This includes: AGENTS.md files (root + relevant subdirectory), API docs (`docs/api.md`), ADRs (`docs/architecture/`) for architectural decisions, `IMPLEMENTATION_GAPS.md` for newly discovered gaps, `.env.example` for new environment variables. Do NOT skip docs updates. If you add/rename/remove a file, update the Key Files table in the nearest AGENTS.md. If you add a new endpoint, update `docs/api.md`. If you change behavior, update the relevant doc.
-- Never commit `.env` — it contains live API keys and wallet credentials
-- Environment variables are documented in `.env.example`; always keep that in sync
-- **Database schema changes require an Alembic migration**: `alembic revision --autogenerate -m "description"` then `alembic upgrade head`. Never modify existing migration files.
-- Production deploys to Railway (backend) + Vercel (frontend) — check `railway.json` and `vercel.json`
-- Docusaurus docs deploy inside the Vercel frontend under `/docs/`; document URLs are emitted as `.html` files and Vercel rewrites extensionless `/docs/*` routes to those files before the Vite catch-all so docs pages do not render the dashboard shell.
-- PM2 manages three processes in production: `polyedge-api` (FastAPI server), `polyedge-bot` (background worker + scheduler), `polyedge-frontend` (Vite dev server) — process names are `polyedge-*`, not just `polyedge`
-- Live `BotState.bankroll`/`total_pnl` are derived caches from CLOB USDC cash + Polymarket Data API open-position value; do not recompute live equity from local ledger/backfill P&L (see `docs/architecture/adr-002-live-equity-source.md`)
-- Live dashboard count semantics are intentionally split and profile-first: top-level live `total_trades` / `live.trades` prefer Polymarket profile "Predictions" / markets-traded count from Data API `/traded`, and live `win_rate` prefers market-level closed-position W/L grouped from `/closed-positions`. Local ledger row totals remain available as `live.ledger_trades` / `live.ledger_wins` for diagnostics. Do not compare `/traded` directly to settled `Trade` row counts.
-- Live open-position semantics are also profile-first: top-level live `open_trades` / `open_exposure` prefer Polymarket `/positions` count and current value. Local DB open rows remain diagnostics as `live.ledger_open_trades` / `live.ledger_open_exposure`; stale/redeemable Polymarket positions are exposed as `live.profile_stale_open_count` and `live.profile_redeemable_count`.
-- Automatic redeemable-position cleanup is scheduler-gated by `AUTO_REDEEM_ENABLED` and defaults to dry-run (`AUTO_REDEEM_DRY_RUN=True`). It reuses `backend/core/auto_redeem.py` via `auto_redeem_job`; only set dry-run false when live on-chain/relayer redemption should submit transactions.
-- Paper/testnet PnL may be negative, but available simulated bankroll/balance must never be negative; settlement, reconciliation, and stats/dashboard output floor depleted simulated bankroll at `$0.00` while preserving learning trades and PnL history.
-- Settlement and reconciliation must keep live exposure accurate; non-critical analytics/learning hooks must never abort the main settlement transaction or stale live positions will block new live orders. If wallet reconciliation proves a live position is gone but market resolution still lags, use the terminal `closed_unresolved` settlement state to release exposure without claiming a win/loss outcome.
-- Trade execution observability uses the `TradeAttempt` ledger and dashboard Control Room; do not replace it with log scraping or mutate historical `Trade` rows to explain rejected attempts (see `docs/architecture/adr-003-trade-attempt-observability.md`)
-- Autonomous trade sizing is bounded: strategy/AI code may propose dynamic sizes, but deterministic `RiskManager` mandates and minimum-order gates remain non-bypassable (see `docs/architecture/adr-004-bounded-autonomous-sizing.md`)
-
-### Testing Requirements
-- Backend tests: `pytest` from project root (uses `pytest.ini`)
-- Frontend tests: `cd frontend && npm test`
-- E2E tests: `cd frontend && npx playwright test`
-- Do not run live trading tests without `SHADOW_MODE=true`
-
-### Common Patterns
-- `.env` feature flags control system behavior (e.g., `JOB_WORKER_ENABLED`, `SHADOW_MODE`, `AGI_AUTO_PROMOTE`, `AGI_AUTO_ENABLE`, `AGI_STRATEGY_HEALTH_ENABLED`, `AGI_BANKROLL_ALLOCATION_ENABLED`)
-- All external API base URLs are configurable via env vars (see `GAMMA_API_URL`, `DATA_API_URL`, `CLOB_API_URL`, etc. in `backend/config.py`)
-- Frontend polling intervals are configurable via `VITE_POLL_FAST_MS`, `VITE_POLL_NORMAL_MS`, `VITE_POLL_SLOW_MS`, `VITE_POLL_VERY_SLOW_MS` (see `frontend/src/polling.ts`)
-- Realtime SSE/WS auth uses admin cookie sessions (`admin_session`) with optional legacy `token=ADMIN_API_KEY` fallback; frontend should not append CSRF/localStorage secrets to SSE/WS URLs
-- All sensitive operations guarded by circuit breakers and risk limits
-- Redis optional — falls back to PostgreSQL queue when unavailable
-- `backend/modules/` is for infrastructure modules (data feeds, execution helpers, arbitrage, scanners) — NOT alpha strategies. Alpha strategies go in `backend/strategies/`.
-- **Strategy Governance**: AGI health check (`AGI_HEALTH_CHECK_ENABLED`, every 15 min via `AGI_HEALTH_CHECK_INTERVAL_MINUTES`) auto-kills strategies with <30% win rate after sufficient trades. Killed strategies are disabled in `StrategyConfig` and should NOT be manually re-enabled. The authoritative enabled/disabled state is always the `StrategyConfig` table in the DB — the list below is a snapshot. Active (`backend/strategies/`): `agi_orchestrator`, `btc_oracle` (43.9% WR, -$341 PnL — disabled), `universal_scanner`, `bond_scanner`, `cex_pm_leadlag`, `cross_market_arb`, `line_movement_detector`, `market_maker`. Active (`backend/modules/`, module-resident): `copy_trader`, `weather_emos`, `whale_frontrun`, `whale_pnl_tracker`. Disabled: `general_scanner` (10% WR, auto-killed), `btc_momentum` (deprecated), `realtime_scanner`, `probability_arb`. Module-resident strategies live in `backend/modules/` because they source signals from external feeds (leaderboard mirroring, on-chain data, weather APIs) rather than generating independent alpha from market analysis — they are infrastructure, not alpha strategies, but they are registered and governed the same way.
-- **Trade Attribution**: `auto_trader` (`backend/core/auto_trader.py`) is an execution router, NOT a strategy. It routes pending signals through risk validation. Trade attribution uses `Signal.track_name` to preserve the originating strategy name. Historical trades attributed to "auto_trader" actually came from various signal sources routed through the auto-execute path.
-- **Genome feedback loop**: `shadow_validation_job` (`backend/application/agi/evolution_jobs.py`) is the canonical shadow-trade feedback loop. It recalculates per-genome fitness from settled `ShadowTrade`, syncs `GenomePerformance`, promotes SHADOW→PAPER and PAPER→LIVE by metric gates, and auto-kills terminal performers to GRAVEYARD.
-- **Logging Convention**: All logging uses `loguru`, not stdlib `logging`. Import as `from loguru import logger`. Loguru auto-captures module name — no `getLogger` calls needed. Configuration is centralized in `backend/core/log.py` with `configure_logging()` called at app startup. Third-party library logs are intercepted via `InterceptHandler`. Structured fields use keyword args: `logger.info("trade executed", strategy="btc_oracle", market="BTC-UP")`. Environment variables: `LOG_LEVEL`, `LOG_JSON`, `LOG_FILE`, `LOG_ROTATION`, `LOG_RETENTION` (see `.env.example`).
-
-## Dependencies
-
-### External
-- `FastAPI` + `uvicorn` — Python web framework
-- `React 18` + `TypeScript` + `Vite` — Frontend
-- `SQLite` / `Redis` — Storage and job queue
-- `SQLAlchemy 2.0` + `Alembic` — ORM and migrations
-- Polymarket CLOB API, Kalshi API — Market data and order execution
-- Anthropic Claude API — AI signal analysis
-- Groq API — Fast LLM inference
-- `MiroFish` — External dual debate system for trade decisions
-
-## MiroFish Service Status
-
-**✓ OPERATIONAL (2026-05-15)**
-
-MiroFish debate system is now fully enabled and production-ready:
-
-### Configuration
-- **Enable flag**: `mirofish_enabled=true` (stored in `system_settings` table)
-- **Auto-start**: Service automatically starts on application initialization via `backend/core/orchestrator.py`
-- **Health endpoint**: `GET /api/v1/health/mirofish` — returns circuit breaker metrics, latency, error rate
-
-### Components
-- **Service**: `backend/services/mirofish_service.py` (state machine: STOPPED → RUNNING → PAUSED)
-- **Monitor**: `backend/services/mirofish_monitor.py` (circuit breaker with failure tracking)
-- **Client**: `backend/ai/mirofish_client.py` (API communication with fallback retry logic)
-- **Router**: `backend/ai/debate_router.py` (routes to MiroFish or falls back to local debate engine)
-- **Engine**: `backend/ai/debate_engine.py` (Bull/Bear/Judge consensus model via Groq/Claude)
-
-### Testing
-- Service integration tests: `tests/test_mirofish_service.py` (3 tests, all passing)
-- Debate engine tests: `tests/test_debate_engine.py` (25 tests, all passing)
-- End-to-end integration tests: `tests/test_mirofish_integration.py` (13 tests, all passing)
-
-### Feature Support
-- Dual debate (Bull/Bear/Judge) with consensus probability calculation
-- Graceful fallback to local debate if MiroFish API unavailable
-- Circuit breaker protection against cascading failures
-- Comprehensive health monitoring with latency and error rate tracking
-- Integration with market question routing for trade decision support
-
----
-
-## Architectural Rules & Invariants
-
-These rules are enforced to prevent system-level bugs that AGI alone cannot catch (e.g., split execution paths, implicit assumptions).
-
-### Rule 1: Execution Path Consistency
-
-**Requirement:** Every class with `execute*()` method MUST check for duplicate positions before opening a new trade.
-
-**Why:** Prevents opening multiple positions on same market without consolidation (see [EXEC-1] bug fix).
-
-**Applies to:**
-- `backend/core/hft_executor.py::HFTExecutor.execute()`
-- `backend/core/auto_trader.py::AutoTrader.execute_signal()`
-- `backend/core/strategy_executor.py::StrategyExecutor.execute()`
-
-**Implementation Pattern:**
-```python
-# At start of execute*() method, before any trade logic:
-existing = db.query(Trade).filter(
-    Trade.market_id == signal.market_id,
-    Trade.event_slug == signal.event_slug,
-    Trade.settled == False,
-    Trade.trading_mode == mode
-).first()
-
-if existing:
-    logger.info(f"Duplicate position blocked: {existing.id} still open")
-    return rejected_or_cancelled_result
+```
+polyedge/
+├── backend/              # Core engine (137K LOC, 18+ subdirs)
+│   ├── core/             # Kernel: executor, scheduler, settlement, risk
+│   ├── api/              # FastAPI (189 endpoints, 2234 LOC)
+│   ├── strategies/       # 12 trading strategies (alpha)
+│   ├── modules/          # Signal modules (external feeds, infrastructure)
+│   ├── models/           # SQLAlchemy ORM (2130 LOC)
+│   ├── data/             # Market aggregation (Polymarket CLOB)
+│   ├── application/      # AGI evolution, composition
+│   ├── ai/               # Signal generation, ML
+│   └── job_queue/, clients/, integrations/, ...
+├── frontend/             # React dashboard (23K LOC)
+│   └── src/
+│       ├── components/   # 30+ React components
+│       ├── pages/        # Page containers
+│       ├── hooks/        # Custom React hooks
+│       ├── api.ts        # Fetch client (1076 LOC)
+│       └── test/, e2e/   # Vitest + Playwright
+├── tests/                # pytest suite (24 files)
+├── alembic/              # Database migrations
+├── docs/                 # Research, audit reports
+├── scripts/              # CLI utilities
+└── Root: main.py, run.py, ARCHITECTURE.md
 ```
 
-**Testing:** Every executor class MUST have a test:
-```python
-def test_duplicate_position_blocked(executor_class):
-    result1 = executor_class.execute(signal, bankroll)
-    assert result1.success
-    
-    result2 = executor_class.execute(signal, bankroll)  # Same signal
-    assert not result2.success
-    assert "duplicate" in result2.error.lower()
+## WHERE TO LOOK
+
+| Task | Location | Notes |
+|------|----------|-------|
+| **Strategy execution** | `backend/core/strategy_executor.py` (1529 LOC) | Bounded AGI autonomy; per-tier allocation limits |
+| **Trading strategies** | `backend/strategies/` (8-12 files) | agi_orchestrator, btc_oracle, universal_scanner, ... |
+| **Signal modules** | `backend/modules/` | External-feed infrastructure: weather_emos, whale_frontrun, copy_trader |
+| **API routes** | `backend/api/main.py` (2234 LOC) + 10 routers | /signals, /trades, /strategies, /risk, /admin, ... |
+| **Settlement** | `backend/core/settlement_helpers.py` (1344 LOC) | 2-phase: settle trades → reconcile bankroll (CRITICAL PATH) |
+| **Scheduler** | `backend/core/scheduler.py` (1375 LOC) | Cron + event coordination; 15min AGI health checks |
+| **Risk profiles** | `backend/core/risk_profiles.py` | 6 tiers: safe→crazy; RISK_TIER_MAX_ALLOCATION dict |
+| **Database schema** | `backend/models/database.py` (2130 LOC) | SQLAlchemy; StrategyConfig, Trade, ShadowTrade, StrategyGenome |
+| **Dashboard** | `frontend/src/pages/`, `frontend/src/components/` | React; polling via VITE_POLL_*_MS |
+| **Market data** | `backend/data/polymarket_clob.py` (989 LOC) | Polymarket CLOB + Kalshi APIs |
+| **AGI evolution** | `backend/application/agi/evolution_jobs.py` (906 LOC) | Genome composition, mutation, fitness cycles |
+| **Notifications** | `backend/bot/telegram_bot.py` (858 LOC) | Alert system |
+
+## CRITICAL RULES (THIS PROJECT)
+
+### Settlement (SACRED)
+- Settlement transaction MUST NOT abort due to non-critical hooks (analytics, learning). Stale live positions block new orders.
+- If market resolution lags but wallet reconciliation proves position gone → use `closed_unresolved` state (release exposure, no win/loss claim).
+- Always keep live exposure accurate in DB.
+
+### Error Handling
+- NEVER bare `except Exception: pass`. Always `logger.exception("descriptive message")`. Silent errors are #1 observability failure.
+
+### Strategy Governance
+- AGI auto-kills strategies with <30% win rate (health check every 15min: `AGI_HEALTH_CHECK_ENABLED`, `AGI_HEALTH_CHECK_INTERVAL_MINUTES`).
+- Authoritative enabled/disabled state is `StrategyConfig` DB table, NOT code. Don't manually re-enable killed strategies.
+- Strategies in `backend/modules/` are **infrastructure** (external signals), not alpha generators. Same governance rules apply.
+
+### Frontend Polling
+- Configurable intervals: `VITE_POLL_FAST_MS`, `VITE_POLL_NORMAL_MS`, `VITE_POLL_SLOW_MS`, `VITE_POLL_VERY_SLOW_MS`.
+- See `frontend/src/polling.ts` for defaults.
+
+### Health Checks
+- Use **bounded dependency checks**: slow RPC calls degrade health, NOT hang requests (`/api/v1/health` uses tiered checks).
+
+### Duplicate Trade Detection
+- Alert if >3 trades on same market/minute.
+
+## CONVENTIONS
+
+- **Database migrations**: Alembic in `alembic/versions/`. Always provide down() for rollback.
+- **Test organization**: pytest in `backend/tests/`, Vitest in `frontend/src/test/`, E2E in `frontend/e2e/`.
+- **Monorepo layout**: Backend + frontend independent; shared types in `backend/models/` and `frontend/src/types.ts`.
+- **Logging**: Use structured logging everywhere; include context (trade_id, strategy_id, etc.).
+
+## KEY MODULES (by LOC & complexity)
+
+| Module | Purpose | Files | LOC | Key Files |
+|--------|---------|-------|-----|-----------|
+| `backend/core` | Execution kernel | 10+ | 5.8K | executor (1529), scheduler (1375), settlement (1344) |
+| `backend/api` | REST API layer | main + 10 routers | 8.2K | main.py (2234), settings.py (928), auth.py (734) |
+| `backend/models` | Data layer, ORM | 1 | 2.1K | database.py (2130) |
+| `backend/strategies` | Alpha generation | 8-12 | 6K+ | general_market_scanner (956), various strategy files |
+| `backend/application` | Orchestration | 5+ | 1.8K | evolution_jobs.py (906) |
+| `backend/data` | Market aggregation | 5+ | 1.2K | polymarket_clob.py (989) |
+| `backend/ai` | Signal generation | 8+ | 800+ | ML pipelines, transformers |
+| `backend/modules` | Signal infrastructure | 4+ | 2K+ | weather_emos (905), whale trackers, copy trader |
+| `frontend` | React dashboard | 30+ comps + pages + hooks | 23K | api.ts (1076), Landing (680), LiveStream (604) |
+
+## ANTI-PATTERNS (FORBIDDEN HERE)
+
+- ❌ Bare `except Exception: pass` (silent errors)
+- ❌ Manual `StrategyConfig.enabled` changes in code (AGI auto-kill is final)
+- ❌ Blocking settlement for non-critical hooks
+- ❌ Synchronous RPC calls in health checks (causes hangs)
+- ❌ Duplicate trades without alerting (>3/min threshold)
+- ❌ Unresolved positions without using `closed_unresolved` state
+- ❌ FIXME/TODO in production code (resolve before merge)
+
+## ENTRY POINTS
+
+```bash
+# Backend
+python main.py                          # Live trading entry
+python run.py                           # Alternative runner
+cd backend && python -m backend         # Module runner
+
+# Frontend
+npm run dev                             # Vite dev server
+npm run build                           # Production build
+
+# Database
+alembic upgrade head                    # Apply migrations
+alembic revision --autogenerate -m "msg"  # Create migration
+
+# Tests
+pytest backend/tests/ -v                # Pytest suite
+npm run test                            # Vitest + Playwright
 ```
 
-**Enforcement:**
-- Static check: `grep -l "def execute" backend/core/*.py | xargs -I {} sh -c 'grep -q "existing.*Trade\|duplicate" {} || echo "FAIL: {}"'`
-- Type check: `mypy --strict backend/core/hft_executor.py backend/core/auto_trader.py`
-- Test: Run `pytest -k duplicate_position` before deployment
+## CONFIGURATION
 
----
+- **Backend config**: `backend/config.py` (1776 LOC) — main settings
+- **Backend HFT**: `backend/config_hft.py` — high-frequency trading overrides
+- **Frontend polling**: `frontend/src/polling.ts` — VITE_POLL_* intervals
+- **Database**: SQLite (dev); migrations in `alembic/versions/`
+- **CI/CD**: `.github/workflows/` — GitHub Actions
 
-## CI/CD Checks (Mandatory)
+## DEPLOYMENT
 
-Add to GitHub Actions workflow:
+- **Docker**: `Dockerfile`, `docker-compose.yml`
+- **Railway**: `railway.json`
+- **PM2**: `ecosystem.config.js`
+- **systemd**: `polyedge-api.service`
+- **Environment**: `.env.example` (copy to `.env`)
 
-```yaml
-- name: "Lint: Check all execute*() methods have duplicate checks"
-  run: |
-    for file in $(find backend/core -name "*.py" -exec grep -l "def execute" {} \;); do
-      if ! grep -q "existing.*Trade\|duplicate" "$file"; then
-        echo "FAIL: $file missing duplicate position check"
-        exit 1
-      fi
-    done
+## NOTES
 
-- name: "Type: Strict mypy check"
-  run: mypy --strict backend/core/hft_executor.py backend/core/auto_trader.py
-
-- name: "Test: Duplicate position blocking"
-  run: pytest -k duplicate_position -v
-```
-
----
-
-## Production Monitoring
-
-Add alerts for:
-
-1. **High Duplication Rate:** If >3 trades on same market per minute
-   ```python
-   trades_per_market = group_by(recent_trades, key="market_id")
-   for market, trades in trades_per_market.items():
-       if len(trades) > 3:
-           alert(f"HIGH_DUPLICATION: {market} has {len(trades)} trades/min")
-   ```
-
-2. **Undefined Method Errors:** Any `AttributeError: ... has no attribute ...` on execute paths
-   ```python
-   if "AttributeError" in log and "execute" in log:
-       alert("CRITICAL: Undefined method in execute path")
-   ```
-
-<!-- MANUAL: -->
+- **Archived code**: `archive/` contains legacy/experimental branches; don't reference unless intentional.
+- **Test failures**: Check `test_results.txt`, `playwright-console.txt`, `playwright-network.txt`.
+- **Database**: `polyedge.db` (main), `trading_bot.db` (legacy), backups in `backups/`.
+- **Research**: Papers and audit reports in `docs/`.
+- **Broker APIs**: Polymarket CLOB + Kalshi direct integration.

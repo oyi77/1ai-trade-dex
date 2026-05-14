@@ -1,83 +1,68 @@
+# DATA MODELS & ORM
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-09 | Updated: 2026-05-09 -->
 
-# backend/models
+**Module**: `backend/models/` — SQLAlchemy ORM, database schema (2.1K LOC)
 
-## Purpose
-SQLAlchemy ORM models, session factory, and database connection management. All persistent data structures are defined here. Schema changes require an Alembic migration.
+## PURPOSE
 
-## Key Files
+Central data layer: SQLAlchemy ORM definitions, database schema, migrations.
 
-| File | Description |
-|------|-------------|
-| `database.py` | All ORM models, `Base`, `get_db`, `SessionLocal`, `botstate_mutex`, `for_update` — the central schema file |
-| `app_state.py` | In-memory application state (non-persisted runtime state) |
-| `audit_logger.py` | `AuditLog` write helpers |
-| `backtest.py` | Backtest-specific model helpers |
-| `genome_registry.py` | `GenomeRegistry`, `GenomePerformance`, `GenomeShadowTrade` ORM models for genome persistence |
-| `hft_tables.py` | HFT execution record model helpers |
-| `historical_data.py` | Historical market data model helpers |
-| `kg_models.py` | Knowledge graph node/edge model helpers |
-| `outcome_tables.py` | Outcome tracking model helpers |
+## KEY FILES
 
-## ORM Models in `database.py`
+| File | LOC | Purpose |
+|------|-----|---------|
+| `database.py` | 2130 | SQLAlchemy ORM definitions, all models |
 
-| Model | Purpose |
-|---|---|
-| `Trade` | Executed trades — paper and live |
-| `Signal` | Strategy-generated signals (pre-execution) |
-| `BotState` | Singleton bot state — bankroll, PnL, mode |
-| `StrategyConfig` | Per-strategy enabled/disabled flag and params |
-| `Experiment` | AGI experiment lifecycle records |
-| `TradeAttempt` | Durable ledger of all execution attempts (executed + rejected) |
-| `PendingApproval` | Trades awaiting manual approval |
-| `SettlementEvent` | Market settlement records |
-| `TransactionEvent` | Deposit/withdrawal/settlement ledger |
-| `StrategyProposal` | AI-generated strategy improvement proposals |
-| `MiroFishSignal` | MiroFish debate system signals |
-| `ActivityLog` | Strategy activity log |
-| `AuditLog` | Admin action audit trail |
-| `DecisionLog` | AI decision records |
-| `PerformanceMetric` | Per-strategy performance snapshots |
-| `EvolutionLog` | Genome evolution event log |
-| `GenomeRegistry` | Genome persistence (also in `genome_registry.py`) |
-| `Alert` / `AlertConfig` | Alert instances and configuration |
-| `Setting` / `SystemSettings` | Runtime settings |
-| `WalletConfig` | Wallet configuration |
-| `BtcPriceSnapshot` | BTC price history |
-| `EquitySnapshot` | Equity curve snapshots |
-| `CalibrationRecord` | Probability calibration records |
-| `KgNode` / `KgEdge` | Knowledge graph nodes and edges |
-| `ErrorLog` | Structured error records |
-| `ClobEvent` | CLOB order book events |
+## CORE MODELS
 
-## For AI Agents
+| Model | Purpose | Key Fields |
+|-------|---------|-----------|
+| `StrategyConfig` | Strategy governance | id, name, enabled, win_rate, kill_date, ... |
+| `Trade` | Live trades | id, strategy_id, market_id, size, pnl, settled_at, ... |
+| `ShadowTrade` | Paper trading | id, strategy_id, outcome, fitness, ... |
+| `StrategyGenome` | AGI genomes | id, genome_str, fitness, generation, promotion_date |
+| `User` | Users | id, email, api_key, ... |
+| `Market` | Market metadata | id, market_id, title, outcome_type, resolved_at |
 
-### Working In This Directory
-- **Schema changes require an Alembic migration** — run `alembic revision --autogenerate -m "description"` then `alembic upgrade head`. Never modify existing migration files.
-- **`botstate_mutex` must be imported and used for all BotState read-modify-write operations** — it is defined in `database.py` and exported for use in `core/`. See `backend/core/AGENTS.md` for the pattern.
-- **`BotState` is a singleton** — there is exactly one row. Always query with `.first()` and guard against `None`.
-- **`for_update()` is a helper for bounded `SELECT FOR UPDATE`** — use it when acquiring a row lock inside a mutex-protected block. On PostgreSQL it applies transaction-local `lock_timeout`/`statement_timeout` before locking so stale transactions fail fast instead of starving scheduler jobs.
-- **`Trade` rows are append-only** — never mutate historical trade records to explain rejected attempts. Use `TradeAttempt` instead (ADR-003).
-- `StrategyConfig.enabled` is the authoritative enabled/disabled flag — the AGI health check writes to this column; do not bypass it.
+## CRITICAL RULES
 
-### Adding a New Model
-1. Add the class to `database.py` inheriting from `Base`
-2. Run `alembic revision --autogenerate -m "add_my_model"` from project root
-3. Review the generated migration in `alembic/versions/`
-4. Run `alembic upgrade head`
-5. Add the model to the table above
+### StrategyConfig (Source of Truth)
+- **enabled** field is authoritative; never bypass in code
+- Auto-kill sets **enabled=False** + **kill_date=now()**
+- Manual re-enable requires DB update (intentional friction)
 
-### Testing Requirements
-- Always use in-memory SQLite: `create_engine("sqlite:///:memory:", ...)`
-- Call `Base.metadata.create_all(engine)` in test setup
-- Never test against the production DB file
+### Trade Settlement
+- **settled_at** timestamp marks settlement completion
+- **pnl** calculated from outcome resolution
+- No partial trades (atomic settlement)
 
-## Dependencies
+### ShadowTrade (Fitness Feedback)
+- Settled vs. real outcomes for fitness calculation
+- Used to determine promotion/kill decisions
+- Minimum trade sample required before auto-kill
 
-### Internal
-- `backend.config` — `settings` for DB URL and connection params
+## MIGRATIONS
 
-### External
-- `sqlalchemy` — ORM, session management, column types
-- `alembic` — schema migrations
+Alembic (`alembic/versions/`) manages schema changes:
+
+```bash
+alembic upgrade head          # Apply all
+alembic revision --autogenerate -m "msg"  # Create migration
+alembic downgrade -1          # Revert one
+```
+
+Always include down() for rollback.
+
+## ANTI-PATTERNS
+
+- ❌ Direct SQL (use ORM)
+- ❌ Missing down() in migrations
+- ❌ Migrations that break backward compatibility
+- ❌ Manual StrategyConfig updates without auditing
+
+## TESTING
+
+```bash
+pytest backend/tests/ -k "model" -v
+pytest backend/tests/test_database_*.py -v
+```
