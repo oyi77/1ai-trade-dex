@@ -5,9 +5,13 @@ External API calls (microstructure, BTC markets, signals) are mocked so tests
 run fast and deterministically.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from backend.api import dashboard as dashboard_api
 from backend.models.database import BotState, Trade
 
 
@@ -211,6 +215,8 @@ class TestStatsEndpoint:
 class TestDashboardEndpoint:
     def _get_dashboard(self, client):
         """Call dashboard with mocked external services."""
+        dashboard_api._dashboard_cache_value = None
+        dashboard_api._dashboard_cache_expires_at = 0.0
         with patch(
             "backend.api.dashboard.compute_btc_microstructure",
             AsyncMock(return_value=_mock_micro()),
@@ -388,6 +394,95 @@ class TestDashboardEndpoint:
         assert data["equity_curve"][-1]["pnl"] == 70.0
         assert data["equity_curve"][-1]["bankroll"] == 170.0
         assert all(point["pnl"] > -100 for point in data["equity_curve"][:-1])
+
+    @pytest.mark.asyncio
+    async def test_dashboard_cache_coalesces_concurrent_builds(self, db):
+        build_count = 0
+
+        async def fake_build(_db):
+            nonlocal build_count
+            build_count += 1
+            await asyncio.sleep(0.01)
+            return dashboard_api.DashboardData(
+                stats=dashboard_api.BotStats(
+                    bankroll=100.0,
+                    available_balance=100.0,
+                    total_balance=100.0,
+                    total_trades=0,
+                    winning_trades=0,
+                    win_rate=0.0,
+                    total_pnl=0.0,
+                    is_running=True,
+                    last_run=None,
+                ),
+                btc_price=None,
+                windows=[],
+                active_signals=[],
+                recent_trades=[],
+                equity_curve=[],
+                trading_mode="paper",
+            )
+
+        dashboard_api._dashboard_cache_value = None
+        dashboard_api._dashboard_cache_expires_at = 0.0
+
+        with patch.object(dashboard_api, "_build_dashboard_data", side_effect=fake_build), patch.object(
+            dashboard_api, "_dashboard_cache_ttl_seconds", return_value=2.0
+        ):
+            payloads = await asyncio.gather(
+                *(dashboard_api._get_cached_dashboard_data(db) for _ in range(5))
+            )
+
+        assert build_count == 1
+        assert all(payload is payloads[0] for payload in payloads)
+
+        dashboard_api._dashboard_cache_value = None
+        dashboard_api._dashboard_cache_expires_at = 0.0
+
+    @pytest.mark.asyncio
+    async def test_dashboard_cache_refreshes_after_ttl(self, db):
+        build_count = 0
+
+        async def fake_build(_db):
+            nonlocal build_count
+            build_count += 1
+            return dashboard_api.DashboardData(
+                stats=dashboard_api.BotStats(
+                    bankroll=100.0 + build_count,
+                    available_balance=100.0,
+                    total_balance=100.0,
+                    total_trades=0,
+                    winning_trades=0,
+                    win_rate=0.0,
+                    total_pnl=0.0,
+                    is_running=True,
+                    last_run=None,
+                ),
+                btc_price=None,
+                windows=[],
+                active_signals=[],
+                recent_trades=[],
+                equity_curve=[],
+                trading_mode="paper",
+            )
+
+        dashboard_api._dashboard_cache_value = None
+        dashboard_api._dashboard_cache_expires_at = 0.0
+
+        with patch.object(dashboard_api, "_build_dashboard_data", side_effect=fake_build), patch.object(
+            dashboard_api, "_dashboard_cache_ttl_seconds", return_value=0.01
+        ):
+            first = await dashboard_api._get_cached_dashboard_data(db)
+            second = await dashboard_api._get_cached_dashboard_data(db)
+            await asyncio.sleep(0.02)
+            third = await dashboard_api._get_cached_dashboard_data(db)
+
+        assert build_count == 2
+        assert second is first
+        assert third is not first
+
+        dashboard_api._dashboard_cache_value = None
+        dashboard_api._dashboard_cache_expires_at = 0.0
 
 
 # ---------------------------------------------------------------------------

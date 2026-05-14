@@ -1,5 +1,6 @@
 """Dashboard API endpoints."""
 import asyncio
+import time
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -239,6 +240,38 @@ class DashboardData(BaseModel):
     weather_forecasts: List[WeatherForecastResponse] = []
     trading_mode: str = "paper"
 
+
+_dashboard_cache_lock = asyncio.Lock()
+_dashboard_cache_value: DashboardData | None = None
+_dashboard_cache_expires_at = 0.0
+
+
+def _dashboard_cache_ttl_seconds() -> float:
+    return max(0.0, float(getattr(settings, "DASHBOARD_CACHE_TTL_SECONDS", 2.0)))
+
+
+async def _get_cached_dashboard_data(db: Session) -> DashboardData:
+    """Coalesce expensive dashboard builds across near-simultaneous pollers."""
+    global _dashboard_cache_value, _dashboard_cache_expires_at
+
+    ttl_seconds = _dashboard_cache_ttl_seconds()
+    if ttl_seconds <= 0:
+        return await _build_dashboard_data(db)
+
+    now = time.monotonic()
+    if _dashboard_cache_value is not None and now < _dashboard_cache_expires_at:
+        return _dashboard_cache_value
+
+    async with _dashboard_cache_lock:
+        now = time.monotonic()
+        if _dashboard_cache_value is not None and now < _dashboard_cache_expires_at:
+            return _dashboard_cache_value
+
+        dashboard_data = await _build_dashboard_data(db)
+        _dashboard_cache_value = dashboard_data
+        _dashboard_cache_expires_at = time.monotonic() + ttl_seconds
+        return dashboard_data
+
 def _serialize_trade_response(trade: Trade, contexts: dict[int, TradeContext], market_questions: dict[str, str] | None = None) -> TradeResponse:
     context = contexts.get(trade.id)
     return TradeResponse(
@@ -365,6 +398,11 @@ async def get_dashboard(
     db: Session = Depends(get_db)
 ):
     """Get all dashboard data in one call - returns stats for all 3 modes."""
+    return await _get_cached_dashboard_data(db)
+
+
+async def _build_dashboard_data(db: Session) -> DashboardData:
+    """Build dashboard data from live sources and database snapshots."""
     try:
         stats = await asyncio.wait_for(
             get_stats(db=db, mode=None), timeout=6.0

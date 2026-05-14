@@ -1493,6 +1493,7 @@ class Settings(BaseSettings):
     # Cache Settings
     CACHE_URL: str = "sqlite:///./cache.db"  # or "redis://localhost:6379/0"
     CACHE_TTL_SECONDS: int = 300  # 5 minutes
+    DASHBOARD_CACHE_TTL_SECONDS: float = 2.0  # Coalesce expensive dashboard polling bursts
 
     # Redis Pub/Sub for WebSocket (multi-instance support)
     REDIS_URL: str = "redis://localhost:6379"
