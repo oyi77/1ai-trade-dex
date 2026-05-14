@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-14 (Live settlement scheduling, BotState lock-wait hardening, Polymarket profile-count reconciliation, and automatic redeemable-position cleanup updated.)
+**Last Updated:** 2026-05-15 (MiroFish service fully operational and enabled in production.)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -13,6 +13,8 @@ Format:
 ---
 
 ## Fixed
+
+**MiroFish service fully operational** → **Fixed** (2026-05-15): Enabled MiroFish debate engine for production use. Seeded `mirofish_enabled=true` in `system_settings` table, verified service state machine (RUNNING), tested debate engine end-to-end with dual Bull/Bear/Judge consensus, confirmed graceful fallback to local debate engine on MiroFish unavailability, validated health endpoint at `/api/v1/health/mirofish` returns circuit breaker metrics and latency, and verified all 41 unit tests pass (3 mirofish_service, 25 debate_engine, 13 integration). Updated AGENTS.md with MiroFish status section. Files: `backend/services/mirofish_service.py`, `backend/ai/debate_router.py`, `backend/ai/debate_engine.py`, `AGENTS.md`.
 
 **Bot runtime hardening** → **Fixed** (2026-05-14): Closed the remaining freeze-prone runtime gaps in `backend/core/auto_trader.py`, `backend/core/strategy_executor.py`, `backend/core/heartbeat.py`, and `backend/core/event_bus.py`. Added the missing `asyncio` import for live auto-trader timeouts, corrected the live CLOB execution indentation/syntax path, bounded wallet-sync/CLOB waits with `asyncio.wait_for(...)`, ensured heartbeat-file directories are created before touching the liveness file, and replaced raw fire-and-forget event-bus scheduling with tracked background tasks that retain strong references and log exceptions/cancellations explicitly. Verified with `ruff check` on all modified backend files and targeted pytest (`32 passed`).
 
