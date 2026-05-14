@@ -76,30 +76,45 @@ async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str
 
     try:
         import httpx
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            numeric_ids = [t for t in still_unresolved if t.isdigit()]
-            if numeric_ids:
-                for ticker in numeric_ids[:10]:
-                    try:
-                        resp = await client.get(f"https://gamma-api.polymarket.com/markets/{ticker}")
-                        if resp.status_code == 200:
-                            m = resp.json()
-                            q = m.get("question", "")
-                            if q:
-                                _market_question_cache[ticker] = q
-                                result[ticker] = q
-                                continue
-                    except Exception:
-                        logger.exception(f"Failed to resolve market question for ticker {ticker}")
-                        pass
-                    result[ticker] = ticker
-            else:
-                for ticker in still_unresolved:
-                    result[ticker] = ticker
-    except Exception:
-        logger.exception("Failed to batch-resolve market questions from Gamma API")
-        for ticker in still_unresolved:
+
+        async def fetch_question(client: httpx.AsyncClient, ticker: str) -> tuple[str, str]:
+            try:
+                resp = await asyncio.wait_for(
+                    client.get(f"https://gamma-api.polymarket.com/markets/{ticker}"),
+                    timeout=1.5,
+                )
+                if resp.status_code == 200:
+                    question = (resp.json() or {}).get("question", "")
+                    if question:
+                        return ticker, question
+            except Exception:
+                logger.debug(f"dashboard market question lookup skipped for {ticker}")
+            return ticker, ticker
+
+        numeric_ids = [t for t in still_unresolved if t.isdigit()]
+        non_numeric = [t for t in still_unresolved if not t.isdigit()]
+        for ticker in non_numeric:
             result[ticker] = ticker
+
+        if numeric_ids:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                question_results = await asyncio.wait_for(
+                    asyncio.gather(
+                        *(fetch_question(client, ticker) for ticker in numeric_ids[:10]),
+                        return_exceptions=True,
+                    ),
+                    timeout=2.5,
+                )
+            for item in question_results:
+                if isinstance(item, Exception):
+                    continue
+                ticker, question = item
+                _market_question_cache[ticker] = question
+                result[ticker] = question
+    except Exception:
+        logger.warning("dashboard market question lookup timed out; using ticker fallbacks")
+        for ticker in still_unresolved:
+            result.setdefault(ticker, ticker)
 
     return result
 
