@@ -1,4 +1,5 @@
 """Dashboard API endpoints."""
+import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -349,13 +350,23 @@ async def get_dashboard(
     db: Session = Depends(get_db)
 ):
     """Get all dashboard data in one call - returns stats for all 3 modes."""
-    stats = await get_stats(db=db, mode=None)
+    try:
+        stats = await asyncio.wait_for(
+            get_stats(db=db, mode=None), timeout=12.0
+        )
+    except (asyncio.TimeoutError, Exception) as e:
+        logger.warning(f"[dashboard] get_stats timed out after 12s: {e}")
+        stats = await asyncio.wait_for(
+            get_stats(db=db, mode=settings.TRADING_MODE), timeout=8.0
+        )
 
     # Fetch BTC price from microstructure first, fallback to CoinGecko
     btc_price_data = None
     micro_data = None
     try:
-        micro = await compute_btc_microstructure()
+        micro = await asyncio.wait_for(
+            compute_btc_microstructure(), timeout=5.0
+        )
         if micro:
             micro_data = MicrostructureResponse(
                 rsi=micro.rsi,
@@ -402,7 +413,9 @@ async def get_dashboard(
     # Fetch windows
     windows = []
     try:
-        markets = await fetch_active_btc_markets()
+        markets = await asyncio.wait_for(
+            fetch_active_btc_markets(), timeout=8.0
+        )
         windows = [
             BtcWindowResponse(
                 slug=m.slug,
@@ -428,7 +441,9 @@ async def get_dashboard(
     # Signals — return ALL signals, mark which are actionable
     signals = []
     try:
-        raw_signals = await scan_for_signals()
+        raw_signals = await asyncio.wait_for(
+            scan_for_signals(), timeout=10.0
+        )
         signals = [
             _signal_to_response(s, actionable=s.passes_threshold) for s in raw_signals
         ]
@@ -476,7 +491,9 @@ async def get_dashboard(
             from backend.core.weather_signals import scan_for_weather_signals
             from backend.data.weather import fetch_ensemble_forecast, CITY_CONFIG
 
-            wx_signals = await scan_for_weather_signals(mode=settings.TRADING_MODE)
+            wx_signals = await asyncio.wait_for(
+                scan_for_weather_signals(mode=settings.TRADING_MODE), timeout=8.0
+            )
             weather_signals_data = [
                 WeatherSignalResponse(**_weather_signal_to_response(s).model_dump())
                 for s in wx_signals
