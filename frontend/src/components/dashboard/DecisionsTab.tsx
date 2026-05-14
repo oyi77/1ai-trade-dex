@@ -1,12 +1,10 @@
 import { POLL } from '../../polling'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDecisions } from '../../api'
-import { useModeFilter } from '../../hooks/useModeFilter'
 import type { DecisionLogRow } from '../../api'
 
 export function DecisionsTab() {
-  const { selectedMode } = useModeFilter()
   const [stratFilter, setStratFilter] = useState<string>('all')
   const [decisionFilter, setDecisionFilter] = useState<string>('all')
 
@@ -16,17 +14,24 @@ export function DecisionsTab() {
     refetchInterval: POLL.NORMAL,
   })
 
+  const rows: DecisionLogRow[] = useMemo(() => data?.items ?? [], [data?.items])
+
+  // Bolt: Memoize strategy extraction to avoid O(N) array iteration and Set creation on every render
+  const strategies = useMemo(() => {
+    return Array.from(new Set(rows.map(r => r.strategy).filter(Boolean)))
+  }, [rows])
+
+  // Bolt: Memoize filtered rows to prevent expensive O(N) re-filtering on rapid real-time updates
+  const filtered = useMemo(() => {
+    return rows.filter(r => {
+      if (stratFilter !== 'all' && r.strategy !== stratFilter) return false
+      if (decisionFilter !== 'all' && r.decision !== decisionFilter) return false
+      return true
+    })
+  }, [rows, stratFilter, decisionFilter])
+
   if (isLoading) return <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">Loading...</div>
   if (error) return <div className="flex items-center justify-center h-64 text-red-500/60 text-sm">Failed to load data</div>
-
-  const rows: DecisionLogRow[] = data?.items ?? []
-  const strategies = Array.from(new Set(rows.map(r => r.strategy).filter(Boolean)))
-  const filtered = rows.filter(r => {
-    if (selectedMode !== 'all' && r.strategy !== selectedMode) return false
-    if (stratFilter !== 'all' && r.strategy !== stratFilter) return false
-    if (decisionFilter !== 'all' && r.decision !== decisionFilter) return false
-    return true
-  })
 
   return (
     <div className="flex flex-col h-full min-h-0">
