@@ -57,7 +57,7 @@ The trading engine — execution routing, risk management, settlement, circuit b
 ### Scheduling
 | File | Description |
 |------|-------------|
-| `scheduler.py` | APScheduler instance and job registration |
+| `scheduler.py` | APScheduler instance and job registration; queue-worker mode keeps `settlement_check` scheduled directly until a periodic queue producer exists so live exposure can be released reliably |
 | `scheduling_strategies.py` | All scheduled job implementations — `scan_and_trade_job`, `settlement_job`, `strategy_cycle_job`, etc.; DB sessions must stay short and never remain open across awaited network calls |
 | `task_manager.py` | Async task lifecycle management |
 
