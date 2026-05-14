@@ -97,7 +97,7 @@ python backend/tests/smoke_tests/test_execution_paths.py
 pytest -k "test_duplicate_position_blocked" -v
 
 # Check MiroFish service is up
-curl -s http://localhost:8000/api/v1/health/mirofish | jq .
+curl -s http://localhost:8100/api/v1/health/mirofish | jq .
 ```
 
 ### 5. Deploy to Production
@@ -140,16 +140,16 @@ pm2 logs polyedge | grep -i error
 
 ```bash
 # General health
-curl -s http://localhost:8000/api/v1/health | jq .
+curl -s http://localhost:8100/api/v1/health | jq .
 
 # MiroFish debate engine
-curl -s http://localhost:8000/api/v1/health/mirofish | jq .
+curl -s http://localhost:8100/api/v1/health/mirofish | jq .
 
 # Dashboard available
 curl -s http://localhost:3000 | head -20
 
 # Database connectivity
-curl -s http://localhost:8000/api/v1/health/db | jq .
+curl -s http://localhost:8100/api/v1/health/db | jq .
 ```
 
 ### Expected Healthy Responses
@@ -342,8 +342,8 @@ pm2 set polyedge restart_max_memory 1000M
 ## Post-Deployment Checklist
 
 - [ ] Service is running: `pm2 status` shows 'online'
-- [ ] Health check passes: `curl http://localhost:8000/api/v1/health`
-- [ ] MiroFish is up: `curl http://localhost:8000/api/v1/health/mirofish`
+- [ ] Health check passes: `curl http://localhost:8100/api/v1/health`
+- [ ] MiroFish is up: `curl http://localhost:8100/api/v1/health/mirofish`
 - [ ] Dashboard accessible: `curl http://localhost:3000`
 - [ ] Logs are clean: `pm2 logs polyedge` shows no errors
 - [ ] Duplicate position test passes: `pytest -k duplicate_position -v`
