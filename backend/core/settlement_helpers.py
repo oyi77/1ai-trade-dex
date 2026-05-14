@@ -632,12 +632,19 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
     except Exception:
         pass
 
-    # Legacy fallback
-    if platform == "kalshi":
-        return await _fetch_kalshi_resolution(trade.market_ticker)
-    return await fetch_polymarket_resolution(
-        trade.market_ticker, event_slug=getattr(trade, "event_slug", None)
-    )
+    # Legacy fallback — wrap in error handling to prevent scheduler hang on API timeout
+    try:
+        if platform == "kalshi":
+            return await _fetch_kalshi_resolution(trade.market_ticker)
+        return await fetch_polymarket_resolution(
+            trade.market_ticker, event_slug=getattr(trade, "event_slug", None)
+        )
+    except Exception as e:
+        logger.warning(
+            f"[settlement] Resolution fetch failed for {trade.market_ticker} (platform={platform}): {type(e).__name__}: {e}"
+        )
+        # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports
+        return False, None
 
 
 def calculate_pnl(trade: Trade, settlement_value: float) -> float:
