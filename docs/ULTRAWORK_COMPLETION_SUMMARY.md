@@ -229,7 +229,7 @@ docker-compose restart app
 
 # 5. Verify service is running
 pm2 status
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8100/api/v1/health
 
 # 6. Check logs for success
 pm2 logs polyedge --lines 20
@@ -294,7 +294,7 @@ pm2 logs polyedge | grep "Duplicate position"
 ### After Merge
 1. Pull latest code: `git pull origin main`
 2. Restart service: `pm2 restart polyedge`
-3. Verify: `curl http://localhost:8000/api/v1/health`
+3. Verify: `curl http://localhost:8100/api/v1/health`
 4. Monitor: `pm2 logs polyedge`
 
 ### Final

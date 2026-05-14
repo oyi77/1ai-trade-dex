@@ -180,8 +180,8 @@ docker-compose ps
 sleep 10
 
 # Check health endpoints
-curl -s http://localhost:8000/api/v1/health | jq .
-curl -s http://localhost:8000/api/v1/health/mirofish | jq .
+curl -s http://localhost:8100/api/v1/health | jq .
+curl -s http://localhost:8100/api/v1/health/mirofish | jq .
 
 # Check logs
 pm2 logs polyedge --lines 20
@@ -217,11 +217,11 @@ pm2 status
 # Expected: polyedge should be 'online'
 
 # 2. API responds
-curl -s http://localhost:8000/api/v1/health
+curl -s http://localhost:8100/api/v1/health
 # Expected: HTTP 200, status: "healthy"
 
 # 3. MiroFish debate is up
-curl -s http://localhost:8000/api/v1/health/mirofish
+curl -s http://localhost:8100/api/v1/health/mirofish
 # Expected: HTTP 200, status: "running"
 
 # 4. Dashboard works
@@ -279,7 +279,7 @@ pm2 start polyedge
 
 # 4. Verify
 pm2 status
-curl http://localhost:8000/api/v1/health
+curl http://localhost:8100/api/v1/health
 
 # 5. Check logs for errors
 pm2 logs polyedge
