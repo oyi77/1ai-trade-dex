@@ -2,11 +2,9 @@ import { POLL } from '../../polling'
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchDecisions } from '../../api'
-import { useModeFilter } from '../../hooks/useModeFilter'
 import type { DecisionLogRow } from '../../api'
 
 export function DecisionsTab() {
-  const { selectedMode } = useModeFilter()
   const [stratFilter, setStratFilter] = useState<string>('all')
   const [decisionFilter, setDecisionFilter] = useState<string>('all')
 
@@ -26,12 +24,11 @@ export function DecisionsTab() {
   // Bolt: Memoize filtered rows to prevent expensive O(N) re-filtering on rapid real-time updates
   const filtered = useMemo(() => {
     return rows.filter(r => {
-      if (selectedMode !== 'all' && r.strategy !== selectedMode) return false
       if (stratFilter !== 'all' && r.strategy !== stratFilter) return false
       if (decisionFilter !== 'all' && r.decision !== decisionFilter) return false
       return true
     })
-  }, [rows, selectedMode, stratFilter, decisionFilter])
+  }, [rows, stratFilter, decisionFilter])
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">Loading...</div>
   if (error) return <div className="flex items-center justify-center h-64 text-red-500/60 text-sm">Failed to load data</div>
