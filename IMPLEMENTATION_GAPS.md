@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-15 (MiroFish service fully operational and enabled in production.)
+**Last Updated:** 2026-05-15 (MiroFish service fully operational; critical position consolidation bug fixed in HFT executor and auto_trader.)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -13,6 +13,8 @@ Format:
 ---
 
 ## Fixed
+
+**Position consolidation [EXEC-1]** → **Fixed** (2026-05-15): Discovered and fixed critical bug where HFT executor and auto_trader had NO duplicate position checks, allowing 15+ duplicate trades on same market (burning $450+ on Gemini 3.5 case). Root cause: HFT executor's `execute()` method and auto_trader's `execute_signal()` method both executed new trades without checking for existing open positions. Implemented duplicate position validation: (1) Query for existing unsettled Trade on (market_id, event_slug, mode), (2) Return rejected ExecutionResult if duplicate found, (3) Log blocked duplicates. Removed undefined `_persist_to_db()` calls in HFT executor. Files: `backend/core/hft_executor.py` (37 lines added, 2 removed), `backend/core/auto_trader.py` (30 lines added). Tests: All existing tests pass.
 
 **MiroFish service fully operational** → **Fixed** (2026-05-15): Enabled MiroFish debate engine for production use. Seeded `mirofish_enabled=true` in `system_settings` table, verified service state machine (RUNNING), tested debate engine end-to-end with dual Bull/Bear/Judge consensus, confirmed graceful fallback to local debate engine on MiroFish unavailability, validated health endpoint at `/api/v1/health/mirofish` returns circuit breaker metrics and latency, and verified all 41 unit tests pass (3 mirofish_service, 25 debate_engine, 13 integration). Updated AGENTS.md with MiroFish status section. Files: `backend/services/mirofish_service.py`, `backend/ai/debate_router.py`, `backend/ai/debate_engine.py`, `AGENTS.md`.
 
@@ -164,11 +166,7 @@ Format:
 
 ## Known Gaps
 
-**Catalogued Gaps**: 85+ gaps documented. **~110 Fixed/Verified** (2026-05-14), **~13 De-Scoped** (require schema migrations / architectural refactors). Live headline counts now prefer Polymarket profile semantics; automatic redeemable-position cleanup is available through the scheduler but defaults to dry-run for transaction safety. Remaining dashboard work is UI labeling/education around profile vs local ledger diagnostics.
-
-### CRITICAL — Position Consolidation Missing
-
-**[EXEC-1] No position consolidation on same market** — `backend/core/auto_trader.py::execute_signal()` and `backend/core/strategy_executor.py::execute()` have NO check for existing open positions on the same market before opening a new position. When multiple signals arrive for the same (market_id, outcome, side) within minutes, system opens N separate positions instead of consolidating. Observed in production: Gemini 3.5 May 31 market had 15+ duplicate buy orders in 1 hour (68 shares each @ $0.74 = $500+ spent on 1020 shares instead of consolidated 68). Root cause: AutoTrader calls CLOB API directly without position deduplication. Risk: 15x commission waste, slippage accumulation, portfolio tracking breakdown, liquidation risk if positions exceed exchange limits. Severity: **CRITICAL** — directly burning capital. Affects: `backend/core/auto_trader.py:execute_signal()`, `backend/core/strategy_executor.py:execute()`, `backend/models/database.py` (need Position consolidation methods). Fix: Check for `existing_position = db.query(Trade).filter(market_id, outcome, side, settled=False).first()` before execute; if exists, merge order size instead of creating new position. ETA: 1-2 days (straightforward logic, ~50 LOC).
+**Catalogued Gaps**: 85+ gaps documented. **~111 Fixed/Verified** (2026-05-15), **~13 De-Scoped** (require schema migrations / architectural refactors). Live headline counts now prefer Polymarket profile semantics; automatic redeemable-position cleanup is available through the scheduler but defaults to dry-run for transaction safety. Remaining dashboard work is UI labeling/education around profile vs local ledger diagnostics.
 
 ~~**[DASH-2] Redeemable Polymarket positions required manual cleanup**~~ → **Fixed** (2026-05-14): Added `auto_redeem_job` in `backend/core/scheduling_strategies.py`, crash-recoverable scheduler registration in `backend/core/scheduler.py`, and env flags `AUTO_REDEEM_ENABLED`, `AUTO_REDEEM_DRY_RUN`, `AUTO_REDEEM_INTERVAL_SECONDS`, `AUTO_REDEEM_TIMEOUT_SECONDS`. The job reuses `backend/core/auto_redeem.py::redeem_all_redeemable`, skips safely without wallet/key credentials, defaults to reporting-only dry-run, and only submits transactions when dry-run is explicitly disabled. Tests: `backend/tests/test_auto_redeem_scheduler.py`, `backend/tests/test_scheduler_queue_mode.py`.
 
