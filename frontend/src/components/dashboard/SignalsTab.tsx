@@ -1,5 +1,5 @@
 import { POLL } from '../../polling'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchSignalHistory } from '../../api'
 import { useModeFilter } from '../../hooks/useModeFilter'
@@ -17,18 +17,21 @@ export function SignalsTab() {
     refetchInterval: POLL.SLOW,
   })
 
+  const rows: SignalHistoryRow[] = useMemo(() => data?.items ?? [], [data?.items])
+  // Bolt: Memoize filtered rows to prevent expensive O(N) re-filtering on rapid real-time updates
+  const filtered = useMemo(() => {
+    return rows.filter(r => {
+      if (selectedMode !== 'all' && r.trading_mode !== selectedMode) return false
+      if (dirFilter !== 'all' && r.direction !== dirFilter) return false
+      if (execFilter === 'yes' && !r.executed) return false
+      if (execFilter === 'no' && r.executed) return false
+      if (typeFilter !== 'all' && (r.market_type ?? 'btc') !== typeFilter) return false
+      return true
+    })
+  }, [rows, selectedMode, dirFilter, execFilter, typeFilter])
+
   if (isLoading) return <div className="flex items-center justify-center h-64 text-neutral-500 text-sm">Loading...</div>
   if (error) return <div className="flex items-center justify-center h-64 text-red-500/60 text-sm">Failed to load data</div>
-
-  const rows: SignalHistoryRow[] = data?.items ?? []
-  const filtered = rows.filter(r => {
-    if (selectedMode !== 'all' && r.trading_mode !== selectedMode) return false
-    if (dirFilter !== 'all' && r.direction !== dirFilter) return false
-    if (execFilter === 'yes' && !r.executed) return false
-    if (execFilter === 'no' && r.executed) return false
-    if (typeFilter !== 'all' && (r.market_type ?? 'btc') !== typeFilter) return false
-    return true
-  })
 
   return (
     <div className="flex flex-col h-full min-h-0">

@@ -1,5 +1,5 @@
 import { POLL } from '../../polling'
-import { ReactNode } from 'react'
+import { ReactNode, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DataTable, type ColumnDef } from '../DataTable'
 import { fetchSettlements } from '../../api'
@@ -23,9 +23,12 @@ export function SettlementsTab() {
     refetchInterval: POLL.SLOW,
   })
 
-  const filtered = (settlements as SettlementRow[] ?? []).filter((item: any) =>
-    selectedMode === 'all' || item.trading_mode === selectedMode
-  )
+  // Bolt: Memoize filtered settlements to prevent expensive O(N) re-filtering on rapid real-time updates
+  const filtered = useMemo(() => {
+    return (settlements as SettlementRow[] ?? []).filter((item: any) =>
+      selectedMode === 'all' || item.trading_mode === selectedMode
+    )
+  }, [settlements, selectedMode])
 
   const columns: ColumnDef<SettlementRow>[] = [
     {
