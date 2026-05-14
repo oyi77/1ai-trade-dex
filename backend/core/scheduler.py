@@ -1150,7 +1150,11 @@ def start_scheduler():
             # API process: task_manager is set on app.state by lifespan startup
             worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
 
-            jobs_to_remove = [f"{mode}_market_scan" for mode in modes] + ["settlement_check"]
+            # Keep settlement_check on APScheduler until queue mode has a
+            # periodic producer for settlement_check jobs.  Removing it here
+            # left the worker idle with no settlement jobs enqueued, so live
+            # positions stayed pending and blocked new trades via exposure caps.
+            jobs_to_remove = [f"{mode}_market_scan" for mode in modes]
             for job_id in jobs_to_remove:
                 try:
                     scheduler.remove_job(job_id)
