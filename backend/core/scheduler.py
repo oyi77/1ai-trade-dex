@@ -483,7 +483,7 @@ def start_scheduler():
     _persist_and_add_job(
         scheduler,
         position_monitor_job,
-        IntervalTrigger(minutes=30),
+        IntervalTrigger(minutes=30, jitter=300),
         id="position_monitor",
         replace_existing=True,
         max_instances=1,

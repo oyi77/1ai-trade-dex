@@ -28,7 +28,7 @@ risk_manager = RiskManager()
 # A global semaphore caps total concurrent trades.
 _trade_locks: dict[str, asyncio.Lock] = {}
 _trade_locks_mutex = asyncio.Lock()
-MAX_CONCURRENT_TRADES = 3
+MAX_CONCURRENT_TRADES = 6
 _trade_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRADES)
 
 _rate_limiter: Optional[TokenBucketRateLimiter] = None

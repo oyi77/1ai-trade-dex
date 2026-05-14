@@ -211,7 +211,7 @@ class ConfigRegistry:
     KELLY_FRACTION: float = 0.30  #Kelly fraction (0.30 = 30% Kelly)
     MAX_POSITION_FRACTION: float = 0.08  #max position as % of bankroll
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  #max total exposure
-    MAX_TRADE_SIZE: float = 8.0  #max single trade size in USD
+    MAX_TRADE_SIZE: float = 100.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
     PAPER_MIN_ORDER_USDC: float = 5.0  #minimum order size (paper — matches live to prevent hallucination)
 
@@ -1247,7 +1247,7 @@ class Settings(BaseSettings):
         "weather": 1.15,
         "entertainment": 1.15,
     }
-    MAX_TRADE_SIZE: float = 8.0  # Global absolute ceiling on any single trade size (USD)
+    MAX_TRADE_SIZE: float = 100.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 5.0  # Simulated minimum (matches live to prevent hallucination)
     MIN_TIME_REMAINING: int = 60  # Don't trade windows closing in < 60s

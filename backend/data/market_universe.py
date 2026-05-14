@@ -5,6 +5,7 @@ Caches results for MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
 """
 
 from __future__ import annotations
+import random
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
@@ -209,7 +210,9 @@ class MarketUniverseScanner:
         global _MARKET_CACHE, _CACHE_TIMESTAMP
 
         now = time.time()
-        if _MARKET_CACHE and (now - _CACHE_TIMESTAMP) < self._cache_ttl:
+        # Add ±30s jitter to prevent cache-stampede when 14+ strategies refresh simultaneously
+        ttl_with_jitter = self._cache_ttl + random.randint(-30, 30)
+        if _MARKET_CACHE and (now - _CACHE_TIMESTAMP) < ttl_with_jitter:
             logger.debug("[MarketUniverseScanner] returning %d cached markets", len(_MARKET_CACHE))
             return _MARKET_CACHE[:limit]
 
