@@ -17,6 +17,33 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
+
+# Module-level singleton HTTP client with connection pooling.
+# Reused across all RPC calls to avoid DNS + TCP + TLS handshake per request.
+_http_client: Optional[httpx.AsyncClient] = None
+
+def _get_http_client() -> httpx.AsyncClient:
+    """Lazily create a shared httpx client with connection pooling."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(10.0),
+            limits=httpx.Limits(
+                max_connections=100,
+                max_keepalive_connections=20,
+                keepalive_expiry=30.0,
+            ),
+            http2=True,
+        )
+    return _http_client
+
+def close_http_client() -> None:
+    """Close the shared HTTP client. Call on app shutdown."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        _http_client.close()
+    _http_client = None
+
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 
@@ -885,8 +912,8 @@ class PolymarketCLOB:
             rpc_url = settings.POLYGON_RPC_URL
             total_balance = 0.0
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                for name, addr in tokens.items():
+            client = _get_http_client()
+            for name, addr in tokens.items():
                     data = (
                         "0x70a08231000000000000000000000000"
                         + wallet_address.lower()[2:]

@@ -2,10 +2,16 @@
   "active_plan": "/home/openclaw/projects/1ai-poly-trader/.sisyphus/plans/polyedge-improvements.md",
   "started_at": "2026-05-13T18:43:38.270Z",
   "session_ids": [
-    "ses_1de2597cfffeYG6T5zbG7jLLmz"
+    "ses_1de2597cfffeYG6T5zbG7jLLmz",
+    "ses_1dbe8ae1fffe4bxNZMaJxD1qt4",
+    "ses_1dbe84a1effeBOdCMYABtmyEMq",
+    "ses_1dbe7d994ffe74K2tNTdYODdxk"
   ],
   "session_origins": {
-    "ses_1de2597cfffeYG6T5zbG7jLLmz": "direct"
+    "ses_1de2597cfffeYG6T5zbG7jLLmz": "direct",
+    "ses_1dbe8ae1fffe4bxNZMaJxD1qt4": "appended",
+    "ses_1dbe84a1effeBOdCMYABtmyEMq": "appended",
+    "ses_1dbe7d994ffe74K2tNTdYODdxk": "appended"
   },
   "plan_name": "polyedge-improvements",
   "agent": "atlas",
