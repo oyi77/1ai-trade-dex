@@ -393,21 +393,30 @@ class TestBotStateLockHandling:
 
             dialect = Dialect()
 
+        class FakeResult:
+            def scalar(self):
+                return True
+
         class FakeSession:
             def get_bind(self):
                 return Bind()
 
             def execute(self, statement, *_args, **_kwargs):
                 calls.append(str(statement))
+                return FakeResult()
 
         db = FakeSession()
 
         with patch.object(se, "_update_botstate_after_trade") as update_mock:
-            se._prepare_short_botstate_transaction(db)
+            result = se._prepare_short_botstate_transaction(db)
             se._update_botstate_after_trade(db, "paper", 50.0)
 
-        assert "SET LOCAL lock_timeout = '2s'" in calls
-        assert "SET LOCAL statement_timeout = '5s'" in calls
+        assert result is True
+        assert any("pg_try_advisory_xact_lock" in c for c in calls), (
+            "must use advisory lock instead of blocking on row lock"
+        )
+        assert "SET LOCAL lock_timeout = '500ms'" in calls
+        assert "SET LOCAL statement_timeout = '2s'" in calls
         update_mock.assert_called_once_with(db, "paper", 50.0)
 
 

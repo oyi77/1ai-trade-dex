@@ -103,28 +103,44 @@ def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
 
 
 def _prepare_short_botstate_transaction(db) -> None:
-    """Keep best-effort BotState updates from waiting behind stale row locks."""
+    """Keep best-effort BotState updates from waiting behind stale row locks.
+
+    Uses PostgreSQL advisory lock (pg_try_advisory_xact_lock) to avoid
+    blocking the thread pool worker on row-level lock contention. If the
+    advisory lock is busy (another trade or flush is mid-update), returns
+    False so the caller can skip this update cycle immediately — no retry,
+    no thread blocked.
+    """
 
     if db.get_bind().dialect.name != "postgresql":
-        return
+        return None
 
-    db.execute(text("SET LOCAL lock_timeout = '2s'"))
-    db.execute(text("SET LOCAL statement_timeout = '5s'"))
+    acquired = db.execute(
+        text("SELECT pg_try_advisory_xact_lock(hashtext('polyedge_botstate_update'))")
+    ).scalar()
+    if not acquired:
+        return False
+
+    db.execute(text("SET LOCAL lock_timeout = '500ms'"))
+    db.execute(text("SET LOCAL statement_timeout = '2s'"))
+    return True
 
 
-def _run_short_botstate_update(mode: str, adjusted_size: float) -> None:
+def _run_short_botstate_update(mode: str, adjusted_size: float) -> bool:
     """Run one isolated BotState update with caller-owned error handling.
 
-    Uses get_db_session() from backend.db.utils so that tests can patch
-    SessionLocal and the follow-up BotState update runs against the same
-    in-memory database as the trade commit.
+    Returns True if the update was applied, False if it was skipped
+    (advisory lock busy — non-fatal).
     """
 
     from backend.db.utils import get_db_session
 
     with get_db_session() as state_db:
-        _prepare_short_botstate_transaction(state_db)
+        ready = _prepare_short_botstate_transaction(state_db)
+        if ready is False:
+            return False
         _update_botstate_after_trade(state_db, mode, adjusted_size)
+        return True
 
 
 def _commit_session_with_retry(db, *, label: str) -> None:
@@ -158,65 +174,77 @@ async def _commit_session_with_retry_async(db, *, label: str) -> None:
 
 
 def _apply_post_trade_botstate_update(mode: str, adjusted_size: float) -> bool:
-    """Best-effort BotState counter update after trade persistence is committed."""
+    """Best-effort BotState counter update after trade persistence is committed.
 
-    last_exc: OperationalError | None = None
-    for attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
-        try:
-            with _botstate_threading_lock:
-                _run_short_botstate_update(mode, adjusted_size)
-            return True
-        except OperationalError as exc:
-            if not _is_lock_timeout_error(exc):
-                logger.opt(exception=exc).error(
-                    "[strategy_executor] post-trade BotState update failed for mode={} adjusted_size={}",
-                    mode,
-                    adjusted_size,
-                )
-                return False
-            last_exc = exc
-            if attempt < _MAX_LOCK_RETRY_ATTEMPTS - 1:
-                time.sleep(_lock_retry_delay(attempt))
+    Uses advisory lock inside _run_short_botstate_update so the thread pool
+    worker never blocks on row-level lock contention. If the lock is busy
+    (another thread is mid-update), skip immediately — the trade is already
+    committed and BotState is eventually consistent.
+    """
 
-    logger.warning(
-        "[strategy_executor] trade persisted but BotState follow-up update skipped after {} lock-timeout attempts for mode={} adjusted_size={}: {}",
-        _MAX_LOCK_RETRY_ATTEMPTS,
-        mode,
-        adjusted_size,
-        last_exc,
-    )
-    return False
+    try:
+        with _botstate_threading_lock:
+            updated = _run_short_botstate_update(mode, adjusted_size)
+        if not updated:
+            logger.info(
+                "[strategy_executor] BotState update skipped for mode={} adjusted_size={} (advisory lock busy)",
+                mode,
+                adjusted_size,
+            )
+        return updated
+    except OperationalError as exc:
+        if _is_lock_timeout_error(exc):
+            logger.warning(
+                "[strategy_executor] trade persisted but BotState follow-up update skipped for mode={} adjusted_size={}: {}",
+                mode,
+                adjusted_size,
+                exc,
+            )
+            return False
+        logger.opt(exception=exc).error(
+            "[strategy_executor] post-trade BotState update failed for mode={} adjusted_size={}",
+            mode,
+            adjusted_size,
+        )
+        return False
 
 
 async def _apply_post_trade_botstate_update_async(mode: str, adjusted_size: float) -> bool:
-    """Async best-effort BotState counter update after trade persistence is committed."""
+    """Async best-effort BotState counter update after trade persistence is committed.
 
-    last_exc: OperationalError | None = None
-    for attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
-        try:
-            async with botstate_mutex:
-                _run_short_botstate_update(mode, adjusted_size)
-            return True
-        except OperationalError as exc:
-            if not _is_lock_timeout_error(exc):
-                logger.opt(exception=exc).error(
-                    "[strategy_executor] async post-trade BotState update failed for mode={} adjusted_size={}",
-                    mode,
-                    adjusted_size,
-                )
-                return False
-            last_exc = exc
-            if attempt < _MAX_LOCK_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(_lock_retry_delay(attempt))
+    Uses advisory lock inside _run_short_botstate_update so the event loop
+    never blocks on row-level lock contention. If the lock is busy, skip
+    immediately — the trade is already committed and BotState is eventually
+    consistent.
+    """
 
-    logger.warning(
-        "[strategy_executor] trade persisted but async BotState follow-up update skipped after {} lock-timeout attempts for mode={} adjusted_size={}: {}",
-        _MAX_LOCK_RETRY_ATTEMPTS,
-        mode,
-        adjusted_size,
-        last_exc,
-    )
-    return False
+    try:
+        async with botstate_mutex:
+            updated = await asyncio.to_thread(
+                _run_short_botstate_update, mode, adjusted_size
+            )
+        if not updated:
+            logger.info(
+                "[strategy_executor] async BotState update skipped for mode={} adjusted_size={} (advisory lock busy)",
+                mode,
+                adjusted_size,
+            )
+        return updated
+    except OperationalError as exc:
+        if _is_lock_timeout_error(exc):
+            logger.warning(
+                "[strategy_executor] trade persisted but async BotState follow-up update skipped for mode={} adjusted_size={}: {}",
+                mode,
+                adjusted_size,
+                exc,
+            )
+            return False
+        logger.opt(exception=exc).error(
+            "[strategy_executor] async post-trade BotState update failed for mode={} adjusted_size={}",
+            mode,
+            adjusted_size,
+        )
+        return False
 
 
 async def _get_asset_lock(asset_key: str) -> asyncio.Lock:
