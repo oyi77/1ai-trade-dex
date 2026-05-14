@@ -105,4 +105,34 @@ Polyedge is a full-stack automated prediction market trading bot targeting Polym
 - Groq API — Fast LLM inference
 - `MiroFish` — External dual debate system for trade decisions
 
+## MiroFish Service Status
+
+**✓ OPERATIONAL (2026-05-15)**
+
+MiroFish debate system is now fully enabled and production-ready:
+
+### Configuration
+- **Enable flag**: `mirofish_enabled=true` (stored in `system_settings` table)
+- **Auto-start**: Service automatically starts on application initialization via `backend/core/orchestrator.py`
+- **Health endpoint**: `GET /api/v1/health/mirofish` — returns circuit breaker metrics, latency, error rate
+
+### Components
+- **Service**: `backend/services/mirofish_service.py` (state machine: STOPPED → RUNNING → PAUSED)
+- **Monitor**: `backend/services/mirofish_monitor.py` (circuit breaker with failure tracking)
+- **Client**: `backend/ai/mirofish_client.py` (API communication with fallback retry logic)
+- **Router**: `backend/ai/debate_router.py` (routes to MiroFish or falls back to local debate engine)
+- **Engine**: `backend/ai/debate_engine.py` (Bull/Bear/Judge consensus model via Groq/Claude)
+
+### Testing
+- Service integration tests: `tests/test_mirofish_service.py` (3 tests, all passing)
+- Debate engine tests: `tests/test_debate_engine.py` (25 tests, all passing)
+- End-to-end integration tests: `tests/test_mirofish_integration.py` (13 tests, all passing)
+
+### Feature Support
+- Dual debate (Bull/Bear/Judge) with consensus probability calculation
+- Graceful fallback to local debate if MiroFish API unavailable
+- Circuit breaker protection against cascading failures
+- Comprehensive health monitoring with latency and error rate tracking
+- Integration with market question routing for trade decision support
+
 <!-- MANUAL: -->
