@@ -32,6 +32,7 @@ from backend.core.scheduling_strategies import (
     sync_live_wallet,
     verify_settlement_blockchain,
     market_universe_scan_job,
+    position_monitor_job,
 )
 from backend.models.database import ScheduledJob, Trade
 from backend.core.auto_improve import auto_improve_job
@@ -177,6 +178,7 @@ JOB_FUNCTION_REGISTRY = {
     "sync_live_wallet": sync_live_wallet,
     "verify_settlement_blockchain": verify_settlement_blockchain,
     "market_universe_scan_job": market_universe_scan_job,
+    "position_monitor_job": position_monitor_job,
 }
 
 
@@ -517,6 +519,17 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=60,
+    )
+
+    # Position monitor: scan for stale positions every 30 minutes
+    _persist_and_add_job(
+        scheduler,
+        position_monitor_job,
+        IntervalTrigger(minutes=30),
+        id="position_monitor",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
     )
 
     # Watchdog: check strategy heartbeats every 30s

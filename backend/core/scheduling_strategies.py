@@ -18,6 +18,10 @@ from backend.core.heartbeat import update_heartbeat
 from backend.core.decisions import record_decision
 from backend.core.event_bus import _broadcast_event
 
+from backend.core.position_monitor import position_monitor_job
+
+__all__ = ["position_monitor_job"]
+
 from loguru import logger
 
 

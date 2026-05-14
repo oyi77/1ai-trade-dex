@@ -35,6 +35,9 @@ from backend.core.circuit_breaker_pybreaker import polymarket_breaker
 from backend.config import settings
 
 from loguru import logger
+from backend.monitoring.hft_metrics import record_maker_fill_rate
+
+
 def _cfg(key: str, default=None):
     return getattr(settings, key, default) if hasattr(settings, key) else default
 
@@ -118,6 +121,7 @@ class OrderResult:
     fill_price: Optional[float] = None
     fill_size: Optional[float] = None
     idempotency_key: Optional[str] = None
+    maker_filled: bool = False
 
 
 @dataclass
@@ -145,6 +149,7 @@ class OrderBook:
 @dataclass
 class TradeRecord:
     """Trade record from Polymarket Data API."""
+
     id: str
     user: str
     asset_id: str
@@ -240,12 +245,13 @@ class PolymarketCLOB:
                     )
                     logger.info(
                         "[polymarket_clob.__init__] Builder Program configured for address: %s",
-                        builder_address or "default"
+                        builder_address or "default",
                     )
                 except Exception as e:
                     logger.warning(
                         "[polymarket_clob.__init__] Failed to configure Builder Program: %s: %s",
-                        type(e).__name__, e
+                        type(e).__name__,
+                        e,
                     )
             try:
                 self._clob_client = ClobClient(
@@ -402,6 +408,7 @@ class PolymarketCLOB:
 
     async def get_market(self, condition_id: str) -> Optional[dict]:
         """Get market data from Gamma API."""
+
         async def _fetch_market():
             resp = await self._http.get(
                 f"{GAMMA_HOST}/markets", params={"conditionId": condition_id}
@@ -422,7 +429,10 @@ class PolymarketCLOB:
     async def get_leaderboard(self, window: str = "30d") -> list[dict]:
         """Get Polymarket trader leaderboard via v1 Data API."""
         try:
-            time_period = {"1d": "DAY", "7d": "WEEK", "30d": "MONTH", "all": "ALL"}.get(window, "MONTH")
+            time_period = {"1d": "DAY", "7d": "WEEK", "30d": "MONTH", "all": "ALL"}.get(
+                window, "MONTH"
+            )
+
             async def _fetch_leaderboard():
                 resp = await self._http.get(
                     f"{DATA_HOST}/{settings.DATA_API_VERSION}/leaderboard",
@@ -433,7 +443,9 @@ class PolymarketCLOB:
 
             return await polymarket_breaker.call(_fetch_leaderboard)
         except Exception as e:
-            logger.debug(f"[polymarket_clob.get_leaderboard] Unavailable ({type(e).__name__}: {e})")
+            logger.debug(
+                f"[polymarket_clob.get_leaderboard] Unavailable ({type(e).__name__}: {e})"
+            )
             return []
 
     async def get_trader_trades(self, wallet: str, limit: int = 100) -> list[dict]:
@@ -472,16 +484,18 @@ class PolymarketCLOB:
             logger.error("ClobClient not initialised — private_key required")
             return None
 
-        if self._clob_client.creds and self._clob_client.creds.api_key and self._clob_client.creds.api_secret:
+        if (
+            self._clob_client.creds
+            and self._clob_client.creds.api_key
+            and self._clob_client.creds.api_secret
+        ):
             self.api_key = self._clob_client.creds.api_key
             self.api_secret = self._clob_client.creds.api_secret
             self.api_passphrase = self._clob_client.creds.api_passphrase
             return self._clob_client.creds
 
         try:
-            creds = await asyncio.to_thread(
-                self._clob_client.derive_api_key
-            )
+            creds = await asyncio.to_thread(self._clob_client.derive_api_key)
             if creds and creds.api_secret:
                 # Store and upgrade the client to L2
                 self.api_key = creds.api_key
@@ -520,7 +534,8 @@ class PolymarketCLOB:
         """
         if size < _cfg("MIN_ORDER_USDC", 5.0):
             return OrderResult(
-                success=False, error=f"Size ${size:.2f} below minimum ${_cfg('MIN_ORDER_USDC', 5.0)}"
+                success=False,
+                error=f"Size ${size:.2f} below minimum ${_cfg('MIN_ORDER_USDC', 5.0)}",
             )
 
         # Fail fast for live/testnet mode without credentials (before touching the DB)
@@ -618,9 +633,7 @@ class PolymarketCLOB:
             )
 
             # Post the signed order
-            resp = await asyncio.to_thread(
-                self._clob_client.post_order, signed_order
-            )
+            resp = await asyncio.to_thread(self._clob_client.post_order, signed_order)
 
             order_id = (
                 resp.get("orderID", resp.get("id", "unknown"))
@@ -654,7 +667,9 @@ class PolymarketCLOB:
             logger.error("Cancel requires ClobClient with API credentials")
             return False
         try:
-            resp = await asyncio.to_thread(self._clob_client.cancel_order, OrderPayload(orderID=order_id))
+            resp = await asyncio.to_thread(
+                self._clob_client.cancel_order, OrderPayload(orderID=order_id)
+            )
             return resp.get("success", False) if isinstance(resp, dict) else bool(resp)
         except Exception as e:
             logger.error(
@@ -694,6 +709,145 @@ class PolymarketCLOB:
             )
             return False
 
+    async def place_maker_first_order(
+        self,
+        token_id: str,
+        side: str,
+        size: float,
+        edge_pp: float,
+        timeout: float = 15.0,
+    ) -> OrderResult:
+        side_u = (side or "BUY").upper()
+
+        try:
+            book = await self.get_order_book(token_id)
+        except Exception:
+            book = None
+
+        if edge_pp > 20:
+            if book and side_u == "BUY" and book.best_ask:
+                taker_price = float(book.best_ask)
+            elif book and side_u == "SELL" and book.best_bid:
+                taker_price = float(book.best_bid)
+            else:
+                try:
+                    taker_price = await self.get_mid_price(token_id)
+                except Exception:
+                    taker_price = 0.5
+            taker_price = max(0.01, min(0.99, taker_price))
+            result = await self.place_limit_order(
+                token_id=token_id,
+                side=side_u,
+                price=taker_price,
+                size=size,
+            )
+            try:
+                record_maker_fill_rate(token_id, False)
+            except Exception:
+                logger.exception("record_maker_fill_rate failed")
+            if hasattr(result, "maker_filled"):
+                try:
+                    result.maker_filled = False
+                except Exception:
+                    logger.exception("set maker_filled failed")
+            return result
+
+        if book and side_u == "BUY" and book.best_bid:
+            maker_price = float(book.best_bid) + 0.001
+        elif book and side_u == "SELL" and book.best_ask:
+            maker_price = float(book.best_ask) - 0.001
+        else:
+            try:
+                mid = await self.get_mid_price(token_id)
+            except Exception:
+                mid = 0.5
+            maker_price = mid + 0.001 if side_u == "BUY" else mid - 0.001
+        maker_price = max(0.01, min(0.99, round(maker_price, 4)))
+
+        maker_result = await self.place_limit_order(
+            token_id=token_id,
+            side=side_u,
+            price=maker_price,
+            size=size,
+        )
+
+        if not getattr(maker_result, "success", False):
+            try:
+                record_maker_fill_rate(token_id, False)
+            except Exception:
+                logger.exception("record_maker_fill_rate failed")
+            return maker_result
+
+        if getattr(maker_result, "fill_price", None) is not None:
+            try:
+                record_maker_fill_rate(token_id, True)
+            except Exception:
+                logger.exception("record_maker_fill_rate failed")
+            if hasattr(maker_result, "maker_filled"):
+                try:
+                    maker_result.maker_filled = True
+                except Exception:
+                    logger.exception("set maker_filled failed")
+            return maker_result
+
+        order_id = getattr(maker_result, "order_id", None)
+
+        async def _poll_for_fill() -> bool:
+            while True:
+                try:
+                    open_orders = await self.get_open_orders()
+                except Exception:
+                    open_orders = []
+                still_open = any(
+                    (isinstance(o, dict) and o.get("id") == order_id)
+                    for o in (open_orders or [])
+                )
+                if not still_open:
+                    return True
+                await asyncio.sleep(0.1)
+
+        try:
+            await asyncio.wait_for(_poll_for_fill(), timeout=timeout)
+            try:
+                record_maker_fill_rate(token_id, True)
+            except Exception:
+                logger.exception("record_maker_fill_rate failed")
+            if hasattr(maker_result, "maker_filled"):
+                try:
+                    maker_result.maker_filled = True
+                except Exception:
+                    logger.exception("set maker_filled failed")
+            return maker_result
+        except asyncio.TimeoutError:
+            if order_id:
+                try:
+                    await self.cancel_order(order_id)
+                except Exception:
+                    logger.exception("cancel_order during taker escalation failed")
+            try:
+                taker_result = await self.place_market_order(
+                    token_id=token_id,
+                    side=side_u,
+                    size=size,
+                )
+            except Exception as e:
+                logger.error(f"Taker escalation failed: {e}", exc_info=True)
+                try:
+                    record_maker_fill_rate(token_id, False)
+                except Exception:
+                    logger.exception("record_maker_fill_rate failed")
+                return OrderResult(success=False, error=f"Taker escalation failed: {e}")
+            try:
+                record_maker_fill_rate(token_id, False)
+            except Exception:
+                logger.exception("record_maker_fill_rate failed")
+            if hasattr(taker_result, "maker_filled"):
+                try:
+                    taker_result.maker_filled = False
+                except Exception:
+                    logger.exception("set maker_filled failed")
+            return taker_result
+
     async def get_wallet_balance(self) -> dict:
         """
         Fetch wallet balance from Polymarket.
@@ -717,13 +871,15 @@ class PolymarketCLOB:
             # without requiring py-clob-client authentication that is often flawed for builders
             import httpx
 
-            wallet_address = self.builder_address if self.builder_address else self._account.address
+            wallet_address = (
+                self.builder_address if self.builder_address else self._account.address
+            )
             from backend.config import settings
 
             tokens = {
                 "USDC.e": settings.USDC_E_ADDRESS,
                 "USDC Native": settings.USDC_NATIVE_ADDRESS,
-                "pUSD": settings.PUSD_ADDRESS
+                "pUSD": settings.PUSD_ADDRESS,
             }
 
             rpc_url = settings.POLYGON_RPC_URL
@@ -731,7 +887,10 @@ class PolymarketCLOB:
 
             async with httpx.AsyncClient(timeout=10.0) as client:
                 for name, addr in tokens.items():
-                    data = "0x70a08231000000000000000000000000" + wallet_address.lower()[2:]
+                    data = (
+                        "0x70a08231000000000000000000000000"
+                        + wallet_address.lower()[2:]
+                    )
                     try:
                         res = await client.post(
                             rpc_url,
@@ -739,9 +898,9 @@ class PolymarketCLOB:
                                 "jsonrpc": "2.0",
                                 "method": "eth_call",
                                 "params": [{"to": addr, "data": data}, "latest"],
-                                "id": 1
+                                "id": 1,
                             },
-                            headers={"User-Agent": "polyedge-finance"}
+                            headers={"User-Agent": "polyedge-finance"},
                         )
                         if res.status_code == 200 and "result" in res.json():
                             hex_val = res.json()["result"]
@@ -751,11 +910,7 @@ class PolymarketCLOB:
                     except Exception as e:
                         logger.warning(f"Failed to fetch {name} balance: {e}")
 
-            return {
-                "usdc_balance": total_balance,
-                "token_balances": {},
-                "error": None
-            }
+            return {"usdc_balance": total_balance, "token_balances": {}, "error": None}
         except Exception as e:
             logger.warning(f"Polygon RPC balance fetch failed: {e}")
 
@@ -840,7 +995,9 @@ class PolymarketCLOB:
                     "or initialize with private_key"
                 )
 
-        logger.info(f"[polymarket_clob.get_wallet_trades] Fetching trades for {address}")
+        logger.info(
+            f"[polymarket_clob.get_wallet_trades] Fetching trades for {address}"
+        )
 
         # Validate inputs
         if limit > 1000:
@@ -861,7 +1018,7 @@ class PolymarketCLOB:
                         "limit": limit,
                         "offset": off,
                     },
-                    timeout=30.0
+                    timeout=30.0,
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -882,7 +1039,7 @@ class PolymarketCLOB:
             except Exception as e:
                 logger.error(
                     f"[polymarket_clob.get_wallet_trades._fetch_page] {type(e).__name__}: Failed to fetch page at offset {off}: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
                 raise
 
@@ -902,7 +1059,7 @@ class PolymarketCLOB:
             except Exception as e:
                 logger.error(
                     f"[polymarket_clob.get_wallet_trades] {type(e).__name__}: Circuit breaker or API error: {e}",
-                    exc_info=True
+                    exc_info=True,
                 )
                 if all_trades:
                     logger.info(
@@ -922,10 +1079,14 @@ class PolymarketCLOB:
                 try:
                     record = TradeRecord(
                         id=trade_data.get("id") or trade_data.get("conditionId", ""),
-                        user=trade_data.get("user") or trade_data.get("proxyWallet", ""),
-                        asset_id=trade_data.get("asset_id") or trade_data.get("asset", ""),
+                        user=trade_data.get("user")
+                        or trade_data.get("proxyWallet", ""),
+                        asset_id=trade_data.get("asset_id")
+                        or trade_data.get("asset", ""),
                         outcome=trade_data.get("outcome") or trade_data.get("side", ""),
-                        shares=float(trade_data.get("shares", 0) or trade_data.get("size", 0)),
+                        shares=float(
+                            trade_data.get("shares", 0) or trade_data.get("size", 0)
+                        ),
                         price=float(trade_data.get("price", 0)),
                         spent=float(trade_data.get("spent", 0) or 0),
                         timestamp=int(trade_data.get("timestamp", 0)),
@@ -936,7 +1097,7 @@ class PolymarketCLOB:
                 except (KeyError, ValueError) as e:
                     logger.warning(
                         f"[polymarket_clob.get_wallet_trades] {type(e).__name__}: Skipping malformed trade record: {e}",
-                        exc_info=True
+                        exc_info=True,
                     )
 
             page += 1

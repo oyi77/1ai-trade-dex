@@ -1233,6 +1233,15 @@ class Settings(BaseSettings):
     MIN_EDGE_THRESHOLD: float = (
         0.03  # 3% edge required - permissive default; BTC strategies typically show 3-6% edge
     )
+    # Minimum required edge in percentage points (signal_win_rate - market_price) * 100.
+    # Trades with edge_pp < MIN_EDGE_PP are rejected by RiskManager.check_edge().
+    # Also auto-rejects market_price < 0.30 unless edge_pp > 10 (longshot guard).
+    # Strategies to immediately disable — comma-separated list.
+    # These strategies have negative expectancy and should never run.
+    # Example: DISABLED_STRATEGIES=sports_scanner,politics_scanner
+    DISABLED_STRATEGIES: str = ""
+
+    MIN_EDGE_PP: float = 5.0
     MAX_ENTRY_PRICE: float = 0.80  # Allow entries up to 80c for bond-like trades
     MAX_TRADES_PER_WINDOW: int = 20
     MAX_TRADES_PER_SCAN: int = int(os.getenv("MAX_TRADES_PER_SCAN", "10"))  # type: ignore[assignment]

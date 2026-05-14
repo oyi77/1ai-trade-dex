@@ -1,0 +1,2 @@
+- **Index Strategy**: Opted for narrow composite indexes over wide ones to maintain insert performance while satisfying calibration and time-series query requirements.
+- **Latency Profiling**: Implemented `QueryTimer` in `SignalLogRepository` to return `(result, elapsed)` tuples, allowing for real-time monitoring of aggregation performance across different database backends.

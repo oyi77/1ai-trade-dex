@@ -30,6 +30,16 @@ class RiskDecision:
     adjusted_size: float
 
 
+class EdgeFilterError(Exception):
+    def __init__(self, message: str, market_id: str = "", market_price: float = 0.0, signal_win_rate: float = 0.0, edge_pp: float = 0.0):
+        super().__init__(message)
+        self.message = message
+        self.market_id = market_id
+        self.market_price = market_price
+        self.signal_win_rate = signal_win_rate
+        self.edge_pp = edge_pp
+
+
 @dataclass
 class DrawdownStatus:
     daily_pnl: float
@@ -95,6 +105,36 @@ class RiskManager:
         self.s = settings_obj or settings
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
+        self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 5.0))
+
+    def check_edge(self, market_price: float, signal_win_rate: float, market_id: str, db=None):
+        """
+        Validate trade edge (in percentage points) vs config/environmental minimum.
+        - edge_pp = (signal_win_rate - market_price) * 100
+        - market_price < 0.30 requires edge_pp > 10
+        - All markets require edge_pp >= MIN_EDGE_PP
+        Raise EdgeFilterError on rejection.
+        """
+        edge_pp = (signal_win_rate - market_price) * 100
+        # Super-longshot trades require huge edge
+        if market_price < 0.30 and edge_pp < 10:
+            # log rejection below
+            raise EdgeFilterError(
+                f"Edge filter: market_price={market_price:.2f} longshot, edge_pp={edge_pp:.2f} < 10",
+                market_id=market_id,
+                market_price=market_price,
+                signal_win_rate=signal_win_rate,
+                edge_pp=edge_pp
+            )
+        if edge_pp < self.MIN_EDGE_PP:
+            raise EdgeFilterError(
+                f"Edge filter: edge_pp={edge_pp:.2f} < MIN_EDGE_PP={self.MIN_EDGE_PP}",
+                market_id=market_id,
+                market_price=market_price,
+                signal_win_rate=signal_win_rate,
+                edge_pp=edge_pp
+            )
+        return edge_pp
 
     def _get_bankroll(self, db, mode: str) -> float:
         state = db.query(BotState).filter_by(mode=mode).first()
@@ -162,6 +202,8 @@ class RiskManager:
         strategy_name: Optional[str] = None,
         direction: Optional[str] = None,
         category: Optional[str] = None,
+        market_price: Optional[float] = None,
+        signal_win_rate: Optional[float] = None,
     ) -> RiskDecision:
         effective_mode = mode or self.s.TRADING_MODE
 
@@ -172,11 +214,30 @@ class RiskManager:
         if params and params.get("_force_disabled", False):
             return RiskDecision(False, "strategy explicitly disabled", 0.0)
 
+        if market_price is not None and signal_win_rate is not None:
+            try:
+                self.check_edge(
+                    market_price=market_price,
+                    signal_win_rate=signal_win_rate,
+                    market_id=market_ticker or "unknown",
+                    db=db,
+                )
+            except EdgeFilterError as e:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_edge")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="edge")
+                logger.info(
+                    "[risk_manager] edge filter rejection: market={} price={:.3f} swr={:.3f} edge_pp={:.2f}",
+                    e.market_id, e.market_price, e.signal_win_rate, e.edge_pp,
+                )
+                return RiskDecision(False, e.message, 0.0)
+
         min_confidence = self._get_confidence_threshold(effective_mode, strategy_name)
         if confidence < min_confidence:
             record_signal(strategy=strategy_name or "unknown", signal_type="rejected_confidence")
             increment_risk_rejection(strategy=strategy_name or "unknown", reason="confidence")
-            return RiskDecision(False, f"confidence {confidence:.2f} below {min_confidence}", 0.0)
+            return RiskDecision(False,
+                f"confidence {confidence:.2f} < min threshold {min_confidence:.2f}", 0.0
+            )
 
         bias_weight = getattr(self.s, 'LONGSHOT_NO_BIAS_WEIGHT', 0.0)
         if bias_weight > 0 and direction:
@@ -238,6 +299,27 @@ class RiskManager:
             return RiskDecision(
                 False, f"unsettled trade exists for {market_ticker}", 0.0
             )
+
+        if market_ticker and direction:
+            conflicting_side = self.check_side_lock(
+                market_ticker=market_ticker,
+                direction=direction,
+                db=db,
+                mode=effective_mode,
+            )
+            if conflicting_side is not None:
+                record_signal(
+                    strategy=strategy_name or "unknown",
+                    signal_type="rejected_sidelock",
+                )
+                increment_risk_rejection(
+                    strategy=strategy_name or "unknown", reason="sidelock"
+                )
+                return RiskDecision(
+                    False,
+                    f"side-lock: opposing {conflicting_side} position open on {market_ticker}",
+                    0.0,
+                )
 
         # Live bankroll = PM portfolio value (includes locked positions);
         # available cash = portfolio minus open exposure.
@@ -446,6 +528,46 @@ class RiskManager:
         finally:
                 if owns_db:
                     db.close()
+
+    def check_side_lock(
+        self, market_ticker: str, direction: str, db=None, mode: Optional[str] = None
+    ) -> Optional[str]:
+        """Returns the conflicting side if an opposing-side, unsettled trade exists for the given market.
+        Returns None if no side-lock is present.
+        """
+        from backend.models.database import Trade
+        owns_db = db is None
+        ctx = get_db_session() if owns_db else nullcontext(db)
+        try:
+            with ctx as db:
+                effective_mode = mode or self.s.TRADING_MODE
+                # Opposing side: if direction is 'YES', look for 'NO', and vice versa
+                side_field = getattr(Trade, "side", None) or getattr(Trade, "direction", None)
+                # Attempt both 'YES/NO' and 'BUY/SELL' as supported
+                side_yes = [s for s in ["YES", "BUY"] if direction.upper().startswith(s[:1])]
+                if side_yes:
+                    opp_sides = ["NO", "SELL"]
+                else:
+                    opp_sides = ["YES", "BUY"]
+                conflict = db.query(Trade).filter(
+                    Trade.market_ticker == market_ticker,
+                    Trade.settled.is_(False),
+                    Trade.trading_mode == effective_mode,
+                    side_field.in_(opp_sides),
+                ).first()
+                if conflict is not None:
+                    return getattr(conflict, "side", getattr(conflict, "direction", None))
+                return None
+        except Exception as e:
+            logger.opt(exception=True).error(
+                "[risk_manager.check_side_lock] {}: {}",
+                type(e).__name__,
+                e,
+            )
+            return "error"
+        finally:
+            if owns_db:
+                db.close()
 
     def _has_unsettled_trade(
         self, market_ticker: str, db=None, mode: Optional[str] = None, direction: Optional[str] = None
