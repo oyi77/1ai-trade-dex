@@ -1,6 +1,8 @@
 """Regression tests for scheduled Polymarket auto-redemption."""
 
 from dataclasses import dataclass, field
+import sys
+import types
 
 import pytest
 
@@ -21,29 +23,21 @@ async def test_auto_redeem_job_skips_without_wallet_or_key(monkeypatch):
 
     from backend.core import scheduling_strategies
     from backend.core import scheduler as scheduler_module
-    import backend.core.auto_redeem as auto_redeem_module
 
     events: list[tuple[str, str]] = []
-    called = False
 
     def fake_log_event(event_type: str, message: str, data: dict | None = None):
         events.append((event_type, message))
-
-    def fake_redeem_all_redeemable(*args, **kwargs):
-        nonlocal called
-        called = True
-        return _BatchResult()
 
     monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_ADDRESS", None, raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_WALLET_ADDRESS", None, raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_PRIVATE_KEY", None, raising=False)
     monkeypatch.setattr(scheduler_module, "log_event", fake_log_event)
-    monkeypatch.setattr(auto_redeem_module, "redeem_all_redeemable", fake_redeem_all_redeemable)
 
     await scheduling_strategies.auto_redeem_job()
 
-    assert called is False
+    assert "backend.core.auto_redeem" not in sys.modules
     assert any(event_type == "warning" and "skipped" in message for event_type, message in events)
 
 
@@ -53,7 +47,6 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
 
     from backend.core import scheduling_strategies
     from backend.core import scheduler as scheduler_module
-    import backend.core.auto_redeem as auto_redeem_module
 
     captured: dict[str, object] = {}
 
@@ -66,6 +59,9 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
         captured.update(kwargs)
         return _BatchResult(total_attempted=2, total_redeemed=2)
 
+    fake_auto_redeem_module = types.ModuleType("backend.core.auto_redeem")
+    fake_auto_redeem_module.redeem_all_redeemable = fake_redeem_all_redeemable
+
     monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_DRY_RUN", True, raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 5, raising=False)
@@ -76,7 +72,7 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
     monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_SECRET", "builder-secret", raising=False)
     monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_PASSPHRASE", "builder-passphrase", raising=False)
     monkeypatch.setattr(scheduler_module, "log_event", fake_log_event)
-    monkeypatch.setattr(auto_redeem_module, "redeem_all_redeemable", fake_redeem_all_redeemable)
+    monkeypatch.setitem(sys.modules, "backend.core.auto_redeem", fake_auto_redeem_module)
 
     await scheduling_strategies.auto_redeem_job()
 
