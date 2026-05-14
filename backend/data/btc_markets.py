@@ -266,11 +266,14 @@ async def fetch_active_btc_markets(
     for slug in expected_slugs:
         if slug in seen_slugs:
             continue
-        market = await fetch_btc_market_by_slug(slug)
-        if market and market.slug not in seen_slugs:
-            seen_slugs.add(market.slug)
-            if not market.closed:
-                markets.append(market)
+        try:
+            market = await fetch_btc_market_by_slug(slug)
+            if market and market.slug not in seen_slugs:
+                seen_slugs.add(market.slug)
+                if not market.closed:
+                    markets.append(market)
+        except Exception as e:
+            logger.debug(f"BTC market fetch failed for slug {slug}: {e}")
 
     # Sort by window end time (soonest first)
     markets.sort(key=lambda m: m.window_end)
