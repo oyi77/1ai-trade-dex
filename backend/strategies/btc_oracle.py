@@ -316,7 +316,12 @@ class BtcOracleStrategy(BaseStrategy):
         from backend.data.btc_markets import fetch_active_btc_markets
         from backend.core.market_scanner import fetch_markets_by_keywords
 
-        btc_5m_markets = await fetch_active_btc_markets()
+        try:
+            btc_5m_markets = await fetch_active_btc_markets()
+        except Exception as e:
+            logger.warning(f"BtcOracleStrategy.run_cycle: failed to fetch BTC markets: {e}")
+            result.errors.append(f"Failed to fetch BTC markets: {type(e).__name__}")
+            return result
 
         now = datetime.now(timezone.utc)
 
