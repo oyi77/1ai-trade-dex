@@ -15,7 +15,7 @@ Dashboard tab components rendered inside the main Dashboard page. Each tab provi
 | `SignalsTab.tsx` | Trading signals — unified view of BTC oracle signals and weather-based signals with sorting by edge/probability/size, simulate trade button |
 | `TradesTab.tsx` | Trade history — paginated table of executed trades showing ticker, direction, entry/exit price, PnL, timestamp; sortable and filterable |
 | `PerformanceTab.tsx` | Performance metrics — EquityChart showing P&L over time, Sharpe ratio, cumulative return, drawdown analysis |
-| `DecisionsTab.tsx` | Decision log — displays AI reasoning behind signals and trades, model confidence, market analysis notes; supports strategy/decision filtering (mode filter is not applied because `DecisionLogRow` has no trading_mode field) |
+| `DecisionsTab.tsx` | Decision log — displays AI reasoning behind signals and trades, model confidence, market analysis notes |
 | `LeaderboardTab.tsx` | Strategy leaderboard — ranks strategies by returns, Sharpe, win rate; tracks performance over different time periods |
 | `KanbanTab.tsx` | Kanban board interface — visual workflow management for trade proposals and approvals |
 | `WhaleTrackerTab.tsx` | Whale tracking dashboard — monitors large trader positions and market impact |
