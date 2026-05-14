@@ -25,6 +25,7 @@ from backend.core.scheduling_strategies import (
     news_feed_scan_job,
     arbitrage_scan_job,
     auto_trader_job,
+    auto_redeem_job,
     heartbeat_job,
     strategy_cycle_job,
     sync_testnet_wallet,
@@ -167,6 +168,7 @@ JOB_FUNCTION_REGISTRY = {
     "news_feed_scan_job": news_feed_scan_job,
     "arbitrage_scan_job": arbitrage_scan_job,
     "auto_trader_job": auto_trader_job,
+    "auto_redeem_job": auto_redeem_job,
     "strategy_cycle_job": strategy_cycle_job,
     "sync_testnet_wallet": sync_testnet_wallet,
     "sync_live_wallet": sync_live_wallet,
@@ -438,6 +440,22 @@ def start_scheduler():
         max_instances=1,
         replace_existing=True,
     )
+
+    if getattr(settings, "AUTO_REDEEM_ENABLED", False):
+        auto_redeem_seconds = getattr(settings, "AUTO_REDEEM_INTERVAL_SECONDS", 3600)
+        _persist_and_add_job(
+            scheduler,
+            auto_redeem_job,
+            IntervalTrigger(seconds=auto_redeem_seconds),
+            id="auto_redeem",
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=60,
+        )
+        logger.info(
+            f"Scheduled auto-redeem job every {auto_redeem_seconds}s "
+            f"(dry_run={getattr(settings, 'AUTO_REDEEM_DRY_RUN', True)})"
+        )
 
     from backend.core.mode_context import list_contexts
     contexts = list_contexts()

@@ -466,6 +466,10 @@ class ConfigRegistry:
     POLYMARKET_WALLET_ADDRESS: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
+    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_DRY_RUN: bool = True
+    AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
+    AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     KALSHI_ENABLED: bool = False
@@ -561,6 +565,8 @@ class ConfigRegistry:
     # Scan intervals
     SCAN_INTERVAL_SECONDS: int = 120
     SETTLEMENT_INTERVAL_SECONDS: int = 120
+    AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
+    AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
     WEATHER_SCAN_INTERVAL_SECONDS: int = 60
     WEATHER_SETTLEMENT_INTERVAL_SECONDS: int = 1800
 
@@ -1158,6 +1164,10 @@ class Settings(BaseSettings):
     # Polymarket Relayer API (gasless on-chain operations)
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
+    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_DRY_RUN: bool = True
+    AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
+    AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
 
     # Kalshi API
     KALSHI_API_KEY_ID: Optional[str] = None
