@@ -43,6 +43,41 @@ class HFTExecutor:
         # Generate a unique execution ID
         exec_id = str(uuid.uuid4())
 
+        # CRITICAL FIX: Check for existing open position on same market
+        # Prevents duplicate positions from being opened
+        try:
+            from backend.db.utils import get_db_session
+            from backend.models.database import Trade
+            from sqlalchemy import or_
+            
+            with get_db_session() as db:
+                existing_filters = [
+                    Trade.settled.is_(False),
+                    Trade.trading_mode == settings.TRADING_MODE,
+                ]
+                if signal.market_id:
+                    existing_filters.append(Trade.token_id == signal.market_id)
+                elif signal.event_slug:
+                    existing_filters.append(Trade.event_slug == signal.event_slug)
+                
+                existing_position = db.query(Trade).filter(*existing_filters).first()
+                if existing_position:
+                    logger.info(
+                        f"[hft_executor] Duplicate position blocked for {signal.market_id}/{signal.event_slug}: "
+                        f"existing trade {existing_position.id} still open"
+                    )
+                    execution = HFTExecution(
+                        execution_id=exec_id,
+                        signal_id=signal.signal_id,
+                        status="cancelled",
+                        error="Duplicate open position on same market",
+                        timestamp=start
+                    )
+                    return execution
+        except Exception as e:
+            logger.error(f"[hft_executor] Error checking for duplicate position: {e}")
+            # Continue execution if check fails (fail-open for safety)
+
         # Circuit breaker check
         if self._circuit_open or self._main_breaker.is_open():
             record_execution(strategy="hft", side="BUY", status="cancelled", latency_s=0.0)
@@ -53,12 +88,10 @@ class HFTExecutor:
                 error="Circuit breaker open",
                 timestamp=start
             )
-            await self._persist_to_db(execution)
             return execution
 
 
             record_execution(strategy="hft", side="BUY", status="rejected", latency_s=(time.monotonic() - start))
-            # Generate execution to track reject details
             execution = HFTExecution(
                 execution_id=exec_id,
                 signal_id=signal.signal_id,
@@ -69,7 +102,7 @@ class HFTExecutor:
                 status="rejected",
                 error=risk.get("reason", "Unspecified"),
             )
-            await self._persist_to_db(execution)
+            logger.warning(f"[hft_executor] Trade rejected: {risk.get('reason', 'Unknown')}")
             return execution
 
         # Calculate permissible trade risk before execution
@@ -96,7 +129,7 @@ class HFTExecutor:
                     status="rejected",
                     error=f"slippage {slippage_bps:.1f}bps exceeds limit",
                 )
-                await self._persist_to_db(execution)
+                logger.warning(f"[hft_executor] Signal rejected: slippage {slippage_bps:.1f}bps exceeds {settings.HFT_MAX_SLIPPAGE_BPS}bps limit")
                 return execution
 
         try:
