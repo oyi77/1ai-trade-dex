@@ -24,7 +24,8 @@ def test_db():
 
 @pytest.mark.asyncio
 async def test_trade_creation_logs_audit_event(test_db):
-    from backend.core.strategy_executor import execute_decision
+            _reload_executor()
+            from backend.core.strategy_executor import execute_decision
     from backend.core.mode_context import register_context, ModeExecutionContext
     from backend.core.risk_manager import RiskManager
     from unittest.mock import AsyncMock

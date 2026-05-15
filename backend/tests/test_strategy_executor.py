@@ -1,5 +1,6 @@
 """Tests for backend.core.strategy_executor — strategy decision → trade pipeline."""
 
+import importlib
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -56,6 +57,13 @@ except Exception:
 # ---------------------------------------------------------------------------
 
 
+def _reload_executor():
+    """Clear cached strategy_executor module so patches take effect."""
+    for key in list(sys.modules.keys()):
+        if "strategy_executor" in key:
+            del sys.modules[key]
+
+
 def _seed_state(db, bankroll=1000.0, paper_bankroll=1000.0, is_running=True, mode="paper"):
     """Insert or reset BotState for a test."""
     state = db.query(BotState).filter_by(mode=mode).first()
@@ -110,6 +118,7 @@ class TestPaperTradeCreatesRecord:
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
 
+        _reload_executor()
         db = _TestSession()
         _seed_state(db)
         db.close()
@@ -130,6 +139,7 @@ class TestPaperTradeCreatesRecord:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(_make_decision(), "test_strategy", "paper")
@@ -178,6 +188,7 @@ class TestRiskRejection:
         from backend.core.risk_manager import RiskDecision, RiskManager
         from backend.core.mode_context import register_context, ModeExecutionContext
 
+        _reload_executor()
         test_engine = create_engine(
             "sqlite:///:memory:",
             connect_args={"check_same_thread": False},
@@ -210,6 +221,7 @@ class TestRiskRejection:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -278,6 +290,7 @@ class TestBotStateLockHandling:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -459,6 +472,7 @@ class TestAttemptSizingRejection:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -526,6 +540,7 @@ class TestAttemptUnexpectedFailure:
             mock_settings.TRADING_MODE = "paper"
             validate_trade.side_effect = RuntimeError("validator exploded")
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -586,6 +601,7 @@ class TestUpdatesBankroll:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -639,6 +655,7 @@ class TestUpdatesBankroll:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -867,6 +884,7 @@ class TestCreatesSignalRecord:
         ):
             mock_settings.TRADING_MODE = "paper"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -987,6 +1005,7 @@ class TestLiveModeCallsCLOB:
         ):
             mock_settings.TRADING_MODE = "live"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(
@@ -1122,6 +1141,7 @@ class TestLiveModeCallsCLOB:
         ):
             mock_settings.TRADING_MODE = "testnet"
 
+            _reload_executor()
             from backend.core.strategy_executor import execute_decision
 
             result = await execute_decision(

@@ -229,7 +229,8 @@ class TestModeIsolation:
             ModeExecutionContext,
         )
         from backend.core.risk_manager import RiskManager
-        from backend.core.strategy_executor import execute_decision
+                _reload_executor()
+                from backend.core.strategy_executor import execute_decision
 
         # Register contexts
         for mode in ["paper", "testnet", "live"]:
@@ -298,7 +299,8 @@ class TestConcurrentExecution:
             ModeExecutionContext,
         )
         from backend.core.risk_manager import RiskManager
-        from backend.core.strategy_executor import execute_decision
+                _reload_executor()
+                from backend.core.strategy_executor import execute_decision
         import asyncio
 
         # Register contexts with properly mocked CLOB clients
@@ -391,7 +393,8 @@ class TestDatabaseIntegrity:
             ModeExecutionContext,
         )
         from backend.core.risk_manager import RiskManager
-        from backend.core.strategy_executor import execute_decision
+                _reload_executor()
+                from backend.core.strategy_executor import execute_decision
 
         for mode in ["paper", "testnet", "live"]:
             mock_clob = AsyncMock()
@@ -485,7 +488,8 @@ class TestModeSpecificRiskLimits:
             ModeExecutionContext,
         )
         from backend.core.risk_manager import RiskManager
-        from backend.core.strategy_executor import execute_decision
+                _reload_executor()
+                from backend.core.strategy_executor import execute_decision
 
         # Register contexts with separate risk managers
         for mode in ["paper", "testnet", "live"]:
