@@ -100,7 +100,7 @@ def create_strategy(name: str, db=None, force_enable: bool = False, **kwargs) ->
 
 
 def _check_performance_gate(name: str) -> None:
-    """Warn and disable strategies with documented poor performance."""
+    """Warn and block instantiation of strategies with documented poor performance."""
     try:
         from backend.config import settings
         min_win_rate = getattr(settings, "REGISTRY_MIN_WIN_RATE", 0.30)
@@ -122,13 +122,21 @@ def _check_performance_gate(name: str) -> None:
 
     if roi is not None and roi < min_roi:
         logger.warning(
-            "Strategy '%s' has documented ROI %.1f%% below threshold %.1f%% — auto-disabled",
+            "Strategy '%s' has documented ROI %.1f%% below threshold %.1f%% — auto-blocked",
             name, roi * 100, min_roi * 100,
+        )
+        raise ValueError(
+            f"Strategy '{name}' is auto-blocked: documented ROI {roi*100:.1f}% is below threshold {min_roi*100:.1f}%. "
+            "Use force_enable=True to override."
         )
     if win_rate is not None and win_rate < min_win_rate:
         logger.warning(
-            "Strategy '%s' has documented win rate %.1f%% below threshold %.1f%%",
+            "Strategy '%s' has documented win rate %.1f%% below threshold %.1f%% — auto-blocked",
             name, win_rate * 100, min_win_rate * 100,
+        )
+        raise ValueError(
+            f"Strategy '{name}' is auto-blocked: documented win rate {win_rate*100:.1f}% is below threshold {min_win_rate*100:.1f}%. "
+            "Use force_enable=True to override."
         )
 
 
