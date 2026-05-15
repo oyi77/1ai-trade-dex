@@ -488,15 +488,25 @@ async def get_stats(
         display_total_balance = live_total_balance
         display_realized_pnl = live_ledger_pnl
         display_account_pnl = live_account_pnl
+        # Use Polymarket profile counts when available (source of truth for live)
+        # Fall back to DB query if profile stats unavailable
         settled_trades_count = (
-            db.query(func.count(Trade.id))
-            .filter(Trade.settled, Trade.trading_mode == "live")
-            .scalar() or 0
+            live_profile_trade_stats.closed_count
+            if live_profile_trade_stats is not None
+            else (
+                db.query(func.count(Trade.id))
+                .filter(Trade.settled, Trade.trading_mode == "live")
+                .scalar() or 0
+            )
         )
         settled_wins_count = (
-            db.query(func.count(Trade.id))
-            .filter(Trade.settled, Trade.trading_mode == "live", Trade.pnl > 0)
-            .scalar() or 0
+            live_profile_trade_stats.winning_count
+            if live_profile_trade_stats is not None
+            else (
+                db.query(func.count(Trade.id))
+                .filter(Trade.settled, Trade.trading_mode == "live", Trade.pnl > 0)
+                .scalar() or 0
+            )
         )
         open_trades_count = live_unrealized["open_trades"]
         open_exposure_amount = live_unrealized["open_exposure"]

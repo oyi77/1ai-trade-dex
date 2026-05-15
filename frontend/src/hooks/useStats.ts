@@ -129,8 +129,12 @@ export function useStats() {
     mode: stats.mode,
     openExposure,
     openTrades,
-    settledTrades: stats.settled_trades ?? 0,
-    settledWins: stats.settled_wins ?? 0,
+    settledTrades: stats.mode === 'all'
+      ? (stats.live_profile_closed_count ?? stats.settled_trades ?? 0)
+      : (stats.settled_trades ?? 0),
+    settledWins: stats.mode === 'all'
+      ? (stats.live_profile_winning_count ?? stats.settled_wins ?? 0)
+      : (stats.settled_wins ?? 0),
     unrealizedPnl: stats.unrealized_pnl ?? 0,
     positionCost: stats.position_cost ?? 0,
     positionMarketValue: stats.position_market_value ?? 0,
