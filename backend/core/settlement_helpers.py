@@ -1046,6 +1046,7 @@ async def process_settled_trade(
     trade.settlement_value = settlement_value
     trade.pnl = pnl
     trade.settlement_time = datetime.now(timezone.utc)
+    trade.settlement_source = "market_resolution"
     if pnl is not None and pnl > 0:
         trade.result = "win"
     elif pnl is not None and pnl < 0:

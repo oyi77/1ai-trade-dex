@@ -376,6 +376,25 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
+            # Rate limiter: block if >3 trades on same market in last 5 minutes
+            from datetime import timedelta
+            five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+            recent_count = db.query(func.count(Trade.id)).filter(
+                Trade.market_ticker == market_ticker,
+                Trade.timestamp >= five_min_ago,
+            ).scalar() or 0
+            if recent_count >= 3:
+                logger.warning(
+                    f"[{strategy_name}] Rate limit exceeded: {recent_count} trades on {market_ticker} in last 5min (max 3)"
+                )
+                attempt_recorder.record_blocked(
+                    f"Rate limit exceeded: {recent_count} trades in 5min on {market_ticker}",
+                    phase="preflight",
+                    reason_code="BLOCKED_RATE_LIMIT",
+                )
+                db.commit()
+                return None
+
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
                 logger.info(
@@ -921,6 +940,25 @@ async def _execute_decision_live_clob(
                     phase="preflight",
                     reason_code="BLOCKED_DUPLICATE_OPEN_POSITION",
                     trade_id=existing.id,
+                )
+                db.commit()
+                return None
+
+            # Rate limiter: block if >3 trades on same market in last 5 minutes
+            from datetime import timedelta
+            five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
+            recent_count = db.query(func.count(Trade.id)).filter(
+                Trade.market_ticker == market_ticker,
+                Trade.timestamp >= five_min_ago,
+            ).scalar() or 0
+            if recent_count >= 3:
+                logger.warning(
+                    f"[{strategy_name}] Rate limit exceeded: {recent_count} trades on {market_ticker} in last 5min (max 3)"
+                )
+                attempt_recorder.record_blocked(
+                    f"Rate limit exceeded: {recent_count} trades in 5min on {market_ticker}",
+                    phase="preflight",
+                    reason_code="BLOCKED_RATE_LIMIT",
                 )
                 db.commit()
                 return None
