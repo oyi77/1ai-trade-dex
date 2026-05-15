@@ -1108,6 +1108,8 @@ class ConfigRegistry:
     def is_mode_active(self, mode: str) -> bool:
         return mode in self.active_modes_set
 
+    WALLET_FERNET_KEY: Optional[str] = None
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
