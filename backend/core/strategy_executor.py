@@ -17,7 +17,7 @@ from backend.core.errors import RateLimitError
 from backend.core.external_rate_limiter import TokenBucketRateLimiter
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import case, func, or_, update
+from sqlalchemy import case, func, and_, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger

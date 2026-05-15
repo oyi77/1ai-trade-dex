@@ -19,6 +19,7 @@ from backend.config import settings
 from backend.core.calibration import get_bucket_win_rate, kelly_fraction
 from backend.db.utils import get_db_session
 from backend.models.signal_log import SignalLog
+from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
 
