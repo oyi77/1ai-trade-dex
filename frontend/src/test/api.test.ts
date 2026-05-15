@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 
 // Mock axios before importing api
 vi.mock('axios', () => {
@@ -27,6 +27,11 @@ const mockAxiosInstance = (axios.create as unknown as ReturnType<typeof vi.fn>).
 describe('api utility functions', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   describe('getAdminApiKey', () => {
@@ -34,28 +39,29 @@ describe('api utility functions', () => {
       expect(getAdminApiKey()).toBe('')
     })
 
-    it('returns the stored key when set', () => {
-      localStorage.setItem('adminApiKey', 'my-secret-key')
-      expect(getAdminApiKey()).toBe('my-secret-key')
+    it('returns csrf token from sessionStorage when set', () => {
+      // getAdminApiKey() now delegates to getCsrfToken() which reads sessionStorage
+      sessionStorage.setItem('admin_csrf_token', 'csrf-token-123')
+      expect(getAdminApiKey()).toBe('csrf-token-123')
     })
   })
 
   describe('setAdminApiKey', () => {
-    it('stores key in localStorage', () => {
+    it('logs deprecation warning and is a no-op', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       setAdminApiKey('abc123')
-      expect(localStorage.getItem('adminApiKey')).toBe('abc123')
-    })
-
-    it('removes key from localStorage when empty string passed', () => {
-      localStorage.setItem('adminApiKey', 'existing-key')
-      setAdminApiKey('')
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[DEPRECATED] setAdminApiKey() no longer stores API key in localStorage. Use loginWithCookie() instead.'
+      )
       expect(localStorage.getItem('adminApiKey')).toBeNull()
     })
 
-    it('overwrites existing key with new value', () => {
-      setAdminApiKey('first-key')
-      setAdminApiKey('second-key')
-      expect(localStorage.getItem('adminApiKey')).toBe('second-key')
+    it('does not remove existing localStorage key', () => {
+      localStorage.setItem('adminApiKey', 'existing-key')
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      setAdminApiKey('')
+      expect(localStorage.getItem('adminApiKey')).toBe('existing-key')
+      expect(warnSpy).toHaveBeenCalled()
     })
   })
 
