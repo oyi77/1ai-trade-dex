@@ -23,7 +23,7 @@ def test_long_term_planner_detects_and_resolves_resource_conflicts():
 def test_long_term_planner_milestones_visible_in_botstate():
     planner = LongTermPlanner()
     goals = [{"goal_id": "botstate_test", "start_week": 1, "duration_weeks": 2, "resource_needs": {"gpu_hours": 20}}]
-    plan = planner.plan_horizon(goals)
+    planner.plan_horizon(goals)
     botstate_data = planner.to_botstate_dict()
     assert botstate_data
     new_planner = LongTermPlanner()
