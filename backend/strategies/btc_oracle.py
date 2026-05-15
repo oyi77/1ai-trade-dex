@@ -26,8 +26,8 @@ def calculate_dynamic_size(
     edge: float,
     confidence: float,
     max_position_usd: float,
-    min_position_usd: float = settings.BTC_ORACLE_MIN_POSITION_USD,
-    edge_scale_threshold: float = settings.BTC_ORACLE_EDGE_SCALE_THRESHOLD,
+    min_position_usd: float | None = None,
+    edge_scale_threshold: float | None = None,
 ) -> float:
     """Return an AI-signal-sized position proposal within the strategy mandate.
 
@@ -40,16 +40,16 @@ def calculate_dynamic_size(
     if cap <= 0:
         return 0.0
 
-    # Edge on these near-resolution markets can be noisy, so scale the proposal
-    # smoothly instead of jumping from zero to full cap. A 10%+ edge at high
-    # confidence reaches the mandate cap; weaker signals use smaller probes.
-    edge_score = min(1.0, max(0.0, edge) / edge_scale_threshold)
+    _min_pos = min_position_usd if min_position_usd is not None else settings.BTC_ORACLE_MIN_POSITION_USD
+    _edge_scale = edge_scale_threshold if edge_scale_threshold is not None else settings.BTC_ORACLE_EDGE_SCALE_THRESHOLD
+
+    edge_score = min(1.0, max(0.0, edge) / max(_edge_scale, 0.001))
     confidence_score = min(1.0, max(0.0, confidence))
     sizing_fraction = max(0.10, edge_score * confidence_score)
     proposed = cap * sizing_fraction
 
-    if proposed < min_position_usd and cap >= min_position_usd:
-        return min_position_usd
+    if proposed < _min_pos and cap >= _min_pos:
+        return _min_pos
     return round(min(proposed, cap), 2)
 
 
@@ -148,6 +148,8 @@ class BtcOracleStrategy(BaseStrategy):
         "max_position_usd": settings.BTC_ORACLE_MAX_POSITION_USD,
         "edge_scale_threshold": settings.BTC_ORACLE_EDGE_SCALE_THRESHOLD,
         "min_position_usd": settings.BTC_ORACLE_MIN_POSITION_USD,
+        "oracle_implied_base": settings.BTC_ORACLE_ORACLE_IMPLIED_BASE,
+        "oracle_implied_scale": settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE,
     }
 
     # ── Event-driven (WebSocket) subscription config ──
@@ -229,7 +231,9 @@ class BtcOracleStrategy(BaseStrategy):
                 + vwap_signal * 0.25
                 + sma_signal * 0.20
             )
-            oracle_implied = 0.50 + composite * 0.10
+            oracle_base = params.get("oracle_implied_base", settings.BTC_ORACLE_ORACLE_IMPLIED_BASE)
+            oracle_scale = params.get("oracle_implied_scale", settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE)
+            oracle_implied = oracle_base + composite * oracle_scale
             if direction == "down":
                 oracle_implied = 1.0 - oracle_implied
         else:
@@ -364,7 +368,9 @@ class BtcOracleStrategy(BaseStrategy):
                     + vwap_signal * 0.25
                     + sma_signal * 0.20
                 )
-                oracle_implied = settings.BTC_ORACLE_ORACLE_IMPLIED_BASE + composite * settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE
+                oracle_base = params.get("oracle_implied_base", settings.BTC_ORACLE_ORACLE_IMPLIED_BASE)
+                oracle_scale = params.get("oracle_implied_scale", settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE)
+                oracle_implied = oracle_base + composite * oracle_scale
 
                 # Flip for DOWN direction: model prob must reflect chosen side.
                 if direction == "down":
