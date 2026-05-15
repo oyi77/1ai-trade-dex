@@ -645,8 +645,11 @@ def start_scheduler():
 
                 should_disable = False
                 if len(trades) >= 3:
-                    wins = sum(1 for t in trades if t.result == 'win')
-                    win_rate = wins / len(trades)
+                    resolved = [t for t in trades if t.result in ('win', 'loss')]
+                    if len(resolved) < 3:
+                        continue
+                    wins = sum(1 for t in resolved if t.result == 'win')
+                    win_rate = wins / len(resolved)
                     pnl = sum(t.pnl for t in trades if t.pnl)
 
                     if win_rate < 0.30 or pnl < -50.0:
@@ -971,7 +974,12 @@ def start_scheduler():
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
             with get_db_session() as db:
-                for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
+        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
+            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
+                interval = config.interval_seconds or 60
+                configs_to_schedule.append((config.strategy_name, interval, 'paper'))
+                configs_to_schedule.append((config.strategy_name, interval, 'live'))
+                continue
                     if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
                         continue
 
