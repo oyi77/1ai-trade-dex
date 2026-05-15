@@ -1,0 +1,5 @@
+- Parquet output via pyarrow, zstd compression for efficient analytics, industry standard.
+- Use raw SQL for SQLite extraction for easier column mapping and data pipeline clarity.
+- The job determines db_path from settings.DATABASE_URL, supporting both default and override (sqlite:///).
+- Logger only for operations; never uses print() except on first 'no trades found' case (for CLI diagnosis, not prod logs).
+- Directory creation via os.makedirs for /data/parquet always enabled in all jobs for robust scheduling.

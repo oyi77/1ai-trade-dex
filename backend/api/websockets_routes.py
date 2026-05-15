@@ -295,3 +295,62 @@ async def websocket_livestream(websocket: WebSocket, token: str = ""):
         await topic_manager.disconnect(websocket)
     finally:
         await connection_limiter.release_ws_connection(websocket)
+
+
+@router.websocket("/ws/dashboard-data")
+async def ws_dashboard_data(websocket: WebSocket, token: str = Query(None)):
+    """WebSocket endpoint for live dashboard stats updates."""
+    if not authorize_realtime_access(
+        token=token,
+        admin_session=websocket.cookies.get("admin_session"),
+    ):
+        await websocket.close(code=1008, reason="Unauthorized")
+        return
+
+    allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
+    if not allowed:
+        await websocket.close(code=1008, reason=error_msg)
+        return
+
+    await websocket.accept()
+
+    try:
+        data = await websocket.receive_json()
+        if data.get("action") == "subscribe":
+            topic = data.get("topic", "stats")
+            await topic_manager.subscribe(websocket, topic)
+            await websocket.send_json({"type": "subscribed", "topic": topic})
+
+        # Send initial stats
+        from backend.api.system import get_stats
+        from backend.models.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            stats = await get_stats(db)
+            await websocket.send_json({"type": "stats_update", "data": stats.model_dump()})
+        except Exception:
+            logger.debug("Failed to send initial dashboard stats")
+        finally:
+            db.close()
+
+        # Periodic stats updates
+        while True:
+            await asyncio.sleep(10)
+            db = SessionLocal()
+            try:
+                stats = await get_stats(db)
+                await websocket.send_json({"type": "stats_update", "data": stats.model_dump()})
+            except Exception:
+                logger.debug("Failed to send dashboard stats update")
+            finally:
+                db.close()
+    except WebSocketDisconnect:
+        await topic_manager.disconnect(websocket)
+    except Exception as e:
+        logger.exception(
+            f"[api.websockets.ws_dashboard_data] {type(e).__name__}: Dashboard stats WebSocket error: {e}"
+        )
+        await topic_manager.disconnect(websocket)
+    finally:
+        await connection_limiter.release_ws_connection(websocket)

@@ -1,0 +1,2 @@
+- Fixed position sizing overflow in order_executor.py by adding MAX_POSITION_FRACTION and MAX_TRADE_SIZE caps.
+- Verified that proportional sizing now respects both fractional and absolute dollar limits from settings.

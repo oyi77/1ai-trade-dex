@@ -1,0 +1,31 @@
+{
+  "active_plan": "/home/openclaw/projects/polyedge/.sisyphus/plans/polyedge-32-fixes.md",
+  "started_at": "2026-05-08T04:21:46.900Z",
+  "session_ids": [
+    "ses_1fbfc69f9ffeWPk7gMaPTP8aCI"
+  ],
+  "plan_name": "polyedge-32-fixes",
+  "worktree_path": null,
+  "session_origins": {
+    "ses_1fbfc69f9ffeWPk7gMaPTP8aCI": "direct"
+  },
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "AI Probability Clamping Utility + Apply to All AI Modules [#39]",
+      "session_id": "ses_1fa2a6c52ffeXtr8QxcX0Ironv",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-08T04:36:04.888Z"
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "Ensemble Confidence Agreement Metric + Unit Tests [#47]",
+      "session_id": "ses_1fa1258dbffe0E7DGJWWXh9tvv",
+      "agent": "Sisyphus-Junior",
+      "updated_at": "2026-05-08T05:06:43.463Z"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+=== Scenario 2: Cascade delete removes child records ===
+Setup: Create trade with trade_context and settlement_event
+Step 1: Insert signal, trade, trade_context, and settlement_event
+✓ Data inserted
+
+Step 2: Verify records exist
+  Trades: 1
+  Trade contexts: 1
+  Settlement events: 1
+
+Step 3: Delete trade (should cascade to trade_context and settlement_events)
+✓ Trade deleted
+
+Step 4: Verify child records were also deleted
+  Trades: 0
+  Trade contexts: 0
+  Settlement events: 0
+
+✓ SUCCESS: Cascade delete removed all child records
+
+Step 5: Verify signal still exists (SET NULL, not CASCADE)
+  Signals: 1
+✓ Signal preserved (correct behavior for SET NULL)
+
+✓ Test database cleaned up

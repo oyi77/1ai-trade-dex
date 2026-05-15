@@ -119,9 +119,12 @@ def _apply_postgres_lock_timeouts(session) -> None:
 
     session.execute(
         text(
-            "SET LOCAL "
-            f"lock_timeout = '{POSTGRES_LOCK_TIMEOUT}', "
-            f"statement_timeout = '{POSTGRES_STATEMENT_TIMEOUT}'"
+            f"SET LOCAL lock_timeout = '{POSTGRES_LOCK_TIMEOUT}'"
+        )
+    )
+    session.execute(
+        text(
+            f"SET LOCAL statement_timeout = '{POSTGRES_STATEMENT_TIMEOUT}'"
         )
     )
 
