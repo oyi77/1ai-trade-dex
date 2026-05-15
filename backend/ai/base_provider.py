@@ -47,6 +47,10 @@ class BaseAIProvider(ABC):
         except Exception:
             return False
 
+    async def embed(self, text: str) -> List[float]:
+        """Optional embedding call. Default returns empty list if provider lacks embedding support."""
+        return []
+
     async def teardown(self) -> None:
         """Called when the plugin is detached. Close connections, flush caches."""
         pass

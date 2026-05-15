@@ -7,11 +7,13 @@ from backend.models.database import botstate_mutex, BotState
 from backend.monitoring.metrics import _metrics_lock, _metrics
 import asyncio
 import json
-import logging
 import os
-from typing import List
+from typing import List, Optional, Dict, Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
+
+class AllProvidersExhausted(Exception):
+    pass
 
 
 class ProviderRegistry(PluginRegistry[ProviderManifest, BaseAIProvider]):

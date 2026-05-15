@@ -1,0 +1,16 @@
+{
+  "benchmark_id": "agi_score",
+  "score": 0.7916560005346032,
+  "passed": true,
+  "metadata": {
+    "breakdown": {
+      "cross_domain_transfer": 0.7204935370034993,
+      "few_shot_learning": 0.7599792462028835,
+      "causal_reasoning": 0.8917138852422942
+    },
+    "consistency_score": 0.8,
+    "threshold": 0.7,
+    "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
+  },
+  "timestamp": "2026-05-15T03:43:24.660160"
+}
