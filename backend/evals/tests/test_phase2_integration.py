@@ -1,11 +1,13 @@
 
 import pytest
 from datetime import datetime, timezone
+from typing import Dict, List
 from unittest.mock import MagicMock
+from loguru import logger
 
 # Assuming these are the correct paths and that the files exist
-from backend.core.learning_system import LearningExample, CalibrationReport
-from backend.core.reasoning_engine import ReasoningContext, ReasoningResult
+from backend.core.learning_system import LearningExample, CalibrationReport, LearningSystem
+from backend.core.reasoning_engine import ReasoningContext, ReasoningResult, ReasoningEngine
 from backend.core.knowledge_graph import KnowledgeGraph # Assuming this exists
 from backend.core.plugin_registry import PluginRegistry # Assuming this exists
 
@@ -124,7 +126,6 @@ class TestPhase2Integration:
     def test_reasoning_engine_uses_learning_system(self, setup_components):
         ls = setup_components["learning_system"]
         re = setup_components["reasoning_engine"]
-        kg = setup_components["knowledge_graph"] # Not directly used by RE in this test, but good to have
 
         # Mock LearningSystem to return specific calibration data
         calibration_report = CalibrationReport(brier_score=0.1, bins=[], accuracy=0.9)

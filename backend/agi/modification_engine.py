@@ -145,7 +145,6 @@ class SafeModifier:
     def _merge_back(self, branch: str) -> bool:
         """Merge the feature branch back to the original branch."""
         original = self._run_git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-        base = self._run_git("rev-parse", "HEAD").stdout.strip()
         self._run_git("checkout", original.replace(branch, "").strip() or "main")
         try:
             self._run_git("merge", branch, "--no-ff", "-m",
