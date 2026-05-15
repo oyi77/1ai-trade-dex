@@ -309,8 +309,8 @@ async def test_full_autonomous_cycle():
             new_callable=AsyncMock,
             return_value=mock_trade_result,
         ):
-                    _reload_executor()
-                    from backend.core.strategy_executor import execute_decision
+            _reload_executor()
+            from backend.core.strategy_executor import execute_decision
 
             trade_result = await execute_decision(
                 decision=decision,
@@ -558,8 +558,8 @@ async def test_autonomous_cycle_losing_trade():
         _clean_tables(db)
         _seed_bot_state(db)
 
-                _reload_executor()
-                from backend.core.strategy_executor import execute_decision
+        _reload_executor()
+        from backend.core.strategy_executor import execute_decision
         from backend.core.settlement_helpers import process_settled_trade, calculate_pnl
         from backend.core.settlement import update_bot_state_with_settlements
         from backend.ai.self_review import SelfReview
@@ -593,8 +593,8 @@ async def test_autonomous_cycle_losing_trade():
             new_callable=AsyncMock,
             return_value=mock_trade_result,
         ):
-                    _reload_executor()
-                    from backend.core.strategy_executor import execute_decision
+            _reload_executor()
+            from backend.core.strategy_executor import execute_decision
 
             trade_result = await execute_decision(
                 decision=decision,
