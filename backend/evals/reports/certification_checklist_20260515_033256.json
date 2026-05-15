@@ -1,0 +1,70 @@
+{
+  "benchmark_thresholds": {
+    "cross_domain_transfer": 0.6000000000000001,
+    "few_shot_learning": 1.0,
+    "causal_reasoning": 0.0,
+    "agi_score": 0.9129127613440005
+  },
+  "certification_eligible": false,
+  "passed_benchmarks": [
+    "cross_domain_transfer",
+    "few_shot_learning",
+    "agi_score"
+  ],
+  "failed_benchmarks": [
+    "causal_reasoning"
+  ],
+  "timestamp": "2026-05-15T03:32:56.067139",
+  "details": {
+    "cross_domain_transfer": {
+      "score": 0.6000000000000001,
+      "threshold": 0.6,
+      "passed": true,
+      "benchmark_id": "cross_domain_transfer",
+      "metadata": {
+        "simulated_trades": 100,
+        "few_shot_examples": 5,
+        "source_domain": "crypto",
+        "target_domain": "weather",
+        "threshold": 0.6,
+        "adapted_strategy_id": "adapted_strategy_crypto_top1_to_weather",
+        "baseline_win_rate": 0.45,
+        "adapted_win_rate": 0.55
+      }
+    },
+    "few_shot_learning": {
+      "score": 1.0,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "few_shot_learning",
+      "metadata": {
+        "gap": 0.33333333333333337,
+        "train_success_rate": 0.6666666666666666,
+        "test_success_rate": 1.0,
+        "strategy_id": "few_shot_sports_20260515_033255"
+      }
+    },
+    "causal_reasoning": {
+      "score": 0.0,
+      "threshold": 0.8,
+      "passed": false,
+      "error": "'CausalReasoner' object has no attribute 'infer_causal_graph'"
+    },
+    "agi_score": {
+      "score": 0.9129127613440005,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "agi_score",
+      "metadata": {
+        "breakdown": {
+          "cross_domain_transfer": 0.9114154264577671,
+          "few_shot_learning": 0.8731842051491743,
+          "causal_reasoning": 0.92510957287306
+        },
+        "consistency_score": 1.0,
+        "threshold": 0.7,
+        "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
+      }
+    }
+  }
+}

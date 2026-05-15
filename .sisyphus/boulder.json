@@ -1,201 +1,244 @@
 {
-  "active_plan": "/home/openclaw/projects/1ai-poly-trader/.sisyphus/plans/polyedge-improvements.md",
-  "started_at": "2026-05-13T18:43:38.270Z",
+  "active_plan": "/home/openclaw/projects/1ai-poly-trader/.sisyphus/plans/agi-evolution.md",
+  "started_at": "2026-05-14T12:46:04.021Z",
   "session_ids": [
-    "ses_1de2597cfffeYG6T5zbG7jLLmz"
+    "ses_1de2597cfffeYG6T5zbG7jLLmz",
+    "ses_1d9357e56ffexH44DdcD2L4nNL",
+    "ses_1d9356326ffehKaAWqhgmp0Fzm",
+    "ses_1d9355155ffeHfWZm9MM3fbTO6",
+    "ses_1d935374dffevgjEBpM95ghIXY",
+    "ses_1d934f5e9ffe56nwKwQdKhj637",
+    "ses_1d9321106ffeDWUd2QH3cKeoWN",
+    "ses_1d9309696ffeRG3rwQH2dzw1JE",
+    "ses_1d9306ce6ffegl9UM0A21KQTMK",
+    "ses_1d93053bdffezaG9R5KGh48Dfq",
+    "ses_1d9303253ffeKweANDdHRbU52h",
+    "ses_1d858d711ffezEoaffwENzTl56",
+    "ses_1d7f0ec59ffeSAmWFEw7FenRkU",
+    "ses_1d7f0b171ffe34RuU7O9dsk9wv",
+    "ses_1d7e1e140ffe6Y8x5dQaLJxLy9",
+    "ses_1d7e18eb2ffeIUM0cDM4R8fEd0",
+    "ses_1d7bab6f0ffevBucPXZYww6W5c"
   ],
   "session_origins": {
-    "ses_1de2597cfffeYG6T5zbG7jLLmz": "direct"
+    "ses_1de2597cfffeYG6T5zbG7jLLmz": "direct",
+    "ses_1d9357e56ffexH44DdcD2L4nNL": "appended",
+    "ses_1d9356326ffehKaAWqhgmp0Fzm": "appended",
+    "ses_1d9355155ffeHfWZm9MM3fbTO6": "appended",
+    "ses_1d935374dffevgjEBpM95ghIXY": "appended",
+    "ses_1d934f5e9ffe56nwKwQdKhj637": "appended",
+    "ses_1d9321106ffeDWUd2QH3cKeoWN": "appended",
+    "ses_1d9309696ffeRG3rwQH2dzw1JE": "appended",
+    "ses_1d9306ce6ffegl9UM0A21KQTMK": "appended",
+    "ses_1d93053bdffezaG9R5KGh48Dfq": "appended",
+    "ses_1d9303253ffeKweANDdHRbU52h": "appended",
+    "ses_1d858d711ffezEoaffwENzTl56": "direct",
+    "ses_1d7f0ec59ffeSAmWFEw7FenRkU": "appended",
+    "ses_1d7f0b171ffe34RuU7O9dsk9wv": "appended",
+    "ses_1d7e1e140ffe6Y8x5dQaLJxLy9": "appended",
+    "ses_1d7e18eb2ffeIUM0cDM4R8fEd0": "appended",
+    "ses_1d7bab6f0ffevBucPXZYww6W5c": "direct"
   },
-  "plan_name": "polyedge-improvements",
+  "plan_name": "agi-evolution",
   "agent": "atlas",
   "task_sessions": {
     "todo:1": {
       "task_key": "todo:1",
       "task_label": "1",
-      "task_title": "**Add `SideLockError` and `check_side_lock()` to RiskManager**",
-      "session_id": "ses_1dd58a9baffeEJqzWdj6IDb3fX",
+      "task_title": "SafetyMonitor — create `backend/core/safety.py`",
+      "session_id": "ses_1d9510646ffecMX6V2bHrb5s3c",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T18:47:38.664Z"
+      "category": "quick",
+      "updated_at": "2026-05-14T13:33:03.145Z"
     },
     "todo:2": {
       "task_key": "todo:2",
       "task_label": "2",
-      "task_title": "**Add `EdgeFilterError` and `check_edge()` to RiskManager**",
-      "session_id": "ses_1dd5518b5ffeH8VT4VOCzrEr3j",
+      "task_title": "ProviderRegistry — augment existing `backend/ai/provider_registry.py` + add 5 new provider backends",
+      "session_id": "ses_1d92aa91affeWmOJ9XivyJUDag",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T18:48:22.604Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:13:02.718Z"
     },
     "todo:3": {
       "task_key": "todo:3",
       "task_label": "3",
-      "task_title": "**Add `MIN_EDGE_PP` config and wire `check_edge()` into `validate_trade()`**",
-      "session_id": "ses_1dd5428edffeZWQVwL9b7Bk8WC",
+      "task_title": "ReasoningEngine — create `backend/core/reasoning_engine.py`",
+      "session_id": "ses_1d928b5c1ffeq6nFj4Q9WHL0mP",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T18:58:47.505Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:18:13.639Z"
     },
     "todo:4": {
       "task_key": "todo:4",
       "task_label": "4",
-      "task_title": "**Add `check_strategy_performance()` to circuit_breaker.py**",
-      "session_id": "ses_1dd4ac957ffeXG8oYIH8ThWh12",
+      "task_title": "KnowledgeGraph cross-domain generalization — enhance `backend/core/knowledge_graph.py`",
+      "session_id": "ses_1d92470ffffe3pzKHASsFDV90p",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:00:29.010Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:21:48.087Z"
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "PluginRegistry wiring — augment `backend/core/plugin_registry.py`",
+      "session_id": "ses_1d91d51e5ffeUCtH0PxNj305dT",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:29:28.832Z"
     },
     "todo:6": {
       "task_key": "todo:6",
       "task_label": "6",
-      "task_title": "**Test: `test_side_lock.py` — RED phase (must FAIL before side lock impl)**",
-      "session_id": "ses_1dd48289dfferFG1ZcvD6CcmVX",
+      "task_title": "Evals scaffold — create `backend/evals/` directory structure",
+      "session_id": "ses_1d91ae529ffe2XqQtSajViPNz5",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:03:54.182Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:35:14.452Z"
     },
     "todo:7": {
       "task_key": "todo:7",
       "task_label": "7",
-      "task_title": "**Add `get_bucket_win_rate()` to calibration.py**",
-      "session_id": "ses_1dd4549f8ffejgEu1FhAinRjjR",
+      "task_title": "Phase 1 integration — module wiring test",
+      "session_id": "ses_1d914f053ffecertoi7fhaX4Ed",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:06:22.796Z"
-    },
-    "todo:8": {
-      "task_key": "todo:8",
-      "task_label": "8",
-      "task_title": "**Add `kelly_fraction()` with Quarter-Kelly to calibration.py**",
-      "session_id": "ses_1dd437aa7ffeTtfucqnMmRdXje",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:08:12.219Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:36:50.311Z"
     },
     "todo:9": {
       "task_key": "todo:9",
       "task_label": "9",
-      "task_title": "**Replace btc_oracle static Kelly with `calibration.kelly_fraction()`**",
-      "session_id": "ses_1dd3f5a1affeuKpDkmQvMEKRoH",
+      "task_title": "LearningSystem — create `backend/core/learning_system.py`",
+      "session_id": "ses_1d90df286ffeOPg82Tc49jnn4V",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:13:39.291Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:52:35.288Z"
     },
     "todo:10": {
       "task_key": "todo:10",
       "task_label": "10",
-      "task_title": "**Test: `test_edge_filter.py` — RED phase (must FAIL before T2-T3 impl)**",
-      "session_id": "ses_1dd36b505ffehO8jJ1XZd0MBxc",
+      "task_title": "TransferLearner — create `backend/core/transfer_learning.py`",
+      "session_id": "ses_1d903bb04ffeyaZ00xyKEV0KnR",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:21:35.243Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T14:57:34.569Z"
     },
     "todo:11": {
       "task_key": "todo:11",
       "task_label": "11",
-      "task_title": "**Test: `test_bucket_kelly.py` — RED phase (must FAIL before T7-T8 impl)**",
-      "session_id": "ses_1dd33cba0ffeUx247hePW00Kpr",
+      "task_title": "MultiDomainOrchestrator — create `backend/core/multi_domain_orchestrator.py`",
+      "session_id": "ses_1d8feb778ffeB1N5hLrSkX7sqb",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:24:35.059Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:01:08.655Z"
     },
     "todo:12": {
       "task_key": "todo:12",
       "task_label": "12",
-      "task_title": "**Add `TokenBucketRateLimiter` class in order_executor.py**",
-      "session_id": "ses_1dd324322ffe32ezoXViPxhsok",
+      "task_title": "Phase 2 integration — learning pipeline test",
+      "session_id": "ses_1d8fa82bcffedOGBrE4ZxMmzpJ",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:26:15.562Z"
-    },
-    "todo:13": {
-      "task_key": "todo:13",
-      "task_label": "13",
-      "task_title": "**Add maker-first execution: limit order → 15s wait → taker escalation**",
-      "session_id": "ses_1dd30bdb5ffeam24UD71IDlbhw",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:34:58.394Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:09:23.268Z"
     },
     "todo:14": {
       "task_key": "todo:14",
       "task_label": "14",
-      "task_title": "**Integrate TokenBucketRateLimiter into strategy_executor.py**",
-      "session_id": "ses_1dd272f77ffe6tF1iD1cgi0DWZ",
+      "task_title": "StrategyCodeGenerator augmentation — enhance `backend/core/strategy_synthesizer.py`",
+      "session_id": "ses_1d8f6507fffeKEdF2DC6T0lJUp",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:38:44.642Z"
-    },
-    "todo:15": {
-      "task_key": "todo:15",
-      "task_label": "15",
-      "task_title": "**Test: `test_token_bucket.py` — RED phase (must FAIL before T12 impl)**",
-      "session_id": "ses_1dd25ce20ffeYLRSLk2u1nmel8",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:47:11.172Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:23:22.090Z"
     },
     "todo:16": {
       "task_key": "todo:16",
       "task_label": "16",
-      "task_title": "**Test: `test_maker_first.py` — RED phase (must FAIL before T13 impl)**",
-      "session_id": "ses_1dd1e3f2bffeB65y8Ip5wN2qxW",
+      "task_title": "ExecutionSandbox hardening — strengthen `backend/agi/extended_sandbox.py`",
+      "session_id": "ses_1d8e7ac93ffecFOV0ohzVeMSVW",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:53:01.200Z"
-    },
-    "todo:17": {
-      "task_key": "todo:17",
-      "task_label": "17",
-      "task_title": "**Create `position_monitor.py` with stale-position scan logic**",
-      "session_id": "ses_1dd18de58ffe70zbyF5IOyhkrS",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T19:57:29.239Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:32:02.750Z"
     },
     "todo:18": {
       "task_key": "todo:18",
       "task_label": "18",
-      "task_title": "**Add APScheduler job for position_monitor in scheduler.py**",
-      "session_id": "ses_1dd14ce1cffePupx1Y71T5VOYz",
+      "task_title": "Phase 3 integration — Autonomous generation subsystem",
+      "session_id": "ses_1d8e09a0affeg0Q1RLI71kbkt0",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T20:13:23.990Z"
-    },
-    "todo:19": {
-      "task_key": "todo:19",
-      "task_label": "19",
-      "task_title": "**Create `scripts/close_stale_positions.py` with --dry-run + --execute**",
-      "session_id": "ses_1dd049b0dffe3XhhjpHyhW6yHP",
-      "agent": "Sisyphus-Junior",
-      "updated_at": "2026-05-13T20:51:45.637Z"
-    },
-    "todo:20": {
-      "task_key": "todo:20",
-      "task_label": "20",
-      "task_title": "**Test: `test_position_monitor.py` — RED phase (must FAIL before T17 impl)**",
-      "session_id": "ses_1dce2aa1efferwGmu80Rd7z1sF",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T20:57:31.104Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:34:01.280Z"
     },
     "todo:21": {
       "task_key": "todo:21",
       "task_label": "21",
-      "task_title": "**Integration test: `close_stale_positions.py` script end-to-end**",
-      "session_id": "ses_1dcd32ec7ffewiUxE4Qm8hFXco",
+      "task_title": "AutoArchitectureSearch (NAS) — `backend/ai/architecture_search.py`",
+      "session_id": "ses_1d8df5ea2ffe22grtavEpHl0IR",
       "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-13T21:15:51.343Z"
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:37:03.396Z"
     },
-    "final-wave:f1": {
-      "task_key": "final-wave:f1",
-      "task_label": "F1",
-      "task_title": "**Plan Compliance Audit** — `oracle`",
-      "session_id": "ses_1dc53a574ffeYYfSq9t4fpPi7l",
+    "todo:22": {
+      "task_key": "todo:22",
+      "task_label": "22",
+      "task_title": "CodeRefactoringAgent — autonomous code improvement (`backend/agi/code_refactorer.py`)",
+      "session_id": "ses_1d8d0ead2ffej2vCnrlC3yfs7F",
       "agent": "Sisyphus-Junior",
-      "updated_at": "2026-05-13T23:43:02.957Z"
+      "category": "unspecified-high",
+      "updated_at": "2026-05-14T15:55:43.448Z"
+    },
+    "todo:23": {
+      "task_key": "todo:23",
+      "task_label": "23",
+      "task_title": "SelfModifyingReasoningEngine — ReasoningEngine can propose and apply self-modifications (`backend/core/reasoning_engine.py`)",
+      "session_id": "ses_1d8cbe826ffe4k95XsUH855laJ",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:56:37.632Z"
+    },
+    "todo:25": {
+      "task_key": "todo:25",
+      "task_label": "25",
+      "task_title": "CoreValues alignment — value system and constitutional guard (`backend/agi/core_values.py`)",
+      "session_id": "ses_1d8cad96fffejZ1FShxYf83tzN",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T15:57:42.915Z"
+    },
+    "todo:26": {
+      "task_key": "todo:26",
+      "task_label": "26",
+      "task_title": "OpportunityFinder — scans all domains for actionable edges (`backend/agi/opportunity_finder.py`)",
+      "session_id": "ses_1d8ca4e37ffemc8gfLpxaY8BaP",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T16:02:22.746Z"
+    },
+    "todo:27": {
+      "task_key": "todo:27",
+      "task_label": "27",
+      "task_title": "AutonomousGoalGenerator — turns opportunities into executable goals (`backend/agi/goal_generator.py`)",
+      "session_id": "ses_1d8c5b571ffem94OKVpEts5cPY",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T16:03:21.797Z"
+    },
+    "todo:28": {
+      "task_key": "todo:28",
+      "task_label": "28",
+      "task_title": "MultiObjectiveOptimizer — resource allocation across concurrent goals (`backend/agi/multi_objective_optimizer.py`)",
+      "session_id": "ses_1d8626d5affei3j1tmt2ZZroOD",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-low",
+      "updated_at": "2026-05-14T17:53:43.083Z"
+    },
+    "todo:31": {
+      "task_key": "todo:31",
+      "task_label": "31",
+      "task_title": "Cross-Domain Transfer benchmark (`backend/evals/benchmarks/cross_domain_transfer.py`)",
+      "session_id": "ses_1d7d38d3dffe271Nf1bMv6Qj0I",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-14T20:27:57.892Z"
     }
   }
 }

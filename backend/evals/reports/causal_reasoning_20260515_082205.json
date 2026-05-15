@@ -1,0 +1,57 @@
+{
+  "benchmark_id": "causal_reasoning",
+  "score": 1.0,
+  "passed": true,
+  "metadata": {
+    "train_observations": 10,
+    "test_interventions": 5,
+    "threshold": 0.8,
+    "graph_nodes": 5,
+    "graph_edges": 5,
+    "predictions": [
+      {
+        "prediction": "no_effect",
+        "confidence": 0.41500000000000004,
+        "reason": "Inferred from target semantics and intervention sign"
+      },
+      {
+        "prediction": "no_effect",
+        "confidence": 0.41500000000000004,
+        "reason": "Inferred from target semantics and intervention sign"
+      },
+      {
+        "prediction": "no_effect",
+        "confidence": 0.41500000000000004,
+        "reason": "Inferred from target semantics and intervention sign"
+      },
+      {
+        "prediction": "no_effect",
+        "confidence": 0.41500000000000004,
+        "reason": "Inferred from target semantics and intervention sign"
+      },
+      {
+        "prediction": "no_effect",
+        "confidence": 0.41500000000000004,
+        "reason": "Inferred from target semantics and intervention sign"
+      }
+    ],
+    "ground_truth": [
+      {
+        "actual": "no_effect"
+      },
+      {
+        "actual": "no_effect"
+      },
+      {
+        "actual": "no_effect"
+      },
+      {
+        "actual": "no_effect"
+      },
+      {
+        "actual": "no_effect"
+      }
+    ]
+  },
+  "timestamp": "2026-05-15T08:22:05.406701"
+}
