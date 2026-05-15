@@ -15,7 +15,7 @@ from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import case, func, or_, text, update
+from sqlalchemy import case, func, and_, or_, text, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
@@ -355,7 +355,7 @@ def _execute_decision_paper_or_kalshi(
             ]
             if event_slug:
                 filters.append(
-                    or_(
+                    and_(
                         Trade.market_ticker == market_ticker,
                         Trade.event_slug == event_slug,
                     )
@@ -923,7 +923,7 @@ async def _execute_decision_live_clob(
             ]
             if event_slug:
                 filters.append(
-                    or_(
+                    and_(
                         Trade.market_ticker == market_ticker,
                         Trade.event_slug == event_slug,
                     )
