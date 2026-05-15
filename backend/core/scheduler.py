@@ -635,6 +635,11 @@ def start_scheduler():
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
+            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
+                interval = config.interval_seconds or 60
+                configs_to_schedule.append((config.strategy_name, interval, 'paper'))
+                configs_to_schedule.append((config.strategy_name, interval, 'live'))
+                continue
             for mode in settings.active_modes_set:
                 trades = db.query(Trade).filter(
                     Trade.strategy == config.strategy_name,
@@ -974,12 +979,7 @@ def start_scheduler():
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
             with get_db_session() as db:
-        for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
-                interval = config.interval_seconds or 60
-                configs_to_schedule.append((config.strategy_name, interval, 'paper'))
-                configs_to_schedule.append((config.strategy_name, interval, 'live'))
-                continue
+                for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
                     if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
                         continue
 
