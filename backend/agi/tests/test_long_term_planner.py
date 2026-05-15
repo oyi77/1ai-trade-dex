@@ -1,6 +1,4 @@
-import pytest
-from datetime import datetime, timedelta
-from backend.agi.long_term_planner import LongTermPlanner, LongTermPlan, Milestone, ResourceConflict
+from backend.agi.long_term_planner import LongTermPlanner, LongTermPlan
 
 def test_long_term_planner_produces_90_day_rolling_plan():
     planner = LongTermPlanner()

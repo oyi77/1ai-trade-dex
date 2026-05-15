@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 from loguru import logger
 
 @dataclass(frozen=True)
@@ -37,15 +36,15 @@ class ReasoningEngine:
         In a real AGI implementation, this would involve complex logic or LLM calls.
         """
         self._logger.info(f"Reasoning on domain {context.domain}: {context.query}")
-        
+
         # Basic implementation for the skeleton:
         # In reality, this would orchestrate various reasoning modules
         trace = [f"Started reasoning for query: {context.query} in domain {context.domain}"]
-        
+
         # Simulate reasoning process
         conclusion = f"Processed conclusion for {context.query}"
         confidence = 0.85 if context.evidence else 0.5
-        
+
         trace.append(f"Evaluated {len(context.evidence)} pieces of evidence")
         trace.append(f"Final conclusion reached with confidence {confidence}")
 
@@ -92,10 +91,10 @@ class ReasoningEngine:
         Evaluates a hypothesis against provided evidence and returns a confidence score [0, 1].
         """
         self._logger.info(f"Evaluating hypothesis: {hypothesis}")
-        
+
         if not evidence:
             return 0.0
-        
+
         # Simplified scoring logic: mapping existence of evidence to a score
         # This is a placeholder for a more sophisticated statistical or neural evaluator
         score = min(1.0, len(evidence) * 0.2)
@@ -108,8 +107,8 @@ class ReasoningEngine:
         Attempts to map patterns from one domain to another.
         """
         self._logger.info(f"Generalizing knowledge from {from_domain} to {to_domain}")
-        
+
         # This is a placeholder for formal analogy mapping or transfer learning logic
         generalized_knowledge = f"Transferred {knowledge} from {from_domain} to {to_domain} context"
-        
+
         return generalized_knowledge

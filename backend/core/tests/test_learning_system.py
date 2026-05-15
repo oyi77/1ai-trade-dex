@@ -4,13 +4,11 @@ Tests for the LearningSystem component.
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
-import numpy as np
 
 from backend.core.learning_system import (
     LearningSystem,
     LearningExample,
-    CalibrationReport,
-    LearningMode
+    CalibrationReport
 )
 
 # Mock SQLAlchemy session
@@ -18,36 +16,36 @@ class MockSession:
     def __init__(self):
         self.examples = []
         self.filter_calls = []
-        
+
     def __call__(self, **kwargs):
         return self
-        
+
     def query(self, *args, **kwargs):
         return self
-        
+
     def filter(self, *args, **kwargs):
         self.filter_calls.append((args, kwargs))
         return self
-        
+
     def order_by(self, *args, **kwargs):
         return self
-        
+
     def limit(self, *args, **kwargs):
         return self
-        
+
     def all(self):
         # Return a list of mock objects that behave like LearningExampleModel
         return [
             MockExampleModel("strat1", "mkt1", 0.7, 1.0, 0.01, 0.8, "domain1"),
             MockExampleModel("strat1", "mkt2", 0.4, 0.0, -0.005, 0.6, "domain1"),
         ]
-        
+
     def add(self, obj):
         self.examples.append(obj)
-        
+
     def commit(self):
         pass
-        
+
     def rollback(self):
         pass
 
@@ -61,7 +59,7 @@ class MockExampleModel:
         self.confidence = confidence
         self.domain = domain
         self.timestamp = datetime.utcnow()
-        
+
     def to_learning_example(self):
         return LearningExample(
             domain=self.domain,
@@ -91,7 +89,7 @@ def test_record_outcome(learning_system):
         confidence=0.8
     )
     assert len(learning_system.session.examples) == 1
-    
+
     # Test invalid confidence
     with pytest.raises(ValueError):
         learning_system.record_outcome(
@@ -116,10 +114,10 @@ def test_compute_calibration(learning_system):
         LearningExample("domain1", "s1", "m2", 0.4, 0.0, -0.01, datetime.utcnow(), 0.6),
         LearningExample("domain1", "s1", "m3", 0.9, 1.0, 0.02, datetime.utcnow(), 0.95),
     ]
-    
+
     learning_system.get_learning_examples = lambda domain, n=100: examples
     report = learning_system.compute_calibration("domain1")
-    
+
     assert isinstance(report, CalibrationReport)
     assert 0 <= report.brier_score <= 1
     assert report.accuracy == 1.0 # All 3都是对的 (0.7->1, 0.4->0, 0.9->1)
@@ -130,7 +128,7 @@ def test_get_learning_stats(learning_system):
     # Mock the a litte more for stats
     learning_system.session.query = MagicMock()
     learning_system.session.query.return_value.group_by.return_value.all.return_value = [("domain1", 10)]
-    
+
     stats = learning_system.get_learning_stats()
     assert stats["total_examples"] == 10
     assert "domain1" in stats["domains"]

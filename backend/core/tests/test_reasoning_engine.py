@@ -69,7 +69,7 @@ class TestReasoningEngine:
             evidence=["uncertainty", "policy_changes"]
         )
         result = engine.reason(ctx)
-        
+
         assert isinstance(result, ReasoningResult)
         assert "Processed conclusion" in result.conclusion
         assert result.confidence == 0.85
@@ -80,22 +80,22 @@ class TestReasoningEngine:
         engine = ReasoningEngine()
         ctx = ReasoningContext(domain="test", query="test query")
         result = engine.reason(ctx)
-        
+
         assert result.confidence == 0.5
         assert len(result.supporting_evidence) == 0
 
     @patch("backend.core.reasoning_engine.logger")
     def test_chain_steps_success(self, mock_logger):
         engine = ReasoningEngine()
-        
+
         def step1(x):
             return x + 1
-        
+
         def step2(x):
             return x * 2
-        
+
         result = engine.chain_steps([step1, step2], initial_input=5)
-        
+
         assert isinstance(result, ReasoningResult)
         assert result.conclusion == "12"  # (5 + 1) * 2
         assert result.confidence == 1.0
@@ -105,15 +105,15 @@ class TestReasoningEngine:
     @patch("backend.core.reasoning_engine.logger")
     def test_chain_steps_failure(self, mock_logger):
         engine = ReasoningEngine()
-        
+
         def step1(x):
             return x + 1
-        
+
         def step2(x):
             raise ValueError("Intentional error")
-        
+
         result = engine.chain_steps([step1, step2], initial_input=5)
-        
+
         assert isinstance(result, ReasoningResult)
         assert "Error during chain execution" in result.conclusion
         assert result.confidence == 0.0
@@ -138,7 +138,7 @@ class TestReasoningEngine:
             to_domain="economics",
             knowledge="gravity"
         )
-        
+
         assert isinstance(result, str)
         assert "physics" in result
         assert "economics" in result
@@ -149,12 +149,12 @@ class TestReasoningEngine:
     def test_logging_on_reason(self, mock_logger):
         engine = ReasoningEngine()
         ctx = ReasoningContext(domain="test", query="test")
-        
+
         # Mock the return value of bind to be another mock
         mock_bound_logger = mock_logger.bind.return_value
-        
+
         engine.reason(ctx)
-        
+
         # Verify bind was called with the correct task
         mock_logger.bind.assert_called_with(task="reasoning_engine")
         # Verify the bound logger's info method was called

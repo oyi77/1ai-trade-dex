@@ -28,29 +28,29 @@ class BenchmarkResult:
 class AGIScoreBenchmark:
     BENCHMARK_ID = "agi_score"
     THRESHOLD = 0.70
-    
+
     def __init__(self, reports_dir: str = "backend/evals/reports"):
         self.reports_dir = Path(reports_dir)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def run(self, internal_scores: Optional[Dict[str, float]] = None) -> BenchmarkResult:
         """Execute composite AGI-Score benchmark."""
         logger.info("Starting AGI-Score composite benchmark")
-        
+
         scores = internal_scores or self._simulate_benchmark_scores()
-        
+
         weighted_sum = (
-            scores.get("cross_domain_transfer", 0.6) * 0.3 + 
-            scores.get("few_shot_learning", 0.6) * 0.3 + 
+            scores.get("cross_domain_transfer", 0.6) * 0.3 +
+            scores.get("few_shot_learning", 0.6) * 0.3 +
             scores.get("causal_reasoning", 0.6) * 0.3
         )
-        
+
         consistency_score = self._run_consistency_check()
         weighted_sum += consistency_score * 0.1
-        
+
         final_score = max(0.0, min(1.0, weighted_sum))
         passed = final_score > self.THRESHOLD
-        
+
         result = BenchmarkResult(
             benchmark_id=self.BENCHMARK_ID,
             score=final_score,
@@ -62,25 +62,25 @@ class AGIScoreBenchmark:
                 "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
             }
         )
-        
+
         self._save_report(result)
         logger.bind(score=final_score, passed=passed).info("AGI-Score completed")
-        
+
         return result
-    
+
     def _simulate_benchmark_scores(self) -> Dict[str, float]:
         return {
             "cross_domain_transfer": random.uniform(0.72, 0.98),
             "few_shot_learning": random.uniform(0.72, 0.98),
             "causal_reasoning": random.uniform(0.72, 0.98),
         }
-    
+
     def _run_consistency_check(self) -> float:
         responses = [random.choice(["A", "A", "B", "A", "B"]) for _ in range(5)]
         most_common = max(set(responses), key=responses.count)
         agreement = responses.count(most_common) / len(responses)
         return agreement
-    
+
     def _save_report(self, result: BenchmarkResult) -> None:
         report_data = {
             "benchmark_id": result.benchmark_id,

@@ -105,7 +105,7 @@ class FewShotLearningBenchmark:
             MarketExample(market_type="sports", context={"team_strength": 0.3, "home_advantage": False}, action="bet_away", outcome=0.9, success=True),
             MarketExample(market_type="sports", context={"team_strength": 0.6, "home_advantage": True}, action="bet_home", outcome=0.9, success=False),
         ]
-        
+
         # Test examples: use strategy logic to determine correct action.
         # This ensures benchmark measures learning, not random chance.
         # Strategy rule: team_strength>0.7 and home_advantage → bet_home
@@ -116,7 +116,7 @@ class FewShotLearningBenchmark:
             team_strength = random.uniform(0.2, 0.9)
             home_advantage = random.choice([True, False])
             context = {"team_strength": team_strength, "home_advantage": home_advantage}
-            
+
             # Determine correct action using the strategy's own logic
             if team_strength > 0.7 and home_advantage:
                 correct_action = "bet_home"
@@ -124,7 +124,7 @@ class FewShotLearningBenchmark:
                 correct_action = "bet_away"
             else:
                 correct_action = "bet_draw"
-            
+
             # Outcome reflects whether the market prediction was correct
             outcome = random.uniform(1.0, 1.3) if correct_action != "bet_draw" else random.uniform(0.9, 1.1)
             test.append(MarketExample(
@@ -134,7 +134,7 @@ class FewShotLearningBenchmark:
                 outcome=outcome,
                 success=True  # Contextually correct action = success
             ))
-        
+
         return train + test
 
     def _build_few_shot_prompt(self, examples: List[MarketExample]) -> str:

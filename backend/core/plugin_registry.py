@@ -6,7 +6,7 @@ import os
 import pkgutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic, List, Optional, TypeVar, Dict, Set
+from typing import Generic, List, Optional, TypeVar, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,6 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
 
         # Check required env vars
         from backend.core.plugin_errors import PluginEnvVarMissing
-        import os
         missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
         if missing:
             raise PluginEnvVarMissing(
@@ -120,8 +119,6 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
 
         Returns the number of plugins registered.
         """
-        import pkgutil
-        import importlib
         count = 0
         try:
             package = importlib.import_module(package_path)
