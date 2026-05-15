@@ -526,7 +526,10 @@ class WalletReconciler:
                     self.logger.warning(
                         f"Orphaned REDEEM: slug={slug}, "
                         f"condId={condition_id[:16]}..., "
-                        f"amount={redeem_amount}"
+                        f"amount={redeem_amount} USD. "
+                        f"No fuzzy match found (threshold >0.6). "
+                        f"Manual reconciliation may be needed. "
+                        f"timestamp={timestamp_unix}"
                     )
 
             self.db.commit()
