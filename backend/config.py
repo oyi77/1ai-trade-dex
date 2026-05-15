@@ -1725,8 +1725,8 @@ class Settings(BaseSettings):
             _shadow = getattr(self, "SHADOW_MODE", True)
             if not _shadow and str(_mode).lower() == "live":
                 logger.critical(
-                    "ADMIN_API_KEY is not set — all admin endpoints are UNAUTHENTICATED. "
-                    "Set ADMIN_API_KEY in your .env file before running in live mode."
+                    "ADMIN_API_KEY is unset — admin endpoints are unsecured. "
+                    "Set ADMIN_API_KEY in production."
                 )
         return self
 

@@ -6,11 +6,8 @@
  * 2. All adminApi requests: cookie sent automatically by browser; CSRF token in X-CSRF-Token header
  * 3. Logout: POST /api/v1/admin/auth/logout → cookie cleared
  */
-
 const CSRF_STORAGE_KEY = 'admin_csrf_token'
-
 let cachedCsrfToken: string | null = null
-
 export function getCsrfToken(): string {
   if (cachedCsrfToken) return cachedCsrfToken
   const stored = sessionStorage.getItem(CSRF_STORAGE_KEY)
@@ -20,7 +17,6 @@ export function getCsrfToken(): string {
   }
   return ''
 }
-
 export function setCsrfToken(token: string) {
   cachedCsrfToken = token
   if (token) {
@@ -29,21 +25,17 @@ export function setCsrfToken(token: string) {
     sessionStorage.removeItem(CSRF_STORAGE_KEY)
   }
 }
-
 export function clearCsrfToken() {
   cachedCsrfToken = null
   sessionStorage.removeItem(CSRF_STORAGE_KEY)
 }
-
 export function isLoggedIn(): boolean {
   return getCsrfToken().length > 0
 }
-
 export interface LoginResponse {
   csrf_token: string
   message: string
 }
-
 export async function loginWithCookie(adminKey: string): Promise<LoginResponse> {
   const API_BASE = import.meta.env.VITE_API_URL || ''
   const res = await fetch(`${API_BASE}/api/v1/admin/auth/login`, {
@@ -60,7 +52,6 @@ export async function loginWithCookie(adminKey: string): Promise<LoginResponse> 
   setCsrfToken(data.csrf_token)
   return data
 }
-
 export async function logoutWithCookie(): Promise<void> {
   const API_BASE = import.meta.env.VITE_API_URL || ''
   const csrf = getCsrfToken()
@@ -70,18 +61,24 @@ export async function logoutWithCookie(): Promise<void> {
     credentials: 'include',
   }).catch(() => {})
   clearCsrfToken()
-  localStorage.removeItem('adminApiKey')
+  // API key stored in httpOnly cookie — not accessible to JavaScript
 }
-
 /**
- * Legacy fallback: store key in localStorage for Bearer header auth.
- * Used when cookie auth backend is unavailable (dev without ADMIN_API_KEY).
+ * Legacy fallback: no longer stores key in localStorage.
+ * API key is now securely stored in httpOnly cookie by backend.
+ * @deprecated Use loginWithCookie() instead
  */
 export function setLegacyApiKey(key: string) {
-  if (key) localStorage.setItem('adminApiKey', key)
-  else localStorage.removeItem('adminApiKey')
+  console.warn('[DEPRECATED] setLegacyApiKey() no longer stores API key in localStorage. Use loginWithCookie() instead.')
+  void key
+  // This function is kept for backward compatibility but does nothing.
+  // API key stored in httpOnly cookie — not accessible to JavaScript
 }
-
+/**
+ * Legacy fallback: no longer retrieves from localStorage.
+ * Returns empty string as API key is stored securely in httpOnly cookie.
+ * @deprecated Use getCsrfToken() instead for authenticated requests
+ */
 export function getLegacyApiKey(): string {
-  return localStorage.getItem('adminApiKey') ?? ''
+  return ''
 }

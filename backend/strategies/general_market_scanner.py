@@ -230,7 +230,7 @@ class GeneralMarketScanner(BaseStrategy):
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
-        
+
         # AI is required for this strategy to have any edge — check first to skip early
         if not getattr(ctx.settings, 'AI_ENABLED', False):
             ctx.logger.info(
@@ -238,7 +238,7 @@ class GeneralMarketScanner(BaseStrategy):
             )
             result.errors.append("AI disabled")
             return result
-        
+
         rejected_raw_edge = 0
         rejected_edge_low = 0
         rejected_rr = 0

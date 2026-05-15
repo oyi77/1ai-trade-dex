@@ -74,6 +74,9 @@ class Worker:
         - Execute with timeout enforcement
         - Handle success/failure/timeout
         - Remove from in-flight tracking (always, via try/finally)
+
+        SCHED-6: Periodic cleanup of completed/cancelled tasks from _active_tasks
+        to prevent unbounded growth.
         """
         self._running = True
         logger.info("Worker started")
@@ -83,6 +86,19 @@ class Worker:
         try:
             while self._running:
                 _iter_count += 1
+
+                # SCHED-6: Cleanup completed/cancelled tasks every 100 iterations
+                if _iter_count % 100 == 0:
+                    completed_tasks = {
+                        task for task in self._active_tasks
+                        if task.done()
+                    }
+                    if completed_tasks:
+                        self._active_tasks -= completed_tasks
+                        logger.debug(
+                            f"SCHED-6: Cleaned up {len(completed_tasks)} completed tasks, "
+                            f"{len(self._active_tasks)} remaining"
+                        )
 
                 # Check concurrency limit
                 if len(self._in_flight_jobs) >= self._max_concurrent:
@@ -158,8 +174,31 @@ class Worker:
                 else:
                     timer.status = "error"
                     error_msg = result.get("error", "Unknown error")
-                    await self._queue.fail(job_id, error_msg)
-                    logger.error(f"Job {job_id} failed: {error_msg}")
+                    error_class = result.get("error_class", "unknown")
+
+                    # SCHED-7: Check error classification from handler
+                    if error_class == "permanent":
+                        # Permanent errors (bad data) → dead_letter, no retry
+                        try:
+                            from backend.models.database import JobQueue, SessionLocal
+                            _session = SessionLocal()
+                            try:
+                                _job = _session.query(JobQueue).filter(JobQueue.id == job_id).first()
+                                if _job:
+                                    _job.status = "dead_letter"
+                                    _job.error_message = error_msg
+                                    _session.commit()
+                            finally:
+                                _session.close()
+                        except Exception:
+                            logger.exception("Failed to mark job as dead_letter")
+                        logger.error(
+                            f"Job {job_id} permanent error (dead_letter): {error_msg}"
+                        )
+                    else:
+                        # Transient or unknown errors → retry via queue.fail()
+                        await self._queue.fail(job_id, error_msg)
+                        logger.error(f"Job {job_id} failed (will retry): {error_msg}")
 
             except ValueError as e:
                 timer.status = "error"
@@ -179,7 +218,9 @@ class Worker:
                 except Exception:
                     logger.exception("Failed to update job error in database")
                     pass
-                logger.error(f"Job {job_id} permanent error: {error_msg}")
+                    pass
+                # SCHED-4: Mark permanent errors as dead_letter
+                await self._queue.complete(job_id, status="dead_letter")
 
             except asyncio.TimeoutError:
                 timer.status = "timeout"
@@ -190,10 +231,33 @@ class Worker:
                 logger.error(f"Job {job_id} timeout: {error_msg}")
 
             except Exception as e:
+                # SCHED-4: Distinguish transient (network) vs permanent errors
                 timer.status = "error"
                 error_msg = f"Job execution error: {str(e)}"
-                await self._queue.fail(job_id, error_msg)
-                logger.error(f"Job {job_id} error: {error_msg}", exc_info=True)
+
+                # Check if it's a transient error (network, timeout)
+                is_transient = isinstance(e, (TimeoutError, ConnectionError, OSError))
+                if is_transient:
+                    # Transient errors are retried normally via queue.fail()
+                    await self._queue.fail(job_id, error_msg)
+                    logger.warning(f"Job {job_id} transient error (will retry): {error_msg}")
+                else:
+                    # Other exceptions are treated as permanent
+                    try:
+                        from backend.models.database import JobQueue, SessionLocal
+                        _JQ = JobQueue
+                        _session = SessionLocal()
+                        try:
+                            _job = _session.query(_JQ).filter(_JQ.id == job_id).first()
+                            if _job:
+                                _job.status = "dead_letter"  # SCHED-4: Permanent failure
+                                _job.error_message = error_msg
+                                _session.commit()
+                        finally:
+                            _session.close()
+                    except Exception:
+                        logger.exception("Failed to mark job as dead_letter")
+                    logger.error(f"Job {job_id} error (dead_letter): {error_msg}", exc_info=True)
 
             finally:
                 # Always remove from in-flight tracking
@@ -210,11 +274,28 @@ class Worker:
             Dict with handler result (must include 'success' key)
 
         Raises:
-            ValueError: If job_type is not recognized
+            ValueError: If job_type is not recognized or payload is invalid
             Exception: If handler execution fails
         """
         # Import handlers to avoid circular dependencies
         from backend.job_queue import handlers
+
+        # SCHED-4: Validate job_type and required payload fields
+        VALID_JOB_TYPES = {
+            "market_scan": ["mode"],
+            "weather_scan": ["mode"],
+            "settlement_check": [],
+            "signal_generation": [],
+        }
+
+        if job.job_type not in VALID_JOB_TYPES:
+            raise ValueError(f"Unknown job type: {job.job_type}")
+
+        # Validate required payload fields
+        required_fields = VALID_JOB_TYPES[job.job_type]
+        for field in required_fields:
+            if field not in job.payload:
+                raise ValueError(f"Missing required field '{field}' in payload for {job.job_type}")
 
         # Dispatch based on job type
         if job.job_type == "market_scan":
@@ -226,6 +307,7 @@ class Worker:
         elif job.job_type == "signal_generation":
             result = await handlers.signal_generation(job.payload)
         else:
+            # This should never happen due to validation above, but kept for safety
             raise ValueError(f"Unknown job type: {job.job_type}")
 
         # Validate result format
