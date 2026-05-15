@@ -550,7 +550,7 @@ def auto_promote_eligible_proposals():
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             eligible = db.query(DBProposal).filter(
-                DBProposal.status == "pending",
+                DBProposal.admin_decision == "pending",
                 DBProposal.auto_promotable,
                 not DBProposal.backtest_passed,
             ).all()
@@ -567,7 +567,7 @@ def auto_promote_eligible_proposals():
                     db.rollback()
 
             promotable = db.query(DBProposal).filter(
-                DBProposal.status == "pending",
+                DBProposal.admin_decision == "pending",
                 DBProposal.auto_promotable,
                 DBProposal.backtest_passed,
             ).all()
@@ -627,16 +627,32 @@ def _get_baseline_win_rate(db, strategy_name: str) -> float:
 
 
 def _run_backtest_for_proposal(db, proposal) -> dict:
-    """Forward simulation: replay historical trades WITH proposed params applied.
+    """⚠️ PnL REPLAY, NOT A REAL BACKTEST.
 
-    Compares simulation results against baseline (current params) to measure
+    This is NOT a true backtest that re-runs the strategy on historical data.
+    Instead, it REPLAYS existing settled Trade PnLs with proposed parameters
+    applied as scaling factors:
+    - Filters trades by min_edge
+    - Scales sizes using kelly_fraction * edge
+    - Applies slippage_buffer multiplier
+
+    This is a fast "what-if" simulation, not a genuine strategy re-execution.
+    Results show how proposed parameter changes would have scaled EXISTING trade outcomes.
+
+    Compares replay results against baseline (current params) to measure
     improvement. A losing strategy can pass if the proposed change IMPROVES outcomes.
 
-    Gate: improvement in win_rate OR sharpe over baseline.
+    Gate: improvement in win_rate OR sharpe over baseline (≥2 of 3 metrics + ≥3 trades).
     """
     try:
         import statistics as stats_mod
         from backend.models.database import Trade
+
+        # ⚠️ IMPORTANT: This is PnL replay, NOT a real backtest
+        logger.warning(
+            f"Proposal {proposal.id}: Running PnL REPLAY (not real backtest). "
+            f"Scaling existing trade outcomes by proposed params, not re-executing strategy."
+        )
 
         strategy_name = proposal.strategy_name
         proposed_params = proposal.change_details or {}

@@ -442,17 +442,55 @@ class WalletReconciler:
                         Trade.trading_mode == self.mode,
                     ).first()
 
-                # Step 2: If no slug match, scan all mode trades in Python and
-                # match by conditionId stored in the activity record vs slug
-                if existing is None and condition_id:
+                # Step 2: If no exact slug match, use fuzzy matching with scoring
+                if existing is None and slug:
+                    from difflib import SequenceMatcher
+
                     all_mode_trades = self.db.query(Trade).filter(
                         Trade.trading_mode == self.mode,
                     ).all()
+
+                    matches_with_scores = []
+
                     for t in all_mode_trades:
-                        # Exact match: the slug IS the market_ticker
-                        if t.market_ticker == slug:
-                            existing = t
-                            break
+                        # Calculate fuzzy match score using SequenceMatcher
+                        ratio = SequenceMatcher(None, slug.lower(), t.market_ticker.lower()).ratio()
+                        if ratio > 0.6:  # Threshold: >60% similarity
+                            matches_with_scores.append((ratio, t))
+
+                    if len(matches_with_scores) == 1:
+                        # Single best match above threshold
+                        existing = matches_with_scores[0][1]
+                    elif len(matches_with_scores) > 1:
+                        # Multiple matches: pick highest scoring one
+                        matches_with_scores.sort(key=lambda x: x[0], reverse=True)
+                        best_score = matches_with_scores[0][0]
+
+                        # Only accept if significantly better than second best
+                        if len(matches_with_scores) > 1 and (best_score - matches_with_scores[1][0]) > 0.1:
+                            existing = matches_with_scores[0][1]
+                        else:
+                            # Multiple similar matches - log but don't auto-pick
+                            self.logger.warning(
+                                f"Multiple ambiguous matches for REDEEM slug={slug}. "
+                                f"Scores: {[(t.market_ticker, s) for s, t in matches_with_scores[:3]]}"
+                            )
+
+                # Step 3: Fallback to condition_id matching if available
+                if existing is None and condition_id:
+                    # Try to match by condition_id in DB trades
+                    # (assumes condition_id is stored somewhere in Trade model)
+                    try:
+                        all_mode_trades = self.db.query(Trade).filter(
+                            Trade.trading_mode == self.mode,
+                        ).all()
+                        for t in all_mode_trades:
+                            # Check if trade has condition_id metadata
+                            if hasattr(t, 'condition_id') and t.condition_id == condition_id:
+                                existing = t
+                                break
+                    except Exception as e:
+                        self.logger.debug(f"Condition_id fallback failed: {e}")
 
                 if existing:
                     if existing.settled:

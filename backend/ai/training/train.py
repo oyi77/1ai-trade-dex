@@ -46,6 +46,7 @@ async def main() -> None:
             "Falling back to SYNTHETIC seed — model will carry 'synthetic-data' flag."
         )
         examples = _synthetic_examples(64)
+        logger.warning("Training on synthetic data — model may not generalize")
         synthetic_used = True
     else:
         synthetic_used = False

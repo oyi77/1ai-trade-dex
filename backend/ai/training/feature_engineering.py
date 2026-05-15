@@ -38,6 +38,15 @@ class FeatureEngineer:
         if "model_probability" in row and row["model_probability"] is not None:
             model_probability = float(row["model_probability"])
         else:
+            # Gamma API does not include model_probability in market responses;
+            # we synthesise it from sentiment and whale signals. When those
+            # features are also absent, edge collapses to zero, so log a
+            # warning for observability.
+            if row.get("sentiment") is None and row.get("whale_pressure") is None:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "model_probability missing and no sentiment/whale data; edge will be 0"
+                )
             sentiment_signal = max(-0.15, min(0.15, sentiment * 0.1))
             whale_signal = max(-0.15, min(0.15, whale_pressure * 0.1))
             model_probability = max(0.01, min(0.99, yes_price + sentiment_signal + whale_signal))

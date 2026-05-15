@@ -10,6 +10,11 @@ export function StatsCards() {
   const stats = useStats()
   const { selectedMode } = useModeFilter()
   
+  // NOTE: Stats sources:
+  // - Profile stats: Polymarket public API data (on-chain positions)
+  // - Ledger stats: Internal DB tracking (may differ from profile if chain is out of sync)
+  // Component prioritizes profile stats with tooltips explaining the source.
+  
   // Filter stats by selected mode
   const modeData = selectedMode === 'all' ? null :
                    selectedMode === 'paper' ? stats.paperStats :
@@ -60,16 +65,19 @@ export function StatsCards() {
       )}
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">Bank</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Bankroll from profile stats (Polymarket data)">Bank</span>
         <span className="text-sm font-semibold tabular-nums text-neutral-100">
           ${bankroll >= 1000 ? (bankroll / 1000).toFixed(1) + 'K' : bankroll.toFixed(0)}
         </span>
+        {selectedMode === 'all' && (
+          <span className="text-[8px] text-neutral-500 uppercase px-1 border border-neutral-700 rounded" title="Profile: Polymarket public data">Prof</span>
+        )}
       </motion.div>
 
       <div className="w-px h-3 bg-neutral-800" />
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">Equity</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Total equity from profile stats">Equity</span>
         {equityCurve.length > 1 && (
           <ResponsiveContainer width={40} height={20}>
             <LineChart data={equityCurve}>
@@ -85,7 +93,7 @@ export function StatsCards() {
       <div className="w-px h-3 bg-neutral-800" />
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">P&L</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Profit/Loss from profile stats (Polymarket realized gains)">P&L</span>
         <span className={`text-sm font-semibold tabular-nums ${pnl >= 0 ? 'text-green-500 glow-green' : 'text-red-500 glow-red'}`}>
           {pnl >= 0 ? '+' : '-'}${Math.abs(pnl).toFixed(2)}
         </span>
@@ -102,11 +110,11 @@ export function StatsCards() {
       <div className="w-px h-3 bg-neutral-800" />
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">Win</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Win rate from profile closed trades (Polymarket data)">Win</span>
         <span className={`text-sm font-semibold tabular-nums ${winRate >= 55 ? 'text-green-500' : winRate >= 45 ? 'text-yellow-500' : 'text-red-500'}`}>
           {winRate.toFixed(0)}%
         </span>
-        <span className="text-[10px] text-neutral-600 tabular-nums">
+        <span className="text-[10px] text-neutral-600 tabular-nums" title="Wins / Total trades from profile">
           {wins}/{winDenominator}
         </span>
       </motion.div>
@@ -114,7 +122,7 @@ export function StatsCards() {
       <div className="w-px h-3 bg-neutral-800" />
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">Settled</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Settled trades: profile_closed_count from Polymarket API">Settled</span>
         <span className="text-sm font-semibold tabular-nums text-neutral-100">{settledTrades}</span>
         {isRunning && <div className="live-dot" />}
       </motion.div>
@@ -122,9 +130,9 @@ export function StatsCards() {
       <div className="w-px h-3 bg-neutral-800" />
 
       <motion.div className="flex items-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
-        <span className="text-[10px] text-neutral-600 uppercase">Open</span>
+        <span className="text-[10px] text-neutral-600 uppercase" title="Open positions from profile data">Open</span>
         <span className="text-sm font-semibold tabular-nums text-amber-400">{openTrades}</span>
-        <span className="text-[10px] text-neutral-600 tabular-nums">
+        <span className="text-[10px] text-neutral-600 tabular-nums" title="Locked capital and redeemable/stale position counts">
           ${openExposure.toFixed(0)} locked{redeemableTrades > 0 ? ` · ${redeemableTrades} redeemable` : staleOpenTrades > 0 ? ` · ${staleOpenTrades} stale` : ''}
         </span>
       </motion.div>

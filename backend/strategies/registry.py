@@ -141,15 +141,33 @@ def _check_performance_gate(name: str) -> None:
 
 
 def _extract_metric(text: str, keyword: str) -> float | None:
+    """Extract metric value (e.g., ROI, Sharpe) from text.
+
+    Supports two formats:
+    - Pattern 1: "ROI: -49.5%" or "ROI -49.5%"
+    - Pattern 2: "-49.5% ROI" (number-first format)
+
+    Args:
+        text: Text to search (typically lowercase docstring + description)
+        keyword: Metric name to search for (e.g., "roi", "sharpe")
+
+    Returns:
+        Metric as decimal (e.g., -49.5% → -0.495) or None if not found
+    """
     import re
+    # Pattern 1: "keyword[: ]+number%" (e.g., "ROI: -49.5%" or "ROI -49.5%")
     pattern = rf"{keyword}[:\s]+(-?\d+\.?\d*)%"
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         return float(match.group(1)) / 100.0
+
+    # Pattern 2: "number% keyword" (e.g., "-49.5% ROI")
+    # This is the fallback for number-first format
     pattern2 = rf"(-?\d+\.?\d*)%\s*{keyword}"
     match2 = re.search(pattern2, text, re.IGNORECASE)
     if match2:
         return float(match2.group(1)) / 100.0
+
     return None
 
 
