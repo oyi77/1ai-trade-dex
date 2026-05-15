@@ -325,7 +325,9 @@ class TestBotStateLockHandling:
         assert execute_mock.call_count == 2
         sleep_mock.assert_awaited_once()
 
-    @pytest.mark.skip(reason="Function removed: _apply_post_trade_botstate_update no longer exists in strategy_executor")
+    @pytest.mark.asyncio
+    @pytest.mark.skip(reason="Function removed from strategy_executor")
+    async def test_trade_persists_when_post_trade_botstate_update_fails(self):
         """BotState follow-up failure must not roll back an already-created trade."""
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
@@ -389,10 +391,10 @@ class TestBotStateLockHandling:
 
             state = check_db.query(BotState).filter_by(mode="paper").first()
             assert state.paper_bankroll == pytest.approx(500.0)
-    @pytest.mark.skip(reason="Function removed from strategy_executor")
         finally:
             check_db.close()
 
+    @pytest.mark.skip(reason="Function removed from strategy_executor")
     def test_post_trade_botstate_update_sets_short_transaction_timeouts(self):
         """Best-effort BotState sync must fast-fail instead of waiting on stale locks."""
         from backend.core import strategy_executor as se
@@ -672,9 +674,9 @@ class TestUpdatesBankroll:
             assert state.paper_trades == 1
         finally:
             check_db.close()
-    @pytest.mark.skip(reason="Function removed from strategy_executor")
 
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="Function removed from strategy_executor")
     async def test_trade_persists_when_post_commit_botstate_sync_fails(self):
         """Trade/attempt persistence must survive follow-up BotState sync failure."""
         from backend.models.database import Trade, TradeAttempt

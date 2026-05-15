@@ -88,6 +88,8 @@ from backend.core.strategy_performance_registry import StrategyPerformanceSnapsh
 from backend.models.database import TransactionEvent
 from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord, ParamChange, TradingCalibrationRecord  # noqa: F401
 from backend.models.signal_log import SignalLog  # noqa: F401
+from backend.models.signal_log import SignalLog  # noqa: F401
+from backend.models.signal_log import SignalLog  # noqa: F401
 from backend.models.kg_models import ExperimentRecord, DecisionAuditLog  # noqa: F401
 from backend.models.historical_data import HistoricalCandle, MarketOutcome, WeatherSnapshot  # noqa: F401
 from backend.core.risk_profiles import RiskProfileRow  # noqa: F401

@@ -14,6 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from sqlalchemy import create_engine
 from backend.tests.test_strategy_executor import _reload_executor
+from backend.tests.test_strategy_executor import _reload_executor
+from backend.tests.test_strategy_executor import _reload_executor
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
