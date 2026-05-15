@@ -1,6 +1,8 @@
 """FastAPI backend for BTC 5-min trading bot dashboard."""
 
 import asyncio
+from datetime import datetime, timezone
+from typing import List
 
 from fastapi import (
     FastAPI,
@@ -10,9 +12,6 @@ from fastapi import (
 )
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
-from typing import List
-
 
 from backend.config import settings
 from backend.models.database import (
@@ -25,9 +24,8 @@ try:
     from eth_account import Account
 except ImportError:
     Account = None
-    from loguru import logger as _import_logger
 
-    _import_logger.warning("eth_account not available - wallet creation disabled")
+from loguru import logger as _import_logger
 from backend.api.auth import router as auth_router
 from backend.api.markets import router as markets_router
 from backend.api.trading import (
@@ -68,6 +66,13 @@ from backend.api.learning import router as learning_router
 from backend.api.lifespan import lifespan
 from pydantic import BaseModel
 from loguru import logger
+from fastapi.responses import JSONResponse
+from backend.api.calibration_routes import router as calibration_router
+
+
+# Wallet creation warning (after imports)
+if Account is None:
+    _import_logger.warning("eth_account not available - wallet creation disabled")
 
 
 
@@ -82,7 +87,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-from fastapi.responses import JSONResponse  # noqa: E402
 
 @app.exception_handler(Exception)
 async def production_exception_handler(request: Request, exc: Exception):
@@ -408,8 +412,6 @@ if __name__ == "__main__":
     from backend.core.config_service import get_setting
 
     uvicorn.run(app, host="0.0.0.0", port=int(get_setting("PORT", default="8100")))
-
-from backend.api.calibration_routes import router as calibration_router
 
 app.include_router(calibration_router)
 
