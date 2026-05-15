@@ -47,6 +47,7 @@ class CausalReasoningBenchmark:
 
     def run(self, observations: Optional[List[EventObservation]] = None) -> BenchmarkResult:
         """Execute causal reasoning benchmark."""
+        random.seed(42)
         logger.info("Starting causal reasoning benchmark")
 
         if observations is None:

@@ -57,6 +57,7 @@ class FewShotLearningBenchmark:
 
     def run(self, examples: Optional[List[MarketExample]] = None) -> BenchmarkResult:
         """Execute few-shot learning benchmark."""
+        random.seed(42)
         logger.info("Starting few-shot learning benchmark")
 
         if examples is None:

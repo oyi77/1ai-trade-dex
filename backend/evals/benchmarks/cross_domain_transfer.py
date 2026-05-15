@@ -56,6 +56,7 @@ class CrossDomainTransferBenchmark:
 
     def run(self, fixtures: Optional[List[TradeFixture]] = None) -> BenchmarkResult:
         """Execute cross-domain transfer benchmark."""
+        random.seed(42)  # Fixed seed for deterministic test results
         logger.info("Starting cross-domain transfer benchmark")
 
         if fixtures is None:

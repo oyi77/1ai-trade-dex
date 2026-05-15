@@ -35,6 +35,7 @@ class AGIScoreBenchmark:
 
     def run(self, internal_scores: Optional[Dict[str, float]] = None) -> BenchmarkResult:
         """Execute composite AGI-Score benchmark."""
+        random.seed(42)
         logger.info("Starting AGI-Score composite benchmark")
 
         scores = internal_scores or self._simulate_benchmark_scores()
