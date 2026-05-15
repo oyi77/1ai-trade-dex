@@ -1553,8 +1553,9 @@ async def get_strategy(
     db: Session = Depends(get_db),
 ):
     """Get a single strategy config by name."""
-    from backend.strategies.registry import STRATEGY_REGISTRY
+    from backend.strategies.registry import get_strategy_class
     from backend.strategies.loader import load_all_strategies
+    from backend.strategies.registry import STRATEGY_REGISTRY
 
     if not STRATEGY_REGISTRY:
         load_all_strategies()
@@ -1562,12 +1563,12 @@ async def get_strategy(
         raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
     cfg = db.query(StrategyConfig).filter(StrategyConfig.strategy_name == name).first()
     try:
-        inst = STRATEGY_REGISTRY[name]()
-        description = getattr(inst, "description", name)
-        category = getattr(inst, "category", "general")
-        default_params = getattr(inst, "default_params", {})
+        cls = get_strategy_class(name)
+        description = getattr(cls, "description", name)
+        category = getattr(cls, "category", "general")
+        default_params = getattr(cls, "default_params", {})
     except Exception:
-        logger.exception(f"Failed to instantiate strategy '{name}', using fallback defaults")
+        logger.exception(f"Failed to get strategy class '{name}', using fallback defaults")
         description, category, default_params = name, "unknown", {}
     return {
         "name": name,
@@ -1666,7 +1667,7 @@ async def update_strategy(
 @router.post("/strategies/{name}/run-now")
 async def run_strategy_now(name: str, _: None = Depends(require_admin)):
     """Trigger an immediate strategy run."""
-    from backend.strategies.registry import STRATEGY_REGISTRY
+    from backend.strategies.registry import STRATEGY_REGISTRY, create_strategy
 
     if name not in STRATEGY_REGISTRY:
         raise HTTPException(status_code=404, detail=f"Strategy '{name}' not found")
@@ -1676,10 +1677,10 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
         from backend.strategies.base import StrategyContext
         from backend.models.database import BotState, StrategyConfig
 
-        cls = STRATEGY_REGISTRY[name]
-        instance = cls()
         from backend.db.utils import get_db_session
         with get_db_session() as db:
+            # STRAT-13 FIX: Use create_strategy() to check if strategy is enabled
+            instance = create_strategy(name, db=db)
             cfg = (
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.strategy_name == name)
@@ -1698,7 +1699,7 @@ async def run_strategy_now(name: str, _: None = Depends(require_admin)):
                 clob=None,
                 settings=settings,
                 logger=logger,
-                params=dict(getattr(cls, "default_params", {})),
+                params=dict(getattr(instance.__class__, "default_params", {})),
                 mode=strategy_mode,
                 market_registry=market_registry,
             )

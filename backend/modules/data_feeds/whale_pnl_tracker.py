@@ -68,13 +68,13 @@ async def _fetch_token_id(
                     try:
                         clob_token_ids = json.loads(clob_token_ids)
                     except Exception as e:
-                        logger.warning(f"whale pnl tracker: failed to parse clobTokenIds: {e}")
+                        logger.exception(f"[whale_pnl_tracker] Failed to parse clobTokenIds for {condition_id[:20]}...: {e}")
                         clob_token_ids = []
                 if clob_token_ids:
                     return str(clob_token_ids[0])
         return None
     except Exception as e:
-        logger.warning(f"Failed to fetch token_id for {condition_id[:20]}...: {e}")
+        logger.exception(f"[whale_pnl_tracker] Failed to fetch token_id for {condition_id[:20]}...: {e}")
         return None
     finally:
         if close_client:
@@ -99,10 +99,10 @@ async def _fetch_market_prob(
                 prices_str = markets[0].get("outcomePrices")
                 if prices_str:
                     return float(str(prices_str).split(",")[0])
-        logger.warning(f"_fetch_market_prob: no price data for {condition_id[:20]}...")
+        logger.warning(f"[whale_pnl_tracker] _fetch_market_prob: no price data for {condition_id[:20]}...")
         return None
     except Exception as e:
-        logger.warning(f"_fetch_market_prob failed for {condition_id[:20]}...: {e}")
+        logger.exception(f"[whale_pnl_tracker] Failed to fetch market prob for {condition_id[:20]}...: {e}")
         return None
     finally:
         if close_client:

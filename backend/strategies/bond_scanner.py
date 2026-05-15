@@ -104,7 +104,7 @@ class BondScannerStrategy(BaseStrategy):
             existing_tickers = {t.market_ticker for t in open_trades if t.market_ticker}
             existing_tickers |= {t.event_slug for t in open_trades if t.event_slug}
             bond_count = sum(
-                1 for t in open_trades if getattr(t, "strategy", "") == "bond_scanner"
+                1 for t in open_trades if t.strategy == "bond_scanner"
             )
         except Exception as e:
             ctx.logger.warning(f"[bond_scanner] Could not query open trades: {e}")

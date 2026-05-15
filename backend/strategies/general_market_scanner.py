@@ -230,6 +230,15 @@ class GeneralMarketScanner(BaseStrategy):
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
+        
+        # AI is required for this strategy to have any edge — check first to skip early
+        if not getattr(ctx.settings, 'AI_ENABLED', False):
+            ctx.logger.info(
+                "[general_scanner] AI disabled — skipping cycle (AI required for edge)"
+            )
+            result.errors.append("AI disabled")
+            return result
+        
         rejected_raw_edge = 0
         rejected_edge_low = 0
         rejected_rr = 0
@@ -263,14 +272,6 @@ class GeneralMarketScanner(BaseStrategy):
             for c in str(allowed_categories_raw).split(",")
             if c.strip()
         }
-
-        # AI is required for this strategy to have any edge
-        if not getattr(ctx.settings, 'AI_ENABLED', False):
-            ctx.logger.info(
-                "[general_scanner] AI disabled — skipping cycle (AI required for edge)"
-            )
-            result.errors.append("AI disabled")
-            return result
 
         # Time-of-day filter: skip hours where historical losses cluster
         skip_hours = params.get("skip_hours", [2, 4])

@@ -112,13 +112,10 @@ def get_hft_summary() -> dict:
         whale_count = 0
 
     try:
-        from backend.models.database import SessionLocal
         from backend.models.database import StrategyConfig
-        db = SessionLocal()
-        try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
             active = db.query(StrategyConfig).filter(StrategyConfig.enabled).count()
-        finally:
-            db.close()
     except Exception:
         logger.exception("[HFT Metrics] Failed to query active strategies count")
         active = 0

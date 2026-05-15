@@ -149,6 +149,8 @@ class AsyncSQLiteQueue(AbstractQueue):
             raise ValueError("payload must be a dictionary")
         if priority not in self.PRIORITY_MAP:
             raise ValueError(f"Invalid priority: {priority}. Must be one of {list(self.PRIORITY_MAP.keys())}")
+        if idempotency_key is not None and (not isinstance(idempotency_key, str) or not idempotency_key.strip()):
+            raise ValueError("idempotency_key must be a non-empty string")
 
         def _insert_job():
             session = SessionLocal()

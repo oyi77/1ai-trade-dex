@@ -97,11 +97,14 @@ async def production_exception_handler(request: Request, exc: Exception):
     )
 
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
+# SECURITY: CORS middleware currently disabled. If enabled in future, ensure allow_methods
+# is restricted to ["GET", "POST", "OPTIONS"] instead of ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+# to prevent unnecessary method exposure. Avoid using ["*"] for allow_methods.
 # app.add_middleware(
 #     CORSMiddleware,
 #     allow_origins=origins,
 #     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_methods=["GET", "POST", "OPTIONS"],
 #     allow_headers=["*"],
 # )
 # # from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402

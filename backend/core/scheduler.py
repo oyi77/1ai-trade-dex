@@ -1160,7 +1160,7 @@ def start_scheduler():
                 if recovered > 0:
                     logger.info(f"Recovered {recovered} stale jobs from previous crash")
             except Exception as e:
-                logger.warning(f"Stale job recovery failed: {e}")
+                logger.exception(f"Stale job recovery failed: {e}")
 
         use_local_worker = queue.__class__.__name__ != "RedisQueue"
         if not use_local_worker:
