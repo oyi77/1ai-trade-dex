@@ -151,7 +151,7 @@ class CrossDomainTransferBenchmark:
             "metadata": result.metadata,
             "timestamp": result.timestamp.isoformat()
         }
-        report_path = self.reports_dir / f"{result.benchmark_id}_{result.timestamp.strftime("%Y%m%d_%H%M%S")}.json"
+        report_path = self.reports_dir / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
         with open(report_path, "w") as f:
             json.dump(report_data, f, indent=2)
         logger.bind(report_path=str(report_path)).info("Report saved")
