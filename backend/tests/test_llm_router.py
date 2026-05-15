@@ -134,7 +134,7 @@ class TestDispatch:
     async def test_dispatch_unknown_provider_raises(self):
         router = _make_router({})
         with pytest.raises(ValueError, match="Unknown provider"):
-            await router._dispatch("openai", {}, [])
+            await router._dispatch("nonexistent_provider_xyz", {}, [])
 
 
 # ---------------------------------------------------------------------------
