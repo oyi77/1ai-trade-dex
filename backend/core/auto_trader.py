@@ -11,7 +11,6 @@ from backend.models.database import PendingApproval
 from backend.monitoring.hft_metrics import record_signal
 from backend.monitoring.metrics import increment_trade_execution
 
-from loguru import logger
 @dataclass
 class ExecutionResult:
     executed: bool
@@ -38,7 +37,6 @@ class AutoTrader:
         try:
             from backend.db.utils import get_db_session
             from backend.models.database import Trade
-            from sqlalchemy import or_
 
             with get_db_session() as db:
                 filters = [Trade.settled.is_(False), Trade.trading_mode == mode]

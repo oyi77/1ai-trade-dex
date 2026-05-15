@@ -65,6 +65,9 @@ class PredictionEngine:
             # unlike raw pickle.load() which is vulnerable to RCE.
             import joblib
 
+            logger.warning(
+                f"Loading model from {self._model_path} — verify model source is trusted"
+            )
             with open(self._model_path, "rb") as fh:
                 bundle = joblib.load(fh)
             self._sk_model = bundle.get("model")

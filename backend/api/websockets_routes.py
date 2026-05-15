@@ -1,6 +1,7 @@
 """WebSocket routes for real-time updates."""
 
 import asyncio
+import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
@@ -10,7 +11,53 @@ from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
 
 from loguru import logger
+
 router = APIRouter(tags=["websockets"])
+
+
+# Per-connection message rate limiter (sliding window)
+class WebSocketMessageRateLimiter:
+    """Rate limits messages per WebSocket connection using sliding window."""
+
+    # Configuration: max 10 messages per second per connection
+    MAX_MESSAGES_PER_SEC = 10
+    WINDOW_SIZE_SEC = 1.0
+
+    def __init__(self):
+        # Track message timestamps per connection: {id(websocket): [timestamps]}
+        self._message_timestamps: dict = {}
+
+    def check_rate_limit(self, websocket: WebSocket) -> tuple[bool, str | None]:
+        """
+        Check if connection exceeded message rate limit.
+        Returns (allowed, error_message)
+        """
+        ws_id = id(websocket)
+        now = time.time()
+
+        if ws_id not in self._message_timestamps:
+            self._message_timestamps[ws_id] = []
+
+        timestamps = self._message_timestamps[ws_id]
+
+        # Remove timestamps outside sliding window
+        timestamps[:] = [ts for ts in timestamps if now - ts < self.WINDOW_SIZE_SEC]
+
+        # Check if limit exceeded
+        if len(timestamps) >= self.MAX_MESSAGES_PER_SEC:
+            return False, f"Rate limit exceeded: max {self.MAX_MESSAGES_PER_SEC} messages per second"
+
+        # Record this message
+        timestamps.append(now)
+        return True, None
+
+    def cleanup(self, websocket: WebSocket) -> None:
+        """Clean up tracking for closed connection."""
+        ws_id = id(websocket)
+        self._message_timestamps.pop(ws_id, None)
+
+
+_message_rate_limiter = WebSocketMessageRateLimiter()
 
 @router.websocket("/ws/markets")
 async def ws_markets(websocket: WebSocket, token: str = Query(None)):
@@ -30,6 +77,12 @@ async def ws_markets(websocket: WebSocket, token: str = Query(None)):
     await websocket.accept()
 
     try:
+        # Check message rate limit before receiving
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
+
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "markets")
@@ -47,6 +100,7 @@ async def ws_markets(websocket: WebSocket, token: str = Query(None)):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -68,6 +122,10 @@ async def ws_whales(websocket: WebSocket, token: str = Query(None)):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "whales")
@@ -85,6 +143,7 @@ async def ws_whales(websocket: WebSocket, token: str = Query(None)):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -105,6 +164,10 @@ async def ws_activities(websocket: WebSocket, token: str = Query(None)):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "activities")
@@ -120,6 +183,7 @@ async def ws_activities(websocket: WebSocket, token: str = Query(None)):
         logger.exception(f"[api.websockets.ws_activities] {type(e).__name__}: Activity WebSocket error: {e}")
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -140,6 +204,10 @@ async def ws_brain(websocket: WebSocket, token: str = ""):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "brain")
@@ -155,6 +223,7 @@ async def ws_brain(websocket: WebSocket, token: str = ""):
         logger.exception(f"[api.websockets.ws_brain] {type(e).__name__}: Brain WebSocket error: {e}")
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -175,6 +244,10 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "events")
@@ -220,6 +293,7 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -240,6 +314,10 @@ async def websocket_stats(websocket: WebSocket, token: str = ""):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "stats")
@@ -257,6 +335,7 @@ async def websocket_stats(websocket: WebSocket, token: str = ""):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -294,6 +373,7 @@ async def websocket_livestream(websocket: WebSocket, token: str = ""):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)
 
 
@@ -315,6 +395,10 @@ async def ws_dashboard_data(websocket: WebSocket, token: str = Query(None)):
     await websocket.accept()
 
     try:
+        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
+        if not allowed:
+            await websocket.close(code=1008, reason=error_msg)
+            return
         data = await websocket.receive_json()
         if data.get("action") == "subscribe":
             topic = data.get("topic", "stats")
@@ -353,4 +437,5 @@ async def ws_dashboard_data(websocket: WebSocket, token: str = Query(None)):
         )
         await topic_manager.disconnect(websocket)
     finally:
+        _message_rate_limiter.cleanup(websocket)
         await connection_limiter.release_ws_connection(websocket)

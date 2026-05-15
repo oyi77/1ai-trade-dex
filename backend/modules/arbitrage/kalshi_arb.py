@@ -43,6 +43,7 @@ class KalshiArbStrategy(BaseStrategy):
     description = "Kalshi <-> Polymarket arbitrage scanner. Requires KALSHI_API_KEY. Seeded disabled."
     category = "arbitrage"
     default_params = {
+        "enabled": False,  # STRAT-1: Disabled until Kalshi integration is completed
         "min_edge": _cfg("ARB_MIN_PROFIT", 0.02),
         "allow_live_execution": False,
         "interval_seconds": 30,

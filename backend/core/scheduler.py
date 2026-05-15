@@ -413,6 +413,24 @@ def start_scheduler():
         return
 
     scheduler = AsyncIOScheduler()
+
+# SCHED-5: Job Store Configuration
+# The scheduler uses AsyncIOScheduler with the default MemoryJobStore.
+# This means scheduled jobs are NOT persisted across restarts.
+# Critical jobs (agi_health_check_job, nightly_review_job, strategy_rehabilitation_job)
+# are re-registered from DATABASE configuration on each startup via load_persisted_jobs().
+# If you need full persistence, uncomment the SQLAlchemyJobStore configuration below:
+#
+# from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+# from apscheduler.schedulers.asyncio import AsyncIOScheduler
+# jobstores = {
+#     'default': SQLAlchemyJobStore(engine=engine)  # where engine is SQLAlchemy engine
+# }
+# executors = {
+#     'default': AsyncIOExecutor()
+# }
+# scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors)
+
     # Restore jobs from DB first
     try:
         jobs_restored = load_scheduler_state(scheduler)

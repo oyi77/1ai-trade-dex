@@ -48,8 +48,7 @@ class HFTExecutor:
         try:
             from backend.db.utils import get_db_session
             from backend.models.database import Trade
-            from sqlalchemy import or_
-            
+
             with get_db_session() as db:
                 existing_filters = [
                     Trade.settled.is_(False),
@@ -59,7 +58,7 @@ class HFTExecutor:
                     existing_filters.append(Trade.token_id == signal.market_id)
                 elif signal.event_slug:
                     existing_filters.append(Trade.event_slug == signal.event_slug)
-                
+
                 existing_position = db.query(Trade).filter(*existing_filters).first()
                 if existing_position:
                     logger.info(
