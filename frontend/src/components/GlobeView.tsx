@@ -74,7 +74,14 @@ function buildRegionArcs(markers: CityMarker[]): ArcData[] {
 
 export function GlobeView({ forecasts, signals }: Props) {
   const globeRef = useRef<any>(null)
-const webGLAvailable = useMemo(() => hasWebGL(), [])
+  const webGLAvailable = useMemo(() => {
+    try {
+      const canvas = document.createElement('canvas')
+      return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    } catch {
+      return false
+    }
+  }, [])
 
   const markers: CityMarker[] = useMemo(() => {
     const keys = forecasts.length > 0
