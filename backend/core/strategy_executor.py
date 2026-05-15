@@ -15,7 +15,7 @@ from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import case, func, and_, or_, text, update
+from sqlalchemy import case, func, and_, text, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
