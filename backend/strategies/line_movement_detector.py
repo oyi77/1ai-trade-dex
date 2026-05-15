@@ -29,6 +29,7 @@ from backend.strategies.base import (
 from backend.core.decisions import record_decision_standalone
 from backend.config import settings
 from backend.ai.probability_utils import clamp_probability
+from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
 def _cfg(name, default):
@@ -277,6 +278,25 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 reason=f"Confidence {confidence:.2f} below threshold {params['min_confidence_to_signal']}",
             )
             return None
+
+        # ── Debate gate: validate signal via MiroFish/local debate ──
+        debate_enabled = params.get("debate_enabled", True)
+        if debate_enabled:
+            try:
+                debate_result = await run_debate_with_routing(
+                    db=getattr(ctx, 'db', None),
+                    question=movement.question or movement.ticker,
+                    market_price=movement.current_price,
+                    context=f"{movement.price_change_pct:+.1f}% move, vol=${movement.volume_24h:,.0f}, news={bool(news_context)}",
+                    max_rounds=2,
+                )
+                if debate_result and debate_result.confidence > 0:
+                    if debate_result.confidence < 0.55:
+                        logger.info("[%s] debate rejected BUY for %s (confidence=%.2f)", self.name, movement.ticker, debate_result.confidence)
+                        return None
+                    confidence = max(confidence, debate_result.confidence)
+            except Exception:
+                logger.warning("[%s] debate validation failed for %s, allowing trade", self.name, movement.ticker)
 
         action = "BUY"
         side = "yes" if direction == "up" else "no"
