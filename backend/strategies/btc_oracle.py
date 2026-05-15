@@ -16,6 +16,7 @@ from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
+from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
 COINGECKO_PRICE_URL = f"{settings.COINGECKO_API_URL}/simple/price"
@@ -150,7 +151,26 @@ class BtcOracleStrategy(BaseStrategy):
         "min_position_usd": settings.BTC_ORACLE_MIN_POSITION_USD,
         "oracle_implied_base": settings.BTC_ORACLE_ORACLE_IMPLIED_BASE,
         "oracle_implied_scale": settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE,
+        "debate_enabled": True,
+        "debate_min_confidence": 0.55,
     }
+
+    async def _debate_validate(self, question: str, market_price: float, context: str = "", db=None) -> tuple[bool, float]:
+        if not self.default_params.get("debate_enabled", True):
+            return True, 0.5
+        try:
+            result = await run_debate_with_routing(
+                db=db,
+                question=question,
+                market_price=market_price,
+                context=context,
+                max_rounds=2,
+            )
+            if result and result.confidence > 0:
+                return result.confidence >= self.default_params.get("debate_min_confidence", 0.55), result.confidence
+        except Exception:
+            logger.warning("BtcOracleStrategy: debate validation failed, allowing trade")
+        return True, 0.5
 
     # ── Event-driven (WebSocket) subscription config ──
     subscribed_tokens: set[str] = set()
@@ -401,6 +421,17 @@ class BtcOracleStrategy(BaseStrategy):
             result.decisions_recorded += 1
 
             if decision == "BUY":
+                # ── Debate gate: validate signal via MiroFish/local debate ──
+                debate_ok, debate_conf = await self._debate_validate(
+                    question=market.slug, market_price=market_mid,
+                    context=f"btc=${btc_price:,.0f} edge={edge:.3f} dir={direction} t={minutes_remaining:.1f}min",
+                    db=getattr(ctx, 'db', None),
+                )
+                if not debate_ok:
+                    logger.info("BtcOracleStrategy: debate rejected BUY for {} (confidence={:.2f})", market.slug, debate_conf)
+                    continue
+                confidence_score = max(confidence_score, debate_conf)
+
                 result.trades_attempted += 1
                 entry_price = (
                     market.up_price
@@ -501,6 +532,17 @@ class BtcOracleStrategy(BaseStrategy):
             )
 
             if decision == "BUY":
+                # ── Debate gate: validate keyword-based signal ──
+                debate_ok, debate_conf = await self._debate_validate(
+                    question=market.question, market_price=market_mid,
+                    context=f"btc=${btc_price:,.0f} edge={edge:.3f} dir={direction} t={minutes_remaining:.1f}min",
+                    db=getattr(ctx, 'db', None),
+                )
+                if not debate_ok:
+                    logger.info("BtcOracleStrategy: debate rejected BUY for {} (confidence={:.2f})", market.ticker, debate_conf)
+                    continue
+                confidence_score = max(confidence_score, debate_conf)
+
                 result.trades_attempted += 1
 
                 # Extract token_id from market metadata (clobTokenIds)

@@ -1,9 +1,15 @@
-"""Unified LLM provider routing layer."""
+"""Unified LLM provider routing layer.
+
+Supports: groq, claude, openai-compatible (any provider with OpenAI API).
+Configurable via settings.LLM_PROVIDERS JSON dict or individual ENV vars.
+"""
 
 import json
+import os
 from typing import Optional
 
 from loguru import logger
+
 ROLE_SETTING_MAP = {
     "default": "LLM_DEFAULT_PROVIDER",
     "debate_agent": "LLM_DEBATE_PROVIDER",
@@ -12,33 +18,82 @@ ROLE_SETTING_MAP = {
 }
 
 
+def _build_openai_provider(name: str, cfg: dict) -> dict:
+    """Build a provider config dict from a raw settings entry."""
+    return {
+        "api_key": cfg.get("api_key", ""),
+        "model": cfg.get("model", "gpt-4o-mini"),
+        "base_url": cfg.get("base_url") or None,
+        "max_tokens": int(cfg.get("max_tokens", 250)),
+        "temperature": float(cfg.get("temperature", 0.2)),
+        "provider_type": "openai",
+    }
+
+
+def _discover_providers() -> dict[str, dict]:
+    """Build provider registry from settings + env vars."""
+    from backend.config import settings
+
+    providers: dict[str, dict] = {}
+
+    # Built-in: groq
+    if getattr(settings, "GROQ_API_KEY", None):
+        providers["groq"] = {
+            "api_key": settings.GROQ_API_KEY,
+            "model": getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile"),
+            "base_url": None,
+            "max_tokens": 250,
+            "temperature": 0.2,
+            "provider_type": "groq",
+        }
+
+    # Built-in: claude
+    anthropic_key = getattr(settings, "ANTHROPIC_API_KEY", None)
+    if anthropic_key:
+        providers["claude"] = {
+            "api_key": anthropic_key,
+            "model": getattr(settings, "ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+            "base_url": None,
+            "max_tokens": 300,
+            "temperature": 0.2,
+            "provider_type": "claude",
+        }
+
+    # Configurable: LLM_PROVIDERS JSON dict (e.g. openai, together, fireworks, ollama)
+    raw_providers = getattr(settings, "LLM_PROVIDERS", None)
+    if raw_providers:
+        try:
+            if isinstance(raw_providers, str):
+                raw_providers = json.loads(raw_providers)
+            for name, cfg in raw_providers.items():
+                if name in providers:
+                    continue  # don't override built-ins
+                providers[name] = _build_openai_provider(name, cfg)
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning("LLMRouter: failed to parse LLM_PROVIDERS: {}", e)
+
+    # ENV-var based: LLM_OPENAI_API_KEY + LLM_OPENAI_BASE_URL + LLM_OPENAI_MODEL
+    openai_key = os.getenv("LLM_OPENAI_API_KEY") or getattr(settings, "LLM_OPENAI_API_KEY", None)
+    if openai_key and "openai" not in providers:
+        providers["openai"] = _build_openai_provider("openai", {
+            "api_key": openai_key,
+            "model": getattr(settings, "LLM_OPENAI_MODEL", "gpt-4o-mini"),
+            "base_url": getattr(settings, "LLM_OPENAI_BASE_URL", None),
+            "max_tokens": getattr(settings, "LLM_OPENAI_MAX_TOKENS", 250),
+            "temperature": getattr(settings, "LLM_OPENAI_TEMPERATURE", 0.2),
+        })
+
+    return providers
+
+
 class LLMRouter:
     def __init__(self):
         from backend.config import settings
 
-        self.providers: dict[str, dict] = {}
+        self.providers: dict[str, dict] = _discover_providers()
         self.default_provider: str = getattr(settings, "LLM_DEFAULT_PROVIDER", "groq")
-
-        if settings.GROQ_API_KEY:
-            self.providers["groq"] = {
-                "api_key": settings.GROQ_API_KEY,
-                "model": settings.GROQ_MODEL,
-                "base_url": None,
-                "max_tokens": 250,
-                "temperature": 0.2,
-            }
-
-        anthropic_key = getattr(settings, "ANTHROPIC_API_KEY", None)
-        if anthropic_key:
-            self.providers["claude"] = {
-                "api_key": anthropic_key,
-                "model": getattr(
-                    settings, "ANTHROPIC_MODEL", "claude-sonnet-4-20250514"
-                ),
-                "base_url": None,
-                "max_tokens": 300,
-                "temperature": 0.2,
-            }
+        if self.default_provider not in self.providers and self.providers:
+            self.default_provider = next(iter(self.providers))
 
     def _resolve_provider(self, role: str) -> Optional[str]:
         from backend.config import settings
@@ -102,14 +157,34 @@ class LLMRouter:
         tokens = response.usage.input_tokens + response.usage.output_tokens
         return text, tokens
 
+    async def _call_openai(
+        self, config: dict, messages: list[dict], **kwargs
+    ) -> tuple[str, int]:
+        from openai import AsyncOpenAI
+
+        base = config.get("base_url") or None
+        client = AsyncOpenAI(api_key=config["api_key"], base_url=base)
+        response = await client.chat.completions.create(
+            model=kwargs.get("model", config["model"]),
+            messages=messages,
+            max_tokens=kwargs.get("max_tokens", config["max_tokens"]),
+            temperature=kwargs.get("temperature", config["temperature"]),
+        )
+        text = response.choices[0].message.content or ""
+        tokens = response.usage.total_tokens if response.usage else 0
+        return text.strip(), tokens
+
     async def _dispatch(
         self, provider_name: str, config: dict, messages: list[dict], **kwargs
     ) -> tuple[str, int]:
-        if provider_name == "groq":
+        ptype = config.get("provider_type", provider_name)
+        if ptype in ("openai", "together", "fireworks", "ollama", "custom"):
+            return await self._call_openai(config, messages, **kwargs)
+        if ptype == "groq":
             return await self._call_groq(config, messages, **kwargs)
-        if provider_name == "claude":
+        if ptype == "claude":
             return await self._call_claude(config, messages, **kwargs)
-        raise ValueError(f"Unknown provider: {provider_name}")
+        raise ValueError(f"Unknown provider: {provider_name} (type={ptype})")
 
     async def complete(
         self,
