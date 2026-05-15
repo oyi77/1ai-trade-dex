@@ -1,6 +1,6 @@
 """Causal Reasoning Benchmark for AGI Evaluation.
 
-Given observed market event → outcome pairs, ask AGI to infer causal graph 
+Given observed market event → outcome pairs, ask AGI to infer causal graph
 and predict outcome of intervention.
 
 Threshold: causal_accuracy > 80% on intervention test set

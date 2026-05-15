@@ -48,9 +48,7 @@ class AzuroClient:
     async def sign_and_send_bet(self, private_key: str, condition_id: str, outcome_index: int, amount_wei: int) -> str:
         """Sign and send a bet via Web3.py contract call."""
         try:
-            from web3 import Web3
-            w3 = Web3(Web3.HTTPProvider(self._rpc_url))
-            account = w3.eth.account.from_key(private_key)
+            from web3 import Web3  # noqa: F401
             # Stub: real implementation would call the LP contract
             # Return mock tx hash for now (real impl needs ABI)
             logger.info("sign_and_send_bet called", condition_id=condition_id, outcome_index=outcome_index)

@@ -1,6 +1,6 @@
 """Cross-Domain Transfer Benchmark for AGI Evaluation.
 
-Measures strategy performance transfer from a source domain (e.g., crypto) 
+Measures strategy performance transfer from a source domain (e.g., crypto)
 to a target domain (e.g., weather) after seeing ≤5 examples of target-market trades.
 
 Threshold: transfer_success_rate > 60% (adapted strategy beats random baseline)

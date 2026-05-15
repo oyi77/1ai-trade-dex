@@ -94,7 +94,7 @@ class FewShotLearningBenchmark:
 
     def _generate_synthetic_examples(self) -> List[MarketExample]:
         """Generate synthetic sports market examples for testing.
-        
+
         Training examples (first 3): establish the pattern with mixed outcomes.
         Test examples (remaining 20): contextually correct actions so benchmark
         measures whether strategy LEARNED the pattern, not random chance.
