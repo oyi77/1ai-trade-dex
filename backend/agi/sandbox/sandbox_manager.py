@@ -1,14 +1,12 @@
 """Sandbox manager for isolated strategy validation."""
 import uuid
 import os
-import shutil
 import tempfile
 import resource
 import subprocess
 import time
 import logging
-from typing import Optional, Dict, Any
-from dataclasses import replace
+from typing import Dict
 
 from backend.agi.sandbox.sandbox_validator import SandboxValidator
 from backend.agi.sandbox.results import SandboxResult
@@ -43,11 +41,11 @@ class SandboxManager:
     async def execute_code(self, code: str, scenario: str = "default") -> SandboxResult:
         """
         Executes code in a hardened sandbox environment.
-        
+
         Args:
             code: Strategy source code to execute
             scenario: Test scenario name
-            
+
         Returns:
             SandboxResult containing execution metrics and output
         """
@@ -58,7 +56,7 @@ class SandboxManager:
 
         run_id = str(uuid.uuid4())[:8]
         start_time = time.perf_counter()
-        
+
         # Create fresh temporary directory for the run
         with tempfile.TemporaryDirectory(prefix=f"sandbox_{run_id}_") as tmp_dir:
             try:
@@ -106,13 +104,13 @@ class SandboxManager:
                     killed = False
 
                 end_time = time.perf_counter()
-                
+
                 # Calculate resource usage
                 usage = resource.getrusage(subprocess.RLIMIT_SIGHUP) if 'process' in locals() else None # Simplified
-                # Note: Real CPU/Mem metrics from subprocess are complex in Python. 
+                # Note: Real CPU/Mem metrics from subprocess are complex in Python.
                 # We'll use the wrapper's elapsed time as CPU proxy and let the OS kill if mem exceeded.
                 # Actual mem requires external monitoring or /proc
-                
+
                 result = SandboxResult(
                     run_id=run_id,
                     status=status,
@@ -125,7 +123,7 @@ class SandboxManager:
                     gates_failed=validation_result.gates_failed,
                     errors=validation_result.errors if status == "error" else [],
                 )
-                
+
                 self._results[run_id] = result
                 return result
 
@@ -152,7 +150,7 @@ class SandboxManager:
                 errors.append(f"Node '{node_name}' requires database access - not allowed in sandbox")
             if manifest.requires_live_data:
                 errors.append(f"Node '{node_name}' requires live data - not allowed in sandbox")
-            
+
             status = "passed" if not errors else "failed"
             return SandboxResult(
                 run_id=run_id,

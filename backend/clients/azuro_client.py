@@ -1,7 +1,6 @@
 """Azuro Protocol GraphQL + Web3 client."""
 import os
 import time
-from typing import Optional
 import httpx
 from loguru import logger
 

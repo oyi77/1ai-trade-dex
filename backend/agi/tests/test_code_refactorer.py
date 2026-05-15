@@ -1,15 +1,12 @@
 """Tests for CodeRefactoringAgent."""
 
-import asyncio
 import json
 import os
 import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import patch, MagicMock
 import pytest
 
 from backend.agi.code_refactorer import CodeRefactoringAgent
-from backend.core.safety import SafetyMonitor, AlertSeverity
 
 
 class TestCodeRefactoringAgent:

@@ -1,7 +1,6 @@
 """Tests for sandbox hardening - escape attempts and resource limit enforcement."""
 import os
 import pytest
-import asyncio
 from backend.agi.sandbox.sandbox_manager import SandboxManager
 
 

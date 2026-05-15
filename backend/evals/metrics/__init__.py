@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 class AGIScoreMetric(ABC):
     """Base class for AGI-aligned scoring metrics."""
-    
+
     @abstractmethod
     def score(self, result: any) -> float:
         """Compute raw score for a given result."""

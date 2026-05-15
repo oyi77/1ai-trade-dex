@@ -1,14 +1,12 @@
 """Autonomous code improvement agent with safety gates and automatic rollback."""
 
-import ast
-import asyncio
 import json
 import os
 import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple, List, Dict, Any
+from typing import Optional, Tuple
 
 from loguru import logger
 
@@ -93,7 +91,7 @@ Response format:
  context line
 """
 
-        system_prompt = """You are an expert Python code refactorer. 
+        system_prompt = """You are an expert Python code refactorer.
 Generate high-quality unified diffs that improve code quality while maintaining functionality.
 Always output valid, applicable diffs."""
 
@@ -401,7 +399,7 @@ Always output valid, applicable diffs."""
             (success: bool, message: str)
         """
         self.logger.info(
-            f"Starting refactor cycle",
+            "Starting refactor cycle",
             module=module_path,
             goal=goal,
         )

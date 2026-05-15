@@ -8,7 +8,7 @@ from backend.monitoring.metrics import _metrics_lock, _metrics
 import asyncio
 import json
 import os
-from typing import List, Optional, Dict, Any
+from typing import List
 
 from loguru import logger
 

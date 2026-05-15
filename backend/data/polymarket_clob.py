@@ -869,7 +869,6 @@ class PolymarketCLOB:
         try:
             # First attempt RPC for USDC.e since it handles proxy wallets natively
             # without requiring py-clob-client authentication that is often flawed for builders
-            import httpx
 
             wallet_address = (
                 self.builder_address if self.builder_address else self._account.address
