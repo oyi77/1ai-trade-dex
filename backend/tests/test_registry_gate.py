@@ -38,17 +38,15 @@ def test_extract_win_rate():
     assert _extract_win_rate("no record") is None
 
 
-def test_performance_gate_warns_bad_strategy(caplog):
+def test_performance_gate_rejects_bad_strategy():
     from backend.strategies.registry import _extract_metric, _extract_win_rate
     roi = _extract_metric("4W/11L, -49.5% ROI test strategy", "roi")
     win_rate = _extract_win_rate("4W/11L, -49.5% ROI test strategy")
     assert roi is not None and roi < -0.30
     assert win_rate is not None and win_rate < 0.30
     if "_test_bad_perf" in STRATEGY_REGISTRY:
-        with caplog.at_level("WARNING"):
+        with pytest.raises(ValueError, match="below threshold"):
             _check_performance_gate("_test_bad_perf")
-        assert any("below threshold" in r.message.lower()
-                   for r in caplog.records)
 
 
 def test_performance_gate_silent_good_strategy(caplog):
