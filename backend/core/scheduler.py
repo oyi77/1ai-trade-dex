@@ -986,8 +986,13 @@ def start_scheduler():
                         if len(trades) < min_trades:
                             continue
 
-                        wins = sum(1 for t in trades if t.result == 'win')
-                        win_rate = wins / len(trades)
+                        # Only count trades with definitive outcomes for win rate
+                        resolved = [t for t in trades if t.result in ('win', 'loss')]
+                        if len(resolved) < max(3, min_trades // 2):
+                            continue  # not enough resolved outcomes yet
+
+                        wins = sum(1 for t in resolved if t.result == 'win')
+                        win_rate = wins / len(resolved)
                         pnl = sum(t.pnl for t in trades if t.pnl)
 
                         if win_rate < 0.30 or pnl < -50.0:
