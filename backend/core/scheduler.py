@@ -972,7 +972,7 @@ def start_scheduler():
             since = datetime.now(timezone.utc) - timedelta(hours=1)
             with get_db_session() as db:
                 for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator'):
+                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
                         continue
 
                     for mode in settings.active_modes_set:
