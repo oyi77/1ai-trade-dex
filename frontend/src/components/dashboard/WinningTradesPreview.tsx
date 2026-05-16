@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useMemo } from 'react'
 
 interface Trade {
   id: string | number
@@ -26,10 +27,14 @@ export function WinningTradesPreview({
   onViewAll,
 }: WinningTradesPreviewProps) {
   const isLosses = variant === 'losses'
-  const topTrades = trades
-    .filter(t => isLosses ? (t.pnl ?? 0) < 0 : (t.pnl ?? 0) > 0)
-    .sort((a, b) => isLosses ? (a.pnl ?? 0) - (b.pnl ?? 0) : (b.pnl ?? 0) - (a.pnl ?? 0))
-    .slice(0, 5)
+
+  // ⚡ Bolt: Memoize expensive filter and sort operations to prevent UI thread blocking
+  const topTrades = useMemo(() => {
+    return trades
+      .filter(t => isLosses ? (t.pnl ?? 0) < 0 : (t.pnl ?? 0) > 0)
+      .sort((a, b) => isLosses ? (a.pnl ?? 0) - (b.pnl ?? 0) : (b.pnl ?? 0) - (a.pnl ?? 0))
+      .slice(0, 5)
+  }, [trades, isLosses])
 
   if (topTrades.length === 0) {
     return (
