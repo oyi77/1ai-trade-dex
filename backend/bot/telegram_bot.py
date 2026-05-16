@@ -504,8 +504,7 @@ class PolyEdgeBot:
 
         bankroll = settings.INITIAL_BANKROLL
         try:
-            db = SessionLocal()
-            try:
+            with SessionLocal() as db:
                 state = for_update(db, db.query(BotState)).first()
                 if state:
                     if settings.is_mode_active("paper"):
@@ -526,8 +525,6 @@ class PolyEdgeBot:
                             if state.bankroll is not None
                             else settings.INITIAL_BANKROLL
                         )
-            finally:
-                db.close()
         except Exception:
             logger.exception("Failed to retrieve bot status for Telegram command")
             pass
@@ -548,8 +545,7 @@ class PolyEdgeBot:
         try:
             from backend.models.database import SessionLocal, Trade
 
-            db = SessionLocal()
-            try:
+            with SessionLocal() as db:
                 from backend.config import settings as _s
 
                 pending = (
@@ -559,8 +555,6 @@ class PolyEdgeBot:
                     .order_by(Trade.timestamp.desc())
                     .all()
                 )
-            finally:
-                db.close()
 
             if not pending:
                 await update.message.reply_text(
@@ -701,8 +695,7 @@ class PolyEdgeBot:
                     pass
             from backend.models.database import SessionLocal, Trade
 
-            db = SessionLocal()
-            try:
+            with SessionLocal() as db:
                 from backend.config import settings as _s
 
                 trades = (
@@ -712,8 +705,6 @@ class PolyEdgeBot:
                     .limit(n)
                     .all()
                 )
-            finally:
-                db.close()
             if not trades:
                 await update.message.reply_text(
                     "📊 <b>Recent Trades</b>\n\nNo trades found.",
@@ -747,8 +738,7 @@ class PolyEdgeBot:
             from backend.models.database import SessionLocal, Trade
             from backend.config import settings
 
-            db = SessionLocal()
-            try:
+            with SessionLocal() as db:
                 from backend.config import settings as _s
 
                 pending = (
@@ -763,8 +753,6 @@ class PolyEdgeBot:
                     .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .all()
                 )
-            finally:
-                db.close()
             total_pnl = sum(t.pnl or 0.0 for t in settled)
             exposure = sum(t.size for t in pending)
             equity = settings.INITIAL_BANKROLL + total_pnl
@@ -805,8 +793,7 @@ class PolyEdgeBot:
         try:
             from backend.models.database import SessionLocal, Trade
 
-            db = SessionLocal()
-            try:
+            with SessionLocal() as db:
                 from backend.config import settings as _s
 
                 all_trades = (
@@ -815,8 +802,6 @@ class PolyEdgeBot:
                     .filter(Trade.trading_mode.in_(_s.active_modes_set))
                     .all()
                 )
-            finally:
-                db.close()
             if not all_trades:
                 await update.message.reply_text("📊 No settled trades yet.")
                 return

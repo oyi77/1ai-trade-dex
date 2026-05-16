@@ -21,10 +21,9 @@ def shadow_validation_job():
 
     logger.info("Starting shadow validation job...")
 
-    db = SessionLocal()
-    shadow_runner = DBSessionShadowRunner()
+    with SessionLocal() as db:
+        shadow_runner = DBSessionShadowRunner()
 
-    try:
         # Get all genomes in SHADOW stage
         shadow_genomes = db.query(GenomeRegistry).filter(
             GenomeRegistry.stage == "SHADOW"
@@ -114,12 +113,5 @@ def shadow_validation_job():
                 db.commit()
 
                 logger.warning(f"Auto-killed genome {genome_id} to GRAVEYARD due to poor performance")
-
-    except Exception as e:
-        logger.error(f"Error in shadow validation job: {e}", exc_info=True)
-        db.rollback()
-        raise
-    finally:
-        db.close()
 
     logger.info("Shadow validation job completed")

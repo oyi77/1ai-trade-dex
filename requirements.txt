@@ -69,6 +69,9 @@ pybreaker>=1.0.0
 # Prometheus metrics
 prometheus-client>=0.20.0
 
+# Evolutionary algorithms (NSGA-II multi-objective optimization)
+deap>=1.4.0
+
 # ML model serialization (safe alternative to pickle — standard for sklearn)
 joblib>=1.3.0
 

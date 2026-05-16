@@ -17,7 +17,12 @@ from backend.models.kg_models import (
 
 
 class KnowledgeGraph:
-    def __init__(self, session: Optional[Session] = None, db_url: str = "sqlite:///:memory:"):
+    def __init__(
+        self,
+        session: Optional[Session] = None,
+        db_url: str = "sqlite:///:memory:",
+        cognitive_core: Optional["CognitiveCoreAdapter"] = None,
+    ):
         if session is not None:
             self._session = session
             self._owns_session = False
@@ -27,6 +32,7 @@ class KnowledgeGraph:
             Base.metadata.create_all(self._engine)
             self._session = sessionmaker(bind=self._engine)()
             self._owns_session = True
+        self._core = cognitive_core
 
     def close(self):
         if self._owns_session:

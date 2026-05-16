@@ -25,8 +25,7 @@ class RiskMonitor:
 
     def _load_thresholds(self) -> None:
         """Load thresholds from BotState.misc_data or environment variables."""
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
             bot_state = db.query(BotState).filter(BotState.mode == "paper").first()
             if bot_state is not None and bot_state.misc_data:
                 try:
@@ -43,8 +42,6 @@ class RiskMonitor:
                     logger.bind(task="safety").warning(
                         "Failed to parse BotState.misc_data as JSON"
                     )
-        finally:
-            db.close()
 
         # Fallback to environment variables
         self._thresholds = {
@@ -88,8 +85,7 @@ class RiskMonitor:
             "strategy_key": strategy_key,
         }
 
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
             bot_state = db.query(BotState).filter(BotState.mode == "paper").first()
             if not bot_state:
                 logger.bind(task="safety").warning("No BotState found for paper mode")
@@ -114,8 +110,6 @@ class RiskMonitor:
                 logger.bind(task="safety", strategy=strategy_key).warning(
                     "CRITICAL alert paused trading for strategy"
                 )
-        finally:
-            db.close()
 
 
 class SafetyMonitor:

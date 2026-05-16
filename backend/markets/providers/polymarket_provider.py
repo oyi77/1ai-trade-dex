@@ -4,7 +4,7 @@ from decimal import Decimal
 import uuid
 
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
-from backend.markets.order_types import MarketInfo, OrderSide, OrderStatus
+from backend.markets.order_types import MarketInfo, OrderSide, OrderStatus, PositionSide
 from backend.markets.provider_registry import market_registry
 from backend.config import settings
 from loguru import logger
@@ -128,12 +128,99 @@ class PolymarketProvider(BaseMarketProvider):
     async def get_positions(
         self, market_id: Optional[str] = None
     ) -> List[NormalizedPosition]:
-        return []
+        try:
+            async with clob_from_settings(mode=self._mode) as clob:
+                wallet = clob._account.address if clob._account else None
+                if not wallet:
+                    return []
+                raw_positions = await clob.get_trader_positions(wallet)
+        except Exception as exc:
+            logger.warning("PolymarketProvider.get_positions failed: {}", exc)
+            return []
+
+        positions: List[NormalizedPosition] = []
+        for p in raw_positions:
+            mid = p.get("market_id", p.get("asset_id", ""))
+            if market_id and mid != market_id:
+                continue
+            outcome = p.get("outcome", "YES")
+            position_side = PositionSide.LONG if outcome.upper() == "YES" else PositionSide.SHORT
+            size = Decimal(str(p.get("size", p.get("shares", 0))))
+            entry_price = Decimal(str(p.get("avg_price", p.get("entry_price", 0))))
+            current_price_raw = p.get("current_price")
+            current_price = Decimal(str(current_price_raw)) if current_price_raw is not None else None
+            unrealized_pnl_raw = p.get("unrealized_pnl")
+            unrealized_pnl = Decimal(str(unrealized_pnl_raw)) if unrealized_pnl_raw is not None else None
+            positions.append(
+                NormalizedPosition(
+                    market_id=mid,
+                    side=position_side,
+                    size=size,
+                    avg_entry_price=entry_price,
+                    venue="polymarket",
+                    current_price=current_price,
+                    unrealized_pnl=unrealized_pnl,
+                )
+            )
+        return positions
 
     async def search_markets(
         self, query: Optional[str] = None, category: Optional[str] = None, limit: int = 50
     ) -> List[MarketInfo]:
-        return []
+        from backend.data.gamma import fetch_markets as gamma_fetch_markets
+
+        try:
+            raw_markets = await gamma_fetch_markets(limit=limit)
+        except Exception as exc:
+            logger.warning("PolymarketProvider.search_markets failed: {}", exc)
+            return []
+
+        results: List[MarketInfo] = []
+        for m in raw_markets:
+            title = m.get("question", m.get("title", ""))
+            if query and query.lower() not in title.lower():
+                continue
+            if category and m.get("category", "").lower() != category.lower():
+                continue
+            yes_price_raw = m.get("outcomePrices", m.get("current_price", "0.5"))
+            if isinstance(yes_price_raw, str):
+                try:
+                    yes_price_raw = yes_price_raw.strip("[]\"").split(",")[0]
+                except (AttributeError, IndexError):
+                    yes_price_raw = "0.5"
+            yes_price = Decimal(str(yes_price_raw or "0.5"))
+            no_price = Decimal("1") - yes_price
+            volume_raw = m.get("volume", m.get("volume_24h", 0))
+            open_interest_raw = m.get("openInterest", m.get("liquidity", 0))
+            end_date = m.get("endDate", m.get("end_date_iso"))
+            closes_at = None
+            if end_date:
+                try:
+                    from datetime import datetime
+                    closes_at = datetime.fromisoformat(end_date.replace("Z", "+00:00")).timestamp()
+                except (ValueError, TypeError):
+                    closes_at = None
+            results.append(
+                MarketInfo(
+                    venue="polymarket",
+                    market_id=m.get("condition_id", m.get("id", "")),
+                    title=title,
+                    description=m.get("description", ""),
+                    category=m.get("category", category or ""),
+                    yes_price=yes_price,
+                    no_price=no_price,
+                    volume_24h=Decimal(str(volume_raw or 0)),
+                    open_interest=Decimal(str(open_interest_raw or 0)),
+                    closes_at=closes_at,
+                    is_active=m.get("active", True),
+                    min_order_size=Decimal("1"),
+                    tick_size=Decimal("0.01"),
+                    raw=m,
+                )
+            )
+            if len(results) >= limit:
+                break
+        return results
 
     def _resolve_token_id(self, order: NormalizedOrder) -> str:
         metadata = order.metadata or {}

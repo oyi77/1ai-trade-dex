@@ -141,6 +141,11 @@ def increment_trade_execution(strategy: str = "", result: str = "") -> None:
 
 def increment_risk_rejection(strategy: str = "", reason: str = "") -> None:
     _increment_metric("risk_rejection_total")
+    try:
+        from backend.monitoring.hft_metrics import risk_rejection_total
+        risk_rejection_total.labels(strategy=strategy, reason=reason).inc()
+    except Exception:
+        pass
 
 
 def observe_order_latency(latency_ms: float) -> None:
@@ -156,6 +161,11 @@ def increment_settlement_by_status(status: str) -> None:
         by_status = _metrics.get("settlement_by_status", {})
         by_status[status] = by_status.get(status, 0) + 1
         _metrics["settlement_by_status"] = by_status
+    try:
+        from backend.monitoring.hft_metrics import settlement_outcome_total
+        settlement_outcome_total.labels(outcome=status).inc()
+    except Exception:
+        pass
 
 
 def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
@@ -163,6 +173,11 @@ def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
         states = _metrics.get("circuit_breaker_states", {})
         states[breaker_name] = state
         _metrics["circuit_breaker_states"] = states
+    try:
+        from backend.monitoring.hft_metrics import circuit_breaker_state_gauge
+        circuit_breaker_state_gauge.labels(breaker_name=breaker_name).set(state)
+    except Exception:
+        pass
 
 
 def set_strategy_health(strategy: str, metric_name: str, value: float) -> None:

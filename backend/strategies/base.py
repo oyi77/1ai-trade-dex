@@ -208,7 +208,10 @@ class BaseStrategy(ABC):
 
         - Records wall-clock duration in CycleResult.cycle_duration_ms
         - Catches unexpected exceptions so the scheduler loop stays alive
+        - Emits signal_latency_seconds histogram via @trace_latency
         """
+        from backend.monitoring.hft_metrics import signal_latency_seconds
+
         start = time.monotonic()
 
         try:
@@ -225,6 +228,13 @@ class BaseStrategy(ABC):
             )
         else:
             result.cycle_duration_ms = (time.monotonic() - start) * 1000
+
+        # Emit Prometheus latency histogram for this strategy cycle
+        elapsed_s = time.monotonic() - start
+        try:
+            signal_latency_seconds.labels(strategy_name=self.name).observe(elapsed_s)
+        except Exception:
+            pass
 
         # Heartbeat: update strategy last-seen timestamp in DB (best effort)
         try:
