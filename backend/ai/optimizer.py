@@ -51,7 +51,7 @@ class ParameterOptimizer:
         wins = [t for t in settled_trades if t.result == "win"]
         losses = [t for t in settled_trades if t.result == "loss"]
         win_rate = len(wins) / len(settled_trades) if settled_trades else 0.0
-        total_pnl = sum(t.pnl or 0.0 for t in trades)
+        total_pnl = sum(t.pnl or 0.0 for t in settled_trades)
 
         avg_win_edge = (
             sum(t.edge_at_entry or 0.0 for t in wins) / len(wins) if wins else 0.0

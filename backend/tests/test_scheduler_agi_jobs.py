@@ -257,6 +257,7 @@ class TestEvolutionJobs:
                     predicted_outcome=0.7,
                     actual_outcome=1.0,
                     accuracy_score=0.3,
+                    settled=True,
                 ),
                 ShadowTrade(
                     genome_id=genome.genome_id,
@@ -268,6 +269,7 @@ class TestEvolutionJobs:
                     predicted_outcome=0.4,
                     actual_outcome=0.0,
                     accuracy_score=0.4,
+                    settled=True,
                 ),
             ]
         )

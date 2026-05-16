@@ -131,7 +131,7 @@ class StrategyEvolver:
                 continue
             outcomes = (
                 db.query(StrategyOutcome)
-                .filter(StrategyOutcome.strategy == name)
+                .filter(StrategyOutcome.strategy == name, StrategyOutcome.trading_mode == "live")
                 .all()
             )
             wins = sum(1 for o in outcomes if o.result == "win")

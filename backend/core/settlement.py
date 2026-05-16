@@ -69,7 +69,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
             if won:
                 trade.result = "win"
                 trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                trade.settlement_value = size if entry_price > 0 else 0.0
+                trade.settlement_value = 1.0
                 record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "up", status="settled_win", latency_s=0.0)
             else:
                 trade.result = "loss"
@@ -113,7 +113,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 if won:
                     trade.result = "win"
                     trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                    trade.settlement_value = size if entry_price > 0 else 0.0
+                    trade.settlement_value = 1.0
                 else:
                     trade.result = "loss"
                     trade.pnl = -(size * entry_price) if entry_price > 0 else -size
@@ -142,7 +142,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                     if won:
                         trade.result = "win"
                         trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                        trade.settlement_value = size if entry_price > 0 else 0.0
+                        trade.settlement_value = 1.0
                     else:
                         trade.result = "loss"
                         trade.pnl = -(size * entry_price) if entry_price > 0 else -size
@@ -412,7 +412,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     trade.settled = True
                     trade.result = "expired_unresolved"
                     trade.settlement_time = now
-                    trade.pnl = -float(trade.size or 0)
+                    trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
                     trade.settlement_value = 0.0
                     trade.settlement_source = "expired_unresolved"
                     settled_trades.append(trade)

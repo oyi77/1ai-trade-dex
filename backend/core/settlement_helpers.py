@@ -1102,7 +1102,7 @@ async def process_settled_trade(
         )
         dl_query = db.query(DecisionLog).filter(
             DecisionLog.market_ticker == trade.market_ticker,
-            DecisionLog.outcome is None,
+            DecisionLog.outcome.is_(None),
             DecisionLog.decision == "BUY",
         )
         if trade_ctx and trade_ctx.strategy:

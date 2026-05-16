@@ -459,7 +459,7 @@ def update_fitness_from_shadow() -> int:
         for genome in genomes:
             trades = (
                 db.query(ShadowTrade)
-                .filter(ShadowTrade.genome_id == genome.genome_id, ShadowTrade.actual_outcome.isnot(None))
+                .filter(ShadowTrade.genome_id == genome.genome_id, ShadowTrade.settled.is_(True), ShadowTrade.pnl.isnot(None))
                 .all()
             )
             if not trades:
