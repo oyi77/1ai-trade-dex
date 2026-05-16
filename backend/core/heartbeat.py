@@ -64,6 +64,9 @@ def _flush_heartbeats() -> bool:
         snapshot = dict(_pending_heartbeats)
 
     try:
+        heartbeat_patch = json.dumps(
+            {f"{HEARTBEAT_PREFIX}{strategy_name}": ts for strategy_name, ts in snapshot.items()}
+        )
         with SessionLocal() as db:
             # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
             if settings.is_postgres:
@@ -77,12 +80,6 @@ def _flush_heartbeats() -> bool:
                     logger.debug("heartbeat flush skipped: another flusher is active")
                     return False
 
-                heartbeat_patch = json.dumps(
-                    {
-                        f"{HEARTBEAT_PREFIX}{strategy_name}": ts
-                for strategy_name, ts in snapshot.items()
-                }
-            )
             heartbeat_stmt = text(
                 "UPDATE bot_state "
                 "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
