@@ -30,13 +30,22 @@ class SandboxManager:
         self._results: Dict[str, SandboxResult] = {}
 
     def _set_resource_limits(self):
-        """Set resource limits for the current process (called in preexec_fn)."""
-        # CPU Time: 1 second
-        resource.setrlimit(resource.RLIMIT_CPU, (1, 1))
-        # Memory (Address Space): 200 MB
-        resource.setrlimit(resource.RLIMIT_AS, (200 * 1024 * 1024, 200 * 1024 * 1024))
-        # Prevent core dumps
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        """Set resource limits for the current process (called in preexec_fn).
+
+        Gracefully skips limits not supported on the current platform
+        (e.g. RLIMIT_AS is unavailable on macOS).
+        """
+        limits = [
+            ("RLIMIT_CPU", resource.RLIMIT_CPU, (1, 1)),
+            ("RLIMIT_AS", resource.RLIMIT_AS, (200 * 1024 * 1024, 200 * 1024 * 1024)),
+            ("RLIMIT_CORE", resource.RLIMIT_CORE, (0, 0)),
+        ]
+        for name, res, value in limits:
+            try:
+                resource.setrlimit(res, value)
+            except (ValueError, OSError):
+                # Limit not supported on this platform (e.g. RLIMIT_AS on macOS)
+                pass
 
     async def execute_code(self, code: str, scenario: str = "default") -> SandboxResult:
         """
@@ -66,7 +75,8 @@ class SandboxManager:
                 with open(code_file, "w") as f:
                     f.write(code)
 
-                # Minimal environment: block network by removing common proxies/config
+                # Minimal environment: block network by removing common proxies/config.
+                # Pass through critical env vars needed by backend config validation.
                 env = {
                     "PYTHONPATH": os.getcwd(),
                     "TMPDIR": tmp_dir,
@@ -74,11 +84,16 @@ class SandboxManager:
                     "HTTP_PROXY": "",
                     "HTTPS_PROXY": "",
                     "no_proxy": "*",
+                    "WALLET_FERNET_KEY": os.environ.get("WALLET_FERNET_KEY", ""),
+                    "SHADOW_MODE": os.environ.get("SHADOW_MODE", "true"),
                 }
 
-                # Execute via subprocess for absolute isolation of resource limits and memory
+                # Execute via subprocess for isolation of resource limits and memory.
+                # Use the same Python interpreter (venv) so installed packages are available.
+                # -S is not used: isolation comes from resource limits + temp dir + env scrubbing.
+                import sys
                 process = subprocess.Popen(
-                    ["python3", "-S", "-u", code_file], # -S: ignore site-packages for safety
+                    [sys.executable, "-u", code_file],
                     cwd=tmp_dir,
                     env=env,
                     stdout=subprocess.PIPE,
@@ -106,7 +121,7 @@ class SandboxManager:
                 end_time = time.perf_counter()
 
                 # Calculate resource usage
-                usage = resource.getrusage(subprocess.RLIMIT_SIGHUP) if 'process' in locals() else None # Simplified
+                usage = resource.getrusage(resource.RUSAGE_SELF)
                 # Note: Real CPU/Mem metrics from subprocess are complex in Python.
                 # We'll use the wrapper's elapsed time as CPU proxy and let the OS kill if mem exceeded.
                 # Actual mem requires external monitoring or /proc
