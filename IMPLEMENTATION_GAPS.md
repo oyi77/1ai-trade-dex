@@ -441,5 +441,31 @@ Previously, trades with ambiguous partial matches were silently skipped and orph
 
 **Never remove a gap entirely.** History matters: seeing what was broken and how it was fixed is more valuable than a clean list.
 
+## Newly Completed (Wave 1-4)
+
+All AGI cognitive/evolution/learning modules implemented and integration-validated (2026-05-17):
+
+### Wave 1 — Cognitive Core
+- **CognitiveCoreAdapter** (`backend/core/cognitive_core.py`): ABC with OneAIHubCore (production HTTP), DegradedCore (amnesia mode), MockCore (tests). Health check, remember/recall, queued writes tracking.
+
+### Wave 2 — Agent Council
+- **AgentCouncil** (`backend/core/agent_council.py`): 6-agent typed message routing (ADR-012). Analyst, Synthesizer, Critic, Executor, Historian, Evolver agents with AuthorityHierarchy veto chain. MessageBus with interceptor support.
+
+### Wave 3 — Evolution Harness
+- **EvolutionHarness** (`backend/core/evolution_harness.py`): Pluggable evolution engine (ADR-010). DEAPEvolutionBackend with NSGA-II multi-objective optimization; LegacyBackend fallback. Population stats, Pareto front, tournament/NSGA2 selection.
+
+### Wave 4 — Learning Pipeline + Monitoring
+- **LearningPipeline** (`backend/core/learning_pipeline.py`): Post-settlement feedback loop (ADR-013). 5-stage pipeline: forensics → lesson extraction → brain storage → genome fitness adjustment → knowledge graph update. PipelineMetrics tracking.
+- **CorrelationMonitor** (`backend/core/correlation_monitor.py`): Cross-market correlation guard. 5 market categories (crypto, politics, sports, esports, weather). Blocks trades exceeding MAX_CORRELATED_EXPOSURE_PCT.
+- **PositionMonitor / Sell Signal Monitor** (`backend/core/position_monitor.py`): Stale position detection + sell signal generation. Profit-take (80%+), stop-loss (15pp drop), time-decay (1h to settlement) triggers. Closes the 948-buy-vs-4-sell gap.
+- **RL Environment** (`backend/core/rl_environment.py`): Gymnasium-compatible trading environment for reinforcement learning.
+
+### Integration Validation
+- Health endpoint (`backend/api/main.py:/api/v1/health/dependencies`) extended with all 6 AGI sections: cognitive_core, agent_council, evolution_harness, learning_pipeline, correlation_monitor, sell_signal_monitor.
+- Full test suite: **152 tests passed** across 6 test modules (test_cognitive_core, test_learning_pipeline, test_evolution_harness, test_rl_environment, test_agent_council, test_market_provider_registry).
+- AGENTS.md updated with all new module descriptions.
+
+---
+
 ## Missing MarketProviderPlugin implementations
 Due to PR #95 not being merged on this branch, KalshiProvider and PolymarketProvider are not fully implemented. They need to be added once MarketProviderPlugin is available.

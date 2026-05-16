@@ -177,6 +177,16 @@ async def legacy_api_health_check():
 
     return await system_liveness_check()
 
+
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """Prometheus scrape endpoint — returns all registered metrics in text exposition format."""
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    from starlette.responses import Response
+
+    data = generate_latest()
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
 # Add metrics middleware for automatic tracking
 @app.middleware("http")
 async def metrics_middleware_wrapper(request: Request, call_next):
@@ -350,11 +360,122 @@ async def health_check(db: Session = Depends(get_db)):
         agi_health = {"status": "error", "error": "agi health unavailable"}
         logger.warning(f"Failed to get AGI health: {e}")
 
+    cognitive_core_health = {}
+    try:
+        from backend.core.cognitive_core import create_cognitive_core
+        _core = create_cognitive_core()
+        _ch = _core.health_check()
+        cognitive_core_health = {
+            "status": _ch.status,
+            "latency_ms": round(_ch.latency_ms, 2),
+            "last_success": _ch.last_success,
+            "queued_writes": _ch.queued_writes,
+        }
+        if _ch.status == "amnesia" and overall_status == "ok":
+            overall_status = "degraded"
+    except Exception as e:
+        cognitive_core_health = {"status": "error", "error": "cognitive core unavailable"}
+        logger.warning(f"Failed to get cognitive core health: {e}")
+
+    # ── Agent Council ──
+    agent_council_health = {}
+    try:
+        from backend.core.agent_council import AgentCouncil
+        _council = AgentCouncil()
+        _council.register_default_agents()
+        _agent_statuses = _council.get_agent_status()
+        total_messages = sum(
+            a.get("messages_processed", 0) for a in _agent_statuses.values()
+        )
+        agent_council_health = {
+            "status": "ok",
+            "agent_count": len(_agent_statuses),
+            "total_messages_processed": total_messages,
+            "agents": {role: s for role, s in _agent_statuses.items()},
+        }
+    except Exception as e:
+        agent_council_health = {"status": "error", "error": "agent council unavailable"}
+        logger.warning(f"Failed to get agent council health: {e}")
+
+    # ── Evolution Harness ──
+    evolution_harness_health = {}
+    try:
+        from backend.core.evolution_harness import create_evolution_backend, PopulationStats
+        _backend = create_evolution_backend()
+        evolution_harness_health = {
+            "status": "ok",
+            "backend_type": type(_backend).__name__,
+            "population_stats": "available",
+        }
+    except Exception as e:
+        evolution_harness_health = {"status": "error", "error": str(e)}
+        logger.warning(f"Failed to get evolution harness health: {e}")
+
+    # ── Learning Pipeline ──
+    learning_pipeline_health = {}
+    try:
+        from backend.core.learning_pipeline import get_learning_pipeline
+        _lp = get_learning_pipeline()
+        _m = _lp.metrics
+        error_rate = 0.0
+        if _m.total_processed > 0:
+            total_errors = (
+                _m.forensics_errors + _m.extraction_errors
+                + _m.brain_errors + _m.genome_errors + _m.kg_errors
+            )
+            error_rate = total_errors / _m.total_processed
+        learning_pipeline_health = {
+            "status": "ok",
+            "lessons_processed": _m.total_processed,
+            "lessons_stored": _m.lessons_stored,
+            "error_rate": round(error_rate, 4),
+            "avg_processing_ms": round(_m.avg_processing_ms, 2),
+        }
+    except Exception as e:
+        learning_pipeline_health = {"status": "error", "error": str(e)}
+        logger.warning(f"Failed to get learning pipeline health: {e}")
+
+    # ── Correlation Monitor ──
+    correlation_monitor_health = {}
+    try:
+        from backend.core.correlation_monitor import MARKET_CATEGORIES, CorrelationMonitor
+        correlation_monitor_health = {
+            "status": "ok",
+            "categories_tracked": len(MARKET_CATEGORIES),
+            "categories": list(MARKET_CATEGORIES.keys()),
+        }
+    except Exception as e:
+        correlation_monitor_health = {"status": "error", "error": str(e)}
+        logger.warning(f"Failed to get correlation monitor health: {e}")
+
+    # ── Sell Signal Monitor ──
+    sell_signal_health = {}
+    try:
+        from backend.core.position_monitor import detect_sell_signals, _get_open_positions
+        from backend.db.utils import get_db_session
+        with get_db_session() as _pm_db:
+            _open = _get_open_positions(_pm_db)
+            _signals = detect_sell_signals(_pm_db)
+        sell_signal_health = {
+            "status": "ok",
+            "positions_tracked": len(_open),
+            "signals_generated": len(_signals),
+        }
+    except Exception as e:
+        sell_signal_health = {"status": "error", "error": str(e)}
+        logger.warning(f"Failed to get sell signal health: {e}")
+
     response = {
         "status": overall_status,
         "dependencies": checks,
         "strategies": healths,
         "agi_events": agi_health,
+        "cognitive_core": cognitive_core_health,
+        "agent_council": agent_council_health,
+        "evolution_harness": evolution_harness_health,
+        "learning_pipeline": learning_pipeline_health,
+        "correlation_monitor": correlation_monitor_health,
+        "sell_signal_monitor": sell_signal_health,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "bot_running": bot_state.is_running if bot_state else False,
         "trading_mode": settings.TRADING_MODE,

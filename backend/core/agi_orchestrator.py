@@ -62,7 +62,12 @@ class AGICycleResult:
 
 
 class AGIOrchestrator:
-    def __init__(self, session: Optional[Session] = None, db_url: str = "sqlite:///:memory:"):
+    def __init__(
+        self,
+        session: Optional[Session] = None,
+        db_url: str = "sqlite:///:memory:",
+        cognitive_core: Optional["CognitiveCoreAdapter"] = None,
+    ):
         self._emergency_stop = False
         self._current_regime = None
         self._current_goal = None
@@ -74,6 +79,11 @@ class AGIOrchestrator:
             Base.metadata.create_all(self._engine)
             self._session = sessionmaker(bind=self._engine)()
             self._owns_session = True
+        if cognitive_core is not None:
+            self._core = cognitive_core
+        else:
+            from backend.core.cognitive_core import DegradedCore
+            self._core = DegradedCore()
 
     def close(self):
         if self._owns_session:

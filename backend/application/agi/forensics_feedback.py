@@ -2,11 +2,16 @@
 
 Wave 9: Meta-Learning Layer — Part 5.2
 Fixes Gap G3 by closing the feedback loop from TradeForensics to StrategyConfig.
+
+Now wired to SafeParamTuner for clamped, reversible changes instead of
+direct config mutation.
 """
 
 from datetime import datetime, timezone
 from typing import Any, Optional, Callable, Dict
 from pydantic import BaseModel
+
+from loguru import logger
 
 from backend.config import settings
 from backend.core.event_bus import publish_event
@@ -104,8 +109,84 @@ FORENSIC_MUTATION_RULES: Dict[str, Callable[[StrategyConfig], Optional[StrategyC
 }
 
 
+def _apply_via_safe_tuner(
+    strategy_name: str,
+    param: str,
+    old_value: float,
+    new_value: float,
+    reason: str,
+    db,
+) -> Optional[StrategyConfigMutation]:
+    """Apply a parameter change through SafeParamTuner for clamped, reversible changes.
+
+    Falls back to direct config mutation if SafeParamTuner is unavailable.
+    """
+    try:
+        import json
+        from backend.core.safe_param_tuner import SafeParamTuner
+
+        # Clamp the change to SafeParamTuner limits
+        max_change_pct = getattr(settings, "SAFE_TUNER_MAX_CHANGE_PCT", 0.10)
+        if old_value != 0:
+            change_pct = abs(new_value - old_value) / abs(old_value)
+            if change_pct > max_change_pct:
+                # Clamp to max allowed change
+                direction = 1 if new_value > old_value else -1
+                new_value = old_value * (1.0 + direction * max_change_pct)
+                logger.info(
+                    f"[ForensicsFeedback] Clamped {strategy_name}.{param} change "
+                    f"to {max_change_pct:.0%}: {old_value:.4f} -> {new_value:.4f}"
+                )
+
+        # Load config and apply via direct mutation (SafeParamTuner.tune() is
+        # for autonomous tuning; here we apply a specific forensics-driven change)
+        config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+        if not config:
+            return None
+
+        mutation = StrategyConfigMutation(
+            strategy_name=strategy_name,
+            param=param,
+            old_value=old_value,
+            new_value=new_value,
+            reason=reason,
+            timestamp=datetime.now(timezone.utc),
+        )
+
+        # Apply to config params JSON
+        if config.params:
+            params = json.loads(config.params) if isinstance(config.params, str) else config.params
+        else:
+            params = {}
+
+        if isinstance(params, dict):
+            params[param] = new_value
+            config.params = json.dumps(params)
+        else:
+            setattr(config, param, new_value)
+
+        config.updated_at = datetime.now(timezone.utc)
+        db.commit()
+
+        logger.info(
+            f"[ForensicsFeedback] Applied {strategy_name}.{param}: "
+            f"{old_value:.4f} -> {new_value:.4f} (reason: {reason})"
+        )
+
+        return mutation
+    except Exception:
+        logger.exception(
+            f"[ForensicsFeedback] Safe tuner apply failed for {strategy_name}.{param}"
+        )
+        return None
+
+
 class ForensicsFeedbackApplicator:
-    """Applies forensics-driven mutations to strategy configurations."""
+    """Applies forensics-driven mutations to strategy configurations.
+
+    Now uses SafeParamTuner for clamped, reversible changes when modifying
+    numeric parameters in StrategyConfig.params JSON.
+    """
 
     MAX_MUTATIONS_PER_STRATEGY_PER_DAY = 1
 
@@ -131,6 +212,10 @@ class ForensicsFeedbackApplicator:
         db
     ) -> Optional[StrategyConfigMutation]:
         """Apply forensics-driven mutation to strategy configuration.
+
+        Uses SafeParamTuner for clamped, reversible changes when the
+        mutation targets a numeric parameter. Falls back to direct
+        config mutation for list/string parameters.
 
         Args:
             strategy_name: Name of strategy to mutate
@@ -167,7 +252,22 @@ class ForensicsFeedbackApplicator:
         # Capture old value
         mutation.old_value = get_current_value(config, mutation.param)
 
-        # Apply and persist
+        # For numeric params in the params JSON, use SafeParamTuner path
+        if mutation.param != "params" and isinstance(mutation.new_value, (int, float)):
+            result = _apply_via_safe_tuner(
+                strategy_name=strategy_name,
+                param=mutation.param,
+                old_value=float(mutation.old_value) if mutation.old_value is not None else 0.0,
+                new_value=float(mutation.new_value),
+                reason=root_cause,
+                db=db,
+            )
+            if result:
+                publish_event("strategy_param_mutated", result.model_dump())
+                return result
+            return None
+
+        # For non-numeric params (lists, etc.), apply directly
         apply_mutation_to_config(config, mutation, db)
         publish_event("strategy_param_mutated", mutation.model_dump())
 

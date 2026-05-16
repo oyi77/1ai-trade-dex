@@ -1,4 +1,4 @@
-"""BTC 5-minute market fetcher for Polymarket."""
+"""Crypto 5-minute market fetcher for Polymarket (generalized from BTC-only)."""
 
 import httpx
 import json
@@ -18,18 +18,37 @@ GAMMA_API = settings.GAMMA_API_URL
 
 gamma_breaker = CircuitBreaker("gamma_api")
 
-# Strict regex: only match real BTC 5-min window slugs (e.g. btc-updown-5m-1708531200)
-_BTC_SLUG_RE = re.compile(r"^btc-updown-5m-\d{10}$")
+# Slug patterns per asset: maps asset prefix to regex for 5-min window slugs
+_SLUG_PATTERNS = {
+    "btc": re.compile(r"^btc-updown-5m-\d{10}$"),
+    "eth": re.compile(r"^eth-updown-5m-\d{10}$"),
+    "sol": re.compile(r"^sol-updown-5m-\d{10}$"),
+}
+
+# Default keywords per asset for market scanning
+_ASSET_KEYWORDS = {
+    "btc": ["btc", "bitcoin", "btc-up"],
+    "eth": ["eth", "ethereum", "eth-up"],
+    "sol": ["sol", "solana", "sol-up"],
+}
 
 
 def is_valid_btc_slug(slug: str) -> bool:
     """Return True only if slug matches the exact BTC 5-min pattern."""
-    return bool(_BTC_SLUG_RE.match(slug))
+    return bool(_SLUG_PATTERNS["btc"].match(slug))
+
+
+def is_valid_crypto_slug(slug: str, asset: str = "btc") -> bool:
+    """Return True only if slug matches the exact 5-min pattern for the given asset."""
+    pattern = _SLUG_PATTERNS.get(asset)
+    if pattern is None:
+        return False
+    return bool(pattern.match(slug))
 
 
 @dataclass
-class BtcMarket:
-    """A single BTC 5-minute Up/Down market."""
+class CryptoMarket:
+    """A single crypto 5-minute Up/Down market."""
 
     slug: str
     market_id: str
@@ -41,6 +60,7 @@ class BtcMarket:
     closed: bool
     up_token_id: str = ""  # CLOB token ID for the UP (YES) outcome
     down_token_id: str = ""  # CLOB token ID for the DOWN (NO) outcome
+    asset: str = "btc"  # Asset prefix (btc, eth, sol)
 
     @property
     def event_slug(self) -> str:
@@ -71,14 +91,12 @@ class BtcMarket:
     def to_unified(self) -> UnifiedMarketView:
         """
         Convert to UnifiedMarketView for API responses.
-
-        This is a lightweight adapter, not a base class inheritance pattern.
-        BtcMarket and WeatherMarket remain independent domain models.
         """
+        asset_upper = self.asset.upper()
         return UnifiedMarketView(
             slug=self.slug,
             platform="polymarket",
-            title=f"BTC {self.window_start.strftime('%H:%M')} - {self.window_end.strftime('%H:%M')} UTC",
+            title=f"{asset_upper} {self.window_start.strftime('%H:%M')} - {self.window_end.strftime('%H:%M')} UTC",
             yes_price=self.up_price,
             no_price=self.down_price,
             volume=self.volume,
@@ -89,9 +107,14 @@ class BtcMarket:
                 "window_end": self.window_end.isoformat(),
                 "up_token_id": self.up_token_id,
                 "down_token_id": self.down_token_id,
-                "type": "btc-5min",
+                "type": f"{self.asset}-5min",
+                "asset": self.asset,
             },
         )
+
+
+# Backward-compatible alias
+BtcMarket = CryptoMarket
 
 
 def _round_to_5min(ts: float) -> int:
@@ -99,11 +122,11 @@ def _round_to_5min(ts: float) -> int:
     return int(ts) // 300 * 300
 
 
-def _compute_window_slugs(count: int = 5) -> List[str]:
+def _compute_window_slugs(asset: str = "btc", count: int = 5) -> List[str]:
     """
     Compute event slugs for the current and upcoming 5-min windows.
 
-    Slug pattern: btc-updown-5m-{unix_timestamp}
+    Slug pattern: {asset}-updown-5m-{unix_timestamp}
     where timestamp is the END of the 5-min window.
     """
     now = time.time()
@@ -115,13 +138,13 @@ def _compute_window_slugs(count: int = 5) -> List[str]:
     slugs = []
     for i in range(count):
         end_ts = next_boundary + (i * 300)
-        slugs.append(f"btc-updown-5m-{end_ts}")
+        slugs.append(f"{asset}-updown-5m-{end_ts}")
 
     return slugs
 
 
-def _parse_event_to_btc_market(event: dict) -> Optional[BtcMarket]:
-    """Parse a Polymarket event into a BtcMarket."""
+def _parse_event_to_crypto_market(event: dict, asset: str = "btc") -> Optional[CryptoMarket]:
+    """Parse a Polymarket event into a CryptoMarket."""
     markets = event.get("markets", [])
     if not markets:
         return None
@@ -182,7 +205,7 @@ def _parse_event_to_btc_market(event: dict) -> Optional[BtcMarket]:
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             logger.debug(f"Failed to parse clobTokenIds: {e}")
 
-    return BtcMarket(
+    return CryptoMarket(
         slug=slug,
         market_id=str(market.get("id", "")),
         up_price=up_price,
@@ -193,13 +216,18 @@ def _parse_event_to_btc_market(event: dict) -> Optional[BtcMarket]:
         closed=bool(market.get("closed", False) or event.get("closed", False)),
         up_token_id=up_token_id,
         down_token_id=down_token_id,
+        asset=asset,
     )
 
 
-async def fetch_btc_market_by_slug(slug: str) -> Optional[BtcMarket]:
-    """Fetch a single BTC 5-min market by its event slug."""
-    if not is_valid_btc_slug(slug):
-        logger.debug(f"Rejected invalid BTC slug: {slug}")
+# Backward-compatible alias
+_parse_event_to_btc_market = _parse_event_to_crypto_market
+
+
+async def fetch_crypto_market_by_slug(slug: str, asset: str = "btc") -> Optional[CryptoMarket]:
+    """Fetch a single crypto 5-min market by its event slug."""
+    if not is_valid_crypto_slug(slug, asset):
+        logger.debug(f"Rejected invalid {asset} slug: {slug}")
         return None
 
     url = f"{GAMMA_API}/events"
@@ -219,72 +247,91 @@ async def fetch_btc_market_by_slug(slug: str) -> Optional[BtcMarket]:
             return None
 
         event = events[0] if isinstance(events, list) else events
-        return _parse_event_to_btc_market(event)
+        return _parse_event_to_crypto_market(event, asset=asset)
 
     except CircuitOpenError:
-        logger.warning("Gamma API circuit open, skipping BTC market fetch")
+        logger.warning("Gamma API circuit open, skipping %s market fetch", asset)
         return None
     except Exception as e:
-        logger.debug(f"Failed to fetch BTC market {slug}: {e}")
+        logger.debug(f"Failed to fetch {asset} market {slug}: {e}")
         return None
 
 
-async def fetch_active_btc_markets(
+# Backward-compatible alias
+async def fetch_btc_market_by_slug(slug: str) -> Optional[CryptoMarket]:
+    """Fetch a single BTC 5-min market by its event slug."""
+    return await fetch_crypto_market_by_slug(slug, asset="btc")
+
+
+async def fetch_active_crypto_markets(
+    asset: str = "btc",
     keywords: List[str] = None,
-) -> List[BtcMarket]:
+) -> List[CryptoMarket]:
     """
-    Fetch current and upcoming BTC 5-min markets from Polymarket.
+    Fetch current and upcoming crypto 5-min markets from Polymarket.
 
     Uses fetch_markets_by_keywords() as the primary source, with direct
     slug-based fetching as a supplement for time-windowed markets.
+
+    Args:
+        asset: Asset prefix ("btc", "eth", "sol").
+        keywords: Override keywords for market scanning. If None, uses asset defaults.
     """
     if keywords is None:
-        keywords = ["btc", "bitcoin", "btc-up"]
+        keywords = _ASSET_KEYWORDS.get(asset, [asset])
 
-    markets: List[BtcMarket] = []
+    markets: List[CryptoMarket] = []
     seen_slugs: set = set()
 
     # Method 1: Keyword-based scanner (primary)
     try:
         scanner_results = await fetch_markets_by_keywords(keywords)
         for info in scanner_results:
-            # Only accept slugs matching the BTC 5-min pattern
-            if not is_valid_btc_slug(info.slug):
+            # Only accept slugs matching the asset 5-min pattern
+            if not is_valid_crypto_slug(info.slug, asset):
                 continue
             if info.slug in seen_slugs:
                 continue
             seen_slugs.add(info.slug)
             # Fetch the full event to get window timestamps
-            market = await fetch_btc_market_by_slug(info.slug)
+            market = await fetch_crypto_market_by_slug(info.slug, asset=asset)
             if market and not market.closed:
                 markets.append(market)
     except Exception as e:
-        logger.debug(f"BTC keyword scanner failed: {e}")
+        logger.debug(f"{asset} keyword scanner failed: {e}")
 
     # Method 2: Compute expected slugs and fetch directly (supplement)
-    expected_slugs = _compute_window_slugs(count=6)
+    expected_slugs = _compute_window_slugs(asset=asset, count=6)
     for slug in expected_slugs:
         if slug in seen_slugs:
             continue
         try:
-            market = await fetch_btc_market_by_slug(slug)
+            market = await fetch_crypto_market_by_slug(slug, asset=asset)
             if market and market.slug not in seen_slugs:
                 seen_slugs.add(market.slug)
                 if not market.closed:
                     markets.append(market)
         except Exception as e:
-            logger.debug(f"BTC market fetch failed for slug {slug}: {e}")
+            logger.debug(f"{asset} market fetch failed for slug {slug}: {e}")
 
     # Sort by window end time (soonest first)
     markets.sort(key=lambda m: m.window_end)
 
-    logger.info(f"Fetched {len(markets)} active BTC 5-min markets")
+    logger.info(f"Fetched {len(markets)} active {asset.upper()} 5-min markets")
     return markets
 
 
-async def fetch_btc_market_for_settlement(slug: str) -> Optional[BtcMarket]:
+# Backward-compatible alias
+async def fetch_active_btc_markets(
+    keywords: List[str] = None,
+) -> List[CryptoMarket]:
+    """Fetch current and upcoming BTC 5-min markets from Polymarket."""
+    return await fetch_active_crypto_markets(asset="btc", keywords=keywords)
+
+
+async def fetch_crypto_market_for_settlement(slug: str, asset: str = "btc") -> Optional[CryptoMarket]:
     """
-    Fetch a BTC market for settlement purposes (includes closed markets).
+    Fetch a crypto market for settlement purposes (includes closed markets).
     """
     url = f"{GAMMA_API}/events"
     params = {"slug": slug}
@@ -303,14 +350,20 @@ async def fetch_btc_market_for_settlement(slug: str) -> Optional[BtcMarket]:
             return None
 
         event = events[0] if isinstance(events, list) else events
-        return _parse_event_to_btc_market(event)
+        return _parse_event_to_crypto_market(event, asset=asset)
 
     except CircuitOpenError:
         logger.warning("Gamma API circuit open, skipping settlement fetch for %s", slug)
         return None
     except Exception as e:
-        logger.warning(f"Failed to fetch BTC market for settlement {slug}: {e}")
+        logger.warning(f"Failed to fetch {asset} market for settlement {slug}: {e}")
         return None
+
+
+# Backward-compatible alias
+async def fetch_btc_market_for_settlement(slug: str) -> Optional[CryptoMarket]:
+    """Fetch a BTC market for settlement purposes (includes closed markets)."""
+    return await fetch_crypto_market_for_settlement(slug, asset="btc")
 
 
 if __name__ == "__main__":

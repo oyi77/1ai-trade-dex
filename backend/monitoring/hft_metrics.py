@@ -1,5 +1,8 @@
 """HFT Prometheus metrics for monitoring scan speed, execution latency, and arbitrage."""
 
+import functools
+import time
+
 from prometheus_client import Counter, Histogram, Gauge
 
 from loguru import logger
@@ -60,6 +63,90 @@ maker_fill_rate = Counter(
     "maker_fill_rate", "Maker-first order fill outcomes",
     ["market_id", "filled"]
 )
+
+# --- Track 1.1: Prometheus Metrics Instrumentation ---
+
+signal_latency_seconds = Histogram(
+    "polyedge_signal_latency_seconds",
+    "Strategy signal generation latency",
+    ["strategy_name"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
+)
+
+trade_execution_latency = Histogram(
+    "polyedge_trade_execution_latency_seconds",
+    "Trade execution latency (signal to order placement)",
+    ["strategy", "mode"],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+)
+
+risk_rejection_total = Counter(
+    "polyedge_risk_rejection_total",
+    "Risk manager rejections by reason",
+    ["strategy", "reason"],
+)
+
+signals_routed_total = Counter(
+    "polyedge_signals_routed_total",
+    "Signals routed by auto_trader",
+    ["strategy", "outcome"],
+)
+
+settlement_outcome_total = Counter(
+    "polyedge_settlement_outcome_total",
+    "Settlement outcomes",
+    ["outcome"],
+)
+
+order_placement_latency = Histogram(
+    "polyedge_order_placement_latency_seconds",
+    "Order placement latency",
+    ["strategy", "side"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 5.0],
+)
+
+circuit_breaker_state_gauge = Gauge(
+    "polyedge_circuit_breaker_state",
+    "Circuit breaker state (0=open, 1=half-open, 2=closed)",
+    ["breaker_name"],
+)
+
+db_query_duration = Histogram(
+    "polyedge_db_query_duration_seconds",
+    "Database query duration",
+    ["query_type"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+)
+
+
+def trace_latency(func):
+    """Decorator that records signal generation latency to Prometheus.
+
+    Works on both sync and async methods. Strategy name is read from
+    ``self.name`` on the bound instance.
+    """
+    if func.__code__.co_flags & 0x80:  # CO_COROUTINE
+        @functools.wraps(func)
+        async def async_wrapper(self, *args, **kwargs):
+            start = time.monotonic()
+            try:
+                return await func(self, *args, **kwargs)
+            finally:
+                elapsed = time.monotonic() - start
+                sname = getattr(self, "name", self.__class__.__name__)
+                signal_latency_seconds.labels(strategy_name=sname).observe(elapsed)
+        return async_wrapper
+    else:
+        @functools.wraps(func)
+        def sync_wrapper(self, *args, **kwargs):
+            start = time.monotonic()
+            try:
+                return func(self, *args, **kwargs)
+            finally:
+                elapsed = time.monotonic() - start
+                sname = getattr(self, "name", self.__class__.__name__)
+                signal_latency_seconds.labels(strategy_name=sname).observe(elapsed)
+        return sync_wrapper
 
 
 def record_signal(strategy: str, signal_type: str):

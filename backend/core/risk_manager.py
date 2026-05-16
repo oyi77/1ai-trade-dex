@@ -9,8 +9,9 @@ from contextlib import nullcontext
 from backend.config import settings
 from backend.db.utils import get_db_session
 from backend.models.database import Trade, BotState, for_update
-from backend.monitoring.hft_metrics import record_signal
+from backend.monitoring.hft_metrics import record_signal, risk_rejection_total, db_query_duration
 from backend.monitoring.metrics import increment_risk_rejection
+from backend.core.correlation_monitor import CorrelationMonitor
 from sqlalchemy import func, or_
 
 from loguru import logger
@@ -106,6 +107,7 @@ class RiskManager:
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
         self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 5.0))
+        self._correlation_monitor = CorrelationMonitor(settings_obj)
 
     def check_edge(self, market_price: float, signal_win_rate: float, market_id: str, db=None):
         """
@@ -137,7 +139,13 @@ class RiskManager:
         return edge_pp
 
     def _get_bankroll(self, db, mode: str) -> float:
+        import time as _time
+        _qstart = _time.monotonic()
         state = db.query(BotState).filter_by(mode=mode).first()
+        try:
+            db_query_duration.labels(query_type="get_bankroll").observe(_time.monotonic() - _qstart)
+        except Exception:
+            pass
         if state and state.bankroll is not None:
             return float(state.bankroll)
         return self.s.INITIAL_BANKROLL
@@ -320,6 +328,21 @@ class RiskManager:
                     f"side-lock: opposing {conflicting_side} position open on {market_ticker}",
                     0.0,
                 )
+
+        # Cross-market correlation check — block if clustered exposure > 30% of bankroll
+        if market_ticker and db is not None:
+            corr_result = self._correlation_monitor.check_correlation(
+                bankroll=bankroll,
+                market_ticker=market_ticker,
+                trade_size=size,
+                event_slug=getattr(market_ticker, 'event_slug', None),
+                db=db,
+                mode=effective_mode,
+            )
+            if not corr_result.allowed:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_correlation")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="correlation")
+                return RiskDecision(False, corr_result.reason, 0.0)
 
         # Live bankroll = PM portfolio value (includes locked positions);
         # available cash = portfolio minus open exposure.

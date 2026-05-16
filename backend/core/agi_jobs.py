@@ -176,25 +176,23 @@ async def fronttest_validation_job() -> None:
         failed = [r for r in results if not r.get("approved")]
 
         if passed:
-            db = SessionLocal()
-            try:
-                for r in passed:
-                    proposal = db.query(StrategyProposal).filter(
-                        StrategyProposal.id == r["proposal_id"]
-                    ).first()
-                    if proposal and getattr(settings, "AGI_AUTO_PROMOTE", False):
-                        proposal.admin_decision = "approved"
-                        logger.info(
-                            "[fronttest] Auto-approved proposal %d for '%s' (wr=%.1f%%, %d trades)",
-                            r["proposal_id"], r["strategy"],
-                            r.get("win_rate", 0) * 100, r.get("trade_count", 0),
-                        )
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                logger.warning("[fronttest] Auto-approve failed: %s", e)
-            finally:
-                db.close()
+            with SessionLocal() as db:
+                try:
+                    for r in passed:
+                        proposal = db.query(StrategyProposal).filter(
+                            StrategyProposal.id == r["proposal_id"]
+                        ).first()
+                        if proposal and getattr(settings, "AGI_AUTO_PROMOTE", False):
+                            proposal.admin_decision = "approved"
+                            logger.info(
+                                "[fronttest] Auto-approved proposal %d for '%s' (wr=%.1f%%, %d trades)",
+                                r["proposal_id"], r["strategy"],
+                                r.get("win_rate", 0) * 100, r.get("trade_count", 0),
+                            )
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    logger.warning("[fronttest] Auto-approve failed: %s", e)
 
         log_event(
             "success" if not failed else "warning",

@@ -411,6 +411,17 @@ class ConfigRegistry:
     BTC_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
     BTC_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.10
 
+    # Crypto Oracle (multi-asset generalization of BTC Oracle)
+    CRYPTO_ORACLE_ASSETS: str = "bitcoin,ethereum,solana"  # comma-separated CoinGecko IDs
+    CRYPTO_ORACLE_MIN_EDGE: float = 0.03
+    CRYPTO_ORACLE_MAX_MINUTES_TO_RESOLUTION: float = 10.0
+    CRYPTO_ORACLE_INTERVAL_SECONDS: int = 15
+    CRYPTO_ORACLE_MAX_POSITION_USD: float = 50.0
+    CRYPTO_ORACLE_MIN_POSITION_USD: float = 1.0
+    CRYPTO_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.05
+    CRYPTO_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
+    CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.30
+
     # Time filters
     MIN_TIME_REMAINING: int = 60  #min time remaining in seconds
     MAX_TIME_REMAINING: int = 1800  #max time remaining in seconds
@@ -663,8 +674,9 @@ class ConfigRegistry:
     AGI_CALIBRATION_MIN_SAMPLES: int = 30
 
     # Forensics
-    FORENSICS_AUTO_MUTATE: bool = False
+    FORENSICS_AUTO_MUTATE: bool = True
     FORENSICS_MAX_MUTATIONS_PER_DAY: int = 3
+    AGI_SELF_TUNE_INTERVAL_MINUTES: int = 30
 
     # Self-debugger
     SELF_DEBUGGER_MAX_RECOVERY_ATTEMPTS: int = 3
@@ -777,9 +789,16 @@ class ConfigRegistry:
 
     # Evolution engine
     EVOLUTION_ENGINE_ENABLED: bool = False
+    EVOLUTION_BACKEND: str = "legacy"  # "deap" or "legacy"
     AGI_POPULATION_SIZE: int = 20
     AGI_MUTATION_RATE: float = 0.10
     GENOME_POPULATION_TARGET: int = 25
+    DEAP_POPULATION_SIZE: int = 100
+    DEAP_CROSSOVER_PROB: float = 0.7
+    DEAP_MUTATION_PROB: float = 0.2
+    DEAP_TOURNAMENT_SIZE: int = 3
+    DEAP_GENERATIONS: int = 50
+    DEAP_PARALLEL_WORKERS: int = 4
     GENOME_RAMP_MIN_TRADES: int = 10
     GENOME_INITIAL_ALLOCATION_PCT: float = 0.02
 
@@ -1446,7 +1465,8 @@ class Settings(BaseSettings):
     AGI_HEALTH_ORPHAN_MAX_AGE_DAYS: int = 7
 
     # Wave 9: Meta-Learning Layer
-    FORENSICS_AUTO_MUTATE: bool = False  # Auto-apply forensics-driven mutations
+    FORENSICS_AUTO_MUTATE: bool = True  # Auto-apply forensics-driven mutations
+    AGI_SELF_TUNE_INTERVAL_MINUTES: int = 30  # AGI self-tuning review interval
     EVOLUTION_ENGINE_ENABLED: bool = False  # Enable evolution engine jobs
     AGI_MUTATION_INTERVAL_HOURS: int = 6
     AGI_CROSSOVER_INTERVAL_HOURS: int = 24
