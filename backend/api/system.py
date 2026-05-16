@@ -30,6 +30,7 @@ from backend.core.signals import scan_for_signals
 from backend.core.bankroll_reconciliation import (
     fetch_pm_profile_pnl,
     fetch_pm_profile_trade_stats,
+    _initial_bankroll_for_mode,
 )
 from backend.api.validation import StrategyConfigRequest as ValidatedStrategyConfigRequest
 from loguru import logger
@@ -125,7 +126,11 @@ def _live_cache_values(live_state: Optional[BotState]) -> tuple[float, float, in
     imported/backfilled ledger rows.
     """
 
-    initial = float(settings.INITIAL_BANKROLL)
+    initial = float(
+        live_state.live_initial_bankroll
+        if live_state and live_state.live_initial_bankroll is not None
+        else settings.INITIAL_BANKROLL
+    )
     bankroll = float(
         live_state.bankroll if live_state and live_state.bankroll is not None else initial
     )
@@ -563,7 +568,7 @@ async def get_stats(
         account_pnl=display_account_pnl,
         is_running=state.is_running,
         last_run=state.last_run,
-        initial_bankroll=settings.INITIAL_BANKROLL,
+        initial_bankroll=_initial_bankroll_for_mode(effective_mode, live_state or paper_state or testnet_state),
         paper_pnl=paper_pnl,
         paper_bankroll=paper_bankroll,
         paper_trades=paper_trades,
@@ -950,6 +955,56 @@ async def paper_topup(
         "new_initial_bankroll": state.paper_initial_bankroll,
     }
 
+
+class LiveAdjustRequest(BaseModel):
+    amount: float = Field(description="USDC amount (positive=deposit, negative=withdraw)")
+    confirm: bool = False
+
+
+@router.post("/bot/live-adjust")
+async def live_adjust(
+    body: LiveAdjustRequest, db: Session = Depends(get_db), _: None = Depends(require_admin)
+):
+    """Adjust live bankroll initial capital on deposit/withdraw."""
+    if not body.confirm:
+        raise HTTPException(status_code=400, detail="Set confirm=true to confirm.")
+    if not settings.is_mode_active("live"):
+        raise HTTPException(status_code=409, detail="live-adjust only available when live mode is active")
+
+    from backend.core.scheduler import log_event
+    from backend.models.audit_logger import log_audit_event
+
+    state = for_update(db, db.query(BotState).filter_by(mode="live")).first()
+    if state is None:
+        raise HTTPException(status_code=404, detail="Live bot state not found")
+
+    prev_initial = float(state.live_initial_bankroll or settings.INITIAL_BANKROLL)
+    new_initial = prev_initial + body.amount
+    if new_initial < 0:
+        raise HTTPException(status_code=400, detail="Cannot withdraw more than initial capital")
+
+    state.live_initial_bankroll = new_initial
+    db.commit()
+
+    action = "deposit" if body.amount > 0 else "withdrawal"
+    log_event("info", f"Live {action} ${abs(body.amount):,.2f} — initial_bankroll ${prev_initial:,.2f} → ${new_initial:,.2f}")
+    log_audit_event(
+        db,
+        event_type=f"LIVE_{action.upper()}",
+        entity_type="BOT_STATE",
+        entity_id="live",
+        old_value={"live_initial_bankroll": prev_initial},
+        new_value={"live_initial_bankroll": new_initial, action: abs(body.amount)},
+        user_id="admin_adjust",
+    )
+    db.commit()
+
+    return {
+        "status": action,
+        "previous_initial": prev_initial,
+        "adjusted": body.amount,
+        "new_initial": new_initial,
+    }
 
 
 # ============================================================================
