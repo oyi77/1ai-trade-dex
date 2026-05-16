@@ -147,7 +147,11 @@ async def run_debate_with_routing(
 
     try:
         client = MiroFishClient()
-        signals = await client.fetch_signals(market="polymarket")
+        signals = await client.fetch_signals(
+            market="polymarket",
+            question=question,
+            market_price=market_price,
+        )
 
         if signals:
             latency_ms = (time.time() - start_time) * 1000
