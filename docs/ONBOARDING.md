@@ -351,3 +351,17 @@ Key variables (see `.env.example` for full list):
 ---
 
 *Generated from knowledge graph with 3,356 nodes, 4,518 edges across 1,053 files. Interactive visualization available via `/understand-dashboard`.*
+## Current System State (May 2026)
+
+### Strategy Gating Pipeline
+All strategies now pass through Paper → Fronttest (14d) → Shadow → Live gate.
+**All strategies currently in PAPER mode** — zero real capital risk.
+
+### Key Fixes (May 17)
+- CLOB Auth fixed (balance check now works)
+- Settlement via condition_id/token_id
+- Paper trades resolve via Gamma API
+- Risk layer auto-disables on >$50 daily loss or >10% drawdown
+- line_movement_detector and btc_oracle disabled
+
+See ARCHITECTURE.md for full details.

@@ -1,4 +1,7 @@
-# Deployment & Service Management Guide
+# Deployment
+
+**Version:** v3.0 — May 2026
+**Status:** All strategies in PAPER mode, strategy gate active, risk layer enabled & Service Management Guide
 
 **Last Updated:** 2026-05-15  
 **Purpose:** Instructions for deploying PolyEdge and restarting services

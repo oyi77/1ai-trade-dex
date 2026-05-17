@@ -62,3 +62,14 @@ pytest tests/ --tb=short                      # Short traceback
 - See test_results.txt for recent runs
 - E2E tests in frontend/e2e/ (Playwright)
 - Non-blocking E2E: Playwright tests use `|| true` in CI (failures don't break build)
+
+
+## Current Test State (May 2026)
+
+### Strategy Gate — 0 tests (GAP G-22)
+`strategy_gate.py` has no unit tests. Needs coverage.
+
+### Key Areas Needing Tests
+- StrategyGate.can_execute_live()
+- check_risk_and_disable()
+- resolve_paper_trades()

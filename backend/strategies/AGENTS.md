@@ -81,3 +81,17 @@ backend/strategies/
 pytest backend/tests/test_strategy_executor.py -v
 pytest backend/tests/ -k "strategy" -v
 ```
+
+
+## Strategy Governance (May 2026)
+
+### Gate Enforcement
+Every strategy passes through StrategyGate before live orders. Checked in strategy_executor.py.
+
+### Currently DISABLED
+- `line_movement_detector` — was destroying capital
+- `btc_oracle` — was losing money
+
+### Currently PAPER (safe)
+- `crypto_oracle` — BTC/ETH/SOL 5-min markets
+- `whale_frontrun`, `cex_pm_leadlag`, `bond_scanner`

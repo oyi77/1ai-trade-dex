@@ -63,3 +63,13 @@ Operational scripts, one-off fixes, seed data tools, and production service conf
 - Run health check: `bash scripts/health-check.sh`
 - Run backup: `bash scripts/backup_with_validation.sh`
 - Configure strategies: `python scripts/configure_strategies.py --strategy btc_oracle --enable`
+
+
+## Scripts (May 2026)
+
+### Backfill Scripts
+- `backfill_unresolved_v2.py` — Resolve unresolved live trades via Gamma API
+- `backfill_unresolved_trades.py` — v1 (deprecated)
+
+### Risk & Gate
+Strategy gating is enforced in `backend/core/strategy_gate.py`. All strategies in PAPER mode.

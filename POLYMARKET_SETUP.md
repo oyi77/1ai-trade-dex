@@ -66,3 +66,19 @@ POLYMARKET_API_PASSPHRASE=your_passphrase
 - [py-clob-client Documentation](https://github.com/Polymarket/py-clob-client)
 - [Polymarket API Keys](https://polymarket.com/api-keys)
 - [EIP-712 Typed Data](https://eips.ethereum.org/EIPS/eip-712)
+
+
+## Current Status (May 2026)
+
+### CLOB Connection
+- ✅ CLOB Auth working (API key derivation fixed)
+- ✅ Wallet: `0xAd85C2F3942561AFA448cbbD5811a5f7E2e3C6Bd`
+- ✅ Builder Program enabled (gasless trading)
+- ⚠️ Balance: approximately $1,600 available
+
+### Settlement
+- ✅ Settlement via Gamma API using condition_id
+- ✅ Paper trades also resolved via Gamma
+- ✅ 470+ previously unresolved trades backfilled
+
+Risk layer auto-disables any strategy exceeding loss limits.

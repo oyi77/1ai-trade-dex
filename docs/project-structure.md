@@ -1,4 +1,6 @@
-# Project Structure
+# Project Structure (v3.0 — May 2026)
+
+**Note:** This file is a summary. See ARCHITECTURE.md for full system architecture including strategy gate, crypto oracle, and risk layer.
 
 ```
 polyedge/

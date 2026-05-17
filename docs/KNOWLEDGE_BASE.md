@@ -97,3 +97,23 @@ If you are just starting out, follow this checklist to ensure a safe launch:
 ## Need Help?
 *   If the bot stops making trades: Check the **Logs** or ensure your Polymarket wallet has USDC.
 *   If P&L is negative: Remember that trading has ups and downs. However, if a specific strategy in the **Leaderboard** is constantly losing, go to Admin and turn that strategy OFF.
+
+
+## Quick Reference (May 2026)
+
+### Strategy Pipeline
+```
+PAPER (20 trades) → FRONTTEST (14d, WR≥55%) → SHADOW (7d) → LIVE
+```
+
+### Key Numbers
+- DB PnL: $396 (reconciled with dashboard)
+- Available: ~$1,600 USDC
+- Strategies: 25 (all paper except disabled)
+- Gate: Active — blocks unauthorized live orders
+- Risk: $50/day per-strategy limit, 10% total drawdown limit
+
+### Urgent Gaps
+- WebSocket reconnection needed
+- Strategy evolution loop (AGI auto-tune)
+- Fronttest automation
