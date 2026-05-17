@@ -322,6 +322,210 @@
       "accessCount": 1,
       "lastAccessed": 1779014630333,
       "type": "directory"
+    },
+    {
+      "path": "frontend/package.json",
+      "accessCount": 1,
+      "lastAccessed": 1779037070218,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 1,
+      "lastAccessed": 1779037071504,
+      "type": "directory"
+    },
+    {
+      "path": "backend/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037078364,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/hft/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037089296,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/hooks/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037089829,
+      "type": "file"
+    },
+    {
+      "path": "frontend/e2e/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037089925,
+      "type": "file"
+    },
+    {
+      "path": "frontend/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090131,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/admin/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090196,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/dashboard/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090304,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090328,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090358,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/api/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090387,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/contexts/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037090431,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/utils/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037092252,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/types/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037092287,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/test/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037092322,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/pages/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037092341,
+      "type": "file"
+    },
+    {
+      "path": "docs/assets/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037094637,
+      "type": "file"
+    },
+    {
+      "path": "docs/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037094908,
+      "type": "file"
+    },
+    {
+      "path": "docs/operations/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037094939,
+      "type": "file"
+    },
+    {
+      "path": "docs/agi-log/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095031,
+      "type": "file"
+    },
+    {
+      "path": "docs/development/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095101,
+      "type": "file"
+    },
+    {
+      "path": "docs/architecture/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095147,
+      "type": "file"
+    },
+    {
+      "path": "docs/pitchdeck/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095178,
+      "type": "file"
+    },
+    {
+      "path": "docs/archive/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095206,
+      "type": "file"
+    },
+    {
+      "path": "docs/paper/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095258,
+      "type": "file"
+    },
+    {
+      "path": "docs/audit-reports/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037095311,
+      "type": "file"
+    },
+    {
+      "path": "docs/runbook/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037096949,
+      "type": "file"
+    },
+    {
+      "path": "docs/superpowers/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037096969,
+      "type": "file"
+    },
+    {
+      "path": "tests/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037096998,
+      "type": "file"
+    },
+    {
+      "path": "polyedge-docs/docusaurus.config.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779037097027,
+      "type": "file"
+    },
+    {
+      "path": "scripts/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037097057,
+      "type": "file"
+    },
+    {
+      "path": "frontend/public/manifest.json",
+      "accessCount": 1,
+      "lastAccessed": 1779037107769,
+      "type": "file"
+    },
+    {
+      "path": "frontend/src/components/__tests__/ErrorBoundary.test.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779037107957,
+      "type": "file"
     }
   ],
   "userDirectives": []

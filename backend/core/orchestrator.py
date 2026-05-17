@@ -288,9 +288,11 @@ class Orchestrator:
 
         result = await execute_decision(decision, "weather_emos", db=None)
         if result is None:
-            raise RuntimeError(
-                "Weather copy trade rejected by risk manager or duplicate"
+            logger.warning(
+                f"Weather copy trade rejected (non-fatal): {signal.direction} "
+                f"${signal.suggested_size:.2f} @ {price:.3f}"
             )
+            return None
 
         logger.info(
             f"Weather trade executed: {signal.direction} ${signal.suggested_size:.2f} @ {price:.3f}"
