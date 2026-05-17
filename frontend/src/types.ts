@@ -82,6 +82,66 @@ export interface Trade {
   signal_source?: string
   confidence?: number
   trading_mode?: string
+  edge_at_entry?: number | null
+  model_probability?: number | null
+  market_type?: string
+  filled_size?: number | null
+  fill_price?: number | null
+  fee?: number | null
+  slippage?: number | null
+  market_end_date?: string | null
+  blockchain_verified?: boolean
+  journal_notes?: string | null
+  journal_tags?: string[] | null
+}
+
+export interface JournalSignal {
+  reasoning: string | null
+  sources: string[] | null
+  token_id: string | null
+  kelly_fraction: number | null
+}
+
+export interface JournalAttempt {
+  factors: Record<string, unknown> | null
+  reason_code: string | null
+  latency_ms: number | null
+  phase: string | null
+}
+
+export interface JournalDecision {
+  signal_data: Record<string, unknown> | null
+  reasoning: string | null
+  outcome: string | null
+}
+
+export interface JournalEntry {
+  trade: Trade
+  signal: JournalSignal | null
+  attempt: JournalAttempt | null
+  decision: JournalDecision | null
+}
+
+export interface JournalStrategyStats {
+  trades: number
+  pnl: number
+  win_rate: number
+}
+
+export interface JournalDailyPnl {
+  date: string
+  pnl: number
+  trades: number
+}
+
+export interface JournalStats {
+  total_trades: number
+  total_pnl: number
+  win_rate: number
+  avg_edge: number
+  avg_confidence: number
+  by_strategy: Record<string, JournalStrategyStats>
+  daily_pnl: JournalDailyPnl[]
 }
 
 export interface PnlModeStats {

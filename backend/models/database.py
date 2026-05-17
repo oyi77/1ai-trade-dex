@@ -276,6 +276,10 @@ class Trade(Base):
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
 
+    # Journal
+    journal_notes = Column(Text, nullable=True)
+    journal_tags = Column(JSON, nullable=True)  # list of tag strings
+
 
 class HFTExecutionRecord(Base):
     """Audit trail for HFT strategy executions."""

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { DashboardData, Signal, Trade, BotStats, BtcPrice, BtcWindow, WeatherForecast, WeatherSignal, Setting, TradeAttemptSummary, TradeAttemptsResponse, KanbanBoard, KanbanCard } from './types'
+import type { DashboardData, Signal, Trade, BotStats, BtcPrice, BtcWindow, WeatherForecast, WeatherSignal, Setting, TradeAttemptSummary, TradeAttemptsResponse, KanbanBoard, KanbanCard, JournalEntry, JournalStats } from './types'
 import { getCsrfToken, getLegacyApiKey } from './utils/auth'
 
 const getApiBase = () => {
@@ -1079,4 +1079,39 @@ export async function createCopyPolicy(payload: Partial<CopyPolicy>): Promise<Co
 export async function updateCopyPolicy(id: number, payload: Partial<CopyPolicy>): Promise<CopyPolicy> {
   const { data } = await api.put(`/copy-policy/${id}`, payload)
   return data
+}
+
+// ── Trading Journal ────────────────────────────────────────────────────────
+
+export async function fetchJournal(params: {
+  page?: number
+  page_size?: number
+  strategy?: string
+  mode?: string
+  result?: string
+  market_type?: string
+  date_from?: string
+  date_to?: string
+  sort_by?: string
+  sort_dir?: string
+}): Promise<{ entries: JournalEntry[]; total: number; page: number; page_size: number }> {
+  const { data } = await adminApi.get('/journal', { params })
+  return data
+}
+
+export async function fetchJournalStats(params?: {
+  strategy?: string
+  mode?: string
+  days?: number
+}): Promise<JournalStats> {
+  const { data } = await adminApi.get('/journal/stats', { params })
+  return data
+}
+
+export async function updateJournalNotes(
+  tradeId: number,
+  notes: string,
+  tags: string[] = []
+): Promise<void> {
+  await adminApi.put(`/journal/${tradeId}/notes`, { notes, tags })
 }
