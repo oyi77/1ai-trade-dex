@@ -589,6 +589,15 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             except Exception as e:
                 logger.debug(f"Learning pipeline scheduling failed: {e}")
 
+        # Risk check: auto-disable strategies exceeding loss thresholds
+        try:
+            from backend.core.strategy_gate import check_risk_and_disable
+            disabled = check_risk_and_disable(db)
+            if disabled:
+                logger.warning(f"[RISK] Auto-disabled strategies: {disabled}")
+        except Exception as e:
+            logger.debug(f"Risk check failed (non-fatal): {e}")
+
         return settled_trades
 
 
