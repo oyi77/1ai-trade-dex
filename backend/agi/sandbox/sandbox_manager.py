@@ -121,7 +121,7 @@ class SandboxManager:
                 end_time = time.perf_counter()
 
                 # Calculate resource usage
-                usage = resource.getrusage(resource.RUSAGE_SELF)
+                resource.getrusage(resource.RUSAGE_SELF)
                 # Note: Real CPU/Mem metrics from subprocess are complex in Python.
                 # We'll use the wrapper's elapsed time as CPU proxy and let the OS kill if mem exceeded.
                 # Actual mem requires external monitoring or /proc
