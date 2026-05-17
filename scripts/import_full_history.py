@@ -86,8 +86,19 @@ def fetch_all_trades(wallet: str, page_size: int = 1000) -> list[dict]:
 
 
 def import_to_db(records: list[dict], dry_run: bool = False):
-    """Import activity records into Trade table."""
+    """Import activity records into Trade table using raw SQL."""
     db = SessionLocal()
+
+    # Check if journal columns exist
+    has_journal = False
+    try:
+        cols = db.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name='trades' AND column_name='journal_notes'"
+        )).fetchall()
+        has_journal = len(cols) > 0
+    except Exception:
+        pass
 
     # Get existing trade hashes to avoid duplicates
     existing = set()
@@ -101,66 +112,82 @@ def import_to_db(records: list[dict], dry_run: bool = False):
     skipped = 0
     errors = 0
 
+    # Build column list dynamically
+    base_cols = [
+        "market_ticker", "platform", "strategy", "trading_mode", "market_type",
+        "direction", "entry_price", "size", "timestamp", "source", "role",
+        "clob_order_id", "blockchain_verified", "settled", "settlement_time",
+        "result", "pnl",
+    ]
+    if has_journal:
+        base_cols.extend(["journal_notes", "journal_tags"])
+
+    col_list = ", ".join(base_cols)
+    placeholders = ", ".join([":" + c for c in base_cols])
+    insert_sql = f"INSERT INTO trades ({col_list}) VALUES ({placeholders})"
+
     for rec in records:
         try:
             rec_type = rec.get("type", "").upper()
             if rec_type not in ("TRADE", "REDEEM"):
                 continue
 
-            # Extract fields
             market_slug = rec.get("market_slug", rec.get("slug", ""))
-            title = rec.get("title", rec.get("market_slug", ""))
-            side = rec.get("side", "").upper()  # BUY or SELL
+            title = rec.get("title", market_slug)
+            side = rec.get("side", "").upper()
             asset_id = rec.get("asset_id", rec.get("assetId", ""))
-            condition_id = rec.get("condition_id", rec.get("conditionId", ""))
             size = float(rec.get("size", rec.get("usdcSize", 0)))
             price = float(rec.get("price", 0))
             timestamp_ms = int(rec.get("timestamp", rec.get("createdAt", 0)))
             tx_hash = rec.get("transaction_hash", rec.get("hash", ""))
-            outcome = rec.get("outcome", "")
-            title = rec.get("title", market_slug)
 
             if not market_slug and not title:
                 skipped += 1
                 continue
 
-            # Dedup by tx_hash + asset_id
             dedup_key = f"{tx_hash}_{asset_id}" if tx_hash else f"{market_slug}_{side}_{timestamp_ms}"
             if dedup_key in existing:
                 skipped += 1
                 continue
+
+            direction = "up" if side == "BUY" else "down"
+            if rec_type == "REDEEM":
+                direction = "up"
+
+            ts = datetime.fromtimestamp(
+                timestamp_ms / 1000 if timestamp_ms > 1e12 else timestamp_ms,
+                tz=timezone.utc
+            )
+
+            params = {
+                "market_ticker": title or market_slug,
+                "platform": "polymarket",
+                "strategy": "imported",
+                "trading_mode": "live",
+                "market_type": "polymarket",
+                "direction": direction,
+                "entry_price": price,
+                "size": size / 100 if size > 1000 else size,
+                "timestamp": ts,
+                "source": "history_import",
+                "role": "unknown",
+                "clob_order_id": dedup_key,
+                "blockchain_verified": False,
+                "settled": (rec_type == "REDEEM"),
+                "settlement_time": ts if rec_type == "REDEEM" else None,
+                "result": "win" if rec_type == "REDEEM" else "pending",
+                "pnl": None,
+            }
+            if has_journal:
+                params["journal_notes"] = None
+                params["journal_tags"] = None
 
             if dry_run:
                 print(f"  [DRY] Would import: {title} {side} ${size:.2f} @ {price:.4f}")
                 imported += 1
                 continue
 
-            # Determine direction
-            direction = "up" if side == "BUY" else "down"
-            if rec_type == "REDEEM":
-                direction = "up"  # redeems are wins
-
-            # Create trade
-            trade = Trade(
-                market_ticker=title or market_slug,
-                platform="polymarket",
-                direction=direction,
-                entry_price=price,
-                size=size / 100 if size > 1000 else size,  # normalize USDC units
-                trading_mode="live",
-                market_type="polymarket",
-                strategy="imported",
-                source="history_import",
-                clob_order_id=dedup_key,
-                settled=(rec_type == "REDEEM"),
-                timestamp=datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc) if timestamp_ms > 1e12 else datetime.fromtimestamp(timestamp_ms, tz=timezone.utc),
-            )
-
-            if rec_type == "REDEEM":
-                trade.result = "win"
-                trade.settlement_time = trade.timestamp
-
-            db.add(trade)
+            db.execute(text(insert_sql), params)
             existing.add(dedup_key)
             imported += 1
 
