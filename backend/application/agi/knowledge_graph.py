@@ -101,20 +101,28 @@ def _query_best_genes_volatile_regime(db: Session, params: Dict[str, Any]) -> Li
         )
     ).all()
 
-    result = []
-    for strategy in volatile_strategies:
-        # Find genes associated with this strategy
-        genes = db.query(KgNode).join(
-            KgEdge, KgEdge.to_node_id == KgNode.node_id
-        ).filter(
-            and_(
-                KgEdge.from_node_id == strategy.node_id,
-                KgEdge.relationship == "HAS_GENE",
-                KgNode.node_type == "gene"
-            )
-        ).all()
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    strategy_ids = [s.node_id for s in volatile_strategies]
+    strategy_dict = {s.node_id: s for s in volatile_strategies}
 
-        for gene in genes:
+    result = []
+    if not strategy_ids:
+        return result
+
+    # Find all genes associated with these strategies
+    genes = db.query(KgNode, KgEdge.from_node_id).join(
+        KgEdge, KgEdge.to_node_id == KgNode.node_id
+    ).filter(
+        and_(
+            KgEdge.from_node_id.in_(strategy_ids),
+            KgEdge.relationship == "HAS_GENE",
+            KgNode.node_type == "gene"
+        )
+    ).all()
+
+    for gene, strategy_id in genes:
+        strategy = strategy_dict.get(strategy_id)
+        if strategy:
             result.append({
                 "strategy": strategy.label,
                 "gene": gene.label,
@@ -174,20 +182,28 @@ def _query_highest_alpha_by_category(db: Session, params: Dict[str, Any]) -> Lis
         )
     ).all()
 
-    result = []
-    for strategy in stat_arb_strategies:
-        # Find markets this strategy traded on
-        markets = db.query(KgNode).join(
-            KgEdge, KgEdge.to_node_id == KgNode.node_id
-        ).filter(
-            and_(
-                KgEdge.from_node_id == strategy.node_id,
-                KgEdge.relationship == "TRADED_ON",
-                KgNode.node_type == "market"
-            )
-        ).all()
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    strategy_ids = [s.node_id for s in stat_arb_strategies]
+    strategy_dict = {s.node_id: s for s in stat_arb_strategies}
 
-        for market in markets:
+    result = []
+    if not strategy_ids:
+        return result
+
+    # Find all markets these strategies traded on
+    markets = db.query(KgNode, KgEdge.from_node_id).join(
+        KgEdge, KgEdge.to_node_id == KgNode.node_id
+    ).filter(
+        and_(
+            KgEdge.from_node_id.in_(strategy_ids),
+            KgEdge.relationship == "TRADED_ON",
+            KgNode.node_type == "market"
+        )
+    ).all()
+
+    for market, strategy_id in markets:
+        strategy = strategy_dict.get(strategy_id)
+        if strategy:
             result.append({
                 "strategy": strategy.label,
                 "market": market.label,
@@ -209,25 +225,38 @@ def _query_legend_mutation_path(db: Session, params: Dict[str, Any]) -> List[Dic
         )
     ).all()
 
-    result = []
-    for strategy in legend_strategies:
-        # Find mutation paths
-        mutations = db.query(KgEdge).filter(
-            and_(
-                KgEdge.to_node_id == strategy.node_id,
-                KgEdge.relationship == "MUTATED_FROM"
-            )
-        ).all()
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    strategy_ids = [s.node_id for s in legend_strategies]
+    strategy_dict = {s.node_id: s for s in legend_strategies}
 
-        for mutation in mutations:
-            # Get parent strategy
-            parent = db.query(KgNode).filter(KgNode.node_id == mutation.from_node_id).first()
-            if parent:
-                result.append({
-                    "legend_strategy": strategy.label,
-                    "mutated_from": parent.label,
-                    "mutation_weight": mutation.weight
-                })
+    result = []
+    if not strategy_ids:
+        return result
+
+    # Find all mutation paths
+    mutations = db.query(KgEdge).filter(
+        and_(
+            KgEdge.to_node_id.in_(strategy_ids),
+            KgEdge.relationship == "MUTATED_FROM"
+        )
+    ).all()
+
+    if not mutations:
+        return result
+
+    parent_ids = [m.from_node_id for m in mutations]
+    parents = db.query(KgNode).filter(KgNode.node_id.in_(parent_ids)).all()
+    parent_dict = {p.node_id: p for p in parents}
+
+    for mutation in mutations:
+        parent = parent_dict.get(mutation.from_node_id)
+        strategy = strategy_dict.get(mutation.to_node_id)
+        if parent and strategy:
+            result.append({
+                "legend_strategy": strategy.label,
+                "mutated_from": parent.label,
+                "mutation_weight": mutation.weight
+            })
 
     # Sort by mutation weight descending
     result.sort(key=lambda x: x["mutation_weight"], reverse=True)

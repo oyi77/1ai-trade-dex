@@ -147,7 +147,7 @@ async def test_routing_mirofish_enabled_success(mock_db, sample_mirofish_signals
         assert result.consensus_probability > 0.60
         assert "mirofish_model_a" in result.reasoning
         assert result.data_sources == ["mirofish"]
-        mock_client.fetch_signals.assert_called_once_with(market="polymarket")
+        mock_client.fetch_signals.assert_called_once_with(market="polymarket", question="Test question", market_price=0.55)
 
 
 @pytest.mark.asyncio
