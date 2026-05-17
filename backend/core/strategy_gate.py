@@ -287,3 +287,67 @@ def _check_shadow(strategy_name: str, db: Session) -> dict:
         "win_rate": wr,
         "pnl": pnl,
     }
+
+
+# =========================================================================
+# Risk Layer — auto-disable strategies that exceed loss thresholds
+# =========================================================================
+
+MAX_DAILY_LOSS_PER_STRATEGY = 50.0  # USD
+MAX_TOTAL_DRAWDOWN_PCT = 10.0       # % of total balance
+
+
+def check_risk_and_disable(db) -> list[str]:
+    """
+    Check all enabled strategies against risk thresholds.
+    Auto-disable any that exceed limits.
+    Returns list of disabled strategy names.
+    """
+    from sqlalchemy import text
+    from datetime import datetime, timezone
+
+    disabled = []
+    today = datetime.now(timezone.utc).date()
+
+    # 1. Per-strategy daily loss check
+    strats = db.execute(text("""
+        SELECT strategy_name FROM strategy_config 
+        WHERE enabled = true AND mode = 'live'
+    """)).fetchall()
+
+    for (sname,) in strats:
+        daily_loss = db.execute(text("""
+            SELECT COALESCE(SUM(pnl), 0) FROM trades
+            WHERE strategy = :s AND trading_mode = 'live'
+              AND DATE(timestamp) = :today
+              AND result = 'loss'
+        """), {"s": sname, "today": today}).scalar() or 0
+
+        if abs(daily_loss) > MAX_DAILY_LOSS_PER_STRATEGY:
+            db.execute(text("""
+                UPDATE strategy_config SET enabled = false
+                WHERE strategy_name = :s
+            """), {"s": sname})
+            disabled.append(f"{sname}: daily loss ${abs(daily_loss):.2f} > ${MAX_DAILY_LOSS_PER_STRATEGY}")
+            logger.warning(f"[RISK] Auto-disabled {sname}: daily loss ${abs(daily_loss):.2f}")
+
+    # 2. Total drawdown check
+    total_pnl = db.execute(text("""
+        SELECT COALESCE(SUM(pnl), 0) FROM trades
+        WHERE trading_mode = 'live' AND settled = true
+    """)).scalar() or 0
+    initial = 100.0
+    drawdown_pct = abs(min(0, total_pnl)) / initial * 100
+
+    if drawdown_pct > MAX_TOTAL_DRAWDOWN_PCT and total_pnl < 0:
+        db.execute(text("""
+            UPDATE strategy_config SET enabled = false
+            WHERE mode = 'live' AND enabled = true
+        """))
+        disabled.append(f"ALL LIVE: drawdown {drawdown_pct:.1f}% > {MAX_TOTAL_DRAWDOWN_PCT}%")
+        logger.warning(f"[RISK] EMERGENCY: All live strats disabled ({drawdown_pct:.1f}% drawdown)")
+
+    if disabled:
+        db.commit()
+
+    return disabled

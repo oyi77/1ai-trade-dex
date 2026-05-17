@@ -156,6 +156,8 @@ polyedge/
 │   │   ├── agi_types.py       # AGI data types and enums
 │   │   ├── agi_jobs.py         # AGI background job definitions
 │   │   ├── agi_promotion_pipeline.py # shadow→paper→live promotion
+│   ├── strategy_gate.py # STRATEGY GATE: paper→fronttest→shadow→live pipeline
+│   ├── fronttest_validator.py # 14-day paper trial gate before live
 │   │   ├── self_debugger.py    # API failure diagnosis and recovery
 │   │   ├── strategy_synthesizer.py # LLM-driven strategy code generation
 │   │   ├── experiment_runner.py # Sandboxed strategy testing
@@ -169,6 +171,8 @@ polyedge/
 │   │   ├── market_maker.py    # Market making with inventory
 │   │   ├── kalshi_arb.py      # Cross-platform arbitrage
 │   │   ├── order_executor.py  # Order placement + management
+│   │   ├── crypto_oracle.py  # Multi-asset (BTC, ETH, SOL) 5-min microstructure
+│   │   ├── line_movement_detector.py # Sharp price movement detection
 │   │   └── registry.py        # Strategy registration
 │   ├── ai/                    # AI signal providers
 │   │   ├── ensemble.py        # Multi-provider ensemble

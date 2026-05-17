@@ -418,3 +418,30 @@ The Polyedge trading bot is now hardened for production deployment with enterpri
 - [Testing Guide](docs/development/testing.md)
 - [API Reference](docs/api.md)
 - [Configuration Guide](docs/configuration.md)
+
+## [2026-05-17] — Major System Overhaul
+
+### Added
+- **Strategy Gating Pipeline** (): Paper → Fronttest (14d) → Shadow → Live gate. Enforces min trades (20), win rate (55%), and PnL (>0) before live deployment. Integrated into strategy_executor.py to block unauthorized live orders.
+- **Paper Trade Settlement** (): Paper trades now resolve via Gamma API outcome prices instead of always being "wins". Historical paper data flagged as `simulated_unverified`.
+- **CLOB Auth Fix**: API key derivation before balance checks (was calling get_wallet_balance() without authentication).
+- **token_id + condition_id columns** added to trades table for proper settlement resolution.
+- **crypto_oracle strategy** enabled (paper mode): Multi-asset support for BTC, ETH, SOL 5-min markets.
+- **rtk CLI** installed (v0.40.0): 99.2% token savings on command outputs.
+
+### Fixed
+- **CLOB wallet balance unavailable** — health check now derives API key first.
+- **470+ unresolved trades** — backfilled via Gamma API resolution.
+- **line_movement_detector** — DISABLED (was destroying capital at 86% WR due to 0.99 entry prices).
+- **btc_oracle** — DISABLED (569Xf407 live loss).
+- **Lifespan typo**: `create_or_derive_api_creds()` → `create_or_derive_api_key()`.
+- **DB PnL reconciled** with Polymarket dashboard ( match).
+
+### Merged
+- PR #123: N+1 query optimization in knowledge graph.
+- PR #95 (39K lines): Plugin system refactoring + AGI self-improvement system.
+
+### Changed
+- ALL strategies reverted to paper/shadow mode — no live risk.
+- Paper historical data (11,288 trades) marked as `simulated_unverified`.
+- 302 paper trades verified via Gamma settlement.

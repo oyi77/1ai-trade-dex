@@ -44,6 +44,34 @@ All SSE and WebSocket routes must go through `authorize_realtime_access()` in `b
 
 Killed strategies (disabled by AGI health check) must not be manually re-enabled. The authoritative enabled/disabled state is `StrategyConfig` in the DB, not any file. See `backend/strategies/AGENTS.md` for the full governance table.
 
+## Strategy Gating Pipeline
+
+Every strategy must pass through this pipeline before live deployment:
+
+```
+PAPER (min 20 verified trades)
+  → FRONTTEST (14d, WR≥55%, PnL>0)
+    → SHADOW (7d, parallel to live without orders)
+      → LIVE (only when gate approves)
+```
+
+The gate is enforced in `strategy_executor.py` at the CLOB order placement point. Use `StrategyGate.can_execute_live()` to check before any live order.
+
+Currently ALL strategies are in PAPER mode (safe, no real capital risk).
+
+## Risk Layer — Auto-Disable
+
+If the system detects ANY of these, ALL live strategies are immediately disabled:
+- Total balance drawdown > 10% in 24 hours
+- Per-strategy loss > $50/day
+- Any strategy with backtest WR < 50% being promoted
+
+The risk layer lives in `backend/core/strategy_gate.py` and runs on every heartbeat.
+
+## Crypto Oracle
+
+`crypto_oracle` strategy supports BTC, ETH, and SOL 5-min prediction markets on Polymarket. It generalizes the old btc_oracle to multiple assets via CoinGecko price feeds and CLOB WebSocket subscriptions. Currently enabled in PAPER mode.
+
 ## auto_trader is not a strategy
 
 `backend/core/auto_trader.py` is an execution router. Trade attribution uses `Signal.track_name` to preserve the originating strategy name.
