@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"python -m pytest backend/tests/ -q 2>&1 | tail -3 && cd frontend && npm run test -- --run 2>&1 | tail -6\",\"description\":\"Post-deslop regression check\"}",
-  "error": "Exit code 1\n\n\nno tests ran in 0.00s\n(eval):cd:1: no such file or directory: frontend\n[rerun: b20]",
-  "timestamp": "2026-04-07T14:22:11.241Z",
+  "tool_input_preview": "{\"command\":\"cd frontend && npx vite build 2>&1 | tail -15\",\"timeout\":120000,\"description\":\"Vite build only\"}",
+  "error": "Exit code 1",
+  "timestamp": "2026-05-17T18:02:41.859Z",
   "retry_count": 1
 }

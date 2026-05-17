@@ -216,6 +216,68 @@
       "message": "critical error",
       "details": {},
       "timestamp": 1778814364.852736
+    },
+    {
+      "event_id": "9c84d324-21b",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779038606.423251
+    },
+    {
+      "event_id": "52539706-759",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779038606.4371324
+    },
+    {
+      "event_id": "2b52b129-9cb",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779038606.4791775
+    },
+    {
+      "event_id": "ca659ca5-8f8",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779038651.6950889
+    },
+    {
+      "event_id": "ba3c0bf7-715",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779038651.7047973
+    },
+    {
+      "event_id": "06f85d00-5c6",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779038651.7351527
     }
   ],
   "actions": [
@@ -281,6 +343,24 @@
       "success": true,
       "duration_ms": 0.0,
       "timestamp": 1778814364.8087933
+    },
+    {
+      "action_id": "8e6bfe46-7b3",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779038606.4505987
+    },
+    {
+      "action_id": "b0dc66f4-21f",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779038651.7146301
     }
   ]
 }
