@@ -32,6 +32,10 @@ class MockSettings:
     NEW_STRATEGY_RAMP_PCT: float = 0.01
     NEW_STRATEGY_MIN_TRADES: int = 20
     MIN_ARCHETYPE_DIVERSITY: int = 5
+    MIN_TRADE_EV: float = 0.10
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30
+    CATEGORY_MIN_EDGE: dict = None
 
     def __post_init__(self):
         if self.DRAWDOWN_BREAKER_ENABLED_PER_MODE is None:
@@ -45,6 +49,16 @@ class MockSettings:
                 "paper": True,
                 "testnet": True,
                 "live": True,
+            }
+        if self.CATEGORY_MIN_EDGE is None:
+            self.CATEGORY_MIN_EDGE = {
+                "finance": 0.05,
+                "politics": 0.03,
+                "sports": 0.02,
+                "crypto": 0.02,
+                "entertainment": 0.01,
+                "weather": 0.02,
+                "uncategorized": 0.03,
             }
 
 

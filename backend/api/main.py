@@ -400,7 +400,7 @@ async def health_check(db: Session = Depends(get_db)):
     # ── Evolution Harness ──
     evolution_harness_health = {}
     try:
-        from backend.core.evolution_harness import create_evolution_backend, PopulationStats
+        from backend.core.evolution_harness import create_evolution_backend
         _backend = create_evolution_backend()
         evolution_harness_health = {
             "status": "ok",
@@ -438,7 +438,7 @@ async def health_check(db: Session = Depends(get_db)):
     # ── Correlation Monitor ──
     correlation_monitor_health = {}
     try:
-        from backend.core.correlation_monitor import MARKET_CATEGORIES, CorrelationMonitor
+        from backend.core.correlation_monitor import MARKET_CATEGORIES
         correlation_monitor_health = {
             "status": "ok",
             "categories_tracked": len(MARKET_CATEGORIES),
