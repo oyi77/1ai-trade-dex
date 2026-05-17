@@ -36,7 +36,7 @@ class SandboxManager:
         (e.g. RLIMIT_AS is unavailable on macOS).
         """
         limits = [
-            ("RLIMIT_CPU", resource.RLIMIT_CPU, (1, 1)),
+            ("RLIMIT_CPU", resource.RLIMIT_CPU, (5, 5)),
             ("RLIMIT_AS", resource.RLIMIT_AS, (200 * 1024 * 1024, 200 * 1024 * 1024)),
             ("RLIMIT_CORE", resource.RLIMIT_CORE, (0, 0)),
         ]
@@ -103,7 +103,7 @@ class SandboxManager:
                 )
 
                 try:
-                    stdout, stderr = process.communicate(timeout=2.0)
+                    stdout, stderr = process.communicate(timeout=5.0)
                     output = stdout if stdout else stderr
                     status = "passed" if process.returncode == 0 else "failed"
                     killed = False

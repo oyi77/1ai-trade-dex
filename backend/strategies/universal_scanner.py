@@ -383,9 +383,22 @@ class UniversalScanner(BaseStrategy):
         if not (0.0 < price < 1.0):
             return None
 
-        no_price = 1.0 - price
-        implied_prob = 1.0 - no_price
-        edge = price - implied_prob
+        # Compute edge from bid-ask spread or price displacement from 0.5
+        # The old code (implied_prob = 1.0 - (1.0 - price) = price) always gave edge=0
+        bid = data.get("bid")
+        ask = data.get("ask")
+        if bid is not None and ask is not None:
+            try:
+                bid, ask = float(bid), float(ask)
+                mid = (bid + ask) / 2.0
+                # Edge = how far mid is from fair value (0.5 for binary markets)
+                # Positive = YES underpriced, Negative = NO underpriced
+                edge = mid - 0.5
+            except (ValueError, TypeError):
+                edge = price - 0.5
+        else:
+            # No bid/ask: use price displacement from fair value
+            edge = price - 0.5
 
         if abs(edge) < self.default_params["min_edge"]:
             return None

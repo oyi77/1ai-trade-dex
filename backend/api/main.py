@@ -318,7 +318,7 @@ async def health_check(db: Session = Depends(get_db)):
             else:
                 checks["polymarket_clob"] = {
                     "status": "error",
-                    "error": balance.get("error", "wallet balance unavailable"),
+                    "error": "wallet balance unavailable",
                 }
                 if overall_status == "ok":
                     overall_status = "degraded"
