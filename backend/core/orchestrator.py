@@ -60,13 +60,20 @@ class Orchestrator:
 
         if settings.is_mode_active("live"):
             logger.info("Live mode: deriving API credentials from private key...")
-            creds = await self._clob_clients["live"].create_or_derive_api_key()
-            if not creds:
-                raise RuntimeError(
-                    "Failed to derive Polymarket API credentials from private key. "
-                    "Check POLYMARKET_PRIVATE_KEY in .env."
+            try:
+                creds = await self._clob_clients["live"].create_or_derive_api_key()
+                if creds:
+                    logger.info("API credentials derived successfully.")
+                else:
+                    logger.warning(
+                        "Failed to derive API credentials. Bot will continue in degraded mode. "
+                        "CLOB balance checks and live orders will be unavailable."
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"API credential derivation failed: {e}. "
+                    f"Bot continuing in degraded mode."
                 )
-            logger.info("API credentials derived successfully.")
 
         if settings.TELEGRAM_BOT_TOKEN:
             from backend.bot.telegram_bot import bot_from_settings
