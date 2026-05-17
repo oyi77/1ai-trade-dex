@@ -162,3 +162,106 @@ Phase 3 (Future):
   □ Architecture refactor using rqalpha/lumibot patterns
   □ OctoBot-style deployment pipeline
 ```
+
+---
+
+## 📈 Proven Strategies (from Open Source)
+
+### Crypto 5-min / 15-min Markets
+
+| Repo | Stars | Strategy | Win Rate | Adaptable? |
+|---|---|---|---|---|
+| **4coinsbot** | 88⭐ | Multi-coin BTC/ETH/SOL 15-min | N/A | ✅ Strategy pattern for polymarket 15-min |
+| **polyrec** | 307⭐ | Real-time BTC 15-min terminal dashboard | N/A | ✅ Monitoring UI reference |
+| **polymarket-btc-autotrader** | 12⭐ | Autonomous BTC & SOL | 100% ARB | ✅ Claims 100% WR on arbitrage leg |
+| **PolyHFT-Autotrading-V3** | 10⭐ | HFT for crypto Up/Down | N/A | ✅ HFT execution pattern |
+
+### Arbitrage
+
+| Repo | Stars | Strategy | Notes |
+|---|---|---|---|
+| **prediction-market-arbitrage-bot** | 152⭐ | Cross-platform (Polymarket ↔ Kalshi) | 🎯 Most applicable — similar to our `kalshi_arb` |
+| **Trum3it/polymarket-arbitrage-bot** | 34⭐ | Rust-based ETH/BTC spread monitor | Could learn from Rust performance |
+
+### Weather Markets
+
+| Repo | Stars | Strategy | Notes |
+|---|---|---|---|
+| **polymarket-kalshi-weather-bot** | 394⭐ | Weather temp markets (Polymarket + Kalshi) | 🎯 Similar to our `weather_emos` |
+| **hermes_weatherbot** | 12⭐ | Exploits weather forecast errors | 🎯 Novel angle — forecast error arb |
+
+### Copy Trading
+
+| Repo | Stars | Strategy | Notes |
+|---|---|---|---|
+| **OctoBot-Prediction-Market** | 82⭐ | Polymarket copy trading | Fork of OctoBot for prediction markets |
+
+### Toolkits / Platforms
+
+| Repo | Stars | Use |
+|---|---|---|
+| **polymarket-crypto-toolkit** | 57⭐ | Composable Python toolkit for Polymarket algo trading |
+| **homerun** | 63⭐ | Open-source prediction market trading platform |
+| **polyrec** | 307⭐ | Real-time Polymarket BTC dashboard (terminal UI) |
+
+---
+
+## 🤖 Additional AI / Data Providers
+
+### AI Providers (untapped)
+| Provider | Type | Why |
+|---|---|---|
+| **Hyperbolic** | GPU compute + AI inference | Cheaper than OpenAI for AGI pipeline |
+| **Together.ai** | LLM inference API | 200+ models, lower cost |
+| **Groq** (already used) | Fast LLM inference | ✅ Already integrated |
+| **Claude** (already used) | Anthropic API | ✅ Already integrated |
+
+### Market Data Providers (untapped)
+| Provider | Data | Why |
+|---|---|---|
+| **Hyperliquid** | Crypto perp + spot data | Prediction markets on Hyperliquid |
+| **Limitless** | Prediction markets | Alternative to Polymarket |
+| **Myriad Markets** | Prediction markets | Open source prediction market |
+
+---
+
+## 📚 Academic Papers & Research
+
+### Prediction Market Efficiency
+- **"Prediction Markets: A Review"** — Rhodes-Kropf, 2023
+- **"Information Aggregation in Prediction Markets"** — Wolfers & Zitzewitz
+- **"Betting on Beta"** — How prediction market prices relate to statistical probabilities
+
+### ML for Prediction Markets
+- LSTM networks for short-term price movement in binary markets
+- Transformer models for multi-outcome market resolution
+- Bayesian updating for forecast combination
+
+### Strategy Papers
+- Kelly Criterion variants for prediction markets (asymmetric payoffs)
+- Arbitrage detection across prediction market platforms
+- Market microstructure of CLOB-based prediction markets
+
+---
+
+## 🗺️ Full Implementation Roadmap (Updated May 18, 2026)
+
+```
+Phase 1 (Now):
+  □ Replace paper mode with polymarket-paper-trader (MCP-based)
+  □ Validate backtest accuracy against Strategy Backtester
+  □ Study 4coinsbot for multi-coin strategy patterns
+
+Phase 2 (Next):
+  □ Evaluate PMXT integration (replace CLOB client)
+  □ Adopt Polymarket/agents RAG pipeline
+  □ Integrate Polymarket_data dataset for ML training
+  □ Study arbitrage bot patterns (prediction-market-arbitrage-bot)
+
+Phase 3 (Future):
+  □ PyBroker backtesting integration
+  □ Weather forecast error arb (hermes_weatherbot pattern)
+  □ OctoBot-style deployment pipeline
+  □ Hyperliquid prediction market support
+  □ Rust-based arb bot components
+```
