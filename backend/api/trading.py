@@ -280,7 +280,7 @@ async def get_trades(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    limit = min(limit, 500)
+    limit = min(limit, 10000)
     query = db.query(Trade)
     if status:
         query = query.filter(Trade.result == status)
