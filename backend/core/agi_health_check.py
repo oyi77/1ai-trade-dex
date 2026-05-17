@@ -23,6 +23,7 @@ class AGIHealthChecker:
             results["budget"] = self._check_budget(db)
             results["scheduler"] = self._check_scheduler()
             results["orphaned_positions"] = self._check_orphaned_positions(db)
+            results["disk_space"] = self._check_disk_space()
 
             passed = sum(1 for v in results.values() if v.get("healthy", False))
             total = len(results)
@@ -143,6 +144,56 @@ class AGIHealthChecker:
                 .count()
             )
             return {"healthy": orphans == 0, "orphaned_count": orphans}
+        except Exception as e:
+            return {"healthy": False, "error": str(e)}
+
+
+    def _check_disk_space(self) -> dict:
+        """Check disk usage for the DB partition and data directories."""
+        import shutil
+        import os
+
+        try:
+            from backend.config import ROOT_DIR
+            data_dir = str(ROOT_DIR)
+
+            usage = shutil.disk_usage(data_dir)
+            used_pct = (usage.used / usage.total) * 100
+            free_gb = usage.free / (1024 ** 3)
+            total_gb = usage.total / (1024 ** 3)
+
+            warn_pct = getattr(settings, "DISK_SPACE_WARN_PCT", 90.0)
+            healthy = used_pct < warn_pct
+
+            result = {
+                "healthy": healthy,
+                "used_pct": round(used_pct, 1),
+                "free_gb": round(free_gb, 1),
+                "total_gb": round(total_gb, 1),
+            }
+
+            # Check DB file size if SQLite
+            db_url = settings.DATABASE_URL
+            if db_url.startswith("sqlite"):
+                db_path = db_url.replace("sqlite:///", "").replace("./", "")
+                if not os.path.isabs(db_path):
+                    db_path = os.path.join(data_dir, db_path)
+                if os.path.exists(db_path):
+                    db_size_mb = os.path.getsize(db_path) / (1024 ** 2)
+                    max_db_mb = getattr(settings, "DISK_SPACE_MAX_DB_SIZE_MB", 5000.0)
+                    result["db_size_mb"] = round(db_size_mb, 1)
+                    result["max_db_size_mb"] = max_db_mb
+                    if db_size_mb > max_db_mb:
+                        result["healthy"] = False
+                        result["db_oversized"] = True
+
+            if not healthy:
+                logger.warning(
+                    "[AGIHealth] Disk usage at %.1f%% (threshold: %.1f%%), free: %.1f GB",
+                    used_pct, warn_pct, free_gb,
+                )
+
+            return result
         except Exception as e:
             return {"healthy": False, "error": str(e)}
 
