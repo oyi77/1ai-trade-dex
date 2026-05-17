@@ -199,3 +199,35 @@ See `docs/operations/scalability.md` for rate limiting details.
 
 Admin endpoints require authentication via cookie login (`POST /api/v1/admin/auth/login`) and CSRF for mutating requests.  
 Legacy `Authorization: Bearer <ADMIN_API_KEY>` remains supported for backward compatibility on REST endpoints.
+
+## Strategy Gate API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/backtest/strategies` | GET | List available backtest strategies |
+| `/api/v1/backtest/run` | POST | Run backtest for a strategy |
+| `/api/v1/backtest/history` | GET | Backtest run history |
+| `/api/v1/agi/proposals` | GET | List AGI strategy proposals |
+| `/api/v1/agi/validate` | POST | Validate strategy for pipeline promotion |
+| `/api/v1/settings` | GET | Get strategy settings including gate status |
+| `/api/v1/settings/strategies` | GET | List strategy config with enabled/mode |
+
+## Strategy Gate Status
+
+All strategies currently run in **PAPER** mode. The gate pipeline enforces:
+
+1. **Paper** (min 20 verified trades via Gamma)
+2. **Fronttest** (14d, WR ≥ 55%, PnL > 0)
+3. **Shadow** (7d parallel, no real orders)
+4. **Live** (approved by gate + risk layer)
+
+The gate is enforced at the CLOB order placement point in `strategy_executor.py`.
+Risk layer auto-disables strategies on >$50 daily loss or >10% total drawdown.
+
+## Risk & Settlement
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/settle-trades` | POST | Check settlements for pending trades |
+| `/api/v1/risk/status` | GET | Current risk layer status (disabled strategies) |
+
