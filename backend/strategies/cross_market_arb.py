@@ -178,6 +178,7 @@ class CrossMarketArb(BaseStrategy):
     category = "arb"
     default_params = {
         "min_profit": settings.CROSS_MARKET_ARB_MIN_PROFIT,
+        "min_spread_pct": getattr(settings, "CROSS_ARB_MIN_SPREAD_PCT", 0.013),
         "enabled": True,
     }
 
@@ -203,6 +204,13 @@ class CrossMarketArb(BaseStrategy):
                         continue
 
                     kalshi_price = float(kalshi_m.get("price", 0.5))
+
+                    # Min spread threshold: only trade when spread > 1.3% (covers fees)
+                    spread_pct = abs(poly_price - kalshi_price)
+                    min_spread = self.default_params.get("min_spread_pct", 0.013)
+                    if spread_pct < min_spread:
+                        continue
+
                     opp = detect_cross_arb(poly_price, kalshi_price)
 
                     if opp and opp.net_profit >= self.default_params["min_profit"]:

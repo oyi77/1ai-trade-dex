@@ -337,6 +337,7 @@ class ConfigRegistry:
     CROSS_MARKET_ARB_POLYMARKET_FEE: float = 0.01
     CROSS_MARKET_ARB_KALSHI_FEE: float = 0.01
     CROSS_MARKET_ARB_MIN_SPREAD: float = 0.03
+    CROSS_ARB_MIN_SPREAD_PCT: float = 0.013  # 1.3% minimum spread to cover fees
 
     # General Market Scanner
     GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.02
@@ -421,6 +422,8 @@ class ConfigRegistry:
     CRYPTO_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.05
     CRYPTO_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
     CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.30
+    CRYPTO_ORACLE_MIN_PRICE_BUCKET: float = 0.35  # reject trades below 35c (negative EV territory)
+    CRYPTO_ORACLE_MAX_PRICE_BUCKET: float = 0.65  # reject trades above 65c (negative EV territory)
 
     # Time filters
     MIN_TIME_REMAINING: int = 60  #min time remaining in seconds
@@ -478,10 +481,11 @@ class ConfigRegistry:
     POLYMARKET_WALLET_ADDRESS: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
-    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_ENABLED: bool = True
     AUTO_REDEEM_DRY_RUN: bool = True
     AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
     AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
+    AUTO_REDEEM_DB_SCAN_ENABLED: bool = True
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     KALSHI_ENABLED: bool = False
@@ -847,6 +851,24 @@ class ConfigRegistry:
     })
 
     # --------------------------------------------------------------------------
+    # EV_FILTERS - Expected value and longshot bias filters
+    # --------------------------------------------------------------------------
+    MIN_TRADE_EV: float = 0.10  # Minimum expected value ($0.10) to accept a trade
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30  # Reject YES trades below this price
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30  # Boost NO trades below this price
+
+    # Category-specific minimum edge requirements (by efficiency)
+    CATEGORY_MIN_EDGE: Dict[str, float] = field(default_factory=lambda: {
+        "finance": 0.05,        # Nearly efficient — high bar
+        "politics": 0.03,       # Moderate
+        "sports": 0.02,         # Good target
+        "crypto": 0.02,         # Good target
+        "entertainment": 0.01,  # Highest edge opportunity
+        "weather": 0.02,        # Good target
+        "uncategorized": 0.03,  # Default
+    })
+
+    # --------------------------------------------------------------------------
     # ARBITRAGE - Arbitrage detection parameters
     # --------------------------------------------------------------------------
     ARBITRAGE_DETECTOR_ENABLED: bool = False
@@ -1189,10 +1211,11 @@ class Settings(BaseSettings):
     # Polymarket Relayer API (gasless on-chain operations)
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
-    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_ENABLED: bool = True
     AUTO_REDEEM_DRY_RUN: bool = True
     AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
     AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
+    AUTO_REDEEM_DB_SCAN_ENABLED: bool = True
 
     # Kalshi API
     KALSHI_API_KEY_ID: Optional[str] = None
@@ -1281,6 +1304,18 @@ class Settings(BaseSettings):
         "crypto": 1.10,
         "weather": 1.15,
         "entertainment": 1.15,
+    }
+    MIN_TRADE_EV: float = 0.10  # Minimum expected value ($0.10) to accept a trade
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30  # Reject YES trades below this price
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30  # Boost NO trades below this price
+    CATEGORY_MIN_EDGE: dict = {
+        "finance": 0.05,
+        "politics": 0.03,
+        "sports": 0.02,
+        "crypto": 0.02,
+        "entertainment": 0.01,
+        "weather": 0.02,
+        "uncategorized": 0.03,
     }
     MAX_TRADE_SIZE: float = 100.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)

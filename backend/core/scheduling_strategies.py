@@ -860,6 +860,7 @@ async def auto_redeem_job() -> None:
         return
 
     dry_run = bool(getattr(settings, "AUTO_REDEEM_DRY_RUN", True))
+    db_scan = bool(getattr(settings, "AUTO_REDEEM_DB_SCAN_ENABLED", True))
     timeout_seconds = float(getattr(settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 120.0))
 
     try:
@@ -874,6 +875,7 @@ async def auto_redeem_job() -> None:
                 builder_secret=getattr(settings, "POLYMARKET_BUILDER_SECRET", None),
                 builder_passphrase=getattr(settings, "POLYMARKET_BUILDER_PASSPHRASE", None),
                 dry_run=dry_run,
+                db_scan=db_scan,
             ),
             timeout=timeout_seconds,
         )

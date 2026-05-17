@@ -227,18 +227,94 @@ class ExecutorAgent(BaseAgent):
 class HistorianAgent(BaseAgent):
     """Knowledge graph management, pattern storage, trade forensics."""
 
+    def __init__(self, kg: Optional[Any] = None) -> None:
+        super().__init__()
+        self._kg = kg
+
+    def _ensure_kg(self) -> Any:
+        if self._kg is None:
+            from backend.core.knowledge_graph import KnowledgeGraph
+            self._kg = KnowledgeGraph()
+        return self._kg
+
+    def can_handle(self, message: AgentMessage) -> bool:
+        if message.is_expired():
+            return False
+        if message.target_agent not in ("broadcast", self.get_role()):
+            return False
+        return message.message_type in (
+            MessageType.LESSON,
+            MessageType.STATUS_REQUEST,
+        )
+
     async def handle_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         self._message_log.append(message)
+
+        if message.message_type == MessageType.LESSON:
+            return await self._handle_lesson(message)
+
         if message.message_type == MessageType.STATUS_REQUEST:
-            return AgentMessage(
-                source_agent=self.get_role(),
-                target_agent=message.source_agent,
-                message_type=MessageType.STATUS_RESPONSE,
-                payload=self.get_status(),
-                correlation_id=message.correlation_id,
-            )
-        logger.debug("HistorianAgent processing %s from %s", message.message_type.value, message.source_agent)
+            return await self._handle_status_request(message)
+
+        logger.debug("HistorianAgent ignoring %s from %s", message.message_type.value, message.source_agent)
         return None
+
+    async def _handle_lesson(self, message: AgentMessage) -> Optional[AgentMessage]:
+        """Store a lesson in the KG as a trade_memory entity."""
+        kg = self._ensure_kg()
+        payload = message.payload
+        try:
+            kg.store_trade_memory(
+                trade_id=payload.get("trade_id", f"lesson_{message.correlation_id[:8]}"),
+                strategy=payload.get("strategy", "unknown"),
+                market_id=payload.get("market_id", "unknown"),
+                signal_reasoning=payload.get("reasoning", payload.get("lesson", "")),
+                outcome_pnl=payload.get("pnl", 0.0),
+                outcome_correct=payload.get("outcome_correct", False),
+            )
+            logger.info("HistorianAgent stored lesson for strategy=%s", payload.get("strategy"))
+        except Exception as exc:
+            logger.error("HistorianAgent failed to store lesson: %s", exc)
+
+        return AgentMessage(
+            source_agent=self.get_role(),
+            target_agent=message.source_agent,
+            message_type=MessageType.STATUS_RESPONSE,
+            payload={"status": "lesson_stored", "trade_id": payload.get("trade_id")},
+            correlation_id=message.correlation_id,
+        )
+
+    async def _handle_status_request(self, message: AgentMessage) -> Optional[AgentMessage]:
+        """Return KG statistics."""
+        kg = self._ensure_kg()
+        status = self.get_status()
+        try:
+            from backend.models.kg_models import KGEntity as E, KGRelation as R
+            entity_count = kg._session.query(E).count()
+            relation_count = kg._session.query(R).count()
+            recent = (
+                kg._session.query(E)
+                .order_by(E.created_at.desc())
+                .limit(5)
+                .all()
+            )
+            status["kg_entity_count"] = entity_count
+            status["kg_relation_count"] = relation_count
+            status["recent_entities"] = [
+                {"id": e.entity_id, "type": e.entity_type} for e in recent
+            ]
+        except Exception as exc:
+            logger.warning("HistorianAgent KG stats failed: %s", exc)
+            status["kg_entity_count"] = -1
+            status["kg_relation_count"] = -1
+
+        return AgentMessage(
+            source_agent=self.get_role(),
+            target_agent=message.source_agent,
+            message_type=MessageType.STATUS_RESPONSE,
+            payload=status,
+            correlation_id=message.correlation_id,
+        )
 
     def get_role(self) -> str:
         return "historian"

@@ -222,6 +222,55 @@ class RiskManager:
         if params and params.get("_force_disabled", False):
             return RiskDecision(False, "strategy explicitly disabled", 0.0)
 
+        # --- Longshot bias filter: reject YES trades at <30c, boost NO trades ---
+        if market_price is not None and direction:
+            longshot_yes_reject = getattr(self.s, 'LONGSHOT_YES_REJECT_PRICE', 0.30)
+            if direction.upper() == 'YES' and market_price < longshot_yes_reject:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_longshot_yes")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="longshot_yes")
+                logger.info(
+                    "[risk_manager] Longshot YES rejection: market={} price={:.3f} < {:.3f} (negative EV)",
+                    market_ticker or "unknown", market_price, longshot_yes_reject,
+                )
+                return RiskDecision(False,
+                    f"longshot YES rejected: price={market_price:.3f} < {longshot_yes_reject:.3f} (negative EV)",
+                    0.0,
+                )
+
+        # --- Category-aware minimum edge routing ---
+        if category and market_price is not None and signal_win_rate is not None:
+            cat_min_edge = getattr(self.s, 'CATEGORY_MIN_EDGE', {})
+            min_edge_for_cat = cat_min_edge.get(category.lower(), 0.03)
+            edge = signal_win_rate - market_price
+            if edge < min_edge_for_cat:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_category_edge")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="category_edge")
+                logger.info(
+                    "[risk_manager] Category edge rejection: cat={} edge={:.4f} < min={:.4f} (market={} price={:.3f} swr={:.3f})",
+                    category, edge, min_edge_for_cat, market_ticker or "unknown", market_price, signal_win_rate,
+                )
+                return RiskDecision(False,
+                    f"category '{category}' edge {edge:.4f} < min {min_edge_for_cat:.4f}",
+                    0.0,
+                )
+
+        # --- Minimum trade EV filter ---
+        if market_price is not None and signal_win_rate is not None and size > 0:
+            min_trade_ev = getattr(self.s, 'MIN_TRADE_EV', 0.10)
+            edge = abs(signal_win_rate - market_price)
+            ev = edge * size
+            if ev < min_trade_ev:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_min_ev")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="min_ev")
+                logger.info(
+                    "[risk_manager] Min EV rejection: ev=${:.4f} < min=${:.4f} (edge={:.4f} size=${:.2f})",
+                    ev, min_trade_ev, edge, size,
+                )
+                return RiskDecision(False,
+                    f"trade EV ${ev:.4f} < min ${min_trade_ev:.4f}",
+                    0.0,
+                )
+
         if market_price is not None and signal_win_rate is not None:
             try:
                 self.check_edge(

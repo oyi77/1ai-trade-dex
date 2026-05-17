@@ -294,6 +294,16 @@ class CryptoOracleStrategy(BaseStrategy):
         direction = "up" if trade_price > 0.5 else "down"
         market_mid = trade_price
 
+        # Price bucket filter: reject negative-EV territory
+        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
+        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+        if market_mid < min_price_bucket or market_mid > max_price_bucket:
+            logger.debug(
+                "CryptoOracleStrategy.on_market_event: skipping — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                market_mid, min_price_bucket, max_price_bucket,
+            )
+            return None
+
         # Determine asset from event metadata or default to bitcoin
         asset = event.data.get("asset", "bitcoin")
         asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(asset, "btc")
@@ -422,6 +432,11 @@ class CryptoOracleStrategy(BaseStrategy):
 
         now = datetime.now(timezone.utc)
 
+        # Price bucket filter: only trade in the 40-60c range where edge is proven.
+        # Negative-EV territory is below 35c and above 65c (backtest: 85.6% WR in 50-55c).
+        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
+        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+
         # Iterate over all supported assets
         for coingecko_id in self.supported_assets:
             asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(coingecko_id, coingecko_id[:3])
@@ -459,6 +474,14 @@ class CryptoOracleStrategy(BaseStrategy):
                     direction = "down" if market.up_price > market.down_price else "up"
 
                 market_mid = market.up_price if direction == "up" else market.down_price
+
+                # Price bucket filter: reject negative-EV territory
+                if market_mid < min_price_bucket or market_mid > max_price_bucket:
+                    logger.debug(
+                        "CryptoOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                        market.slug, market_mid, min_price_bucket, max_price_bucket,
+                    )
+                    continue
 
                 if micro:
                     rsi_norm = (micro.rsi - 50.0) / 50.0
@@ -591,6 +614,15 @@ class CryptoOracleStrategy(BaseStrategy):
                         continue
 
                     market_mid = market.yes_price if direction == "yes" else market.no_price
+
+                    # Price bucket filter: reject negative-EV territory
+                    if market_mid < min_price_bucket or market_mid > max_price_bucket:
+                        logger.debug(
+                            "CryptoOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                            market.ticker, market_mid, min_price_bucket, max_price_bucket,
+                        )
+                        continue
+
                     if direction == "yes":
                         oracle_implied = min(0.95, market_mid + min_edge)
                     else:
