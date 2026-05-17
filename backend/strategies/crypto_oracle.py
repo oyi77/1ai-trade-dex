@@ -9,7 +9,7 @@ by > min_edge AND time-to-resolution < max_minutes, fire a trade.
 Starts DISABLED (same as btc_oracle). Enable via StrategyConfig DB table.
 """
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, Optional
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
 from backend.core.market_scanner import MarketInfo
@@ -17,6 +17,7 @@ from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
 from backend.core.calibration import get_bucket_win_rate, kelly_fraction
+from backend.core.crypto_oracle_tracker import CryptoOracleTracker
 from backend.db.utils import get_db_session
 from backend.models.signal_log import SignalLog
 from backend.ai.debate_router import run_debate_with_routing
@@ -84,6 +85,57 @@ def _log_signal(
 
 
 COINGECKO_PRICE_URL = f"{settings.COINGECKO_API_URL}/simple/price"
+
+# Module-level tracker instance (lazy init)
+_tracker: Optional[CryptoOracleTracker] = None
+
+
+def _get_tracker() -> CryptoOracleTracker:
+    global _tracker
+    if _tracker is None:
+        _tracker = CryptoOracleTracker()
+    return _tracker
+
+
+def _get_time_multiplier() -> float:
+    """Return Kelly sizing multiplier based on UTC hour."""
+    hour = datetime.now(timezone.utc).hour
+    peak = getattr(settings, "CRYPTO_ORACLE_PEAK_HOURS", [17, 18])
+    normal = getattr(settings, "CRYPTO_ORACLE_NORMAL_HOURS", [13, 14, 15, 16, 19, 20, 21])
+    weights = getattr(settings, "CRYPTO_ORACLE_TIME_WEIGHTS", {"peak": 1.0, "normal": 0.5, "off_peak": 0.25})
+    if hour in peak:
+        return weights.get("peak", 1.0)
+    if hour in normal:
+        return weights.get("normal", 0.5)
+    return weights.get("off_peak", 0.25)
+
+
+def _compute_asset_weights(assets: list[str]) -> Dict[str, float]:
+    """Compute per-asset allocation weights from rolling WR.
+
+    Higher WR -> more capital. Capped at 50% per asset to prevent concentration.
+    Returns dict of asset -> weight (sums to 1.0).
+    """
+    tracker = _get_tracker()
+    raw: Dict[str, float] = {}
+    for asset in assets:
+        stats = tracker.get_asset_stats(asset, lookback_trades=20)
+        if stats.trade_count >= 5:
+            raw[asset] = max(0.1, stats.win_rate)  # floor at 0.1 so no asset gets zero
+        else:
+            raw[asset] = 1.0  # default weight for new assets
+
+    total = sum(raw.values())
+    if total <= 0:
+        return {a: 1.0 / len(assets) for a in assets}
+
+    weights = {a: w / total for a, w in raw.items()}
+    # Cap at 50%
+    capped = {a: min(w, 0.50) for a, w in weights.items()}
+    cap_total = sum(capped.values())
+    if cap_total > 0:
+        capped = {a: w / cap_total for a, w in capped.items()}
+    return capped
 
 
 def calculate_dynamic_size(
@@ -306,7 +358,7 @@ class CryptoOracleStrategy(BaseStrategy):
 
         # Determine asset from event metadata or default to bitcoin
         asset = event.data.get("asset", "bitcoin")
-        asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(asset, "btc")
+        _COINGECKO_TO_ASSET_PREFIX.get(asset, "btc")
 
         crypto_price = await fetch_crypto_price_for_asset(asset)
         if crypto_price is None:
@@ -437,6 +489,17 @@ class CryptoOracleStrategy(BaseStrategy):
         min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
         max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
 
+        # Dynamic allocation: compute per-asset weights from rolling WR
+        asset_weights: Dict[str, float] = {}
+        if getattr(settings, "CRYPTO_ORACLE_DYNAMIC_ALLOCATION", False):
+            asset_weights = _compute_asset_weights(self.supported_assets)
+            logger.info("CryptoOracleStrategy: dynamic allocation weights = %s", asset_weights)
+
+        # Time-of-day multiplier
+        time_mult = _get_time_multiplier()
+        if time_mult < 1.0:
+            logger.debug("CryptoOracleStrategy: time multiplier = %.2f (hour=%d UTC)", time_mult, now.hour)
+
         # Iterate over all supported assets
         for coingecko_id in self.supported_assets:
             asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(coingecko_id, coingecko_id[:3])
@@ -556,8 +619,11 @@ class CryptoOracleStrategy(BaseStrategy):
                     )
                     token_id = market.up_token_id if direction == "up" else market.down_token_id
                     kelly = kelly_fraction(get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid)
-                    if kelly > 0:
-                        suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                    # Apply time-of-day multiplier and asset weight to Kelly
+                    asset_weight = asset_weights.get(coingecko_id, 1.0)
+                    adjusted_kelly = kelly * time_mult * asset_weight
+                    if adjusted_kelly > 0:
+                        suggested_size = min(settings.INITIAL_BANKROLL * adjusted_kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
                     else:
                         suggested_size = calculate_dynamic_size(
                             edge=edge,
@@ -712,8 +778,10 @@ class CryptoOracleStrategy(BaseStrategy):
                         )
                         confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
                         kelly = kelly_fraction(get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid)
-                        if kelly > 0:
-                            suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                        asset_weight = asset_weights.get(coingecko_id, 1.0)
+                        adjusted_kelly = kelly * time_mult * asset_weight
+                        if adjusted_kelly > 0:
+                            suggested_size = min(settings.INITIAL_BANKROLL * adjusted_kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
                         else:
                             suggested_size = calculate_dynamic_size(
                                 edge=edge,

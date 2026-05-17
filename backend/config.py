@@ -222,6 +222,12 @@ class ConfigRegistry:
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
 
+    # Longshot Bias Strategy
+    LONGSHOT_BIAS_MAX_PRICE: float = 0.30  #only trade below 30c
+    LONGSHOT_BIAS_MIN_EV: float = 0.05  #minimum expected value
+    LONGSHOT_BIAS_MAX_POSITION_USD: float = 20.0  #max position in USD
+    LONGSHOT_BIAS_ENABLED: bool = False  #start disabled
+
     # Indicator weights (must sum to ~1.0)
     WEIGHT_RSI: float = 0.20
     WEIGHT_MOMENTUM: float = 0.35
@@ -424,6 +430,13 @@ class ConfigRegistry:
     CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.30
     CRYPTO_ORACLE_MIN_PRICE_BUCKET: float = 0.35  # reject trades below 35c (negative EV territory)
     CRYPTO_ORACLE_MAX_PRICE_BUCKET: float = 0.65  # reject trades above 65c (negative EV territory)
+
+    # Crypto Oracle — dynamic allocation & time-of-day optimization
+    CRYPTO_ORACLE_TRACKER_ENABLED: bool = True
+    CRYPTO_ORACLE_DYNAMIC_ALLOCATION: bool = True
+    CRYPTO_ORACLE_TIME_WEIGHTS: dict = field(default_factory=lambda: {"peak": 1.0, "normal": 0.5, "off_peak": 0.25})
+    CRYPTO_ORACLE_PEAK_HOURS: list = field(default_factory=lambda: [17, 18])  # UTC hours
+    CRYPTO_ORACLE_NORMAL_HOURS: list = field(default_factory=lambda: [13, 14, 15, 16, 19, 20, 21])
 
     # Time filters
     MIN_TIME_REMAINING: int = 60  #min time remaining in seconds

@@ -14,9 +14,8 @@ from __future__ import annotations
 import random
 import time
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 from uuid import uuid4
 
 from loguru import logger
@@ -190,8 +189,7 @@ class DEAPEvolutionBackend(EvolutionBackend):
             return
 
         try:
-            import deap
-            from deap import base, creator, tools
+            from deap import base, creator, tools  # noqa: F401
         except ImportError:
             raise ImportError(
                 "DEAP is required for the DEAP evolution backend. "

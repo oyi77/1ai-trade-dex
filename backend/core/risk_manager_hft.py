@@ -30,8 +30,8 @@ class WindowStats:
     def get_win_rate(self, window_key: str) -> float:
         """Return win rate for window. Returns 0.5 if fewer than 3 trades (insufficient data)."""
         w = self._wins.get(window_key, 0)
-        l = self._losses.get(window_key, 0)
-        total = w + l
+        losses = self._losses.get(window_key, 0)
+        total = w + losses
         if total < 3:
             return 0.5  # insufficient data: assume coin-flip
         return w / total

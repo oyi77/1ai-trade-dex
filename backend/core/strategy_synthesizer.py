@@ -72,7 +72,7 @@ class StrategySynthesizer:
         self,
         session: Optional[Session] = None,
         db_url: str = "sqlite:///:memory:",
-        cognitive_core: Optional["CognitiveCoreAdapter"] = None,
+        cognitive_core: Optional[Any] = None,
     ):
         self._generation_count = 0
         self._daily_cost = 0.0

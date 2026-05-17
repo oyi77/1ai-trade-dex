@@ -66,7 +66,7 @@ class AGIOrchestrator:
         self,
         session: Optional[Session] = None,
         db_url: str = "sqlite:///:memory:",
-        cognitive_core: Optional["CognitiveCoreAdapter"] = None,
+        cognitive_core: Optional[Any] = None,
     ):
         self._emergency_stop = False
         self._current_regime = None

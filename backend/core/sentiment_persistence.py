@@ -78,7 +78,7 @@ class SentimentPersistence:
         market_entity_id = f"market:{market_ticker}"
 
         # Get all sentiment_snapshot entities linked to this market
-        related = self._kg.get_related(market_entity_id, relation_type="INFLUENCED")
+        self._kg.get_related(market_entity_id, relation_type="INFLUENCED")
         # Also check direct sentiment entities by ticker
         sentiments = self._kg.query_by_type("sentiment_snapshot", limit=200)
 
