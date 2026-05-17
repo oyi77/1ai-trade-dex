@@ -567,3 +567,27 @@ Due to PR #95 not being merged on this branch, KalshiProvider and PolymarketProv
 **5 🔵 Low** — Docs/observability polish
 
 **Total: 32 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
+
+### Structural Gaps Found During Deepinit (2026-05-17)
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-33 | **`backend/rl/` directory empty** — `backend/core/rl_environment.py` exists (Gymnasium env for SB3 PPO), but `backend/rl/` has zero source files (only `__pycache__`). RL training agent not implemented. RL env exists with no trainer to run it. | RL training pipeline non-functional | 🟡 P1 |
+| G-34 | **`backend/evals/suites/` empty** — Only `__init__.py` (0 bytes). `backend/evals/` framework exists (benchmarks, metrics, tests) but no evaluation suites defined. Evals framework is scaffold-only. | No automated AGI evaluation runs | 🟡 P1 |
+| G-35 | **Duplicate Alembic migration dirs** — Root `alembic/` and `backend/alembic/` both exist with separate `versions/` dirs. Root is legacy, backend is active. Can confuse migration tooling. | Migration confusion risk | 🟢 P2 |
+| G-36 | **`backend/evals/reports/` unbounded growth** — 100+ JSON report files accumulating since May 15. No retention policy, no cleanup job. Will fill disk over time. | Disk exhaustion risk | 🟢 P2 |
+| G-37 | **`polyedge-docs/.docusaurus/` committed** — Build artifact directory tracked in git. Should be in `.gitignore`. | Repo bloat | 🔵 P3 |
+| G-38 | **`polyedge-docs/.gitignore` missing** — No `.gitignore` for Docusaurus site. Build outputs (`build/`, `.docusaurus/`) will get committed. | Future repo bloat | 🔵 P3 |
+| G-39 | **`backend/agi/sandbox/` untested in CI** — `sandbox_manager.py`, `sandbox_validator.py`, `sandbox_registry.py` exist but `backend/agi/tests/` has no sandbox integration tests (only `test_sandbox_hardening.py`). Sandbox pipeline may be broken. | Sandbox validation unverified | 🟡 P1 |
+| G-40 | **`backend/backtesting/` minimal** — Only `base.py`, `registry.py`, `__init__.py`, one data source (polymarket), one metric (sharpe), one runner (default). Plugin framework exists but almost no plugins. | Backtesting limited to single strategy type | 🟢 P2 |
+| G-41 | **`backend/core/` 100+ files, no subpackages** — Largest module by 3×. All 75+ files flat in one dir. No bounded contexts (trading/, agi/, settlement/, infrastructure/). | High coupling, hard to navigate | 🔵 P3 |
+
+### Updated Summary (May 17 deepinit)
+
+**5 🔴 Critical** — System stability + Polymarket API deprecation
+**8 🟡 High (Pipeline)** — AGI can't auto-optimize without these (G-33, G-34, G-39 added)
+**4 🟡 High (Accuracy)** — Trading features that may not work
+**8 🟢 Medium** — Risk safety net + optimization incomplete (G-35, G-36, G-40 added)
+**7 🔵 Low** — Docs/observability/structure polish (G-37, G-38, G-41 added)
+
+**Total: 41 gaps** remaining (32 existing + 9 structural from deepinit).

@@ -526,6 +526,66 @@
       "accessCount": 1,
       "lastAccessed": 1779037107957,
       "type": "file"
+    },
+    {
+      "path": "docs/paper/sections/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112380,
+      "type": "file"
+    },
+    {
+      "path": "tests/reliability/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112430,
+      "type": "file"
+    },
+    {
+      "path": "docs/paper/figures/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112624,
+      "type": "file"
+    },
+    {
+      "path": "tests/load/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112716,
+      "type": "file"
+    },
+    {
+      "path": "docs/paper/scripts/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112773,
+      "type": "file"
+    },
+    {
+      "path": "docs/paper/supplementary/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112806,
+      "type": "file"
+    },
+    {
+      "path": "docs/superpowers/plans/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112825,
+      "type": "file"
+    },
+    {
+      "path": "tests/fixtures/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112851,
+      "type": "file"
+    },
+    {
+      "path": "docs/paper/data/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112892,
+      "type": "file"
+    },
+    {
+      "path": "docs/superpowers/specs/AGENTS.md",
+      "accessCount": 1,
+      "lastAccessed": 1779037112943,
+      "type": "file"
     }
   ],
   "userDirectives": []
