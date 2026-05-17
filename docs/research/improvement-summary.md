@@ -325,3 +325,117 @@ Phase 3 (Future):
 | 🟡 **Competitor strategy monitor** | ❌ Missing | Should monitor 4coinsbot, polyrec, etc for new patterns |
 | 🟢 **Auto-backtest on new data** | ❌ Missing | Should re-backtest strategies when new data arrives |
 | 🟢 **Performance degradation alert** | ✅ Partial | Risk layer disables on loss, but no trend analysis |
+
+---
+
+## 🏗️ Major Frameworks We Should Know (MISSED PREVIOUSLY)
+
+| Framework | Stars | Why We Missed It | Value |
+|---|---|---|---|
+| **hummingbot** | **18,578⭐** | Focused on crypto market making, not prediction markets | 🏆 **Market making patterns** — their strategy for providing liquidity could apply to Polymarket |
+| **freqtrade** | **30,000+⭐** | Crypto bot, not prediction markets | 🏆 **Architecture gold standard** — strategy lifecycle, backtesting, deployment |
+| **backtesting.py** | **8,374⭐** | General backtesting, not prediction-specific | 🏆 **NumPy/Pandas backtesting** — simpler than PyBroker, more popular |
+| **vectorbt** | **5,000+⭐** | Pro-level vectorized backtesting | 🟡 **Portfolio-level backtesting** — can test 100s of strategies at once |
+| **jesse** | **2,000+⭐** | Crypto algo trading | 🟢 **Strategy lifecycle patterns** |
+
+### Why These Matter for PolyEdge
+
+| Framework | What We Can Steal |
+|---|---|
+| **hummingbot** | Liquidity provision algorithm, order book management, **market making on prediction markets** |
+| **freqtrade** | Strategy file format, backtesting pipeline, Telegram integration pattern, **docker deployment** |
+| **backtesting.py** | Clean strategy API, indicator library, **trade analysis metrics** |
+| **vectorbt** | **Portfolio optimization**, parameter scanning, Monte Carlo simulation |
+
+---
+
+## 🔧 Tools & Services We Don't Use (But Should Consider)
+
+### Market Making
+| Tool | Stars | Use |
+|---|---|---|
+| **hummingbot** | 18.5k | Deploy market making strategies on any exchange |
+| **OctoBot-Market-Making** | 33 | Market making automation for crypto |
+
+### Backtesting
+| Tool | Stars | Why Better Than Ours |
+|---|---|---|
+| **backtesting.py** | 8.4k | Clean API, 100x faster, built-in indicators |
+| **vectorbt** | 5k+ | Portfolio-level, vectorized, 1000x faster |
+| **freqtrade backtesting** | 30k+ | Battle-tested, multi-exchange |
+
+### Data Pipelines
+| Tool | Use |
+|---|---|
+| **pm-history-tracker** (5⭐) | Historical data pipeline for prediction markets |
+| **Subgraph (Polymarket)** | On-chain data indexing via The Graph |
+| **Dune Analytics** | Polymarket dashboards and SQL queries |
+
+### MCP Servers for Polymarket
+| Server | Stars | Use |
+|---|---|---|
+| **caiovicentino/polymarket-mcp-server** | 503⭐ | 🤖 AI-Powered MCP Server — Claude trades Polymarket |
+| **pmxt-mcp** | 4⭐ | MCP for unified prediction market API |
+| **guangxiangdebizi/PolyMarket-MCP** | 7⭐ | Comprehensive MCP server |
+
+### Copy Trading
+| Tool | Use |
+|---|---|
+| **neosun100/polycopy** (4⭐) | Copy trading bot for Polymarket |
+| **G3-DEV-AGENCY/polymarket-copytrading-bot** (104⭐) | Copy trading |
+
+### Monitoring
+| Tool | Use |
+|---|---|
+| **freqhub** (3⭐) | Multi-bot dashboard for Freqtrade |
+| **BEC** (64⭐) | Binance bot with automated monitoring |
+
+---
+
+## 📦 Full Dataset Inventory (All Sources)
+
+### HuggingFace — New Finds
+| Dataset | Downloads | Records | Use |
+|---|---|---|---|
+| **SII-WANGZJ/Polymarket_data** | 28,913 | 1B-10B | 🔴 ML training |
+| **PolyData/polymarket_trade_capture** | 7,475 | — | Backtest validation |
+| **mingossx/polymarket-crypto-updown** | 4,273 | — | Crypto strategy |
+| **BrockMisner/polymarket-crypto-5m-15m** | 3,573 | — | 5-min strategy |
+| **rameez543/polymarket_bot_data** | 12,479 | — | Bot behavior |
+| **2084Collective pred markets** | 40-49 | 10K-1M | Cleaned historical |
+| **lwaekfjlk/prediction-market-news** | 5,907 | — | News → sentiment |
+
+### Missing Dataset Sources (Untapped)
+| Source | What's Available | How to Access |
+|---|---|---|
+| **Kaggle** | Stock/crypto datasets, maybe prediction markets | Needs API key |
+| **Dune Analytics** | Polymarket on-chain SQL queries | Free tier |
+| **The Graph** | Polymarket subgraph for indexed on-chain data | GraphQL API |
+| **CoinGecko API** | All crypto historical prices | Free tier (rate limited) |
+| **Polymarket Data API** | Full trade history | Direct API (we use it partially) |
+| **NOAA/NWS** | Weather history for settlement validation | Free API |
+| **Twitter/X** | Market sentiment, news | Needs API key |
+
+---
+
+## 🎯 Updated Priority Roadmap
+
+```
+Phase 1 (Now — May 2026):
+  □ Replace paper mode with polymarket-paper-trader
+  □ Install backtesting.py for faster backtesting
+  □ Start collecting Polymarket_data from HF (28k downloads, 1B rows)
+  □ Study hummingbot architecture for market making patterns
+
+Phase 2 (Next — June 2026):
+  □ PMXT integration (replace CLOB client, get multi-platform)
+  □ Install polymarket-mcp-server for AGI direct access
+  □ Integrate news dataset for sentiment signals
+  □ Set up Dune Analytics queries for on-chain data
+
+Phase 3 (Future):
+  □ Deploy market making via hummingbot patterns
+  □ Portfolio-level backtesting with vectorbt
+  □ Copy trading via polycopy/G3 patterns
+  □ Freqtrade-style deployment (docker, Telegram, monitoring)
+```

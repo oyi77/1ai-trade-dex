@@ -779,3 +779,18 @@ Key categories:
 | G-38 | **No auto-backtest on new data** — When new market data arrives, strategies aren't re-backtested automatically. | Stale backtest results | 🟢 P2 |
 
 **Updated total: 38 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
+
+### 🧰 Tools & Libraries Not Integrated (Added 2026-05-18)
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-39 | **No backtesting.py integration** (8.4k⭐) — Our backtest engine is SQLAlchemy-based and slow. `backtesting.py` is NumPy/Pandas, 100x faster. | Slow backtests limit AGI iteration speed | 🟡 P1 |
+| G-40 | **No hummingbot patterns adopted** (18.5k⭐) — World's most popular market making bot. Their liquidity provision + order book management could apply to Polymarket. | Missing market making edge | 🟡 P1 |
+| G-41 | **Polymarket MCP server not installed** (503⭐) — Official MCP server lets Claude trade Polymarket directly. Could integrate with AGI pipeline. | AGI can't trade directly | 🟡 P1 |
+| G-42 | **No freqtrade architecture patterns** (30k+⭐) — Gold standard for trading bot architecture (strategy files, backtesting, deployment). We re-invent the wheel. | Reinventing architecture | 🟢 P2 |
+| G-43 | **No copy trading from polycopy/G3** (104⭐) — Copy trading bots exist for Polymarket. We have our own copy_trader but could learn from theirs. | Suboptimal copy trading | 🟢 P2 |
+| G-44 | **No vectorbt portfolio optimization** (5k+⭐) — Can't test 100s of strategy parameter combinations at once. | Slow strategy optimization | 🟢 P2 |
+| G-45 | **No on-chain data indexing** — Polymarket subgraph on The Graph could give us real-time on-chain analytics we're missing. | Blind to on-chain activity | 🟢 P2 |
+| G-46 | **No Dune Analytics integration** — Polymarket dashboards on Dune for SQL-based market analysis. | Manual analysis only | 🔵 P3 |
+
+**Updated total: 46 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
