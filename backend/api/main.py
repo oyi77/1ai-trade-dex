@@ -274,19 +274,36 @@ async def health_check(db: Session = Depends(get_db)):
         from backend.data.polymarket_clob import clob_from_settings
 
         client = clob_from_settings()
-        balance = await asyncio.wait_for(client.get_wallet_balance(), timeout=5.0)
-        if not balance.get("error"):
-            checks["polymarket_clob"] = {
-                "status": "ok",
-                "balance": str(balance.get("usdc_balance", 0.0)),
-            }
-        else:
+        try:
+            await asyncio.wait_for(client.create_or_derive_api_key(), timeout=8.0)
+        except asyncio.TimeoutError:
             checks["polymarket_clob"] = {
                 "status": "error",
-                "error": "wallet balance unavailable",
+                "error": "api key derivation timed out",
             }
             if overall_status == "ok":
                 overall_status = "degraded"
+        except Exception as e:
+            checks["polymarket_clob"] = {
+                "status": "error",
+                "error": f"api key derivation failed: {e}",
+            }
+            if overall_status == "ok":
+                overall_status = "degraded"
+        else:
+            balance = await asyncio.wait_for(client.get_wallet_balance(), timeout=8.0)
+            if not balance.get("error"):
+                checks["polymarket_clob"] = {
+                    "status": "ok",
+                    "balance": str(balance.get("usdc_balance", 0.0)),
+                }
+            else:
+                checks["polymarket_clob"] = {
+                    "status": "error",
+                    "error": balance.get("error", "wallet balance unavailable"),
+                }
+                if overall_status == "ok":
+                    overall_status = "degraded"
     except asyncio.TimeoutError:
         checks["polymarket_clob"] = {"status": "error", "error": "health check timed out"}
         if overall_status == "ok":

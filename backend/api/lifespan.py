@@ -88,7 +88,7 @@ async def _refresh_balance_cache():
     try:
         clob = clob_from_settings()
         async with clob:
-            await clob.create_or_derive_api_creds()
+            await clob.create_or_derive_api_key()
             balance_data = await clob.get_wallet_balance()
             clob_balance = balance_data.get("usdc_balance", 0.0)
 
