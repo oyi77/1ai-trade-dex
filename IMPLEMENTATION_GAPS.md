@@ -532,4 +532,38 @@ Due to PR #95 not being merged on this branch, KalshiProvider and PolymarketProv
 **5 🟢 Medium** — Risk safety net incomplete
 **5 🔵 Low** — Docs/observability polish
 
-**Total: 23 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
+### 🔴 CRITICAL — Polymarket API / Library Deprecation Risk
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-24 | **Settlement uses slug lookup (deprecated)** — Gamma API `/markets?slug=...` fails for closed/archived markets. Polymarket now has `get-market-by-token` endpoint that resolves by token_id directly. Our 449+ unresolved trades are stuck because slug lookup fails. | Settlement incomplete | 🔴 P0 |
+| G-25 | **Keyset pagination not adopted** — Polymarket deprecated offset pagination in favor of cursor-based `after_cursor`. Our scanner still uses `&offset=N` which may break. | Event scanning fails | 🔴 P0 |
+| G-26 | **py-builder-relayer-client v0.0.1 not integrated** — Polymarket released dedicated Python client for Builder Relayer API (May 4). We have custom relayer code that may be out of sync. | Gasless trading may break | 🟡 P1 |
+
+### 🟡 HIGH — Missed Polymarket Features
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-27 | **No negative risk market support** — Polymarket added `neg-risk-ctf-adapter` (Jan 8) for capital-efficient multi-outcome events. Our system only handles binary (YES/NO) markets. | Missing market types | 🟡 P1 |
+| G-28 | **ctf-exchange-v2 not integrated** — New exchange contracts deployed (Apr 13). May affect order signing and settlement for new markets. | Trade execution may fail on new markets | 🟡 P1 |
+| G-29 | **`polymarket-sdk` not used** — Official SDK for wallet management (Apr 9). We roll our own wallet interaction code. | Reinventing the wheel | 🟢 P2 |
+
+### 🟢 MEDIUM — Optimization
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-30 | **No batch prices history** — Polymarket added `/batch-prices-history` endpoint. We query individual markets, 500+ requests per cycle. | Slower market scanning | 🟢 P2 |
+| G-31 | **No builder leaderboard API** — Polymarket added builder leaderboard endpoints. Could use for whale detection / copy trading. | Missed data source | 🟢 P2 |
+| G-32 | **py-clob-client v0.34.6 has 103 open issues** — Many may contain bug fixes we're missing. Need to review changelog. | Potential undiagnosed bugs | 🟢 P2 |
+
+---
+
+### Updated Summary (May 18, 2026)
+
+**5 🔴 Critical** — System stability + Polmarket API deprecation
+**7 🟡 High (Pipeline)** — AGI can't auto-optimize without these
+**4 🟡 High (Accuracy)** — Trading features that may not work
+**6 🟢 Medium** — Risk safety net + optimization incomplete
+**5 🔵 Low** — Docs/observability polish
+
+**Total: 32 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
