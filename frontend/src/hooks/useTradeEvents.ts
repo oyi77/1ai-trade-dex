@@ -29,8 +29,7 @@ export function useTradeEvents(onEvent: (event: TradeEvent) => void) {
     let reconnectTimeout: ReturnType<typeof setTimeout>
 
     const connect = () => {
-      const tokenParam = csrfToken ? `?token=${encodeURIComponent(csrfToken)}` : ''
-      es = new EventSource(`${API_BASE}/api/v1/events/stream${tokenParam}`, { withCredentials: true })
+      es = new EventSource(`${API_BASE}/api/v1/events/stream`, { withCredentials: true })
 
       es.onmessage = (e) => {
         try {

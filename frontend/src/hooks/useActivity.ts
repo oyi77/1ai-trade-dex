@@ -36,7 +36,9 @@ export function useActivity(): UseActivityResult {
       ws.onmessage = (evt) => {
         try {
           const activity = JSON.parse(evt.data) as ActivityLog
-          setActivities((prev) => [activity, ...prev]) // Prepend newest first
+          // E-142: Cap activity array to prevent unbounded memory growth
+          const MAX_ACTIVITIES = 200
+          setActivities((prev) => [activity, ...prev].slice(0, MAX_ACTIVITIES))
         } catch (err) {
           console.error('Failed to parse activity message:', err)
         }

@@ -103,7 +103,7 @@ class CycleResult:
 class BaseStrategy(ABC):
     """Abstract base class for all PolyEdge trading strategies."""
 
-    default_params: dict = {}
+    default_params: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------
     # Abstract interface
@@ -174,8 +174,19 @@ class BaseStrategy(ABC):
     # Override in subclasses that want WS event dispatch instead of timer-driven cycles.
     # ------------------------------------------------------------------
 
-    subscribed_tokens: Set[str] = set()
+    # E-103: Use a property so each instance gets its own copy (not shared mutable set)
+    _subscribed_tokens: Set[str] | None = None
     subscribed_events: Set[str] = {"last_trade_price"}
+
+    @property
+    def subscribed_tokens(self) -> Set[str]:
+        if self._subscribed_tokens is None:
+            self._subscribed_tokens = set()
+        return self._subscribed_tokens
+
+    @subscribed_tokens.setter
+    def subscribed_tokens(self, value: Set[str]) -> None:
+        self._subscribed_tokens = value
 
     async def on_market_event(self, event: "MarketEvent") -> Optional[dict]:
         return None

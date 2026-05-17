@@ -196,14 +196,15 @@ Always output valid, applicable diffs."""
                 patch_file = f.name
 
             try:
-                # Apply patch
-                result = subprocess.run(
-                    ["patch", "-p1", module_path],
-                    stdin=open(patch_file, "r"),
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
+                # E-134: Use context manager to avoid file handle leak
+                with open(patch_file, "r") as patch_fh:
+                    result = subprocess.run(
+                        ["patch", "-p1", module_path],
+                        stdin=patch_fh,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
 
                 if result.returncode != 0:
                     self.logger.error(
@@ -255,7 +256,8 @@ Always output valid, applicable diffs."""
 
         if not test_path.exists():
             self.logger.warning(f"No tests found for {module_path} at {test_path}")
-            return True  # Assume pass if no tests exist
+            # E-133: Return False when no tests exist — True was misleading
+            return False
 
         try:
             self.logger.info(f"Running tests from {test_path}")

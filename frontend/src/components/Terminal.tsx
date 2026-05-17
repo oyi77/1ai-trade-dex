@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Play, Pause, RefreshCw } from 'lucide-react'
-import { getWsUrl, API_BASE, getAdminApiKey } from '../api'
-import { retryFetch } from '../utils/retryFetch'
+import { getWsUrl, adminApi } from '../api'
 
 interface LogEntry {
   timestamp: string
@@ -22,7 +21,6 @@ interface Props {
   onScan?: () => void
 }
 
-const API_URL = API_BASE
 const WS_URL = () => getWsUrl('/ws/events')
 
 export function Terminal({ isRunning, lastRun, onStart, onStop, onScan }: Props) {
@@ -35,18 +33,8 @@ export function Terminal({ isRunning, lastRun, onStart, onStop, onScan }: Props)
 
   const fetchEvents = useCallback(async () => {
     try {
-      const adminKey = getAdminApiKey()
-      const res = await retryFetch(`${API_URL}/api/events?limit=30`, {
-        headers: {
-          'Authorization': `Bearer ${adminKey}`
-        }
-      })
-      if (res.ok) {
-        const contentType = res.headers.get('content-type') || ''
-        if (!contentType.includes('application/json')) {
-          return
-        }
-        const events = await res.json()
+      const { data: events } = await adminApi.get('/events?limit=30')
+      if (Array.isArray(events)) {
         setLogs(events.filter((e: LogEntry) => e.type !== 'heartbeat'))
       }
     } catch {

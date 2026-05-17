@@ -103,23 +103,27 @@ async def production_exception_handler(request: Request, exc: Exception):
     )
 
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
-# SECURITY: CORS middleware currently disabled. If enabled in future, ensure allow_methods
-# is restricted to ["GET", "POST", "OPTIONS"] instead of ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-# to prevent unnecessary method exposure. Avoid using ["*"] for allow_methods.
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "OPTIONS"],
-#     allow_headers=["*"],
-# )
-# # from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402
-# # from backend.api.versioning import APIVersionMiddleware  # noqa: E402
-# # from backend.api.timeout_middleware import TimeoutMiddleware  # noqa: E402
-#
-# # app.add_middleware(TimeoutMiddleware)
-# # app.add_middleware(RateLimiterMiddleware, requests_per_minute=100)
-# # app.add_middleware(APIVersionMiddleware)
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+try:
+    from backend.api.rate_limiter import RateLimiterMiddleware  # noqa: E402
+    app.add_middleware(RateLimiterMiddleware, requests_per_minute=100)
+except ImportError:
+    logger.warning("RateLimiterMiddleware not available — skipping")
+
+try:
+    from backend.api.timeout_middleware import TimeoutMiddleware  # noqa: E402
+    app.add_middleware(TimeoutMiddleware)
+except ImportError:
+    logger.warning("TimeoutMiddleware not available — skipping")
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(markets_router, prefix="/api/v1")
@@ -551,5 +555,5 @@ if __name__ == "__main__":
 
     uvicorn.run(app, host="0.0.0.0", port=int(get_setting("PORT", default="8100")))
 
-app.include_router(calibration_router)
+app.include_router(calibration_router, prefix="/api/v1")
 

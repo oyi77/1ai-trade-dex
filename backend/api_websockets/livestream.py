@@ -246,11 +246,14 @@ async def livestream_broadcaster():
             if now - last_strategy_check > 3:
                 last_strategy_check = now
                 try:
-                    with SessionLocal() as db:
+                    db = SessionLocal()
+                    try:
                         strategy_pulses = [
                             (cfg.strategy_name, "thinking" if cfg.enabled else "idle")
                             for cfg in db.query(StrategyConfig).all()
                         ]
+                    finally:
+                        db.close()
 
                     for strategy_name, status in strategy_pulses:
                         await broadcast_strategy_pulse(strategy_name, status)
@@ -261,7 +264,8 @@ async def livestream_broadcaster():
                 last_trade_check = now
                 try:
                     trade_data = None
-                    with SessionLocal() as db:
+                    db = SessionLocal()
+                    try:
                         recent_trade = (
                             db.query(Trade)
                             .order_by(Trade.timestamp.desc())
@@ -278,6 +282,8 @@ async def livestream_broadcaster():
                                 "settled": recent_trade.settled,
                                 "timestamp": recent_trade.timestamp.isoformat() if recent_trade.timestamp else "",
                             }
+                    finally:
+                        db.close()
 
                     if trade_data is not None:
                         await broadcast_trade_event(trade_data)
@@ -288,7 +294,8 @@ async def livestream_broadcaster():
                 last_arena_check = now
                 try:
                     arena_payload = None
-                    with SessionLocal() as db:
+                    db = SessionLocal()
+                    try:
                         recent_attempt = (
                             db.query(TradeAttempt)
                             .order_by(TradeAttempt.created_at.desc())
@@ -328,6 +335,8 @@ async def livestream_broadcaster():
                                 "summary": f"Analyzed {market} (bias: {dir_bias.upper()}). Confidence: {conf*100:.1f}%, Edge: {edge*100:.1f}%. Result: {recent_attempt.status.upper()}",
                                 "reason": reason,
                             }
+                    finally:
+                        db.close()
 
                     if arena_payload is not None:
                         await broadcast_debate_update(
@@ -345,7 +354,8 @@ async def livestream_broadcaster():
             if now - last_trade_check > 10:
                 try:
                     bot_state_payload = None
-                    with SessionLocal() as db:
+                    db = SessionLocal()
+                    try:
                         bot_state = db.query(BotState).first()
                         if bot_state:
                             bot_state_payload = {
@@ -356,6 +366,8 @@ async def livestream_broadcaster():
                                 "is_running": bot_state.is_running,
                                 "timestamp": datetime.now(timezone.utc).isoformat(),
                             }
+                    finally:
+                        db.close()
 
                     if bot_state_payload is not None:
                         await topic_manager.broadcast("livestream", bot_state_payload)

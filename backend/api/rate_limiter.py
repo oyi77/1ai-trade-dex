@@ -67,6 +67,13 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             return False, remaining
 
         self._http_per_ip[client_id].append(now)
+
+        # Periodic cleanup: remove IPs with no recent activity to prevent memory leak
+        if len(self._http_per_ip) > 1000:
+            stale_ips = [ip for ip, ts in self._http_per_ip.items() if not ts or (now - ts[-1]) > 120]
+            for ip in stale_ips:
+                del self._http_per_ip[ip]
+
         return True, remaining - 1
 
     async def dispatch(self, request: Request, call_next):

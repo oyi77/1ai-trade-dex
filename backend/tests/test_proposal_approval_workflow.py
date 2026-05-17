@@ -7,12 +7,22 @@ from backend.models.database import StrategyProposal
 from backend.config import settings
 
 
+_TEST_ADMIN_KEY = "test-admin-key-for-proposals"
+
+
+@pytest.fixture(autouse=True)
+def _set_admin_key():
+    """Set a test admin key for all proposal tests."""
+    original = settings.ADMIN_API_KEY
+    settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
+    yield
+    settings.ADMIN_API_KEY = original
+
+
 @pytest.fixture
 def admin_headers():
     """Create admin authorization headers."""
-    if settings.ADMIN_API_KEY:
-        return {"Authorization": f"Bearer {settings.ADMIN_API_KEY}"}
-    return {}
+    return {"Authorization": f"Bearer {_TEST_ADMIN_KEY}"}
 
 
 @pytest.fixture

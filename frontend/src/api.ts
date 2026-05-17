@@ -433,7 +433,7 @@ export interface WalletConfigRow {
 }
 
 export async function fetchWalletConfigs(params?: Record<string, string | number | boolean>): Promise<{ items: WalletConfigRow[]; total: number }> {
-  const { data } = await api.get('/wallets/config', { params })
+  const { data } = await adminApi.get('/wallets/config', { params })
   return data
 }
 
@@ -1052,17 +1052,17 @@ export async function updateTradingWallet(id: number, payload: Partial<TradingWa
 }
 
 export async function fetchWalletAllocations(): Promise<{items: WalletAllocation[]}> {
-  const { data } = await api.get('/wallet-allocations/allocations')
+  const { data } = await adminApi.get('/wallet-allocations/allocations')
   return data
 }
 
 export async function createWalletAllocation(payload: Partial<WalletAllocation>): Promise<WalletAllocation> {
-  const { data } = await api.post('/wallet-allocations/allocations', payload)
+  const { data } = await adminApi.post('/wallet-allocations/allocations', payload)
   return data
 }
 
 export async function updateWalletAllocation(id: number, payload: Partial<WalletAllocation>): Promise<WalletAllocation> {
-  const { data } = await api.put(`/wallet-allocations/allocations/${id}`, payload)
+  const { data } = await adminApi.put(`/wallet-allocations/allocations/${id}`, payload)
   return data
 }
 

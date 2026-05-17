@@ -222,12 +222,13 @@ class StrategyPerformanceRegistry:
             gross_loss = sum(p for p in pnls if p < 0)
             profit_factor = gross_profit / abs(gross_loss) if gross_loss < 0 else (gross_profit if gross_profit > 0 else 0.0)
 
-            # Sharpe from outcomes
+            # E-123: Sharpe from outcomes — use len(pnls) not total for denominator
             if len(pnls) >= 2:
-                mean = total_pnl / total
-                variance = sum((p - mean) ** 2 for p in pnls) / total
+                n = len(pnls)
+                mean = total_pnl / n
+                variance = sum((p - mean) ** 2 for p in pnls) / (n - 1)  # sample variance
                 std = (variance ** 0.5) if variance > 0 else 1e-9
-                sharpe = (mean / std) * (total ** 0.5)
+                sharpe = (mean / std) * (n ** 0.5)
             else:
                 sharpe = 0.0
 

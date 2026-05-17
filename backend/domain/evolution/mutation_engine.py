@@ -328,12 +328,24 @@ def mutate_genome(
 
     # Type 3: Timeframe shift — adapt to current volatility
     if random.random() < effective_rate * 0.50:
-        old, new = shift_timeframe(genome, current_volatility=1.0)  # Default volatility
+        # E-132: Use actual volatility from genome if available, not hardcoded 1.0
+        actual_vol = 1.0
+        risk_chromo = genome.chromosomes.get("risk")
+        if risk_chromo:
+            actual_vol = risk_chromo.genes.get("volatility_target", 1.0)
+        old, new = shift_timeframe(genome, current_volatility=actual_vol)
         mutations.append({"type": "timeframe_shift", "old": old, "new": new})
 
     # Type 4: Risk model reassignment — based on drawdown history
     if random.random() < effective_rate * 0.30:
-        old, new = reassign_risk_model(genome, drawdown_history=[0.1, 0.05, 0.15])
+        # E-131: Use actual drawdown from genome fitness, not hardcoded
+        actual_drawdown = []
+        if genome.fitness:
+            dd = genome.fitness.get("max_drawdown", 0.0)
+            actual_drawdown = [dd] if dd else [0.1, 0.05, 0.15]
+        else:
+            actual_drawdown = [0.1, 0.05, 0.15]
+        old, new = reassign_risk_model(genome, drawdown_history=actual_drawdown)
         mutations.append({"type": "risk_model", "old": old, "new": new})
 
     # Type 5: Chromosome addition — rare, high-impact, regime-informed

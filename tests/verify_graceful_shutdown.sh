@@ -54,7 +54,7 @@ echo "AUTOMATED VERIFICATION"
 echo "======================================================================="
 echo ""
 
-BACKEND_PID=648488
+BACKEND_PID=${BACKEND_PID:-0}
 BACKEND_URL="http://localhost:8100"
 
 echo "Checking backend health..."

@@ -406,7 +406,7 @@ class OneAIHubCore(CognitiveCoreAdapter):
         self._timeout = timeout
         self._last_success: Optional[str] = None
         self._last_latency_ms: float = 0.0
-        self._client: Any = None  # lazy httpx.AsyncClient
+        self._client: Any = None  # lazy httpx.Client
 
     def _get_client(self) -> Any:
         if self._client is None:
@@ -422,10 +422,11 @@ class OneAIHubCore(CognitiveCoreAdapter):
         return self._client
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
-        """Synchronous HTTP request with timing."""
+        """HTTP request with timing."""
         start = time.monotonic()
         try:
-            resp = self._get_client().request(method, path, **kwargs)
+            client = self._get_client()
+            resp = client.request(method, path, **kwargs)
             resp.raise_for_status()
             elapsed = (time.monotonic() - start) * 1000
             self._last_latency_ms = elapsed
