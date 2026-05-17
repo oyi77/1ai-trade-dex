@@ -150,6 +150,9 @@ class PolymarketWebSocket:
         self._last_message_time = 0.0
         self._message_count = 0
         self._reconnect_count = 0
+        self._cache: Dict[str, Any] = {}  # orderbook cache, cleared on reconnect
+        self._subscribed_asset_ids: List[str] = list(config.asset_ids)
+        self._stale_timeout: float = 120.0  # seconds without data = stale
 
     def on_orderbook(self, handler: Callable[[OrderbookSnapshot], None]) -> None:
         """Register orderbook event handler"""
@@ -206,7 +209,8 @@ class PolymarketWebSocket:
                     "WebSocket reconnected after %d attempts, clearing stale caches",
                     self._reconnect_count,
                 )
-                self._cache.clear() if hasattr(self, '_cache') else None
+                self._cache.clear()
+                self._last_message_time = 0.0
 
             # Send subscription message
             await self._send_subscription()
@@ -414,6 +418,33 @@ class PolymarketWebSocket:
                     await result
             except Exception as e:
                 logger.opt(exception=True).error(f"User trade handler error: {e}")
+
+    def update_asset_ids(self, asset_ids: List[str]) -> None:
+        """Update tracked asset IDs. Next reconnection will use the new list."""
+        self._subscribed_asset_ids = list(asset_ids)
+        self.config.asset_ids = asset_ids
+        logger.info("Updated asset_ids: tracking %d markets", len(asset_ids))
+
+    async def _stale_data_watchdog(self) -> None:
+        """Detect silent WebSocket disconnections by monitoring message freshness."""
+        try:
+            while self._running:
+                await asyncio.sleep(self._stale_timeout / 2)
+                if self._last_message_time == 0.0:
+                    continue  # no data yet, not stale
+                elapsed = time.time() - self._last_message_time
+                if elapsed > self._stale_timeout:
+                    logger.warning(
+                        "WebSocket stale for %.0fs (threshold: %.0fs) -- forcing reconnect",
+                        elapsed, self._stale_timeout,
+                    )
+                    if self.ws and not self.ws.closed:
+                        await self.ws.close()
+                    break  # exit watchdog; reconnect loop will re-establish
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error("Stale data watchdog error: %s", e)
 
     async def disconnect(self) -> None:
         """Gracefully disconnect from WebSocket"""
