@@ -289,38 +289,44 @@
   "hotPaths": [
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 20,
-      "lastAccessed": 1779022138923,
+      "accessCount": 29,
+      "lastAccessed": 1779039660536,
+      "type": "directory"
+    },
+    {
+      "path": "",
+      "accessCount": 27,
+      "lastAccessed": 1779041334684,
       "type": "directory"
     },
     {
       "path": "backend/core/settlement_helpers.py",
-      "accessCount": 8,
-      "lastAccessed": 1779021231213,
-      "type": "file"
-    },
-    {
-      "path": "IMPLEMENTATION_GAPS.md",
-      "accessCount": 3,
-      "lastAccessed": 1777836871997,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/polymarket_clob.py",
-      "accessCount": 3,
-      "lastAccessed": 1779018858179,
+      "accessCount": 12,
+      "lastAccessed": 1779041303564,
       "type": "file"
     },
     {
       "path": "backend",
-      "accessCount": 2,
-      "lastAccessed": 1779014592043,
+      "accessCount": 10,
+      "lastAccessed": 1779041283334,
       "type": "directory"
     },
     {
+      "path": "backend/data/polymarket_clob.py",
+      "accessCount": 10,
+      "lastAccessed": 1779041349822,
+      "type": "file"
+    },
+    {
+      "path": "IMPLEMENTATION_GAPS.md",
+      "accessCount": 9,
+      "lastAccessed": 1779039481776,
+      "type": "file"
+    },
+    {
       "path": "backend/strategies/btc_oracle.py",
-      "accessCount": 1,
-      "lastAccessed": 1779014630333,
+      "accessCount": 4,
+      "lastAccessed": 1779038549481,
       "type": "directory"
     },
     {
@@ -328,12 +334,6 @@
       "accessCount": 1,
       "lastAccessed": 1779037070218,
       "type": "file"
-    },
-    {
-      "path": "",
-      "accessCount": 1,
-      "lastAccessed": 1779037071504,
-      "type": "directory"
     },
     {
       "path": "backend/AGENTS.md",

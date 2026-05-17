@@ -766,3 +766,16 @@ Key categories:
 3. Add per-market position cap (max 1 open position per event)
 4. Fix model_probability to use bounded estimates (not 1.0/0.0)
 5. Add stale-market filter to skip markets near/after resolution
+
+### 🧠 AGI Auto-Research Gaps (Added 2026-05-18)
+
+| # | Gap | Impact | Priority |
+|---|-----|--------|----------|
+| G-33 | **No automated dataset ingestion** — 20+ prediction market datasets on HuggingFace (1B+ records each). AGI never downloads or learns from them. | ML models can't improve | 🟡 P1 |
+| G-34 | **No GitHub/trending scanner** — AGI doesn't scan for new repos, strategies, or tools. If a better strategy is published, we'd never know. | Missed innovation | 🟡 P1 |
+| G-35 | **No whale wallet tracking** — No automated scan of top Polymarket wallets for copy trading signals. `whale_frontrun` exists but manual. | Missed alpha | 🟡 P1 |
+| G-36 | **No paper/changelog scanner** — AGI doesn't read Polymarket API changelog, academic papers, or strategy research. | API changes surprise us | 🟢 P2 |
+| G-37 | **No performance trend analysis** — AGI doesn't detect if a strategy's WR is declining gradually (only checks daily loss). | Gradual bleed undetected | 🟢 P2 |
+| G-38 | **No auto-backtest on new data** — When new market data arrives, strategies aren't re-backtested automatically. | Stale backtest results | 🟢 P2 |
+
+**Updated total: 38 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.

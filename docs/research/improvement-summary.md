@@ -265,3 +265,63 @@ Phase 3 (Future):
   □ Hyperliquid prediction market support
   □ Rust-based arb bot components
 ```
+
+---
+
+## 📦 Datasets — HuggingFace & GitHub
+
+### 🔴 Prediction Market Trade Data
+
+| Dataset | Downloads | Records | Use for AGI | Link |
+|---|---|---|---|---|
+| **SII-WANGZJ/Polymarket_data** | 28,913 | **1B-10B** rows | 🔥 **Primary training data** — largest Polymarket dataset | [HF](https://huggingface.co/datasets/SII-WANGZJ/Polymarket_data) |
+| **wilsonwangwang/Polymarket_data** | 3,937 | 1B-10B rows | Same data, different format | [HF](https://huggingface.co/datasets/wilsonwangwang/Polymarket_data) |
+| **AllLongJohnson/Polymarket_data** | 2,234 | 1B-10B rows | Parquet format | [HF](https://huggingface.co/datasets/AllLongJohnson/Polymarket_data) |
+| **PolyData/polymarket_trade_capture** | 7,475 | — | Trade capture snapshot (Mar 2026) | [HF](https://huggingface.co/datasets/PolyData/polymarket_trade_capture_5Mar2026) |
+
+### 🟡 Prediction Market — Processed
+
+| Dataset | Downloads | Use | Link |
+|---|---|---|---|
+| **2084Collective/prediction-markets-historical-v5** | 40 | 1M-10M cleaned records, parquet | [HF](https://huggingface.co/datasets/2084Collective/prediction-markets-historical-v5) |
+| **2084Collective/prediction-markets-historical-v4** | 21 | Earlier version | [HF](https://huggingface.co/datasets/2084Collective/prediction-markets-historical-v4) |
+| **thomaswmitch/kalshi-prediction-markets-betting** | 208 | Kalshi specific | [HF](https://huggingface.co/datasets/thomaswmitch/kalshi-prediction-markets-betting) |
+| **thomaswmitch/kalshi-prediction-markets-markets** | 97 | Kalshi market definitions | [HF](https://huggingface.co/datasets/thomaswmitch/kalshi-prediction-markets-markets) |
+
+### 🟢 Crypto + Prediction Markets
+
+| Dataset | Downloads | Use | Link |
+|---|---|---|---|
+| **trentmkelly/polymarket_crypto_derivatives** | 13,525 | Crypto derivatives on Polymarket | [HF](https://huggingface.co/datasets/trentmkelly/polymarket_crypto_derivatives) |
+| **mingossx/polymarket-crypto-updown** | 4,273 | Crypto up/down market data | [HF](https://huggingface.co/datasets/mingossx/polymarket-crypto-updown) |
+| **BrockMisner/polymarket-crypto-5m-15m** | 3,573 | 5-min & 15-min crypto | [HF](https://huggingface.co/datasets/BrockMisner/polymarket-crypto-5m-15m) |
+| **aliplayer1/polymarket-crypto-updown** | 4,314 | Alternative version | [HF](https://huggingface.co/datasets/aliplayer1/polymarket-crypto-updown) |
+| **rameez543/polymarket_bot_data** | 12,479 | Bot trading data | [HF](https://huggingface.co/datasets/rameez543/polymarket_bot_data) |
+
+### 🔵 News + Signals
+
+| Dataset | Downloads | Use | Link |
+|---|---|---|---|
+| **lwaekfjlk/prediction-market-news** | 5,907 | News articles for prediction markets | [HF](https://huggingface.co/datasets/lwaekfjlk/prediction-market-news) |
+| **ismail-ELBOUKNIFY/news-selection-for-market-prediction** | 43 | News selection for market pred | [HF](https://huggingface.co/datasets/ismail-ELBOUKNIFY/news-selection-for-market-prediction) |
+
+### GitHub Datasets (from earlier search)
+
+| Repo | Stars | Records | Link |
+|---|---|---|---|
+| **Polymarket_data** | 566⭐ | 1.1B records | [GitHub](https://github.com/Polymarket-Data/Polymarket_data) |
+| **prediction-market-analysis** | 3,369⭐ | Framework + data | [GitHub](https://github.com/Polymarket-Research/prediction-market-analysis) |
+
+---
+
+## 🤖 AGI Auto-Research — Current Gaps
+
+| Feature | Status | Why Needed |
+|---|---|---|
+| 🔴 **Automated GitHub trending scan** | ❌ Missing | AGI should scan new Polymarket repos weekly |
+| 🔴 **Automated HF dataset ingestion** | ❌ Missing | Should download + index datasets for ML training |
+| 🔴 **Whale wallet tracking** | ❌ Missing | Should track top Polymarket wallets for copy trading |
+| 🟡 **Paper/changelog scanner** | ❌ Missing | Should read Polymarket API changelog + research papers |
+| 🟡 **Competitor strategy monitor** | ❌ Missing | Should monitor 4coinsbot, polyrec, etc for new patterns |
+| 🟢 **Auto-backtest on new data** | ❌ Missing | Should re-backtest strategies when new data arrives |
+| 🟢 **Performance degradation alert** | ✅ Partial | Risk layer disables on loss, but no trend analysis |
