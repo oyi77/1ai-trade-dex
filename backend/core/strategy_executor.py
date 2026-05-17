@@ -1171,7 +1171,22 @@ async def _execute_decision_live_clob(
                         f"Fill: {fill_price:.4f} (was {entry_price:.4f})"
                     )
 
+            # Strategy gating: only place CLOB orders if strategy passed live gate
             if mode in ("testnet", "live") and token_id:
+                from backend.core.strategy_gate import StrategyGate
+                gate = StrategyGate.can_execute_live(strategy_name, db)
+                if not gate[0]:
+                    logger.warning(
+                        f"[GATE][{strategy_name}] Blocked live order: {gate[1]}"
+                    )
+                    attempt_recorder.record_rejected(
+                        f"Strategy gate blocked: {gate[1]}",
+                        phase="gate",
+                        reason_code="BLOCKED_STRATEGY_GATE",
+                        adjusted_size=adjusted_size,
+                    )
+                    db.commit()
+                    return None
                 for clob_attempt in range(2):
                     try:
                         async with context.clob_client as clob:
