@@ -65,10 +65,9 @@ class PaperProvider(BaseMarketProvider):
                 fees_paid=Decimal("0"),
             )
 
-        # Limit orders stored as open
-        if order.side == OrderSide.BUY:
-            self._update_position(order.market_id, order.side, order.size, order.price or Decimal("0.5"))
-
+        # Limit orders stay open until a fill is explicitly simulated by a caller.
+        # Do not mutate positions here, or paper mode can report exposure that
+        # never actually filled.
         return NormalizedOrderResult(
             venue_order_id=venue_id,
             client_order_id=order.client_order_id,

@@ -212,7 +212,7 @@ class ConfigRegistry:
     KELLY_FRACTION: float = 0.30  #Kelly fraction (0.30 = 30% Kelly)
     MAX_POSITION_FRACTION: float = 0.08  #max position as % of bankroll
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  #max total exposure
-    MAX_TRADE_SIZE: float = 8.0  #max single trade size in USD
+    MAX_TRADE_SIZE: float = 100.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
     PAPER_MIN_ORDER_USDC: float = 5.0  #minimum order size (paper — matches live to prevent hallucination)
 
@@ -221,6 +221,12 @@ class ConfigRegistry:
     PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.5"))
     AI_SIGNAL_WEIGHT: float = 0.30  #AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  #bias weight for longshot markets
+
+    # Longshot Bias Strategy
+    LONGSHOT_BIAS_MAX_PRICE: float = 0.30  #only trade below 30c
+    LONGSHOT_BIAS_MIN_EV: float = 0.05  #minimum expected value
+    LONGSHOT_BIAS_MAX_POSITION_USD: float = 20.0  #max position in USD
+    LONGSHOT_BIAS_ENABLED: bool = False  #start disabled
 
     # Indicator weights (must sum to ~1.0)
     WEIGHT_RSI: float = 0.20
@@ -337,6 +343,7 @@ class ConfigRegistry:
     CROSS_MARKET_ARB_POLYMARKET_FEE: float = 0.01
     CROSS_MARKET_ARB_KALSHI_FEE: float = 0.01
     CROSS_MARKET_ARB_MIN_SPREAD: float = 0.03
+    CROSS_ARB_MIN_SPREAD_PCT: float = 0.013  # 1.3% minimum spread to cover fees
 
     # General Market Scanner
     GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.02
@@ -411,6 +418,26 @@ class ConfigRegistry:
     BTC_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
     BTC_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.10
 
+    # Crypto Oracle (multi-asset generalization of BTC Oracle)
+    CRYPTO_ORACLE_ASSETS: str = "bitcoin,ethereum,solana"  # comma-separated CoinGecko IDs
+    CRYPTO_ORACLE_MIN_EDGE: float = 0.03
+    CRYPTO_ORACLE_MAX_MINUTES_TO_RESOLUTION: float = 10.0
+    CRYPTO_ORACLE_INTERVAL_SECONDS: int = 15
+    CRYPTO_ORACLE_MAX_POSITION_USD: float = 50.0
+    CRYPTO_ORACLE_MIN_POSITION_USD: float = 1.0
+    CRYPTO_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.05
+    CRYPTO_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
+    CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE: float = 0.30
+    CRYPTO_ORACLE_MIN_PRICE_BUCKET: float = 0.35  # reject trades below 35c (negative EV territory)
+    CRYPTO_ORACLE_MAX_PRICE_BUCKET: float = 0.65  # reject trades above 65c (negative EV territory)
+
+    # Crypto Oracle — dynamic allocation & time-of-day optimization
+    CRYPTO_ORACLE_TRACKER_ENABLED: bool = True
+    CRYPTO_ORACLE_DYNAMIC_ALLOCATION: bool = True
+    CRYPTO_ORACLE_TIME_WEIGHTS: dict = field(default_factory=lambda: {"peak": 1.0, "normal": 0.5, "off_peak": 0.25})
+    CRYPTO_ORACLE_PEAK_HOURS: list = field(default_factory=lambda: [17, 18])  # UTC hours
+    CRYPTO_ORACLE_NORMAL_HOURS: list = field(default_factory=lambda: [13, 14, 15, 16, 19, 20, 21])
+
     # Time filters
     MIN_TIME_REMAINING: int = 60  #min time remaining in seconds
     MAX_TIME_REMAINING: int = 1800  #max time remaining in seconds
@@ -467,10 +494,11 @@ class ConfigRegistry:
     POLYMARKET_WALLET_ADDRESS: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
-    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_ENABLED: bool = True
     AUTO_REDEEM_DRY_RUN: bool = True
     AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
     AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
+    AUTO_REDEEM_DB_SCAN_ENABLED: bool = True
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     KALSHI_ENABLED: bool = False
@@ -663,8 +691,9 @@ class ConfigRegistry:
     AGI_CALIBRATION_MIN_SAMPLES: int = 30
 
     # Forensics
-    FORENSICS_AUTO_MUTATE: bool = False
+    FORENSICS_AUTO_MUTATE: bool = True
     FORENSICS_MAX_MUTATIONS_PER_DAY: int = 3
+    AGI_SELF_TUNE_INTERVAL_MINUTES: int = 30
 
     # Self-debugger
     SELF_DEBUGGER_MAX_RECOVERY_ATTEMPTS: int = 3
@@ -777,9 +806,16 @@ class ConfigRegistry:
 
     # Evolution engine
     EVOLUTION_ENGINE_ENABLED: bool = False
+    EVOLUTION_BACKEND: str = "legacy"  # "deap" or "legacy"
     AGI_POPULATION_SIZE: int = 20
     AGI_MUTATION_RATE: float = 0.10
     GENOME_POPULATION_TARGET: int = 25
+    DEAP_POPULATION_SIZE: int = 100
+    DEAP_CROSSOVER_PROB: float = 0.7
+    DEAP_MUTATION_PROB: float = 0.2
+    DEAP_TOURNAMENT_SIZE: int = 3
+    DEAP_GENERATIONS: int = 50
+    DEAP_PARALLEL_WORKERS: int = 4
     GENOME_RAMP_MIN_TRADES: int = 10
     GENOME_INITIAL_ALLOCATION_PCT: float = 0.02
 
@@ -825,6 +861,24 @@ class ConfigRegistry:
         "crypto": 1.10,
         "weather": 1.15,
         "entertainment": 1.15,
+    })
+
+    # --------------------------------------------------------------------------
+    # EV_FILTERS - Expected value and longshot bias filters
+    # --------------------------------------------------------------------------
+    MIN_TRADE_EV: float = 0.10  # Minimum expected value ($0.10) to accept a trade
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30  # Reject YES trades below this price
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30  # Boost NO trades below this price
+
+    # Category-specific minimum edge requirements (by efficiency)
+    CATEGORY_MIN_EDGE: Dict[str, float] = field(default_factory=lambda: {
+        "finance": 0.05,        # Nearly efficient — high bar
+        "politics": 0.03,       # Moderate
+        "sports": 0.02,         # Good target
+        "crypto": 0.02,         # Good target
+        "entertainment": 0.01,  # Highest edge opportunity
+        "weather": 0.02,        # Good target
+        "uncategorized": 0.03,  # Default
     })
 
     # --------------------------------------------------------------------------
@@ -1170,10 +1224,11 @@ class Settings(BaseSettings):
     # Polymarket Relayer API (gasless on-chain operations)
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
-    AUTO_REDEEM_ENABLED: bool = False
+    AUTO_REDEEM_ENABLED: bool = True
     AUTO_REDEEM_DRY_RUN: bool = True
     AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
     AUTO_REDEEM_TIMEOUT_SECONDS: float = 120.0
+    AUTO_REDEEM_DB_SCAN_ENABLED: bool = True
 
     # Kalshi API
     KALSHI_API_KEY_ID: Optional[str] = None
@@ -1233,6 +1288,15 @@ class Settings(BaseSettings):
     MIN_EDGE_THRESHOLD: float = (
         0.03  # 3% edge required - permissive default; BTC strategies typically show 3-6% edge
     )
+    # Minimum required edge in percentage points (signal_win_rate - market_price) * 100.
+    # Trades with edge_pp < MIN_EDGE_PP are rejected by RiskManager.check_edge().
+    # Also auto-rejects market_price < 0.30 unless edge_pp > 10 (longshot guard).
+    # Strategies to immediately disable — comma-separated list.
+    # These strategies have negative expectancy and should never run.
+    # Example: DISABLED_STRATEGIES=sports_scanner,politics_scanner
+    DISABLED_STRATEGIES: str = ""
+
+    MIN_EDGE_PP: float = 5.0
     MAX_ENTRY_PRICE: float = 0.80  # Allow entries up to 80c for bond-like trades
     MAX_TRADES_PER_WINDOW: int = 20
     MAX_TRADES_PER_SCAN: int = int(os.getenv("MAX_TRADES_PER_SCAN", "10"))  # type: ignore[assignment]
@@ -1254,7 +1318,19 @@ class Settings(BaseSettings):
         "weather": 1.15,
         "entertainment": 1.15,
     }
-    MAX_TRADE_SIZE: float = 8.0  # Global absolute ceiling on any single trade size (USD)
+    MIN_TRADE_EV: float = 0.10  # Minimum expected value ($0.10) to accept a trade
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30  # Reject YES trades below this price
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30  # Boost NO trades below this price
+    CATEGORY_MIN_EDGE: dict = {
+        "finance": 0.05,
+        "politics": 0.03,
+        "sports": 0.02,
+        "crypto": 0.02,
+        "entertainment": 0.01,
+        "weather": 0.02,
+        "uncategorized": 0.03,
+    }
+    MAX_TRADE_SIZE: float = 100.0  # Global absolute ceiling on any single trade size (USD)
     MIN_ORDER_USDC: float = 5.0  # Polymarket minimum order size (live mode)
     PAPER_MIN_ORDER_USDC: float = 5.0  # Simulated minimum (matches live to prevent hallucination)
     MIN_TIME_REMAINING: int = 60  # Don't trade windows closing in < 60s
@@ -1437,7 +1513,8 @@ class Settings(BaseSettings):
     AGI_HEALTH_ORPHAN_MAX_AGE_DAYS: int = 7
 
     # Wave 9: Meta-Learning Layer
-    FORENSICS_AUTO_MUTATE: bool = False  # Auto-apply forensics-driven mutations
+    FORENSICS_AUTO_MUTATE: bool = True  # Auto-apply forensics-driven mutations
+    AGI_SELF_TUNE_INTERVAL_MINUTES: int = 30  # AGI self-tuning review interval
     EVOLUTION_ENGINE_ENABLED: bool = False  # Enable evolution engine jobs
     AGI_MUTATION_INTERVAL_HOURS: int = 6
     AGI_CROSSOVER_INTERVAL_HOURS: int = 24

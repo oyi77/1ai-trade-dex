@@ -159,7 +159,14 @@ class TradeRole(str, Enum):
 def _set_sqlite_busy_timeout(connection_or_session, timeout_ms: int) -> None:
     """Apply a shorter busy_timeout for best-effort SQLite bootstrap work."""
 
-    if connection_or_session.get_bind().dialect.name != "sqlite":
+    # SQLAlchemy 2.0: Connection objects don't have get_bind(), only Session does
+    try:
+        bind = connection_or_session.get_bind()
+        dialect_name = bind.dialect.name
+    except AttributeError:
+        dialect_name = connection_or_session.dialect.name
+
+    if dialect_name != "sqlite":
         return
 
     try:
@@ -1952,9 +1959,9 @@ def ensure_schema():
     # Backfill logic for existing trades (preserve data)
     try:
         with engine.connect() as conn:
-            if "sqlite" in settings.DATABASE_URL:
-                _set_sqlite_busy_timeout(conn, 1000)
             with conn.begin():
+                if "sqlite" in settings.DATABASE_URL:
+                    _set_sqlite_busy_timeout(conn, 1000)
                 # Set source="bot" for all existing trades (assume bot-executed)
                 conn.execute(
                     text("UPDATE trades SET source = 'bot' WHERE source IS NULL")
@@ -2134,6 +2141,42 @@ class ClobEvent(Base):
         UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
     )
 
+
+class ProviderCredential(Base):
+    """Key-value credential and config store for market providers.
+
+    Replaces per-provider ENV vars with a flexible DB-backed store.
+    Any number of providers can be configured without code changes.
+
+    The store is read at provider startup via :class:`ProviderConfigStore`.
+    ENV vars serve as a bootstrap fallback when no DB row exists.
+
+    Naming convention for ENV var fallback:
+        ``{PROVIDER_NAME_UPPER}_{CONFIG_KEY_UPPER}``
+        e.g. provider_name="azuro", config_key="graph_url" → ``AZURO_GRAPH_URL``
+    """
+
+    __tablename__ = "provider_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider_name = Column(String, nullable=False, index=True)
+    config_key = Column(String, nullable=False)
+    config_value = Column(Text, nullable=True)
+    is_secret = Column(Boolean, default=False, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_name", "config_key", name="uq_provider_credentials"
+        ),
+        Index("idx_provider_credentials_name", "provider_name"),
+    )
 
 
 def get_db():

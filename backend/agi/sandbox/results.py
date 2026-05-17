@@ -14,6 +14,10 @@ class SandboxResult:
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     execution_time_ms: float = 0.0
+    cpu_ms: float = 0.0
+    mem_kb: float = 0.0
+    killed: bool = False
+    output: str = ""
     created_at: datetime = field(default_factory=datetime.now)
 
     @property
@@ -29,5 +33,9 @@ class SandboxResult:
             "errors": self.errors,
             "warnings": self.warnings,
             "execution_time_ms": self.execution_time_ms,
+            "cpu_ms": self.cpu_ms,
+            "mem_kb": self.mem_kb,
+            "killed": self.killed,
+            "output": self.output,
             "created_at": self.created_at.isoformat(),
         }

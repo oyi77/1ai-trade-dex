@@ -254,3 +254,24 @@ async def test_strategy_composer_closes_read_session_before_llm_await():
 
     assert result == {"strategy_name": "demo"}
     validate_mock.assert_called_once_with({"strategy_name": "demo", "code": "print('x')"}, write_db)
+
+
+def test_strategy_composer_parses_compilable_template():
+    from backend.ai.strategy_composer import StrategyComposer
+
+    response = """
+STRATEGY_NAME: demo_edge_strategy
+DESCRIPTION: Demo generated strategy.
+CATEGORY: crypto
+DEFAULT_PARAMS: {"min_volume": 1000}
+MARKET_FILTER: m.volume > params["min_volume"]
+STRATEGY_BODY: result.decisions_recorded += 1
+"""
+
+    parsed = StrategyComposer()._parse_response(response)
+
+    assert parsed is not None
+    assert "{class_name}" not in parsed["code"]
+    assert "{strategy_name}" not in parsed["code"]
+    assert "class DemoEdgeStrategy" in parsed["code"]
+    compile(parsed["code"], "<demo_edge_strategy>", "exec")

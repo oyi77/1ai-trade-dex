@@ -227,12 +227,12 @@ async def auto_improve_job():
 
     log_event("info", "Running auto-improvement analysis...")
 
-    db = SessionLocal()
     bigbrain = get_bigbrain()
 
     try:
-        optimizer = ParameterOptimizer(settings)
-        analysis = optimizer.analyze_performance(db, trade_limit=100)
+        with SessionLocal() as db:
+            optimizer = ParameterOptimizer(settings)
+            analysis = optimizer.analyze_performance(db, trade_limit=100)
 
         log_event(
             "data",
@@ -353,7 +353,6 @@ async def auto_improve_job():
         log_event("error", f"Auto-improve error: {e}")
         logger.exception("Error in auto_improve_job")
     finally:
-        db.close()
         await bigbrain.close()
 
 

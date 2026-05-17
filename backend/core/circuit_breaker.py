@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import time
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable
 
@@ -8,6 +9,12 @@ from loguru import logger
 
 from backend.config import settings
 from backend.core.errors import CircuitOpenError
+
+# Strategy performance thresholds
+STRATEGY_MIN_WIN_RATE = 0.45
+STRATEGY_MIN_PNL_RATIO = 0.05
+STRATEGY_WINRATE_LOOKBACK_TRADES = 20
+STRATEGY_PNL_LOOKBACK_DAYS = 30
 
 _STATE_VALUES = {0: 0, 1: 1, 2: 2}
 
@@ -19,6 +26,75 @@ class State(str, Enum):
 
 
 class CircuitBreaker:
+    def check_strategy_performance(self, strategy_name: str, db=None) -> bool:
+        """Check if strategy performance meets minimum thresholds.
+
+        Returns True (healthy) if:
+          - win_rate >= STRATEGY_MIN_WIN_RATE over last STRATEGY_WINRATE_LOOKBACK_TRADES
+          - pnl/capital >= STRATEGY_MIN_PNL_RATIO over last STRATEGY_PNL_LOOKBACK_DAYS
+
+        Returns False (unhealthy) and disables strategy in StrategyConfig if either fails.
+
+        Args:
+            strategy_name: Strategy to check
+            db: Optional SQLAlchemy session
+        """
+        import sqlalchemy as sa
+        from backend.models.database import Trade, StrategyConfig, SessionLocal
+
+        session = db or SessionLocal()
+        close_session = db is None
+        try:
+            # 1. Query last N trades for win rate, match trading_mode
+            q_trades = (
+                session.query(Trade)
+                .filter(Trade.strategy == strategy_name, Trade.settled == True)
+                .order_by(Trade.id.desc())
+                .limit(STRATEGY_WINRATE_LOOKBACK_TRADES)
+            )
+            trades = q_trades.all()
+            total = len(trades)
+            wins = sum(1 for t in trades if t.result == "win")
+            win_rate = wins / total if total else 0.0
+
+            # 2. PnL over last M days
+            cutoff = datetime.now(timezone.utc) - timedelta(days=STRATEGY_PNL_LOOKBACK_DAYS)
+            q_pnl = (
+                session.query(sa.func.sum(Trade.pnl))
+                .filter(
+                    Trade.strategy == strategy_name,
+                    Trade.settled == True,
+                    Trade.timestamp >= cutoff,
+                )
+            )
+            total_pnl = q_pnl.scalar() or 0.0
+
+            # 3. Get initial bankroll (uses BotState for appropriate mode)
+            mode = getattr(settings, "TRADING_MODE", "paper")
+            from backend.models.database import BotState
+            botstate = session.query(BotState).filter_by(mode=mode).order_by(BotState.id.desc()).first()
+            if botstate:
+                capital = botstate.bankroll or botstate.paper_bankroll or botstate.testnet_bankroll or 100.0
+            else:
+                capital = 100.0
+            pnl_ratio = total_pnl / capital if capital > 0 else 0.0
+
+            # 4. Evaluate gates
+            healthy = win_rate >= STRATEGY_MIN_WIN_RATE and pnl_ratio >= STRATEGY_MIN_PNL_RATIO
+            if not healthy:
+                # disable in StrategyConfig if enabled
+                config = session.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+                if config and config.enabled:
+                    config.enabled = False
+                    config.disabled_at = datetime.now(timezone.utc)
+                    session.commit()
+                    logger.warning(f"Strategy {strategy_name} auto-paused by circuit breaker (win_rate={win_rate:.2%}, pnl_ratio={pnl_ratio:.2%})")
+                return False
+            return True
+        finally:
+            if close_session:
+                session.close()
+
     def __init__(
         self,
         name: str,

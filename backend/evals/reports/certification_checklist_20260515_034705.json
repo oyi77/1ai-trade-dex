@@ -1,0 +1,121 @@
+{
+  "benchmark_thresholds": {
+    "cross_domain_transfer": 0.805,
+    "few_shot_learning": 1.0,
+    "causal_reasoning": 0.4,
+    "agi_score": 0.7969337959965452
+  },
+  "certification_eligible": false,
+  "passed_benchmarks": [
+    "cross_domain_transfer",
+    "few_shot_learning",
+    "agi_score"
+  ],
+  "failed_benchmarks": [
+    "causal_reasoning"
+  ],
+  "timestamp": "2026-05-15T03:47:05.710647",
+  "details": {
+    "cross_domain_transfer": {
+      "score": 0.805,
+      "threshold": 0.6,
+      "passed": true,
+      "benchmark_id": "cross_domain_transfer",
+      "metadata": {
+        "simulated_trades": 200,
+        "few_shot_examples": 5,
+        "source_domain": "crypto",
+        "target_domain": "weather",
+        "threshold": 0.6,
+        "adapted_strategy_id": "adapted_strategy_crypto_top1_to_weather",
+        "baseline_win_rate": 0.5,
+        "adapted_win_rate": 0.805
+      }
+    },
+    "few_shot_learning": {
+      "score": 1.0,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "few_shot_learning",
+      "metadata": {
+        "gap": 0.33333333333333337,
+        "train_success_rate": 0.6666666666666666,
+        "test_success_rate": 1.0,
+        "strategy_id": "few_shot_sports_20260515_034704"
+      }
+    },
+    "causal_reasoning": {
+      "score": 0.4,
+      "threshold": 0.8,
+      "passed": false,
+      "benchmark_id": "causal_reasoning",
+      "metadata": {
+        "train_observations": 10,
+        "test_interventions": 5,
+        "threshold": 0.8,
+        "graph_nodes": 5,
+        "graph_edges": 5,
+        "predictions": [
+          {
+            "prediction": "negative_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from intervention sign"
+          },
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from intervention sign"
+          },
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from intervention sign"
+          },
+          {
+            "prediction": "negative_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from intervention sign"
+          },
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from intervention sign"
+          }
+        ],
+        "ground_truth": [
+          {
+            "actual": "negative_effect"
+          },
+          {
+            "actual": "no_effect"
+          },
+          {
+            "actual": "negative_effect"
+          },
+          {
+            "actual": "negative_effect"
+          },
+          {
+            "actual": "no_effect"
+          }
+        ]
+      }
+    },
+    "agi_score": {
+      "score": 0.7969337959965452,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "agi_score",
+      "metadata": {
+        "breakdown": {
+          "cross_domain_transfer": 0.7862098276902824,
+          "few_shot_learning": 0.8706289584724803,
+          "causal_reasoning": 0.7329405338257217
+        },
+        "consistency_score": 0.8,
+        "threshold": 0.7,
+        "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
+      }
+    }
+  }
+}

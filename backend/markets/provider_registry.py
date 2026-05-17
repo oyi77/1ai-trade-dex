@@ -132,8 +132,8 @@ class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketPr
                         f"Cannot disable '{name}': {len(positions)} open positions. "
                         f"Use force=True to override."
                     )
-            except Exception:
-                pass  # If health check fails, allow disable
+            except Exception as exc:
+                logger.debug("Provider position check failed while disabling %s: %s", name, exc)
 
         self._enabled[name] = enabled
         logger.info(f"Market provider '{name}' {'enabled' if enabled else 'disabled'}")

@@ -3,6 +3,8 @@ import os
 from unittest.mock import MagicMock, patch
 from dataclasses import dataclass
 
+import pytest
+
 from backend.core.risk_manager import RiskManager
 
 
@@ -30,6 +32,10 @@ class MockSettings:
     NEW_STRATEGY_RAMP_PCT: float = 0.01
     NEW_STRATEGY_MIN_TRADES: int = 20
     MIN_ARCHETYPE_DIVERSITY: int = 5
+    MIN_TRADE_EV: float = 0.10
+    LONGSHOT_YES_REJECT_PRICE: float = 0.30
+    LONGSHOT_NO_BOOST_PRICE: float = 0.30
+    CATEGORY_MIN_EDGE: dict = None
 
     def __post_init__(self):
         if self.DRAWDOWN_BREAKER_ENABLED_PER_MODE is None:
@@ -43,6 +49,16 @@ class MockSettings:
                 "paper": True,
                 "testnet": True,
                 "live": True,
+            }
+        if self.CATEGORY_MIN_EDGE is None:
+            self.CATEGORY_MIN_EDGE = {
+                "finance": 0.05,
+                "politics": 0.03,
+                "sports": 0.02,
+                "crypto": 0.02,
+                "entertainment": 0.01,
+                "weather": 0.02,
+                "uncategorized": 0.03,
             }
 
 
@@ -440,3 +456,90 @@ class TestImmutableSafetyRules:
 
         assert decision.allowed is True
         assert decision.adjusted_size == 5.0
+
+
+class TestEdgeFilter:
+
+    def _settings_with_edge(self, min_edge_pp: float = 5.0):
+        s = MockSettings()
+        s.MIN_EDGE_PP = min_edge_pp
+        s.MIN_ORDER_USDC = 1.0
+        s.PAPER_MIN_ORDER_USDC = 1.0
+        s.MAX_TRADE_SIZE = 100.0
+        s.MAX_POSITION_FRACTION = 1.0
+        return s
+
+    def test_check_edge_raises_on_low_edge(self):
+        from backend.core.risk_manager import EdgeFilterError
+        rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
+        import pytest
+        with pytest.raises(EdgeFilterError):
+            rm.check_edge(market_price=0.50, signal_win_rate=0.52, market_id="X")
+
+    def test_check_edge_passes_when_edge_above_minimum(self):
+        rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
+        edge_pp = rm.check_edge(market_price=0.50, signal_win_rate=0.58, market_id="X")
+        assert edge_pp == pytest.approx(8.0)
+
+    def test_check_edge_rejects_longshot_without_huge_edge(self):
+        from backend.core.risk_manager import EdgeFilterError
+        rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
+        import pytest
+        with pytest.raises(EdgeFilterError):
+            rm.check_edge(market_price=0.25, signal_win_rate=0.30, market_id="X")
+
+    def test_check_edge_accepts_longshot_with_huge_edge(self):
+        rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
+        edge_pp = rm.check_edge(market_price=0.20, signal_win_rate=0.35, market_id="X")
+        assert edge_pp == pytest.approx(15.0)
+
+    def test_validate_trade_rejects_low_edge(self):
+        s = self._settings_with_edge(5.0)
+        rm = RiskManager(settings_obj=s)
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.90,
+            market_ticker="EDGE-TEST",
+            mode="paper",
+            strategy_name="test_strategy",
+            direction="up",
+            market_price=0.50,
+            signal_win_rate=0.52,
+        )
+        assert decision.allowed is False
+        assert "Edge filter" in decision.reason
+        assert decision.adjusted_size == 0.0
+
+    def test_validate_trade_allows_when_edge_sufficient(self):
+        s = self._settings_with_edge(5.0)
+        rm = RiskManager(settings_obj=s)
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.90,
+            market_ticker="EDGE-TEST",
+            mode="paper",
+            strategy_name="test_strategy",
+            direction="up",
+            market_price=0.50,
+            signal_win_rate=0.58,
+        )
+        assert decision.allowed is True
+
+    def test_validate_trade_skips_edge_when_inputs_missing(self):
+        s = self._settings_with_edge(5.0)
+        rm = RiskManager(settings_obj=s)
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.90,
+            market_ticker="NO-EDGE",
+            mode="paper",
+            strategy_name="test_strategy",
+            direction="up",
+        )
+        assert decision.allowed is True

@@ -312,3 +312,66 @@ def rate_limited(
         return async_wrapper
 
     return decorator
+
+
+class TokenBucketRateLimiter:
+    """Token bucket rate limiter for order submission.
+
+    Enforces:
+    - Per-market: max 1 order per 10 seconds
+    - Global: max 3 orders per second
+    """
+
+    def __init__(
+        self,
+        per_market_limit: int = 1,
+        per_market_window: float = 10.0,
+        global_limit: int = 3,
+        global_window: float = 1.0,
+    ):
+        self.per_market_limit = per_market_limit
+        self.per_market_window = per_market_window
+        self.global_limit = global_limit
+        self.global_window = global_window
+        self._market_timestamps: dict[str, list[float]] = {}
+        self._global_timestamps: list[float] = []
+
+    def acquire(self, market_id: str) -> None:
+        """Acquire a token for the given market. Raises RateLimitError if limit exceeded."""
+        now = time.monotonic()
+
+        # Clean up old timestamps (sliding window)
+        cutoff = now - self.per_market_window
+        if market_id in self._market_timestamps:
+            self._market_timestamps[market_id] = [
+                t for t in self._market_timestamps[market_id] if t > cutoff
+            ]
+
+        global_cutoff = now - self.global_window
+        self._global_timestamps = [t for t in self._global_timestamps if t > global_cutoff]
+
+        # Check per-market limit
+        market_count = len(self._market_timestamps.get(market_id, []))
+        if market_count >= self.per_market_limit:
+            raise RateLimitError(
+                f"Per-market rate limit exceeded for {market_id}: "
+                f"{market_count} orders in {self.per_market_window}s (max {self.per_market_limit})"
+            )
+
+        # Check global limit
+        if len(self._global_timestamps) >= self.global_limit:
+            raise RateLimitError(
+                f"Global rate limit exceeded: "
+                f"{len(self._global_timestamps)} orders in {self.global_window}s (max {self.global_limit})"
+            )
+
+        # Record this order
+        if market_id not in self._market_timestamps:
+            self._market_timestamps[market_id] = []
+        self._market_timestamps[market_id].append(now)
+        self._global_timestamps.append(now)
+
+    def reset(self) -> None:
+        """Clear all rate limit state."""
+        self._market_timestamps.clear()
+        self._global_timestamps.clear()

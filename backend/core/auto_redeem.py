@@ -375,6 +375,69 @@ def get_redeemable_positions(wallet: str) -> list[dict]:
     return [p for p in positions if p.get("redeemable") and p.get("conditionId")]
 
 
+def get_db_resolved_positions() -> list[dict]:
+    """Scan DB for settled winning trades that may need redemption.
+
+    This catches resolved non-Bitcoin markets that the Polymarket Data API
+    may not surface as redeemable (e.g., markets resolved on-chain but not
+    yet reflected in the API).
+
+    Returns a list of dicts compatible with get_redeemable_positions output.
+    """
+    from backend.db.utils import get_db_session
+    from backend.models.database import Trade
+    from sqlalchemy import or_
+
+    resolved = []
+    try:
+        with get_db_session() as db:
+            # Find trades that are settled as wins but not yet redeemed.
+            # These are positions where the bot won but hasn't collected the payout.
+            winning_trades = (
+                db.query(Trade)
+                .filter(
+                    Trade.settled.is_(True),
+                    Trade.result == "win",
+                    Trade.settlement_value == 1.0,
+                    # Exclude BTC 5-min markets (handled separately)
+                    ~Trade.market_ticker.like("btc-updown-5m-%"),
+                    # Only live/testnet trades (paper has no on-chain positions)
+                    or_(
+                        Trade.trading_mode == "live",
+                        Trade.trading_mode == "testnet",
+                    ),
+                )
+                .all()
+            )
+
+            for trade in winning_trades:
+                condition_id = getattr(trade, "condition_id", None) or getattr(trade, "market_ticker", None)
+                if not condition_id:
+                    continue
+                # Skip if already has a settlement_source indicating redemption
+                source = getattr(trade, "settlement_source", "") or ""
+                if "redeem" in source.lower():
+                    continue
+                resolved.append({
+                    "conditionId": condition_id,
+                    "title": getattr(trade, "market_ticker", "unknown"),
+                    "curPrice": 1.0,
+                    "initialValue": float(trade.entry_price or 0),
+                    "negativeRisk": False,
+                    "_source": "db_scan",
+                    "_trade_id": trade.id,
+                })
+
+            if resolved:
+                logger.info(
+                    f"DB scan found {len(resolved)} resolved positions not yet redeemed"
+                )
+    except Exception as e:
+        logger.warning(f"DB scan for resolved positions failed: {e}")
+
+    return resolved
+
+
 def redeem_position(
     condition_id_hex: str,
     private_key: str,
@@ -423,6 +486,7 @@ def redeem_all_redeemable(
     builder_secret: Optional[str] = None,
     builder_passphrase: Optional[str] = None,
     dry_run: bool = False,
+    db_scan: bool = False,
 ) -> BatchRedeemResult:
     """
     Redeem all redeemable positions for a wallet.
@@ -436,9 +500,28 @@ def redeem_all_redeemable(
         builder_secret: Builder Program secret (required for proxy wallets)
         builder_passphrase: Builder Program passphrase (required for proxy wallets)
         dry_run: If True, only reports what would be redeemed (no on-chain txs)
+        db_scan: If True, also scan DB for resolved trades missing redemption
     """
     result = BatchRedeemResult()
     positions = get_redeemable_positions(wallet)
+
+    # Also scan DB for resolved positions the API may have missed
+    if db_scan:
+        try:
+            db_positions = get_db_resolved_positions()
+            # Deduplicate by conditionId
+            existing_ids = {p.get("conditionId") for p in positions}
+            for db_pos in db_positions:
+                if db_pos.get("conditionId") not in existing_ids:
+                    positions.append(db_pos)
+                    existing_ids.add(db_pos.get("conditionId"))
+            if db_positions:
+                logger.info(
+                    f"DB scan added {len(db_positions)} positions "
+                    f"({len(positions)} total after dedup)"
+                )
+        except Exception as e:
+            logger.warning(f"DB scan for redeemable positions failed: {e}")
 
     if not positions:
         logger.info("No redeemable positions found")

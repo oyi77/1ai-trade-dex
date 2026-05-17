@@ -29,6 +29,37 @@ backend/
 ```
 
 ## WHERE TO LOOK
+| Directory | Purpose |
+|-----------|---------|
+| `core/` | Trading engine — execution, risk, settlement, AGI lifecycle, scheduler (see `core/AGENTS.md`) |
+| `strategies/` | Alpha strategy implementations — BaseStrategy subclasses (see `strategies/AGENTS.md`) |
+| `ai/` | LLM routing, debate engine, signal parsing, model integrations (see `ai/AGENTS.md`) |
+| `api/` | FastAPI routers — auth, markets, trading, AGI, admin, WebSocket/SSE (see `api/AGENTS.md`) |
+| `models/` | SQLAlchemy ORM models and session factory (see `models/AGENTS.md`) |
+| `data/` | Market data providers, CLOB client, Gamma API, market universe scanner (see `data/AGENTS.md`) |
+| `markets/` | Normalized market provider plugin system; Polymarket/Kalshi wrappers return `OrderStatus.REJECTED` for invalid live orders instead of raising raw `NotImplementedError`; paper limit orders stay open without mutating positions until filled |
+| `domain/` | Core domain models — genome, evolution engine (see `domain/AGENTS.md`) |
+| `modules/` | Infrastructure modules: data feeds, execution helpers, scanners, arbitrage (see `modules/AGENTS.md`) |
+| `application/` | Application layer — genome compiler, AGI/meta/strategy orchestration (see `application/AGENTS.md`) |
+| `services/` | External service integrations — MiroFish client and monitor (see `services/AGENTS.md`) |
+| `repositories/` | Repository layer — DB CRUD abstractions (see `repositories/AGENTS.md`) |
+| `agents/` | Autonomous research agent (see `agents/AGENTS.md`) |
+| `infrastructure/` | Market stream infrastructure (see `infrastructure/AGENTS.md`) |
+| `monitoring/` | Prometheus metrics, Grafana dashboards (see `monitoring/AGENTS.md`) |
+| `db/` | Database session utilities and retry logic (see `db/AGENTS.md`) |
+| `cache/` | Caching utilities |
+| `clients/` | Low-level API clients |
+| `integrations/` | Third-party integrations |
+| `job_queue/` | Job queue abstractions (SQLite/Redis) |
+| `mesh/` | Service mesh utilities |
+| `research/` | Research and analysis utilities |
+| `scripts/` | Backend-specific operational scripts |
+| `sources/` | Data source connectors |
+| `utils/` | Shared utility functions |
+| `bot/` | Bot runner entrypoint |
+| `api_websockets/` | WebSocket connection management |
+| `alembic/` | Alembic migration env and version scripts |
+| `tests/` | Backend unit and integration tests |
 
 | Module | Purpose | Key Files | LOC |
 |--------|---------|-----------|-----|

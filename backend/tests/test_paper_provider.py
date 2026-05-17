@@ -71,6 +71,25 @@ class TestPaperProviderPlaceOrder:
         assert result.filled_size == Decimal("0")
 
     @pytest.mark.asyncio
+    async def test_place_order_limit_does_not_update_position(self, paper_provider):
+        """Open limit orders must not create exposure before a fill."""
+        order = NormalizedOrder(
+            market_id="TEST_MARKET",
+            side=OrderSide.BUY,
+            order_type=OrderType.LIMIT,
+            size=Decimal("100"),
+            price=Decimal("0.6"),
+        )
+
+        result = await paper_provider.place_order(order)
+        positions = await paper_provider.get_positions()
+
+        assert result.status == OrderStatus.OPEN
+        assert result.filled_size == Decimal("0")
+        assert result.remaining_size == Decimal("100")
+        assert positions == []
+
+    @pytest.mark.asyncio
     async def test_place_order_updates_position(self, paper_provider):
         """Place order updates internal position tracking."""
         order = NormalizedOrder(

@@ -231,8 +231,8 @@ class GenomeRepository:
             if not trades:
                 return {"sharpe_ratio": 0.0, "win_rate": 0.0, "profit_factor": 0.0, "max_drawdown_pct": 0.0, "total_trades": 0}
 
-            wins = [t for t in trades if t.result == "win"]
-            losses = [t for t in trades if t.result == "loss"]
+            wins = [t for t in trades if (t.pnl or 0) > 0]
+            losses = [t for t in trades if (t.pnl or 0) < 0]
 
             win_rate = len(wins) / len(trades) if trades else 0.0
             total_pnl = sum(t.pnl or 0 for t in trades)

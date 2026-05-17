@@ -11,7 +11,7 @@ import httpx
 from backend.strategies.wallet_sync import WalletTrade
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
-from backend.monitoring.hft_metrics import record_execution
+from backend.monitoring.hft_metrics import record_execution, order_placement_latency
 from backend.utils.redaction import redact_sensitive
 
 from loguru import logger
@@ -381,6 +381,7 @@ class OrderExecutor:
         )
 
         record_execution(strategy="copy_trader", side="BUY", status="placed", latency_s=0.0)
+        order_placement_latency.labels(strategy="copy_trader", side="BUY").observe(0.0)
         # Convert trade outcome to valid direction for CLOB
         # trade.outcome comes from Polymarket API and should be "YES" or "NO"
         our_side = trade.outcome.upper() if trade.outcome in ("yes", "no") else "YES"
@@ -410,6 +411,7 @@ class OrderExecutor:
         )
 
         record_execution(strategy="copy_trader", side="SELL", status="placed", latency_s=0.0)
+        order_placement_latency.labels(strategy="copy_trader", side="SELL").observe(0.0)
         return CopySignal(
             source_wallet=trader.user,
             source_trade=trade,

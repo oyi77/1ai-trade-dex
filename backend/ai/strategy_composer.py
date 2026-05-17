@@ -166,11 +166,13 @@ class StrategyComposer:
 
             class_name = "".join(w.capitalize() for w in strategy_name.split("_"))
 
-            code = STRATEGY_TEMPLATE
-            code = code.replace("__CLASS_NAME__", class_name)
+            code = STRATEGY_TEMPLATE.format(
+                class_name=class_name,
+                strategy_name=strategy_name,
+                description=description,
+                category=category,
+            )
             code = code.replace("__STRATEGY_NAME__", strategy_name)
-            code = code.replace("__DESCRIPTION__", description)
-            code = code.replace("__CATEGORY__", category)
             code = code.replace("__DEFAULT_PARAMS__", repr(default_params))
             code = code.replace("__MARKET_FILTER__", market_filter)
             code = code.replace("__MERGE_PARAMS__", "{**self.default_params, **(ctx.params or {})}")

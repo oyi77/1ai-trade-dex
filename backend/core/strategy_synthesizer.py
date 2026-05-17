@@ -68,7 +68,12 @@ class ValidationResult:
 class StrategySynthesizer:
     """Synthesizes new trading strategies via LLM with 4-gate validation."""
 
-    def __init__(self, session: Optional[Session] = None, db_url: str = "sqlite:///:memory:"):
+    def __init__(
+        self,
+        session: Optional[Session] = None,
+        db_url: str = "sqlite:///:memory:",
+        cognitive_core: Optional[Any] = None,
+    ):
         self._generation_count = 0
         self._daily_cost = 0.0
         if session is not None:
@@ -79,6 +84,7 @@ class StrategySynthesizer:
             Base.metadata.create_all(self._engine)
             self._session = sessionmaker(bind=self._engine)()
             self._owns_session = True
+        self._core = cognitive_core
 
     def close(self):
         if self._owns_session:

@@ -63,26 +63,23 @@ def _flush_heartbeats() -> bool:
             return True
         snapshot = dict(_pending_heartbeats)
 
-    db = SessionLocal()
     try:
-        # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
-        if settings.is_postgres:
-            db.execute(text("SET LOCAL lock_timeout = '2s'"))
-            db.execute(text("SET LOCAL statement_timeout = '5s'"))
-            acquired = db.execute(
-                text("SELECT pg_try_advisory_xact_lock(hashtext('polyedge_heartbeat_flush'))")
-            ).scalar()
-            if not acquired:
-                db.rollback()
-                logger.debug("heartbeat flush skipped: another flusher is active")
-                return False
+        heartbeat_patch = json.dumps(
+            {f"{HEARTBEAT_PREFIX}{strategy_name}": ts for strategy_name, ts in snapshot.items()}
+        )
+        with SessionLocal() as db:
+            # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
+            if settings.is_postgres:
+                db.execute(text("SET LOCAL lock_timeout = '2s'"))
+                db.execute(text("SET LOCAL statement_timeout = '5s'"))
+                acquired = db.execute(
+                    text("SELECT pg_try_advisory_xact_lock(hashtext('polyedge_heartbeat_flush'))")
+                ).scalar()
+                if not acquired:
+                    db.rollback()
+                    logger.debug("heartbeat flush skipped: another flusher is active")
+                    return False
 
-            heartbeat_patch = json.dumps(
-                {
-                    f"{HEARTBEAT_PREFIX}{strategy_name}": ts
-                for strategy_name, ts in snapshot.items()
-                }
-            )
             heartbeat_stmt = text(
                 "UPDATE bot_state "
                 "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
@@ -93,37 +90,31 @@ def _flush_heartbeats() -> bool:
                     heartbeat_stmt,
                     {"heartbeat_patch": heartbeat_patch, "mode": mode},
                 )
-            db.commit()
-        else:
-            for state in db.query(BotState).all():
-                data = {}
-                if state.misc_data:
-                    try:
-                        data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
-                    except Exception:
-                        logger.exception(f"heartbeat: failed to parse misc_data JSON for mode {state.mode}")
-                        data = {}
-                for strategy_name, ts in snapshot.items():
-                    data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-                state.misc_data = json.dumps(data)
-            db.commit()
+                db.commit()
+            else:
+                for state in db.query(BotState).all():
+                    data = {}
+                    if state.misc_data:
+                        try:
+                            data = json.loads(state.misc_data) if isinstance(state.misc_data, str) else state.misc_data
+                        except Exception:
+                            logger.exception(f"heartbeat: failed to parse misc_data JSON for mode {state.mode}")
+                            data = {}
+                    for strategy_name, ts in snapshot.items():
+                        data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+                    state.misc_data = json.dumps(data)
+                db.commit()
         with _hb_lock:
             for strategy_name, ts in snapshot.items():
                 if _pending_heartbeats.get(strategy_name) == ts:
                     _pending_heartbeats.pop(strategy_name, None)
         return True
     except Exception as e:
-        try:
-            db.rollback()
-        except Exception:
-            logger.exception("heartbeat rollback failed after flush error")
         if _is_lock_timeout_error(e):
             logger.warning("heartbeat flush deferred due to BotState contention")
         else:
             logger.warning(f"heartbeat flush failed: {e}")
         return False
-    finally:
-        db.close()
 
 
 def get_strategy_health(db) -> list[dict]:

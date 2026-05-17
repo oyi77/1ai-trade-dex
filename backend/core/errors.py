@@ -105,6 +105,29 @@ class OrderExecutionError(TradingError):
         super().__init__(message, details)
 
 
+class SideLockError(TradingError):
+    """Raised when an order would violate the side-lock invariant (opposing
+    side already open on the same market).
+
+    Side-lock prevents simultaneously holding YES and NO (or BUY and SELL)
+    positions on the same market, which would create offsetting exposure
+    that hides risk and inflates fees. Same-side stacking remains allowed.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        details: dict | None = None,
+        market_ticker: str | None = None,
+        attempted_side: str | None = None,
+        existing_side: str | None = None,
+    ):
+        self.market_ticker = market_ticker
+        self.attempted_side = attempted_side
+        self.existing_side = existing_side
+        super().__init__(message, details)
+
+
 class RateLimitError(ExternalAPIError):
     """Errors related to rate limit responses."""
 

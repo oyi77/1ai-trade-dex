@@ -32,6 +32,11 @@ from backend.core.scheduling_strategies import (
     sync_live_wallet,
     verify_settlement_blockchain,
     market_universe_scan_job,
+    position_monitor_job,
+)
+from backend.core.position_monitor import (
+    sell_signal_monitor_job,
+    SELL_MONITOR_INTERVAL_MINUTES,
 )
 from backend.models.database import ScheduledJob, Trade
 from backend.core.auto_improve import auto_improve_job
@@ -177,6 +182,8 @@ JOB_FUNCTION_REGISTRY = {
     "sync_live_wallet": sync_live_wallet,
     "verify_settlement_blockchain": verify_settlement_blockchain,
     "market_universe_scan_job": market_universe_scan_job,
+    "position_monitor_job": position_monitor_job,
+    "sell_signal_monitor_job": sell_signal_monitor_job,
 }
 
 
@@ -519,6 +526,42 @@ def start_scheduler():
         misfire_grace_time=60,
     )
 
+    # Position monitor: scan for stale positions every 30 minutes
+    _persist_and_add_job(
+        scheduler,
+        position_monitor_job,
+        IntervalTrigger(minutes=30, jitter=300),
+        id="position_monitor",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+
+    # Sell signal monitor: scan open positions for sell triggers every 5 minutes
+    _persist_and_add_job(
+        scheduler,
+        sell_signal_monitor_job,
+        IntervalTrigger(minutes=SELL_MONITOR_INTERVAL_MINUTES, jitter=60),
+        id="sell_signal_monitor",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=120,
+    )
+
+    # AGI self-tuning: periodic review of all strategies every 30 minutes
+    from backend.core.agi_self_tuner import get_agi_self_tuner
+    agi_self_tune_interval = getattr(settings, "AGI_SELF_TUNE_INTERVAL_MINUTES", 30)
+    scheduler.add_job(
+        get_agi_self_tuner().periodic_review,
+        IntervalTrigger(minutes=agi_self_tune_interval, jitter=120),
+        id="agi_self_tune",
+        name="AGI Self-Tuning Review",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+    logger.info(f"Scheduled AGI self-tuning review every {agi_self_tune_interval} minutes")
+
     # Watchdog: check strategy heartbeats every 30s
     from backend.core.heartbeat import watchdog_job, wallet_sync_job, liveness_file_job
 
@@ -635,7 +678,7 @@ def start_scheduler():
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
+            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle', 'crypto_oracle'):
                 interval = config.interval_seconds or 60
                 configs_to_schedule.append((config.strategy_name, interval, 'paper'))
                 configs_to_schedule.append((config.strategy_name, interval, 'live'))
@@ -980,7 +1023,7 @@ def start_scheduler():
             since = datetime.now(timezone.utc) - timedelta(hours=1)
             with get_db_session() as db:
                 for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle'):
+                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle', 'crypto_oracle'):
                         continue
 
                     for mode in settings.active_modes_set:

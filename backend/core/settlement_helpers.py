@@ -743,7 +743,12 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
 
     if not entry_price or entry_price <= 0 or entry_price >= 1.0:
         if entry_price and entry_price >= 1.0:
-            return 0.0
+            # Entry at $1.00+: win gives 0 profit (bought at $1, get $1 back),
+            # loss costs the full size (bought at $1, get $0 back).
+            if direction == "yes":
+                return 0.0 if settlement_value == 1.0 else round(-size, 2)
+            else:
+                return 0.0 if settlement_value == 0.0 else round(-size, 2)
         if direction == "yes":
             return round(size if settlement_value == 1.0 else -size, 2)
         else:
@@ -1170,7 +1175,7 @@ async def process_settled_trade(
         )
         dl_query = db.query(DecisionLog).filter(
             DecisionLog.market_ticker == trade.market_ticker,
-            DecisionLog.outcome is None,
+            DecisionLog.outcome.is_(None),
             DecisionLog.decision == "BUY",
         )
         if trade_ctx and trade_ctx.strategy:

@@ -22,10 +22,12 @@ function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  function ControlRoomTestWrapper({ children }: { children: React.ReactNode }) {
+    return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
-  return Wrapper
+  }
+  return ControlRoomTestWrapper
 }
 
 describe('ControlRoomTab', () => {

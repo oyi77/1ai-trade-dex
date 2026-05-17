@@ -10,9 +10,66 @@ import json
 import math
 import threading
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from loguru import logger
+
+from backend.models.database import Trade
+
+BUCKETS = [
+    (0, 10), (10, 20), (20, 30), (30, 40), (40, 50),
+    (50, 60), (60, 70), (70, 80), (80, 90), (90, 100)
+]
+
+
+def _price_to_bucket(price: float) -> tuple[float, float]:
+    """Return the bucket (low, high) for a price in [0, 1] range."""
+    pct = price * 100
+    for lo, hi in BUCKETS:
+        if lo <= pct < hi:
+            return (lo, hi)
+    return (90, 100)  # fallback for 0.95+
+
+
+def get_bucket_win_rate(
+    price: float, strategy: str, lookback: int = 200
+) -> Optional[float]:
+    """Return realized win rate for the price bucket of the given strategy.
+
+    Args:
+        price: Entry price in [0, 1] range (e.g. 0.47 for 47c)
+        strategy: Strategy name (e.g. "btc_oracle")
+        lookback: Max trades to consider (default 200)
+
+    Returns:
+        Realized win rate (0.0-1.0) if >= 10 samples, else None.
+    """
+    from backend.db.utils import get_db_session
+
+    lo, hi = _price_to_bucket(price)
+    lo_frac = lo / 100.0
+    hi_frac = hi / 100.0
+
+    with get_db_session() as db:
+        trades = (
+            db.query(Trade)
+            .filter(Trade.strategy == strategy)
+            .filter(Trade.settled.is_(True))
+            .filter(Trade.entry_price >= lo_frac)
+            .filter(Trade.entry_price < hi_frac)
+            .filter(Trade.settlement_value.isnot(None))
+            .order_by(Trade.timestamp.desc())
+            .limit(lookback)
+            .all()
+        )
+
+    if len(trades) < 10:
+        return None
+
+    wins = sum(1 for t in trades if getattr(t, 'settlement_value', 0) == 1.0)
+    return wins / len(trades)
+
+
 # Default sigma values (°F) before calibration
 DEFAULT_SIGMA_F = 2.5  # US cities (°F)
 DEFAULT_SIGMA_C = 1.4  # Non-US cities (°C, converted to effective °F)
@@ -84,6 +141,55 @@ def update_calibration(
     _CALIBRATION_FILE.parent.mkdir(exist_ok=True)
     _CALIBRATION_FILE.write_text(json.dumps(cal, indent=2), encoding="utf-8")
     logger.info(f"Calibration updated: {key} n={n} sigma={sigma:.2f}°F")
+
+
+def kelly_fraction(
+    win_prob: float,
+    price: float,
+    kelly_multiplier: float = 1.0,
+    cap: float = 0.25,
+) -> float:
+    """
+    Compute Kelly position sizing fraction for a prediction-market bet.
+
+    For a YES share bought at ``price`` that pays $1 on win:
+        profit-on-win per $1 staked  b = (1 - price) / price
+        kelly f* = p - (1 - p) / b   =   (p - price) / (1 - price)
+
+    Args:
+        win_prob: Estimated probability the share resolves YES (0.0–1.0).
+        price: Current market price of the share (0.0–1.0, exclusive).
+        kelly_multiplier: Scaling factor (e.g. 0.5 for half-Kelly).
+        cap: Hard upper bound on returned fraction (defaults to 25% of bankroll).
+
+    Returns:
+        Fraction of bankroll to stake. 0.0 when the bet has no positive edge or
+        when inputs are out of bounds.
+    """
+    try:
+        p = float(win_prob)
+        q = float(price)
+    except (TypeError, ValueError):
+        return 0.0
+
+    # Degenerate / out-of-range inputs → no bet.
+    if not (0.0 < p < 1.0) or not (0.0 < q < 1.0):
+        return 0.0
+
+    edge = p - q
+    if edge <= 0.0:
+        return 0.0
+
+    # Kelly fraction for binary payoff at price q.
+    f_star = edge / (1.0 - q)
+
+    # Apply user multiplier (half-Kelly, quarter-Kelly, etc.) and clamp.
+    f_scaled = f_star * max(0.0, float(kelly_multiplier))
+    if f_scaled <= 0.0:
+        return 0.0
+    if cap is not None and f_scaled > cap:
+        return float(cap)
+    return float(f_scaled)
 
 
 def get_calibration_report() -> str:

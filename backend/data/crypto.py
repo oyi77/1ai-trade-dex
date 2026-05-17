@@ -65,8 +65,8 @@ _feed_health: dict[str, float] = {}
 
 
 @dataclass
-class BtcMicrostructure:
-    """Real-time BTC technical indicators computed from 1-min candles."""
+class CryptoMicrostructure:
+    """Real-time crypto technical indicators computed from 1-min candles."""
     # RSI (14-period Wilder smoothing)
     rsi: float = 50.0
     # Momentum: % change over various lookbacks
@@ -84,20 +84,76 @@ class BtcMicrostructure:
     price: float = 0.0
     # Source exchange
     source: str = "binance"
+    # Asset name (CoinGecko ID)
+    asset: str = "bitcoin"
 
 
-async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
+# Backward-compatible alias
+BtcMicrostructure = CryptoMicrostructure
+
+
+# Mapping from CoinGecko ID to Binance trading pair
+_COINGECKO_TO_BINANCE_PAIR = {
+    "bitcoin": "BTCUSDT",
+    "ethereum": "ETHUSDT",
+    "solana": "SOLUSDT",
+}
+
+# Mapping from CoinGecko ID to Coinbase product ID
+_COINGECKO_TO_COINBASE_PRODUCT = {
+    "bitcoin": "BTC-USD",
+    "ethereum": "ETH-USD",
+    "solana": "SOL-USD",
+}
+
+# Mapping from CoinGecko ID to Kraken pair name
+_COINGECKO_TO_KRAKEN_PAIR = {
+    "bitcoin": "XBTUSD",
+    "ethereum": "ETHUSD",
+    "solana": "SOLUSD",
+}
+
+# Per-asset kline caches so multiple assets don't stomp each other
+_kline_caches: Dict[str, Dict[str, Any]] = {}
+
+
+def _get_kline_cache(asset: str) -> Dict[str, Any]:
+    """Get or create a kline cache dict for the given asset."""
+    if asset not in _kline_caches:
+        _kline_caches[asset] = {"data": None, "ts": 0.0}
+    return _kline_caches[asset]
+
+
+async def fetch_crypto_klines(pair: str = "BTCUSDT", limit: int = 60) -> Optional[List[list]]:
     """
-    Fetch recent 1-minute BTC candles from exchanges.
+    Fetch recent 1-minute candles for a given Binance pair from exchanges.
     Tries Coinbase first, then Kraken, Binance, and Bybit as fallbacks.
+
+    Args:
+        pair: Binance trading pair symbol (e.g. "BTCUSDT", "ETHUSDT", "SOLUSDT").
+        limit: Number of candles to fetch.
 
     Returns list of [open_time, open, high, low, close, volume, ...] or None.
     """
+    # Derive asset key from pair for caching (e.g. "BTCUSDT" -> "bitcoin")
+    pair_to_asset = {v: k for k, v in _COINGECKO_TO_BINANCE_PAIR.items()}
+    asset_key = pair_to_asset.get(pair, pair.lower())
+
     now = time.time()
-    if _kline_cache["data"] is not None and (now - _kline_cache["ts"]) < _CACHE_TTL:
-        return _kline_cache["data"]
+    cache = _get_kline_cache(asset_key)
+    if cache["data"] is not None and (now - cache["ts"]) < _CACHE_TTL:
+        return cache["data"]
 
     client = _get_crypto_client()
+
+    # Resolve Coinbase product and Kraken pair from pair
+    coinbase_product = "BTC-USD"  # default
+    kraken_pair = "XBTUSD"  # default
+    for cg_id, bn_pair in _COINGECKO_TO_BINANCE_PAIR.items():
+        if bn_pair == pair:
+            coinbase_product = _COINGECKO_TO_COINBASE_PRODUCT.get(cg_id, "BTC-USD")
+            kraken_pair = _COINGECKO_TO_KRAKEN_PAIR.get(cg_id, "XBTUSD")
+            break
 
     # Try Coinbase first (US-accessible, reliable)
     if coinbase_breaker.state != "OPEN":
@@ -106,7 +162,7 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
             end = _dt.datetime.now(_dt.timezone.utc)
             start = end - _dt.timedelta(minutes=limit)
             resp = await client.get(
-                f"{COINBASE_API}/products/BTC-USD/candles",
+                f"{COINBASE_API}/products/{coinbase_product}/candles",
                 params={
                     "start": start.isoformat(),
                     "end": end.isoformat(),
@@ -120,14 +176,14 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
                 [int(r[0]) * 1000, str(r[3]), str(r[2]), str(r[1]), str(r[4]), str(r[5])]
                 for r in rows
             ]
-            _kline_cache["data"] = candles
-            _kline_cache["ts"] = now
-            _kline_cache["_source"] = "coinbase"
+            cache["data"] = candles
+            cache["ts"] = now
+            cache["_source"] = "coinbase"
             _feed_health["coinbase"] = time.time()
             await coinbase_breaker._on_success()
             return candles
         except Exception as e:
-            logger.warning(f"Coinbase kline fetch failed, trying Kraken: {repr(e)}")
+            logger.warning(f"Coinbase kline fetch failed for {pair}, trying Kraken: {repr(e)}")
             await coinbase_breaker._on_failure()
     else:
         logger.warning("Coinbase circuit OPEN, skipping to Kraken")
@@ -137,7 +193,7 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
         try:
             resp = await client.get(
                 f"{KRAKEN_API}/OHLC",
-                params={"pair": "XBTUSD", "interval": 1},
+                params={"pair": kraken_pair, "interval": 1},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -150,14 +206,14 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
                     [int(r[0]) * 1000, str(r[1]), str(r[2]), str(r[3]), str(r[4]), str(r[6])]
                     for r in rows
                 ]
-                _kline_cache["data"] = candles
-                _kline_cache["ts"] = now
-                _kline_cache["_source"] = "kraken"
+                cache["data"] = candles
+                cache["ts"] = now
+                cache["_source"] = "kraken"
                 _feed_health["kraken"] = time.time()
                 await kraken_breaker._on_success()
                 return candles
         except Exception as e:
-            logger.warning(f"Kraken kline fetch failed, trying Binance: {repr(e)}")
+            logger.warning(f"Kraken kline fetch failed for {pair}, trying Binance: {repr(e)}")
             await kraken_breaker._on_failure()
     else:
         logger.warning("Kraken circuit OPEN, skipping to Binance")
@@ -167,18 +223,18 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
         try:
             resp = await client.get(
                 f"{BINANCE_API}/klines",
-                params={"symbol": "BTCUSDT", "interval": "1m", "limit": limit},
+                params={"symbol": pair, "interval": "1m", "limit": limit},
             )
             resp.raise_for_status()
             candles = resp.json()
-            _kline_cache["data"] = candles
-            _kline_cache["ts"] = now
-            _kline_cache["_source"] = "binance"
+            cache["data"] = candles
+            cache["ts"] = now
+            cache["_source"] = "binance"
             _feed_health["binance"] = time.time()
             await binance_breaker._on_success()
             return candles
         except Exception as e:
-            logger.warning(f"Binance kline fetch failed, trying Bybit: {repr(e)}")
+            logger.warning(f"Binance kline fetch failed for {pair}, trying Bybit: {repr(e)}")
             await binance_breaker._on_failure()
     else:
         logger.warning("Binance circuit OPEN, skipping to Bybit")
@@ -189,7 +245,7 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
             f"{BYBIT_API}/kline",
             params={
                 "category": "spot",
-                "symbol": "BTCUSDT",
+                "symbol": pair,
                 "interval": "1",
                 "limit": limit,
             },
@@ -202,15 +258,20 @@ async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
             [int(r[0]), r[1], r[2], r[3], r[4], r[5]]
             for r in rows
         ]
-        _kline_cache["data"] = candles
-        _kline_cache["ts"] = now
-        _kline_cache["_source"] = "bybit"
+        cache["data"] = candles
+        cache["ts"] = now
+        cache["_source"] = "bybit"
         _feed_health["bybit"] = time.time()
         return candles
     except Exception as e:
-        logger.error(f"All kline sources failed: {repr(e)}")
+        logger.error(f"All kline sources failed for {pair}: {repr(e)}")
 
     return None
+
+
+async def fetch_btc_klines(limit: int = 60) -> Optional[List[list]]:
+    """Backward-compatible wrapper: fetch BTC 1-min candles."""
+    return await fetch_crypto_klines(pair="BTCUSDT", limit=limit)
 
 
 # Backward-compatible alias
@@ -262,45 +323,44 @@ def get_feed_health() -> dict:
     return result
 
 
+def _build_fallback_microstructure(asset: str = "bitcoin", source: str = "fallback") -> CryptoMicrostructure:
+    """Return a CryptoMicrostructure with neutral fallback values."""
+    return CryptoMicrostructure(
+        rsi=50.0,
+        momentum_1m=0.0,
+        momentum_5m=0.0,
+        momentum_15m=0.0,
+        vwap=0.0,
+        vwap_deviation=0.0,
+        sma_crossover=0.0,
+        volatility=0.02,
+        price=0.0,
+        source=source,
+        asset=asset,
+    )
+
+
 @retry(max_attempts=2, retryable_exceptions=(Exception,))
-async def compute_btc_microstructure() -> Optional[BtcMicrostructure]:
+async def compute_crypto_microstructure(asset: str = "bitcoin") -> Optional[CryptoMicrostructure]:
     """
-    Fetch 60 one-minute candles and compute all technical indicators.
-    Returns BtcMicrostructure or None on failure.
+    Fetch 60 one-minute candles and compute all technical indicators for a given asset.
+
+    Args:
+        asset: CoinGecko ID ("bitcoin", "ethereum", "solana").
+
+    Returns CryptoMicrostructure or None on failure.
     """
+    binance_pair = _COINGECKO_TO_BINANCE_PAIR.get(asset, "BTCUSDT")
+
     try:
-        candles = await fetch_binance_klines(limit=60)
+        candles = await fetch_crypto_klines(pair=binance_pair, limit=60)
     except Exception as e:
-        logger.error(f"Failed to fetch Binance klines: {e}")
-        # Return fallback values instead of None to prevent signal generation failure
-        return BtcMicrostructure(
-            rsi=50.0,
-            momentum_1m=0.0,
-            momentum_5m=0.0,
-            momentum_15m=0.0,
-            vwap=0.0,
-            vwap_deviation=0.0,
-            sma_crossover=0.0,
-            volatility=0.02,  # Default 2% volatility
-            price=0.0,
-            source="fallback",
-        )
+        logger.error(f"Failed to fetch klines for {asset}: {e}")
+        return _build_fallback_microstructure(asset, "fallback")
 
     if not candles or len(candles) < 20:
-        logger.warning("Not enough candle data for microstructure")
-        # Return fallback values instead of None
-        return BtcMicrostructure(
-            rsi=50.0,
-            momentum_1m=0.0,
-            momentum_5m=0.0,
-            momentum_15m=0.0,
-            vwap=0.0,
-            vwap_deviation=0.0,
-            sma_crossover=0.0,
-            volatility=0.02,
-            price=0.0,
-            source="fallback",
-        )
+        logger.warning(f"Not enough candle data for {asset} microstructure")
+        return _build_fallback_microstructure(asset, "fallback")
 
     try:
         closes = [float(c[4]) for c in candles]
@@ -353,9 +413,10 @@ async def compute_btc_microstructure() -> Optional[BtcMicrostructure]:
         else:
             volatility = 0.0
 
-        source = _kline_cache.get("_source", "unknown")
+        cache = _get_kline_cache(asset)
+        source = cache.get("_source", "unknown")
 
-        return BtcMicrostructure(
+        return CryptoMicrostructure(
             rsi=rsi,
             momentum_1m=momentum_1m,
             momentum_5m=momentum_5m,
@@ -366,22 +427,17 @@ async def compute_btc_microstructure() -> Optional[BtcMicrostructure]:
             volatility=volatility,
             price=current_price,
             source=source,
+            asset=asset,
         )
     except Exception as e:
-        logger.error(f"Error computing microstructure indicators: {e}")
-        # Return fallback values on calculation error
-        return BtcMicrostructure(
-            rsi=50.0,
-            momentum_1m=0.0,
-            momentum_5m=0.0,
-            momentum_15m=0.0,
-            vwap=0.0,
-            vwap_deviation=0.0,
-            sma_crossover=0.0,
-            volatility=0.02,
-            price=0.0,
-            source="fallback_error",
-        )
+        logger.error(f"Error computing microstructure indicators for {asset}: {e}")
+        return _build_fallback_microstructure(asset, "fallback_error")
+
+
+@retry(max_attempts=2, retryable_exceptions=(Exception,))
+async def compute_btc_microstructure() -> Optional[CryptoMicrostructure]:
+    """Backward-compatible wrapper: compute BTC microstructure."""
+    return await compute_crypto_microstructure("bitcoin")
 
 # CoinGecko API (free tier, no key needed)
 COINGECKO_API = settings.COINGECKO_API_URL

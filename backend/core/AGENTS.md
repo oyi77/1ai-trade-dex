@@ -20,6 +20,12 @@ Kernel coordination of strategy execution, scheduling, settlement reconciliation
 | `agi_orchestrator.py` | 743 | AGI meta-strategy orchestration |
 | `scheduling_strategies.py` | 1228 | Cron patterns, scheduling logic |
 | `risk_profiles.py` | ~200 | 6 risk tiers (safe→crazy); RISK_TIER_MAX_ALLOCATION |
+| `cognitive_core.py` | ~580 | CognitiveCoreAdapter ABC — single interface to 1ai-hub brain (OneAIHubCore, DegradedCore, MockCore); recall/remember/health_check |
+| `agent_council.py` | ~500 | Multi-agent council (ADR-012): 6 typed agents (Analyst, Synthesizer, Critic, Executor, Historian, Evolver), MessageBus routing, AuthorityHierarchy |
+| `evolution_harness.py` | ~680 | Pluggable evolution engine (ADR-010): DEAPEvolutionBackend (NSGA-II) and LegacyBackend; PopulationStats, Pareto front |
+| `learning_pipeline.py` | ~500 | Post-settlement feedback loop (ADR-013): forensics → lesson extraction → brain storage → genome fitness → KG update; PipelineMetrics |
+| `correlation_monitor.py` | ~160 | Cross-market correlation monitor: classifies markets into 5 categories, blocks clustered exposure exceeding MAX_CORRELATED_EXPOSURE_PCT |
+| `position_monitor.py` | ~750 | Stale position detection + sell signal generation (profit-take, stop-loss, time-decay); closes the 948-buy-vs-4-sell gap |
 
 ## CRITICAL RULES
 

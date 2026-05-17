@@ -25,6 +25,7 @@ test.describe('Phase 2 E2E Workflow - Real API Integration', () => {
     // Check for main layout elements
     const hasHeader = await page.locator('header, [role="banner"]').first().isVisible().catch(() => false);
     const hasContent = await page.locator('main, [role="main"]').first().isVisible().catch(() => false);
+    expect(hasHeader || hasContent).toBe(true);
     
     console.log(`✅ Frontend loaded: title="${title}"`);
   });

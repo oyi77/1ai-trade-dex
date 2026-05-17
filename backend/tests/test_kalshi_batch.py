@@ -17,7 +17,7 @@ class TestKalshiBatch:
             orders = [{"ticker": "KXBTCUP", "side": "yes", "price": 65, "size": 10}]
             result = await client.batch_create_orders(orders)
             mock_req.assert_called_once_with(
-                "POST", "/portfolio/batch_create_orders",
+                "POST", "/portfolio/orders/batched",
                 json={"orders": orders}
             )
             assert result["batch_id"] == "123"
@@ -29,8 +29,8 @@ class TestKalshiBatch:
             ids = ["order-1", "order-2"]
             result = await client.batch_cancel_orders(ids)
             mock_req.assert_called_once_with(
-                "DELETE", "/portfolio/batch_cancel_orders",
-                json={"order_ids": ids}
+                "DELETE", "/portfolio/orders/batched",
+                json={"ids": ids}
             )
             assert result["cancelled"] == 2
 

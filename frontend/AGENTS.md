@@ -8,6 +8,21 @@
 React dashboard for trading bot monitoring, strategy control, market intelligence. Real-time polling via configurable intervals. Vite build tool.
 
 ## STRUCTURE
+| File | Description |
+|------|-------------|
+| `src/main.tsx` | App entry point — React root, query client setup |
+| `src/App.tsx` | Root component — routing, auth gate, layout |
+| `src/api.ts` | Axios client, WebSocket URL builder, all REST API calls |
+| `src/api/agi.ts` | AGI-specific API calls |
+| `src/types.ts` | Shared TypeScript interfaces for API response shapes |
+| `src/types/features.ts` | Feature-specific type definitions |
+| `src/polling.ts` | Polling interval constants (`POLL.FAST/NORMAL/SLOW/VERY_SLOW`) |
+| `src/utils/auth.ts` | CSRF token and legacy API key helpers |
+| `src/utils/retryFetch.ts` | Fetch wrapper with retry logic |
+| `src/contexts/ModeFilterContext.tsx` | Trading mode filter context (paper/live/shadow) |
+| `vite.config.ts` | Vite build configuration |
+| `package.json` | Node dependencies and scripts; `build:docs` skips gracefully when sibling `../polyedge-docs` checkout is absent |
+| `playwright.config.ts` | E2E test configuration |
 
 ```
 frontend/src/

@@ -9,7 +9,7 @@ import re as _re
 from backend.config import settings
 from backend.models.database import Trade, BotState, botstate_mutex
 from backend.core.alert_manager import AlertManager
-from backend.monitoring.hft_metrics import record_execution
+from backend.monitoring.hft_metrics import record_execution, db_query_duration
 
 from backend.core.settlement_helpers import (
     fetch_resolution_for_trade,
@@ -69,7 +69,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
             if won:
                 trade.result = "win"
                 trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                trade.settlement_value = size if entry_price > 0 else 0.0
+                trade.settlement_value = 1.0
                 record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "up", status="settled_win", latency_s=0.0)
             else:
                 trade.result = "loss"
@@ -113,7 +113,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 if won:
                     trade.result = "win"
                     trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                    trade.settlement_value = size if entry_price > 0 else 0.0
+                    trade.settlement_value = 1.0
                 else:
                     trade.result = "loss"
                     trade.pnl = -(size * entry_price) if entry_price > 0 else -size
@@ -142,7 +142,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                     if won:
                         trade.result = "win"
                         trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
-                        trade.settlement_value = size if entry_price > 0 else 0.0
+                        trade.settlement_value = 1.0
                     else:
                         trade.result = "loss"
                         trade.pnl = -(size * entry_price) if entry_price > 0 else -size
@@ -212,11 +212,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             )
                         else:
                             trade.settled = True
-                            trade.result = "closed_unresolved"
+                            trade.result = "loss"
                             trade.settlement_time = now
                             trade.settlement_source = "closed_unresolved"
                             if trade.pnl is None:
-                                trade.pnl = 0.0
+                                trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
                             if trade.settlement_value is None:
                                 trade.settlement_value = 0.0
                             logger.warning(
@@ -282,9 +282,15 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             )
 
         try:
+            import time as _time
+            _qstart = _time.monotonic()
             pending = db.query(Trade).filter(
                 (Trade.settled.is_(False)) | ((Trade.settled.is_(True)) & (Trade.pnl.is_(None)))
             ).all()
+            try:
+                db_query_duration.labels(query_type="settlement_pending").observe(_time.monotonic() - _qstart)
+            except Exception:
+                pass
         except Exception as e:
             logger.error(f"Failed to query pending trades: {e}")
             return []
@@ -404,9 +410,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         continue
 
                     trade.settled = True
-                    trade.result = "expired_unresolved"
+                    trade.result = "loss"
                     trade.settlement_time = now
-                    trade.pnl = -float(trade.size or 0)
+                    trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
                     trade.settlement_value = 0.0
                     trade.settlement_source = "expired_unresolved"
                     settled_trades.append(trade)
@@ -465,7 +471,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     continue
 
                 trade.settled = True
-                trade.result = "expired_unresolved"
+                trade.result = "loss"
                 trade.settlement_time = now
                 trade.pnl = -float(trade.size or 0)
                 trade.settlement_value = 0.0
@@ -575,7 +581,55 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         except Exception as e:
             logger.error(f"Paper bankroll top-up failed: {e}")
 
+        # Learning pipeline: process settled trades asynchronously
+        # (non-blocking — settlement must never wait for learning)
+        if settled_trades:
+            try:
+                _run_learning_pipeline_background(settled_trades)
+            except Exception as e:
+                logger.debug(f"Learning pipeline scheduling failed: {e}")
+
         return settled_trades
+
+
+def _run_learning_pipeline_background(settled_trades: List[Trade]) -> None:
+    """Fire-and-forget learning pipeline for settled trades.
+
+    Schedules an async task so settlement is never blocked.
+    """
+    from backend.core.learning_pipeline import get_learning_pipeline
+    import asyncio
+
+    async def _process_all() -> None:
+        pipeline = get_learning_pipeline()
+        for trade in settled_trades:
+            if trade.result in ("win", "loss"):
+                try:
+                    await pipeline.process_settlement(
+                        trade_id=trade.id,
+                        strategy_name=getattr(trade, "strategy", "unknown") or "unknown",
+                        market_id=trade.market_ticker or "unknown",
+                        outcome=trade.result,
+                        pnl_usd=trade.pnl or 0.0,
+                        genome_id=getattr(trade, "genome_id", None),
+                        regime_at_entry=getattr(trade, "regime", None),
+                        signal_confidence=getattr(trade, "confidence", None),
+                    )
+                except Exception as e:
+                    logger.debug(f"Learning pipeline failed for trade {trade.id}: {e}")
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_process_all())
+    except RuntimeError:
+        # No running loop — run in a thread
+        import threading
+        def _runner() -> None:
+            try:
+                asyncio.run(_process_all())
+            except Exception as e:
+                logger.debug(f"Learning pipeline thread failed: {e}")
+        threading.Thread(target=_runner, name="learning-pipeline", daemon=True).start()
 
 
 async def update_bot_state_with_settlements(

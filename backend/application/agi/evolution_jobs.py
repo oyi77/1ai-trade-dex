@@ -3,6 +3,9 @@
 Wave 10: Evolution Scheduler — Part 7
 Contains the job functions for fitness evaluation, mutation cycles, crossover cycles,
 necromancy analysis, and regime rebalancing.
+
+Track 3.4: When EVOLUTION_BACKEND is set to 'deap', mutation and crossover
+cycles delegate to the EvolutionHarness (NSGA-II multi-objective optimization).
 """
 
 import json
@@ -13,6 +16,10 @@ from itertools import cycle
 from sqlalchemy.orm import Session
 
 from backend.config import settings
+from backend.core.evolution_harness import (
+    Individual,
+    create_evolution_backend,
+)
 from backend.core.event_bus import publish_event
 from backend.db.utils import get_db_session as _get_db_session
 from backend.domain.evolution.fitness import calculate_fitness
@@ -50,6 +57,102 @@ PAPER_TO_LIVE_MAX_DRAWDOWN = 0.20
 AUTO_KILL_MAX_DRAWDOWN = 0.50
 AUTO_KILL_MIN_SHARPE = -2.0
 AUTO_KILL_MIN_WIN_RATE = 0.05
+
+# Gene bounds for DEAP: each gene clamped to [0.0, 1.0] (normalized space)
+_DEFAULT_GENE_BOUNDS = [(0.0, 1.0)] * 30
+
+
+def _genome_to_individual(genome: StrategyGenome) -> Individual:
+    """Convert a StrategyGenome to an Individual for the evolution harness.
+
+    Extracts numeric parameters from chromosomes into a flat gene vector.
+    """
+    genes: list[float] = []
+
+    # Extract numeric values from each chromosome
+    for chrom_name in ["perception", "cognition", "execution", "risk", "meta"]:
+        chrom = genome.chromosomes.get(chrom_name)
+        if chrom is None:
+            continue
+        chrom_dict = chrom.model_dump() if hasattr(chrom, "model_dump") else chrom
+        for value in chrom_dict.values():
+            if isinstance(value, float):
+                genes.append(max(0.0, min(1.0, value)))
+            elif isinstance(value, int) and not isinstance(value, bool):
+                genes.append(max(0.0, min(1.0, float(value))))
+
+    # Pad to fixed length for DEAP
+    while len(genes) < 30:
+        genes.append(0.0)
+    genes = genes[:30]
+
+    return Individual(
+        genome_id=genome.genome_id,
+        genes=genes,
+        fitness=(),
+        metadata={
+            "strategy_name": genome.strategy_name,
+            "archetype": genome.archetype,
+            "stage": genome.stage,
+        },
+    )
+
+
+def _individual_to_genome(
+    ind: Individual,
+    parent: StrategyGenome,
+    strategy_name: str,
+) -> StrategyGenome:
+    """Convert an Individual back to a StrategyGenome by tweaking the parent.
+
+    Uses the parent genome as a template and applies gene-level modifications
+    to numeric fields.
+    """
+    new_genome = _to_strategy_genome_from_genome(parent)
+    new_genome.genome_id = ind.genome_id
+    new_genome.strategy_name = strategy_name
+    new_genome.lineage.parent_genome_ids = [parent.genome_id]
+    new_genome.lineage.generation = parent.lineage.generation + 1
+    new_genome.lineage.creator = "mutation"
+    new_genome.stage = "DRAFT"
+    new_genome.fitness_metrics = FitnessMetrics()
+
+    # Apply gene values back to numeric chromosome fields
+    gene_idx = 0
+    for chrom_name in ["perception", "cognition", "execution", "risk", "meta"]:
+        chrom = new_genome.chromosomes.get(chrom_name)
+        if chrom is None or gene_idx >= len(ind.genes):
+            continue
+        if hasattr(chrom, "__dict__"):
+            for field_name, value in chrom.__dict__.items():
+                if isinstance(value, float) and gene_idx < len(ind.genes):
+                    setattr(chrom, field_name, ind.genes[gene_idx])
+                    gene_idx += 1
+                elif isinstance(value, int) and not isinstance(value, bool) and gene_idx < len(ind.genes):
+                    setattr(chrom, field_name, int(ind.genes[gene_idx] * 100))
+                    gene_idx += 1
+
+    return new_genome
+
+
+def _to_strategy_genome_from_genome(genome: StrategyGenome) -> StrategyGenome:
+    """Create a deep copy of a StrategyGenome."""
+    return StrategyGenome(
+        genome_id=str(genome.genome_id),
+        strategy_name=genome.strategy_name,
+        archetype=genome.archetype,
+        version=genome.version,
+        stage=genome.stage,
+        lineage=LineageData(
+            parent_genome_ids=list(genome.lineage.parent_genome_ids),
+            generation=genome.lineage.generation,
+            creator=genome.lineage.creator,
+        ),
+        chromosomes={k: v for k, v in genome.chromosomes.items()},
+        fitness_metrics=FitnessMetrics(**genome.fitness_metrics.model_dump()),
+        created_at=genome.created_at,
+        updated_at=genome.updated_at,
+    )
 
 
 def _safe_load_json(raw: str | None) -> dict:
@@ -156,7 +259,12 @@ def _upsert_genome(genome: StrategyGenome, db: Session) -> None:
 
 
 def run_mutation_cycle() -> int:
-    """Select elite genomes, mutate them, and persist offspring."""
+    """Select elite genomes, mutate them, and persist offspring.
+
+    When EVOLUTION_BACKEND is 'deap', uses the EvolutionHarness for
+    NSGA-II multi-objective mutation; otherwise falls back to the
+    legacy mutation engine.
+    """
     if not settings.EVOLUTION_ENGINE_ENABLED:
         return 0
 
@@ -174,6 +282,47 @@ def run_mutation_cycle() -> int:
         elites = sorted_population[:elite_count]
 
         offspring_target = max(1, int(round(settings.AGI_POPULATION_SIZE * settings.AGI_MUTATION_RATE)))
+
+        # DEAP path: use evolution harness for mutation
+        if settings.EVOLUTION_BACKEND == "deap":
+            backend = create_evolution_backend("deap", gene_bounds=_DEFAULT_GENE_BOUNDS)
+            individuals = [_genome_to_individual(_to_strategy_genome(r)) for r in elites]
+            # Evaluate current fitness
+            def _fit_fn(ind: Individual) -> tuple[float, ...]:
+                # Find matching genome row for fitness
+                for row in elites:
+                    if row.genome_id == ind.genome_id:
+                        score = _fitness_score_for(row)
+                        metrics = _fitness_metrics_for(row)
+                        return (score, -metrics.max_drawdown_pct)
+                return (0.0, 0.0)
+
+            backend.evaluate(individuals, _fit_fn)
+            mutated_individuals = [backend.mutate(ind, rate=settings.AGI_MUTATION_RATE) for ind in individuals[:offspring_target]]
+
+            created = 0
+            for mut_ind in mutated_individuals:
+                parent_row = elites[created % len(elites)]
+                parent = _to_strategy_genome(parent_row)
+                mutated = _individual_to_genome(mut_ind, parent, f"{parent.strategy_name}-deap-mut-{created + 1}")
+                mutated.archetype = parent.archetype
+                _upsert_genome(mutated, db)
+                log_evolution_action(
+                    EvolutionAction(
+                        action_type="mutation",
+                        genome_id=mutated.genome_id,
+                        strategy_name=mutated.strategy_name,
+                        details={"parent_genome_id": parent.genome_id, "backend": "deap"},
+                        from_stage=parent.stage,
+                        to_stage=mutated.stage,
+                    ),
+                    db,
+                )
+                created += 1
+
+            return created
+
+        # Legacy path: use existing mutation engine
         created = 0
         for parent_row in cycle(elites):
             if created >= offspring_target:
@@ -200,7 +349,12 @@ def run_mutation_cycle() -> int:
 
 
 def run_crossover_cycle() -> int:
-    """Breed genomes from different archetypes and persist hybrid offspring."""
+    """Breed genomes from different archetypes and persist hybrid offspring.
+
+    When EVOLUTION_BACKEND is 'deap', uses the EvolutionHarness for
+    NSGA-II multi-objective crossover; otherwise falls back to the
+    legacy crossover engine.
+    """
     if not settings.EVOLUTION_ENGINE_ENABLED:
         return 0
 
@@ -223,6 +377,47 @@ def run_crossover_cycle() -> int:
             return 0
 
         target = max(1, settings.AGI_POPULATION_SIZE // 4)
+
+        # DEAP path: use evolution harness for crossover
+        if settings.EVOLUTION_BACKEND == "deap":
+            backend = create_evolution_backend("deap", gene_bounds=_DEFAULT_GENE_BOUNDS)
+            # Build pairs from top individuals across archetypes
+            pairs: list[tuple[GenomeRegistry, GenomeRegistry]] = []
+            for left in range(len(archetypes)):
+                for right in range(left + 1, len(archetypes)):
+                    pairs.append((by_archetype[archetypes[left]][0], by_archetype[archetypes[right]][0]))
+
+            created = 0
+            for parent_a_row, parent_b_row in pairs:
+                if created >= target:
+                    break
+                parent_a = _to_strategy_genome(parent_a_row)
+                parent_b = _to_strategy_genome(parent_b_row)
+                ind_a = _genome_to_individual(parent_a)
+                ind_b = _genome_to_individual(parent_b)
+                child_ind_a, child_ind_b = backend.crossover(ind_a, ind_b)
+
+                child = _individual_to_genome(
+                    child_ind_a, parent_a,
+                    f"deap-cross-{parent_a.archetype[:8]}-{parent_b.archetype[:8]}-{created + 1}",
+                )
+                child.archetype = f"hybrid_{parent_a.archetype}_{parent_b.archetype}"
+                _upsert_genome(child, db)
+                log_evolution_action(
+                    EvolutionAction(
+                        action_type="crossover",
+                        genome_id=child.genome_id,
+                        strategy_name=child.strategy_name,
+                        details={"parent_a_id": parent_a.genome_id, "parent_b_id": parent_b.genome_id, "backend": "deap"},
+                        to_stage=child.stage,
+                    ),
+                    db,
+                )
+                created += 1
+
+            return created
+
+        # Legacy path: use existing crossover engine
         created = 0
         for left in range(len(archetypes)):
             for right in range(left + 1, len(archetypes)):
@@ -264,7 +459,7 @@ def update_fitness_from_shadow() -> int:
         for genome in genomes:
             trades = (
                 db.query(ShadowTrade)
-                .filter(ShadowTrade.genome_id == genome.genome_id, ShadowTrade.actual_outcome.isnot(None))
+                .filter(ShadowTrade.genome_id == genome.genome_id, ShadowTrade.settled.is_(True), ShadowTrade.pnl.isnot(None))
                 .all()
             )
             if not trades:

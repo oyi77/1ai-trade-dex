@@ -74,6 +74,14 @@ function buildRegionArcs(markers: CityMarker[]): ArcData[] {
 
 export function GlobeView({ forecasts, signals }: Props) {
   const globeRef = useRef<any>(null)
+  const webGLAvailable = useMemo(() => {
+    try {
+      const canvas = document.createElement('canvas')
+      return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    } catch {
+      return false
+    }
+  }, [])
 
   const markers: CityMarker[] = useMemo(() => {
     const keys = forecasts.length > 0
@@ -110,6 +118,7 @@ export function GlobeView({ forecasts, signals }: Props) {
   const signalCount = markers.filter(m => m.bestSignal !== null).length
 
   useEffect(() => {
+    const currentGlobe = globeRef.current
     if (globeRef.current) {
       globeRef.current.pointOfView({ lat: 25, lng: 20, altitude: 2.2 }, 1000)
       globeRef.current.controls().autoRotate = true
@@ -118,15 +127,15 @@ export function GlobeView({ forecasts, signals }: Props) {
     }
     return () => {
       // Clean up WebGL context to prevent "Too many active WebGL contexts" memory leak
-      if (globeRef.current) {
+      if (currentGlobe) {
         try {
-          const renderer = globeRef.current.renderer()
+          const renderer = currentGlobe.renderer()
           if (renderer) {
             renderer.dispose()
             renderer.forceContextLoss()
           }
         } catch {
-          // WebGL cleanup is best-effort; ignore errors during disposal
+// Best-effort cleanup only; some test/browser renderers do not expose disposal hooks.
         }
       }
     }
@@ -265,6 +274,15 @@ export function GlobeView({ forecasts, signals }: Props) {
 
     return wrapper
   }, [])
+
+  if (!webGLAvailable) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-neutral-600">
+        <div className="text-[10px] uppercase tracking-wider mb-1">Globe Unavailable</div>
+        <div className="text-[9px] text-neutral-700">WebGL not supported in this browser</div>
+      </div>
+    )
+  }
 
   return (
     <div className="globe-container w-full h-full relative">

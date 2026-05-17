@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Zap, Brain, Activity, Radio, ChevronRight,
@@ -550,7 +550,7 @@ function ThoughtStreamView({ isLive, thoughts, fullPage = false }: {
   thoughts?: { id: string; text: string; timestamp: number }[]
   fullPage?: boolean
 }) {
-  const displayThoughts = thoughts || []
+  const displayThoughts = useMemo(() => thoughts || [], [thoughts])
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

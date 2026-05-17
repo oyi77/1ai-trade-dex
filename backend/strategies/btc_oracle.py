@@ -16,9 +16,52 @@ from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
+from backend.core.calibration import get_bucket_win_rate, kelly_fraction
+from backend.db.utils import get_db_session
+from backend.models.signal_log import SignalLog
 from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
+
+
+def _log_signal(
+    *,
+    market_id: str,
+    market_mid: float,
+    btc_spot: float | None,
+    micro,
+    direction: str | None,
+    edge: float,
+    oracle_implied: float,
+) -> None:
+    """Persist one SignalLog row for a btc_oracle signal.
+
+    Best-effort: any failure is swallowed so trade execution is never blocked.
+    Skipped in SHADOW_MODE because no real signal is produced.
+    """
+    if getattr(settings, "SHADOW_MODE", False):
+        return
+    try:
+        record = SignalLog(
+            timestamp=datetime.now(timezone.utc),
+            market_id=str(market_id),
+            market_mid=float(market_mid),
+            btc_spot=float(btc_spot) if btc_spot is not None else None,
+            rsi=float(micro.rsi) if micro is not None and getattr(micro, "rsi", None) is not None else None,
+            momentum_5m=float(micro.momentum_5m) if micro is not None and getattr(micro, "momentum_5m", None) is not None else None,
+            vwap_deviation=float(micro.vwap_deviation) if micro is not None and getattr(micro, "vwap_deviation", None) is not None else None,
+            sma_crossover=float(micro.sma_crossover) if micro is not None and getattr(micro, "sma_crossover", None) is not None else None,
+            proposed_side=direction,
+            edge_pp=float(edge) * 100.0,
+            oracle_implied=float(oracle_implied),
+            filled=None,
+            pnl=None,
+            strategy="btc_oracle",
+        )
+        with get_db_session() as db:
+            db.add(record)
+    except Exception as e:
+        logger.debug(f"btc_oracle: SignalLog write failed: {e}")
 COINGECKO_PRICE_URL = f"{settings.COINGECKO_API_URL}/simple/price"
 
 
@@ -52,6 +95,19 @@ def calculate_dynamic_size(
     if proposed < _min_pos and cap >= _min_pos:
         return _min_pos
     return round(min(proposed, cap), 2)
+
+
+def _kelly_size(market_mid: float, bankroll: float, cap: float) -> float:
+    """Compute Kelly-calibrated size from bucket win rate and market price.
+
+    Uses Quarter-Kelly with a 2% bankroll hard cap.
+    Falls back to 0 when win rate < market price (no edge per Kelly criterion).
+    """
+    win_rate = get_bucket_win_rate(market_mid, "btc_oracle")
+    if win_rate is None:
+        return 0.0
+    kelly = kelly_fraction(win_rate, market_mid)
+    return min(bankroll * kelly, bankroll * 0.02, cap)
 
 
 async def fetch_btc_price() -> float | None:
@@ -227,6 +283,16 @@ class BtcOracleStrategy(BaseStrategy):
         direction = "up" if trade_price > 0.5 else "down"
         market_mid = trade_price
 
+        # Price bucket filter: reject negative-EV territory
+        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
+        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+        if market_mid < min_price_bucket or market_mid > max_price_bucket:
+            logger.debug(
+                "BtcOracleStrategy.on_market_event: skipping — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                market_mid, min_price_bucket, max_price_bucket,
+            )
+            return None
+
         btc_price = await fetch_btc_price()
         if btc_price is None:
             logger.debug("BtcOracleStrategy.on_market_event: could not fetch BTC price, skipping")
@@ -265,13 +331,17 @@ class BtcOracleStrategy(BaseStrategy):
             return None
 
         confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
-        suggested_size = calculate_dynamic_size(
-            edge=edge,
-            confidence=confidence_score,
-            max_position_usd=max_position_usd,
-            min_position_usd=min_position_usd,
-            edge_scale_threshold=edge_scale_threshold,
-        )
+        kelly = kelly_fraction(get_bucket_win_rate(market_mid, "btc_oracle") or 0, market_mid)
+        if kelly > 0:
+            suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+        else:
+            suggested_size = calculate_dynamic_size(
+                edge=edge,
+                confidence=confidence_score,
+                max_position_usd=max_position_usd,
+                min_position_usd=min_position_usd,
+                edge_scale_threshold=edge_scale_threshold,
+            )
 
         market_ticker = event.data.get("market_ticker") or event.data.get("market_id") or event.token_id
 
@@ -291,6 +361,16 @@ class BtcOracleStrategy(BaseStrategy):
                 "source": "ws_event",
             },
             reason=f"ws_oracle_edge={edge:.3f} btc=${btc_price:,.0f} dir={direction} event={event.event_type}",
+        )
+
+        _log_signal(
+            market_id=market_ticker,
+            market_mid=market_mid,
+            btc_spot=btc_price,
+            micro=micro,
+            direction=direction,
+            edge=edge,
+            oracle_implied=oracle_implied,
         )
 
         return {
@@ -349,6 +429,11 @@ class BtcOracleStrategy(BaseStrategy):
 
         now = datetime.now(timezone.utc)
 
+        # Price bucket filter: only trade in the 40-60c range where edge is proven.
+        # Negative-EV territory is below 35c and above 65c (backtest: 85.6% WR in 50-55c).
+        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
+        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+
         for market in btc_5m_markets:
             end_dt = market.window_end
             if end_dt.tzinfo is None:
@@ -373,6 +458,14 @@ class BtcOracleStrategy(BaseStrategy):
                 direction = "down" if market.up_price > market.down_price else "up"
 
             market_mid = market.up_price if direction == "up" else market.down_price
+
+            # Price bucket filter: reject negative-EV territory
+            if market_mid < min_price_bucket or market_mid > max_price_bucket:
+                logger.debug(
+                    "BtcOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                    market.slug, market_mid, min_price_bucket, max_price_bucket,
+                )
+                continue
 
             # Derive probability from microstructure (RSI + momentum + VWAP + SMA)
             # instead of hardcoded 1.0, which fabricated edge and caused -$410 losses.
@@ -433,19 +526,32 @@ class BtcOracleStrategy(BaseStrategy):
                 confidence_score = max(confidence_score, debate_conf)
 
                 result.trades_attempted += 1
+                _log_signal(
+                    market_id=market.market_id,
+                    market_mid=market_mid,
+                    btc_spot=btc_price,
+                    micro=micro,
+                    direction=direction,
+                    edge=edge,
+                    oracle_implied=oracle_implied,
+                )
                 entry_price = (
                     market.up_price
                     if direction == "up"
                     else market.down_price
                 )
                 token_id = market.up_token_id if direction == "up" else market.down_token_id
-                suggested_size = calculate_dynamic_size(
-                    edge=edge,
-                    confidence=confidence_score,
-                    max_position_usd=max_position_usd,
-                    min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
-                    edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
-                )
+                kelly = kelly_fraction(get_bucket_win_rate(market_mid, "btc_oracle") or 0, market_mid)
+                if kelly > 0:
+                    suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                else:
+                    suggested_size = calculate_dynamic_size(
+                        edge=edge,
+                        confidence=confidence_score,
+                        max_position_usd=max_position_usd,
+                        min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
+                        edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
+                    )
                 result.decisions.append(
                     {
                         "decision": "BUY",
@@ -485,6 +591,15 @@ class BtcOracleStrategy(BaseStrategy):
                 continue
 
             market_mid = market.yes_price if direction == "yes" else market.no_price
+
+            # Price bucket filter: reject negative-EV territory
+            if market_mid < min_price_bucket or market_mid > max_price_bucket:
+                logger.debug(
+                    "BtcOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
+                    market.ticker, market_mid, min_price_bucket, max_price_bucket,
+                )
+                continue
+
             # Oracle implied probability based on price distance from strike.
             # Avoid hard-coded 1.0/0.0 which guarantees 0% win rate — use
             # market_mid adjusted by edge margin to produce a realistic probability.
@@ -544,7 +659,15 @@ class BtcOracleStrategy(BaseStrategy):
                 confidence_score = max(confidence_score, debate_conf)
 
                 result.trades_attempted += 1
-
+                _log_signal(
+                    market_id=market.ticker,
+                    market_mid=market_mid,
+                    btc_spot=btc_price,
+                    micro=None,
+                    direction=direction,
+                    edge=edge,
+                    oracle_implied=oracle_implied,
+                )
                 # Extract token_id from market metadata (clobTokenIds)
                 clob_token_id = None
                 clob_token_ids = market.metadata.get("clobTokenIds") or []
@@ -569,13 +692,17 @@ class BtcOracleStrategy(BaseStrategy):
                     else round(1.0 - market_mid, 6)
                 )
                 confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
-                suggested_size = calculate_dynamic_size(
-                    edge=edge,
-                    confidence=confidence_score,
-                    max_position_usd=max_position_usd,
-                    min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
-                    edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
-                )
+                kelly = kelly_fraction(get_bucket_win_rate(market_mid, "btc_oracle") or 0, market_mid)
+                if kelly > 0:
+                    suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                else:
+                    suggested_size = calculate_dynamic_size(
+                        edge=edge,
+                        confidence=confidence_score,
+                        max_position_usd=max_position_usd,
+                        min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
+                        edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
+                    )
                 result.decisions.append(
                     {
                         "decision": "BUY",

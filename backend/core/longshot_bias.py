@@ -37,8 +37,7 @@ class LongshotBiasDetector:
             - bias (avg_actual - avg_predicted)
             - edge (positive = longshots underpriced, negative = overpriced)
         """
-        db = SessionLocal()
-        try:
+        with SessionLocal() as db:
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
             query = db.query(CalibrationRecord).filter(
@@ -71,9 +70,6 @@ class LongshotBiasDetector:
             }
 
             return [result]
-
-        finally:
-            db.close()
 
     def get_category_bias(self, days: int = 60) -> dict[str, float]:
         """Get average longshot bias per strategy/category.

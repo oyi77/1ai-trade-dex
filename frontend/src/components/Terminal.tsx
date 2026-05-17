@@ -50,7 +50,7 @@ export function Terminal({ isRunning, lastRun, onStart, onStop, onScan }: Props)
         setLogs(events.filter((e: LogEntry) => e.type !== 'heartbeat'))
       }
     } catch {
-      // Fetch events is best-effort on mount; WS will provide live updates
+// Initial event history is optional; the live WebSocket stream will continue.
     }
   }, [])
 

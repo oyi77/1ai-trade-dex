@@ -13,9 +13,11 @@ from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
 from backend.core.alert_manager import AlertManager
 from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
+from backend.core.errors import RateLimitError
+from backend.core.external_rate_limiter import TokenBucketRateLimiter
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
-from sqlalchemy import case, func, and_, text, update
+from sqlalchemy import case, func, and_, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
@@ -26,8 +28,25 @@ risk_manager = RiskManager()
 # A global semaphore caps total concurrent trades.
 _trade_locks: dict[str, asyncio.Lock] = {}
 _trade_locks_mutex = asyncio.Lock()
-MAX_CONCURRENT_TRADES = 3
+MAX_CONCURRENT_TRADES = 6
 _trade_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRADES)
+
+_rate_limiter: Optional[TokenBucketRateLimiter] = None
+
+
+def _get_rate_limiter() -> TokenBucketRateLimiter:
+    """Lazily instantiate the global rate limiter."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        from backend.config import settings
+
+        _rate_limiter = TokenBucketRateLimiter(
+            per_market_limit=int(getattr(settings, "ORDER_RATE_LIMIT_PER_MARKET", 1)),
+            per_market_window=10.0,
+            global_limit=int(getattr(settings, "ORDER_RATE_LIMIT_GLOBAL", 3)),
+            global_window=1.0,
+        )
+    return _rate_limiter
 
 # Threading lock for BotState mutations inside thread-offloaded execution.
 # Used instead of asyncio.Lock when running in a thread pool.
@@ -100,151 +119,6 @@ def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
             .where(BotState.mode == mode)
             .values(total_trades=func.coalesce(BotState.total_trades, 0) + 1)
         )
-
-
-def _prepare_short_botstate_transaction(db) -> None:
-    """Keep best-effort BotState updates from waiting behind stale row locks.
-
-    Uses PostgreSQL advisory lock (pg_try_advisory_xact_lock) to avoid
-    blocking the thread pool worker on row-level lock contention. If the
-    advisory lock is busy (another trade or flush is mid-update), returns
-    False so the caller can skip this update cycle immediately — no retry,
-    no thread blocked.
-    """
-
-    if db.get_bind().dialect.name != "postgresql":
-        return None
-
-    acquired = db.execute(
-        text("SELECT pg_try_advisory_xact_lock(hashtext('polyedge_botstate_update'))")
-    ).scalar()
-    if not acquired:
-        return False
-
-    db.execute(text("SET LOCAL lock_timeout = '500ms'"))
-    db.execute(text("SET LOCAL statement_timeout = '2s'"))
-    return True
-
-
-def _run_short_botstate_update(mode: str, adjusted_size: float) -> bool:
-    """Run one isolated BotState update with caller-owned error handling.
-
-    Returns True if the update was applied, False if it was skipped
-    (advisory lock busy — non-fatal).
-    """
-
-    from backend.db.utils import get_db_session
-
-    with get_db_session() as state_db:
-        ready = _prepare_short_botstate_transaction(state_db)
-        if ready is False:
-            return False
-        _update_botstate_after_trade(state_db, mode, adjusted_size)
-        return True
-
-
-def _commit_session_with_retry(db, *, label: str) -> None:
-    """Commit the current SQLAlchemy session with bounded retries."""
-
-    for attempt in range(3):
-        try:
-            db.commit()
-            return
-        except OperationalError:
-            db.rollback()
-            if attempt < 2:
-                time.sleep(0.5 * (attempt + 1))
-            else:
-                raise
-
-
-async def _commit_session_with_retry_async(db, *, label: str) -> None:
-    """Async variant of bounded SQLAlchemy commit retries."""
-
-    for attempt in range(3):
-        try:
-            db.commit()
-            return
-        except OperationalError:
-            db.rollback()
-            if attempt < 2:
-                await asyncio.sleep(0.5 * (attempt + 1))
-            else:
-                raise
-
-
-def _apply_post_trade_botstate_update(mode: str, adjusted_size: float) -> bool:
-    """Best-effort BotState counter update after trade persistence is committed.
-
-    Uses advisory lock inside _run_short_botstate_update so the thread pool
-    worker never blocks on row-level lock contention. If the lock is busy
-    (another thread is mid-update), skip immediately — the trade is already
-    committed and BotState is eventually consistent.
-    """
-
-    try:
-        with _botstate_threading_lock:
-            updated = _run_short_botstate_update(mode, adjusted_size)
-        if not updated:
-            logger.info(
-                "[strategy_executor] BotState update skipped for mode={} adjusted_size={} (advisory lock busy)",
-                mode,
-                adjusted_size,
-            )
-        return updated
-    except OperationalError as exc:
-        if _is_lock_timeout_error(exc):
-            logger.warning(
-                "[strategy_executor] trade persisted but BotState follow-up update skipped for mode={} adjusted_size={}: {}",
-                mode,
-                adjusted_size,
-                exc,
-            )
-            return False
-        logger.opt(exception=exc).error(
-            "[strategy_executor] post-trade BotState update failed for mode={} adjusted_size={}",
-            mode,
-            adjusted_size,
-        )
-        return False
-
-
-async def _apply_post_trade_botstate_update_async(mode: str, adjusted_size: float) -> bool:
-    """Async best-effort BotState counter update after trade persistence is committed.
-
-    Uses advisory lock inside _run_short_botstate_update so the event loop
-    never blocks on row-level lock contention. If the lock is busy, skip
-    immediately — the trade is already committed and BotState is eventually
-    consistent.
-    """
-
-    try:
-        async with botstate_mutex:
-            updated = await asyncio.to_thread(
-                _run_short_botstate_update, mode, adjusted_size
-            )
-        if not updated:
-            logger.info(
-                "[strategy_executor] async BotState update skipped for mode={} adjusted_size={} (advisory lock busy)",
-                mode,
-                adjusted_size,
-            )
-        return updated
-    except OperationalError as exc:
-        if _is_lock_timeout_error(exc):
-            logger.warning(
-                "[strategy_executor] trade persisted but async BotState follow-up update skipped for mode={} adjusted_size={}: {}",
-                mode,
-                adjusted_size,
-                exc,
-            )
-            return False
-        logger.opt(exception=exc).error(
-            "[strategy_executor] async post-trade BotState update failed for mode={} adjusted_size={}",
-            mode,
-            adjusted_size,
-        )
-        return False
 
 
 async def _get_asset_lock(asset_key: str) -> asyncio.Lock:
@@ -372,25 +246,6 @@ def _execute_decision_paper_or_kalshi(
                     phase="preflight",
                     reason_code="BLOCKED_DUPLICATE_OPEN_POSITION",
                     trade_id=existing.id,
-                )
-                db.commit()
-                return None
-
-            # Rate limiter: block if >3 trades on same market in last 5 minutes
-            from datetime import timedelta
-            five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-            recent_count = db.query(func.count(Trade.id)).filter(
-                Trade.market_ticker == market_ticker,
-                Trade.timestamp >= five_min_ago,
-            ).scalar() or 0
-            if recent_count >= 3:
-                logger.warning(
-                    f"[{strategy_name}] Rate limit exceeded: {recent_count} trades on {market_ticker} in last 5min (max 3)"
-                )
-                attempt_recorder.record_blocked(
-                    f"Rate limit exceeded: {recent_count} trades in 5min on {market_ticker}",
-                    phase="preflight",
-                    reason_code="BLOCKED_RATE_LIMIT",
                 )
                 db.commit()
                 return None
@@ -697,6 +552,12 @@ def _execute_decision_paper_or_kalshi(
                 user_id=f"strategy:{strategy_name}",
             )
 
+            # Serialize the short BotState mutation in-process, but rely on a
+            # single atomic SQL UPDATE instead of a SELECT ... FOR UPDATE row lock.
+            with _botstate_threading_lock:
+                _update_botstate_after_trade(db, mode, adjusted_size)
+                db.commit()
+
             signal_data = {
                 "direction": direction,
                 "model_probability": model_probability,
@@ -749,12 +610,16 @@ def _execute_decision_paper_or_kalshi(
                 risk_reason=risk.reason,
             )
 
-            _commit_session_with_retry(
-                db,
-                label=f"trade+signal persistence {market_ticker} ({mode})",
-            )
-
-            _apply_post_trade_botstate_update(mode, adjusted_size)
+            for _db_attempt in range(3):
+                try:
+                    db.commit()
+                    break
+                except OperationalError:
+                    db.rollback()
+                    if _db_attempt < 2:
+                        time.sleep(0.5 * (_db_attempt + 1))
+                    else:
+                        raise
 
             trade_dict = {
                 "id": trade.id,
@@ -859,6 +724,17 @@ async def execute_decision(
     Live CLOB paths acquire locks on event loop then call CLOB async.
     """
     asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
+    market_id = str(asset_key)
+
+    # Rate limit check
+    try:
+        _get_rate_limiter().acquire(market_id)
+    except RateLimitError:
+        logger.warning(
+            "[execute_decision] Rate limit exceeded for {} — skipping trade", market_id
+        )
+        return None
+
     asset_lock = await _get_asset_lock(str(asset_key))
     async with _trade_semaphore:
         async with asset_lock:
@@ -905,6 +781,170 @@ async def execute_decision(
                         _MAX_LOCK_RETRY_ATTEMPTS,
                     )
                     await asyncio.sleep(delay)
+
+
+# Maker-first execution config (overridable via settings).
+MAKER_WAIT_SECONDS = float(getattr(settings, "MAKER_WAIT_SECONDS", 15.0))
+MAKER_POLL_INTERVAL_SECONDS = float(getattr(settings, "MAKER_POLL_INTERVAL_SECONDS", 2.0))
+MAKER_FIRST_ENABLED = bool(getattr(settings, "MAKER_FIRST_ENABLED", True))
+
+
+async def _maker_first_execute(
+    clob,
+    token_id: str,
+    side: str,
+    price: float,
+    size: float,
+    strategy_name: str,
+    mode: str,
+    market_ticker: str,
+):
+    """Execute an order maker-first with taker escalation.
+
+    Workflow:
+      1. Place maker (GTC limit) order at `price`.
+      2. Poll `get_open_orders` up to MAKER_WAIT_SECONDS; if order is no
+         longer in the open-orders set, treat as filled.
+      3. If still open after the wait, cancel and submit the remaining size
+         as a taker (IOC) order crossing the spread.
+
+    Returns the *terminal* OrderResult-like object that callers should treat
+    as the final fill (with attributes `success`, `order_id`, `fill_price`,
+    `fill_size`, `error`). When taker escalation runs, fill_size is the
+    cumulative amount filled across both legs.
+    """
+    from types import SimpleNamespace
+
+    maker_result = await clob.place_limit_order(
+        token_id=token_id,
+        side=side,
+        price=price,
+        size=size,
+        order_type="GTC",
+    )
+    if not maker_result.success:
+        logger.warning(
+            f"[{mode.upper()}][{strategy_name}] Maker order rejected for {market_ticker}: "
+            f"{maker_result.error}"
+        )
+        return maker_result
+
+    maker_filled = float(getattr(maker_result, "fill_size", 0.0) or 0.0)
+    maker_fill_price = getattr(maker_result, "fill_price", None) or price
+    maker_order_id = maker_result.order_id
+
+    # Fully filled on placement → no wait needed.
+    if maker_filled >= size - 1e-9:
+        logger.info(
+            f"[{mode.upper()}][{strategy_name}] Maker order fully filled on placement: "
+            f"{maker_order_id} ({maker_filled:.4f}@{maker_fill_price:.4f})"
+        )
+        return maker_result
+
+    logger.info(
+        f"[{mode.upper()}][{strategy_name}] Maker order resting ({maker_order_id}); "
+        f"waiting up to {MAKER_WAIT_SECONDS:.1f}s for fill"
+    )
+
+    waited = 0.0
+    while waited < MAKER_WAIT_SECONDS:
+        await asyncio.sleep(MAKER_POLL_INTERVAL_SECONDS)
+        waited += MAKER_POLL_INTERVAL_SECONDS
+        try:
+            open_orders = await clob.get_open_orders()
+        except Exception as poll_err:
+            logger.warning(
+                f"[{mode.upper()}][{strategy_name}] get_open_orders failed during maker wait: {poll_err}"
+            )
+            continue
+        still_open = any(
+            (o.get("id") or o.get("orderID") or o.get("order_id")) == maker_order_id
+            for o in (open_orders or [])
+        )
+        if not still_open:
+            logger.info(
+                f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} no longer open — treating as filled"
+            )
+            # Synthesize a filled result; broker confirms fill via settlement reconciliation.
+            return SimpleNamespace(
+                success=True,
+                order_id=maker_order_id,
+                fill_price=maker_fill_price,
+                fill_size=size,
+                error=None,
+            )
+
+    # Timed out — cancel and escalate to taker for remaining size.
+    logger.warning(
+        f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} unfilled after "
+        f"{MAKER_WAIT_SECONDS:.1f}s; cancelling and escalating to taker"
+    )
+    try:
+        cancelled = await clob.cancel_order(maker_order_id)
+        logger.info(
+            f"[{mode.upper()}][{strategy_name}] Cancel maker {maker_order_id}: success={cancelled}"
+        )
+    except Exception as cancel_err:
+        logger.error(
+            f"[{mode.upper()}][{strategy_name}] Cancel of maker {maker_order_id} failed: {cancel_err}"
+        )
+
+    remaining = size - maker_filled
+    if remaining <= 0:
+        return maker_result
+
+    # Cross the spread for taker IOC: BUY at price+1 tick, SELL at price-1 tick (capped to [0.01, 0.99]).
+    tick = 0.01
+    if side.upper() == "BUY":
+        taker_price = min(0.99, price + tick)
+    else:
+        taker_price = max(0.01, price - tick)
+
+    logger.info(
+        f"[{mode.upper()}][{strategy_name}] Escalating to taker IOC: "
+        f"size={remaining:.4f} @ {taker_price:.4f}"
+    )
+    taker_result = await clob.place_limit_order(
+        token_id=token_id,
+        side=side,
+        price=taker_price,
+        size=remaining,
+        order_type="FAK",  # Fill-and-Kill (IOC) — taker
+    )
+    if not taker_result.success:
+        logger.error(
+            f"[{mode.upper()}][{strategy_name}] Taker escalation rejected: {taker_result.error}"
+        )
+        # Preserve any maker-leg fill in the returned error result.
+        if maker_filled > 0:
+            return SimpleNamespace(
+                success=True,
+                order_id=maker_order_id,
+                fill_price=maker_fill_price,
+                fill_size=maker_filled,
+                error=f"Taker escalation rejected: {taker_result.error}",
+            )
+        return taker_result
+
+    taker_filled = float(getattr(taker_result, "fill_size", 0.0) or 0.0)
+    taker_fill_price = getattr(taker_result, "fill_price", None) or taker_price
+    total_filled = maker_filled + taker_filled
+
+    # Weighted-average fill price across legs.
+    if total_filled > 0:
+        avg_price = (
+            (maker_fill_price * maker_filled) + (taker_fill_price * taker_filled)
+        ) / total_filled
+    else:
+        avg_price = maker_fill_price
+
+    return SimpleNamespace(
+        success=True,
+        order_id=taker_result.order_id or maker_order_id,
+        fill_price=avg_price,
+        fill_size=total_filled,
+        error=None,
+    )
 
 
 async def _execute_decision_live_clob(
@@ -969,25 +1009,6 @@ async def _execute_decision_live_clob(
                     phase="preflight",
                     reason_code="BLOCKED_DUPLICATE_OPEN_POSITION",
                     trade_id=existing.id,
-                )
-                db.commit()
-                return None
-
-            # Rate limiter: block if >3 trades on same market in last 5 minutes
-            from datetime import timedelta
-            five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-            recent_count = db.query(func.count(Trade.id)).filter(
-                Trade.market_ticker == market_ticker,
-                Trade.timestamp >= five_min_ago,
-            ).scalar() or 0
-            if recent_count >= 3:
-                logger.warning(
-                    f"[{strategy_name}] Rate limit exceeded: {recent_count} trades on {market_ticker} in last 5min (max 3)"
-                )
-                attempt_recorder.record_blocked(
-                    f"Rate limit exceeded: {recent_count} trades in 5min on {market_ticker}",
-                    phase="preflight",
-                    reason_code="BLOCKED_RATE_LIMIT",
                 )
                 db.commit()
                 return None
@@ -1154,16 +1175,22 @@ async def _execute_decision_live_clob(
                 for clob_attempt in range(2):
                     try:
                         async with context.clob_client as clob:
-                            await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=30.0)
-                            result = await asyncio.wait_for(
-                                clob.place_limit_order(
+                            await clob.create_or_derive_api_key()
+                            if MAKER_FIRST_ENABLED:
+                                result = await _maker_first_execute(
+                                    clob,
                                     token_id=token_id,
                                     side="BUY",
                                     price=entry_price,
                                     size=adjusted_size,
-                                ),
-                                timeout=30.0,
-                            )
+                                    strategy_name=strategy_name,
+                                    mode=mode,
+                                    market_ticker=market_ticker,
+                                )
+                            else:
+                                result = await clob.place_limit_order(
+                                    token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
+                                )
                         if result.success:
                             clob_order_id = result.order_id
                             fill_price = result.fill_price or fill_price
@@ -1175,10 +1202,7 @@ async def _execute_decision_live_clob(
                         logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_msg}")
                         if clob_attempt == 0 and "order_version_mismatch" in err_msg.lower():
                             try:
-                                fresh_mid = await asyncio.wait_for(
-                                    context.clob_client.get_mid_price(token_id),
-                                    timeout=15.0,
-                                )
+                                fresh_mid = await context.clob_client.get_mid_price(token_id)
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying with refreshed mid price {entry_price:.4f}"
@@ -1194,24 +1218,10 @@ async def _execute_decision_live_clob(
                         return None
                     except Exception as clob_err:
                         err_str = f"{type(clob_err).__name__}: {clob_err}"
-                        if isinstance(clob_err, KeyError) and str(clob_err) == "'error'":
-                            err_str = "CLOB order rejected by broker response"
-                            logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_str}")
-                            attempt_recorder.record_rejected(
-                                err_str,
-                                phase="execution",
-                                reason_code="REJECTED_BROKER_ORDER",
-                                adjusted_size=adjusted_size,
-                            )
-                            db.commit()
-                            return None
                         logger.opt(exception=True).error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}")
                         if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
                             try:
-                                fresh_mid = await asyncio.wait_for(
-                                    context.clob_client.get_mid_price(token_id),
-                                    timeout=15.0,
-                                )
+                                fresh_mid = await context.clob_client.get_mid_price(token_id)
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying after exception with refreshed mid price {entry_price:.4f}"
@@ -1225,12 +1235,6 @@ async def _execute_decision_live_clob(
                         db.commit()
                         return None
                 if clob_order_id is None:
-                    attempt_recorder.record_failed(
-                        "CLOB execution produced no order id",
-                        phase="execution",
-                        adjusted_size=adjusted_size,
-                    )
-                    db.commit()
                     return None
                 alert_manager.check_high_slippage(
                     trade_id=0, expected_price=entry_price, actual_price=fill_price,
@@ -1332,6 +1336,10 @@ async def _execute_decision_live_clob(
                 user_id=f"strategy:{strategy_name}",
             )
 
+            async with botstate_mutex:
+                _update_botstate_after_trade(db, mode, adjusted_size)
+                db.commit()
+
             signal_data = {
                 "direction": direction,
                 "model_probability": model_probability,
@@ -1384,12 +1392,16 @@ async def _execute_decision_live_clob(
                 risk_reason=risk.reason,
             )
 
-            await _commit_session_with_retry_async(
-                db,
-                label=f"trade+signal persistence {market_ticker} ({mode})",
-            )
-
-            await _apply_post_trade_botstate_update_async(mode, adjusted_size)
+            for _db_attempt in range(3):
+                try:
+                    db.commit()
+                    break
+                except OperationalError:
+                    db.rollback()
+                    if _db_attempt < 2:
+                        time.sleep(0.5 * (_db_attempt + 1))
+                    else:
+                        raise
 
             trade_dict = {
                 "id": trade.id,
