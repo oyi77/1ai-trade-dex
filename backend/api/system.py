@@ -706,8 +706,8 @@ async def get_strategy_stats(
         db.query(
             Trade.strategy,
             func.count(Trade.id).label("total_trades"),
-            func.sum(case((Trade.result == "win", 1), else_=0)).label("wins"),
-            func.sum(case((Trade.result == "loss", 1), else_=0)).label("losses"),
+            func.sum(case((Trade.settled.is_(True), case((Trade.pnl > 0, 1), else_=0)), else_=0)).label("wins"),
+            func.sum(case((Trade.settled.is_(True), case((Trade.pnl <= 0, 1), else_=0)), else_=0)).label("losses"),
             func.sum(case((Trade.settled, Trade.pnl), else_=0)).label(
                 "total_pnl"
             ),
