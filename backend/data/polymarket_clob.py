@@ -536,9 +536,10 @@ class PolymarketCLOB:
                     error="API credentials required — call create_or_derive_api_key() first",
                 )
 
-        # Deterministic key: same params within a 5-min window = same key → deduplicated.
+        # Deterministic key: same token+side+size within a 5-min window = same key → deduplicated.
+        # Price excluded — slight price changes between rapid calls must NOT bypass dedup.
         bucket = int(time.time()) // 300
-        raw = f"{token_id}:{side}:{price:.4f}:{size:.4f}:{bucket}"
+        raw = f"{token_id}:{side}:{size:.4f}:{bucket}"
         idempotency_key = hashlib.sha256(raw.encode()).hexdigest()[:32]
         if await _check_and_claim_idempotency(idempotency_key):
             logger.warning(

@@ -516,6 +516,33 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
+            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min ---
+            from datetime import timedelta
+            _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+            _recent_dup = (
+                db.query(Trade)
+                .filter(
+                    Trade.strategy == strategy_name,
+                    Trade.market_ticker == market_ticker,
+                    Trade.direction == direction,
+                    Trade.timestamp >= _cutoff,
+                )
+                .first()
+            )
+            if _recent_dup is not None:
+                logger.warning(
+                    f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
+                    f"{direction} within 5 min (trade #{_recent_dup.id})"
+                )
+                attempt_recorder.record_rejected(
+                    f"Duplicate: {market_ticker} {direction} already traded in last 5 min",
+                    phase="duplicate_guard",
+                    reason_code="REJECTED_DUPLICATE_MARKET",
+                    adjusted_size=adjusted_size,
+                )
+                db.commit()
+                return None
+
             clob_order_id = None
             fill_price = entry_price
             filled_size = None
@@ -645,6 +672,8 @@ def _execute_decision_paper_or_kalshi(
                 slippage=slippage,
                 market_type=market_type,
                 market_end_date=market_end_date,
+                token_id=token_id,
+                condition_id=decision.get("condition_id") or decision.get("slug"),
             )
 
             db.add(trade)
@@ -1278,6 +1307,8 @@ async def _execute_decision_live_clob(
                 slippage=slippage,
                 market_type=market_type,
                 market_end_date=market_end_date,
+                token_id=token_id,
+                condition_id=decision.get("condition_id") or decision.get("slug"),
             )
 
             db.add(trade)

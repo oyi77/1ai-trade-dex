@@ -154,12 +154,13 @@ async def _resolve_pm_by_token_id(token_id: str) -> Tuple[bool, Optional[float]]
 
 
 async def fetch_polymarket_resolution(
-    market_id: str, event_slug: Optional[str] = None
+    market_id: str, event_slug: Optional[str] = None, condition_id: Optional[str] = None
 ) -> Tuple[bool, Optional[float]]:
     """
     Fetch actual market resolution from Polymarket API.
 
     For BTC 5-min markets, uses event slug to find the market.
+    When condition_id is provided, queries Gamma by condition_id directly.
 
     Returns: (is_resolved, settlement_value)
         - settlement_value: 1.0 if our outcome (Up/Yes leg) won, 0.0 if it lost.
@@ -168,6 +169,23 @@ async def fetch_polymarket_resolution(
     token_id (long decimal string). In that case we route through
     ``_resolve_pm_by_token_id`` which handles outcome-index mapping correctly.
     """
+    # New: try condition_id first (most reliable for settlement)
+    if condition_id:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{settings.GAMMA_API_URL}/markets",
+                    params={"condition_id": condition_id},
+                )
+                if resp.status_code == 200:
+                    markets = resp.json()
+                    if isinstance(markets, list) and markets:
+                        result = _parse_market_resolution(markets[0])
+                        if result[0]:
+                            return result
+        except Exception:
+            pass
+
     if _looks_like_token_id(market_id):
         resolved, value = await _resolve_pm_by_token_id(market_id)
         if resolved:
@@ -579,6 +597,40 @@ def _check_event_concluded(market: dict) -> bool:
     return False
 
 
+async def _resolve_btc_updown_via_binance(ticker: str) -> Optional[float]:
+    """
+    Resolve BTC up/down 5-min market via Binance price data.
+    Slug format: btc-updown-5m-TIMESTAMP
+    Returns 1.0 if BTC went up, 0.0 if down. None if unable to determine.
+    """
+    import httpx
+
+    parts = ticker.split("-")
+    if len(parts) < 4:
+        return None
+    try:
+        market_ts = int(parts[-1])
+    except ValueError:
+        return None
+
+    start_ms = market_ts * 1000
+    end_ms = (market_ts + 300) * 1000
+    url = f"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime={start_ms}&endTime={end_ms}&limit=5"
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, timeout=10.0)
+        data = resp.json()
+        if not data:
+            return None
+        open_price = float(data[0][1])
+        close_price = float(data[-1][4])
+        result = 1.0 if close_price > open_price else 0.0
+        logger.info(
+            f"[settlement] BTC Binance fallback: {ticker} open=${open_price:.2f} close=${close_price:.2f} -> {'up' if result == 1.0 else 'down'}"
+        )
+        return result
+
+
 async def _fetch_kalshi_resolution(ticker: str) -> Tuple[bool, Optional[float]]:
     """Fetch resolution status for a Kalshi market."""
     try:
@@ -637,14 +689,27 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
         if platform == "kalshi":
             return await _fetch_kalshi_resolution(trade.market_ticker)
         return await fetch_polymarket_resolution(
-            trade.market_ticker, event_slug=getattr(trade, "event_slug", None)
+            trade.market_ticker,
+            event_slug=getattr(trade, "event_slug", None),
+            condition_id=getattr(trade, "condition_id", None),
         )
     except Exception as e:
         logger.warning(
             f"[settlement] Resolution fetch failed for {trade.market_ticker} (platform={platform}): {type(e).__name__}: {e}"
         )
-        # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports
-        return False, None
+
+    # BTC up/down 5-min fallback: resolve via Binance price data
+    ticker = getattr(trade, "market_ticker", "") or ""
+    if ticker.startswith("btc-updown-5m-"):
+        try:
+            result = await _resolve_btc_updown_via_binance(ticker)
+            if result is not None:
+                return True, result
+        except Exception as e:
+            logger.warning(f"[settlement] BTC Binance fallback failed for {ticker}: {e}")
+
+    # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports
+    return False, None
 
 
 def calculate_pnl(trade: Trade, settlement_value: float) -> float:
@@ -707,7 +772,9 @@ async def check_market_settlement(
     Returns: (is_settled, settlement_value, pnl)
     """
     is_resolved, settlement_value = await fetch_polymarket_resolution(
-        trade.market_ticker, event_slug=trade.event_slug
+        trade.market_ticker,
+        event_slug=trade.event_slug,
+        condition_id=getattr(trade, "condition_id", None),
     )
 
     if not is_resolved or settlement_value is None:
@@ -744,6 +811,7 @@ async def check_weather_settlement(
         is_resolved, settlement_value = await fetch_polymarket_resolution(
             trade.market_ticker,
             event_slug=trade.event_slug,
+            condition_id=getattr(trade, "condition_id", None),
         )
 
     if is_resolved and settlement_value is not None:
