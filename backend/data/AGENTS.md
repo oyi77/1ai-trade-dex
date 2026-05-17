@@ -43,6 +43,8 @@ Market data providers, exchange clients, WebSocket feeds, and data aggregation. 
 | `shared_service.py` | Shared data service singleton |
 | `validators.py` | Data validation for incoming market data |
 | `providers/` | Platform-specific `DataProvider` implementations (see `providers/AGENTS.md`) |
+| `crypto_feeds/` | Plugin-based crypto exchange price feeds — Binance, Bybit, Coinbase, Kraken, CoinGecko (see `crypto_feeds/AGENTS.md`) |
+| `sources/` | Data source plugins — Polymarket, Kalshi, Mock (auto-discovered by source registry) |
 
 ## For AI Agents
 

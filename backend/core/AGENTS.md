@@ -27,6 +27,14 @@ Kernel coordination of strategy execution, scheduling, settlement reconciliation
 | `correlation_monitor.py` | ~160 | Cross-market correlation monitor: classifies markets into 5 categories, blocks clustered exposure exceeding MAX_CORRELATED_EXPOSURE_PCT |
 | `position_monitor.py` | ~750 | Stale position detection + sell signal generation (profit-take, stop-loss, time-decay); closes the 948-buy-vs-4-sell gap |
 
+## SUBDIRECTORIES
+
+| Directory | Purpose |
+|-----------|---------|
+| `copy_sources/` | Copy trading signal sources (internal mirror, leaderboard scraper) |
+| `execution_pipeline/` | Pluggable trade execution pipeline (validate -> simulate -> execute -> record -> notify) |
+| `tests/` | Core-specific unit tests (agent council, learning system, reasoning engine, safety monitor) |
+
 ## CRITICAL RULES
 
 ### Settlement is Sacred

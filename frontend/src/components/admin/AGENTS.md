@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-04-10 | Updated: 2026-05-09 -->
+<!-- Generated: 2026-05-17 | Updated: 2026-05-17 -->
 
 # frontend/src/components/admin
 
@@ -13,29 +13,30 @@ Admin panel tab components. Each tab provides a distinct control surface for sys
 | `AITab.tsx` | AI model provider config — select Groq/Claude/OmniRoute/custom, set API keys/URLs, manage daily token budget, track usage, test suggestions, and apply AI-generated signals |
 | `CredentialsTab.tsx` | API credential management — Polymarket CLOB key/secret, Kalshi API key, and other market data provider authentication |
 | `WalletConfigTab.tsx` | Wallet setup and configuration — connect wallets, set trade sizing rules, manage deposit/withdrawal addresses |
+| `WalletMatrix.tsx` | Wallet matrix view — multi-wallet overview, balance tracking, allocation visualization |
 | `RiskTab.tsx` | Risk limit controls — max position size, max portfolio drawdown, daily loss limit, circuit breaker thresholds, strategy-specific risk caps |
 | `SettingsEditor.tsx` | JSON settings editor — raw JSON view of all bot settings, edit and save with validation feedback |
+| `SettingsTab.tsx` | General settings tab — global configuration options, feature flags, system preferences |
 | `StrategiesTab.tsx` | Strategy control panel — enable/disable individual strategies, run strategies manually, monitor required credentials and error states |
 | `SystemStatus.tsx` | System health dashboard — bot status, connection health, queue length, error log tail, uptime metrics |
+| `SystemLogsTab.tsx` | System logs viewer — real-time log streaming, log level filtering, search, export |
 | `TelegramTab.tsx` | Telegram bot integration — set bot token, configure notification rules, manage allowed users, test message send |
 | `CopyTraderMonitor.tsx` | Copy trading monitoring — track copied trades, performance vs leader, auto-execution status, position reconciliation |
+| `CopyPolicyPanel.tsx` | Copy trading policy — configure copy rules, position sizing, risk limits for copied strategies |
 | `MarketWatchTab.tsx` | Market watchlist — add/remove tracked markets, set alert thresholds, monitor key metrics (volume, spread, price changes) |
 | `DebateMonitorTab.tsx` | MiroFish debate monitoring — track external dual-debate validation, decision confidence, fallback engine status |
+| `ProviderStatusPanel.tsx` | Provider status — LLM/AI provider health checks, latency, uptime, error rates |
 | `AGIRegimeTab.tsx` | AGI regime control — manage autonomy levels, safety boundaries, and decision authority |
 | `AGIDecisionsTab.tsx` | AGI decisions log — review AI-generated decisions, reasoning, and approval workflow |
 | `AGIControlTab.tsx` | AGI system control — enable/disable autonomous functions, override decisions, manual intervention |
 | `AGIComposerTab.tsx` | AGI strategy composer — configure strategy evolution, crossover, mutation parameters |
-| `SettingsTab.tsx` | General settings tab — global configuration options, feature flags, system preferences |
-
-## Subdirectories
-None — all admin components are at root level of `admin/`.
 
 ## For AI Agents
 
 ### Working In This Directory
 - Each tab is self-contained and independently fetchable via React Query
 - Admin API calls require Bearer token auth — passed automatically by `adminApi` interceptor
-- Use `useQueryClient()` to invalidate related queries after mutations (e.g., after updating strategy, refetch strategies)
+- Use `useQueryClient()` to invalidate related queries after mutations
 - Form state managed with local `useState()` — validate before submit
 - Loading states while fetching/saving: show spinners or disable buttons
 - Error messages displayed in status message boxes: `{ ok: false, message: '...' }`
@@ -49,8 +50,6 @@ None — all admin components are at root level of `admin/`.
 - Test form validation (empty fields, invalid formats)
 - Test loading/error states in each tab
 - Test that sensitive data (API keys) is masked in UI
-- Test credential error handling (invalid key rejected)
-- Avoid testing localStorage directly — test via useAuth hook
 
 ### Common Patterns
 - Fetch data on component mount with `useQuery()`
@@ -72,5 +71,3 @@ None — all admin components are at root level of `admin/`.
 - `react@18` — useState, useQuery, useQueryClient, etc.
 - `@tanstack/react-query@5` — useQuery for data fetching and caching
 - `tailwindcss@3` — styling and layout
-
-<!-- MANUAL: -->

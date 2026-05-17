@@ -39,6 +39,7 @@ LLM routing, multi-agent debate, signal parsing, market analysis, and ML model t
 | `model_integrity.py` | ML model hash verification |
 | `logger.py` | AI-specific structured logging |
 | `models/` | Serialized ML model artifacts (`baseline.pkl`) |
+| `providers/` | LLM provider plugins — Claude, Gemini, Groq, OpenRouter (auto-discovered) |
 | `training/` | Model training pipeline — data collection, feature engineering, training, evaluation |
 
 ## For AI Agents

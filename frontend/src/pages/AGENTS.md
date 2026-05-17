@@ -19,6 +19,8 @@ Top-level page components mapped to React Router routes. Each page is a full-scr
 | Settlements.tsx | /settlements | Tracks trade settlements and reconciliation status. |
 | MarketIntel.tsx | /market-intel | Market intelligence dashboard with trends, sentiment, and opportunity analysis. |
 | DecisionLog.tsx | /decisions | Historical decision log with filtering and export. Uses useTableQuery hook for pagination and sorting. |
+| Activity.tsx | /activity | System activity log — chronological view of bot actions, trades, and system events |
+| Proposals.tsx | /proposals | AI-generated trade proposals — review, approve/reject workflow with batch operations |
 | EdgeTracker.tsx | /edge-tracker | Tracks strategy edge metrics and performance statistics. |
 
 ## For AI Agents

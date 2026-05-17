@@ -14,7 +14,9 @@ Telegram bot notification and alerting system. Sends trade alerts, system status
 | notification_router.py | Routing logic for different notification types (alerts, approvals, confirmations) |
 
 ## Subdirectories
-None
+| Directory | Purpose |
+|-----------|---------|
+| `notification/` | Plugin-based multi-channel notification system (see `notification/AGENTS.md`) |
 
 ## For AI Agents
 ### Working In This Directory

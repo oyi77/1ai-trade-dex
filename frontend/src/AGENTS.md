@@ -63,11 +63,11 @@ React application source root. Defines the main application structure with React
 - `frontend/components/` — 30+ reusable UI components
 
 ### External
-- `react@18`, `react-router-dom@6` — routing and navigation
+- `react@18`, `react-router-dom@7` — routing and navigation
 - `axios@1` — REST client
 - `tailwindcss@3` — utility CSS framework
 - `typescript@5` — type safety
-- `vite@4` — build tool
+- `vite@5` — build tool
 - `vitest`, `@testing-library/react` — unit testing
 - `@playwright/test` — E2E testing (in `e2e/`)
 

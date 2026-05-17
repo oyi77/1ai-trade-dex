@@ -26,6 +26,28 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | realtime_scanner | realtime_scanner.py | DISABLED | — | — | Unstable; disabled |
 | probability_arb | probability_arb.py | DISABLED | — | — | Research-phase; disabled |
 
+### Additional Active Strategies
+
+| Strategy | File | Status | Notes |
+|----------|------|--------|-------|
+| crypto_oracle | crypto_oracle.py (37K) | PAPER | BTC/ETH/SOL 5-min markets |
+| general_market_scanner | general_market_scanner.py (41K) | ACTIVE | Market-wide opportunity scanner |
+| longshot_bias | longshot_bias.py | ACTIVE | Longshot bias exploitation |
+| order_executor | order_executor.py (17K) | ACTIVE | Order execution helper |
+| arb_executor | arb_executor.py | ACTIVE | Arbitrage execution |
+| agi_meta_strategy | agi_meta_strategy.py | ACTIVE | AGI meta-strategy wrapper |
+| template_base | template_base.py | TEMPLATE | Strategy template for new strategies |
+| registry | registry.py | INFRA | Strategy registry and loader |
+
+### Deprecated / Legacy
+
+| Strategy | File | Status | Notes |
+|----------|------|--------|-------|
+| general_scanner | general_scanner.py | DISABLED | Auto-killed (10% WR) |
+| btc_momentum | btc_momentum.py | DEPRECATED | Legacy; don't use |
+| realtime_scanner | realtime_scanner.py | DISABLED | Unstable |
+| probability_arb | probability_arb.py | DISABLED | Research-phase |
+
 ### Signal Infrastructure (backend/modules/)
 
 Not alpha strategies; source external signals (leaderboard, on-chain, weather APIs):
