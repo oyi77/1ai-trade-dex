@@ -97,7 +97,7 @@ async def test_e2e_mirofish_enabled_success(mock_db, sample_mirofish_signals):
         assert abs(result.consensus_probability - expected_consensus) < 0.001
 
         # Verify API was called with correct market
-        mock_client.fetch_signals.assert_called_once_with(market="polymarket")
+        mock_client.fetch_signals.assert_called_once_with(market="polymarket", question="Will BTC hit $100k by EOY?", market_price=0.55)
 
 
 @pytest.mark.asyncio
