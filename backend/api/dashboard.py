@@ -239,6 +239,7 @@ class DashboardData(BaseModel):
     weather_signals: List[WeatherSignalResponse] = []
     weather_forecasts: List[WeatherForecastResponse] = []
     trading_mode: str = "paper"
+    active_modes: List[str] = []
 
 
 _dashboard_cache_lock = asyncio.Lock()

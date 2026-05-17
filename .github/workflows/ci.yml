@@ -65,7 +65,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: frontend
-        run: npx playwright test --reporter=list || true
+        run: npx playwright test --reporter=list
 
       - name: Build
         working-directory: frontend

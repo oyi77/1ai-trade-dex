@@ -1,7 +1,6 @@
 import { useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { getAdminApiKey, setAdminApiKey } from '../api'
 import { ModeFilterProvider } from '../contexts/ModeFilterContext'
 
 
@@ -111,37 +110,6 @@ const TABS = [
 ] as const
 type Tab = typeof TABS[number]
 
-function ApiKeyBar() {
-  const [key, setKey] = useState(getAdminApiKey())
-  const [saved, setSaved] = useState(false)
-
-  const handleSave = () => {
-    setAdminApiKey(key)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
-  return (
-    <div className="shrink-0 bg-neutral-950 border-b border-neutral-800 px-4 py-1.5 flex items-center gap-3">
-      <span className="text-[9px] text-neutral-600 uppercase tracking-wider shrink-0">Admin Key</span>
-      <input
-        type="password"
-        value={key}
-        onChange={e => setKey(e.target.value)}
-        onKeyDown={e => e.key === 'Enter' && handleSave()}
-        placeholder="Bearer token (leave blank if not required)"
-        className="flex-1 min-w-0 bg-transparent border border-neutral-800 text-neutral-400 text-[10px] px-2 py-0.5 font-mono focus:border-neutral-600 focus:outline-none"
-      />
-      <button
-        onClick={handleSave}
-        className="px-2 py-0.5 bg-neutral-800 border border-neutral-700 text-neutral-400 text-[9px] uppercase tracking-wider hover:border-neutral-600 transition-colors"
-      >
-        {saved ? 'Saved' : 'Set'}
-      </button>
-    </div>
-  )
-}
-
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<Tab>('System')
   const { isAuthenticated, authRequired, login, logout } = useAuth()
@@ -166,7 +134,6 @@ export default function Admin() {
           <span />
         )}
       </div>
-      {!authRequired && <ApiKeyBar />}
 
       {/* Tab Bar */}
       <div className="shrink-0 border-b border-neutral-800 flex items-center overflow-x-auto scrollbar-none flex-nowrap">

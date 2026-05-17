@@ -213,7 +213,10 @@ class LeaderboardScorer:
             if actual_bankroll and actual_bankroll >= 100:
                 est_bankroll = actual_bankroll
             else:
-                est_bankroll = max(abs(profit) * 5, 1000.0)
+                # E-109: Use settings bankroll instead of profit heuristic
+                est_bankroll = float(
+                    getattr(settings, 'INITIAL_BANKROLL', 1000.0)
+                )
 
             trader = ScoredTrader(
                 user=user,

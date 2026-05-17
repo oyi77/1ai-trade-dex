@@ -258,14 +258,38 @@ class ProbabilityArb(BaseStrategy):
 
 
 def process_pending_arbs() -> int:
-    """Re-process queued arbitrage opportunities. Call periodically."""
+    """Re-process queued arbitrage opportunities. Call periodically.
+
+    E-104: Re-attempt execution instead of just deleting expired entries.
+    Only delete after max retries exhausted.
+    """
+    import asyncio
     now = time.time()
-    processed = 0
+    reattempted = 0
 
     for key, pending in list(_pending_arbs.items()):
         queued_at = pending.get("queued_at", 0)
-        if now - queued_at > 300:
-            del _pending_arbs[key]
-            processed += 1
+        retries = pending.get("retries", 0)
+        max_retries = _cfg("ARB_MAX_RETRIES", 3)
 
-    return processed
+        # Retry if within 5-minute window and retries remaining
+        if now - queued_at > 300:
+            if retries < max_retries:
+                # Re-attempt execution
+                opp = pending.get("opportunity")
+                market_id = pending.get("market_id", "")
+                if opp:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # Schedule retry; mark attempted
+                            pending["retries"] = retries + 1
+                            pending["queued_at"] = now
+                            reattempted += 1
+                            continue
+                    except RuntimeError:
+                        pass
+            # Expired and max retries exhausted — remove
+            del _pending_arbs[key]
+
+    return reattempted

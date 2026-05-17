@@ -254,7 +254,7 @@ class LearningPipeline:
             )
 
             if lesson is None:
-                self._metrics.total_processed += 1
+                # E-124: Don't increment total_processed here — it's incremented in finally block
                 elapsed_ms = (time.monotonic() - t0) * 1000
                 self._metrics.total_processing_ms += elapsed_ms
                 record_pipeline_processing(elapsed_ms / 1000.0)

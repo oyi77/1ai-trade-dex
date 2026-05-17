@@ -225,7 +225,11 @@ def _update_env_file(key: str, value: str) -> None:
                 new_lines.append(line)
         if not replaced:
             new_lines.append(new_line)
-        with open(env_path, "w") as f:
+        tmp_path = env_path + ".tmp"
+        with open(tmp_path, "w") as f:
             f.writelines(new_lines)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, env_path)
     except Exception as exc:
         logger.debug("Could not update .env: %s", exc)

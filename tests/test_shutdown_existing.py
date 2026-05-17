@@ -13,8 +13,8 @@ import sys
 import time
 from datetime import datetime
 
-BACKEND_PID = 648488
-BACKEND_URL = "http://localhost:8100"
+BACKEND_PID = int(os.environ.get("BACKEND_PID", "0"))
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8100")
 
 
 async def make_requests(count: int) -> list:

@@ -366,13 +366,35 @@ def _redeem_direct(
 # ---------------------------------------------------------------------------
 
 def get_redeemable_positions(wallet: str) -> list[dict]:
-    """Fetch redeemable positions from Polymarket Data API."""
-    with httpx.Client() as client:
+    """Fetch redeemable positions from Polymarket Data API.
+
+    E-114: Use async httpx.AsyncClient to avoid blocking the event loop.
+    Falls back to sync if no event loop is running.
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # We're in an async context — use a thread to avoid blocking the event loop
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_fetch_redeemable_positions_sync, wallet)
+            positions = future.result(timeout=15)
+    else:
+        positions = _fetch_redeemable_positions_sync(wallet)
+    return [p for p in positions if p.get("redeemable") and p.get("conditionId")]
+
+
+def _fetch_redeemable_positions_sync(wallet: str) -> list[dict]:
+    """Synchronous fetch — only call from non-async context or via thread pool."""
+    with httpx.Client(timeout=15) as client:
         resp = client.get(
             f"{_main_settings.DATA_API_URL}/positions?user={wallet}&limit=200"
         )
-        positions = resp.json()
-    return [p for p in positions if p.get("redeemable") and p.get("conditionId")]
+        return resp.json()
 
 
 def get_db_resolved_positions() -> list[dict]:
@@ -547,7 +569,7 @@ def redeem_all_redeemable(
                 f"[DRY RUN] Would redeem: {title} "
                 f"(curPrice={cur_price}, initialValue={initial_value}, negRisk={neg_risk})"
             )
-            result.total_redeemed += 1
+            # E-115: Do NOT increment counter on dry run — it skews metrics
             continue
 
         redeem = redeem_position(

@@ -200,6 +200,17 @@ class StrategyComposer:
             logger.error("[StrategyComposer] Generated code has syntax error: %s", e)
             return None
 
+        # E-05: Validate LLM-generated code through SandboxValidator before writing to disk
+        from backend.agi.sandbox.sandbox_validator import SandboxValidator
+        validator = SandboxValidator()
+        validation_result = validator.validate(code)
+        if not validation_result.passed:
+            logger.error(
+                "[StrategyComposer] LLM code failed sandbox validation: %s",
+                validation_result.errors,
+            )
+            return None
+
         existing = db.query(StrategyConfig).filter(
             StrategyConfig.strategy_name == strategy_name
         ).first()
@@ -221,6 +232,35 @@ class StrategyComposer:
 
         with open(filepath, "w") as f:
             f.write(code)
+
+        # E-04: Run code through SandboxManager before exec_module() for runtime isolation
+        try:
+            import asyncio as _asyncio
+            from backend.agi.sandbox.sandbox_manager import SandboxManager
+            sandbox = SandboxManager()
+            try:
+                _asyncio.get_running_loop()
+                # Already in async context — use thread pool to avoid deadlock
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    sandbox_result = pool.submit(
+                        _asyncio.run, sandbox.execute_code(code)
+                    ).result(timeout=10)
+            except RuntimeError:
+                # No running event loop
+                sandbox_result = _asyncio.run(sandbox.execute_code(code))
+
+            if not sandbox_result.passed:
+                logger.error(
+                    "[StrategyComposer] LLM code failed sandbox execution: %s",
+                    sandbox_result.errors,
+                )
+                os.remove(filepath)
+                return None
+        except Exception as sandbox_err:
+            logger.error("[StrategyComposer] Sandbox execution error: %s, removing file", sandbox_err)
+            os.remove(filepath)
+            return None
 
         try:
             spec = importlib.util.spec_from_file_location(

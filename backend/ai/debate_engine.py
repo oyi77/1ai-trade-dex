@@ -266,20 +266,23 @@ def _build_judge_prompt(
         default=0,
     )
 
+    import random
     for r in range(1, max_rounds + 1):
         prompt += f"\n=== ROUND {r} ===\n"
+        round_args = []
         for arg in bull_args:
             if arg.round_num == r:
-                prompt += (
-                    f"\nBULL (prob={arg.probability:.2f}, conf={arg.confidence:.2f}):\n"
-                    f"{arg.reasoning}\n"
-                )
+                round_args.append(("BULL", arg))
         for arg in bear_args:
             if arg.round_num == r:
-                prompt += (
-                    f"\nBEAR (prob={arg.probability:.2f}, conf={arg.confidence:.2f}):\n"
-                    f"{arg.reasoning}\n"
-                )
+                round_args.append(("BEAR", arg))
+        # Randomize order to avoid anchoring bias
+        random.shuffle(round_args)
+        for label, arg in round_args:
+            prompt += (
+                f"\n{label} (prob={arg.probability:.2f}, conf={arg.confidence:.2f}):\n"
+                f"{arg.reasoning}\n"
+            )
 
     prompt += (
         "\n--- END TRANSCRIPT ---\n\n"

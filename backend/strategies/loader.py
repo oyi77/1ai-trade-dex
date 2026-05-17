@@ -21,8 +21,6 @@ def _skip_module(module_name: str) -> bool:
         "backend.strategies.registry",
         "backend.strategies.loader",
         "backend.strategies.types_hft",
-        "backend.strategies.arb_executor",
-        "backend.strategies.order_executor",
         "backend.strategies.wallet_sync",
     })
     return module_name in _SKIP

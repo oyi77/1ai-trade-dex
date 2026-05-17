@@ -207,7 +207,8 @@ class BondScannerStrategy(BaseStrategy):
                 continue
 
             # We have a qualifying market
-            bankroll = 100.0
+            # E-108: Default to settings bankroll, not hardcoded 100.0
+            bankroll = float(ctx.settings.INITIAL_BANKROLL) if hasattr(ctx.settings, 'INITIAL_BANKROLL') else 1000.0
             try:
                 from backend.models.database import BotState, for_update
 

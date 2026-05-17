@@ -96,9 +96,15 @@ async def _fetch_market_prob(
         if resp.status_code == 200:
             markets = resp.json()
             if markets and isinstance(markets, list) and len(markets) > 0:
-                prices_str = markets[0].get("outcomePrices")
-                if prices_str:
-                    return float(str(prices_str).split(",")[0])
+                prices = markets[0].get("outcomePrices")
+                if prices:
+                    if isinstance(prices, list):
+                        return float(prices[0])
+                    elif isinstance(prices, str):
+                        # Could be "[0.55, 0.45]" or "0.55,0.45"
+                        cleaned = prices.strip("[] ")
+                        return float(cleaned.split(",")[0])
+                    return float(prices)
         logger.warning(f"[whale_pnl_tracker] _fetch_market_prob: no price data for {condition_id[:20]}...")
         return None
     except Exception as e:
