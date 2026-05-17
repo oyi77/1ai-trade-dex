@@ -9,7 +9,7 @@ import re as _re
 from backend.config import settings
 from backend.models.database import Trade, BotState, botstate_mutex
 from backend.core.alert_manager import AlertManager
-from backend.monitoring.hft_metrics import record_execution, settlement_outcome_total, db_query_duration
+from backend.monitoring.hft_metrics import record_execution, db_query_duration
 
 from backend.core.settlement_helpers import (
     fetch_resolution_for_trade,
@@ -212,11 +212,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             )
                         else:
                             trade.settled = True
-                            trade.result = "closed_unresolved"
+                            trade.result = "loss"
                             trade.settlement_time = now
                             trade.settlement_source = "closed_unresolved"
                             if trade.pnl is None:
-                                trade.pnl = 0.0
+                                trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
                             if trade.settlement_value is None:
                                 trade.settlement_value = 0.0
                             logger.warning(
@@ -410,7 +410,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         continue
 
                     trade.settled = True
-                    trade.result = "expired_unresolved"
+                    trade.result = "loss"
                     trade.settlement_time = now
                     trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
                     trade.settlement_value = 0.0
@@ -471,7 +471,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     continue
 
                 trade.settled = True
-                trade.result = "expired_unresolved"
+                trade.result = "loss"
                 trade.settlement_time = now
                 trade.pnl = -float(trade.size or 0)
                 trade.settlement_value = 0.0
