@@ -512,6 +512,15 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 )
                 db.rollback()
 
+        # Resolve paper trades via Gamma outcome prices
+        try:
+            from backend.core.settlement_helpers import resolve_paper_trades
+            paper_settled = await resolve_paper_trades(db)
+            if paper_settled:
+                logger.info(f"Settled {len(paper_settled)} paper trades via Gamma outcomes")
+        except Exception as e:
+            logger.warning(f"Paper trade settlement failed: {e}")
+
         # Auto-topup paper bankroll if depleted
         try:
             paper_min = settings.PAPER_MIN_BANKROLL

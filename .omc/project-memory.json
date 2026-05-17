@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1778235396553,
+  "lastScanned": 1779011663295,
   "projectRoot": "/home/openclaw/projects/polyedge",
   "techStack": {
     "languages": [
@@ -49,7 +49,7 @@
       "path": "alembic",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1778235396530,
+      "lastAccessed": 1779011663284,
       "keyFiles": [
         "README",
         "env.py",
@@ -59,21 +59,19 @@
     "archive": {
       "path": "archive",
       "purpose": null,
-      "fileCount": 14,
-      "lastAccessed": 1778235396531,
+      "fileCount": 3,
+      "lastAccessed": 1779011663287,
       "keyFiles": [
-        "CLEANUP_SUMMARY.md",
-        "DASHBOARD_BROKEN_PAGES_SUMMARY.txt",
-        "FINAL_SUMMARY.txt",
-        "SUCCESS_SUMMARY.txt",
-        "TESTING_COMPLETE.txt"
+        "agi_test.db",
+        "test_db.db",
+        "tradingbot_test.db"
       ]
     },
     "backend": {
       "path": "backend",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1778235396532,
+      "lastAccessed": 1779011663288,
       "keyFiles": [
         "AGENTS.md",
         "__init__.py",
@@ -85,43 +83,46 @@
     "backups": {
       "path": "backups",
       "purpose": null,
-      "fileCount": 8,
-      "lastAccessed": 1778235396534,
+      "fileCount": 54,
+      "lastAccessed": 1779011663288,
       "keyFiles": [
-        "tradingbot_20260506_151512.db",
-        "tradingbot_20260506_151512.db-wal",
-        "tradingbot_20260506_214750.db",
-        "tradingbot_20260506_214750.db-wal",
-        "tradingbot_20260507_094750.db"
+        "tradingbot_20260510_201753.db",
+        "tradingbot_20260510_201753.db-wal",
+        "tradingbot_20260511_081752.db",
+        "tradingbot_20260511_081752.db-wal",
+        "tradingbot_20260511_181300.db"
       ]
     },
     "data": {
       "path": "data",
       "purpose": "Data files",
-      "fileCount": 1,
-      "lastAccessed": 1778235396534,
+      "fileCount": 4,
+      "lastAccessed": 1779011663289,
       "keyFiles": [
-        "polyedge.db"
+        "bot.db",
+        "polyedge.db",
+        "trading.db",
+        "trading_bot.db"
       ]
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 25,
-      "lastAccessed": 1778235396535,
+      "fileCount": 32,
+      "lastAccessed": 1779011663289,
       "keyFiles": [
         "AGENTS.md",
+        "ANOMALY_REPORT.md",
         "CHANGELOG.md",
-        "IMPLEMENTATION_ROADMAP_AGI_ENHANCEMENTS.md",
-        "KNOWLEDGE_BASE.md",
-        "ONBOARDING.md"
+        "DEPLOYMENT.md",
+        "DEPLOYMENT_REPORT.md"
       ]
     },
     "frontend": {
       "path": "frontend",
       "purpose": null,
-      "fileCount": 18,
-      "lastAccessed": 1778235396535,
+      "fileCount": 19,
+      "lastAccessed": 1779011663289,
       "keyFiles": [
         "AGENTS.md",
         "Dockerfile",
@@ -133,15 +134,18 @@
     "logs": {
       "path": "logs",
       "purpose": null,
-      "fileCount": 0,
-      "lastAccessed": 1778235396536,
-      "keyFiles": []
+      "fileCount": 2,
+      "lastAccessed": 1779011663289,
+      "keyFiles": [
+        "backup_alerts.log",
+        "backup_verification.log"
+      ]
     },
     "migrations": {
       "path": "migrations",
       "purpose": "Database migrations",
       "fileCount": 3,
-      "lastAccessed": 1778235396536,
+      "lastAccessed": 1779011663290,
       "keyFiles": [
         "README",
         "env.py",
@@ -152,7 +156,7 @@
       "path": "polyedge-docs",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1778235396537,
+      "lastAccessed": 1779011663290,
       "keyFiles": [
         "README.md",
         "docusaurus.config.ts",
@@ -164,30 +168,39 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 37,
-      "lastAccessed": 1778235396537,
+      "fileCount": 48,
+      "lastAccessed": 1779011663290,
       "keyFiles": [
         "AGENTS.md",
         "FIXES_APPLIED.py",
+        "README_ENGINE.md",
         "backfill_blockchain_txns.py",
-        "backfill_paper_initial_bankroll.py",
-        "backup-cron.sh"
+        "backfill_paper_initial_bankroll.py"
       ]
     },
     "secrets": {
       "path": "secrets",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1778235396539,
+      "lastAccessed": 1779011663290,
       "keyFiles": [
         "kalshi_private_key.pem"
+      ]
+    },
+    "state": {
+      "path": "state",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1779011663291,
+      "keyFiles": [
+        "cancel-signal-state.json"
       ]
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 25,
-      "lastAccessed": 1778235396539,
+      "fileCount": 29,
+      "lastAccessed": 1779011663291,
       "keyFiles": [
         "AGENTS.md",
         "SHUTDOWN_TEST_RESULTS.md",
@@ -200,7 +213,7 @@
       "path": "venv",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1778235396540,
+      "lastAccessed": 1779011663291,
       "keyFiles": [
         "pyvenv.cfg"
       ]
@@ -209,7 +222,7 @@
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 8,
-      "lastAccessed": 1778235396545,
+      "lastAccessed": 1779011663292,
       "keyFiles": [
         "favicon.svg",
         "icon-192.png",
@@ -220,7 +233,7 @@
       "path": "polyedge-docs/build",
       "purpose": "Build output",
       "fileCount": 5,
-      "lastAccessed": 1778235396546,
+      "lastAccessed": 1779011663292,
       "keyFiles": [
         "404.html",
         "index.html",
@@ -231,7 +244,7 @@
       "path": "polyedge-docs/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1778235396547,
+      "lastAccessed": 1779011663292,
       "keyFiles": [
         "intro.md"
       ]
@@ -240,14 +253,14 @@
       "path": "polyedge-docs/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1778235396550,
+      "lastAccessed": 1779011663293,
       "keyFiles": []
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 5,
-      "lastAccessed": 1778235396551,
+      "lastAccessed": 1779011663295,
       "keyFiles": [
         "AGENTS.md",
         "sample_activity.json",
@@ -257,8 +270,8 @@
     "venv/bin": {
       "path": "venv/bin",
       "purpose": "Executable scripts",
-      "fileCount": 42,
-      "lastAccessed": 1778235396552,
+      "fileCount": 45,
+      "lastAccessed": 1779011663295,
       "keyFiles": [
         "Activate.ps1",
         "activate",
@@ -269,16 +282,46 @@
       "path": "venv/lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1778235396553,
+      "lastAccessed": 1779011663295,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
+      "path": "backend/core/strategy_executor.py",
+      "accessCount": 20,
+      "lastAccessed": 1779022138923,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/settlement_helpers.py",
+      "accessCount": 8,
+      "lastAccessed": 1779021231213,
+      "type": "file"
+    },
+    {
       "path": "IMPLEMENTATION_GAPS.md",
       "accessCount": 3,
       "lastAccessed": 1777836871997,
       "type": "file"
+    },
+    {
+      "path": "backend/data/polymarket_clob.py",
+      "accessCount": 3,
+      "lastAccessed": 1779018858179,
+      "type": "file"
+    },
+    {
+      "path": "backend",
+      "accessCount": 2,
+      "lastAccessed": 1779014592043,
+      "type": "directory"
+    },
+    {
+      "path": "backend/strategies/btc_oracle.py",
+      "accessCount": 1,
+      "lastAccessed": 1779014630333,
+      "type": "directory"
     }
   ],
   "userDirectives": []

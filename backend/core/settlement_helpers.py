@@ -1411,3 +1411,119 @@ async def reconcile_positions(db: Session) -> List[int]:
             exc_info=True,
         )
         return []
+
+
+async def resolve_paper_trades(db) -> List[Trade]:
+    """
+    Resolve pending paper trades via Gamma API outcome prices.
+    Paper trades are marked settled=True but result='pending' — this
+    queries Gamma for actual market outcomes and updates PnL accordingly.
+    """
+    from backend.models.database import Trade
+    from datetime import datetime, timezone
+    import httpx
+
+    # Find paper trades still pending resolution
+    pending = (
+        db.query(Trade)
+        .filter(
+            Trade.trading_mode == "paper",
+            Trade.settled == True,
+            Trade.pnl.is_(None),
+        )
+        .all()
+    )
+
+    if not pending:
+        return []
+
+    settled = []
+    now = datetime.now(timezone.utc)
+
+    # Deduplicate by market_ticker
+    tickers = list(set(t.market_ticker for t in pending))
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        for ticker in tickers:
+            try:
+                r = await client.get(
+                    f"{settings.GAMMA_API_URL}/markets",
+                    params={"slug": ticker},
+                )
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                if not isinstance(data, list) or not data:
+                    continue
+
+                market = data[0]
+                prices = market.get("outcomePrices", [])
+                if not prices:
+                    continue
+
+                p0 = float(prices[0]) if prices[0] is not None else None
+                p1 = float(prices[1]) if len(prices) > 1 and prices[1] is not None else None
+
+                if p0 is None or p1 is None:
+                    continue
+
+                # Determine settlement value from extreme prices
+                threshold = 0.005
+                if p0 <= threshold and p1 >= (1.0 - threshold):
+                    settlement_value = 0.0  # outcome index 0 won (NO)
+                elif p1 <= threshold and p0 >= (1.0 - threshold):
+                    settlement_value = 1.0  # outcome index 1 won (YES)
+                else:
+                    continue  # market still open
+
+                condition_id = market.get("conditionId", "")
+
+                # Update all trades for this ticker
+                for trade in pending:
+                    if trade.market_ticker == ticker:
+                        dir_yes = trade.direction in ("yes", "up")
+                        is_win = (dir_yes and settlement_value == 1.0) or (not dir_yes and settlement_value == 0.0)
+
+                        trade.result = "win" if is_win else "loss"
+                        trade.settlement_value = settlement_value
+                        trade.settlement_time = now
+                        trade.settlement_source = "gamma_outcome"
+
+                        if is_win:
+                            trade.pnl = round((1.0 - trade.entry_price) * trade.size, 2)
+                        else:
+                            trade.pnl = round(-(trade.entry_price * trade.size), 2)
+
+                        if condition_id:
+                            trade.condition_id = condition_id
+
+                        settled.append(trade)
+            except Exception as e:
+                logger.warning(f"Paper settlement failed for {ticker}: {e}")
+                continue
+
+    if settled:
+        try:
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to commit paper settlements: {e}")
+            db.rollback()
+            return []
+
+        # Update bot_state inline to avoid circular import
+        if settled:
+            try:
+                for trade in settled:
+                    if trade.pnl is None:
+                        continue
+                    state = db.query(type("BotState", (object,), {})).filter_by(mode="paper").first()
+                    if state and hasattr(state, "paper_pnl"):
+                        state.paper_pnl = (state.paper_pnl or 0) + trade.pnl
+                        state.paper_trades = (state.paper_trades or 0) + 1
+                        if trade.result == "win":
+                            state.paper_wins = (state.paper_wins or 0) + 1
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to update paper bot_state: {e}")
+
+    return settled
