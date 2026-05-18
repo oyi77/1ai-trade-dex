@@ -350,7 +350,7 @@ class RiskManager:
 
         # --- G-14: Per-strategy drawdown check ---
         if strategy_name and db is not None:
-            max_strat_dd = getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15)
+            max_strat_dd = float(getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15) or 0.15)
             strat_allocation = self._get_strategy_allocation(strategy_name, bankroll, db)
             strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
             if strat_allocation > 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
@@ -476,7 +476,7 @@ class RiskManager:
             )
 
         # --- G-15: Volatility-based size scaling ---
-        if getattr(self.s, 'VOLATILITY_SIZE_SCALE', True) and market_price is not None:
+        if bool(getattr(self.s, 'VOLATILITY_SIZE_SCALE', True)) and market_price is not None:
             # Higher market price volatility = reduce position size
             # Prices near 0.5 have max volatility (uncertainty), near 0/1 have min
             vol_factor = 4.0 * market_price * (1.0 - market_price)  # peaks at 0.5 = 1.0
@@ -719,7 +719,7 @@ class RiskManager:
                 .filter(StrategyConfig.enabled.is_(True))
                 .count()
             )
-            return enabled_count
+            return int(enabled_count)
         except Exception as e:
             logger.opt(exception=True).error(
                 "[risk_manager._count_enabled_strategies] {}: {}",
@@ -740,23 +740,25 @@ class RiskManager:
                     allocations = misc.get("allocations", {})
                     if strategy_name in allocations:
                         allocation = float(allocations[strategy_name])
-                        max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+                        max_position = bankroll * float(getattr(self.s, 'MAX_POSITION_FRACTION', 0.25) or 0.25)
                         return min(allocation, max_position)
             except Exception:
                 logger.exception("[risk_manager._get_strategy_allocation] AGI allocation read failed")
 
         # Fallback: equal-weight allocation
         enabled_count = self._count_enabled_strategies(db)
+        max_pos_frac = float(getattr(self.s, 'MAX_POSITION_FRACTION', 0.25) or 0.25)
         if enabled_count == 0:
             # No enabled strategies - use MAX_POSITION_FRACTION
-            return bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+            return bankroll * max_pos_frac
 
         # Calculate equal share
-        max_total_exposure = bankroll * getattr(self.s, 'MAX_TOTAL_EXPOSURE_FRACTION', 0.70)
+        max_total_frac = float(getattr(self.s, 'MAX_TOTAL_EXPOSURE_FRACTION', 0.70) or 0.70)
+        max_total_exposure = bankroll * max_total_frac
         equal_share = max_total_exposure / enabled_count
 
         # Cap at MAX_POSITION_FRACTION
-        max_position = bankroll * getattr(self.s, 'MAX_POSITION_FRACTION', 0.25)
+        max_position = bankroll * max_pos_frac
         return min(equal_share, max_position)
 
     def _strategy_allocation_cap(
@@ -980,7 +982,7 @@ class RiskManager:
     ) -> Optional[str]:
         """G-18: Block if total exposure to same event exceeds MAX_CONCENTRATION_PCT of bankroll."""
         try:
-            max_concentration_pct = getattr(self.s, 'MAX_CONCENTRATION_PCT', 0.30)
+            max_concentration_pct = float(getattr(self.s, 'MAX_CONCENTRATION_PCT', 0.30) or 0.30)
             # Get event_slug for this market to group by event
             from backend.models.database import Trade as T
             event_slug = None
