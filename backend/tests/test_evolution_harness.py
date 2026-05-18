@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import pytest
 
+deap = pytest.importorskip("deap", reason="DEAP not installed")
+
 from backend.core.evolution_harness import (
     DEAPEvolutionBackend,
     Individual,
