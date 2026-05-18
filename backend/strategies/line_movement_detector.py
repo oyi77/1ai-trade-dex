@@ -362,7 +362,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
             "confidence": confidence,
             "edge": abs(movement.price_change_pct) / 100,
             "entry_price": entry_price,
-            "model_probability": confidence,
+            "model_probability": clamp_probability(float(movement.current_price)),
             "market_probability": clamp_probability(float(movement.current_price)),
             "size": size,
             "platform": settings.DEFAULT_VENUE,

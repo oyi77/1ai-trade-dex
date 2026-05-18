@@ -1,1 +1,6 @@
 Generic single-database configuration.
+
+> **DEPRECATED**: This directory contains the legacy migration history.
+> The canonical migration directory is `backend/alembic/`.
+> New migrations should be created under `backend/alembic/versions/`.
+> These root migrations are kept for historical reference only.

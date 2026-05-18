@@ -36,7 +36,7 @@ async def _get_markets_polymarket(limit: int = 100) -> list[dict]:
 
 async def _get_market_price(condition_id: str) -> dict:
     try:
-        markets = await _get_markets_polymarket(limit=1000)
+        markets = await _get_markets_polymarket(limit=100)
         for m in markets:
             if m.get("conditionId") == condition_id:
                 prices = m.get("outcomePrices", [])

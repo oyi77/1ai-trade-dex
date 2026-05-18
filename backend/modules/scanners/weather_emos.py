@@ -895,7 +895,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                                 try:
                                     ctx.db.rollback()
                                 except Exception:
-                                    pass
+                                    logger.warning("DB rollback failed after trade record error", exc_info=True)
                                 result.errors.append(
                                     f"Trade record failed {market.ticker}: {db_err}"
                                 )

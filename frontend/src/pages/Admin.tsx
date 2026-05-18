@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { ModeFilterProvider } from '../contexts/ModeFilterContext'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 
 
 const SystemStatus = lazy(() => import('../components/admin/SystemStatus').then(m => ({ default: m.SystemStatus })))
@@ -155,6 +156,7 @@ export default function Admin() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 max-w-100vw">
         <ModeFilterProvider>
+        <ErrorBoundary>
         <Suspense fallback={<div className="flex items-center justify-center h-full text-neutral-500">Loading...</div>}>
           {activeTab === 'System' && <SystemStatus />}
           {activeTab === 'System Logs' && <SystemLogsTab />}
@@ -181,6 +183,7 @@ export default function Admin() {
           {activeTab === 'Settings' && <SettingsTab />}
           {activeTab === 'Pending Approvals' && <PendingApprovals />}
         </Suspense>
+        </ErrorBoundary>
         </ModeFilterProvider>
       </div>
     </div>

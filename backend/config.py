@@ -247,6 +247,12 @@ class ConfigRegistry:
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  #max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  #daily loss floor (auto-pause)
     WEEKLY_LOSS_FLOOR_PCT: float = -0.20  #weekly loss floor (revert to paper)
+    MAX_STRATEGY_DRAWDOWN_PCT: float = 0.15  #per-strategy max drawdown (% of allocation)
+    VOLATILITY_SIZE_SCALE: bool = True  #reduce size in high volatility
+    COOLDOWN_CONSECUTIVE_LOSSES: int = 3  #losses before cooldown
+    COOLDOWN_MINUTES: int = 60  #strategy cooldown after consecutive losses
+    MAX_CONCENTRATION_PCT: float = 0.30  #max exposure to single event (% of bankroll)
+    DISK_USAGE_ALERT_PCT: float = 0.90  #disk usage alert threshold
 
     # HFT parameters
     HFT_ENABLED: bool = True
@@ -1429,6 +1435,12 @@ class Settings(BaseSettings):
     WEEKLY_LOSS_FLOOR_PCT: float = (
         -0.20  # Revert to PAPER mode for 7 days if weekly PnL < -20% of bankroll
     )
+    MAX_STRATEGY_DRAWDOWN_PCT: float = 0.15  # Per-strategy max drawdown (% of allocation)
+    VOLATILITY_SIZE_SCALE: bool = True  # Reduce size in high volatility
+    COOLDOWN_CONSECUTIVE_LOSSES: int = 3  # Losses before cooldown
+    COOLDOWN_MINUTES: int = 60  # Strategy cooldown after consecutive losses
+    MAX_CONCENTRATION_PCT: float = 0.30  # Max exposure to single event (% of bankroll)
+    DISK_USAGE_ALERT_PCT: float = 0.90  # Disk usage alert threshold
 
     DRAWDOWN_BREAKER_ENABLED_PER_MODE: dict = {
         "paper": False,

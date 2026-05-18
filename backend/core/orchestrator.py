@@ -23,6 +23,10 @@ class Orchestrator:
         self._running = False
         self._condition_cache: TTLCache = TTLCache(maxsize=2000, ttl=3600)
 
+    def clear_cache(self) -> None:
+        """Clear the condition cache. Call after major state changes."""
+        self._condition_cache.clear()
+
     async def start(self) -> None:
         """Start all subsystems."""
         self._running = True
@@ -184,6 +188,7 @@ class Orchestrator:
         """Graceful shutdown."""
         logger.info("Orchestrator stopping...")
         self._running = False
+        self._condition_cache.clear()
 
         if self._bot:
             await self._bot.stop()

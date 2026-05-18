@@ -280,7 +280,7 @@ def process_pending_arbs() -> int:
                 pending.get("market_id", "")
                 if opp:
                     try:
-                        loop = asyncio.get_event_loop()
+                        loop = asyncio.get_running_loop()
                         if loop.is_running():
                             # Schedule retry; mark attempted
                             pending["retries"] = retries + 1

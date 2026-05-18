@@ -59,7 +59,7 @@ class FeedAggregator:
 
     async def _fetch_one(self, url: str) -> List[NewsItem]:
         import feedparser
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         parsed = await loop.run_in_executor(None, feedparser.parse, url)
         out = []
         for entry in parsed.entries[:50]:

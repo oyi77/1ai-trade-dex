@@ -276,6 +276,44 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
+            # --- G-16: Cooldown after consecutive losses ---
+            cooldown_losses = getattr(settings, 'COOLDOWN_CONSECUTIVE_LOSSES', 3)
+            cooldown_minutes = getattr(settings, 'COOLDOWN_MINUTES', 60)
+            if cooldown_losses > 0:
+                from datetime import timedelta as _td
+                recent_trades = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.strategy == strategy_name,
+                        Trade.settled.is_(True),
+                        Trade.trading_mode == mode,
+                    )
+                    .order_by(Trade.settlement_time.desc())
+                    .limit(cooldown_losses)
+                    .all()
+                )
+                if len(recent_trades) >= cooldown_losses:
+                    all_losses = all(t.result == 'loss' for t in recent_trades)
+                    if all_losses:
+                        last_loss_time = recent_trades[0].settlement_time
+                        if last_loss_time and last_loss_time.tzinfo is None:
+                            last_loss_time = last_loss_time.replace(tzinfo=timezone.utc)
+                        cooldown_until = last_loss_time + _td(minutes=cooldown_minutes)
+                        now_utc = datetime.now(timezone.utc)
+                        if now_utc < cooldown_until:
+                            remaining = (cooldown_until - now_utc).total_seconds() / 60.0
+                            logger.info(
+                                f"[{strategy_name}] Cooldown active: {cooldown_losses} consecutive losses, "
+                                f"pausing for {remaining:.1f} more minutes"
+                            )
+                            attempt_recorder.record_blocked(
+                                f"Cooldown: {cooldown_losses} consecutive losses, {remaining:.1f}min remaining",
+                                phase="cooldown",
+                                reason_code="BLOCKED_COOLDOWN",
+                            )
+                            db.commit()
+                            return None
+
             if mode == "paper":
                 bankroll = (
                     state.paper_bankroll if state.paper_bankroll is not None else 0.0
@@ -1086,6 +1124,44 @@ async def _execute_decision_live_clob(
                 )
                 db.commit()
                 return None
+
+            # --- G-16: Cooldown after consecutive losses (live CLOB path) ---
+            cooldown_losses = getattr(settings, 'COOLDOWN_CONSECUTIVE_LOSSES', 3)
+            cooldown_minutes = getattr(settings, 'COOLDOWN_MINUTES', 60)
+            if cooldown_losses > 0:
+                from datetime import timedelta as _td
+                recent_trades = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.strategy == strategy_name,
+                        Trade.settled.is_(True),
+                        Trade.trading_mode == mode,
+                    )
+                    .order_by(Trade.settlement_time.desc())
+                    .limit(cooldown_losses)
+                    .all()
+                )
+                if len(recent_trades) >= cooldown_losses:
+                    all_losses = all(t.result == 'loss' for t in recent_trades)
+                    if all_losses:
+                        last_loss_time = recent_trades[0].settlement_time
+                        if last_loss_time and last_loss_time.tzinfo is None:
+                            last_loss_time = last_loss_time.replace(tzinfo=timezone.utc)
+                        cooldown_until = last_loss_time + _td(minutes=cooldown_minutes)
+                        now_utc = datetime.now(timezone.utc)
+                        if now_utc < cooldown_until:
+                            remaining = (cooldown_until - now_utc).total_seconds() / 60.0
+                            logger.info(
+                                f"[{strategy_name}] Cooldown active: {cooldown_losses} consecutive losses, "
+                                f"pausing for {remaining:.1f} more minutes"
+                            )
+                            attempt_recorder.record_blocked(
+                                f"Cooldown: {cooldown_losses} consecutive losses, {remaining:.1f}min remaining",
+                                phase="cooldown",
+                                reason_code="BLOCKED_COOLDOWN",
+                            )
+                            db.commit()
+                            return None
 
             if mode == "paper":
                 bankroll = (

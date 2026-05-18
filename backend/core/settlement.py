@@ -401,7 +401,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 if market_end < now:
                     expired_ago = (now - market_end).total_seconds()
 
-                    expired_resolution_grace_hours = 72
+                    expired_resolution_grace_hours = getattr(settings, 'SETTLEMENT_GRACE_HOURS', 72)
                     if expired_ago < expired_resolution_grace_hours * 3600:
                         logger.info(
                             f"Trade {trade.id}: market expired {expired_ago/3600:.1f}h ago, "
@@ -433,7 +433,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 ts = ts.replace(tzinfo=timezone.utc)
             if ts and ts < stale_threshold:
                 trade_age_hours = (now - ts).total_seconds() / 3600
-                stale_grace_hours = 72
+                stale_grace_hours = getattr(settings, 'SETTLEMENT_GRACE_HOURS', 72)
                 if trade_age_hours < stale_grace_hours:
                     logger.info(
                         f"Trade {trade.id}: stale ({trade_age_hours:.1f}h old) but within grace period, "

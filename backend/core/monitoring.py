@@ -187,7 +187,7 @@ class ProductionMonitor:
         self.alerts.append(alert)
 
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             if loop.is_running():
                 asyncio.ensure_future(self._send_webhooks(alert))
             else:

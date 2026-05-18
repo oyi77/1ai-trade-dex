@@ -101,7 +101,7 @@ class ResearchPipeline:
 
         for url in feeds:
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 feed = await loop.run_in_executor(None, feedparser.parse, url)
                 for entry in feed.entries:
                     title = getattr(entry, "title", "") or ""

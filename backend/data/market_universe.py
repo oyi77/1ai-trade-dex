@@ -5,6 +5,7 @@ Caches results for MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
 """
 
 from __future__ import annotations
+import json
 import random
 import time
 from abc import ABC, abstractmethod
@@ -98,8 +99,8 @@ class PolymarketProvider(DataProvider):
                         "category": raw.get("category", ""),
                         "volume_24h": float(raw.get("volume24hr", 0) or 0),
                         "status": raw.get("active", "unknown"),
-                        "yes_price": float(raw.get("outcomePrices", "[0.5,0.5]").split(",")[0].strip("[]\"' ")) or 0.5,
-                        "no_price": float(raw.get("outcomePrices", "[0.5,0.5]").split(",")[-1].strip("[]\"' ")) or 0.5,
+                        "yes_price": float(json.loads(raw["outcomePrices"])[0]) if "outcomePrices" in raw else 0.5,
+                        "no_price": float(json.loads(raw["outcomePrices"])[1]) if "outcomePrices" in raw else 0.5,
                         "slug": raw.get("slug", ""),
                         "platform": "polymarket",
                     }

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -41,7 +42,10 @@ class WalletAllocation(Base):
     """N↔N binding between a strategy and a TradingWallet with allocation weight."""
 
     __tablename__ = "wallet_allocations"
-    __table_args__ = (UniqueConstraint("strategy_name", "wallet_id", name="uq_strategy_wallet"),)
+    __table_args__ = (
+        UniqueConstraint("strategy_name", "wallet_id", name="uq_strategy_wallet"),
+        CheckConstraint("weight >= 0.0 AND weight <= 1.0", name="ck_wallet_allocation_weight"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     strategy_name = Column(

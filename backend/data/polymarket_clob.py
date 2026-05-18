@@ -902,8 +902,9 @@ class PolymarketCLOB:
                             },
                             headers={"User-Agent": "polyedge-finance"},
                         )
-                        if res.status_code == 200 and "result" in res.json():
-                            hex_val = res.json()["result"]
+                        res_data = res.json()
+                        if res.status_code == 200 and "result" in res_data:
+                            hex_val = res_data["result"]
                             if hex_val == "0x" or not hex_val:
                                 hex_val = "0x0"
                             total_balance += int(hex_val, 16) / 1e6
