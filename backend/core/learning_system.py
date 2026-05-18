@@ -5,7 +5,7 @@ Supports both online (real-time) and offline (batch) learning modes.
 from __future__ import annotations
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
 import numpy as np
@@ -112,7 +112,7 @@ class LearningSystem:
             raise ValueError("Confidence must be between 0 and 1")
 
         if not timestamp:
-            timestamp = datetime.utcnow()
+            timestamp = datetime.now(timezone.utc)
 
         # Use a unique ID based on strategy and timestamp
         example_id = f"{strategy_key}:{market_id}:{timestamp.timestamp()}"

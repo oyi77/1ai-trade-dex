@@ -619,6 +619,10 @@ class WalletReconciler:
                         db_trade.result = "win"
                     elif pnl is not None and pnl < 0:
                         db_trade.result = "loss"
+                    elif settlement_value is not None and settlement_value >= 1.0:
+                        db_trade.result = "win"
+                    elif settlement_value is not None and settlement_value <= 0.0:
+                        db_trade.result = "loss"
                     else:
                         db_trade.result = "push"
                     self.logger.info(

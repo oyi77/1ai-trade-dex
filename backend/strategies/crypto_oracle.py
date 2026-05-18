@@ -358,7 +358,6 @@ class CryptoOracleStrategy(BaseStrategy):
 
         # Determine asset from event metadata or default to bitcoin
         asset = event.data.get("asset", "bitcoin")
-        _COINGECKO_TO_ASSET_PREFIX.get(asset, "btc")
 
         crypto_price = await fetch_crypto_price_for_asset(asset)
         if crypto_price is None:

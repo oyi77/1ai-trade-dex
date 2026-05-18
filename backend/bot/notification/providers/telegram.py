@@ -39,4 +39,5 @@ class TelegramProvider(BaseNotificationProvider):
             await self.bot_instance._bot.get_me()
             return True
         except Exception:
+            logger.warning("Telegram health check failed", exc_info=True)
             return False

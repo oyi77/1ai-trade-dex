@@ -129,7 +129,7 @@ class Orchestrator:
                 # Load StrategyConfig rows filtered by mode
                 strategy_configs = {}
                 configs = db.query(StrategyConfig).filter(
-                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode is None)
+                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode.is_(None))
                 ).all()
                 for config in configs:
                     strategy_configs[config.strategy_name] = config

@@ -65,11 +65,7 @@ static getDerivedStateFromError(): Partial<State> {
   };
 
   private handleReload = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
+    window.location.reload();
   };
 
   render() {

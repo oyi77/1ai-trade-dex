@@ -1,5 +1,8 @@
 import importlib
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 providers_dir = os.path.dirname(__file__)
 for _, name, _ in os.walk(providers_dir):
@@ -11,4 +14,4 @@ for _, name, _ in os.walk(providers_dir):
             try:
                 module = importlib.import_module(f"backend.bot.notification.providers.{module_name}")
             except Exception:
-                pass
+                logger.warning("Failed to import notification provider '%s'", module_name, exc_info=True)

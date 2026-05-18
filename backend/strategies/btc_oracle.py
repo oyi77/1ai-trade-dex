@@ -600,13 +600,18 @@ class BtcOracleStrategy(BaseStrategy):
                 )
                 continue
 
-            # Oracle implied probability based on price distance from strike.
-            # Avoid hard-coded 1.0/0.0 which guarantees 0% win rate — use
-            # market_mid adjusted by edge margin to produce a realistic probability.
+            # Oracle implied probability based on BTC price distance from strike.
+            # Use price distance as a confidence signal — larger moves imply
+            # higher directional probability.  Clamp to [0.01, 0.99] to avoid
+            # degenerate 0/1 probabilities that kill win-rate tracking.
+            price_distance = abs(btc_price - strike_price) / max(strike_price, 1.0)
+            # Map distance to a probability delta: 0% distance -> 0 delta,
+            # 5%+ distance -> ~0.20 delta (cap).
+            prob_delta = min(0.20, price_distance * 4.0)
             if direction == "yes":
-                oracle_implied = min(0.95, market_mid + min_edge)
+                oracle_implied = min(0.99, market_mid + prob_delta)
             else:
-                oracle_implied = max(0.05, market_mid - min_edge)
+                oracle_implied = max(0.01, market_mid - prob_delta)
             edge = abs(oracle_implied - market_mid) - min_edge
 
             decision = "BUY" if edge > 0 else "SKIP"
@@ -714,7 +719,7 @@ class BtcOracleStrategy(BaseStrategy):
                         "size": suggested_size,
                         "entry_price": oracle_entry_price,
                         "suggested_size": suggested_size,
-                        "model_probability": 1.0 if direction == "yes" else 0.0,
+                        "model_probability": max(0.01, min(0.99, oracle_implied)),
                         "market_probability": market_mid,
                         "platform": settings.DEFAULT_VENUE,
                         "strategy_name": self.name,

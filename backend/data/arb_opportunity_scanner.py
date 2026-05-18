@@ -40,6 +40,7 @@ class ArbOpportunityScanner:
         self.alert_threshold = alert_threshold_pct
         self._last_scan: Optional[ScanResult] = None
         self._alerts: List[ArbAlert] = []
+        self._max_alerts = 500
 
     async def scan_polymarket_markets(self) -> List[Dict[str, Any]]:
         """Fetch Polymarket markets for scanning."""
@@ -90,6 +91,8 @@ class ArbOpportunityScanner:
                         f"net={opp.net_profit:.4f} ({opp.net_profit_pct:.1%})"
                     ),
                 ))
+                if len(self._alerts) > self._max_alerts:
+                    self._alerts = self._alerts[-self._max_alerts:]
 
     @property
     def last_scan(self) -> Optional[ScanResult]:

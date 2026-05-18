@@ -153,7 +153,7 @@ class MarketMakerStrategy(BaseStrategy):
             trades_placed=0,
         )
 
-        params = {**self.default_params, **ctx.params}
+        params = {**self.default_params, **(ctx.params or {})}
         max_inventory = params["max_inventory"]
 
         try:

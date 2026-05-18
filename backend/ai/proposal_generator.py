@@ -413,7 +413,10 @@ Be specific and actionable. Do not suggest vague improvements."""
 
                     return proposal_id
         except Exception as e:
-            db.rollback()
+            try:
+                db.rollback()
+            except Exception:
+                pass
             self.logger.error(f"Failed to store proposal in database: {e}")
             raise
 

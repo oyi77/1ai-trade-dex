@@ -17,7 +17,7 @@ Usage:
 
 import sys
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any
 
 # Add project root to path
@@ -171,7 +171,7 @@ class ValidationReport:
         lines = []
         lines.append("=" * 80)
         lines.append("SCHEMA CONSTRAINT VALIDATION REPORT")
-        lines.append(f"Generated: {datetime.utcnow().isoformat()}")
+        lines.append(f"Generated: {datetime.now(timezone.utc).isoformat()}")
         lines.append("=" * 80)
         lines.append("")
 

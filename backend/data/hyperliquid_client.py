@@ -193,9 +193,6 @@ class HyperliquidClient:
 
         bids = []
         asks = []
-        for level in data.get("levels", [[], []]):
-            # Hyperliquid returns [bids, asks] as nested arrays
-            pass
 
         # Parse raw book format: {coin, time, levels: [[bids], [asks]]}
         levels = data if isinstance(data, list) else data.get("levels", [[], []])

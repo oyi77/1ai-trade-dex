@@ -90,6 +90,11 @@ export function WalletConfigTab() {
 
   const handleCopyKey = () => {
     if (createdWallet) {
+      const confirmed = window.confirm(
+        'WARNING: You are about to copy a private key to your clipboard. ' +
+        'Make sure no one is watching your screen and clear your clipboard after use. Continue?'
+      )
+      if (!confirmed) return
       navigator.clipboard.writeText(createdWallet.private_key)
       setCopiedKey(true)
       setTimeout(() => setCopiedKey(false), 2000)

@@ -105,10 +105,18 @@ class MetaLearner:
                 sharpe_delta = (fb.post_sharpe or 0.0) - (fb.pre_sharpe or 0.0)
 
                 for param_name in params:
-                    old_val = None
-                    new_val = params[param_name]
+                    entry = params[param_name]
+                    if isinstance(entry, dict):
+                        old_val = entry.get("old")
+                        new_val = entry.get("new")
+                    else:
+                        old_val = None
+                        new_val = entry
                     if isinstance(new_val, (int, float)):
-                        direction = "up" if new_val > (old_val or 0) else "down"
+                        if old_val is not None and isinstance(old_val, (int, float)):
+                            direction = "up" if new_val > old_val else "down"
+                        else:
+                            direction = "neutral"
                         self.record_outcome(
                             strategy=fb.strategy,
                             param_name=param_name,

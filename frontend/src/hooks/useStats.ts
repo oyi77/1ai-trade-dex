@@ -13,6 +13,7 @@ export function useStats() {
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
     let retryCount = 0
     const MAX_RECONNECT_DELAY = 30000
+    const MAX_RECONNECT_ATTEMPTS = 10
 
     const connect = () => {
       const wsUrl = getWsUrl('/ws/dashboard-data')
@@ -43,6 +44,10 @@ export function useStats() {
       ws.onclose = () => {
         // E-141: Exponential backoff instead of fixed 3s reconnect
         retryCount++
+        if (retryCount > MAX_RECONNECT_ATTEMPTS) {
+          console.warn(`WebSocket reconnect limit reached (${MAX_RECONNECT_ATTEMPTS} attempts). Giving up.`)
+          return
+        }
         const delay = Math.min(1000 * Math.pow(2, retryCount - 1), MAX_RECONNECT_DELAY)
         reconnectTimeout = setTimeout(connect, delay)
       }
