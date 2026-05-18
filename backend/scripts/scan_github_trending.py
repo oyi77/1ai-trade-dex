@@ -10,6 +10,7 @@ Usage:
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -38,7 +39,7 @@ def search_repos(query: str, min_stars: int = 5, limit: int = 30) -> list[dict[s
         List of repo info dicts.
     """
     headers = {"Accept": "application/vnd.github+json"}
-    token = __import__("os").environ.get("GITHUB_TOKEN")
+    token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
