@@ -17,6 +17,7 @@ validated.
 
 from __future__ import annotations
 
+import concurrent.futures
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
@@ -348,25 +349,25 @@ def _fetch_current_price(ticker: str) -> Optional[float]:
     return None
 
 
+_price_pool = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+
+
 def _fetch_prices_bulk(tickers: List[str]) -> Dict[str, float]:
     """Fetch prices for multiple tickers in parallel (sync, thread-safe).
 
     Returns a dict mapping ticker to current yes-price.  Tickers that fail
     are silently omitted so callers can fall back to entry price.
     """
-    import concurrent.futures
-
     results: Dict[str, float] = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
-        futures = {pool.submit(_fetch_current_price, t): t for t in tickers}
-        for fut in concurrent.futures.as_completed(futures):
-            ticker = futures[fut]
-            try:
-                price = fut.result()
-                if price is not None:
-                    results[ticker] = price
-            except Exception:
-                logger.debug("Price fetch failed for %s", ticker, exc_info=True)
+    futures = {_price_pool.submit(_fetch_current_price, t): t for t in tickers}
+    for fut in concurrent.futures.as_completed(futures):
+        ticker = futures[fut]
+        try:
+            price = fut.result()
+            if price is not None:
+                results[ticker] = price
+        except Exception:
+            logger.debug("Price fetch failed for %s", ticker, exc_info=True)
     return results
 
 

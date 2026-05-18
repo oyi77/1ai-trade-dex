@@ -144,26 +144,6 @@ class RealtimeScannerStrategy(BaseStrategy):
         )
 
         try:
-            # Get current markets to track
-            from backend.data.gamma import fetch_markets
-
-            # Fetch active markets
-            markets = await fetch_markets(limit=100)
-            await self.market_filter(
-                [
-                    MarketInfo(
-                        ticker=m.get("ticker", m.get("question", "")[:50]),
-                        slug=m.get("slug", ""),
-                        category=m.get("category", ""),
-                        end_date=m.get("end_date"),
-                        volume=float(m.get("volume", 0) or 0),
-                        liquidity=float(m.get("liquidity", 0) or 0),
-                        metadata=m,
-                    )
-                    for m in markets
-                ]
-            )
-
             # Check for velocity signals in tracked tokens
             for token_id, history in list(self._price_history.items()):
                 if len(history.prices) < ctx.params.get(

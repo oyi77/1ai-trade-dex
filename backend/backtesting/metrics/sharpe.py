@@ -1,7 +1,11 @@
+import logging
+
 from backend.backtesting.base import (
     BacktestMetricsManifest,
     BaseBacktestMetrics,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SharpeRatioMetrics(BaseBacktestMetrics):
@@ -104,4 +108,5 @@ class SharpeRatioMetrics(BaseBacktestMetrics):
             del np
             return True
         except Exception:
+            logger.debug("Sharpe ratio health check: numpy import failed", exc_info=True)
             return False

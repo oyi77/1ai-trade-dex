@@ -200,7 +200,7 @@ class PolymarketScraper:
             estimated_bankroll = abs(pnl) * 2.5 if pnl != 0 else volume * 0.1
 
             # Calculate score (composite metric based on rank and PNL)
-            score = max(0.0, min(1.0, (pnl / max(1, abs(pnl))) * 0.7 + (1.0 / max(1, rank)) * 0.3))
+            score = max(0.0, min(1.0, max(0.0, pnl / max(1, abs(pnl))) * 0.7 + (1.0 / max(1, rank)) * 0.3))
 
             # Market diversity
             market_diversity = min(1.0, unique_markets / 50) if unique_markets > 0 else 0.0

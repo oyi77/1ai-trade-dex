@@ -13,8 +13,6 @@ export function Backtest() {
   const [endDate, setEndDate] = useState('')
   const [initialBankroll, setInitialBankroll] = useState(10000)
   const [strategyParams, setStrategyParams] = useState<Record<string, any>>({})
-  const [isRunning, setIsRunning] = useState(false)
-
   const { data: strategiesResponse } = useQuery({
     queryKey: ['backtest-strategies'],
     queryFn: fetchBacktestStrategies,
@@ -39,21 +37,15 @@ export function Backtest() {
   const handleRunBacktest = async () => {
     if (!selectedStrategy) return
 
-    setIsRunning(true)
-    try {
-      await runBacktestMutation.mutateAsync({
-        strategy_name: selectedStrategy,
-        start_date: startDate,
-        end_date: endDate,
-        initial_bankroll: initialBankroll,
-        params: strategyParams,
-      })
-
-    } catch (error) {
+    await runBacktestMutation.mutateAsync({
+      strategy_name: selectedStrategy,
+      start_date: startDate,
+      end_date: endDate,
+      initial_bankroll: initialBankroll,
+      params: strategyParams,
+    }).catch((error) => {
       console.error('Backtest failed:', error)
-    } finally {
-      setIsRunning(false)
-    }
+    })
   }
 
   const getDefaultParams = useCallback((strategyName: string) => {
@@ -161,10 +153,10 @@ export function Backtest() {
         <div className="mt-6">
           <button
             onClick={handleRunBacktest}
-            disabled={!selectedStrategy || isRunning}
+            disabled={!selectedStrategy || runBacktestMutation.isPending}
             className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 disabled:bg-green-800 disabled:opacity-50 rounded font-medium transition-colors"
           >
-            {isRunning ? 'Running Backtest...' : 'Run Backtest'}
+            {runBacktestMutation.isPending ? 'Running Backtest...' : 'Run Backtest'}
           </button>
         </div>
       </motion.div>

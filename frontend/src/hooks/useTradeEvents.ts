@@ -12,14 +12,18 @@ export function useTradeEvents(onEvent: (event: TradeEvent) => void) {
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
-  // Track the admin key as state so changes cause the effect to re-run
-  const [csrfToken, setCsrfToken] = useState(() => getCsrfToken())
+  // Use ref to track last-known token; only update state when it actually changes
+  const csrfRef = useRef(getCsrfToken())
+  const [csrfToken, setCsrfToken] = useState(csrfRef.current)
 
   // Poll for key changes (e.g. user logs in/out in another tab or on the admin page)
   useEffect(() => {
     const interval = setInterval(() => {
       const current = getCsrfToken()
-      setCsrfToken(prev => prev !== current ? current : prev)
+      if (csrfRef.current !== current) {
+        csrfRef.current = current
+        setCsrfToken(current)
+      }
     }, 2000)
     return () => clearInterval(interval)
   }, [])

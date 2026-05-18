@@ -944,6 +944,17 @@ def start_scheduler():
     )
     logger.info("Scheduled cache cleanup job every 1 hour")
 
+    # G-04: Disk space monitoring — check every 15 minutes
+    from backend.monitoring.disk_monitor import disk_space_check_job
+    scheduler.add_job(
+        disk_space_check_job,
+        IntervalTrigger(minutes=15),
+        id="disk_space_check",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Scheduled disk space check job every 15 minutes")
+
     from backend.core.proposal_executor import (
         execute_approved_proposals_job,
         measure_impact_and_rollback_job

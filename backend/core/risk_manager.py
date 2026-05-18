@@ -348,6 +348,31 @@ class RiskManager:
                     False, f"drawdown breaker: {drawdown.breach_reason}", 0.0
                 )
 
+        # --- G-14: Per-strategy drawdown check ---
+        if strategy_name and db is not None:
+            max_strat_dd = getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15)
+            strat_allocation = self._get_strategy_allocation(strategy_name, bankroll, db)
+            strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
+            if strat_allocation > 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
+                record_signal(strategy=strategy_name, signal_type="rejected_strategy_drawdown")
+                increment_risk_rejection(strategy=strategy_name, reason="strategy_drawdown")
+                logger.info(
+                    "[risk_manager] Per-strategy drawdown: {} loss=${:.2f} > {:.0%} of allocation=${:.2f}",
+                    strategy_name, abs(strat_dd), max_strat_dd, strat_allocation,
+                )
+                return RiskDecision(False,
+                    f"strategy {strategy_name} drawdown ${abs(strat_dd):.2f} > {max_strat_dd:.0%} of allocation",
+                    0.0,
+                )
+
+        # --- G-18: Position concentration limit ---
+        if market_ticker and db is not None:
+            conc_reason = self.check_concentration(market_ticker, size, bankroll, db, effective_mode)
+            if conc_reason:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_concentration")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="concentration")
+                return RiskDecision(False, conc_reason, 0.0)
+
         if market_ticker and self._has_unsettled_trade(
             market_ticker, db=db, mode=effective_mode, direction=direction
         ):
@@ -449,6 +474,21 @@ class RiskManager:
                 f"[risk_manager] Strategy {strategy_name} allocation: ${strategy_allocation:.2f}, "
                 f"remaining: ${effective_cap:.2f}, adjusted size: ${adjusted:.2f}"
             )
+
+        # --- G-15: Volatility-based size scaling ---
+        if getattr(self.s, 'VOLATILITY_SIZE_SCALE', True) and market_price is not None:
+            # Higher market price volatility = reduce position size
+            # Prices near 0.5 have max volatility (uncertainty), near 0/1 have min
+            vol_factor = 4.0 * market_price * (1.0 - market_price)  # peaks at 0.5 = 1.0
+            vol_factor = max(0.25, min(1.0, vol_factor))  # clamp to [0.25, 1.0]
+            if vol_factor < 1.0:
+                pre_vol_size = adjusted
+                adjusted = adjusted * vol_factor
+                max_capacity = min(max_capacity, adjusted)
+                logger.info(
+                    "[risk_manager] Volatility scale: price={:.3f} factor={:.2f} size ${:.2f} -> ${:.2f}",
+                    market_price, vol_factor, pre_vol_size, adjusted,
+                )
 
         min_order_usdc = (
             self.s.PAPER_MIN_ORDER_USDC
@@ -910,6 +950,83 @@ class RiskManager:
                 type(e).__name__,
                 e,
             )
+
+    def _check_strategy_drawdown(self, strategy_name: str, db, mode: str) -> float:
+        """Return total PnL for a strategy in the last 24h (negative = loss)."""
+        try:
+            now = datetime.now(timezone.utc)
+            day_start = now - timedelta(hours=24)
+            pnl = (
+                db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                .filter(
+                    Trade.strategy == strategy_name,
+                    Trade.settled.is_(True),
+                    Trade.settlement_time >= day_start,
+                    Trade.trading_mode == mode,
+                    _not_backfill_settlement_source(),
+                )
+                .scalar()
+                or 0.0
+            )
+            return float(pnl)
+        except Exception as e:
+            logger.opt(exception=True).error(
+                "[risk_manager._check_strategy_drawdown] {}: {}", type(e).__name__, e,
+            )
+            return 0.0
+
+    def check_concentration(
+        self, market_ticker: str, trade_size: float, bankroll: float, db, mode: str
+    ) -> Optional[str]:
+        """G-18: Block if total exposure to same event exceeds MAX_CONCENTRATION_PCT of bankroll."""
+        try:
+            max_concentration_pct = getattr(self.s, 'MAX_CONCENTRATION_PCT', 0.30)
+            # Get event_slug for this market to group by event
+            from backend.models.database import Trade as T
+            event_slug = None
+            existing = db.query(T.event_slug).filter(
+                T.market_ticker == market_ticker,
+                T.settled.is_(False),
+                T.trading_mode == mode,
+            ).first()
+            if existing and existing[0]:
+                event_slug = existing[0]
+
+            if event_slug:
+                event_exposure = (
+                    db.query(func.coalesce(func.sum(T.size), 0.0))
+                    .filter(
+                        T.event_slug == event_slug,
+                        T.settled.is_(False),
+                        T.trading_mode == mode,
+                    )
+                    .scalar()
+                    or 0.0
+                )
+            else:
+                event_exposure = (
+                    db.query(func.coalesce(func.sum(T.size), 0.0))
+                    .filter(
+                        T.market_ticker == market_ticker,
+                        T.settled.is_(False),
+                        T.trading_mode == mode,
+                    )
+                    .scalar()
+                    or 0.0
+                )
+
+            max_allowed = bankroll * max_concentration_pct
+            if float(event_exposure) + trade_size > max_allowed:
+                return (
+                    f"concentration: event exposure ${float(event_exposure):.2f} + "
+                    f"${trade_size:.2f} > {max_concentration_pct:.0%} of bankroll (${max_allowed:.2f})"
+                )
+            return None
+        except Exception as e:
+            logger.opt(exception=True).error(
+                "[risk_manager.check_concentration] {}: {}", type(e).__name__, e,
+            )
+            return None
 
     def _get_regime_multiplier(self, strategy_name: Optional[str] = None) -> float:
         """Get current regime confidence multiplier from RegimeConfidenceRouter."""

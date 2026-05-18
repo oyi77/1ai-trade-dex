@@ -21,7 +21,7 @@ export default function OpportunityScanner() {
     let timerId: ReturnType<typeof setTimeout>;
 
     const fetch = () => {
-      setLoading(prev => prev ? true : false);
+      setLoading(true);
       api.get<{ opportunities: ArbOpportunity[] }>('/arbitrage/opportunities')
         .then(r => {
           if (!cancelled) {

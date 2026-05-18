@@ -126,7 +126,7 @@ class PolygonListener:
                 db.commit()
             finally:
                 db.close()
-        await asyncio.get_event_loop().run_in_executor(None, _save)
+        await asyncio.get_running_loop().run_in_executor(None, _save)
 
     def stop(self) -> None:
         self._running = False

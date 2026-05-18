@@ -118,7 +118,7 @@ class AsyncSQLiteQueue(AbstractQueue):
         Example:
             result = await self._run_in_thread(lambda: db.query(Job).all())
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return loop.run_in_executor(self._db_executor, sync_func)
 
     async def enqueue(

@@ -1,8 +1,11 @@
 """Prometheus-style metrics tracking for PolyEdge trading bot."""
 
+import logging
 from time import time
 from typing import Dict, Any
 import threading
+
+logger = logging.getLogger(__name__)
 
 # Thread-safe metrics storage
 _metrics_lock = threading.Lock()
@@ -145,7 +148,7 @@ def increment_risk_rejection(strategy: str = "", reason: str = "") -> None:
         from backend.monitoring.hft_metrics import risk_rejection_total
         risk_rejection_total.labels(strategy=strategy, reason=reason).inc()
     except Exception:
-        pass
+        logger.warning("Failed to emit prometheus risk_rejection_total metric", exc_info=True)
 
 
 def observe_order_latency(latency_ms: float) -> None:
@@ -165,7 +168,7 @@ def increment_settlement_by_status(status: str) -> None:
         from backend.monitoring.hft_metrics import settlement_outcome_total
         settlement_outcome_total.labels(outcome=status).inc()
     except Exception:
-        pass
+        logger.warning("Failed to emit prometheus settlement_outcome_total metric", exc_info=True)
 
 
 def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
@@ -177,7 +180,7 @@ def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
         from backend.monitoring.hft_metrics import circuit_breaker_state_gauge
         circuit_breaker_state_gauge.labels(breaker_name=breaker_name).set(state)
     except Exception:
-        pass
+        logger.warning("Failed to emit prometheus circuit_breaker_state_gauge metric", exc_info=True)
 
 
 def set_strategy_health(strategy: str, metric_name: str, value: float) -> None:

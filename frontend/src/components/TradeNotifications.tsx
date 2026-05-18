@@ -111,15 +111,14 @@ async function handleApproveSignal(signalContext: SignalContext) {
   try {
     // Simulate trade for this signal
     const result = await simulateTrade(signalContext.market_ticker)
-    console.log(`Trade approved for ${signalContext.market_ticker}:`, result)
+    if (import.meta.env.DEV) console.log(`Trade approved for ${signalContext.market_ticker}:`, result)
   } catch (error) {
     console.error('Failed to approve signal:', error)
   }
 }
 
-function handleSkipSignal(signalContext: SignalContext) {
-  console.log(`Signal skipped: ${signalContext.market_ticker}`)
-  // Could add logging to track skipped signals
+function handleSkipSignal(_signalContext: SignalContext) {
+  // Skipped signal tracked server-side
 }
 
 function mapEventToNotification(
