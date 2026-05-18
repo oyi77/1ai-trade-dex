@@ -987,8 +987,16 @@ class TestLiveModeCallsCLOB:
         TestSession = sessionmaker(bind=test_engine)
         Base.metadata.create_all(bind=test_engine)
 
+        from backend.models.database import StrategyConfig
+
         db = TestSession()
         _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
+        db.add(StrategyConfig(
+            strategy_name="live_strategy",
+            enabled=True,
+            mode="live",
+        ))
+        db.commit()
         db.close()
 
         mock_order_result = OrderResult(
@@ -1052,8 +1060,16 @@ class TestLiveModeCallsCLOB:
         TestSession = sessionmaker(bind=test_engine)
         Base.metadata.create_all(bind=test_engine)
 
+        from backend.models.database import StrategyConfig
+
         db = TestSession()
         _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
+        db.add(StrategyConfig(
+            strategy_name="live_strategy",
+            enabled=True,
+            mode="live",
+        ))
+        db.commit()
         db.close()
 
         mock_order_result = OrderResult(
