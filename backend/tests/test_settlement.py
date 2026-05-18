@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade, BotState, SettlementEvent
-from backend.core.settlement_helpers import calculate_pnl, process_settled_trade
+from backend.core.settlement.settlement_helpers import calculate_pnl, process_settled_trade
 from backend.config import settings
 
 
@@ -233,7 +233,7 @@ class TestBankrollUpdate:
     @pytest.mark.asyncio
     async def test_bankroll_increases_on_win(self, db):
         """After settling a winning trade, paper_bankroll should increase."""
-        from backend.core.settlement import update_bot_state_with_settlements
+        from backend.core.settlement.settlement import update_bot_state_with_settlements
 
         state = _state_for_mode(db, "paper")
         state.bankroll = settings.INITIAL_BANKROLL
@@ -264,7 +264,7 @@ class TestBankrollUpdate:
     @pytest.mark.asyncio
     async def test_bankroll_decreases_on_loss(self, db):
         """After settling a losing trade, paper_bankroll should decrease."""
-        from backend.core.settlement import update_bot_state_with_settlements
+        from backend.core.settlement.settlement import update_bot_state_with_settlements
 
         state = _state_for_mode(db, "paper")
         state.bankroll = settings.INITIAL_BANKROLL
@@ -295,7 +295,7 @@ class TestBankrollUpdate:
     @pytest.mark.asyncio
     async def test_simulated_bankroll_never_goes_negative_after_large_loss(self, db):
         """Available simulated balance is floored even when cumulative PnL is negative."""
-        from backend.core.settlement import update_bot_state_with_settlements
+        from backend.core.settlement.settlement import update_bot_state_with_settlements
 
         state = _state_for_mode(db, "paper")
         state.bankroll = 2.0
@@ -324,7 +324,7 @@ class TestBankrollUpdate:
         self, db, monkeypatch
     ):
         """Live BotState uses external total equity after settlement, not local ledger P&L."""
-        from backend.core.settlement import update_bot_state_with_settlements
+        from backend.core.settlement.settlement import update_bot_state_with_settlements
 
         state = _state_for_mode(db, "live")
         db.info["allow_live_financial_update"] = True
@@ -346,7 +346,7 @@ class TestBankrollUpdate:
             return 160.73
 
         monkeypatch.setattr(
-            "backend.core.bankroll_reconciliation.fetch_pm_total_equity",
+            "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
             fake_total_equity,
         )
 
@@ -442,7 +442,7 @@ class TestDeduplication:
     @pytest.mark.asyncio
     async def test_already_settled_trade_skipped(self, db):
         """Trades with settled=True are excluded from settle_pending_trades."""
-        from backend.core.settlement import settle_pending_trades
+        from backend.core.settlement.settlement import settle_pending_trades
 
         # Create one already-settled trade
         _make_trade(db, market_ticker="SETTLED-MKT", settled=True)
@@ -450,7 +450,7 @@ class TestDeduplication:
 
         # No unresolved trades → settlement should return empty list
         with patch(
-            "backend.core.settlement._resolve_markets",
+            "backend.core.settlement.settlement._resolve_markets",
             AsyncMock(return_value={}),
         ):
             results = await settle_pending_trades(db)
@@ -495,9 +495,9 @@ class TestDeduplication:
                 return {"DEDUP-MKT": (False, None)}
 
             with patch(
-                "backend.core.settlement._resolve_markets", side_effect=mock_resolve
+                "backend.core.settlement.settlement._resolve_markets", side_effect=mock_resolve
             ):
-                from backend.core.settlement import settle_pending_trades
+                from backend.core.settlement.settlement import settle_pending_trades
 
                 await settle_pending_trades(session)
 
@@ -511,7 +511,7 @@ class TestDeduplication:
 
 @pytest.mark.asyncio
 async def test_reconcile_positions_targets_live_open_trades(db):
-    from backend.core.settlement_helpers import reconcile_positions
+    from backend.core.settlement.settlement_helpers import reconcile_positions
 
     live_trade = _make_trade(db, market_ticker="LIVE-MKT", trading_mode="live")
     _make_trade(db, market_ticker="PAPER-MKT", trading_mode="paper")

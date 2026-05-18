@@ -21,8 +21,8 @@ class _BatchResult:
 async def test_auto_redeem_job_skips_without_wallet_or_key(monkeypatch):
     """The scheduled job must not call redemption code without signing credentials."""
 
-    from backend.core import scheduling_strategies
-    from backend.core import scheduler as scheduler_module
+    from backend.core.scheduling import scheduling_strategies
+    from backend.core.scheduling import scheduler as scheduler_module
 
     events: list[tuple[str, str]] = []
 
@@ -45,8 +45,8 @@ async def test_auto_redeem_job_skips_without_wallet_or_key(monkeypatch):
 async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
     """The scheduler should default to reporting redeemables unless live redemption is enabled."""
 
-    from backend.core import scheduling_strategies
-    from backend.core import scheduler as scheduler_module
+    from backend.core.scheduling import scheduling_strategies
+    from backend.core.scheduling import scheduler as scheduler_module
 
     captured: dict[str, object] = {}
 

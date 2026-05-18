@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from backend.core.circuit_breaker_unified import UnifiedCircuitBreaker
+from backend.core.risk.circuit_breaker_unified import UnifiedCircuitBreaker
 
 
 class TestUnifiedCircuitBreaker:
@@ -45,8 +45,8 @@ class TestUnifiedCircuitBreaker:
 
 
 class TestCircuitBreakerWithPybreaker:
-    @patch("backend.core.circuit_breaker_unified._is_pybreaker_available", True)
-    @patch("backend.core.circuit_breaker_unified._USE_PYBREAKER", True)
+    @patch("backend.core.risk.circuit_breaker_unified._is_pybreaker_available", True)
+    @patch("backend.core.risk.circuit_breaker_unified._USE_PYBREAKER", True)
     def test_uses_pybreaker_when_enabled(self):
         cb = UnifiedCircuitBreaker("test_cb", failure_threshold=3)
         assert cb._is_pybreaker

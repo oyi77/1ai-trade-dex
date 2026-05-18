@@ -2,7 +2,7 @@
 import time
 from unittest.mock import MagicMock
 
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 
 
 class TestTradeExecutionLatency:

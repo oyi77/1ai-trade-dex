@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.core.auto_improve import (
+from backend.core.learning.auto_improve import (
     _confidence_to_float,
     clamp_to_bounds,
     validate_and_clamp_params,
@@ -207,7 +207,7 @@ class TestCheckRollbackNeeded:
         assert result is False
         assert self._KEY not in auto_improve_mod._last_param_change
 
-    @patch("backend.core.auto_improve.rollback_params")
+    @patch("backend.core.learning.auto_improve.rollback_params")
     def test_degraded_performance_triggers_rollback(self, mock_rollback):
         self._setup_rollback_state(pre_win_rate=0.7)
         s = _make_settings()
@@ -342,11 +342,11 @@ class TestAutoImproveJob:
         auto_improve_mod._last_param_change = {}
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_high_confidence_applies_params(
         self,
         mock_insights,
@@ -376,11 +376,11 @@ class TestAutoImproveJob:
         )
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_low_confidence_skips_apply(
         self,
         mock_insights,
@@ -403,11 +403,11 @@ class TestAutoImproveJob:
 
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_excessive_suggestion_clamped_to_30pct(
         self,
         mock_insights,
@@ -445,11 +445,11 @@ class TestAutoImproveJob:
         )
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_pending_change_blocks_new_apply(
         self,
         mock_insights,
@@ -485,11 +485,11 @@ class TestAutoImproveJob:
         assert fake_s.KELLY_FRACTION == 0.10
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_insufficient_trades_skips_optimization(
         self,
         mock_insights,
@@ -521,11 +521,11 @@ class TestAutoImproveJob:
         assert fake_s.KELLY_FRACTION == 0.10
 
     @pytest.mark.asyncio
-    @patch("backend.core.auto_improve.get_bigbrain")
-    @patch("backend.core.auto_improve.SessionLocal")
-    @patch("backend.core.auto_improve.ParameterOptimizer")
-    @patch("backend.core.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
-    @patch("backend.core.auto_improve._write_market_insights", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve.get_bigbrain")
+    @patch("backend.core.learning.auto_improve.SessionLocal")
+    @patch("backend.core.learning.auto_improve.ParameterOptimizer")
+    @patch("backend.core.learning.auto_improve._write_outcomes_to_brain", new_callable=AsyncMock)
+    @patch("backend.core.learning.auto_improve._write_market_insights", new_callable=AsyncMock)
     async def test_medium_confidence_skips_apply(
         self,
         mock_insights,
