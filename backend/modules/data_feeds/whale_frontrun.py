@@ -441,7 +441,6 @@ class WhaleFrontrun(BaseStrategy):
         except Exception:
             logger.exception("Failed to parse whale frontrun signal message")
             return None
-            return None
 
     async def stop(self) -> None:
         """Stop the whale monitor."""

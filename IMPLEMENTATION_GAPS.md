@@ -1,6 +1,6 @@
 # Implementation Gaps — PolyEdge Trading Bot
 
-**Last Updated:** 2026-05-15 (All 85+ catalogued gaps fixed or intentionally de-scoped; zero remaining open items in IMPLEMENTATION_GAPS.md.)
+**Last Updated:** 2026-05-18 (301 findings catalogued, 46 open gaps, 42 new findings from re-audit)
 
 This file is the single source of truth for what's built vs planned. Every future agent must
 read this before proposing work — avoid re-litigating already-completed items.
@@ -794,3 +794,150 @@ Key categories:
 | G-46 | **No Dune Analytics integration** — Polymarket dashboards on Dune for SQL-based market analysis. | Manual analysis only | 🔵 P3 |
 
 **Updated total: 46 gaps** remaining before "True Full AGI Trading Engine Framework" is complete.
+
+---
+
+## Exhaustive Re-Audit (2026-05-18) — 7 Parallel Auditors
+
+Full codebase re-scan. Findings below are NEW only — all 259 prior findings (E-01..E-237, G-01..G-46, L-01..L-06) excluded.
+
+### CRITICAL (11 new findings — 4 prior + 7 from completed agents)
+
+| # | Location | Issue | Impact |
+|---|----------|-------|--------|
+| E-238 | `backend/strategies/btc_oracle.py:606-610` | **E-19 NOT fully fixed** — keyword-based BTC market path still has `edge = abs(min_edge) - min_edge = 0`. Only btc_5m_markets path (line 470) was fixed. Line 717 still uses `model_probability: 1.0 if direction == "yes" else 0.0`. | Keyword BTC trades execute on fabricated certainty |
+| E-239 | `backend/strategies/universal_scanner.py:535-536` | `analyze_market()` computes `edge = 0` always. Different code path from E-17 (line 387) but same bug. Also lines 343, 390-395 have same zero-edge pattern. | Three separate handlers all produce zero edge |
+| E-240 | `backend/models/database.py:237-267` | Duplicate column definitions — `token_id` and `condition_id` defined twice. Second definition silently overwrites first. | Schema drift between Python model and DB |
+| E-241 | `backend/models/hft_tables.py:8-10` | Alternate `Base` fallback creates disconnected MetaData. HFT tables silently missing from DB after migration. | HFT tables not created by alembic |
+| E-280 | `backend/core/orchestrator.py:132` | `StrategyConfig.trading_mode is None` uses Python `is` identity on SQLAlchemy column. Always `False`. Strategies with NULL trading_mode silently excluded from all modes at startup. | All NULL-mode strategies never execute |
+| E-281 | `backend/core/settlement.py:476` | Stale trade PnL set to `-float(trade.size or 0)` ignoring `entry_price`. $50 trade at entry_price=0.60 loses $50 instead of $30. | Inflated losses on all stale-expired settlements |
+| E-282 | `frontend/src/hooks/useSSEEvents.ts:54` | SSE endpoint missing `/v1` prefix (`/api/events/stream` vs `/api/v1/events/stream`). | 404 in production, no real-time events |
+| E-283 | `frontend/src/hooks/useMiroFish.ts:10` | `retryFetch('/api/v1/signals')` without `API_BASE` prefix. | Broken in non-same-origin deployments |
+| E-284 | `frontend/src/hooks/useProposals.ts:11,21,35` | Three `retryFetch` calls without `API_BASE`. Same root cause as E-283. | Proposals never load |
+| E-285 | `backend/data/parquet_archiver.py:83` | `combined.query(sql_condition)` — arbitrary Python execution via pandas numexpr. | Code injection if external input |
+| E-286 | `backend/strategies/longshot_bias.py:85-86` | `bias_factor` formula inverts strategy purpose — extreme longshots get lowest EV. At yes_price=0.10, ev=0.027 (below min_ev=0.05). | Strategy systematically avoids its target population |
+
+### HIGH (28 new findings — 12 prior + 16 from completed agents)
+
+| # | Location | Issue | Impact |
+|---|----------|-------|--------|
+| E-242 | `backend/strategies/order_executor.py:199` | `win_rate = float(e.get("pnlPercentage", 0)) / 100` — pnlPercentage is NOT win rate. | Distorted copy-trade rankings |
+| E-243 | `backend/strategies/order_executor.py:390` | `outcome in ("yes", "no")` checks lowercase but API returns uppercase. Always defaults to "YES". | NO-side copy trades broken |
+| E-244 | `backend/strategies/general_market_scanner.py:868` | `expected_profit` computes profit-if-win, NOT EV. Rejects positive-EV low-price trades. | Profitable opportunities filtered out |
+| E-245 | `backend/strategies/general_market_scanner.py:322` | `bankroll = 100.0` hardcoded fallback. Kelly sizing wrong on DB hiccup. | Under-sized trades |
+| E-246 | `backend/models/database.py:528` + `source_registry.py:118` | `misc_data` Text column receives dict. `str({})` ≠ JSON. | Data corruption on read-back |
+| E-248 | `backend/markets/provider_registry.py:127` | `asyncio.get_event_loop().run_until_complete()` in async context. | Runtime crash |
+| E-249 | `backend/core/strategy_composer.py:156` | Same async loop issue. | Strategy composition crash |
+| E-250 | `backend/strategies/probability_arb.py:66-67` | Adds BOTH platform fees for single-leg arb. | Valid arbs suppressed |
+| E-251 | `backend/ai/meta_learner.py:111` | `old_val` always None, direction always based on sign of new_val. | Wrong change direction recorded |
+| E-252 | `backend/ai/proposal_generator.py:415-416` | `db.rollback()` on possibly unbound variable. | Failures silently swallowed |
+| E-253 | `backend/core/evolution_harness.py:516` | `population[:len(population)]` no-op — unbounded growth. | Memory exhaustion |
+| E-287 | `backend/core/settlement.py:415` | Expired trade PnL uses `entry_price or 1.0` — NULL entry_price defaults to 1.0, full loss. | Inflated losses on missing data |
+| E-288 | `backend/core/risk_manager.py:491,503` | `func.coalesce(Trade.pnl, -Trade.size)` — fallback ignores entry_price. Drawdown triggers too early. | False drawdown breaches |
+| E-289 | `backend/core/position_monitor.py:345` | `data[0].get("yes_price") or 0.5` — price of 0 (valid NO-heavy market) treated as falsy → 0.5. | Wrong sell signals |
+| E-290 | `backend/core/knowledge_graph.py:49,61` | `self._session.commit()` inline on every add_entity. Breaks atomicity when used inside settlement transaction. | Partial KG state committed on rollback |
+| E-291 | `backend/core/scheduling_strategies.py:962` | `logger.exception()` then continues with `params = {}`. Strategy executes with empty params on parse failure. | Unintended trades on bad config |
+| E-292 | `backend/core/settlement.py:496-497` | `increment_settlement_by_status()` called unconditionally every cycle. Metrics always show +1 resolved +1 unresolved. | Corrupted Grafana dashboards |
+| E-293 | `frontend/src/components/ErrorBoundary.tsx:67` | "Reload Page" calls `setHasError(false)` not `window.location.reload()`. | Persistent errors unrecoverable |
+| E-294 | `frontend/src/hooks/useStats.ts:47` | WebSocket onclose reconnects with no max attempt limit. | Infinite retry, battery drain |
+| E-295 | `frontend/src/components/admin/WalletConfigTab.tsx:93` | Private key copied to clipboard without security warning. | Clipboard accessible to other apps |
+| E-296 | `backend/strategies/longshot_bias.py:93` | `true_win_prob` double-counts edge in Kelly. Inflated position sizes. | Over-sized longshot trades |
+| E-297 | `backend/strategies/cex_pm_leadlag.py:111` | `implied_prob = 1.0` hardcoded. Fabricates edge every cycle. | Max-size orders on fake edge |
+| E-298 | `backend/strategies/market_maker.py:156` | `ctx.params` used without `(ctx.params or {})` guard. TypeError if None. | Crash on missing params |
+| E-299 | `backend/strategies/hyperliquid_strategy.py:49` | Same `ctx.params.get()` without None guard. | Crash on missing params |
+| E-300 | `backend/data/arb_opportunity_scanner.py:92` | `self._alerts` list unbounded — never pruned. | Memory leak |
+| E-301 | `backend/data/shared_service.py:11` | `REQUEST_COUNTER` dict never pruned. | Memory leak |
+| E-302 | `backend/data/clob_event_indexer.py:24` | `_last_indexed_block` in-memory only. Restart re-processes from block 0. | Duplicate events or massive RPC catchup |
+| E-303 | `backend/core/wallet_reconciliation.py:618-623` | PnL==0 classified as "push" — break-even wins misclassified. | Incorrect result tracking |
+
+### MEDIUM (33 new findings — 18 prior + 15 from completed agents)
+
+| # | Location | Issue |
+|---|----------|-------|
+| E-254 | `backend/data/parquet_archiver.py:34` | Date arithmetic crashes on month boundaries. `start.replace(day=start.day + 1)` fails day 31. |
+| E-255 | `backend/bot/notification/providers/__init__.py:13` | `except Exception: pass` — provider import silent. |
+| E-256 | `backend/bot/notification/providers/telegram.py:41` | `health_check()` silent exception. |
+| E-257 | `backend/modules/scanners/weather_emos.py:897` | Silent rollback `except Exception: pass`. |
+| E-258 | `backend/monitoring/hft_metrics.py:186,193,201,207,213,222` | 6 silent `except Exception:` in metrics. |
+| E-259 | `backend/monitoring/performance_tracker.py:78` | Silent `except Exception:` in performance tracking. |
+| E-260 | `backend/monitoring/metrics.py:147,167,179` | 3 silent `except Exception:` in metrics. |
+| E-261 | `backend/sources/polymarket_book.py:68` | Silent `except Exception:` in book fetch. |
+| E-262 | `backend/ai/rejection_learner.py:116,280` | 2 silent `except Exception:` blocks. |
+| E-263 | `backend/backtesting/data_sources/polymarket.py:34` | Silent `except Exception:` in backtest data. |
+| E-264 | `backend/backtesting/metrics/sharpe.py:106` | Silent `except Exception:` in Sharpe. |
+| E-265 | `backend/db/utils.py:23,32,36` | 3 silent `except Exception:` in DB utils. |
+| E-266 | `backend/ai/mirofish_client.py:253` | Silent `except Exception:` in MiroFish client. |
+| E-267 | `backend/strategies/loader.py` `_SKIP` set | Missing entries — non-strategy modules imported as strategies. |
+| E-268 | `backend/domain/genome/models.py:10,106,107` | Deprecated `datetime.utcnow()`. |
+| E-269 | `backend/models/hft_tables.py:26,49,72` | Deprecated `datetime.utcnow()`. |
+| E-270 | `backend/models/genome_registry.py:36,72` | Deprecated `datetime.utcnow()`. |
+| E-271 | `backend/repositories/genome_repository.py:47,125,150,151,213` | Deprecated `datetime.utcnow()` — 5 occurrences. |
+| E-304 | `backend/core/position_monitor.py:368-369` | `except Exception: pass` in `_fetch_prices_bulk` — thread-pool exceptions invisible. |
+| E-305 | `backend/core/execution_pipeline/stages/notify.py:43-44` | `except Exception: pass` swallows notification drops. |
+| E-306 | `backend/core/execution_pipeline/registry.py:133-134` | `except Exception: pass` swallows plugin load failures. |
+| E-307 | `backend/core/settlement.py:404,436` | `expired_resolution_grace_hours = 72` hardcoded. Should read from settings. |
+| E-308 | `backend/core/position_monitor.py:357-360` | `ThreadPoolExecutor(max_workers=10)` created fresh every call. Should be singleton. |
+| E-309 | `backend/core/orchestrator.py:24` | `TTLCache(maxsize=2000, ttl=3600)` — 1h TTL, no manual invalidation. Stale market conditions. |
+| E-310 | `backend/core/scheduler.py:304,332,346,416,1215,1319,1363` | 7 `global scheduler` declarations. Module-level mutable state without consistent locking. |
+| E-311 | `backend/data/market_universe.py:101-102` | `outcomePrices` fragile string parsing. `json.loads()` should be used. |
+| E-312 | `backend/data/shared_service.py:34` | Fetches 1000 rows to find one market by condition_id. Inefficient. |
+| E-313 | `backend/data/polymarket_clob.py:905-906` | Double `.json()` call on same response. Wasteful. |
+| E-314 | `backend/strategies/line_movement_detector.py:365` | `model_probability: confidence` uses meta-signal as probability. Calibration contamination. |
+| E-315 | `backend/strategies/realtime_scanner.py:152` | `await self.market_filter(...)` return value discarded. Entire filter block wasted. |
+| E-316 | `backend/strategies/cex_pm_leadlag.py:51` | `max_trade_usd` param retrieved but never used. Config parameter has no effect. |
+| E-317 | `backend/strategies/cross_market_arb_enhanced.py:294-304` | `_questions_match` uses 50% word overlap — too loose, matches unrelated markets. |
+| E-318 | `frontend/src/components/admin/WalletMatrix.tsx:29-78` | Light theme (`bg-white`) on dark dashboard. Same for CopyPolicyPanel, ProviderStatusPanel. |
+| E-319 | `frontend/src/components/admin/ProviderStatusPanel.tsx:9-40` | Hardcoded mock data (`latency: '120ms'`, `markets_tracked: 420`). Never fetches real data. |
+| E-320 | `frontend/src/hooks/useTradeEvents.ts:61` | EventSource recreated every 2s if CSRF token changes. Connection thrashing. |
+| E-321 | `frontend/src/pages/Admin.tsx` | No error boundaries around 24 lazy-loaded tab components. One tab crash takes down entire Admin page. |
+
+### LOW (16 new findings — 8 prior + 8 from completed agents)
+
+| # | Location | Issue |
+|---|----------|-------|
+| E-272 | `backend/core/learning_system.py:65,115` | Deprecated `datetime.utcnow()`. |
+| E-273 | `backend/scripts/validate_schema_constraints.py:174` | Deprecated `datetime.utcnow()`. |
+| E-274 | `backend/strategies/probability_arb.py:283` | Deprecated `asyncio.get_event_loop()`. |
+| E-275 | `backend/core/monitoring.py:190` | Deprecated `asyncio.get_event_loop()`. |
+| E-276 | `backend/job_queue/sqlite_queue.py:121` | Deprecated `asyncio.get_event_loop()`. |
+| E-277 | `backend/modules/data_feeds/whale_frontrun.py:444` | Duplicate `return None` — dead code. |
+| E-278 | `backend/bot/telegram_bot.py:528` | `logger.exception()` followed by redundant `pass`. |
+| E-279 | `backend/ai/models/AGENTS.md:18,24` | Docs reference `pickle.load()` but code uses `joblib.load()`. |
+| E-322 | `backend/data/polygon_listener.py:129` | Deprecated `asyncio.get_event_loop()`. |
+| E-323 | `backend/data/feed_aggregator.py:62` | Deprecated `asyncio.get_event_loop()`. |
+| E-324 | `backend/research/pipeline.py:104` | Deprecated `asyncio.get_event_loop()`. |
+| E-325 | `backend/data/hyperliquid_client.py:196-198` | Empty loop body `for level in data: pass`. Dead code. |
+| E-326 | `backend/models/trading_wallet.py:59` | `weight` column has no bounds CHECK constraint. |
+| E-327 | `backend/data/polymarket_scraper.py:203` | Score calculation doesn't clamp negative PnL lower bound. |
+| E-328 | `backend/strategies/crypto_oracle.py:361` | `_COINGECKO_TO_ASSET_PREFIX.get()` return value never assigned. Dead code. |
+| E-329 | `backend/strategies/bond_scanner.py:295-296` | `model_probability` and `market_probability` both set to `qualifying_price`. Zero calibration signal. |
+| E-330 | `frontend/src/components/OpportunityScanner.tsx:24` | `setLoading(prev => prev ? true : false)` is identity — never changes. |
+| E-331 | `frontend/src/components/TradeNotifications.tsx:114` | `console.log` leaks trade details in production. |
+| E-332 | `frontend/src/pages/Backtest.tsx:42-55` | Dual state: local `isRunning` and `mutation.isPending` can desync. |
+
+---
+
+### Updated Grand Total (May 18 re-audit — all 7 agents completed)
+
+| Severity | Prior Count | New Count | Total |
+|----------|-------------|-----------|-------|
+| CRITICAL | 27 | 11 | 38 |
+| HIGH | 65 | 28 | 93 |
+| MEDIUM | 101 | 33 | 134 |
+| LOW | 66 | 16 | 82 |
+| **TOTAL** | **259** | **88** | **347** |
+
+**46 open gaps** (G-01..G-46) + **347 catalogued findings** (E-01..E-332).
+
+### Key Themes in New Findings
+
+1. **Edge calculation dead code** (E-238, E-239, E-286, E-296, E-297): 5 strategies produce zero or fabricated edge by construction. btc_oracle keyword path, universal_scanner (3 handlers), longshot_bias EV inversion, cex_pm_leadlag hardcoded 1.0. These strategies are effectively disabled despite being marked ACTIVE.
+2. **Settlement PnL errors** (E-281, E-287, E-288): Stale/expired trades settled with inflated losses (ignoring entry_price). Risk manager drawdown uses same wrong fallback. Double penalty on stale positions.
+3. **Silent exception swallowing** (E-255..E-266, E-304..E-306): 18 `except Exception: pass` blocks across monitoring, bot, data, backtesting, DB utils, execution pipeline. System failures invisible.
+4. **Frontend broken API calls** (E-282..E-284): SSE endpoint wrong prefix, useMiroFish/useProposals missing API_BASE. Real-time events and proposals non-functional.
+5. **Strategy crashes** (E-298, E-299): `ctx.params.get()` without None guard in market_maker and hyperliquid_strategy. TypeError on missing params.
+6. **Auth/orchestrator logic bugs** (E-280): `is None` instead of `.is_(None)` on SQLAlchemy column. All NULL-mode strategies silently excluded.
+7. **Memory leaks** (E-300, E-301): Unbounded `_alerts` list and `REQUEST_COUNTER` dict in data layer.
+8. **Deprecated APIs** (E-268..E-276, E-322..E-324): 18+ uses of `datetime.utcnow()` and `asyncio.get_event_loop()`.
+9. **Copy-trade bugs** (E-242, E-243): win_rate mismeasured, NO-side trades broken.
+10. **Frontend dark theme** (E-318, E-319): 3 admin components use light theme on dark dashboard. ProviderStatusPanel has hardcoded mock data.

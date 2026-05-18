@@ -1,6 +1,6 @@
 """Genome Repository - DB access layer for genome persistence."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 from sqlalchemy.orm import Session
@@ -44,7 +44,7 @@ class GenomeRepository:
                 existing.lineage = genome.lineage.model_dump() if hasattr(genome.lineage, 'model_dump') else genome.lineage
                 existing.fitness_metrics = genome.fitness_metrics.model_dump() if hasattr(genome.fitness_metrics, 'model_dump') else genome.fitness_metrics
                 existing.stage = stage
-                existing.updated_at = datetime.utcnow()
+                existing.updated_at = datetime.now(timezone.utc)
                 existing.archetype = genome.archetype
                 existing.strategy_name = genome.strategy_name
             else:
@@ -122,7 +122,7 @@ class GenomeRepository:
             ).first()
             if genome:
                 genome.stage = new_stage
-                genome.updated_at = datetime.utcnow()
+                genome.updated_at = datetime.now(timezone.utc)
                 db.commit()
                 return True
             return False
@@ -147,8 +147,8 @@ class GenomeRepository:
                 genome.win_rate = metrics.get("win_rate", 0.0)
                 genome.sharpe_ratio = metrics.get("sharpe_ratio", 0.0)
                 genome.max_drawdown_pct = metrics.get("max_drawdown_pct", 0.0)
-                genome.last_evaluated_at = datetime.utcnow()
-                genome.updated_at = datetime.utcnow()
+                genome.last_evaluated_at = datetime.now(timezone.utc)
+                genome.updated_at = datetime.now(timezone.utc)
                 db.commit()
                 return True
             return False
@@ -210,7 +210,7 @@ class GenomeRepository:
                         trade.result = "loss"
 
                 trade.accuracy_score = abs(trade.predicted_outcome - actual_outcome) if trade.predicted_outcome else None
-                trade.settled_at = datetime.utcnow()
+                trade.settled_at = datetime.now(timezone.utc)
                 db.commit()
                 db.refresh(trade)
             return trade

@@ -342,7 +342,7 @@ def _fetch_current_price(ticker: str) -> Optional[float]:
             r.raise_for_status()
             data = r.json()
             if data and isinstance(data, list) and len(data) > 0:
-                return float(data[0].get("yes_price") or 0.5)
+                return float(data[0].get("yes_price", 0.5))
     except Exception as exc:
         logger.debug("Failed to fetch price for {}: {}", ticker, exc)
     return None
@@ -366,7 +366,7 @@ def _fetch_prices_bulk(tickers: List[str]) -> Dict[str, float]:
                 if price is not None:
                     results[ticker] = price
             except Exception:
-                pass
+                logger.debug("Price fetch failed for %s", ticker, exc_info=True)
     return results
 
 

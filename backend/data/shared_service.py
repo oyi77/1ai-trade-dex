@@ -16,6 +16,11 @@ RATE_WINDOW = 1.0
 def _check_rate_limit(client_id: str) -> bool:
     now = time.time()
     REQUEST_COUNTER[client_id] = now
+    # Prune stale entries to prevent unbounded growth
+    if len(REQUEST_COUNTER) > RATE_LIMIT * 2:
+        stale = [k for k, v in REQUEST_COUNTER.items() if now - v >= RATE_WINDOW]
+        for k in stale:
+            del REQUEST_COUNTER[k]
     recent = sum(1 for v in REQUEST_COUNTER.values() if now - v < RATE_WINDOW)
     return recent <= RATE_LIMIT
 

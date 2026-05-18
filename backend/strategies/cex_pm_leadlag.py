@@ -108,7 +108,13 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 else:
                     target_mid = 1.0 - pm_up_mid
 
-                implied_prob = 1.0
+                # E-297: Derive implied probability from momentum strength.
+                # Stronger momentum -> higher confidence in direction.
+                # Normalize by 0.01 (1% BTC move/min is very strong).
+                # Clamp to [0.01, 0.99] to avoid degenerate probabilities.
+                momentum_norm = 0.01  # 1% BTC move = max confidence
+                momentum_strength = min(1.0, abs(micro.momentum_1m) / momentum_norm)
+                implied_prob = max(0.01, min(0.99, 0.5 + 0.49 * momentum_strength))
                 edge = (implied_prob - target_mid) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"

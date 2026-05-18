@@ -216,7 +216,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             trade.settlement_time = now
                             trade.settlement_source = "closed_unresolved"
                             if trade.pnl is None:
-                                trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
+                                trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 0.5))
                             if trade.settlement_value is None:
                                 trade.settlement_value = 0.0
                             logger.warning(
@@ -412,7 +412,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     trade.settled = True
                     trade.result = "loss"
                     trade.settlement_time = now
-                    trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 1.0))
+                    trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 0.5))
                     trade.settlement_value = 0.0
                     trade.settlement_source = "expired_unresolved"
                     settled_trades.append(trade)
@@ -473,7 +473,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 trade.settled = True
                 trade.result = "loss"
                 trade.settlement_time = now
-                trade.pnl = -float(trade.size or 0)
+                trade.pnl = -float(trade.size or 0) * float(trade.entry_price or 0.5)
                 trade.settlement_value = 0.0
                 trade.settlement_source = "stale_expired"
                 settled_trades.append(trade)
@@ -493,8 +493,10 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         resolved_count = len(settled_trades) - unresolved_count
         try:
             from backend.monitoring.metrics import increment_settlement_by_status
-            increment_settlement_by_status("resolved")
-            increment_settlement_by_status("unresolved")
+            if resolved_count > 0:
+                increment_settlement_by_status("resolved")
+            if unresolved_count > 0:
+                increment_settlement_by_status("unresolved")
         except Exception:
             logger.exception("settlement: failed to increment settlement status metrics")
         if resolved_count:

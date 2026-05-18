@@ -527,7 +527,6 @@ class PolyEdgeBot:
                         )
         except Exception:
             logger.exception("Failed to retrieve bot status for Telegram command")
-            pass
 
         await update.message.reply_text(
             f"<b>PolyEdge Status</b>\n\n"

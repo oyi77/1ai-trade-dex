@@ -51,7 +51,7 @@ export function useSSEEvents(options: UseSSEEventsOptions = {}): UseSSEEventsRes
       if (channels?.length) params.set('channels', channels.join(','));
 
       const qs = params.toString();
-      const url = `${API_BASE}/api/events/stream${qs ? '?' + qs : ''}`;
+      const url = `${API_BASE}/api/v1/events/stream${qs ? '?' + qs : ''}`;
       
       es = new EventSource(url, { withCredentials: true });
 

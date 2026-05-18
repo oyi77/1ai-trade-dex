@@ -340,11 +340,8 @@ class UniversalScanner(BaseStrategy):
         if yes_price is None or volume < self.default_params["min_volume"]:
             return None
 
-        edge = yes_price - (1.0 - (no_price or (1.0 - yes_price)))
-
-        self._ws_known_tokens.add(token_id)
-        event_bus.update_strategy_tokens(self.name, self._ws_known_tokens)
-
+        # E-239: Use debate/LLM model probability for edge, not market-derived
+        # implied_prob (which equals yes_price in binary markets -> edge=0).
         debate_result = await _run_debate_gate(
             question=data.get("question", ""),
             market_price=yes_price,
@@ -354,7 +351,16 @@ class UniversalScanner(BaseStrategy):
             data_sources=[f"{settings.DEFAULT_VENUE}_ws"],
             db=None,
         )
+        if debate_result is not None:
+            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
+        else:
+            model_prob = max(0.01, min(0.99, yes_price))
+        edge = model_prob - yes_price
 
+        self._ws_known_tokens.add(token_id)
+        event_bus.update_strategy_tokens(self.name, self._ws_known_tokens)
+
+        # Reuse debate_result from edge calc above (already fetched)
         if debate_result is not None:
             llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
         else:
@@ -387,12 +393,22 @@ class UniversalScanner(BaseStrategy):
         if not (0.0 < price < 1.0):
             return None
 
-        1.0 - price
-        # Use model's estimated probability rather than deriving from market price
-        # (which always gives edge=0 when implied_prob == price)
-        model_prob = self.default_params.get("model_probability", price)
-        implied_prob = model_prob
-        edge = price - implied_prob
+        # E-239: Use model probability from params or debate result for edge.
+        # Using implied_prob = model_prob avoids the degenerate edge=0 case.
+        debate_result = await _run_debate_gate(
+            question=data.get("question", ""),
+            market_price=price,
+            volume=float(data.get("volume", 0)),
+            category=data.get("category", ""),
+            context="",
+            data_sources=[f"{settings.DEFAULT_VENUE}_ws"],
+            db=None,
+        )
+        if debate_result is not None and hasattr(debate_result, "consensus_probability"):
+            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
+        else:
+            model_prob = max(0.01, min(0.99, price))
+        edge = model_prob - price
 
         if abs(edge) < self.default_params["min_edge"]:
             return None
@@ -532,8 +548,22 @@ class UniversalScanner(BaseStrategy):
         """
         lock = await _get_market_lock(market.ticker)
         async with lock:
-            implied_prob = 1.0 - market.no_price
-            edge = market.yes_price - implied_prob
+            # Use debate/LLM probability as model estimate when available;
+            # market prices alone give edge=0 in binary markets.
+            llm_result = await _run_debate_gate(
+                question=market.question,
+                market_price=market.yes_price,
+                volume=market.volume,
+                category=getattr(market, "category", ""),
+                context="",
+                data_sources=[f"{settings.DEFAULT_VENUE}_api"],
+                db=None,
+            )
+            if llm_result is not None and hasattr(llm_result, "consensus_probability"):
+                model_prob = max(0.01, min(0.99, llm_result.consensus_probability))
+            else:
+                model_prob = max(0.01, min(0.99, market.yes_price))
+            edge = model_prob - market.yes_price
 
             if abs(edge) < self.default_params["min_edge"]:
                 return None

@@ -46,9 +46,10 @@ class HyperliquidStrategy(BaseStrategy):
         trades_placed = 0
         errors: list[str] = []
 
-        min_edge = ctx.params.get("min_edge", self.default_params["min_edge"])
-        max_entry = ctx.params.get("max_entry_price", self.default_params["max_entry_price"])
-        ctx.params.get("max_trade_usd", self.default_params["max_trade_usd"])
+        params = ctx.params or {}
+        min_edge = params.get("min_edge", self.default_params["min_edge"])
+        max_entry = params.get("max_entry_price", self.default_params["max_entry_price"])
+        params.get("max_trade_usd", self.default_params["max_trade_usd"])
 
         try:
             # Get Hyperliquid client from providers

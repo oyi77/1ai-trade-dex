@@ -80,9 +80,10 @@ class LongshotBiasStrategy(BaseStrategy):
                     # gives EV = true_prob * 1.0 - no_price
                     # Empirical: NO at <30c has +23% EV
                     # E-106: Compute EV dynamically instead of hardcoding 0.23
-                    # Empirical longshot NO bias: true prob is higher than implied
-                    # Use a calibrated bias factor based on how far from 50c
-                    bias_factor = 0.15 + 0.20 * (0.50 - no_price) / 0.50  # scales with distance from 50c
+                    # E-286: Bias factor scales with longshot-ness.
+                    # Lower yes_price (= more extreme longshot) -> higher bias.
+                    # Range: yes_price=0 -> bias=0.35, yes_price=0.30 -> bias=0.17
+                    bias_factor = 0.15 + 0.20 * (1.0 - yes_price / max_price)
                     ev = max(0.0, bias_factor * no_price)
 
                     if ev < min_ev:

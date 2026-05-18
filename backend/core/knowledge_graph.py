@@ -24,6 +24,7 @@ class KnowledgeGraph:
         session: Optional[Session] = None,
         db_url: str = "sqlite:///:memory:",
         cognitive_core: Optional[Any] = None,
+        autocommit: bool = True,
     ):
         if session is not None:
             self._session = session
@@ -34,6 +35,7 @@ class KnowledgeGraph:
             Base.metadata.create_all(self._engine)
             self._session = sessionmaker(bind=self._engine)()
             self._owns_session = True
+        self._autocommit = autocommit
         self._core = cognitive_core
 
     def close(self):
@@ -46,7 +48,8 @@ class KnowledgeGraph:
             if properties:
                 existing.properties = properties
                 existing.updated_at = datetime.now(timezone.utc)
-            self._session.commit()
+            if self._autocommit:
+                self._session.commit()
             return KGEntityType(
                 entity_type=existing.entity_type,
                 entity_id=existing.entity_id,
@@ -58,7 +61,8 @@ class KnowledgeGraph:
             properties=properties or {},
         )
         self._session.add(model)
-        self._session.commit()
+        if self._autocommit:
+            self._session.commit()
         return KGEntityType(
             entity_type=model.entity_type,
             entity_id=model.entity_id,

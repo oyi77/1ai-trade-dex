@@ -78,6 +78,33 @@ class LeaderboardScorer:
     def __init__(self, http: httpx.AsyncClient):
         self._http = http
 
+    async def _fetch_win_rate(self, user_id: str) -> Optional[float]:
+        """Fetch actual win rate from trade history via data API."""
+        try:
+            resp = await self._http.get(
+                f"{DATA_HOST}/trades",
+                params={"user": user_id, "limit": 200},
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                return None
+            trades = resp.json()
+            if not trades:
+                return None
+            settled = [t for t in trades if t.get("settled") or t.get("outcome") or t.get("result")]
+            if len(settled) < 5:
+                return None
+            wins = sum(
+                1 for t in settled
+                if t.get("outcome") in ("win", "YES")
+                or t.get("result") in ("win", "YES")
+                or (t.get("pnl") is not None and float(t.get("pnl", 0)) > 0)
+            )
+            return wins / len(settled)
+        except Exception as e:
+            logger.debug(f"Win rate fetch failed for {user_id}: {e}")
+            return None
+
     async def _fetch_actual_bankroll(self, wallet: str) -> Optional[float]:
         async def _fetch_positions() -> Optional[float]:
             resp = await self._http.get(
@@ -196,7 +223,6 @@ class LeaderboardScorer:
         traders = []
         for e in entries[:top_n]:
             profit = float(e.get("profit", 0))
-            win_rate = float(e.get("pnlPercentage", 0)) / 100
             trades = int(e.get("tradesCount", 0))
 
             user = e.get("id", e.get("user", ""))          # user ID for /trades API
@@ -208,6 +234,10 @@ class LeaderboardScorer:
 
             if not user:
                 continue
+
+            # E-242: Compute actual win rate from trade history, not pnlPercentage
+            actual_win_rate = await self._fetch_win_rate(user)
+            win_rate = actual_win_rate if actual_win_rate is not None else 0.0
 
             actual_bankroll = await self._fetch_actual_bankroll(user)
             if actual_bankroll and actual_bankroll >= 100:
@@ -387,7 +417,7 @@ class OrderExecutor:
         order_placement_latency.labels(strategy="copy_trader", side="BUY").observe(0.0)
         # Convert trade outcome to valid direction for CLOB
         # trade.outcome comes from Polymarket API and should be "YES" or "NO"
-        our_side = trade.outcome.upper() if trade.outcome in ("yes", "no") else "YES"
+        our_side = trade.outcome.upper() if trade.outcome.upper() in ("YES", "NO") else "YES"
 
         return CopySignal(
             source_wallet=trader.user,

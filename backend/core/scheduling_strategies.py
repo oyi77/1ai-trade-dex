@@ -960,7 +960,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     params = json.loads(config.params)
                 except Exception:
                     logger.exception(f"[scheduling_strategies] Failed to parse StrategyConfig params JSON for {strategy_name}")
-                    pass
+                    return None
             effective_mode = mode or config.trading_mode or settings.TRADING_MODE
             return {"params": params, "effective_mode": effective_mode}
 

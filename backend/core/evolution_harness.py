@@ -513,7 +513,7 @@ class LegacyGenomeBackend(EvolutionBackend):
                 key=lambda ind: ind.fitness[0] if ind.fitness else 0.0,
                 reverse=True,
             )
-            population = population[:len(population)]
+            population = population[:len(sorted_pop)]
 
             logger.debug(
                 f"Legacy generation {gen + 1}/{n_gen}: "

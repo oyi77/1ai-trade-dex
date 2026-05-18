@@ -5,6 +5,8 @@ execution pipeline stages following the PluginRegistry pattern.
 """
 from typing import List, Optional
 
+from loguru import logger
+
 from backend.config import settings
 
 from backend.core.plugin_errors import PluginNotFound
@@ -131,7 +133,7 @@ class ExecutionPipelineRegistry(PluginRegistry[ExecutionStageManifest, BaseExecu
             self._enabled[name] = True
             self._health_status[name] = True
         except Exception:
-            pass
+            logger.warning("Failed to load execution stage '%s'", name, exc_info=True)
 
 
 registry = ExecutionPipelineRegistry()

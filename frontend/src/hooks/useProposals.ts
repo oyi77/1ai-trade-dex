@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { StrategyProposal } from '../types/features'
 import { retryFetch } from '../utils/retryFetch'
+import { API_BASE } from '../api'
 
 export function useProposals() {
   const queryClient = useQueryClient()
@@ -8,7 +9,7 @@ export function useProposals() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['proposals'],
     queryFn: async () => {
-      const response = await retryFetch('/api/v1/proposals')
+      const response = await retryFetch(`${API_BASE}/api/v1/proposals`)
       if (!response.ok) {
         throw new Error('Failed to fetch proposals')
       }
@@ -18,7 +19,7 @@ export function useProposals() {
 
   const approveMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await retryFetch(`/api/v1/proposals/${id}/approve`, {
+      const response = await retryFetch(`${API_BASE}/api/v1/proposals/${id}/approve`, {
         method: 'POST',
       })
       if (!response.ok) {
@@ -33,7 +34,7 @@ export function useProposals() {
 
   const rejectMutation = useMutation({
     mutationFn: async (id: number) => {
-      const response = await retryFetch(`/api/v1/proposals/${id}/reject`, {
+      const response = await retryFetch(`${API_BASE}/api/v1/proposals/${id}/reject`, {
         method: 'POST',
       })
       if (!response.ok) {
