@@ -230,6 +230,7 @@ class TestStressScenarios:
     async def test_race_condition_prevention(self):
         scanner = UniversalScanner()
         from backend.strategies.base import MarketInfo
+        from unittest.mock import AsyncMock, MagicMock
 
         market = MarketInfo(
             ticker="race-test",
@@ -243,8 +244,14 @@ class TestStressScenarios:
             question="Race test?",
         )
 
+        mock_debate = MagicMock()
+        mock_debate.consensus_probability = 0.90
+
         async def concurrent_analyze():
-            return await scanner.analyze_market(market)
+            with patch("backend.strategies.universal_scanner._run_debate_gate", new_callable=AsyncMock, return_value=mock_debate), \
+                 patch("backend.strategies.universal_scanner._fetch_web_context", new_callable=AsyncMock, return_value=None), \
+                 patch("backend.strategies.universal_scanner._fetch_brain_context", new_callable=AsyncMock, return_value=None):
+                return await scanner.analyze_market(market)
 
         results = await asyncio.gather(concurrent_analyze(), concurrent_analyze())
         assert all(r is not None for r in results)

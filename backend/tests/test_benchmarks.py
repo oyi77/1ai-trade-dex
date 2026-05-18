@@ -1,6 +1,6 @@
 """G-23: Performance benchmark tests for trade execution latency and settlement speed."""
 import time
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from backend.core.risk.risk_manager import RiskManager
 
@@ -11,8 +11,15 @@ class TestTradeExecutionLatency:
     def test_validate_trade_latency(self):
         """Risk validation should be fast (< 15ms per call)."""
         rm = RiskManager()
+        # Patch heavy DB-dependent checks to isolate pure validation logic
+        rm._check_strategy_drawdown = MagicMock(return_value=0.0)
+        rm._check_concentration = MagicMock(return_value=None)
+        rm._check_category_circuit_breaker = MagicMock(return_value=None)
+        rm._get_strategy_allocation = MagicMock(return_value=25.0)
         db = MagicMock()
         db.query.return_value.filter.return_value.scalar.return_value = 0.0
+        db.query.return_value.filter.return_value.count.return_value = 0
+        db.query.return_value.filter.return_value.all.return_value = []
         db.query.return_value.filter_by.return_value.first.return_value = MagicMock(
             bankroll=100.0, mode="paper", misc_data=None,
             paper_bankroll=100.0, testnet_bankroll=100.0,
