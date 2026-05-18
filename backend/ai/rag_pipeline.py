@@ -1,17 +1,10 @@
-"""RAG pipeline for news-informed market predictions.
+"""RAG pipeline for news-informed market predictions."""
 
-Pattern inspired by Polymarket/agents: ingest news, chunk, embed,
-store in vector index, then retrieve relevant context for market queries.
-
-Integration with debate engine:
-  Use `retrieve_context_for_debate()` to get RAG context, then pass it
-  as the `context` parameter to `backend.ai.debate_engine.run_debate()`.
-"""
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, List
 
 from backend.ai.news_ingester import NewsArticle, NewsIngester
 from backend.ai.vector_store import Document, VectorStore

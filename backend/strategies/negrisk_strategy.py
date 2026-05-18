@@ -9,7 +9,6 @@ Neg-risk markets (e.g. "Who will win?") have N outcomes that must sum to 1.0.
 When market prices deviate, a portfolio of all outcomes guarantees profit.
 """
 
-import json
 import time
 from dataclasses import dataclass
 from typing import Optional

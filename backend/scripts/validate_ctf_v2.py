@@ -19,7 +19,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
-import json
 import os
 import sys
 from importlib.metadata import version as pkg_version

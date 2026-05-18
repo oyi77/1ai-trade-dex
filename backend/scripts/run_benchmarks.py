@@ -16,7 +16,7 @@ import argparse
 import statistics
 import time
 from datetime import datetime, timezone
-from typing import Callable, Any
+from typing import Callable
 
 
 def benchmark_sync(name: str, func: Callable, iterations: int = 100) -> dict:
@@ -129,7 +129,6 @@ def bench_slug_generation():
 
 def bench_unified_market_view():
     """Benchmark UnifiedMarketView creation."""
-    from datetime import datetime, timezone
     from backend.data.market_types import UnifiedMarketView
     UnifiedMarketView(
         slug="test-market",

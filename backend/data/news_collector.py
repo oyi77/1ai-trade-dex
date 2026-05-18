@@ -1,18 +1,7 @@
-"""News Collector — fetch from HuggingFace dataset, integrate with SentimentAnalyzer.
-
-Fetches prediction-market news articles from HuggingFace datasets, runs them
-through the LLM-based SentimentAnalyzer, and provides scored news items for
-consumption by the RAG pipeline and debate engine.
-
-Usage:
-    from backend.data.news_collector import NewsCollector
-    collector = NewsCollector()
-    scored = await collector.collect_and_analyze(limit=50)
-"""
+"""News Collector -- fetch from HuggingFace, score via SentimentAnalyzer."""
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from typing import List, Optional
 
