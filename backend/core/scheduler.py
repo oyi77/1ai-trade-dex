@@ -68,8 +68,6 @@ from backend.application.agi.evolution_jobs import (
     legend_evaluation_job,
 )
 from backend.ai.training.train import run_training_pipeline
-from backend.data.hf_dataset_collector import hf_dataset_collection_job
-from backend.core.backtest_engine import EnhancedBacktestEngine, EnhancedBacktestConfig
 from backend.mesh.auditor import audit_source_performance
 from backend.mesh.learning import update_source_weights_from_outcomes
 from backend.ai.rejection_learner import generate_rejection_proposals

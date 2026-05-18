@@ -1,10 +1,8 @@
 """G-23: Performance benchmark tests for trade execution latency and settlement speed."""
 import time
-import pytest
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
-from backend.core.risk_manager import RiskManager, RiskDecision
+from backend.core.risk_manager import RiskManager
 
 
 class TestTradeExecutionLatency:
@@ -65,7 +63,7 @@ class TestSettlementSpeed:
 
     def test_drawdown_calculation_speed(self):
         """Drawdown percentage calculation should be instant."""
-        rm = RiskManager()
+        RiskManager()
 
         iterations = 10000
         start = time.perf_counter()

@@ -1,17 +1,11 @@
 """G-22: Unit tests for backend/core/strategy_gate.py."""
-import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
 
 from backend.core.strategy_gate import (
     StrategyGate,
     STAGE_REQUIREMENTS,
     SHADOW_EXEMPT,
-    _count_paper_trades,
-    _check_fronttest,
-    _check_shadow,
     check_risk_and_disable,
-    MAX_DAILY_LOSS_PER_STRATEGY,
 )
 
 

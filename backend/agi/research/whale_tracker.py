@@ -6,10 +6,9 @@ and generates copy-trading signals for top performers. Feeds data to whale_front
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 import httpx
 from loguru import logger

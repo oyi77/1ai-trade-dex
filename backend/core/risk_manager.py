@@ -9,7 +9,7 @@ from contextlib import nullcontext
 from backend.config import settings
 from backend.db.utils import get_db_session
 from backend.models.database import Trade, BotState, for_update
-from backend.monitoring.hft_metrics import record_signal, risk_rejection_total, db_query_duration
+from backend.monitoring.hft_metrics import record_signal, db_query_duration
 from backend.monitoring.metrics import increment_risk_rejection
 from backend.core.correlation_monitor import CorrelationMonitor
 from sqlalchemy import func, or_

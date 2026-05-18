@@ -7,7 +7,7 @@ to validate that paper-mode optimization translates to real performance.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, TYPE_CHECKING
 

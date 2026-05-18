@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 from sqlalchemy.orm import Session
 
-from backend.core.knowledge_graph import KnowledgeGraph as CoreKnowledgeGraph, _GRAPH_QUERIES
+from backend.core.knowledge_graph import KnowledgeGraph as CoreKnowledgeGraph
 
 
 class KnowledgeGraph:

@@ -387,7 +387,7 @@ class UniversalScanner(BaseStrategy):
         if not (0.0 < price < 1.0):
             return None
 
-        no_price = 1.0 - price
+        1.0 - price
         # Use model's estimated probability rather than deriving from market price
         # (which always gives edge=0 when implied_prob == price)
         model_prob = self.default_params.get("model_probability", price)

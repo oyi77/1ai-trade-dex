@@ -13,7 +13,6 @@ from backend.monitoring.agi_metrics import (
 )
 from backend.db.utils import get_db_session
 from backend.models.database import Trade
-from sqlalchemy import func
 
 # ── Market category definitions ──────────────────────────────────────────────
 
@@ -106,7 +105,7 @@ class CorrelationMonitor:
 
                 # Compute correlation-adjusted exposure:
                 # Same-category positions count `multiplier`x
-                raw_total = sum(category_exposure.values())
+                sum(category_exposure.values())
                 adjusted_total = 0.0
                 for cat, exposure in category_exposure.items():
                     if cat == "uncategorized":

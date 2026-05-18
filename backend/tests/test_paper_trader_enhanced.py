@@ -1,10 +1,8 @@
 """Tests for Enhanced Paper Trader."""
-import pytest
 
 from backend.core.paper_trader_enhanced import (
     EnhancedPaperTrader,
     SimulatedFill,
-    PaperPosition,
     PaperTradeResult,
 )
 

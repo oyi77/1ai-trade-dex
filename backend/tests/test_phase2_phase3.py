@@ -9,13 +9,11 @@ Covers:
 """
 from __future__ import annotations
 
-import asyncio
-import json
 import math
 import os
 import time
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -195,7 +193,7 @@ class TestDuneAnalytics:
 
     def test_dune_client_post_init_defaults(self):
         """DuneAnalyticsClient initializes with defaults when no settings provided."""
-        from backend.data.dune_analytics import DuneAnalyticsClient, DEFAULT_QUERY_IDS
+        from backend.data.dune_analytics import DuneAnalyticsClient
         with patch("backend.data.dune_analytics.settings", MagicMock(DUNE_API_KEY="test_key")):
             client = DuneAnalyticsClient(api_key="test_key")
         assert client.api_key == "test_key"
@@ -781,7 +779,6 @@ class TestMLTrainer:
 
     def test_trainer_trains_on_synthetic_data(self, tmp_path):
         from backend.ai.ml_trainer import MLTrainer
-        from backend.ai.training.data_collector import TrainingExample
         model_path = str(tmp_path / "test_model.pkl")
         trainer = MLTrainer(model_path=model_path, model_type="gradient_boosting")
         # Generate enough examples
@@ -934,7 +931,7 @@ class TestBacktestOptimizer:
 
     def test_optimization_result_dataclass(self):
         from backend.core.backtest_optimizer import OptimizationResult
-        from backend.core.pybroker_backtest import PyBrokerResult, PyBrokerConfig
+        from backend.core.pybroker_backtest import PyBrokerResult
         r = OptimizationResult(
             params={"kelly": 0.05},
             backtest=MagicMock(spec=PyBrokerResult),

@@ -308,7 +308,7 @@ class EnhancedPaperTrader:
         remaining = size
         total_cost = 0.0
         total_filled = 0.0
-        worst_price = float(levels[0].get("price", 0))
+        float(levels[0].get("price", 0))
 
         for level in levels:
             price = float(level.get("price", 0))
@@ -323,7 +323,6 @@ class EnhancedPaperTrader:
             fill_size = min(remaining, available)
             total_cost += price * fill_size
             total_filled += fill_size
-            worst_price = price
             remaining -= fill_size
 
             if remaining <= 0:

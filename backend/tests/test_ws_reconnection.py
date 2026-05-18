@@ -1,7 +1,7 @@
 """Tests for G-02: Polymarket WebSocket reconnection improvements."""
 import asyncio
 import time
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 import pytest
 
 from backend.data.polymarket_websocket import (
@@ -67,7 +67,7 @@ class TestStaleWatchdog:
         ws_client.ws = MagicMock()
         ws_client.ws.closed = False
 
-        with patch("backend.data.polymarket_websocket.logger") as mock_log:
+        with patch("backend.data.polymarket_websocket.logger"):
             await ws_client._stale_data_watchdog()
             ws_client.ws.close.assert_called_once()
 

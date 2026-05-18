@@ -1,13 +1,12 @@
 """Tests for HuggingFace Dataset Collector."""
 import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
 from backend.data.hf_dataset_collector import (
     HFDatasetCollector,
-    DatasetMeta,
     get_hf_collector,
     hf_dataset_collection_job,
 )
@@ -118,7 +117,6 @@ class TestGetHFCollector:
 
 @pytest.mark.asyncio
 async def test_hf_dataset_collection_job_no_config():
-    import backend.data.hf_dataset_collector as mod
     with patch("backend.data.hf_dataset_collector.settings", create=True) as mock_s:
         mock_s.HF_DATASET_REPOS = []
         # Should not raise

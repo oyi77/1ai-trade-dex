@@ -1,7 +1,5 @@
 """Tests for G-03: BotState lock contention fix."""
 import threading
-import pytest
-from unittest.mock import patch, MagicMock
 
 from backend.models.database import botstate_mutex
 

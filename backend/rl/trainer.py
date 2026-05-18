@@ -6,7 +6,6 @@ backend.core.rl_environment and saves the model for deployment.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -16,7 +15,7 @@ from loguru import logger
 MODELS_DIR = Path(__file__).parent / "models"
 
 
-def _flatten_obs(obs: dict) -> "np.ndarray":
+def _flatten_obs(obs: dict):
     """Flatten Dict observation into a single array for SB3."""
     import numpy as np
     parts = []

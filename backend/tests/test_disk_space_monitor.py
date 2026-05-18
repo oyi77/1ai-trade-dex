@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from types import SimpleNamespace
 
-from backend.core.agi_health_check import AGIHealthChecker, agi_health_checker
+from backend.core.agi_health_check import AGIHealthChecker
 
 
 @pytest.fixture

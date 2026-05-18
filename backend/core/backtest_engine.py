@@ -13,7 +13,6 @@ import random
 import statistics
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from loguru import logger
 
@@ -265,7 +264,7 @@ class EnhancedBacktestEngine:
         total_costs = 0.0
 
         for sig in signals:
-            price = sig.get("price", 0.5)
+            sig.get("price", 0.5)
             size = min(sig.get("size", self.config.max_trade_size), bankroll * 0.25)
             edge = sig.get("edge", 0.0)
             pnl = sig.get("pnl")

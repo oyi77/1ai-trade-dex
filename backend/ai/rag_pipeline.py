@@ -5,12 +5,11 @@ store in vector index, then retrieve relevant context for market queries.
 """
 from __future__ import annotations
 
-import asyncio
 import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
-from backend.ai.news_ingester import NewsArticle, NewsChunk, NewsIngester
+from backend.ai.news_ingester import NewsArticle, NewsIngester
 from backend.ai.vector_store import Document, VectorStore
 
 from loguru import logger

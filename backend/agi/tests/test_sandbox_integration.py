@@ -7,7 +7,6 @@ with real (but safe) code execution paths.
 from __future__ import annotations
 
 import pytest
-import asyncio
 
 from backend.agi.sandbox.sandbox_manager import SandboxManager
 from backend.agi.sandbox.sandbox_validator import SandboxValidator

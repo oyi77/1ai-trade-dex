@@ -4,10 +4,7 @@ import pytest
 from backend.core.market_making_analyzer import (
     MarketMakingAnalyzer,
     SpreadAnalysis,
-    DepthAnalysis,
     DepthLevel,
-    LiquidityMetrics,
-    MarketMakingOpportunity,
 )
 
 

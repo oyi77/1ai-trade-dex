@@ -7,7 +7,6 @@ from backend.core.rl_environment import (
     ACTION_BUY,
     ACTION_HOLD,
     ACTION_SELL,
-    MarketOpportunity,
     PredictionMarketEnv,
     generate_synthetic_opportunities,
 )

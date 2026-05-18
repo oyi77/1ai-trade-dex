@@ -1,10 +1,9 @@
 """Tests for crash_guardian.py -- G-01: auto-restart on crash."""
 import asyncio
-import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import pytest
 
-from backend.core.crash_guardian import CrashGuardian, ProcessHealth, _MONITORED_PROCESSES
+from backend.core.crash_guardian import CrashGuardian, ProcessHealth
 
 
 @pytest.fixture

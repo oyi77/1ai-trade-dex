@@ -1,7 +1,5 @@
 """Tests for LearningPipeline — ADR-013 trade outcome feedback loop."""
 import pytest
-import asyncio
-from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from backend.core.learning_pipeline import (
@@ -226,7 +224,7 @@ class TestLearningPipeline:
         forensics.analyze_losing_trade = AsyncMock(side_effect=Exception("DB down"))
 
         pipeline = LearningPipeline(cognitive_core=mock_core, forensics=forensics)
-        lesson = await pipeline.process_settlement(
+        await pipeline.process_settlement(
             trade_id=5,
             strategy_name="momentum",
             market_id="TEST",

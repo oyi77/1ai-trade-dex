@@ -277,7 +277,7 @@ def process_pending_arbs() -> int:
             if retries < max_retries:
                 # Re-attempt execution
                 opp = pending.get("opportunity")
-                market_id = pending.get("market_id", "")
+                pending.get("market_id", "")
                 if opp:
                     try:
                         loop = asyncio.get_event_loop()

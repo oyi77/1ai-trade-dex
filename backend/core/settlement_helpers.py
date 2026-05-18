@@ -1433,7 +1433,7 @@ async def resolve_paper_trades(db) -> List[Trade]:
         db.query(Trade)
         .filter(
             Trade.trading_mode == "paper",
-            Trade.settled == True,
+            Trade.settled,
             Trade.pnl.is_(None),
         )
         .all()

@@ -15,11 +15,9 @@ The gate is enforced in strategy_executor.py before ANY live order.
 
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
 
 from sqlalchemy.orm import Session
 
-from backend.config import settings
 from backend.models.database import StrategyConfig
 from loguru import logger
 
@@ -177,9 +175,9 @@ def _count_paper_trades(strategy_name: str, db: Session) -> int:
     """Count paper trades with real settlement (not simulated)."""
     from sqlalchemy import text
     return db.execute(text("""
-        SELECT COUNT(*) FROM trades 
+        SELECT COUNT(*) FROM trades
         WHERE strategy = :s AND trading_mode = 'paper'
-          AND result IN ('win', 'loss') 
+          AND result IN ('win', 'loss')
           AND condition_id IS NOT NULL
     """), {"s": strategy_name}).scalar() or 0
 
@@ -304,14 +302,13 @@ def check_risk_and_disable(db) -> list[str]:
     Returns list of disabled strategy names.
     """
     from sqlalchemy import text
-    from datetime import datetime, timezone
 
     disabled = []
     today = datetime.now(timezone.utc).date()
 
     # 1. Per-strategy daily loss check
     strats = db.execute(text("""
-        SELECT strategy_name FROM strategy_config 
+        SELECT strategy_name FROM strategy_config
         WHERE enabled = true AND mode = 'live'
     """)).fetchall()
 

@@ -1,10 +1,9 @@
 """G-21: Monitoring dashboard endpoint — active strategies, gate status, daily PnL, risk alerts."""
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, text
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.models.database import SessionLocal, Trade, BotState, StrategyConfig

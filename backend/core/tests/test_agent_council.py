@@ -8,9 +8,7 @@ Covers:
 """
 from __future__ import annotations
 
-import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from backend.core.agent_council import (
     AgentCouncil,

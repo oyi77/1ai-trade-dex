@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from backend.ai.training.feature_engineering import FEATURE_ORDER, FeatureEngineer
+from backend.ai.training.feature_engineering import FeatureEngineer
 
 from loguru import logger
 

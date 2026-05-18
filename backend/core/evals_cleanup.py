@@ -2,7 +2,6 @@
 
 Removes eval report files older than EVALS_REPORT_MAX_AGE_DAYS (default 30).
 """
-import os
 import time
 from pathlib import Path
 

@@ -6,8 +6,7 @@ Uses CUSUM (Cumulative Sum) control chart for early decay detection.
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, TYPE_CHECKING
 
