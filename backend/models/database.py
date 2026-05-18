@@ -234,6 +234,8 @@ class Trade(Base):
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
     event_slug = Column(String, nullable=True)
     market_end_date = Column(DateTime, nullable=True)
+    token_id = Column(String, nullable=True, index=True)
+    condition_id = Column(String, nullable=True)
 
     # Trade direction, entry, and size
     direction = Column(String)  # "up" or "down"
