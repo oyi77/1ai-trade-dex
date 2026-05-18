@@ -1,7 +1,9 @@
 """Tests for PredictionMarketEnv — gymnasium interface, step/reset, and shapes."""
 import numpy as np
 import pytest
-from gymnasium.utils.env_checker import check_env
+
+gymnasium = pytest.importorskip("gymnasium")
+check_env = gymnasium.utils.env_checker.check_env
 
 from backend.core.rl_environment import (
     ACTION_BUY,
