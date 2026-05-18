@@ -7,11 +7,13 @@ Based on patterns from:
 
 Fetches REAL data from polymarket.com:
 1. Leaderboard data (top traders by PNL) - NOT available via py-clob-client
-2. Market data (Gamma API) - Alternative to py-clob-client market endpoints
+2. Builder leaderboard data (top builders by volume)
+3. Market data (Gamma API) - Alternative to py-clob-client market endpoints
 
 NO MOCK DATA - Everything is real!
 """
 import asyncio
+import time
 from typing import List, Dict, Optional, Any
 import httpx
 
@@ -22,12 +24,17 @@ POLYMARKET_BASE = settings.POLYMARKET_BASE_URL
 POLYMARKET_GAMMA = settings.GAMMA_API_URL
 POLYMARKET_DATA = settings.DATA_API_URL
 POLYMARKET_LEADERBOARD = f"{POLYMARKET_DATA}/{settings.DATA_API_VERSION}/leaderboard"
+POLYMARKET_BUILDER_LEADERBOARD = f"{POLYMARKET_DATA}/{settings.DATA_API_VERSION}/builder-leaderboard"
 
 # Rate limiting (from polymarket-mcp-server patterns)
 REQUEST_TIMEOUT = 30.0
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0
 
+# Builder leaderboard cache (5 min TTL)
+_BUILDER_LEADERBOARD_CACHE: List[Dict[str, Any]] = []
+_BUILDER_LEADERBOARD_TS: float = 0.0
+_BUILDER_CACHE_TTL = 300.0
 
 class PolymarketScraper:
     """
@@ -224,6 +231,104 @@ class PolymarketScraper:
             logger.debug(f"Error parsing leaderboard entry: {e}")
             return None
 
+
+    async def fetch_builder_leaderboard(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Fetch builder leaderboard from Polymarket Data API.
+
+        Returns top builders ranked by volume/PNL with 5-minute module-level cache.
+        Builder leaderboard tracks market makers and liquidity providers.
+        """
+        global _BUILDER_LEADERBOARD_CACHE, _BUILDER_LEADERBOARD_TS
+
+        now = time.time()
+        if _BUILDER_LEADERBOARD_CACHE and (now - _BUILDER_LEADERBOARD_TS) < _BUILDER_CACHE_TTL:
+            logger.debug("Returning cached builder leaderboard (%d entries)", len(_BUILDER_LEADERBOARD_CACHE))
+            return _BUILDER_LEADERBOARD_CACHE[:limit]
+
+        logger.info("Fetching builder leaderboard from Polymarket (top %d)", limit)
+
+        data = await self._get_with_retry(
+            POLYMARKET_BUILDER_LEADERBOARD,
+            params={"limit": limit},
+        )
+        if not data:
+            logger.debug("No builder leaderboard data received")
+            return []
+
+        try:
+            entries = data if isinstance(data, list) else []
+            if not entries:
+                logger.debug("No builder leaderboard entries returned from API")
+                return []
+
+            builders: List[Dict[str, Any]] = []
+            for entry in entries[:limit]:
+                try:
+                    builder = self._parse_builder_entry(entry)
+                    if builder:
+                        builders.append(builder)
+                except Exception as e:
+                    logger.debug(f"Error parsing builder entry: {e}")
+                    continue
+
+            _BUILDER_LEADERBOARD_CACHE = builders
+            _BUILDER_LEADERBOARD_TS = now
+            logger.info("Successfully fetched %d builders from builder leaderboard", len(builders))
+            return builders
+
+        except Exception as e:
+            logger.error(f"Error parsing builder leaderboard data: {e}")
+            return []
+
+    def _parse_builder_entry(self, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Parse a single builder leaderboard entry into standardized format.
+
+        Expected Polymarket builder leaderboard structure:
+        {
+            "rank": 1,
+            "address": "0x...",
+            "proxyWallet": "0x...",
+            "pseudonym": "...",
+            "volume": 1234567.89,
+            "pnl": 54321.12,
+            "numTrades": 1500,
+            "numMarkets": 45,
+            "profitPercent": 12.5,
+            ...
+        }
+        """
+        try:
+            wallet = entry.get("address") or entry.get("proxyWallet") or entry.get("wallet") or ""
+            if not wallet:
+                return None
+
+            rank = int(entry.get("rank") or 0)
+            volume = float(entry.get("volume") or entry.get("amount") or 0.0)
+            pnl = float(entry.get("pnl") or 0.0)
+            num_trades = int(entry.get("numTrades") or entry.get("trades") or 0)
+            num_markets = int(entry.get("numMarkets") or entry.get("markets") or 0)
+            profit_pct = float(entry.get("profitPercent") or entry.get("profit_percent") or 0.0)
+
+            pseudonym_raw = entry.get("userName") or entry.get("pseudonym") or entry.get("name") or ""
+            if "-" in str(pseudonym_raw) and len(str(pseudonym_raw)) > 20:
+                pseudonym = f"Builder #{rank}"
+            else:
+                pseudonym = pseudonym_raw or f"Builder {wallet[:8]}"
+
+            return {
+                "wallet": wallet,
+                "pseudonym": pseudonym,
+                "rank": rank,
+                "volume": round(volume, 2),
+                "pnl": round(pnl, 2),
+                "num_trades": num_trades,
+                "num_markets": num_markets,
+                "profit_percent": round(profit_pct, 2),
+            }
+        except Exception as e:
+            logger.debug(f"Error parsing builder entry: {e}")
+            return None
+
     async def fetch_active_markets(self, category: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Fetch REAL active markets from Polymarket Gamma API.
@@ -376,6 +481,13 @@ async def fetch_real_leaderboard(limit: int = 50) -> List[Dict[str, Any]]:
     """Fetch real leaderboard data from Polymarket."""
     async with PolymarketScraper() as scraper:
         return await scraper.fetch_leaderboard(limit=limit)
+
+
+
+async def fetch_builder_leaderboard(limit: int = 50) -> List[Dict[str, Any]]:
+    """Fetch builder leaderboard data from Polymarket Data API (5-min cache)."""
+    async with PolymarketScraper() as scraper:
+        return await scraper.fetch_builder_leaderboard(limit=limit)
 
 
 async def fetch_real_markets(category: Optional[str] = None) -> List[Dict[str, Any]]:

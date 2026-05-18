@@ -199,6 +199,48 @@ class KalshiProvider(DataProvider):
         return markets
 
 
+
+
+class PMXTProvider(DataProvider):
+    """PMXT multi-platform data provider — secondary provider via pmxt_client."""
+
+    def __init__(self) -> None:
+        self._exchanges = ["polymarket", "kalshi", "limitless", "hyperliquid"]
+
+    async def fetch_markets(
+        self,
+        limit: int = 5000,
+        offset: int = 0,
+        active_only: bool = True,
+    ) -> List[Dict[str, Any]]:
+        from backend.data.pmxt_client import PmxtClient
+
+        client = PmxtClient()
+        results: Dict[str, list] = await client.fetch_multi_platform_markets(
+            exchanges=self._exchanges, limit=min(limit, 200)
+        )
+
+        markets: List[Dict[str, Any]] = []
+        for exchange, pmxt_markets in results.items():
+            for m in pmxt_markets:
+                market = {
+                    "market_id": m.market_id,
+                    "question": m.title,
+                    "end_date": m.resolution_date or "",
+                    "category": m.category or "",
+                    "volume_24h": m.volume_24h,
+                    "status": m.status or "unknown",
+                    "yes_price": m.yes_price if m.yes_price is not None else 0.5,
+                    "no_price": m.no_price if m.no_price is not None else 0.5,
+                    "slug": m.slug or "",
+                    "platform": exchange,
+                }
+                markets.append(market)
+
+        logger.info("[PMXTProvider] fetched %d markets across %d exchanges", len(markets), len(results))
+        return markets
+
+
 class MarketUniverseScanner:
     """Universal market scanner across 5000+ markets using DataProvider abstraction."""
 
@@ -220,6 +262,19 @@ class MarketUniverseScanner:
         from datetime import datetime, timezone
 
         markets = await self._provider.fetch_markets(limit=limit, active_only=True)
+
+        # Merge PMXT secondary provider markets when enabled
+        if getattr(settings, "PMXT_ENABLED", False) and not isinstance(self._provider, PMXTProvider):
+            try:
+                pmxt = PMXTProvider()
+                pmxt_markets = await pmxt.fetch_markets(limit=limit, active_only=True)
+                seen_ids = {m["market_id"] for m in markets}
+                for m in pmxt_markets:
+                    if m["market_id"] not in seen_ids:
+                        markets.append(m)
+                        seen_ids.add(m["market_id"])
+            except Exception as exc:
+                logger.warning("[MarketUniverseScanner] PMXT secondary fetch failed: %s", exc)
         _now_dt = datetime.now(timezone.utc)
         filtered = [
             m for m in markets
@@ -243,3 +298,73 @@ class MarketUniverseScanner:
         """Force cache refresh on next call."""
         global _CACHE_TIMESTAMP
         _CACHE_TIMESTAMP = 0.0
+
+    async def detect_neg_risk_events(
+        self,
+        min_outcomes: int = 3,
+        min_sum_deviation: float = 0.01,
+        limit: int = 5000,
+    ) -> List[Dict[str, Any]]:
+        """
+        Detect neg-risk events by grouping markets by slug.
+
+        A neg-risk event has >= *min_outcomes* mutually exclusive outcomes
+        whose YES prices sum deviates from 1.0 by at least *min_sum_deviation*.
+
+        Returns a list of event dicts sorted by deviation descending:
+            [{"slug", "question", "outcomes", "sum_of_prices", "deviation", "num_outcomes"}]
+        """
+        markets = await self.get_active_markets(limit=limit)
+
+        # Group by slug -- Polymarket groups multi-outcome markets under one event
+        events: Dict[str, List[Dict[str, Any]]] = {}
+        for m in markets:
+            slug = m.get("slug", "")
+            if not slug:
+                continue
+            events.setdefault(slug, []).append(m)
+
+        neg_risk: List[Dict[str, Any]] = []
+        for slug, outcomes in events.items():
+            if len(outcomes) < min_outcomes:
+                continue
+
+            prices: List[float] = []
+            parsed: List[Dict[str, Any]] = []
+            for o in outcomes:
+                yes_p = float(o.get("yes_price", 0.5))
+                no_p = float(o.get("no_price", 0.5))
+                prices.append(yes_p)
+                parsed.append(
+                    {
+                        "label": o.get("question", ""),
+                        "token_id": str(o.get("market_id", "")),
+                        "yes_price": yes_p,
+                        "no_price": no_p,
+                    }
+                )
+
+            price_sum = sum(prices)
+            deviation = abs(price_sum - 1.0)
+
+            if deviation < min_sum_deviation:
+                continue
+
+            neg_risk.append(
+                {
+                    "slug": slug,
+                    "question": outcomes[0].get("question", ""),
+                    "outcomes": parsed,
+                    "sum_of_prices": price_sum,
+                    "deviation": deviation,
+                    "num_outcomes": len(parsed),
+                }
+            )
+
+        neg_risk.sort(key=lambda e: e["deviation"], reverse=True)
+        logger.info(
+            "[MarketUniverseScanner] detected %d neg-risk events (min_outcomes=%d)",
+            len(neg_risk),
+            min_outcomes,
+        )
+        return neg_risk

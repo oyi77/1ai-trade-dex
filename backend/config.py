@@ -508,6 +508,7 @@ class ConfigRegistry:
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     KALSHI_ENABLED: bool = False
+    PMXT_ENABLED: bool = False
     ADMIN_API_KEY: Optional[str] = None
 
     # Port and hosting
@@ -1240,6 +1241,7 @@ class Settings(BaseSettings):
     KALSHI_API_KEY_ID: Optional[str] = None
     KALSHI_PRIVATE_KEY_PATH: Optional[str] = None
     KALSHI_ENABLED: bool = False
+    PMXT_ENABLED: bool = False
 
     # AI API Keys
     GROQ_API_KEY: Optional[str] = None

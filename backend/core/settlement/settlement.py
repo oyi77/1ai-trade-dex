@@ -11,7 +11,7 @@ from backend.models.database import Trade, BotState, botstate_mutex
 from backend.core.alert_manager import AlertManager
 from backend.monitoring.hft_metrics import record_execution, db_query_duration
 
-from backend.core.settlement_helpers import (
+from backend.core.settlement.settlement_helpers import (
     fetch_resolution_for_trade,
     check_market_settlement as check_market_settlement,
     calculate_pnl,
@@ -189,7 +189,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         alert_manager = AlertManager(db)
 
         try:
-            from backend.core.settlement_helpers import reconcile_positions
+            from backend.core.settlement.settlement_helpers import reconcile_positions
 
             trades_to_close = await reconcile_positions(db)
 
@@ -522,7 +522,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
         # Resolve paper trades via Gamma outcome prices
         try:
-            from backend.core.settlement_helpers import resolve_paper_trades
+            from backend.core.settlement.settlement_helpers import resolve_paper_trades
             paper_settled = await resolve_paper_trades(db)
             if paper_settled:
                 logger.info(f"Settled {len(paper_settled)} paper trades via Gamma outcomes")

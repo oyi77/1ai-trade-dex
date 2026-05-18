@@ -18,7 +18,7 @@ from backend.core.auto_improve import (
     ROLLBACK_TRADE_WINDOW,
     ROLLBACK_PERF_DEGRADATION_THRESHOLD,
 )
-import backend.core.auto_improve as auto_improve_mod
+import backend.core.learning.auto_improve as auto_improve_mod
 
 
 def _make_settings(**overrides):

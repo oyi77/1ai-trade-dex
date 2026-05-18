@@ -2,6 +2,10 @@
 
 Pattern inspired by Polymarket/agents: ingest news, chunk, embed,
 store in vector index, then retrieve relevant context for market queries.
+
+Integration with debate engine:
+  Use `retrieve_context_for_debate()` to get RAG context, then pass it
+  as the `context` parameter to `backend.ai.debate_engine.run_debate()`.
 """
 from __future__ import annotations
 
@@ -105,7 +109,7 @@ class RAGPipeline:
             docs.append(doc)
 
         self.store.add_batch(docs)
-        logger.info(f"rag_pipeline: ingested {len(docs)} chunks from {len(articles)} articles")
+        logger.info("rag_pipeline: ingested %d chunks from %d articles", len(docs), len(articles))
         return len(docs)
 
     def query(self, question: str, top_k: int = 5) -> RAGContext:
@@ -120,7 +124,7 @@ class RAGPipeline:
         for doc, score in results:
             source = doc.metadata.get("source", "unknown")
             title = doc.metadata.get("title", "")
-            summary_parts.append(f"[{score:.2f}] {title} ({source}): {doc.text[:200]}...")
+            summary_parts.append("[%.2f] %s (%s): %s..." % (score, title, source, doc.text[:200]))
 
         return RAGContext(
             query=question,
@@ -131,8 +135,7 @@ class RAGPipeline:
 
     def query_for_market(self, market_question: str, top_k: int = 5) -> RAGContext:
         """Query with market-specific context enhancement."""
-        # Enhance the query with market-relevant terms
-        enhanced = f"prediction market: {market_question}"
+        enhanced = "prediction market: %s" % market_question
         return self.query(enhanced, top_k=top_k)
 
     def get_stats(self) -> Dict[str, Any]:
@@ -141,3 +144,72 @@ class RAGPipeline:
             "total_documents": self.store.size,
             "embedding_dim": self.embedder.dim,
         }
+
+    def retrieve_context_for_debate(
+        self,
+        market_question: str,
+        category: str = "",
+        top_k: int = 5,
+        max_chars: int = 3000,
+    ) -> str:
+        """Retrieve relevant context for the debate engine.
+
+        Builds an enhanced query from the market question and category,
+        then formats the top results as a context string suitable for
+        injection into debate prompts via the ``context`` parameter of
+        ``backend.ai.debate_engine.run_debate()``.
+
+        Args:
+            market_question: The prediction market question.
+            category: Optional market category for query enhancement.
+            top_k: Number of documents to retrieve.
+            max_chars: Maximum character length of the returned context.
+
+        Returns:
+            Formatted context string with source attribution, or empty string
+            if no relevant documents are found.
+        """
+        rag_ctx = self.query_for_market(market_question, top_k=top_k)
+        if not rag_ctx.documents:
+            return ""
+
+        lines = ["RELEVANT CONTEXT (retrieved by RAG pipeline):"]
+        total_chars = len(lines[0])
+
+        for i, (doc, score) in enumerate(zip(rag_ctx.documents, rag_ctx.scores), 1):
+            source = doc.metadata.get("source", "unknown")
+            title = doc.metadata.get("title", "")
+            snippet = "\n[%d] (source=%s, relevance=%.2f) %s: %s" % (i, source, score, title, doc.text[:500])
+            if total_chars + len(snippet) > max_chars:
+                break
+            lines.append(snippet)
+            total_chars += len(snippet)
+
+        context = "\n".join(lines)
+        logger.info(
+            "rag_pipeline: retrieved %d docs for debate (chars=%d)",
+            min(len(rag_ctx.documents), len(lines) - 1),
+            len(context),
+        )
+        return context
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+
+_pipeline_instance: RAGPipeline | None = None
+
+
+def get_rag_pipeline() -> RAGPipeline:
+    """Get or create the global RAG pipeline singleton."""
+    global _pipeline_instance
+    if _pipeline_instance is None:
+        _pipeline_instance = RAGPipeline()
+    return _pipeline_instance
+
+
+def reset_rag_pipeline() -> None:
+    """Reset the global pipeline (useful for testing)."""
+    global _pipeline_instance
+    _pipeline_instance = None
