@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 gymnasium = pytest.importorskip("gymnasium")
-check_env = gymnasium.utils.env_checker.check_env
+from gymnasium.utils.env_checker import check_env  # noqa: E402
 
 from backend.core.rl_environment import (  # noqa: E402
     ACTION_BUY,
