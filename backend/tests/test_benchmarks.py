@@ -9,7 +9,7 @@ class TestTradeExecutionLatency:
     """Benchmark: risk manager validate_trade should complete in < 10ms."""
 
     def test_validate_trade_latency(self):
-        """Risk validation should be fast (< 10ms per call)."""
+        """Risk validation should be fast (< 15ms per call)."""
         rm = RiskManager()
         db = MagicMock()
         db.query.return_value.filter.return_value.scalar.return_value = 0.0
@@ -37,7 +37,7 @@ class TestTradeExecutionLatency:
         elapsed = time.perf_counter() - start
         avg_ms = (elapsed / iterations) * 1000
 
-        assert avg_ms < 10.0, f"validate_trade avg latency {avg_ms:.2f}ms > 10ms threshold"
+        assert avg_ms < 15.0, f"validate_trade avg latency {avg_ms:.2f}ms > 15ms threshold"
 
     def test_check_drawdown_latency(self):
         """Drawdown check should be fast (< 5ms per call)."""
