@@ -1549,6 +1549,15 @@ class Settings(BaseSettings):
     AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4      # re-disable for 4h if still bad
     AGI_REHAB_LITE_WIN_RATE_THRESHOLD: float = 0.30  # keep enabled if WR >= 30%
     AGI_AUTO_DISABLE_MIN_TRADES: int = 10          # exempt strategies with <10 trades
+
+    # G-09: Strategy performance decay detection
+    PERFORMANCE_DECAY_THRESHOLD: float = 0.20  # 20% win rate drop triggers warning
+    PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS: int = 6
+
+    # G-17: Category circuit breaker
+    CATEGORY_CONSECUTIVE_LOSS_LIMIT: int = 3  # Consecutive losses before category pause
+    CATEGORY_COOLDOWN_MINUTES: int = 120  # Minutes to pause trading in a category
+
     # LIVE_TRIAL phase configuration (AGI-2)
     LIVE_TRIAL_ENABLED: bool = True
     LIVE_TRIAL_BANKROLL_PCT: float = 0.01   # fraction of bankroll during live trial

@@ -231,3 +231,55 @@ Risk layer auto-disables strategies on >$50 daily loss or >10% total drawdown.
 | `/api/v1/settle-trades` | POST | Check settlements for pending trades |
 | `/api/v1/risk/status` | GET | Current risk layer status (disabled strategies) |
 
+## Wallet & Allocation Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/wallets` | GET | List configured wallets |
+| `/api/v1/wallet-allocations` | GET | Wallet allocation percentages |
+
+## Plugin System Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/ai-providers` | GET | List AI provider plugins |
+| `/api/v1/data-sources` | GET | List data source plugins |
+| `/api/v1/market-providers` | GET | List market provider plugins |
+| `/api/v1/market-orders` | POST | Place order via market provider |
+| `/api/v1/provider-credentials` | GET/POST | Manage provider API credentials |
+
+## Knowledge Graph Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/kg/entities` | GET | Query knowledge graph entities |
+| `/api/v1/kg/relations` | GET | Query entity relations |
+
+## Learning & Analytics Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/learning/health` | GET | Strategy health metrics (readonly) |
+| `/api/v1/learning/cycle` | POST | Trigger learning cycle |
+| `/api/v1/analytics` | GET | Trading analytics and P&L breakdown |
+
+## Admin Endpoints
+
+All admin endpoints require authentication.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/admin/auth/login` | POST | Admin cookie login |
+| `/api/v1/admin/settings` | GET/PUT | System settings CRUD |
+| `/api/v1/admin/strategies` | GET | Strategy management |
+| `/api/v1/brain/query` | POST | Query AI brain for market analysis |
+| `/api/v1/brain/context` | GET | Current brain context |
+
+## Sync & Dashboard Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/sync/wallet` | POST | Force wallet reconciliation |
+| `/api/v1/dashboard` | GET | All dashboard data in one call |
+| `/api/v1/activities` | GET | Activity log |
+

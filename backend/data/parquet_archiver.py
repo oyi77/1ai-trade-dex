@@ -1,7 +1,7 @@
 """Trade Archiver — archives settled trades to Parquet for fast analytical queries."""
 
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -31,7 +31,7 @@ class TradeArchiver:
             and_(
                 Trade.settled,
                 Trade.timestamp >= start,
-                Trade.timestamp < start.replace(day=start.day + 1) if start.day < 28 else start,
+                Trade.timestamp < start + timedelta(days=1),
             )
         ).all()
 
@@ -62,7 +62,7 @@ class TradeArchiver:
         logger.info(f"Archived {len(rows)} trades to {path}")
         return str(path)
 
-    def query_backtest(self, pattern: str = "2026-*", sql_condition: str = "1=1") -> Optional[object]:
+    def query_backtest(self, pattern: str = "2026-*", conditions: Optional[dict] = None) -> Optional[object]:
         try:
             import pandas as pd
         except ImportError:
@@ -79,10 +79,13 @@ class TradeArchiver:
         dfs = [pd.read_parquet(str(f)) for f in files]
         combined = pd.concat(dfs, ignore_index=True)
 
-        try:
-            result = combined.query(sql_condition)
-        except Exception as e:
-            logger.warning(f"Query failed: {e}")
+        if not conditions:
             return combined
 
-        return result
+        mask = pd.Series(True, index=combined.index)
+        for col, val in conditions.items():
+            if col not in combined.columns:
+                logger.warning(f"query_backtest: column '{col}' not in data, skipping")
+                continue
+            mask &= combined[col] == val
+        return combined[mask]

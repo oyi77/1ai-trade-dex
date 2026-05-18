@@ -82,6 +82,19 @@ task_manager: Optional[TaskManager] = None
 # Concurrency guard for scheduler state mutations (threading.Lock since start_scheduler is sync)
 _scheduler_state_lock = threading.Lock()
 
+
+def _get_scheduler() -> Optional[AsyncIOScheduler]:
+    """Thread-safe accessor for the module-level scheduler."""
+    with _scheduler_state_lock:
+        return scheduler
+
+
+def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
+    """Thread-safe setter for the module-level scheduler."""
+    global scheduler
+    with _scheduler_state_lock:
+        scheduler = value
+
 # Event log for terminal display (in-memory, last 200 events)
 event_log: List[dict] = []
 MAX_LOG_SIZE = 200
@@ -301,8 +314,8 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
         mode: Trading mode ("paper", "testnet", or "live").
     """
     import random
-    global scheduler
-    if scheduler is None or not scheduler.running:
+    sched = _get_scheduler()
+    if sched is None or not sched.running:
         return
 
     job_id = f"{mode}_{strategy_name}_{interval_seconds}"
@@ -312,7 +325,7 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
     # Stagger first execution by 0-60s to prevent all strategies from hitting DB simultaneously
     jitter = random.randint(0, 60)
     next_run = datetime.now(timezone.utc) + timedelta(seconds=jitter)
-    scheduler.add_job(
+    sched.add_job(
         strategy_cycle_job,
         IntervalTrigger(seconds=interval_seconds),
         kwargs={"strategy_name": strategy_name, "mode": mode},
@@ -329,12 +342,12 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
 
 def unschedule_strategy(strategy_name: str, mode: str = "paper", interval_seconds: int = 60) -> None:
     """Remove a strategy's APScheduler job for a specific mode."""
-    global scheduler
-    if scheduler is None or not scheduler.running:
+    sched = _get_scheduler()
+    if sched is None or not sched.running:
         return
     job_id = f"{mode}_{strategy_name}_{interval_seconds}"
     try:
-        scheduler.remove_job(job_id)
+        sched.remove_job(job_id)
         logger.info(f"Unscheduled strategy {strategy_name} for mode {mode}")
     except Exception:
         logger.exception(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
@@ -343,8 +356,8 @@ def unschedule_strategy(strategy_name: str, mode: str = "paper", interval_second
 
 def get_scheduler_jobs() -> list[dict]:
     """Return current scheduled jobs info."""
-    global scheduler
-    if scheduler is None or not scheduler.running:
+    sched = _get_scheduler()
+    if sched is None or not sched.running:
         return []
     return [
         {
@@ -352,7 +365,7 @@ def get_scheduler_jobs() -> list[dict]:
             "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
             "trigger": str(job.trigger),
         }
-        for job in scheduler.get_jobs()
+        for job in sched.get_jobs()
     ]
 
 
@@ -413,13 +426,14 @@ def _register_event_driven_strategies() -> None:
 
 def start_scheduler():
     """Start the background scheduler for multi-strategy trading."""
-    global scheduler, queue, worker, worker_task
+    global queue, worker, worker_task
 
-    if scheduler is not None and scheduler.running:
+    if _get_scheduler() is not None and _get_scheduler().running:
         log_event("warning", "Scheduler already running")
         return
 
-    scheduler = AsyncIOScheduler()
+    _set_scheduler(AsyncIOScheduler())
+    scheduler = _get_scheduler()
 
 # SCHED-5: Job Store Configuration
 # The scheduler uses AsyncIOScheduler with the default MemoryJobStore.
@@ -944,6 +958,19 @@ def start_scheduler():
     )
     logger.info("Scheduled cache cleanup job every 1 hour")
 
+    # G-09: Strategy performance decay detection — every 6 hours
+    _persist_and_add_job(
+        scheduler,
+        performance_decay_check_job,
+        IntervalTrigger(hours=getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6)),
+        id="performance_decay_check",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=300,
+    )
+    logger.info("Scheduled performance decay check job every %d hours",
+                getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6))
+
     # G-04: Disk space monitoring — check every 15 minutes
     from backend.monitoring.disk_monitor import disk_space_check_job
     scheduler.add_job(
@@ -1327,8 +1354,9 @@ def start_scheduler():
 
 def stop_scheduler():
     """Stop the background scheduler."""
-    global scheduler, worker, queue, worker_task
+    global worker, queue, worker_task
 
+    scheduler = _get_scheduler()
     if scheduler is None or not scheduler.running:
         log_event("info", "Scheduler not running")
         return
@@ -1358,32 +1386,33 @@ def stop_scheduler():
 
     # Shutdown scheduler
     scheduler.shutdown(wait=False)
-    scheduler = None
+    _set_scheduler(None)
     log_event("info", "Scheduler stopped")
 
 
 def is_scheduler_running() -> bool:
     """Check if scheduler is currently running."""
-    return scheduler is not None and scheduler.running
+    sched = _get_scheduler()
+    return sched is not None and sched.running
 
 
 def reschedule_jobs() -> list[dict]:
     """Reschedule jobs with current settings values. Call after settings update."""
     from apscheduler.jobstores.base import JobLookupError as _JobLookupError
 
-    global scheduler
-    if scheduler is None or not scheduler.running:
+    sched = _get_scheduler()
+    if sched is None or not sched.running:
         return []
 
     results = []
 
     # Reschedule scan job
     try:
-        scheduler.reschedule_job(
+        sched.reschedule_job(
             "market_scan",
             trigger=IntervalTrigger(seconds=settings.SCAN_INTERVAL_SECONDS),
         )
-        job = scheduler.get_job("market_scan")
+        job = sched.get_job("market_scan")
         results.append(
             {
                 "job_id": "market_scan",
@@ -1397,11 +1426,11 @@ def reschedule_jobs() -> list[dict]:
 
     # Reschedule settlement job
     try:
-        scheduler.reschedule_job(
+        sched.reschedule_job(
             "settlement_check",
             trigger=IntervalTrigger(seconds=settings.SETTLEMENT_INTERVAL_SECONDS),
         )
-        job = scheduler.get_job("settlement_check")
+        job = sched.get_job("settlement_check")
         results.append(
             {
                 "job_id": "settlement_check",
@@ -1416,11 +1445,11 @@ def reschedule_jobs() -> list[dict]:
     # Reschedule weather scan if enabled
     if settings.WEATHER_ENABLED:
         try:
-            scheduler.reschedule_job(
+            sched.reschedule_job(
                 "weather_scan",
                 trigger=IntervalTrigger(seconds=settings.WEATHER_SCAN_INTERVAL_SECONDS),
             )
-            job = scheduler.get_job("weather_scan")
+            job = sched.get_job("weather_scan")
             results.append(
                 {
                     "job_id": "weather_scan",
@@ -1462,3 +1491,70 @@ async def monitoring_job():
         logger.error(f"❌ Monitoring check failed: {e}")
     finally:
         db.close()
+
+
+def performance_decay_check_job():
+    """G-09: Detect strategy performance decay by comparing 24h vs 7d win rates.
+
+    Runs every PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS (default 6h).
+    If a strategy's 24h win rate drops by more than PERFORMANCE_DECAY_THRESHOLD
+    (default 20%) compared to its 7d win rate, logs a warning.
+    """
+    from backend.models.database import Trade, StrategyConfig
+    from backend.db.utils import get_db_session
+    from datetime import datetime, timezone, timedelta
+
+    threshold = getattr(settings, "PERFORMANCE_DECAY_THRESHOLD", 0.20)
+    now = datetime.now(timezone.utc)
+    day_start = now - timedelta(hours=24)
+    week_start = now - timedelta(days=7)
+
+    try:
+        with get_db_session() as db:
+            configs = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
+            for config in configs:
+                strategy_name = config.strategy_name
+
+                # 7-day win rate
+                week_trades = db.query(Trade).filter(
+                    Trade.strategy == strategy_name,
+                    Trade.settled.is_(True),
+                    Trade.settlement_time >= week_start,
+                    Trade.result.in_(["win", "loss"]),
+                ).all()
+
+                if len(week_trades) < 5:
+                    continue
+
+                week_wins = sum(1 for t in week_trades if t.result == "win")
+                week_wr = week_wins / len(week_trades)
+
+                # 24-hour win rate
+                day_trades = [t for t in week_trades if t.settlement_time >= day_start]
+                if len(day_trades) < 3:
+                    continue
+
+                day_wins = sum(1 for t in day_trades if t.result == "win")
+                day_wr = day_wins / len(day_trades)
+
+                # Check for decay
+                decay = week_wr - day_wr
+                if decay > threshold:
+                    logger.warning(
+                        "[perf_decay] Strategy {} decay detected: "
+                        "24h WR={:.1%} vs 7d WR={:.1%} (decay={:.1%} > threshold={:.1%})",
+                        strategy_name, day_wr, week_wr, decay, threshold,
+                    )
+                    log_event(
+                        "warning",
+                        f"Performance decay: {strategy_name} "
+                        f"24h WR={day_wr:.0%} vs 7d WR={week_wr:.0%}",
+                    )
+                else:
+                    logger.debug(
+                        "[perf_decay] Strategy {} healthy: 24h WR={:.1%}, 7d WR={:.1%}, decay={:.1%}",
+                        strategy_name, day_wr, week_wr, decay,
+                    )
+
+    except Exception as e:
+        logger.warning("[perf_decay] Performance decay check failed: {}", e)

@@ -291,14 +291,47 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
     return None
 
 
+_STOP_WORDS = frozenset({
+    "will", "the", "be", "in", "a", "an", "on", "at", "to", "for",
+    "of", "and", "or", "is", "it", "by", "as", "do", "does", "did",
+    "has", "have", "had", "was", "were", "are", "this", "that",
+    "with", "from", "but", "not", "no", "if", "so", "than",
+})
+
+
 def _questions_match(q1: str, q2: str) -> bool:
-    """Check if two market questions refer to the same event."""
-    # Simple overlap check
-    words1 = set(q1.split())
-    words2 = set(q2.split())
+    """Check if two market questions refer to the same event.
+
+    Uses 70% overlap of meaningful (non-stop) words plus entity matching
+    for numbers and capitalized tokens.
+    """
+    import re
+
+    words1 = set(q1.lower().split()) - _STOP_WORDS
+    words2 = set(q2.lower().split()) - _STOP_WORDS
     if not words1 or not words2:
         return False
+
+    # 70% overlap of meaningful words
     overlap = words1 & words2
-    # Require at least 50% overlap of shorter question
     min_len = min(len(words1), len(words2))
-    return len(overlap) / min_len >= 0.5
+    if len(overlap) / min_len < 0.7:
+        return False
+
+    # Extract key entities: numbers and proper-noun-like tokens from originals
+    def _entities(text: str) -> set[str]:
+        tokens = set()
+        for tok in re.findall(r"[A-Za-z0-9]+", text):
+            if tok[0].isdigit() or (len(tok) > 1 and tok[0].isupper() and tok.lower() not in _STOP_WORDS):
+                tokens.add(tok.lower())
+        return tokens
+
+    ent1 = _entities(q1)
+    ent2 = _entities(q2)
+    # If either question has entities, they must overlap
+    if ent1 and ent2:
+        ent_overlap = ent1 & ent2
+        if not ent_overlap:
+            return False
+
+    return True

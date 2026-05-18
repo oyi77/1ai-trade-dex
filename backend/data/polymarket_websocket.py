@@ -94,8 +94,9 @@ class WebSocketConfig:
     initial_dump: bool = True
     heartbeat_interval: float = 10.0  # seconds
     reconnect_delay: float = 1.0  # Initial reconnect delay
-    max_reconnect_delay: float = 60.0  # Max reconnect delay
+    max_reconnect_delay: float = 30.0  # Max reconnect delay (1s -> 30s)
     reconnect_backoff: float = 2.0  # Exponential backoff multiplier
+    max_reconnect_attempts: int = 10  # Max consecutive reconnect attempts before giving up
 
 
 class PolymarketWebSocket:
@@ -185,6 +186,14 @@ class PolymarketWebSocket:
                 logger.opt(exception=True).error(f"WebSocket error: {e}")
 
                 if self._running:
+                    if self._reconnect_count >= self.config.max_reconnect_attempts:
+                        logger.error(
+                            "WebSocket max reconnect attempts (%d) reached. Giving up.",
+                            self.config.max_reconnect_attempts,
+                        )
+                        self._running = False
+                        break
+
                     logger.info(f"Reconnecting in {self._reconnect_delay:.1f}s...")
                     await asyncio.sleep(self._reconnect_delay)
 
@@ -216,6 +225,7 @@ class PolymarketWebSocket:
             await self._send_subscription()
 
             self._reconnect_delay = self.config.reconnect_delay
+            self._reconnect_count = 0
 
             from backend.api.main import app
             if hasattr(app.state, 'task_manager'):

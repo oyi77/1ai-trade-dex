@@ -292,7 +292,7 @@ class BondScannerStrategy(BaseStrategy):
                 "suggested_size": size,
                 "edge": edge,
                 "confidence": confidence,
-                "model_probability": qualifying_price,
+                "model_probability": min(qualifying_price * 1.02, 0.99),
                 "market_probability": qualifying_price,
                 "platform": settings.DEFAULT_VENUE,
                 "strategy_name": self.name,

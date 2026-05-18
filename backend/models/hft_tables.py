@@ -3,11 +3,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, Index, Text
 
-try:
-    from backend.models.database import Base
-except ImportError:
-    from sqlalchemy.orm import declarative_base
-    Base = declarative_base()
+from backend.models.database import Base
 
 
 class HFTSignal(Base):

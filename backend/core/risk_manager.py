@@ -348,6 +348,14 @@ class RiskManager:
                     False, f"drawdown breaker: {drawdown.breach_reason}", 0.0
                 )
 
+        # --- G-17: Category circuit breaker ---
+        if category and db is not None:
+            cat_cooldown = self._check_category_circuit_breaker(category, db, effective_mode)
+            if cat_cooldown:
+                record_signal(strategy=strategy_name or "unknown", signal_type="rejected_category_breaker")
+                increment_risk_rejection(strategy=strategy_name or "unknown", reason="category_breaker")
+                return RiskDecision(False, cat_cooldown, 0.0)
+
         # --- G-14: Per-strategy drawdown check ---
         if strategy_name and db is not None:
             max_strat_dd = float(getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15) or 0.15)
@@ -1039,3 +1047,67 @@ class RiskManager:
         except ImportError:
             # Fallback to default multiplier if regime router not available
             return 1.0
+
+    def _check_category_circuit_breaker(
+        self, category: str, db, mode: str
+    ) -> Optional[str]:
+        """G-17: Check if a market category has exceeded consecutive loss limit.
+
+        If a category has > N consecutive losses, pause trading in that category
+        for CATEGORY_COOLDOWN_MINUTES (default 120).
+
+        Returns a rejection reason string if the category is paused, None otherwise.
+        """
+        try:
+            limit = int(getattr(self.s, "CATEGORY_CONSECUTIVE_LOSS_LIMIT", 3) or 3)
+            cooldown_min = int(getattr(self.s, "CATEGORY_COOLDOWN_MINUTES", 120) or 120)
+
+            now = datetime.now(timezone.utc)
+            # Look at recent trades in this category
+            recent_trades = (
+                db.query(Trade)
+                .filter(
+                    Trade.category == category,
+                    Trade.settled.is_(True),
+                    Trade.trading_mode == mode,
+                    Trade.result.in_(["win", "loss"]),
+                )
+                .order_by(Trade.settlement_time.desc())
+                .limit(limit)
+                .all()
+            )
+
+            if len(recent_trades) < limit:
+                return None
+
+            # Check if all recent trades are losses
+            all_losses = all(t.result == "loss" for t in recent_trades)
+            if not all_losses:
+                return None
+
+            # Check if cooldown has elapsed since the most recent loss
+            latest_loss_time = recent_trades[0].settlement_time
+            if latest_loss_time and latest_loss_time.tzinfo is None:
+                latest_loss_time = latest_loss_time.replace(tzinfo=timezone.utc)
+
+            cooldown_end = latest_loss_time + timedelta(minutes=cooldown_min)
+            if now < cooldown_end:
+                remaining = (cooldown_end - now).total_seconds() / 60
+                logger.info(
+                    "[risk_manager] Category circuit breaker: {} has {} consecutive losses, "
+                    "paused for {:.0f} more minutes",
+                    category, limit, remaining,
+                )
+                return (
+                    f"category '{category}' circuit breaker: "
+                    f"{limit} consecutive losses, paused {remaining:.0f}min"
+                )
+
+            return None
+
+        except Exception as e:
+            logger.opt(exception=True).error(
+                "[risk_manager._check_category_circuit_breaker] {}: {}",
+                type(e).__name__, e,
+            )
+            return None
