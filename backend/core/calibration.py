@@ -137,9 +137,8 @@ def update_calibration(
     cal[key] = {"n": n, "mean_error": mean_error, "M2": M2, "sigma": sigma}
     with _cal_lock:
         _cal_cache.update(cal)
-
-    _CALIBRATION_FILE.parent.mkdir(exist_ok=True)
-    _CALIBRATION_FILE.write_text(json.dumps(cal, indent=2), encoding="utf-8")
+        _CALIBRATION_FILE.parent.mkdir(exist_ok=True)
+        _CALIBRATION_FILE.write_text(json.dumps(cal, indent=2), encoding="utf-8")
     logger.info(f"Calibration updated: {key} n={n} sigma={sigma:.2f}°F")
 
 

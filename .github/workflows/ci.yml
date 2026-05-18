@@ -34,7 +34,7 @@ jobs:
         env:
           SIMULATION_MODE: "true"
           DATABASE_URL: "sqlite:///./test.db"
-          WALLET_FERNET_KEY: "D3IR1zYU0tRIwQLOLLNWSMgChbfmTO8lqX6em_zZ2L0="
+          WALLET_FERNET_KEY: "${{ secrets.WALLET_FERNET_KEY }}"
         run: |
           python -m pytest backend/tests/ tests/ -k "not live" \
             --cov=backend \
