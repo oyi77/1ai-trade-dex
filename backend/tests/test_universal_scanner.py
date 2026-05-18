@@ -61,6 +61,7 @@ class TestUniversalScanner:
     async def test_analyze_market_high_edge(self):
         scanner = UniversalScanner()
         from backend.strategies.base import MarketInfo
+        from unittest.mock import AsyncMock, MagicMock
 
         market = MarketInfo(
             ticker="test-1",
@@ -74,7 +75,13 @@ class TestUniversalScanner:
             question="Will it rain?",
         )
 
-        signal = await scanner.analyze_market(market)
+        # Mock debate to return consensus_probability that creates edge
+        mock_debate = MagicMock()
+        mock_debate.consensus_probability = 0.90  # edge = 0.90 - 0.80 = 0.10
+        with patch("backend.strategies.universal_scanner._run_debate_gate", new_callable=AsyncMock, return_value=mock_debate), \
+             patch("backend.strategies.universal_scanner._fetch_web_context", new_callable=AsyncMock, return_value=None), \
+             patch("backend.strategies.universal_scanner._fetch_brain_context", new_callable=AsyncMock, return_value=None):
+            signal = await scanner.analyze_market(market)
         assert signal is not None
         assert signal["ticker"] == "test-1"
         assert signal["edge"] == pytest.approx(0.10)
@@ -83,6 +90,7 @@ class TestUniversalScanner:
     async def test_analyze_market_low_edge_rejected(self):
         scanner = UniversalScanner()
         from backend.strategies.base import MarketInfo
+        from unittest.mock import AsyncMock, MagicMock
 
         market = MarketInfo(
             ticker="test-2",
@@ -96,7 +104,13 @@ class TestUniversalScanner:
             question="Will it rain?",
         )
 
-        signal = await scanner.analyze_market(market)
+        # Mock debate to return consensus close to market price (edge < min_edge)
+        mock_debate = MagicMock()
+        mock_debate.consensus_probability = 0.52  # edge = 0.52 - 0.51 = 0.01 < min_edge
+        with patch("backend.strategies.universal_scanner._run_debate_gate", new_callable=AsyncMock, return_value=mock_debate), \
+             patch("backend.strategies.universal_scanner._fetch_web_context", new_callable=AsyncMock, return_value=None), \
+             patch("backend.strategies.universal_scanner._fetch_brain_context", new_callable=AsyncMock, return_value=None):
+            signal = await scanner.analyze_market(market)
         assert signal is None
 
     @pytest.mark.asyncio

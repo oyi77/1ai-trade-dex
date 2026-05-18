@@ -210,7 +210,9 @@ async def execute(signal):
     async def test_evolution_paper_to_live(self):
         """Test paper strategy validation for live trading."""
         code = """
-from backend.core.risk_profiles import RISK_TIER_MAX_ALLOCATION
+RISK_TIER_MAX_ALLOCATION = {
+    "safe": 0.05, "moderate": 0.10, "aggressive": 0.20, "crazy": 0.50
+}
 
 async def execute(signal):
     risk_tier = signal.get("risk_tier", "conservative")
