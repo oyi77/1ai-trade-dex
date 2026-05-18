@@ -45,13 +45,13 @@ def admin_client():
 class TestAdminAuth:
     """Test admin API key enforcement."""
 
-    def test_settings_get_open_when_no_key_configured(self, client):
-        """If ADMIN_API_KEY is not set, endpoint is open."""
+    def test_settings_get_rejected_when_no_key_configured(self, client):
+        """If ADMIN_API_KEY is not set, endpoint is rejected (403)."""
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = None
         try:
             resp = client.get("/api/v1/admin/settings")
-            assert resp.status_code == 200
+            assert resp.status_code == 403
         finally:
             settings.ADMIN_API_KEY = original
 

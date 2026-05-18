@@ -374,7 +374,8 @@ async def analyze_market(
     if groq_edge <= 0.05:
         ai_logger = get_ai_logger()
         daily_stats = ai_logger.get_daily_stats()
-        cost = daily_stats.get("total_cost_usd", 0.0)
+        # E-136: Use per-call cost estimate, not the daily total
+        cost = daily_stats.get("avg_cost_per_call", 0.0)
         return AIAnalysis(
             probability=groq_prob,
             confidence=groq_conf,

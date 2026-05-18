@@ -99,7 +99,8 @@ class EnsembleSignalGenerator:
             active_probs.append(ai_prob)
 
         if len(active_probs) < 2:
-            confidence = active_probs[0] if active_probs else 0.0
+            # Single signal: confidence based on distance from 0.5 (neutral)
+            confidence = abs(active_probs[0] - 0.5) * 2.0 if active_probs else 0.0
         else:
             std = float(np.std(active_probs))
             confidence = 1.0 - (std / 0.5)  # Normalized inverse variance

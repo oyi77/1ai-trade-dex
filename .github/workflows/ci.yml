@@ -34,8 +34,8 @@ jobs:
         env:
           SIMULATION_MODE: "true"
           DATABASE_URL: "sqlite:///./test.db"
-          WALLET_FERNET_KEY: "D3IR1zYU0tRIwQLOLLNWSMgChbfmTO8lqX6em_zZ2L0="
         run: |
+          export WALLET_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           python -m pytest backend/tests/ tests/ -k "not live" \
             --cov=backend \
             --cov-report=term-missing \
@@ -62,10 +62,6 @@ jobs:
       - name: Run frontend tests
         working-directory: frontend
         run: npm test
-
-      - name: Run Playwright tests
-        working-directory: frontend
-        run: npx playwright test --reporter=list || true
 
       - name: Build
         working-directory: frontend

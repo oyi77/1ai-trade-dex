@@ -371,15 +371,40 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
-            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min ---
+            # --- Stale-market filter: skip markets within 1 hour of resolution ---
             from datetime import timedelta
+            market_end_date = None
+            if market_end_date_str:
+                try:
+                    market_end_date = datetime.fromisoformat(
+                        market_end_date_str.replace("Z", "+00:00")
+                    )
+                except (ValueError, TypeError):
+                    pass
+            if market_end_date is not None:
+                _now = datetime.now(timezone.utc)
+                _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
+                if _time_to_resolution < 60:
+                    logger.info(
+                        f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "
+                        f"{_time_to_resolution:.1f} min (< 60 min threshold)"
+                    )
+                    attempt_recorder.record_rejected(
+                        f"Stale market: {market_ticker} resolves in {_time_to_resolution:.1f} min",
+                        phase="stale_market",
+                        reason_code="REJECTED_STALE_MARKET",
+                        adjusted_size=adjusted_size,
+                    )
+                    db.commit()
+                    return None
+
+            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (ANY direction) ---
             _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
             _recent_dup = (
                 db.query(Trade)
                 .filter(
                     Trade.strategy == strategy_name,
                     Trade.market_ticker == market_ticker,
-                    Trade.direction == direction,
                     Trade.timestamp >= _cutoff,
                 )
                 .first()
@@ -387,12 +412,35 @@ def _execute_decision_paper_or_kalshi(
             if _recent_dup is not None:
                 logger.warning(
                     f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
-                    f"{direction} within 5 min (trade #{_recent_dup.id})"
+                    f"(any direction) within 5 min (trade #{_recent_dup.id})"
                 )
                 attempt_recorder.record_rejected(
-                    f"Duplicate: {market_ticker} {direction} already traded in last 5 min",
+                    f"Duplicate: {market_ticker} already traded in last 5 min (any direction)",
                     phase="duplicate_guard",
                     reason_code="REJECTED_DUPLICATE_MARKET",
+                    adjusted_size=adjusted_size,
+                )
+                db.commit()
+                return None
+
+            # --- Per-market position cap: max 1 open position per event ---
+            _existing_open = (
+                db.query(Trade)
+                .filter(
+                    Trade.market_ticker == market_ticker,
+                    Trade.settled == False,  # noqa: E712
+                )
+                .first()
+            )
+            if _existing_open is not None:
+                logger.warning(
+                    f"[{strategy_name}] Position cap blocked: already have open position "
+                    f"on {market_ticker} (trade #{_existing_open.id})"
+                )
+                attempt_recorder.record_rejected(
+                    f"Position cap: already have open position on {market_ticker}",
+                    phase="position_cap",
+                    reason_code="REJECTED_POSITION_CAP",
                     adjusted_size=adjusted_size,
                 )
                 db.commit()
@@ -1129,6 +1177,81 @@ async def _execute_decision_live_clob(
                     f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f}",
                     phase="sizing",
                     reason_code="REJECTED_ORDER_TOO_SMALL",
+                    adjusted_size=adjusted_size,
+                )
+                db.commit()
+                return None
+
+            # --- Stale-market filter: skip markets within 1 hour of resolution ---
+            from datetime import timedelta
+            market_end_date = None
+            if market_end_date_str:
+                try:
+                    market_end_date = datetime.fromisoformat(
+                        market_end_date_str.replace("Z", "+00:00")
+                    )
+                except (ValueError, TypeError):
+                    pass
+            if market_end_date is not None:
+                _now = datetime.now(timezone.utc)
+                _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
+                if _time_to_resolution < 60:
+                    logger.info(
+                        f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "
+                        f"{_time_to_resolution:.1f} min (< 60 min threshold)"
+                    )
+                    attempt_recorder.record_rejected(
+                        f"Stale market: {market_ticker} resolves in {_time_to_resolution:.1f} min",
+                        phase="stale_market",
+                        reason_code="REJECTED_STALE_MARKET",
+                        adjusted_size=adjusted_size,
+                    )
+                    db.commit()
+                    return None
+
+            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (ANY direction) ---
+            _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+            _recent_dup = (
+                db.query(Trade)
+                .filter(
+                    Trade.strategy == strategy_name,
+                    Trade.market_ticker == market_ticker,
+                    Trade.timestamp >= _cutoff,
+                )
+                .first()
+            )
+            if _recent_dup is not None:
+                logger.warning(
+                    f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
+                    f"(any direction) within 5 min (trade #{_recent_dup.id})"
+                )
+                attempt_recorder.record_rejected(
+                    f"Duplicate: {market_ticker} already traded in last 5 min (any direction)",
+                    phase="duplicate_guard",
+                    reason_code="REJECTED_DUPLICATE_MARKET",
+                    adjusted_size=adjusted_size,
+                )
+                db.commit()
+                return None
+
+            # --- Per-market position cap: max 1 open position per event ---
+            _existing_open = (
+                db.query(Trade)
+                .filter(
+                    Trade.market_ticker == market_ticker,
+                    Trade.settled == False,  # noqa: E712
+                )
+                .first()
+            )
+            if _existing_open is not None:
+                logger.warning(
+                    f"[{strategy_name}] Position cap blocked: already have open position "
+                    f"on {market_ticker} (trade #{_existing_open.id})"
+                )
+                attempt_recorder.record_rejected(
+                    f"Position cap: already have open position on {market_ticker}",
+                    phase="position_cap",
+                    reason_code="REJECTED_POSITION_CAP",
                     adjusted_size=adjusted_size,
                 )
                 db.commit()

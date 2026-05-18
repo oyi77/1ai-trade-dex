@@ -1,5 +1,5 @@
 import { POLL } from '../../polling'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { updateCredentials, changeAdminPassword, fetchSystemStatus, toggleTradingMode } from '../../api'
 import { useAuth } from '../../hooks/useAuth'
@@ -183,9 +183,11 @@ export function CredentialsTab() {
   }
 
   // Initialize signature type from server once loaded
-  if (sysStatus && signatureType === 0 && sysStatus.signature_type !== 0 && !builderApiKey) {
-    setSignatureType(sysStatus.signature_type)
-  }
+  useEffect(() => {
+    if (sysStatus && signatureType === 0 && sysStatus.signature_type !== 0 && !builderApiKey) {
+      setSignatureType(sysStatus.signature_type)
+    }
+  }, [sysStatus, signatureType, builderApiKey])
 
   return (
     <div className="space-y-4">

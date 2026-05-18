@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 from loguru import logger
 
+from backend.strategies.base import BaseStrategy
+
 # Maps strategy name -> strategy class
 STRATEGY_REGISTRY: dict[str, type] = {}
 # Maps compiled genome strategy name -> genome_id
@@ -35,23 +37,6 @@ def register_genome_strategy(strategy_name: str, genome_id: str) -> None:
 def get_genome_id_for_strategy(strategy_name: str) -> str | None:
     """Return genome_id for compiled strategy names when available."""
     return STRATEGY_GENOME_REGISTRY.get(strategy_name)
-
-
-class BaseStrategy:
-    """Base class for all PolyEdge trading strategies.
-
-    Subclasses must define a `name` class attribute.
-    They are auto-registered in STRATEGY_REGISTRY on class creation.
-    """
-
-    name: str = ""
-    description: str = ""
-    category: str = "general"
-    default_params: dict = {}
-
-    def __init_subclass__(cls, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
-        _auto_register(cls)
 
 
 @dataclass
@@ -186,11 +171,11 @@ def _extract_win_rate(text: str) -> float | None:
 def is_strategy_enabled(name: str, db=None) -> bool:
     """Check if a strategy is enabled in the database.
 
-    Returns True if no DB session provided (default to enabled for strategies
-    not yet in DB). Returns the DB enabled flag otherwise.
+    Returns False if no DB session provided (fail-closed for safety).
+    Returns the DB enabled flag otherwise.
     """
     if db is None:
-        return True
+        return False
     try:
         from backend.models.database import StrategyConfig
         config = db.query(StrategyConfig).filter(

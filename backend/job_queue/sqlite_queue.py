@@ -208,18 +208,30 @@ class AsyncSQLiteQueue(AbstractQueue):
                     else_=99
                 )
 
-                # Fetch next pending job with row-level locking (SELECT FOR UPDATE)
-                job = session.query(JobQueue).filter(
+                # SQLite doesn't support SELECT FOR UPDATE — use atomic UPDATE instead
+                # Find the highest-priority pending job and atomically set it to processing
+                pending_job = session.query(JobQueue).filter(
                     JobQueue.status == "pending"
                 ).order_by(
                     priority_order,
                     JobQueue.scheduled_at.asc()
-                ).with_for_update().first()
+                ).first()
 
-                if not job:
+                if not pending_job:
                     return None
 
-                # Update status to processing
+                # Atomically claim the job by updating status
+                updated = session.query(JobQueue).filter(
+                    JobQueue.id == pending_job.id,
+                    JobQueue.status == "pending"
+                ).update({"status": "processing", "started_at": _now()})
+
+                if not updated:
+                    # Another worker claimed it — return None, caller retries
+                    session.rollback()
+                    return None
+
+                job = pending_job
                 job.status = "processing"
                 job.started_at = _now()
                 session.commit()

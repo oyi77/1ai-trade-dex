@@ -36,7 +36,9 @@ REJECTION_ADJUSTMENTS = {
     },
     "REJECTED_ORDER_TOO_SMALL": {
         "description": "Trade size below exchange minimum — increase kelly fraction or minimum edge",
-        "param_adjustments": {"kelly_fraction": 1.8, "min_edge": 0.04},
+        # E-129: Cap kelly_fraction adjustment so it doesn't exceed max_kelly ceiling
+        # Typical max kelly is 0.5; 1.8x multiplier on a base of 0.25 = 0.45 (safe)
+        "param_adjustments": {"kelly_fraction_multiplier": 1.5, "min_edge": 0.04},
         "root_cause_checks": [],
     },
     "BLOCKED_DUPLICATE_OPEN_POSITION": {

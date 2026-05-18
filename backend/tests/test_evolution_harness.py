@@ -16,7 +16,6 @@ from backend.core.evolution_harness import (
     DEAPEvolutionBackend,
     Individual,
     LegacyGenomeBackend,
-    PopulationStats,
     _dominates,
     create_evolution_backend,
 )

@@ -987,15 +987,11 @@ class TestLiveModeCallsCLOB:
         TestSession = sessionmaker(bind=test_engine)
         Base.metadata.create_all(bind=test_engine)
 
-        from backend.models.database import StrategyConfig
-
         db = TestSession()
         _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
-        db.add(StrategyConfig(
-            strategy_name="live_strategy",
-            enabled=True,
-            mode="live",
-        ))
+        # Add StrategyConfig with mode="live" so gate allows live execution
+        from backend.models.database import StrategyConfig
+        db.add(StrategyConfig(strategy_name="live_strategy", enabled=True, mode="live"))
         db.commit()
         db.close()
 
@@ -1060,15 +1056,10 @@ class TestLiveModeCallsCLOB:
         TestSession = sessionmaker(bind=test_engine)
         Base.metadata.create_all(bind=test_engine)
 
-        from backend.models.database import StrategyConfig
-
         db = TestSession()
         _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
-        db.add(StrategyConfig(
-            strategy_name="live_strategy",
-            enabled=True,
-            mode="live",
-        ))
+        from backend.models.database import StrategyConfig
+        db.add(StrategyConfig(strategy_name="live_strategy", enabled=True, mode="live"))
         db.commit()
         db.close()
 
@@ -1155,6 +1146,9 @@ class TestLiveModeCallsCLOB:
 
         db = TestSession()
         _seed_state(db, bankroll=1000.0, paper_bankroll=1000.0, mode="testnet")
+        from backend.models.database import StrategyConfig
+        db.add(StrategyConfig(strategy_name="testnet_strategy", enabled=True, mode="live"))
+        db.commit()
         db.close()
 
         mock_clob = AsyncMock()

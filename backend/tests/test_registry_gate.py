@@ -19,12 +19,18 @@ class _BadStrategy(BaseStrategy):
     category = "test"
     default_params = {}
 
+    async def run_cycle(self, ctx):
+        pass
+
 
 class _GoodStrategy(BaseStrategy):
     name = "_test_good_perf"
     description = "Solid strategy"
     category = "test"
     default_params = {}
+
+    async def run_cycle(self, ctx):
+        pass
 
 
 def test_extract_roi():

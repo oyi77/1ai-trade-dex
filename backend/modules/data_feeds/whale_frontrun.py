@@ -84,8 +84,14 @@ class WhaleFrontrun(BaseStrategy):
         self._reconnect_count = 0
         self._running = False
         self._ws_initialized = False
-        self._state_lock = asyncio.Lock()  # protects _ws, _running, _reconnect_count, _activity_buffer
+        self._state_lock: Optional[asyncio.Lock] = None  # lazily created in async context
         self._tokens_resolved = False
+
+    def _get_lock(self) -> asyncio.Lock:
+        """Lazily create the lock in async context."""
+        if self._state_lock is None:
+            self._state_lock = asyncio.Lock()
+        return self._state_lock
 
     async def start(self, ctx: StrategyContext) -> None:
         """Start the whale front-runner — connect WebSocket on first cycle."""
@@ -217,7 +223,7 @@ class WhaleFrontrun(BaseStrategy):
         if not self._ws_initialized:
             await self.start(ctx)
 
-        async with self._state_lock:
+        async with self._get_lock():
             buffered = list(self._activity_buffer)
             self._activity_buffer.clear()
 
@@ -257,9 +263,10 @@ class WhaleFrontrun(BaseStrategy):
                     })
 
                     if result.sell_scheduled:
-                        asyncio.create_task(
+                        task = asyncio.create_task(
                             self._delayed_sell(activity, result.profit)
                         )
+                        task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
 
             except Exception as exc:
                 errors.append(str(exc))
@@ -388,7 +395,7 @@ class WhaleFrontrun(BaseStrategy):
                 async for message in self._ws.stream():
                     activity = self._parse_whale_message(message)
                     if activity:
-                        async with self._state_lock:
+                        async with self._get_lock():
                             self._activity_buffer.append(activity)
 
             except Exception as exc:

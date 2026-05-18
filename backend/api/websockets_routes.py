@@ -35,6 +35,10 @@ class WebSocketMessageRateLimiter:
         ws_id = id(websocket)
         now = time.time()
 
+        # Periodic cleanup of stale entries (every ~100 calls)
+        if len(self._message_timestamps) > 0 and now % 100 < 1:
+            self.prune_stale()
+
         if ws_id not in self._message_timestamps:
             self._message_timestamps[ws_id] = []
 
@@ -55,6 +59,16 @@ class WebSocketMessageRateLimiter:
         """Clean up tracking for closed connection."""
         ws_id = id(websocket)
         self._message_timestamps.pop(ws_id, None)
+
+    def prune_stale(self) -> None:
+        """Remove entries with no recent activity to prevent memory leaks."""
+        now = time.time()
+        stale_ids = [
+            ws_id for ws_id, timestamps in self._message_timestamps.items()
+            if not timestamps or (now - timestamps[-1]) > 300  # 5 min idle
+        ]
+        for ws_id in stale_ids:
+            del self._message_timestamps[ws_id]
 
 
 _message_rate_limiter = WebSocketMessageRateLimiter()
@@ -297,46 +311,6 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
         await connection_limiter.release_ws_connection(websocket)
 
 
-@router.websocket("/ws/dashboard-data")
-async def websocket_stats(websocket: WebSocket, token: str = ""):
-    if not authorize_realtime_access(
-        token=token or None,
-        admin_session=websocket.cookies.get("admin_session"),
-    ):
-        await websocket.close(code=1008, reason="Unauthorized")
-        return
-
-    allowed, error_msg = await connection_limiter.check_ws_limit(websocket)
-    if not allowed:
-        await websocket.close(code=1008, reason=error_msg)
-        return
-
-    await websocket.accept()
-
-    try:
-        allowed, error_msg = _message_rate_limiter.check_rate_limit(websocket)
-        if not allowed:
-            await websocket.close(code=1008, reason=error_msg)
-            return
-        data = await websocket.receive_json()
-        if data.get("action") == "subscribe":
-            topic = data.get("topic", "stats")
-            await topic_manager.subscribe(websocket, topic)
-            await websocket.send_json({"type": "subscribed", "topic": topic})
-
-        while True:
-            await asyncio.sleep(60)
-    except WebSocketDisconnect:
-        logger.info("Stats WebSocket disconnected")
-        await topic_manager.disconnect(websocket)
-    except Exception as e:
-        logger.exception(
-            f"[api.websockets.websocket_stats] {type(e).__name__}: Stats WebSocket error: {e}"
-        )
-        await topic_manager.disconnect(websocket)
-    finally:
-        _message_rate_limiter.cleanup(websocket)
-        await connection_limiter.release_ws_connection(websocket)
 
 
 @router.websocket("/ws/livestream")

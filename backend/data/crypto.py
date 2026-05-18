@@ -56,8 +56,7 @@ async def close_crypto_client() -> None:
     _crypto_client = None
 
 
-# 30-second cache to avoid hammering Binance during a single scan cycle
-_kline_cache: Dict[str, Any] = {"data": None, "ts": 0.0}
+# E-98: Removed dead _kline_cache — use _kline_caches (per-asset) below instead
 _CACHE_TTL = 30.0
 
 # Feed health tracking: source_name -> last_successful_fetch_timestamp
@@ -180,7 +179,7 @@ async def fetch_crypto_klines(pair: str = "BTCUSDT", limit: int = 60) -> Optiona
             cache["ts"] = now
             cache["_source"] = "coinbase"
             _feed_health["coinbase"] = time.time()
-            await coinbase_breaker._on_success()
+            await coinbase_breaker.record_success()
             return candles
         except Exception as e:
             logger.warning(f"Coinbase kline fetch failed for {pair}, trying Kraken: {repr(e)}")

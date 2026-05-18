@@ -48,7 +48,7 @@ class CircuitBreaker:
             # 1. Query last N trades for win rate, match trading_mode
             q_trades = (
                 session.query(Trade)
-                .filter(Trade.strategy == strategy_name, Trade.settled == True)
+                .filter(Trade.strategy == strategy_name, Trade.settled)
                 .order_by(Trade.id.desc())
                 .limit(STRATEGY_WINRATE_LOOKBACK_TRADES)
             )
@@ -63,7 +63,7 @@ class CircuitBreaker:
                 session.query(sa.func.sum(Trade.pnl))
                 .filter(
                     Trade.strategy == strategy_name,
-                    Trade.settled == True,
+                    Trade.settled,
                     Trade.timestamp >= cutoff,
                 )
             )
@@ -198,6 +198,14 @@ class CircuitBreaker:
                 and self.failure_count >= self.failure_threshold
             ):
                 self._transition(State.OPEN)
+
+    async def record_success(self) -> None:
+        """Record a successful call — public API for circuit breaker recovery."""
+        await self._on_success()
+
+    async def record_failure(self) -> None:
+        """Record a failed call — public API for circuit breaker tripping."""
+        await self._on_failure()
 
     async def _on_success(self) -> None:
         async with self._lock:

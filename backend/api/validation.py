@@ -352,11 +352,11 @@ class WalletConfigUpdateRequest(BaseModel):
 
     @field_validator('pseudonym', 'notes')
     @classmethod
-    def sanitize_text_fields(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_text_fields(cls, v: Optional[str], info) -> Optional[str]:
         """Sanitize text fields."""
         if v is None:
             return v
-        max_len = 2000 if v == 'notes' else 100
+        max_len = 2000 if info.field_name == 'notes' else 100
         return sanitize_string(v, max_length=max_len)
 
     @field_validator('tags')

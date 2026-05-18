@@ -1,0 +1,12 @@
+{
+  "benchmark_id": "few_shot_learning",
+  "score": 1.0,
+  "passed": true,
+  "metadata": {
+    "gap": 0.33333333333333337,
+    "train_success_rate": 0.6666666666666666,
+    "test_success_rate": 1.0,
+    "strategy_id": "few_shot_sports_20260517_060935"
+  },
+  "timestamp": "2026-05-17T06:09:35.977594"
+}

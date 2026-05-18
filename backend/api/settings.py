@@ -545,22 +545,24 @@ def _start_mirofish_backend():
     import os
     venv_python = os.path.join(MIROFISH_BACKEND_DIR, "venv", "bin", "python")
     env = {**os.environ}
+    # E-96: Pipe stderr to PIPE so startup errors are not silently swallowed
     return subprocess.Popen(
         [venv_python, "run.py"],
         cwd=MIROFISH_BACKEND_DIR,
         env=env,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
     )
 
 
 def _start_mirofish_frontend():
     import subprocess
+    # E-96: Pipe stderr to PIPE so startup errors are not silently swallowed
     return subprocess.Popen(
         ["npx", "vite", "preview", "--port", str(MIROFISH_FRONTEND_PORT), "--host"],
         cwd=MIROFISH_FRONTEND_DIR,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
         shell=False,
     )
 
@@ -754,7 +756,7 @@ def _profile_to_response(p) -> RiskProfileResponse:
 
 
 @router.get("/risk/profile", response_model=RiskProfileListResponse)
-async def get_risk_profiles():
+async def get_risk_profiles(_: None = Depends(require_admin)):
     from backend.core.risk_profiles import list_profiles, get_active_profile_name
     active = get_active_profile_name()
     profiles = {k: _profile_to_response(p) for k, p in list_profiles().items()}
@@ -832,7 +834,7 @@ async def delete_risk_profile(
 
 
 @router.get("/mirofish/signals")
-async def get_mirofish_signals(market: str = "polymarket", question: str = "", db: Session = Depends(get_db)):
+async def get_mirofish_signals(market: str = "polymarket", question: str = "", db: Session = Depends(get_db), _: None = Depends(require_admin)):
     """Get AI-powered trading signals — routes to external MiroFish or built-in debate engine.
 
     Behaviour controlled by MIROFISH_ENABLED and MIROFISH_API_URL in settings:

@@ -14,9 +14,8 @@ DB-backed historical data replay while adding vectorized computation.
 
 import math
 import random
-import statistics
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -322,7 +321,7 @@ class PyBrokerEngine:
             sample = [trades[rng.randint(0, n - 1)] for _ in range(n)]
             # Clear PnL to recompute
             for t in sample:
-                t_copy = TradeRecord(
+                TradeRecord(
                     timestamp=t.timestamp,
                     market_ticker=t.market_ticker,
                     direction=t.direction,

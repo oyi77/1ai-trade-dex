@@ -1,0 +1,17 @@
+Collecting deap
+  Downloading deap-1.4.4-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: numpy in /Users/paijo/.pyenv/versions/3.12.10/lib/python3.12/site-packages (from deap) (1.26.4)
+Collecting moocore (from deap)
+  Downloading moocore-0.3.1-cp310-abi3-macosx_10_9_universal2.whl.metadata (6.5 kB)
+Requirement already satisfied: cffi>=1.17.1 in /Users/paijo/.pyenv/versions/3.12.10/lib/python3.12/site-packages (from moocore->deap) (2.0.0)
+Requirement already satisfied: platformdirs in /Users/paijo/.pyenv/versions/3.12.10/lib/python3.12/site-packages (from moocore->deap) (4.3.8)
+Requirement already satisfied: pycparser in /Users/paijo/.pyenv/versions/3.12.10/lib/python3.12/site-packages (from cffi>=1.17.1->moocore->deap) (2.22)
+Downloading deap-1.4.4-py3-none-any.whl (93 kB)
+Downloading moocore-0.3.1-cp310-abi3-macosx_10_9_universal2.whl (631 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 631.7/631.7 kB 2.0 MB/s  0:00:00
+Installing collected packages: moocore, deap
+
+Successfully installed deap-1.4.4 moocore-0.3.1
+
+[notice] A new release of pip is available: 25.3 -> 26.1.1
+[notice] To update, run: pip install --upgrade pip

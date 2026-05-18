@@ -5,11 +5,10 @@ for embedding and vector storage.
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 import httpx
 

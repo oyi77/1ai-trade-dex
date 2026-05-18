@@ -12,11 +12,9 @@ to avoid overfitting.
 """
 
 import itertools
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Callable, Optional
+from dataclasses import dataclass
+from typing import Any, Optional
 
-import numpy as np
 
 from backend.core.pybroker_backtest import (
     PyBrokerConfig,

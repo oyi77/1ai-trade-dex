@@ -6,13 +6,9 @@ but adapted for the Hyperliquid venue.
 """
 from __future__ import annotations
 
-import time
-from typing import Optional
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
-from backend.config import settings
 
-from loguru import logger
 
 
 class HyperliquidStrategy(BaseStrategy):
@@ -52,7 +48,7 @@ class HyperliquidStrategy(BaseStrategy):
 
         min_edge = ctx.params.get("min_edge", self.default_params["min_edge"])
         max_entry = ctx.params.get("max_entry_price", self.default_params["max_entry_price"])
-        max_trade = ctx.params.get("max_trade_usd", self.default_params["max_trade_usd"])
+        ctx.params.get("max_trade_usd", self.default_params["max_trade_usd"])
 
         try:
             # Get Hyperliquid client from providers

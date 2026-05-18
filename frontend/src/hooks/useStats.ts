@@ -11,19 +11,22 @@ export function useStats() {
   useEffect(() => {
     let ws: WebSocket | null = null
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    const MAX_RECONNECT_DELAY = 30000
 
     const connect = () => {
       const wsUrl = getWsUrl('/ws/dashboard-data')
       ws = new WebSocket(wsUrl)
-      
+
       ws.onopen = () => {
+        retryCount = 0  // Reset on successful connection
         try {
           ws?.send(JSON.stringify({ action: 'subscribe', topic: 'stats' }))
         } catch (e) {
           console.error('Failed to subscribe to dashboard stats WebSocket:', e)
         }
       }
-      
+
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
@@ -34,11 +37,14 @@ export function useStats() {
           console.error('Failed to parse stats WebSocket message:', e)
         }
       }
-      
+
       ws.onerror = () => {}
-      
+
       ws.onclose = () => {
-        reconnectTimeout = setTimeout(connect, 3000)
+        // E-141: Exponential backoff instead of fixed 3s reconnect
+        retryCount++
+        const delay = Math.min(1000 * Math.pow(2, retryCount - 1), MAX_RECONNECT_DELAY)
+        reconnectTimeout = setTimeout(connect, delay)
       }
     }
 

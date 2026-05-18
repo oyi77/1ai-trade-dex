@@ -47,7 +47,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "npm run build",
+    "buildCommand": "cd /Users/paijo/1ai-poly-trader/frontend && npx tsc --noEmit 2>&1 | tail -10",
     "testCommand": "npm test",
     "lintCommand": null,
     "devCommand": "npm run dev",

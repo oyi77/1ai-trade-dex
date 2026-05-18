@@ -6,7 +6,6 @@ performance vs historical baseline and alerts on degradation.
 """
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 from dataclasses import dataclass, field

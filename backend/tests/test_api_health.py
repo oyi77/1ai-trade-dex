@@ -39,7 +39,7 @@ class TestHealth:
     def test_health_degrades_when_clob_check_times_out(self, client, monkeypatch):
         class SlowClob:
             async def create_or_derive_api_key(self):
-                await asyncio.sleep(10)
+                pass
 
             async def get_wallet_balance(self):
                 await asyncio.sleep(10)
@@ -58,12 +58,15 @@ class TestHealth:
 
         assert resp.status_code == 200
         assert data["status"] == "degraded"
-        assert data["dependencies"]["polymarket_clob"]["status"] == "error"
-        assert "timed out" in data["dependencies"]["polymarket_clob"]["error"]
+        assert data["dependencies"]["polymarket_clob"] == {
+            "status": "error",
+            "error": "health check timed out",
+        }
 
     def test_health_reports_clob_balance(self, client, monkeypatch):
         class HealthyClob:
             create_or_derive_api_key = AsyncMock()
+
             get_wallet_balance = AsyncMock(
                 return_value={"usdc_balance": 12.34, "token_balances": {}, "error": None}
             )
@@ -91,6 +94,7 @@ class TestHealth:
 
         class FailingClob:
             create_or_derive_api_key = AsyncMock()
+
             get_wallet_balance = AsyncMock(
                 return_value={"usdc_balance": 0.0, "token_balances": {}, "error": internal_error}
             )
@@ -109,8 +113,11 @@ class TestHealth:
 
         assert resp.status_code == 200
         assert data["status"] == "degraded"
-        assert data["dependencies"]["polymarket_clob"]["status"] == "error"
-        assert "error" in data["dependencies"]["polymarket_clob"]
+        assert data["dependencies"]["polymarket_clob"] == {
+            "status": "error",
+            "error": "wallet balance unavailable",
+        }
+        assert internal_error not in resp.text
 
 
 class TestStats:

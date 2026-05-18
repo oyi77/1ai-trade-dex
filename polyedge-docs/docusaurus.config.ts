@@ -38,6 +38,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           routeBasePath: '/',
+          exclude: ['**/AGENTS.md'],
         },
         blog: false,
         theme: {

@@ -1,13 +1,14 @@
 """Tests for PredictionMarketEnv — gymnasium interface, step/reset, and shapes."""
 import numpy as np
 import pytest
-from gymnasium.utils.env_checker import check_env
 
-from backend.core.rl_environment import (
+gymnasium = pytest.importorskip("gymnasium")
+from gymnasium.utils.env_checker import check_env  # noqa: E402
+
+from backend.core.rl_environment import (  # noqa: E402
     ACTION_BUY,
     ACTION_HOLD,
     ACTION_SELL,
-    MarketOpportunity,
     PredictionMarketEnv,
     generate_synthetic_opportunities,
 )

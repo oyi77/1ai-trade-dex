@@ -123,7 +123,6 @@ def _apply_via_safe_tuner(
     """
     try:
         import json
-        from backend.core.safe_param_tuner import SafeParamTuner
 
         # Clamp the change to SafeParamTuner limits
         max_change_pct = getattr(settings, "SAFE_TUNER_MAX_CHANGE_PCT", 0.10)

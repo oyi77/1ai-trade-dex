@@ -1,15 +1,17 @@
 """Tests for /api/v1/strategies CRUD endpoints (admin-protected)."""
 from backend.config import settings
 
+_TEST_ADMIN_KEY = "test-admin-key"
+
 
 def _admin_headers():
-    settings.ADMIN_API_KEY = None  # open mode for tests
-    return {}
+    settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
+    return {"Authorization": f"Bearer {_TEST_ADMIN_KEY}"}
 
 
 class TestStrategiesList:
     def setup_method(self):
-        settings.ADMIN_API_KEY = None
+        settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_strategies_returns_list(self, client):
         resp = client.get("/api/v1/strategies")
@@ -39,7 +41,7 @@ class TestStrategiesList:
 
 class TestStrategyGet:
     def setup_method(self):
-        settings.ADMIN_API_KEY = None
+        settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_nonexistent_strategy_returns_404(self, client):
         resp = client.get("/api/v1/strategies/does_not_exist_xyz")
@@ -59,12 +61,13 @@ class TestStrategyGet:
 
 class TestStrategyUpdate:
     def setup_method(self):
-        settings.ADMIN_API_KEY = None
+        settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_update_nonexistent_returns_404(self, client):
         resp = client.put(
             "/api/v1/strategies/does_not_exist_xyz",
             json={"enabled": False},
+            headers=_admin_headers(),
         )
         assert resp.status_code == 404
 
@@ -74,5 +77,9 @@ class TestStrategyUpdate:
         strategies = list_resp.json()
         if strategies:
             name = strategies[0]["name"]
-            resp = client.put(f"/api/v1/strategies/{name}", json={"enabled": False})
+            resp = client.put(
+                f"/api/v1/strategies/{name}",
+                json={"enabled": False},
+                headers=_admin_headers(),
+            )
             assert resp.status_code == 200

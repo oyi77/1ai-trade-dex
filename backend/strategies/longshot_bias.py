@@ -79,18 +79,22 @@ class LongshotBiasStrategy(BaseStrategy):
                     # If true probability ~0.5 for longshots, buying NO at no_price
                     # gives EV = true_prob * 1.0 - no_price
                     # Empirical: NO at <30c has +23% EV
-                    ev = 0.23  # empirical longshot NO bias EV
+                    # E-106: Compute EV dynamically instead of hardcoding 0.23
+                    # Empirical longshot NO bias: true prob is higher than implied
+                    # Use a calibrated bias factor based on how far from 50c
+                    bias_factor = 0.15 + 0.20 * (0.50 - no_price) / 0.50  # scales with distance from 50c
+                    ev = max(0.0, bias_factor * no_price)
 
                     if ev < min_ev:
                         continue
 
-                    # Kelly sizing: f* = (p * b - q) / b
-                    # where p = win prob, q = 1-p, b = net odds
-                    win_prob = 1.0 - yes_price  # implied NO probability
+                    # E-107: Kelly sizing — use corrected win_prob, not market price directly
+                    # true probability = implied_prob + EV / payout
+                    true_win_prob = min(0.95, (1.0 - yes_price) + ev / 1.0)
                     odds = (1.0 / no_price) - 1.0  # net odds
                     if odds <= 0:
                         continue
-                    kelly = (win_prob * odds - (1.0 - win_prob)) / odds
+                    kelly = (true_win_prob * odds - (1.0 - true_win_prob)) / odds
                     kelly = max(0, kelly * kelly_frac)  # fractional Kelly
                     position_size = min(kelly * 100.0, max_position)  # cap at max
 

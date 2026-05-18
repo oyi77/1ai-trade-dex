@@ -46,7 +46,7 @@ def load_model_safely(pkl_path: str) -> Tuple[object, bool]:
     class _RestrictedUnpickler(pickle.Unpickler):
         ALLOWED_PREFIXES = (
             "sklearn.", "numpy.", "numpy", "scipy.",
-            "__builtin__", "builtins", "collections", "pickle", "copyreg",
+            "__builtin__", "builtins", "collections",
         )
         def find_class(self, module, name):
             for prefix in self.ALLOWED_PREFIXES:

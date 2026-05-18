@@ -41,11 +41,15 @@ _gamma_breaker = CircuitBreaker(
 )
 _market_locks: dict[str, asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()
+_MAX_MARKET_LOCKS = 500  # E-105: prevent unbounded memory growth
 
 
 async def _get_market_lock(market_id: str) -> asyncio.Lock:
     """Get or create a lock for a specific market to prevent race conditions."""
     async with _locks_lock:
+        # E-105: Evict stale locks when dict grows too large
+        if len(_market_locks) >= _MAX_MARKET_LOCKS:
+            _market_locks.clear()
         if market_id not in _market_locks:
             _market_locks[market_id] = asyncio.Lock()
         return _market_locks[market_id]
@@ -383,8 +387,11 @@ class UniversalScanner(BaseStrategy):
         if not (0.0 < price < 1.0):
             return None
 
-        no_price = 1.0 - price
-        implied_prob = 1.0 - no_price
+        1.0 - price
+        # Use model's estimated probability rather than deriving from market price
+        # (which always gives edge=0 when implied_prob == price)
+        model_prob = self.default_params.get("model_probability", price)
+        implied_prob = model_prob
         edge = price - implied_prob
 
         if abs(edge) < self.default_params["min_edge"]:

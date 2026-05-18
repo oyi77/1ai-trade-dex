@@ -278,7 +278,11 @@ class StrategySynthesizer:
             return {"passed": True, "reason": f"skipped:{e}", "sharpe": 0.0, "max_drawdown": 0.0}
 
     def safe_import_test(self, code: str) -> ValidationResult:
-        """Gate 4: exec the generated code in a restricted sandbox namespace."""
+        """Gate 4: exec the generated code in a restricted sandbox namespace.
+
+        All LLM-generated code executes in a sandboxed namespace with dangerous
+        builtins (import, exec, eval, open, etc.) explicitly blocked.
+        """
         restricted_builtins = {
             "len": len,
             "range": range,
@@ -300,6 +304,15 @@ class StrategySynthesizer:
             "print": lambda *args, **kwargs: None,
             "__build_class__": __build_class__,
             "__name__": "_synth_test",
+            "__import__": None,
+            "open": None,
+            "exec": None,
+            "eval": None,
+            "compile": None,
+            "globals": None,
+            "locals": None,
+            "breakpoint": None,
+            "input": None,
         }
         safe_namespace: dict = {"__builtins__": restricted_builtins}
         try:
@@ -366,7 +379,7 @@ class StrategySynthesizer:
 
     def _stub_strategy(self, description: str, regime: MarketRegime, reason: str = "") -> GeneratedStrategy:
         """Return a non-validated stub when LLM synthesis is unavailable."""
-        self._generation_count += 1
+        # E-125: Don't double-increment — _generation_count already incremented in generate()
         name = f"stub_strategy_{self._generation_count}"
         code = (
             f'from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult\n\n'

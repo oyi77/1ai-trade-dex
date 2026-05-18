@@ -689,11 +689,32 @@ class CryptoOracleStrategy(BaseStrategy):
                         )
                         continue
 
-                    if direction == "yes":
-                        oracle_implied = min(0.95, market_mid + min_edge)
+                    # Compute real edge: oracle probability from spot price vs strike
+                    # Extract strike from question for edge calculation
+                    import re as _re
+                    _q = market.question.lower()
+                    _match = _re.search(r"\$?([\d,]+\.?\d*)\s*k?\b", _q)
+                    if _match:
+                        _raw = _match.group(1).replace(",", "")
+                        _threshold = float(_raw)
+                        if "k" in _q[_match.start():_match.end() + 2].lower() and _threshold < 10000:
+                            _threshold *= 1000
+                        # pct_diff: how far spot is from strike (positive = above)
+                        pct_diff = (crypto_price - _threshold) / _threshold if _threshold > 0 else 0.0
+                        # Oracle probability: sigmoid-like mapping centered at strike
+                        # +2% above strike → ~0.60, +10% → ~0.95
+                        if direction == "yes":
+                            oracle_implied = max(0.05, min(0.95, 0.5 + pct_diff * 5.0))
+                        else:
+                            oracle_implied = max(0.05, min(0.95, 0.5 - pct_diff * 5.0))
                     else:
-                        oracle_implied = max(0.05, market_mid - min_edge)
-                    edge = abs(oracle_implied - market_mid) - min_edge
+                        # Fallback: use moderate edge from market_mid
+                        oracle_implied = market_mid + (min_edge * 2 if direction == "yes" else -min_edge * 2)
+                        oracle_implied = max(0.05, min(0.95, oracle_implied))
+                    edge = oracle_implied - market_mid
+                    # No sign flip needed — market_mid is already market.no_price
+                    # for NO direction (line 682), so oracle_implied - market_mid
+                    # gives correct positive edge when NO is underpriced.
 
                     decision = "BUY" if edge > 0 else "SKIP"
                     confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
@@ -801,7 +822,7 @@ class CryptoOracleStrategy(BaseStrategy):
                                 "size": suggested_size,
                                 "entry_price": oracle_entry_price,
                                 "suggested_size": suggested_size,
-                                "model_probability": 1.0 if direction == "yes" else 0.0,
+                                "model_probability": max(0.05, min(0.95, oracle_implied)),
                                 "market_probability": market_mid,
                                 "platform": settings.DEFAULT_VENUE,
                                 "strategy_name": self.name,

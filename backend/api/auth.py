@@ -21,7 +21,10 @@ def require_admin(authorization: str | None = Header(None)):
     """Require admin API key if ADMIN_API_KEY is configured."""
     key = settings.ADMIN_API_KEY
     if not key:
-        return  # No key configured = open (dev mode)
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access denied — ADMIN_API_KEY not configured",
+        )
     if not authorization or authorization != f"Bearer {key}":
         raise HTTPException(
             status_code=401,
@@ -60,15 +63,21 @@ def _mask_value(field_name: str, value) -> str:
 # In-memory session store: token -> {"created_at": float, "csrf": str}
 _SESSION_STORE: dict[str, dict] = {}
 _SESSION_TTL_SECONDS = 86400  # 24 hours
+_SESSION_MAX_SIZE = 256  # E-95: cap in-memory session store
 _COOKIE_NAME = "admin_session"
 
 
 def _cleanup_expired_sessions() -> None:
-    """Remove sessions older than TTL."""
+    """Remove sessions older than TTL and enforce max store size."""
     now = time.time()
     expired = [tok for tok, data in _SESSION_STORE.items() if now - data["created_at"] > _SESSION_TTL_SECONDS]
     for tok in expired:
         del _SESSION_STORE[tok]
+    # E-95: Evict oldest sessions if store exceeds max size
+    if len(_SESSION_STORE) > _SESSION_MAX_SIZE:
+        sorted_sessions = sorted(_SESSION_STORE.items(), key=lambda x: x[1]["created_at"])
+        for tok, _ in sorted_sessions[: len(_SESSION_STORE) - _SESSION_MAX_SIZE]:
+            del _SESSION_STORE[tok]
 
 
 class CookieLoginBody(BaseModel):
@@ -118,7 +127,7 @@ def require_admin_from_cookie(
     """Authenticate via cookie + CSRF OR via Bearer header (backward compat)."""
     key = settings.ADMIN_API_KEY
     if not key:
-        return  # No key configured = open (dev mode)
+        raise HTTPException(status_code=403, detail="Admin access denied — ADMIN_API_KEY not configured")
 
     # Backward compat: Bearer header auth
     if authorization and authorization == f"Bearer {key}":
@@ -148,11 +157,11 @@ def require_csrf(
     """Validate CSRF token for cookie-authenticated mutating requests."""
     key = settings.ADMIN_API_KEY
     if not key:
-        return
+        raise HTTPException(status_code=403, detail="Admin access denied — ADMIN_API_KEY not configured")
     if authorization and authorization == f"Bearer {key}":
         return
     if not admin_session or admin_session not in _SESSION_STORE:
-        return
+        raise HTTPException(status_code=401, detail="Unauthorized — no valid session")
     session = _SESSION_STORE[admin_session]
     if not x_csrf_token or x_csrf_token != session.get("csrf"):
         raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
@@ -172,12 +181,27 @@ def _get_valid_session(admin_session: str | None) -> dict | None:
 
 
 def authorize_realtime_access(token: str | None = None, admin_session: str | None = None) -> bool:
-    """Authorize SSE/WebSocket access — public read-only for dashboard data.
+    """Authorize SSE/WebSocket access — requires valid auth.
 
-    Real-time streams are read-only (no write capability) so public access
-    is safe. Auth is still enforced for admin actions via require_admin.
+    Checks: Bearer token matches ADMIN_API_KEY, or a valid cookie session exists.
+    Returns False (rejects) when no valid credential is provided.
     """
-    return True
+    key = settings.ADMIN_API_KEY
+
+    # If no admin key is configured, reject all realtime access
+    if not key:
+        return False
+
+    # Check Bearer token
+    if token and token == key:
+        return True
+
+    # Check cookie-based session
+    session = _get_valid_session(admin_session)
+    if session:
+        return True
+
+    return False
 
 
 def _persist_env_updates(updates: dict[str, str]) -> None:

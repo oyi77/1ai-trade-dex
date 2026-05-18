@@ -83,8 +83,10 @@ class RegimeDetector:
         else:
             regime, confidence = MarketRegime.UNKNOWN, 0.0
 
+        # E-121: Hysteresis logic — require NEW regime confidence to exceed current
+        # by the hysteresis threshold, not just be "close to" current confidence
         if self._current_regime != MarketRegime.UNKNOWN and regime != self._current_regime:
-            if abs(confidence - self._current_confidence) < self._hysteresis:
+            if confidence < self._current_confidence + self._hysteresis:
                 regime = self._current_regime
                 confidence = self._current_confidence
 

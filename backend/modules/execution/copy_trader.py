@@ -429,13 +429,23 @@ class CopyTraderStrategy(BaseStrategy):
         self.subscribed_tokens.add(event.token_id)
         confidence = min(0.85, size / 1000.0)
         edge = abs(price - 0.50) * 0.3
+        # E-101: Copy trade direction should follow the copied trader's actual side,
+        # not just price > 0.50. Use event data if available, else derive from edge.
+        copied_side = event.data.get("side", "").upper()
+        if copied_side not in ("BUY", "SELL"):
+            # Default: BUY when edge is positive (price implies value), SKIP otherwise
+            decision = "BUY" if edge > 0.01 else "SKIP"
+            direction = "yes" if price > 0.50 else "no"
+        else:
+            decision = copied_side
+            direction = event.data.get("outcome", "yes" if price > 0.50 else "no")
         return {
-            "decision": "BUY" if price > 0.50 else "SKIP",
+            "decision": decision,
             "market_ticker": event.token_id,
             "confidence": confidence,
             "edge": edge,
             "size": min(10.0, size * 0.01),
-            "direction": "yes" if price > 0.50 else "no",
+            "direction": direction,
             "model_probability": price,
             "platform": settings.DEFAULT_VENUE,
             "strategy_name": self.name,
@@ -505,8 +515,9 @@ class CopyTraderStrategy(BaseStrategy):
                     strategy=self.name,
                     market_ticker=wallet[:42],  # wallet address as identifier
                     decision=decision,
-                    confidence=wallet_signals[0].trader_score / 100.0
-                    if wallet_signals
+                    # E-102: None check on trader_score before division
+                    confidence=(wallet_signals[0].trader_score / 100.0)
+                    if wallet_signals and wallet_signals[0].trader_score is not None
                     else None,
                     signal_data=signal_data if wallet_signals else json.dumps(
                         {"min_score": min_score, "max_wallets": max_wallets, "sources": ["copy_trader"]}

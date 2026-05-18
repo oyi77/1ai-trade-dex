@@ -6,14 +6,13 @@ See docs/architecture/adr-011-rl-environment.md for design decisions.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from loguru import logger
 
 
 # --- Action constants ---
@@ -145,7 +144,6 @@ class PredictionMarketEnv(gym.Env):
         self._episode_seed = seed
 
         # Spaces
-        market_dim = 6  # probability, volume, spread, time_to_settlement, regime, signal_confidence
         portfolio_dim = 1 + max_positions + 1  # bankroll + positions + unrealized_pnl
 
         self.observation_space = spaces.Dict(

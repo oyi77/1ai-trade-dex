@@ -262,6 +262,10 @@ class Trade(Base):
     edge_at_entry = Column(Float, nullable=True)
     data_quality_flags = Column(Text, nullable=True)
 
+    # CLOB identifiers
+    token_id = Column(String, nullable=True, index=True)
+    condition_id = Column(String, nullable=True, index=True)
+
     # Blockchain verification
     blockchain_verified = Column(Boolean, default=False)
     settlement_source = Column(String, nullable=True)

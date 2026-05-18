@@ -16,8 +16,6 @@ from backend.core.position_monitor import (
     OpenPositionSnapshot,
     SellSignal,
     _evaluate_sell_triggers,
-    _build_snapshot,
-    detect_sell_signals,
     execute_sell_signals,
     PROFIT_TAKE_PROBABILITY,
     STOP_LOSS_DROP_PP,

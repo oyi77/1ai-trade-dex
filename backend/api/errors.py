@@ -24,6 +24,7 @@ class FrontendErrorReport(BaseModel):
 async def report_frontend_error(
     error_report: FrontendErrorReport,
     db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
 ):
     """Receive and log frontend errors from ErrorBoundary."""
     try:

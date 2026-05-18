@@ -41,7 +41,10 @@ class MarketMakerStrategy(BaseStrategy):
     }
 
     @staticmethod
-    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = settings.MARKET_MAKER_LMSR_LIQUIDITY_PARAM) -> dict:
+    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = None) -> dict:
+        # E-110: Evaluate settings at call time, not class definition time
+        if liquidity_param is None:
+            liquidity_param = settings.MARKET_MAKER_LMSR_LIQUIDITY_PARAM
         import math
         b = max(liquidity_param, 0.1)
         exp_yes = math.exp(yes_inventory / b)

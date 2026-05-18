@@ -30,13 +30,16 @@ class NotificationRegistry:
 
     @classmethod
     def reset(cls) -> None:
-        if cls._instance is not None:
-            cls._instance._plugins.clear()
-            cls._instance._manifests.clear()
-            cls._instance._enabled.clear()
-            cls._instance._health_status.clear()
-            cls._instance.__initialized = False
-            cls._instance = None
+        """E-97: Thread-safe singleton reset — acquire lock before clearing state."""
+        import threading
+        with threading.Lock():
+            if cls._instance is not None:
+                cls._instance._plugins.clear()
+                cls._instance._manifests.clear()
+                cls._instance._enabled.clear()
+                cls._instance._health_status.clear()
+                cls._instance.__initialized = False
+                cls._instance = None
 
     def plugin(self, cls: type) -> type:
         self.register(cls)

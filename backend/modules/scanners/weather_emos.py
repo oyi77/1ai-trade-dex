@@ -325,10 +325,12 @@ def extract_threshold_from_question(question: str) -> tuple[float | None, str | 
 
 def load_calibration_states(db, strategy_name: str) -> dict[str, CalibrationState]:
     """Load EMOS calibration states from BotState JSON blob."""
+    if db is None:
+        return {}
     try:
         from backend.models.database import BotState
 
-        state = for_update(db, db.query(BotState)).first()
+        state = db.query(BotState).first()
         if state and state.misc_data:
             data = (
                 json.loads(state.misc_data)
