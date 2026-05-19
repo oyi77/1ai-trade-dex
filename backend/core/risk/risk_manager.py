@@ -361,7 +361,7 @@ class RiskManager:
             max_strat_dd = float(getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15) or 0.15)
             strat_allocation = self._get_strategy_allocation(strategy_name, bankroll, db)
             strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
-            if strat_allocation > 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
+            if strat_allocation > 0 and strat_dd < 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
                 record_signal(strategy=strategy_name, signal_type="rejected_strategy_drawdown")
                 increment_risk_rejection(strategy=strategy_name, reason="strategy_drawdown")
                 logger.info(
