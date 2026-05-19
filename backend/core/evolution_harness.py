@@ -148,7 +148,9 @@ class EvolutionBackend(ABC):
         Returns:
             Dict suitable for constructing a StrategyGenome.
         """
-        raise NotImplementedError("Subclass must implement export_genes_to_genome_dict")
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement export_genes_to_genome_dict"
+        )
 
 
 # ---------------------------------------------------------------------------

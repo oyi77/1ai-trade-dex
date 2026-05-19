@@ -52,5 +52,5 @@ class BaseAIProvider(ABC):
         return []
 
     async def teardown(self) -> None:
-        """Called when the plugin is detached. Close connections, flush caches."""
+        """Clean up AI provider. Override in subclass if needed."""
         pass

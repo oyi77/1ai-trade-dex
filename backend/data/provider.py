@@ -34,6 +34,14 @@ class BalanceInfo:
     total: float
 
 class DataProvider(ABC):
+    """Abstract data provider interface.
+
+    .. deprecated::
+        This provider system is deprecated. Use `backend.markets.base_provider.BaseMarketProvider`
+        and its implementations in `backend/markets/providers/` instead. This module will be
+        removed in a future version.
+    """
+
     @property
     @abstractmethod
     def platform_name(self) -> str:

@@ -1,7 +1,10 @@
 """Abstract base class and manifest for market provider plugins."""
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import AsyncGenerator
+
+logger = logging.getLogger(__name__)
 
 from backend.markets.order_types import (
     MarketInfo,
@@ -54,10 +57,12 @@ class BaseMarketProvider(ABC):
         ...
 
     async def cancel_all_orders(self, market_id=None) -> int:
-        raise NotImplementedError
+        logger.debug(f"{type(self).__name__} does not implement cancel_all_orders")
+        return 0
 
     async def get_order(self, venue_order_id: str) -> NormalizedOrderResult:
-        raise NotImplementedError
+        logger.debug(f"{type(self).__name__} does not implement get_order")
+        return None
 
     @abstractmethod
     async def get_balance(self) -> NormalizedBalance:
@@ -68,19 +73,24 @@ class BaseMarketProvider(ABC):
         ...
 
     async def get_market(self, market_id) -> MarketInfo:
-        raise NotImplementedError
+        logger.debug(f"{type(self).__name__} does not implement get_market")
+        return None
 
     async def search_markets(self, query, category, limit) -> list[MarketInfo]:
-        raise NotImplementedError
+        logger.debug(f"{type(self).__name__} does not implement search_markets")
+        return []
 
     async def stream_fills(self) -> AsyncGenerator:
-        raise NotImplementedError
+        logger.debug(f"{type(self).__name__} does not implement stream_fills")
+        return
+        yield  # make this an async generator
 
     async def health_check(self) -> bool:
         try:
             await self.get_balance()
             return True
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Health check failed: {e}")
             return False
 
     async def teardown(self) -> None:

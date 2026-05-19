@@ -50,7 +50,7 @@ class BaseExecutionStage(ABC):
         return {"status": "completed"}
 
     def record(self, decision: dict, result: dict, ctx: dict) -> None:
-        """Record the execution result. Override to persist trade/attempt data.
+        """Record execution result. Override in subclass for persistence.
 
         Args:
             decision: Trade decision dict
@@ -68,5 +68,5 @@ class BaseExecutionStage(ABC):
         return True
 
     async def teardown(self) -> None:
-        """Called when the stage is detached. Close connections, flush caches."""
+        """Clean up pipeline stage. Override in subclass if needed."""
         pass

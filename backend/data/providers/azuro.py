@@ -142,14 +142,10 @@ class AzuroProvider(DataProvider):
         return {"bids": [], "asks": [], "market_id": market_id, "platform": self._platform}
 
     async def get_positions(self) -> list[PositionEntry]:
-        # Requires on-chain query — not implemented in this stub
-        logger.debug("AzuroProvider.get_positions() not implemented — requires on-chain query")
-        return []
+        raise RuntimeError("Azuro provider does not support position queries — use markets/providers/ instead")
 
     async def get_balance(self) -> BalanceInfo:
-        # Requires on-chain query — not implemented in this stub
-        logger.debug("AzuroProvider.get_balance() not implemented — requires on-chain query")
-        return BalanceInfo(available=0.0, locked=0.0, total=0.0)
+        raise RuntimeError("Azuro provider does not support balance queries — use markets/providers/ instead")
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, **kwargs
@@ -159,29 +155,7 @@ class AzuroProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Returns {"tx_hash": "0x...", "status": "submitted"} on success.
         """
-        private_key: str = (
-            kwargs["private_key"]
-            if "private_key" in kwargs
-            else provider_config.get(self._platform, "private_key")
-        )
-
-        if not private_key or not self._rpc_url:
-            logger.warning(
-                "AzuroProvider.place_order: missing rpc_url or private key — "
-                "returning dry-run result"
-            )
-            return {"tx_hash": "", "status": "dry_run", "platform": self._platform}
-
-        # NOTE: Full Web3 smart contract integration is planned in the plugin-system task 26a.
-        # This stub returns a dry-run result until the AzuroClient is implemented.
-        logger.info(
-            "AzuroProvider.place_order dry-run: market_id={} side={} size={} price={}",
-            market_id,
-            side,
-            size,
-            price,
-        )
-        return {"tx_hash": "", "status": "dry_run", "platform": self._platform}
+        raise RuntimeError("Azuro provider does not support order placement — use markets/providers/ instead")
 
     async def cancel_order(self, order_id: str) -> bool:
         # Azuro bets are non-cancellable once submitted on-chain

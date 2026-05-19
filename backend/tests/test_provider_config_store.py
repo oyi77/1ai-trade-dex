@@ -166,13 +166,13 @@ class TestProviderInstantiation:
         p = SXBetProvider()
         assert p.platform_name == "sxbet"
 
-    def test_place_order_respects_explicit_empty_private_key(self):
-        """Explicitly passing private_key='' should force dry-run, not fall through to DB."""
+    def test_place_order_raises_for_unsupported_provider(self):
+        """SX.bet provider does not support order placement — should raise RuntimeError."""
         import asyncio
         from backend.data.providers.sxbet import SXBetProvider
 
         p = SXBetProvider()
-        result = asyncio.run(
-            p.place_order("0xMARKET", "BUY", 10.0, 0.5, private_key="")
-        )
-        assert result["status"] == "dry_run"
+        with pytest.raises(RuntimeError, match="does not support order placement"):
+            asyncio.run(
+                p.place_order("0xMARKET", "BUY", 10.0, 0.5, private_key="")
+            )

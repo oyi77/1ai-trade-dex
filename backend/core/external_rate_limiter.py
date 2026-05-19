@@ -259,9 +259,9 @@ class ExternalRateLimiter:
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Async context manager exit."""
-        pass
+    async def __aexit__(self, *args: Any) -> bool:
+        """No cleanup needed for rate limiter."""
+        return False
 
 
 def rate_limited(

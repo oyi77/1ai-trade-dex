@@ -30,13 +30,14 @@ async def test_arbitrage_opportunities():
 
 
 @pytest.mark.asyncio
-async def test_predictions_returns_baseline():
+async def test_predictions_returns_503_when_data_unavailable():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         r = await client.get("/api/v1/predictions/m1")
-    assert r.status_code == 200
-    pred = r.json()["prediction"]
-    assert 0.0 <= pred["probability_yes"] <= 1.0
+    assert r.status_code == 503
+    body = r.json()
+    assert "error" in body
+    assert body["market_id"] == "m1"
 
 
 @pytest.mark.asyncio

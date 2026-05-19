@@ -24,7 +24,7 @@ class ActivityLogger:
     """Thread-safe activity logger for strategy decisions."""
 
     def __init__(self):
-        """Initialize the activity logger."""
+        """No-op activity logger. Override in subclass for real logging."""
         pass
 
     def log_entry(

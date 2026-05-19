@@ -65,5 +65,5 @@ class BaseDataSource(ABC):
             return False
 
     async def teardown(self) -> None:
-        """Close connections cleanly on detach."""
+        """Clean up data source. Override in subclass if needed."""
         pass

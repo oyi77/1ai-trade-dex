@@ -121,8 +121,8 @@ def _fetch_current_price(market_ticker: str | None) -> float | None:
             clob.get_mid_price(market_ticker)
         )
         return price
-    except Exception:
-        # If market lookup fails (token not found, network error), return None
+    except Exception as e:
+        logger.warning(f"Error closing stale position: {e}")
         return None
 
 

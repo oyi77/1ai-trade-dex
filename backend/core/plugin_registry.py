@@ -37,7 +37,7 @@ class BasePlugin(ABC):
         return True
 
     async def teardown(self) -> None:
-        """Called when the plugin is detached. Close connections, flush caches."""
+        """Clean up plugin. Override in subclass if needed."""
         pass
 
 

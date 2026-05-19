@@ -155,7 +155,7 @@ def very_long_function(param1, param2, param3):
 def test_func():
     try:
         do_something()
-    except:
+    except Exception:
         pass
 """
         tree = ast.parse(code)

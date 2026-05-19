@@ -12,12 +12,15 @@ Usage:
 import asyncio
 import argparse
 import json
+import logging
 import time
 import statistics
 import psutil
 import os
 from typing import List, Dict, Any
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 try:
     import websockets
@@ -117,8 +120,8 @@ class WebSocketClient:
         if self.websocket:
             try:
                 await self.websocket.close()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Connection error: {e}")
         self.connected = False
 
 

@@ -149,32 +149,8 @@ class LimitlessProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26d.
         """
-        private_key: str = (
-            kwargs["private_key"]
-            if "private_key" in kwargs
-            else provider_config.get("limitless", "private_key")
-        )
-        if not private_key:
-            logger.warning("LimitlessProvider.place_order: no private key — dry-run")
-            return {"orderId": "", "status": "dry_run", "platform": "limitless"}
-
-        # TODO(task-26d): implement EIP-712 sign + POST /orders
-        # Stub returns dry-run until plugin-system refactoring is merged
-        logger.info(
-            "LimitlessProvider.place_order dry-run: market_id={} side={} size={} price={}",
-            market_id,
-            side,
-            size,
-            price,
-        )
-        return {"orderId": "", "status": "dry_run", "platform": "limitless"}
+        raise RuntimeError("Limitless provider does not support order placement — use markets/providers/ instead")
 
     async def cancel_order(self, order_id: str) -> bool:
         private_key: str = provider_config.get("limitless", "private_key")
-        if not private_key:
-            logger.warning("LimitlessProvider.cancel_order: no private key")
-            return False
-
-        # TODO(task-26d): implement signed DELETE /orders/{order_id}
-        logger.info("LimitlessProvider.cancel_order dry-run: order_id={}", order_id)
-        return False
+        raise RuntimeError("Limitless provider does not support order cancellation — use markets/providers/ instead")

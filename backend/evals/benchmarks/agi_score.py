@@ -16,13 +16,7 @@ from loguru import logger
 logger = logger.bind(task="evals", benchmark_id="agi_score")
 
 
-@dataclass
-class BenchmarkResult:
-    benchmark_id: str
-    score: float
-    passed: bool
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.now)
+from backend.evals.benchmarks.shared import BenchmarkResult
 
 
 class AGIScoreBenchmark:

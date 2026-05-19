@@ -1,6 +1,7 @@
 """Market intelligence routes - news, predictions, whales, edge performance."""
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
@@ -142,7 +143,8 @@ async def get_news_feed():
             for i in items[:100]
         ]
     except Exception as e:
-        return {"error": str(e), "items": []}
+        logger.warning("News feed fetch failed: %s", e)
+        return {"error": "News feed temporarily unavailable", "items": []}
 
 
 @router.get("/predictions/{market_id}")
@@ -150,9 +152,7 @@ async def get_prediction(market_id: str):
     """Return AI prediction for a specific market."""
     from backend.ai.prediction_engine import PredictionEngine
 
-    engine = PredictionEngine()
-    # TODO: wire real market data from Gamma API
-    logger.warning("[market_intel] get_prediction() using stub features — wire real market data")
-    features = engine.extract_features({"volume": 0}, {})
-    pred = engine.predict(features)
-    return {"market_id": market_id, "prediction": pred.__dict__}
+    return JSONResponse(
+        status_code=503,
+        content={"error": "Predictions unavailable", "market_id": market_id}
+    )

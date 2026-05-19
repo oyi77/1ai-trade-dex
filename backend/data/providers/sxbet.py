@@ -140,11 +140,7 @@ class SXBetProvider(DataProvider):
         ]
 
     async def get_balance(self) -> BalanceInfo:
-        # sx.bet is on-chain; balance = wallet's USDC balance on Polygon
-        # Full implementation requires on-chain RPC call — returns zero until
-        # plugin-system task 26e implements Web3 balance lookup
-        logger.debug("SXBetProvider.get_balance: on-chain lookup not yet implemented")
-        return BalanceInfo(available=0.0, locked=0.0, total=0.0)
+        raise RuntimeError("SX.bet provider does not support balance queries — use markets/providers/ instead")
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, **kwargs
@@ -154,24 +150,7 @@ class SXBetProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26e.
         """
-        private_key: str = (
-            kwargs["private_key"]
-            if "private_key" in kwargs
-            else provider_config.get("sxbet", "private_key")
-        )
-        if not private_key:
-            logger.warning("SXBetProvider.place_order: no private key — dry-run")
-            return {"orderHash": "", "status": "dry_run", "platform": "sxbet"}
-
-        # TODO(task-26e): implement EIP-712 sign + POST /orders/new
-        logger.info(
-            "SXBetProvider.place_order dry-run: market_id={} side={} size={} price={}",
-            market_id,
-            side,
-            size,
-            price,
-        )
-        return {"orderHash": "", "status": "dry_run", "platform": "sxbet"}
+        raise RuntimeError("SX.bet provider does not support order placement — use markets/providers/ instead")
 
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an open maker order.
@@ -179,6 +158,4 @@ class SXBetProvider(DataProvider):
         SX.bet allows makers to cancel unfilled orders.
         Full implementation planned in plugin-system task 26e.
         """
-        # TODO(task-26e): implement signed order cancellation
-        logger.info("SXBetProvider.cancel_order dry-run: order_id={}", order_id)
-        return False
+        raise RuntimeError("SX.bet provider does not support order cancellation — use markets/providers/ instead")

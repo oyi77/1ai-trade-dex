@@ -13,6 +13,7 @@ import sys
 import os
 import json
 import argparse
+import logging
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +23,8 @@ from backend.config import settings
 from backend.models.database import SessionLocal, Trade, engine
 from sqlalchemy import text
 
+
+logger = logging.getLogger(__name__)
 
 DATA_API = getattr(settings, "DATA_API_URL", "https://data-api.polymarket.com")
 WALLET = getattr(settings, "POLYMARKET_BUILDER_ADDRESS", None) or getattr(
@@ -97,16 +100,16 @@ def import_to_db(records: list[dict], dry_run: bool = False):
             "WHERE table_name='trades' AND column_name='journal_notes'"
         )).fetchall()
         has_journal = len(cols) > 0
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Import error: {e}")
 
     # Get existing trade hashes to avoid duplicates
     existing = set()
     try:
         rows = db.execute(text("SELECT clob_order_id FROM trades WHERE clob_order_id IS NOT NULL")).fetchall()
         existing = {r[0] for r in rows}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Import error: {e}")
 
     imported = 0
     skipped = 0

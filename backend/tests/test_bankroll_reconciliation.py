@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -25,7 +26,9 @@ def db_session():
 
 
 @pytest.mark.asyncio
-async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(db_session):
+@patch("backend.core.wallet.bankroll_reconciliation.settings")
+async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(mock_settings, db_session):
+    mock_settings.INITIAL_BANKROLL = 2000.0
     state = BotState(mode="paper", bankroll=-999.0, paper_bankroll=29.74, paper_pnl=0.0)
     win = Trade(
         market_ticker="paper-win",
