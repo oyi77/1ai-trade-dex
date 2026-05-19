@@ -23,9 +23,9 @@ class WalletReconciler:
             # 1. Fetch wallet equity in thread pool (non-blocking)
             equity = await asyncio.to_thread(fetch_pm_total_equity)
 
-            # 2. Reconcile bot state in thread pool
+            # 2. Reconcile bot state (already async, no thread pool needed)
             with get_db_session() as db:
-                result = await asyncio.to_thread(reconcile_bot_state, db, apply=True)
+                result = await reconcile_bot_state(db, apply=True)
 
             # 3. Compare wallet_pnl vs stale total_pnl, alert if >5% drift
             if result and hasattr(result, "bankroll_drift_pct"):
