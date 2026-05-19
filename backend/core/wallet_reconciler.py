@@ -20,8 +20,8 @@ class WalletReconciler:
             )
             from backend.db.utils import get_db_session
 
-            # 1. Fetch wallet equity in thread pool (non-blocking)
-            equity = await asyncio.to_thread(fetch_pm_total_equity)
+            # 1. Fetch wallet equity (already async)
+            equity = await fetch_pm_total_equity()
 
             # 2. Reconcile bot state (already async, no thread pool needed)
             with get_db_session() as db:
@@ -46,8 +46,8 @@ class WalletReconciler:
                 )
                 if bot_state:
                     bot_state.last_wallet_sync_at = datetime.now(timezone.utc)
-                    if equity and hasattr(equity, "total"):
-                        bot_state.wallet_pnl = equity.total - (
+                    if equity is not None:
+                        bot_state.wallet_pnl = equity - (
                             bot_state.bankroll or 0
                         )
                     db.commit()
