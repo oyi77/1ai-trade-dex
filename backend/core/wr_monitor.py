@@ -39,7 +39,7 @@ def wr_monitor_job() -> None:
                         Trade.strategy == cfg.strategy_name,
                         Trade.trading_mode == "live",
                         Trade.settled.is_(True),  # noqa: E712
-                        Trade.timestamp >= since,
+                        Trade.settlement_time >= since,
                     )
                     .all()
                 )

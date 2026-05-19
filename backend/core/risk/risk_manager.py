@@ -417,7 +417,7 @@ class RiskManager:
                 bankroll=bankroll,
                 market_ticker=market_ticker,
                 trade_size=size,
-                event_slug=getattr(market_ticker, 'event_slug', None),
+                event_slug=None,  # market_ticker is a string; event_slug must be passed separately
                 db=db,
                 mode=effective_mode,
             )
@@ -619,7 +619,7 @@ class RiskManager:
                 now = datetime.now(timezone.utc)
                 today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
                 daily_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= today_start,
@@ -734,7 +734,7 @@ class RiskManager:
                 type(e).__name__,
                 e,
             )
-            return -1
+            return 1
 
     def _get_strategy_allocation(self, strategy_name: str, bankroll: float, db) -> float:
         """Get strategy allocation using AGI allocation if available, otherwise equal-weight fallback."""
@@ -836,105 +836,105 @@ class RiskManager:
         try:
             with ctx as db:
                 effective_mode = mode or self.s.TRADING_MODE
-            now = datetime.now(timezone.utc)
-            day_start = now - timedelta(hours=24)
-            week_start = now - timedelta(days=7)
+                now = datetime.now(timezone.utc)
+                day_start = now - timedelta(hours=24)
+                week_start = now - timedelta(days=7)
 
-            # Calculate daily and weekly PnL
-            daily_pnl = (
-                db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
-                .filter(
-                    Trade.settled.is_(True),
-                    Trade.settlement_time >= day_start,
-                    Trade.trading_mode == effective_mode,
-                    _not_backfill_settlement_source(),
+                # Calculate daily and weekly PnL
+                daily_pnl = (
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    .filter(
+                        Trade.settled.is_(True),
+                        Trade.settlement_time >= day_start,
+                        Trade.trading_mode == effective_mode,
+                        _not_backfill_settlement_source(),
+                    )
+                    .scalar()
+                    or 0.0
                 )
-                .scalar()
-                or 0.0
-            )
 
-            weekly_pnl = (
-                db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
-                .filter(
-                    Trade.settled.is_(True),
-                    Trade.settlement_time >= week_start,
-                    Trade.trading_mode == effective_mode,
-                    _not_backfill_settlement_source(),
+                weekly_pnl = (
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    .filter(
+                        Trade.settled.is_(True),
+                        Trade.settlement_time >= week_start,
+                        Trade.trading_mode == effective_mode,
+                        _not_backfill_settlement_source(),
+                    )
+                    .scalar()
+                    or 0.0
                 )
-                .scalar()
-                or 0.0
-            )
 
-            # Use the higher of current bankroll or effective initial bankroll
-            effective_initial = self.s.INITIAL_BANKROLL
-            if db is not None:
-                state = db.query(BotState).filter_by(mode=effective_mode).first()
-                if state is not None:
-                    if effective_mode == "paper" and state.paper_initial_bankroll is not None:
-                        effective_initial = float(state.paper_initial_bankroll)
-                    elif effective_mode == "testnet" and state.testnet_initial_bankroll is not None:
-                        effective_initial = float(state.testnet_initial_bankroll)
-            base_bankroll = max(bankroll, effective_initial)
-
-            # Check daily loss floor
-            daily_floor = base_bankroll * self.s.DAILY_LOSS_FLOOR_PCT
-            if daily_pnl < daily_floor:
-                # Pause all strategies for 24 hours
-                pause_until = now + timedelta(hours=24)
-
-                # Store pause timestamp in BotState.misc_data
+                # Use the higher of current bankroll or effective initial bankroll
+                effective_initial = self.s.INITIAL_BANKROLL
                 if db is not None:
-                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
-                    if state is None:
-                        state = BotState(mode=effective_mode, misc_data={})
-                        db.add(state)
+                    state = db.query(BotState).filter_by(mode=effective_mode).first()
+                    if state is not None:
+                        if effective_mode == "paper" and state.paper_initial_bankroll is not None:
+                            effective_initial = float(state.paper_initial_bankroll)
+                        elif effective_mode == "testnet" and state.testnet_initial_bankroll is not None:
+                            effective_initial = float(state.testnet_initial_bankroll)
+                base_bankroll = max(bankroll, effective_initial)
 
-                    state.misc_data = state.misc_data or {}
-                    state.misc_data["pause_until"] = pause_until.isoformat()
-                    db.commit()
+                # Check daily loss floor
+                daily_floor = base_bankroll * self.s.DAILY_LOSS_FLOOR_PCT
+                if daily_pnl < daily_floor:
+                    # Pause all strategies for 24 hours
+                    pause_until = now + timedelta(hours=24)
 
-                # Emit SSE event
-                self._publish_event("daily_loss_floor_triggered", {
-                    "bankroll": bankroll,
-                    "daily_pnl": daily_pnl,
-                    "daily_floor_pct": self.s.DAILY_LOSS_FLOOR_PCT,
-                    "daily_floor_amount": daily_floor,
-                    "pause_until": pause_until.isoformat(),
-                    "action": "all_strategies_paused"
-                })
+                    # Store pause timestamp in BotState.misc_data
+                    if db is not None:
+                        state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
+                        if state is None:
+                            state = BotState(mode=effective_mode, misc_data={})
+                            db.add(state)
 
-                return True, "all_strategies_paused_24h"
+                        state.misc_data = state.misc_data or {}
+                        state.misc_data["pause_until"] = pause_until.isoformat()
+                        db.commit()
 
-            # Check weekly loss floor
-            weekly_floor = base_bankroll * self.s.WEEKLY_LOSS_FLOOR_PCT
-            if weekly_pnl < weekly_floor:
-                # Revert to PAPER mode for 7 days
-                paper_until = now + timedelta(days=7)
+                    # Emit SSE event
+                    self._publish_event("daily_loss_floor_triggered", {
+                        "bankroll": bankroll,
+                        "daily_pnl": daily_pnl,
+                        "daily_floor_pct": self.s.DAILY_LOSS_FLOOR_PCT,
+                        "daily_floor_amount": daily_floor,
+                        "pause_until": pause_until.isoformat(),
+                        "action": "all_strategies_paused"
+                    })
 
-                # Store paper mode timestamp in BotState.misc_data
-                if db is not None:
-                    state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
-                    if state is None:
-                        state = BotState(mode=effective_mode, misc_data={})
-                        db.add(state)
+                    return True, "all_strategies_paused_24h"
 
-                    state.misc_data = state.misc_data or {}
-                    state.misc_data["paper_until"] = paper_until.isoformat()
-                    db.commit()
+                # Check weekly loss floor
+                weekly_floor = base_bankroll * self.s.WEEKLY_LOSS_FLOOR_PCT
+                if weekly_pnl < weekly_floor:
+                    # Revert to PAPER mode for 7 days
+                    paper_until = now + timedelta(days=7)
 
-                # Emit SSE event
-                self._publish_event("weekly_loss_floor_triggered", {
-                    "bankroll": bankroll,
-                    "weekly_pnl": weekly_pnl,
-                    "weekly_floor_pct": self.s.WEEKLY_LOSS_FLOOR_PCT,
-                    "weekly_floor_amount": weekly_floor,
-                    "paper_until": paper_until.isoformat(),
-                    "action": "reverted_to_paper_mode"
-                })
+                    # Store paper mode timestamp in BotState.misc_data
+                    if db is not None:
+                        state = for_update(db, db.query(BotState).filter_by(mode=effective_mode)).first()
+                        if state is None:
+                            state = BotState(mode=effective_mode, misc_data={})
+                            db.add(state)
 
-                return True, "reverted_to_paper_mode_7d"
+                        state.misc_data = state.misc_data or {}
+                        state.misc_data["paper_until"] = paper_until.isoformat()
+                        db.commit()
 
-            return False, None
+                    # Emit SSE event
+                    self._publish_event("weekly_loss_floor_triggered", {
+                        "bankroll": bankroll,
+                        "weekly_pnl": weekly_pnl,
+                        "weekly_floor_pct": self.s.WEEKLY_LOSS_FLOOR_PCT,
+                        "weekly_floor_amount": weekly_floor,
+                        "paper_until": paper_until.isoformat(),
+                        "action": "reverted_to_paper_mode"
+                    })
+
+                    return True, "reverted_to_paper_mode_7d"
+
+                return False, None
 
         except Exception as e:
             logger.opt(exception=True).error(

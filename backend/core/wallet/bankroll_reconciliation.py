@@ -44,8 +44,8 @@ class BankrollReconciliationReport:
     @property
     def has_drift(self) -> bool:
         return (
-            self.drift_bankroll > 0.01
-            or self.drift_pnl > 0.01
+            abs(self.drift_bankroll) > 0.01
+            or abs(self.drift_pnl) > 0.01
             or self.old_trade_count != self.new_trade_count
             or self.old_win_count != self.new_win_count
         )
