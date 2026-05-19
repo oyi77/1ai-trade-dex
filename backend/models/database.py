@@ -398,7 +398,7 @@ class GenomeRegistry(Base):
             try:
                 return json.loads(self.fitness_json)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("Corrupted fitness_json for genome %s", self.id)
         return {}
 
     @fitness_metrics.setter
@@ -412,7 +412,7 @@ class GenomeRegistry(Base):
             try:
                 return json.loads(self.lineage_json)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("Corrupted lineage_json for genome %s", self.id)
         return {}
 
     @lineage.setter
@@ -425,7 +425,7 @@ class GenomeRegistry(Base):
             try:
                 return json.loads(self.chromosomes_json)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("Corrupted chromosomes_json for genome %s", self.id)
         return {}
 
     @chromosomes.setter
@@ -438,7 +438,7 @@ class GenomeRegistry(Base):
             try:
                 return json.loads(self.chromosome_perf_json)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.warning("Corrupted chromosome_perf_json for genome %s", self.id)
         return {}
 
     @chromosome_performance.setter
@@ -1365,7 +1365,6 @@ def _publish_corruption_alert(event: str, detail: str, data: dict | None = None)
         })
     except Exception:
         logger.exception("database publish_corruption_alert failed")
-        pass
 
 
 def init_db(repair_if_needed: bool = True):

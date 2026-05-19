@@ -129,7 +129,7 @@ class CausalReasoningBenchmark:
             if hasattr(reasoner, 'infer_causal_graph'):
                 return reasoner.infer_causal_graph([obs.__dict__ for obs in observations])
             return self._fallback_infer_causal_graph(observations)
-        except (ImportError, AttributeError, Exception):
+        except Exception:
             return self._fallback_infer_causal_graph(observations)
 
     def _fallback_infer_causal_graph(self, observations: List[EventObservation]) -> Dict[str, Any]:
@@ -149,7 +149,7 @@ class CausalReasoningBenchmark:
             if hasattr(reasoner, 'predict_intervention'):
                 return reasoner.predict_intervention(graph, intervention_node, intervention_value, target_node)
             return self._fallback_predict_intervention(graph, intervention_node, intervention_value, target_node)
-        except (ImportError, AttributeError, Exception):
+        except Exception:
             return self._fallback_predict_intervention(graph, intervention_node, intervention_value, target_node)
 
     def _fallback_predict_intervention(self, graph: Dict[str, Any], intervention_node: str, intervention_value: float, target_node: str) -> Dict[str, Any]:
@@ -195,7 +195,7 @@ class CausalReasoningBenchmark:
             if hasattr(reasoner, 'evaluate_accuracy'):
                 return reasoner.evaluate_accuracy(predictions, ground_truth)
             return self._fallback_evaluate_accuracy(predictions, ground_truth)
-        except (ImportError, AttributeError, Exception):
+        except Exception:
             return self._fallback_evaluate_accuracy(predictions, ground_truth)
 
     def _fallback_evaluate_accuracy(self, predictions: List[Dict[str, Any]], ground_truth: List[Dict[str, Any]]) -> float:

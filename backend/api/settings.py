@@ -243,12 +243,12 @@ async def bulk_update_settings(
                 try:
                     value = int(value)
                 except (ValueError, TypeError):
-                    pass
+                    logger.warning("Setting %s: could not convert '%s' to int, keeping as string", key, value)
             elif isinstance(row.value, float):
                 try:
                     value = float(value)
                 except (ValueError, TypeError):
-                    pass
+                    logger.warning("Setting %s: could not convert '%s' to float, keeping as string", key, value)
             row.value = value
             row.updated_at = datetime.now(timezone.utc)
         else:

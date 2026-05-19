@@ -181,7 +181,7 @@ def configure_logging(
 
                     _redis_client.publish("logs:system", json.dumps(log_entry))
                 except Exception:
-                    pass
+                    sys.stderr.write(f"Redis log sink failed: {record['message']}\n")
 
             logger.add(
                 redis_sink,

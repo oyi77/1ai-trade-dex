@@ -170,8 +170,8 @@ class LifecycleManager:
             result = query.first()
             if result and isinstance(result.stage_entered_at, datetime):
                 return result.stage_entered_at
-        except (TypeError, AttributeError, Exception):
-            pass
+        except Exception as e:
+            logger.debug("Failed to get stage_entered_at for genome %s: %s", genome_id, e)
         return None
 
     def _get_total_pnl_for_genome(self, genome_id: str, db) -> float:
@@ -183,7 +183,8 @@ class LifecycleManager:
                 Trade.strategy == genome_id
             ).scalar()
             return float(total_pnl or 0.0)
-        except (TypeError, AttributeError, Exception):
+        except Exception as e:
+            logger.warning("Failed to get total_pnl for genome %s: %s", genome_id, e)
             return 0.0
 
     def _check_auto_kill(self, genome: StrategyGenome) -> bool:
