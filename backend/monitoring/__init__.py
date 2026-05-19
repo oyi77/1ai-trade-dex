@@ -16,7 +16,7 @@ def __getattr__(name: str):
             return globals()[name]
     raise AttributeError(f"module 'backend.monitoring' has no attribute {name!r}")
 
-from .metrics import (
+from .metrics import (  # noqa: E402
     increment_trades,
     increment_signals,
     update_pnl,

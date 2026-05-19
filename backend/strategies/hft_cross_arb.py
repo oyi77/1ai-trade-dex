@@ -364,7 +364,7 @@ class HFTCrossArbExecutor:
             raise ValueError("CLOB instance not initialised")
 
         # CircuitBreaker.call() raises CircuitOpenError if breaker is open
-        idempotency_key = f"arb-{arb_id}-poly-{int(time.monotonic() * 1000000)}"
+        f"arb-{arb_id}-poly-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
             try:
@@ -399,7 +399,7 @@ class HFTCrossArbExecutor:
     ) -> Optional[str]:
         """Place Kalshi order leg with circuit breaker + retry."""
         # CircuitBreaker.call() raises CircuitOpenError if breaker is open
-        idempotency_key = f"arb-{arb_id}-kalshi-{int(time.monotonic() * 1000000)}"
+        f"arb-{arb_id}-kalshi-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
             try:

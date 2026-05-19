@@ -173,7 +173,7 @@ class StrategyPerformanceTracker:
                     config_query = config_query.filter(StrategyConfig.mode == "live")
 
                 configs = config_query.all()
-                config_map = {c.name: c for c in configs}
+                {c.name: c for c in configs}
 
                 # If no strategies found, return empty
                 if not configs and not strategy_names:

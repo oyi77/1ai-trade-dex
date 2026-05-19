@@ -126,7 +126,6 @@ class TestMarketCategories:
         assert len(MARKET_CATEGORIES) > 0
 
     def test_has_expected_keys(self):
-        expected = {"BTC", "ETH", "SOL", "Finance", "Other" or True}
         # Just check a few critical keys exist
         for key in ("BTC", "ETH", "SOL", "Finance", "Weather"):
             assert key in MARKET_CATEGORIES

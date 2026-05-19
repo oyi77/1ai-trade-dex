@@ -91,7 +91,7 @@ class TestLosingWallet:
 class TestBreakEvenWallet:
     def test_near_zero_pnl(self):
         positions = [_pos(0.01), _pos(-0.01)]
-        result = compute_analysis(WALLET, positions)
+        compute_analysis(WALLET, positions)
         # PnL ~0, wins == 1 => technically PROFITABLE with >=50% WR
         # But if we want BREAK-EVEN, make it exactly zero with 1 win 1 loss
         positions2 = [_pos(5.0), _pos(-5.0)]

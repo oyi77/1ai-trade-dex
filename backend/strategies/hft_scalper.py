@@ -497,7 +497,7 @@ class HFTScalperStrategy(BaseStrategy):
                     # Execute via HFT path if CLOB available
                     if ctx.clob is not None:
                         try:
-                            signal = HFTSignal(
+                            HFTSignal(
                                 market_id=market.ticker,
                                 ticker=market.ticker,
                                 signal_type="edge",

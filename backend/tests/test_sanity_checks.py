@@ -283,7 +283,7 @@ class TestDeepSanityCheck:
 
     def test_no_last_trade_skips_inactive_check(self):
         """Wallet with no last_trade_ts skips the inactivity check."""
-        now = time.time()
+        time.time()
         wallet = SourceWallet(
             wallet_address="0xnots",
             last_trade_ts=None,
