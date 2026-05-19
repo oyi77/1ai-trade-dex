@@ -649,6 +649,12 @@ class WalletReconciler:
                         f"still open, updated sync timestamp"
                     )
 
+            # Verify trades with blockchain_verified=false against CLOB API
+            verified, failed = await self._verify_unverified_trades()
+            result.updated_count += verified
+            if failed:
+                result.errors.extend(failed)
+
             self.db.commit()
 
             from backend.models.audit_logger import log_wallet_reconciled
@@ -791,6 +797,63 @@ class WalletReconciler:
             self.logger.error(f"Failed to close orphaned position: {e}", exc_info=True)
             self.db.rollback()
             return False
+
+    async def _verify_unverified_trades(self) -> tuple[int, list[str]]:
+        """Verify trades with blockchain_verified=false against CLOB order API.
+
+        For each unverified trade that has a clob_order_id, queries the Polymarket
+        CLOB get_order() API to confirm the order exists and update verification status.
+
+        Returns:
+            Tuple of (verified_count, error_messages).
+        """
+        verified = 0
+        errors: list[str] = []
+
+        unverified = self.db.query(Trade).filter(
+            Trade.trading_mode == self.mode,
+            Trade.blockchain_verified.is_(False),
+            Trade.clob_order_id.isnot(None),
+        ).all()
+
+        if not unverified:
+            return verified, errors
+
+        self.logger.info(f"Verifying {len(unverified)} trades with blockchain_verified=false")
+
+        for trade in unverified:
+            try:
+                order = await self.clob.get_order(trade.clob_order_id)
+                if order is not None:
+                    trade.blockchain_verified = True
+                    trade.last_sync_at = datetime.now(timezone.utc)
+                    # Update size from CLOB if available
+                    clob_size = float(order.get("original_size", 0) or order.get("size", 0))
+                    if clob_size > 0 and trade.size and abs(trade.size - clob_size) > 0.01:
+                        self.logger.info(
+                            f"CLOB order {trade.clob_order_id} size mismatch: "
+                            f"DB={trade.size}, CLOB={clob_size}. Updating."
+                        )
+                        trade.size = clob_size
+                    verified += 1
+                    self.logger.debug(
+                        f"Verified trade {trade.id} ({trade.market_ticker}) "
+                        f"via CLOB order {trade.clob_order_id}"
+                    )
+                else:
+                    self.logger.warning(
+                        f"CLOB order {trade.clob_order_id} not found for trade "
+                        f"{trade.id} ({trade.market_ticker})"
+                    )
+            except Exception as e:
+                msg = f"Failed to verify trade {trade.id} order {trade.clob_order_id}: {e}"
+                self.logger.warning(msg)
+                errors.append(msg)
+
+        if verified:
+            self.logger.info(f"Verified {verified}/{len(unverified)} trades via CLOB API")
+
+        return verified, errors
 
     async def _fetch_open_positions(self) -> list[dict]:
         """Fetch open positions from Data API. Returns raw API dicts with slug, asset, etc."""

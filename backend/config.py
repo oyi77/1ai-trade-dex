@@ -668,6 +668,7 @@ class ConfigRegistry:
     AGI_REHAB_COOLDOWN_DAYS: int = 7
     AGI_REHAB_MIN_TRADES: int = 10
     AGI_REHAB_WIN_RATE_THRESHOLD: float = 0.50
+    AGI_REHAB_ALLOCATION_PCT: float = 0.25  # graduated rehab starting allocation
     AGI_REHAB_LITE_COOLDOWN_HOURS: int = 1
     AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4
     AGI_REHAB_LITE_WIN_RATE_THRESHOLD: float = 0.30
@@ -714,6 +715,7 @@ class ConfigRegistry:
     FORENSICS_AUTO_MUTATE: bool = True
     FORENSICS_MAX_MUTATIONS_PER_DAY: int = 3
     AGI_SELF_TUNE_INTERVAL_MINUTES: int = 30
+    AGI_SELF_TUNE_IN_PAPER: bool = True
 
     # Self-debugger
     SELF_DEBUGGER_MAX_RECOVERY_ATTEMPTS: int = 3
@@ -1559,6 +1561,7 @@ class Settings(BaseSettings):
     AGI_REHAB_COOLDOWN_DAYS: int = 7
     AGI_REHAB_MIN_TRADES: int = 10
     AGI_REHAB_WIN_RATE_THRESHOLD: float = 0.50
+    AGI_REHAB_ALLOCATION_PCT: float = 0.25  # graduated rehab starting allocation
     # Lite rehabilitation (T7): lighter path for auto-disabled strategies
     AGI_REHAB_LITE_COOLDOWN_HOURS: int = 1       # re-enable after 1h in paper mode
     AGI_REHAB_LITE_RE_DISABLE_HOURS: int = 4      # re-disable for 4h if still bad

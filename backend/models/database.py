@@ -809,6 +809,7 @@ class StrategyConfig(Base):
     time_horizon = Column(String, nullable=True, default="mid")  # "short", "mid", "long"
     risk_tier = Column(String, nullable=True, default="moderate")  # "safe", "conservative", "moderate", "aggressive", "extreme", "crazy"
     disabled_at = Column(DateTime, nullable=True, default=None)
+    rehab_allocation_pct = Column(Float, nullable=True, default=None)  # graduated rehab: 25→50→75→100
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),

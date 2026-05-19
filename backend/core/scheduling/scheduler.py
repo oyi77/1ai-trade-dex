@@ -72,6 +72,7 @@ from backend.ai.training.train import run_training_pipeline
 from backend.mesh.auditor import audit_source_performance
 from backend.mesh.learning import update_source_weights_from_outcomes
 from backend.ai.rejection_learner import generate_rejection_proposals
+from backend.core.strategy_evolution_loop import strategy_evolution_loop
 
 scheduler: Optional[AsyncIOScheduler] = None
 
@@ -198,6 +199,7 @@ JOB_FUNCTION_REGISTRY = {
     "market_universe_scan_job": market_universe_scan_job,
     "position_monitor_job": position_monitor_job,
     "sell_signal_monitor_job": sell_signal_monitor_job,
+    "strategy_evolution_loop": strategy_evolution_loop,
 }
 
 
@@ -886,6 +888,17 @@ def start_scheduler():
         )
         logger.info("Scheduled AGI improvement cycle every %d hour(s)", agi_cycle_interval)
 
+    # Strategy evolution coordinator — health scan, forensics, rehab, variant creation
+    evolution_interval = getattr(settings, "AGI_IMPROVEMENT_CYCLE_INTERVAL_HOURS", 4)
+    scheduler.add_job(
+        strategy_evolution_loop,
+        IntervalTrigger(hours=evolution_interval),
+        id="strategy_evolution_loop",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Scheduled strategy evolution loop every %d hour(s)", evolution_interval)
+
     if getattr(settings, "AGI_HEALTH_CHECK_ENABLED", True):
         health_interval = getattr(settings, "AGI_HEALTH_CHECK_INTERVAL_MINUTES", 15)
         scheduler.add_job(
@@ -921,6 +934,22 @@ def start_scheduler():
             replace_existing=True,
             max_instances=1,
         )
+
+    # --- AGI startup verification summary ---
+    _agi_shadow_enabled = getattr(settings, "SHADOW_VALIDATE_ENABLED", True)
+    _agi_cycle_enabled = getattr(settings, "AGI_IMPROVEMENT_CYCLE_ENABLED", True)
+    _agi_health_enabled = getattr(settings, "AGI_HEALTH_CHECK_ENABLED", True)
+    _agi_jobs_registered: list[str] = [
+        f"autonomous_promotion={promotion_interval}h",
+        f"improvement_cycle={agi_cycle_interval}h" if _agi_cycle_enabled else "improvement_cycle=DISABLED",
+        f"health_check={getattr(settings, 'AGI_HEALTH_CHECK_INTERVAL_MINUTES', 15)}min" if _agi_health_enabled else "health_check=DISABLED",
+        f"self_tune={agi_self_tune_interval}min",
+        f"shadow_validate=5min" if _agi_shadow_enabled else "shadow_validate=DISABLED",
+    ]
+    logger.info(
+        "[AGI Scheduler] All AGI jobs registered: %s",
+        ", ".join(_agi_jobs_registered),
+    )
 
     if getattr(settings, "HISTORICAL_DATA_COLLECTOR_ENABLED", True):
         hist_interval = getattr(settings, "HISTORICAL_DATA_COLLECTOR_INTERVAL_HOURS", 6)
@@ -1189,9 +1218,11 @@ def start_scheduler():
                         config.enabled = True
                         config.trading_mode = 'paper'
                         config.disabled_at = None
+                        if config.rehab_allocation_pct is None:
+                            config.rehab_allocation_pct = getattr(settings, "AGI_REHAB_ALLOCATION_PCT", 0.25)
                         rehabilitated.append(config.strategy_name)
                         logger.info(
-                            f"Rehabilitated {config.strategy_name} in paper mode (cooldown {cooldown_hours}h elapsed)"
+                            f"Rehabilitated {config.strategy_name} in paper mode at {config.rehab_allocation_pct:.0%} allocation (cooldown {cooldown_hours}h elapsed)"
                         )
 
             if rehabilitated:

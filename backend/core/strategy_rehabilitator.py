@@ -23,6 +23,19 @@ class StrategyRehabilitator:
     def REHAB_PAPER_TRADES(self): return self._s.AGI_REHAB_MIN_TRADES
     @property
     def REHAB_WIN_RATE_THRESHOLD(self): return self._s.AGI_REHAB_WIN_RATE_THRESHOLD
+    @property
+    def REHAB_ALLOCATION_PCT(self): return self._s.AGI_REHAB_ALLOCATION_PCT
+
+    ALLOCATION_STEPS = [0.25, 0.50, 0.75, 1.0]
+
+    def _next_allocation(self, current: float | None) -> float:
+        """Return next graduated allocation step. If current is None, return first step."""
+        if current is None:
+            return self.ALLOCATION_STEPS[0]
+        for step in self.ALLOCATION_STEPS:
+            if step > current + 0.001:
+                return step
+        return self.ALLOCATION_STEPS[-1]  # already at max
 
     def run(self, db: Optional[Session] = None) -> list[str]:
         _owned = db is None
@@ -35,10 +48,11 @@ class StrategyRehabilitator:
                     if self._passes_validation(cfg, db):
                         cfg.enabled = True
                         cfg.disabled_at = None
+                        cfg.rehab_allocation_pct = self._next_allocation(cfg.rehab_allocation_pct)
                         rehabilitated.append(cfg.strategy_name)
                         logger.info(
-                            "[Rehabilitation] Re-enabled strategy '%s'",
-                            cfg.strategy_name,
+                            "[Rehabilitation] Re-enabled strategy '%s' at %.0f%% allocation",
+                            cfg.strategy_name, cfg.rehab_allocation_pct * 100,
                         )
 
             if rehabilitated:

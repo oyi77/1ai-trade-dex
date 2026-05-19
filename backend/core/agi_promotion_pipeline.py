@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from loguru import logger
 
 from backend.core.experiment_runner import ExperimentRunner
+from backend.models.kg_models import ExperimentRecord
 
 
 @dataclass
@@ -121,7 +122,21 @@ class AGIPromotionPipeline:
 
     def _find_experiment(self, experiment_id: str):
         try:
-            return self.runner.run_shadow_experiment(strategy_name=experiment_id, duration_days=0)
+            session = self.runner._session
+            experiment = (
+                session.query(ExperimentRecord)
+                .filter_by(name=experiment_id, status="shadow")
+                .first()
+            )
+            if not experiment:
+                experiment = ExperimentRecord(
+                    name=experiment_id,
+                    strategy_composition={"name": experiment_id},
+                    status="shadow",
+                )
+                session.add(experiment)
+                session.commit()
+            return experiment
         except Exception:
             logger.exception(f"AGIPromotionPipeline: failed to find experiment {experiment_id}")
             return None

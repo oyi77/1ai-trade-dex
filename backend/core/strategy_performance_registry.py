@@ -196,7 +196,11 @@ class StrategyPerformanceRegistry:
         Reads all settled trades for `strategy` from DB, recomputes all
         aggregates, updates in-memory cache, and optionally persists a
         snapshot row if `db` is provided.
+        Skips wallet_import to exclude external/imported data from stats.
         """
+        if strategy == "wallet_import":
+            return self._reports.get(strategy, StrategyReport(strategy=strategy))
+
         from backend.models.database import Trade
 
         session = db or SessionLocal()
