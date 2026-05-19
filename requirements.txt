@@ -85,7 +85,7 @@ joblib>=1.3.0
 pmxt>=0.1.0
 backtesting>=0.3.3
 polymarket-paper-trader>=0.1.0
-polymarket-sdk>=0.1.0
+polymarket>=0.1.0
 polymarket-mcp>=0.1.0
 
 # Dev
