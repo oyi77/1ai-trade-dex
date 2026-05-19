@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, Dict, List
 
 from backend.ai.news_ingester import NewsArticle, NewsIngester
 from backend.ai.vector_store import Document, VectorStore

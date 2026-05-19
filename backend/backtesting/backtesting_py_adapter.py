@@ -110,7 +110,7 @@ class BacktestingPyAdapter(BaseBacktestStrategyRunner):
 
     def health_check(self) -> bool:
         try:
-            import backtesting
+# noqa: F401 - used via getattr            import backtesting
             return True
         except ImportError:
             return False

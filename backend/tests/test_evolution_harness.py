@@ -14,7 +14,7 @@ import pytest
 
 deap = pytest.importorskip("deap", reason="DEAP not installed")
 
-from backend.core.evolution_harness import (
+from backend.core.evolution_harness import (  # noqa: E402
     DEAPEvolutionBackend,
     Individual,
     LegacyGenomeBackend,

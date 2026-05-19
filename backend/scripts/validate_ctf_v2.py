@@ -153,9 +153,9 @@ def validate_auto_redeem_addresses() -> None:
 def validate_order_builder_v2() -> None:
     print("\n=== 4. OrderBuilder V2 Path ===")
     try:
-        from py_clob_client_v2.order_builder.builder import OrderBuilder
-        from py_clob_client_v2.order_utils.exchange_order_builder_v2 import (
-            ExchangeOrderBuilderV2,
+        from py_clob_client_v2.order_builder.builder import OrderBuilder  # noqa: F401
+        from py_clob_client_v2.order_utils.exchange_order_builder_v2 import (  # noqa: F401
+            ExchangeOrderBuilderV2,  # noqa: F401
         )
         from py_clob_client_v2.order_utils.model.ctf_exchange_v2_typed_data import (
             CTF_EXCHANGE_V2_DOMAIN_NAME,
@@ -197,12 +197,12 @@ def validate_order_builder_v2() -> None:
 def validate_clob_imports() -> None:
     print("\n=== 5. polymarket_clob.py V2 Compatibility ===")
     try:
-        from py_clob_client_v2 import (
-            ClobClient,
-            ApiCreds,
-            BuilderConfig,
-            OrderArgs,
-            BalanceAllowanceParams,
+        from py_clob_client_v2 import (  # noqa: F401
+            ClobClient,  # noqa: F401
+            ApiCreds,  # noqa: F401
+            BuilderConfig,  # noqa: F401
+            OrderArgs,  # noqa: F401
+            BalanceAllowanceParams,  # noqa: F401
             AssetType,
             OrderPayload,
         )

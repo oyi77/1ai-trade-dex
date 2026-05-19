@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779104935416,
+  "lastScanned": 1779203150720,
   "projectRoot": "/home/openclaw/projects/polyedge",
   "techStack": {
     "languages": [
@@ -49,7 +49,7 @@
       "path": "alembic",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1779104935407,
+      "lastAccessed": 1779203150709,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -61,7 +61,7 @@
       "path": "archive",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1779104935410,
+      "lastAccessed": 1779203150711,
       "keyFiles": [
         "AGENTS.md",
         "agi_test.db",
@@ -72,34 +72,34 @@
     "backend": {
       "path": "backend",
       "purpose": null,
-      "fileCount": 11,
-      "lastAccessed": 1779104935410,
+      "fileCount": 12,
+      "lastAccessed": 1779203150712,
       "keyFiles": [
         "AGENTS.md",
         "__init__.py",
         "__main__.py",
         "alembic.ini",
-        "config.py"
+        "cli.py"
       ]
     },
     "backups": {
       "path": "backups",
       "purpose": null,
-      "fileCount": 54,
-      "lastAccessed": 1779104935411,
+      "fileCount": 55,
+      "lastAccessed": 1779203150712,
       "keyFiles": [
+        "monitor_state.json",
         "tradingbot_20260510_201753.db",
         "tradingbot_20260510_201753.db-wal",
         "tradingbot_20260511_081752.db",
-        "tradingbot_20260511_081752.db-wal",
-        "tradingbot_20260511_181300.db"
+        "tradingbot_20260511_081752.db-wal"
       ]
     },
     "data": {
       "path": "data",
       "purpose": "Data files",
       "fileCount": 5,
-      "lastAccessed": 1779104935411,
+      "lastAccessed": 1779203150713,
       "keyFiles": [
         "bot.db",
         "crypto_oracle_performance.db",
@@ -108,11 +108,20 @@
         "trading_bot.db"
       ]
     },
+    "deploy": {
+      "path": "deploy",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1779203150713,
+      "keyFiles": [
+        "polyedge-monitor.service"
+      ]
+    },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 36,
-      "lastAccessed": 1779104935411,
+      "lastAccessed": 1779203150714,
       "keyFiles": [
         "AGENTS.md",
         "ANOMALY_REPORT.md",
@@ -125,7 +134,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 19,
-      "lastAccessed": 1779104935412,
+      "lastAccessed": 1779203150714,
       "keyFiles": [
         "AGENTS.md",
         "Dockerfile",
@@ -138,7 +147,7 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779104935412,
+      "lastAccessed": 1779203150714,
       "keyFiles": [
         "AGENTS.md"
       ]
@@ -147,7 +156,7 @@
       "path": "migrations",
       "purpose": "Database migrations",
       "fileCount": 4,
-      "lastAccessed": 1779104935412,
+      "lastAccessed": 1779203150715,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -159,7 +168,7 @@
       "path": "polyedge-docs",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1779104935412,
+      "lastAccessed": 1779203150715,
       "keyFiles": [
         "README.md",
         "docusaurus.config.ts",
@@ -171,8 +180,8 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 56,
-      "lastAccessed": 1779104935412,
+      "fileCount": 59,
+      "lastAccessed": 1779203150715,
       "keyFiles": [
         "AGENTS.md",
         "FIXES_APPLIED.py",
@@ -185,7 +194,7 @@
       "path": "secrets",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1779104935413,
+      "lastAccessed": 1779203150715,
       "keyFiles": [
         "AGENTS.md",
         "kalshi_private_key.pem"
@@ -195,7 +204,7 @@
       "path": "state",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779104935413,
+      "lastAccessed": 1779203150716,
       "keyFiles": [
         "cancel-signal-state.json"
       ]
@@ -204,7 +213,7 @@
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 29,
-      "lastAccessed": 1779104935413,
+      "lastAccessed": 1779203150716,
       "keyFiles": [
         "AGENTS.md",
         "SHUTDOWN_TEST_RESULTS.md",
@@ -217,7 +226,7 @@
       "path": "venv",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1779104935413,
+      "lastAccessed": 1779203150716,
       "keyFiles": [
         "pyvenv.cfg"
       ]
@@ -226,7 +235,7 @@
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 9,
-      "lastAccessed": 1779104935414,
+      "lastAccessed": 1779203150717,
       "keyFiles": [
         "AGENTS.md",
         "favicon.svg",
@@ -237,7 +246,7 @@
       "path": "polyedge-docs/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1779104935414,
+      "lastAccessed": 1779203150717,
       "keyFiles": [
         "intro.md"
       ]
@@ -246,21 +255,21 @@
       "path": "polyedge-docs/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1779104935415,
+      "lastAccessed": 1779203150719,
       "keyFiles": []
     },
     "polyedge-docs/src": {
       "path": "polyedge-docs/src",
       "purpose": "Source code",
       "fileCount": 0,
-      "lastAccessed": 1779104935415,
+      "lastAccessed": 1779203150719,
       "keyFiles": []
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 5,
-      "lastAccessed": 1779104935416,
+      "lastAccessed": 1779203150719,
       "keyFiles": [
         "AGENTS.md",
         "sample_activity.json",
@@ -271,7 +280,7 @@
       "path": "venv/bin",
       "purpose": "Executable scripts",
       "fileCount": 45,
-      "lastAccessed": 1779104935416,
+      "lastAccessed": 1779203150720,
       "keyFiles": [
         "Activate.ps1",
         "activate",
@@ -282,311 +291,10 @@
       "path": "venv/lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1779104935416,
+      "lastAccessed": 1779203150720,
       "keyFiles": []
     }
   },
-  "hotPaths": [
-    {
-      "path": "",
-      "accessCount": 90,
-      "lastAccessed": 1779177497625,
-      "type": "directory"
-    },
-    {
-      "path": "backend",
-      "accessCount": 83,
-      "lastAccessed": 1779177555478,
-      "type": "directory"
-    },
-    {
-      "path": "backend/config.py",
-      "accessCount": 73,
-      "lastAccessed": 1779189338031,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/risk/risk_manager.py",
-      "accessCount": 21,
-      "lastAccessed": 1779172489414,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/settlement/settlement.py",
-      "accessCount": 20,
-      "lastAccessed": 1779167105866,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_settlement.py",
-      "accessCount": 17,
-      "lastAccessed": 1779141084783,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/conftest.py",
-      "accessCount": 17,
-      "lastAccessed": 1779189380837,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/scheduler.py",
-      "accessCount": 12,
-      "lastAccessed": 1779139935400,
-      "type": "directory"
-    },
-    {
-      "path": "backend/data/polymarket_clob.py",
-      "accessCount": 11,
-      "lastAccessed": 1779193117177,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_benchmarks.py",
-      "accessCount": 10,
-      "lastAccessed": 1779129935498,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/base.py",
-      "accessCount": 10,
-      "lastAccessed": 1779172150726,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_auto_improve.py",
-      "accessCount": 9,
-      "lastAccessed": 1779123899285,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/__init__.py",
-      "accessCount": 9,
-      "lastAccessed": 1779144464953,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_critical_logic_bugs.py",
-      "accessCount": 8,
-      "lastAccessed": 1779142391061,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests",
-      "accessCount": 8,
-      "lastAccessed": 1779177511225,
-      "type": "directory"
-    },
-    {
-      "path": "backend/strategies/registry.py",
-      "accessCount": 6,
-      "lastAccessed": 1779144465034,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/probability_arb.py",
-      "accessCount": 6,
-      "lastAccessed": 1779172427387,
-      "type": "file"
-    },
-    {
-      "path": "backend/scripts/run_benchmarks.py",
-      "accessCount": 5,
-      "lastAccessed": 1779121972351,
-      "type": "file"
-    },
-    {
-      "path": "backend/data",
-      "accessCount": 5,
-      "lastAccessed": 1779167105720,
-      "type": "directory"
-    },
-    {
-      "path": "backend/scripts/validate_ctf_v2.py",
-      "accessCount": 4,
-      "lastAccessed": 1779121909897,
-      "type": "file"
-    },
-    {
-      "path": "backend/scripts/scan_github_trending.py",
-      "accessCount": 4,
-      "lastAccessed": 1779121957678,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_circuit_breaker_unified.py",
-      "accessCount": 4,
-      "lastAccessed": 1779123792670,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/__init__.py",
-      "accessCount": 4,
-      "lastAccessed": 1779144429607,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/arb_executor.py",
-      "accessCount": 4,
-      "lastAccessed": 1779166090365,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_bankroll_reconciliation.py",
-      "accessCount": 4,
-      "lastAccessed": 1779189524177,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/polymarket_scraper.py",
-      "accessCount": 3,
-      "lastAccessed": 1779106577379,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/market_universe.py",
-      "accessCount": 3,
-      "lastAccessed": 1779106737436,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/rag_pipeline.py",
-      "accessCount": 3,
-      "lastAccessed": 1779121908521,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_auto_redeem_scheduler.py",
-      "accessCount": 3,
-      "lastAccessed": 1779123549891,
-      "type": "file"
-    },
-    {
-      "path": "requirements.txt",
-      "accessCount": 3,
-      "lastAccessed": 1779140692036,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/negrisk_strategy.py",
-      "accessCount": 3,
-      "lastAccessed": 1779140718470,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_performance_accuracy.py",
-      "accessCount": 2,
-      "lastAccessed": 1779109589075,
-      "type": "file"
-    },
-    {
-      "path": "backend/scripts/ingest_hf_dataset.py",
-      "accessCount": 2,
-      "lastAccessed": 1779121858794,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/news_collector.py",
-      "accessCount": 2,
-      "lastAccessed": 1779121906999,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/auto_redeem.py",
-      "accessCount": 2,
-      "lastAccessed": 1779139935315,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/sentiment_analyzer.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106493071,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/dune_analytics.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106493123,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/debate_engine.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106493143,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/pmxt_client.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106509289,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/base.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106509533,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_arb_executor.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106521543,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/negrisk_arb.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106521590,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/llm_router.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106534952,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/news_ingester.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106624475,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/vector_store.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106624537,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/settlement/settlement_ws.py",
-      "accessCount": 1,
-      "lastAccessed": 1779106909935,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_scheduler_agi_jobs.py",
-      "accessCount": 1,
-      "lastAccessed": 1779109210469,
-      "type": "file"
-    },
-    {
-      "path": "backend/scripts/auto_restart.sh",
-      "accessCount": 1,
-      "lastAccessed": 1779121857628,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/risk/circuit_breaker_unified.py",
-      "accessCount": 1,
-      "lastAccessed": 1779123358590,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/circuit_breaker_unified.py",
-      "accessCount": 1,
-      "lastAccessed": 1779123358672,
-      "type": "file"
-    }
-  ],
+  "hotPaths": [],
   "userDirectives": []
 }

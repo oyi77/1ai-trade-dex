@@ -226,7 +226,7 @@ class TestExportCsv:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "empty.csv")
-            result = journal.export_csv(output_path=path)
+            journal.export_csv(output_path=path)
 
             assert os.path.exists(path)
             with open(path, newline="") as f:

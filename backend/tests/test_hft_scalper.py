@@ -419,7 +419,7 @@ class TestRunCycle:
         _seed_price_history(strategy, "tok_old", [0.50, 0.501, 0.502])
 
         mock_ctx.clob.get_markets = AsyncMock(return_value=[])
-        result = await strategy.run_cycle(mock_ctx)
+        await strategy.run_cycle(mock_ctx)
 
         assert "tok_old" not in strategy._open_positions
         assert len(strategy._closed_positions) == 1
