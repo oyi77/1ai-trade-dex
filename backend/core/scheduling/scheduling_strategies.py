@@ -1017,9 +1017,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
             execution_modes = []
             if effective_mode == "live":
-                execution_modes = ["paper", "live"]
+                execution_modes = ["live", "paper"]  # live first so duplicate guard doesn't block real trades
                 logger.info(
-                    f"[{strategy_name}] effective_mode=live, will execute in BOTH paper+live modes"
+                    f"[{strategy_name}] effective_mode=live, will execute in BOTH live+paper modes"
                 )
             elif effective_mode in ("paper", "testnet"):
                 execution_modes = [effective_mode]
