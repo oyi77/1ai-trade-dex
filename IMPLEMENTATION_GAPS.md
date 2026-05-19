@@ -941,3 +941,135 @@ Full codebase re-scan. Findings below are NEW only — all 259 prior findings (E
 8. **Deprecated APIs** (E-268..E-276, E-322..E-324): 18+ uses of `datetime.utcnow()` and `asyncio.get_event_loop()`.
 9. **Copy-trade bugs** (E-242, E-243): win_rate mismeasured, NO-side trades broken.
 10. **Frontend dark theme** (E-318, E-319): 3 admin components use light theme on dark dashboard. ProviderStatusPanel has hardcoded mock data.
+
+---
+
+## Polymarket Intelligence System — New Modules (2026-05-19)
+
+14 new modules built per PROMPT.md v2 spec. Wallet intelligence, whale discovery, strategy replication, opportunity detection.
+
+### New Modules
+
+| Module | File | Tests | Status | Notes |
+|--------|------|-------|--------|-------|
+| Market Classifier v2 | `backend/core/market_classifier.py` | 34 | **DONE** | 25+ categories, word-boundary matching for short keywords |
+| Proxy Finder | `backend/core/proxy_finder.py` | 8 | **DONE** | Blockscout PUSD MINT + internal tx fallback, 24h cache |
+| Wallet Resolver | `backend/core/wallet_resolver.py` | 6 | **DONE** | username/EOA/proxy auto-detection, profile page parsing |
+| Wallet History | `backend/data/wallet_history.py` | 9 | **DONE** | Pagination, 5min cache, PnL history, activity summary |
+| Wallet Analyzer | `backend/core/wallet_analyzer.py` | 18 | **DONE** | Sharpe, VaR, category/temporal/size breakdowns, copy rating |
+| Position Sizer | `backend/core/risk/position_sizer.py` | 15 | **DONE** | Quarter-Kelly, liquidity-aware min, hard limits $5-$50 |
+| Exposure Limits | `backend/core/risk/exposure_limits.py` | 9 | **DONE** | 8 pre-trade checks (capital, positions, market, category, daily loss, hours, size) |
+| Sanity Checks | `backend/core/risk/sanity_checks.py` | 17 | **DONE** | quick_sanity_check (6 checks) + deep_sanity_check (6 checks) |
+| Strategy Fingerprint | `backend/strategies/fingerprint.py` | 10 | **DONE** | 14-dimension profiling, confidence scoring, red/green flags |
+| Wallet Scanner | `backend/core/wallet_scanner.py` | 10 | **DONE** | Gamma API + Blockscout whale tracking, dedup, cache |
+| Opportunity Detector | `backend/strategies/opportunity_detector.py` | 29 | **DONE** | 5 types: price discrepancy, momentum, liquidity gap, event-driven, emotional trading |
+| Strategy Replication | `backend/strategies/replication.py` | 18 | **DONE** | Rule decomposition, paper simulation, config generation |
+| Trade Journal | `backend/monitoring/trade_journal.py` | 9 | **DONE** | Query, daily summary, strategy performance, CSV export |
+| CLI | `backend/cli.py` | 9 | **DONE** | 9 commands: analyze, compare, scan, fingerprint, replicate, resolve, proxy, opportunities, journal |
+
+**Total: 201 tests, 0 failures.**
+
+### Bugs Found and Fixed During Review
+
+| # | Severity | File | Bug | Fix |
+|---|----------|------|-----|-----|
+| 1 | CRITICAL | `exposure_limits.py:56` | Category limit never fires (60% vs 6000%) | Unit mismatch fixed — both now ratio 0-1 |
+| 2 | CRITICAL | `position_sizer.py:81` | Min $5 overrides liquidity cap on thin books | Min only applies if liquidity allows |
+| 3 | CRITICAL | `replication.py:303` | total_trades vs win_rate denominator mismatch | Use matched_trades consistently |
+| 4 | CRITICAL | `cli.py:226,234` | `args.today` doesn't exist → AttributeError | Removed references, let functions default |
+| 5 | HIGH | `opportunity_detector.py:214` | Momentum stop_loss confused direction | Clear up=ride, down=buy-dip with correct stops |
+| 6 | HIGH | `opportunity_detector.py:353` | Emotional target always base price | Target = expected 50% reversion point |
+| 7 | HIGH | `opportunity_detector.py:142` | Stop loss can be negative | `max(combined - 0.02, 0.0)` |
+| 8 | HIGH | `fingerprint.py:45` | timing_analysis default_factory=list vs dict | Fixed to dict |
+| 9 | HIGH | `wallet_scanner.py:134` | Bare `except Exception: pass` | Added logger.debug |
+| 10 | HIGH | `replication.py:15` | Imports private `_compute_analysis` | Made function public `compute_analysis` |
+| 11 | MEDIUM | `core/risk/__init__.py` | Missing 3 new submodules | Added position_sizer, exposure_limits, sanity_checks |
+| 12 | MEDIUM | `monitoring/__init__.py` | Missing trade_journal | Added lazy-load registry |
+
+### Known Remaining Gaps
+
+| # | Severity | Gap | Status |
+|---|----------|-----|--------|
+| 1 | MEDIUM | Hardcoded URLs in 4 modules | **FIXED** — wallet_history, wallet_scanner, wallet_resolver now use `settings.*`. Blockscout kept hardcoded (no config). |
+| 2 | MEDIUM | `classify_market` naming collision | **FIXED** — correlation_monitor version renamed to `classify_market_broad()` |
+| 3 | LOW | Cache key collision with `[:10]` truncation | **FIXED** — changed to `[2:14]` (12 hex chars, ~281 trillion combinations) |
+| 4 | LOW | `wallet_resolver.py` bare `except Exception:` | **FIXED** — now captures `as exc` |
+| 5 | LOW | loguru vs stdlib logging inconsistency | **INTENTIONAL** — matches existing codebase pattern (strategies/ uses loguru, core/ uses logging) |
+| 6 | INFO | New modules not in existing AGENTS.md files | **FIXED** — core/AGENTS.md, strategies/AGENTS.md, monitoring/AGENTS.md updated |
+| 7 | INFO | `docs/how-it-works.md` and `docs/data-sources.md` outdated | **KNOWN** — separate effort needed, not blocking |
+
+### Deep Logic Review Fixes (2026-05-19)
+
+| # | Severity | File | Bug | Fix |
+|---|----------|------|-----|-----|
+| 1 | CRITICAL | `replication.py:256` | Paper simulation replays source PnL directly, validates nothing | Now filters positions by rule category before counting |
+| 2 | CRITICAL | `wallet_analyzer.py:161` | `win_rate` stored as 0-100 while fingerprint/replication use 0-1 | Standardized to 0-1 everywhere, CLI multiplies by 100 for display |
+| 3 | CRITICAL | `wallet_resolver.py:177` | Proxy/EOA swap if "user" query before "user-clob" | Fixed: "user-clob" sets eoa+proxy, "user" only fills proxy as fallback |
+| 4 | HIGH | `fingerprint.py:140` | Sharpe uses `sqrt(252)` for per-trade returns | Now computes `sqrt(trades_per_year)` from actual time span |
+| 5 | HIGH | `fingerprint.py:273` | Hold time measures inter-trade gaps, not position duration | Renamed to clarify intent; strategy type classification adjusted |
+| 6 | HIGH | `fingerprint.py:128` | `profit_factor = inf` when no losses — breaks JSON serialization | Capped at 999.99 |
+| 7 | HIGH | `replication.py:282` | Drawdown measured from $0, not capital | Now initializes `peak = capital`, tracks `equity = capital + pnl` |
+| 8 | HIGH | `wallet_analyzer.py:89` | `_safe_div` doesn't catch NaN/Inf | Added `math.isfinite()` check |
+| 9 | HIGH | `wallet_scanner.py:197` | File cache write not atomic — race condition | Documented (low risk for single-process use) |
+| 10 | MEDIUM | `market_classifier.py:9` | `MARKET_CATEGORIES` dict unused by `classify_market()` | Kept as reference; `_build_rules()` has independent keyword set |
+| 11 | MEDIUM | `fingerprint.py:319` | HEDGER detection checks size distribution, not price | Documented as heuristic |
+| 12 | MEDIUM | `opportunity_detector.py:188` | Momentum O(n^2) per market | Documented; acceptable for <100 markets |
+
+### Realistic Paper Simulation (2026-05-19)
+
+Paper trading now mirrors live execution:
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Slippage | 0 bps (disabled) | 20 bps + random ±20% jitter |
+| Fees | Not deducted | 2% on winning proceeds |
+| Liquidity | No check | Reject if book < $100 |
+| Size impact | None | Logarithmic scaling |
+| Fee formula | 2% of expected profit | 2% of (payout - cost) |
+
+**Files changed:**
+- `config.py` — added PAPER_SIZE_IMPACT_FACTOR, PAPER_CLOB_FEE_RATE, PAPER_MIN_DEPTH_USD
+- `settlement.py` — fee deducted from paper bankroll
+- `paper_slippage.py` — fee formula fixed, liquidity check gated on depth > 0
+- `strategy_executor.py` — orderbook depth passed to simulator
+- `.env` — PAPER_MIN_DEPTH_USD=100.0, PAPER_RANDOM_SLIPPAGE=true
+
+### Usage
+
+```bash
+# CLI
+python -m backend.cli analyze 0xWALLET
+python -m backend.cli analyze --rapid @username
+python -m backend.cli scan --sort-by pnl --limit 20
+python -m backend.cli fingerprint 0xWALLET
+python -m backend.cli replicate 0xWALLET --capital 1000
+python -m backend.cli resolve @berkah-karya
+python -m backend.cli proxy 0xEOA
+python -m backend.cli opportunities
+python -m backend.cli journal --from 2026-01-01 --to 2026-05-19 --summary
+
+# Python API
+from backend.core.wallet_resolver import resolve_wallet
+from backend.core.wallet_analyzer import analyze_wallet
+from backend.strategies.fingerprint import strategy_fingerprint
+from backend.strategies.replication import replicate_strategy
+from backend.strategies.opportunity_detector import scan_for_opportunities
+from backend.core.wallet_scanner import find_profitable_traders
+```
+
+### Realistic Backtest Results (2026-05-19)
+
+Settings: slippage 20bps, fee 2%, liquidity $100 min
+
+| Strategy | Trades | Old WR | New WR | Old PnL | New PnL | Decision |
+|----------|--------|--------|--------|---------|---------|----------|
+| cex_pm_leadlag | 186 | 61.3% | 60.8% | +$769 | +$666 | KEEP |
+| bond_scanner | 25 | 20% | 20% | +$26 | +$23 | TUNE |
+| wallet_import | 60 | 33.3% | 33.3% | +$76 | +$45 | TUNE |
+| line_movement_detector | 3,829 | 88.9% | 1.9% | +$1,341 | -$1,869 | KILL |
+
+**Key finding:** line_movement_detector had 88.9% WR but NO real edge — small trades ($5-10) with 0.017 avg PnL vs 0.15 avg cost.
+
+**Actions:** Killed 6 strategies, raised all MIN_EDGE to 5%. Only viable: cex_pm_leadlag (Sharpe 2.80).
+
+**Next:** Phase 5 (wallet intelligence) is CRITICAL — need new alpha sources.

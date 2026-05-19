@@ -312,7 +312,7 @@ class TestEvolutionSchedulerRegistration:
     def test_scheduler_uses_configured_evolution_intervals(self):
         import os
         workspace_root = os.environ.get("GITHUB_WORKSPACE", os.path.join(os.path.dirname(__file__), "../.."))
-        scheduler_file = os.path.join(workspace_root, "backend", "core", "scheduler.py")
+        scheduler_file = os.path.join(workspace_root, "backend", "core", "scheduling", "scheduler.py")
         if not os.path.exists(scheduler_file):
             scheduler_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../core/scheduler.py"))
         with open(scheduler_file, "r", encoding="utf-8") as f:

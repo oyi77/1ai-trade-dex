@@ -145,6 +145,19 @@
       ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "src/hooks/useSSEEvents.ts",
+      "accessCount": 1,
+      "lastAccessed": 1779188216270,
+      "type": "file"
+    },
+    {
+      "path": "src/hooks/useSSEEvents.test.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1779188290442,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

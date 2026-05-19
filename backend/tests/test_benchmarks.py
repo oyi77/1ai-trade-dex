@@ -1,6 +1,6 @@
 """G-23: Performance benchmark tests for trade execution latency and settlement speed."""
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from backend.core.risk.risk_manager import RiskManager
 

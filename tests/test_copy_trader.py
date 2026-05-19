@@ -264,7 +264,7 @@ class TestWalletWatcher:
                 # Add a 40 SELL
                 data = trade_sequences[0] + [
                     {"transactionHash": "tx2", "side": "SELL", "conditionId": "c1",
-                     "outcomeIndex": 0, "price": "0.60", "size": "40", "timestamp": "t2", "title": "T"}
+                     "outcomeIndex": 0, "price": "0.60", "size": "30", "timestamp": "t2", "title": "T"}
                 ]
             resp = MagicMock()
             resp.json.return_value = data
@@ -279,9 +279,9 @@ class TestWalletWatcher:
         with patch.object(watcher, '_get_entry_size', return_value=100.0):
             await watcher.poll("0xwallet")
 
-            # Poll 2: SELL 40 appears → cumulative=40 < 50% of 100 → no exit signal
+            # Poll 2: SELL 30 appears → cumulative=30 < 40% of 100 → no exit signal
             buys, exits = await watcher.poll("0xwallet")
             assert len(exits) == 0
 
         buys, exits = await watcher.poll("0xwallet")
-        assert len(exits) == 0, "Should not exit on 40% sell"
+        assert len(exits) == 0, "Should not exit on 30% sell"

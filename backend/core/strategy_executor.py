@@ -135,6 +135,29 @@ def _cfg(key: str, default=None):
     return val
 
 
+def _fetch_orderbook_depth(token_id: str | None) -> float:
+    """Sync read of orderbook depth from the in-memory cache.
+
+    Returns total depth (bids + asks) in USD, or 0.0 if unavailable.
+    Safe to call from sync context — accesses the cache dict directly.
+    """
+    if not token_id:
+        return 0.0
+    try:
+        from backend.data.orderbook_cache import get_orderbook_cache
+        cache = get_orderbook_cache()
+        # Access internal cache dict directly (sync context, no async lock needed)
+        book = cache._cache.get(token_id)
+        max_age = getattr(cache, "_max_age", 30.0)
+        if book and book.age_seconds < max_age:
+            bid_depth = sum(float(b.get("price", 0)) * float(b.get("size", 0)) for b in book.bids)
+            ask_depth = sum(float(a.get("price", 0)) * float(a.get("size", 0)) for a in book.asks)
+            return bid_depth + ask_depth
+    except Exception as e:
+        logger.debug("orderbook depth fetch failed for %s: %s", token_id, e)
+    return 0.0
+
+
 def _record_unexpected_attempt_failure(
     db,
     decision: dict,
@@ -491,11 +514,13 @@ def _execute_decision_paper_or_kalshi(
 
             if mode == "paper":
                 simulator = get_simulator()
+                orderbook_depth_usd = _fetch_orderbook_depth(token_id)
                 simulation_result = simulator.simulate_fill(
                     entry_price=entry_price,
                     size=adjusted_size,
                     direction=direction,
                     market_ticker=market_ticker,
+                    orderbook_depth_usd=orderbook_depth_usd,
                     db=db
                 )
 
@@ -1340,11 +1365,13 @@ async def _execute_decision_live_clob(
 
             if mode == "paper":
                 simulator = get_simulator()
+                orderbook_depth_usd = _fetch_orderbook_depth(token_id)
                 simulation_result = simulator.simulate_fill(
                     entry_price=entry_price,
                     size=adjusted_size,
                     direction=direction,
                     market_ticker=market_ticker,
+                    orderbook_depth_usd=orderbook_depth_usd,
                     db=db
                 )
 

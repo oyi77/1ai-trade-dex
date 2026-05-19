@@ -380,7 +380,7 @@ async def scan_and_trade_job(mode: str):
                     d
                     for d in getattr(result, "decisions", [])
                     if isinstance(d, dict)
-                    and d.get("decision") == "BUY"
+                    and d.get("decision") in ("BUY", "QUOTE")
                     and (d.get("market_ticker") or d.get("token_id"))
                 ]
                 total_decisions += len(buy_decisions)
@@ -1011,8 +1011,8 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 d
                 for d in getattr(result, "decisions", [])
                 if isinstance(d, dict)
-                and d.get("decision") == "BUY"
-                and d.get("market_ticker")
+                and d.get("decision") in ("BUY", "QUOTE")
+                and (d.get("market_ticker") or d.get("token_id"))
             ]
 
             execution_modes = []

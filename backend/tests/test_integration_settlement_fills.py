@@ -110,7 +110,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        expected_pnl = (1.0 - 0.60) * 100
+        # size is dollars; calculate_pnl converts to shares: 100/0.60 = 166.67
+        expected_pnl = round((1.0 - 0.60) * (100 / 0.60), 2)
         assert pnl == expected_pnl
         assert pnl > 0
 
@@ -130,7 +131,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        expected_loss = -(0.60 * 100)
+        # loss = -(entry_price * shares) = -(0.60 * 166.67) = -100.0
+        expected_loss = round(-(0.60 * (100 / 0.60)), 2)
         assert pnl == expected_loss
         assert pnl < 0
 
@@ -150,7 +152,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        expected_pnl = (1.0 - 0.50) * 100
+        # shares = 100/0.50 = 200; profit = (1.0 - 0.50) * 200 = 100.0
+        expected_pnl = round((1.0 - 0.50) * (100 / 0.50), 2)
         assert pnl == expected_pnl
         assert pnl > 0
 
@@ -170,7 +173,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        expected_loss = -(0.50 * 100)
+        # loss = -(entry_price * shares) = -(0.50 * 200) = -100.0
+        expected_loss = round(-(0.50 * (100 / 0.50)), 2)
         assert pnl == expected_loss
         assert pnl < 0
 

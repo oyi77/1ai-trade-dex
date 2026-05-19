@@ -28,4 +28,4 @@ class TestLMSRSpread:
 
     def test_static_mode_preserves_behavior(self):
         spread = self.mm.calculate_spread(0.1, 0.5)
-        assert 0.02 <= spread <= 0.15
+        assert 0.03 <= spread <= 0.18

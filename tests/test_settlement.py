@@ -23,22 +23,22 @@ def make_trade(**kwargs) -> Trade:
 
 
 def pnl_win(size: float, entry: float) -> float:
-    """Expected P&L on a win: (1 - entry_price) * size.
+    """Expected P&L on a win.
 
-    Polymarket CLOB semantics: `size` = number of shares (not dollars spent).
-    Each share pays $1 on win; cost per share = entry_price.
-    Net profit per share = (1 - entry_price). Total = (1 - entry_price) * size.
-    Verified against real DB trades: entry=0.505, size=24.75 → pnl=12.25.
+    Pipeline stores `size` as DOLLAR AMOUNT. calculate_pnl converts
+    dollars to shares: shares = size / entry_price.
+    Net profit = (1 - entry_price) * shares = (1 - entry_price) * (size / entry_price).
     """
-    return round((1.0 - entry) * size, 2)
+    shares = size / entry
+    return round((1.0 - entry) * shares, 2)
 
 
 def pnl_loss(size: float, entry: float) -> float:
-    """Expected P&L on a loss: -(entry_price * size).
+    """Expected P&L on a loss.
 
-    Cost of shares = entry_price * size. On loss shares are worth $0.
+    shares = size / entry_price. Loss = -(entry_price * shares) = -size.
     """
-    return round(-entry * size, 2)
+    return round(-size, 2)
 
 
 class TestCalculatePnl:

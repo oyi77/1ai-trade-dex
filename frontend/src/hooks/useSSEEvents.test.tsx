@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSSEEvents } from './useSSEEvents';
 import { API_BASE } from '../api';
+import { ModeFilterProvider } from '../contexts/ModeFilterContext';
 
 // Mock EventSource
 class MockEventSource {
@@ -49,7 +50,9 @@ describe('useSSEEvents', () => {
     });
     wrapper = ({ children }: { children: React.ReactNode }) => (
       <QueryClientProvider client={queryClient}>
-        {children}
+        <ModeFilterProvider>
+          {children}
+        </ModeFilterProvider>
       </QueryClientProvider>
     );
     vi.clearAllMocks();
@@ -66,7 +69,7 @@ describe('useSSEEvents', () => {
     renderHook(() => useSSEEvents({ channels }), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
-      `${API_BASE}/api/events/stream?channels=dashboard%2Cagi_control`
+      `${API_BASE}/api/v1/events/stream?channels=dashboard%2Cagi_control`
     );
   });
 
@@ -74,7 +77,7 @@ describe('useSSEEvents', () => {
     renderHook(() => useSSEEvents(), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
-      `${API_BASE}/api/events/stream`
+      `${API_BASE}/api/v1/events/stream`
     );
   });
 
@@ -82,7 +85,7 @@ describe('useSSEEvents', () => {
     renderHook(() => useSSEEvents(), { wrapper });
 
     expect(MockEventSource.mockInstances[0].url).toContain(
-      `${API_BASE}/api/events/stream`
+      `${API_BASE}/api/v1/events/stream`
     );
     // Should not have a ?channels= query param
     expect(MockEventSource.mockInstances[0].url).not.toContain('channels=');

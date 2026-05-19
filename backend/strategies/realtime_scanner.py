@@ -93,6 +93,7 @@ class RealtimeScannerStrategy(BaseStrategy):
     description = "Real-time price velocity scanner (Track 1 - Parallel Edge Discovery)"
     category = "edge_discovery"
     default_params = {
+        "_force_disabled": True,
         # Velocity thresholds (0.15 = 15% price change over 30s)
         "velocity_threshold_up": 0.15,  # Generate UP signal when velocity > 0.15
         "velocity_threshold_down": -0.15,  # Generate DOWN signal when velocity < -0.15

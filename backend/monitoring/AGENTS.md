@@ -16,6 +16,9 @@ Prometheus metrics emission, Grafana dashboard configuration, structured logging
 | `performance_tracker.py` | Per-strategy performance metric tracking |
 | `queue_metrics.py` | Job queue depth and throughput metrics |
 | `structured_logger.py` | JSON structured logging utilities |
+| `trade_journal.py` | Trade journal: query trades, daily summary, strategy performance, CSV export |
+| `disk_monitor.py` | Disk usage monitoring |
+| `agi_metrics.py` | AGI-specific metrics |
 
 ## Subdirectories
 

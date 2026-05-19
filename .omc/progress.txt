@@ -1,98 +1,51 @@
-=== POLYEDGE SECURITY & QUALITY FIX SPRINT (v8.0) ===
-Date: 2026-04-10
-Plan: .omc/prd.json
-Status: COMPLETE ✅
+=== POLYMARKET INTELLIGENCE SYSTEM (v1.0) ===
+Date: 2026-05-19
+Plan: .omc/plans/polymarket-intelligence-system.md
+PRD: .omc/prd.json
+Status: ALL 15 STORIES PASS ✅ | VERIFIER: PASS ✅
 
 ### Sprint Goal
-Fix all Critical/High/Medium gaps identified in post-v7.0 deep gap analysis.
-13 stories: ALL PASSES TRUE
-528 tests: ALL PASSING
-Architect review: APPROVED (after backtest.py fix)
+Build wallet intelligence, whale discovery, strategy replication, and opportunity detection
+modules per PROMPT.md v2 spec. Gap analysis against 180K LOC codebase.
 
-### Stories Completed
+### Verification Report
+- Files: 14/14 exist and import cleanly
+- Tests: 201/201 pass in 3.34s
+- Debug code: 0 matches (TODO/HACK/breakpoint/pdb)
+- Functional: classify_market("Bitcoin Up or Down - 5m window") → "BTC_5m" ✅
+- Functional: kelly_criterion(0.55, 1.2, 1.0) → 0.04375 (correct quarter-Kelly, criterion had wrong expected value)
+- Verdict: APPROVE
 
-**SEC-001 ✅** Add require_admin to 20+ unauthenticated endpoints
-- Files: backend/api/system.py, main.py, copy_trading.py, arbitrage.py, market_intel.py, backtest.py
-- Endpoints secured: /api/stats, /api/stats/strategies, /api/ai/status, /api/decisions, /api/decisions/export,
-  /api/decisions/{id}, /api/strategies, /api/strategies/{name}, /api/events, /api/dashboard,
-  /api/copy/leaderboard, /api/copy/signals, /api/copy-trader/positions, /api/copy-trader/status,
-  /api/arbitrage/opportunities, /api/edge-performance, /api/whales/transactions, /api/news/feed,
-  /api/predictions/{id}, /api/backtest/strategies, /api/backtest/history
-- /api/signal-config intentionally public (no secrets)
+### Stories Completed (15/15)
 
-**SEC-002 ✅** Whitelist sort parameter in /api/decisions
-- _ALLOWED_DECISION_SORT = {"id", "created_at", "strategy", "market_ticker", "confidence", "decision"}
-- Invalid sort silently falls back to created_at
-- File: backend/api/system.py
+P1-001 ✅ Market Classifier v2 (34 tests) — 25+ categories, word-boundary matching
+P1-002 ✅ Proxy Finder (8 tests) — Blockscout PUSD MINT, 24h cache
+P1-003 ✅ Wallet Resolver (6 tests) — username/EOA/proxy auto-detection
+P1-004 ✅ Wallet History (9 tests) — pagination, 5min cache, PnL history
+P1-005 ✅ Wallet Analyzer (18 tests) — Sharpe, VaR, categories, copy rating
+P2-001 ✅ Position Sizer (15 tests) — quarter-Kelly, hard limits
+P2-002 ✅ Exposure Limits (9 tests) — 8 pre-trade checks
+P2-003 ✅ Sanity Checks (17 tests) — quick + deep validation
+P2-004 ✅ Strategy Fingerprint (10 tests) — 14-dimension profiling
+P2-005 ✅ Wallet Scanner (10 tests) — Gamma + Blockscout discovery
+P2-006 ✅ Opportunity Detector (29 tests) — 5 opportunity types
+P3-001 ✅ Strategy Replication (18 tests) — rule decomposition + paper sim
+P3-002 ✅ Trade Journal (9 tests) — query + CSV export
+P4-001 ✅ CLI Integration (9 tests) — 9 commands, --json flag
+FINAL ✅ Regression (201 tests pass)
 
-**SEC-003 ✅** Atomic .env writes via temp-file + os.replace
-- tempfile.mkstemp() in same directory → os.replace() for atomic rename
-- Cleanup on failure (os.unlink temp file)
-- File: backend/api/auth.py
+### Files Created (28 total)
+Source (14): market_classifier, proxy_finder, wallet_resolver, wallet_history,
+wallet_analyzer, position_sizer, exposure_limits, sanity_checks, fingerprint,
+wallet_scanner, opportunity_detector, replication, trade_journal, cli
 
-**SEC-004 ✅** Credential validation before live/testnet mode switch
-- Live mode: all 4 Polymarket credentials required (raises 400 with missing list)
-- Testnet mode: POLYMARKET_PRIVATE_KEY required
-- Guard runs BEFORE settings.TRADING_MODE is updated
-- File: backend/api/auth.py
-
-**SEC-005 ✅** Confirmation guard for /api/bot/reset
-- ResetRequest(confirm: bool = False) required body
-- Returns 400 with message if confirm != True
-- File: backend/api/system.py
-
-**SEC-006 ✅** Route simulate_trade through execute_decision
-- No more direct Trade() construction in simulate_trade
-- All risk controls, duplicate checks, bankroll deductions via execute_decision
-- Returns 400 if trade rejected by risk controls
-- File: backend/api/trading.py
-
-**SEC-007 ✅** Token auth for /ws/markets and /ws/whales
-- Both endpoints check token query param: close(1008) if ADMIN_API_KEY set and mismatch
-- Pattern matches existing /ws/events auth
-- File: backend/api/main.py
-
-**FIX-001 ✅** Fix DB session leak in get_copy_signals
-- SessionLocal() now wrapped in try/finally with db.close()
-- File: backend/api/copy_trading.py
-
-**FIX-002 ✅** Cap unbounded limit params at 500 (5000 for export)
-- /api/decisions, /api/events, /api/copy/leaderboard, /api/copy/signals, /api/trades: min(limit, 500)
-- /api/decisions/export: min(limit, 5000)
-- Files: system.py, trading.py, copy_trading.py
-
-**FIX-003 ✅** Document in-process rate limiter limitation
-- Class docstring notes: in-memory resets on restart, multi-worker bypass
-- Recommends Redis-backed alternative for production
-- File: backend/api/rate_limiter.py
-
-**FIX-004 ✅** Fix expired trade PnL for live mode
-- Paper mode expired: pnl = trade.size (stake returned to paper bankroll)
-- Live/testnet expired: pnl = 0 (on-chain handles real funds; no double-credit)
-- File: backend/core/settlement.py
-
-**FIX-005 ✅** Add WalletConfig/CreatedWallet/WalletBalance TypeScript types
-- WalletConfig: {id, address, pseudonym, source, tags, enabled, added_at}
-- CreatedWallet: {address, message}
-- WalletBalance: {address, usdc_balance, last_updated, source}
-- File: frontend/src/types.ts
-
-**MED-001 ✅** Sanitize raw exception strings in 500 error responses
-- Backtest /run: logger.error(exc) + generic "check server logs" detail
-- Backtest /quick, strategy run-now: same pattern
-- Files: backend/api/system.py, backend/api/backtest.py
+Tests (14): test_market_classifier, test_proxy_finder, test_wallet_resolver,
+test_wallet_history, test_wallet_analyzer, test_position_sizer, test_exposure_limits,
+test_sanity_checks, test_strategy_fingerprint, test_wallet_scanner,
+test_opportunity_detector, test_strategy_replication, test_trade_journal, test_cli
 
 ### Key Learnings
-- Architect review caught backtest.py was not in original fix scope — always check all files in a module area
-- simulate_trade → execute_decision: decision dict needs "market_type": "btc" explicitly
-- Atomic .env: tempfile.mkstemp() preferred over NamedTemporaryFile(delete=False) — fd is returned directly, no double-open
-- WebSocket auth: query param `token` not header, because WS handshake doesn't support custom headers in browser
-- Settlement expired PnL: paper and live modes must diverge — paper restores stake for realistic simulation
-
-### Files Changed
-backend/api/auth.py, backend/api/system.py, backend/api/trading.py, backend/api/main.py,
-backend/api/copy_trading.py, backend/api/arbitrage.py, backend/api/market_intel.py,
-backend/api/backtest.py, backend/api/rate_limiter.py,
-backend/core/settlement.py,
-frontend/src/types.ts,
-.omc/prd.json, .omc/progress.txt
+- Parallel agents: 6 simultaneously for independent modules
+- Wave-based: base → standalone → dependent → final
+- Word-boundary matching needed for short keywords (eth, sol, ai, sec)
+- Mock-heavy testing: all external APIs mocked

@@ -4,7 +4,6 @@ import pytest
 from backend.strategies.negrisk_strategy import (
     NegRiskEvent,
     FairProbResult,
-    NegRiskOrder,
     calculate_fair_probabilities,
     calculate_kelly_bets,
     detect_neg_risk_events,

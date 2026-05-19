@@ -32,7 +32,7 @@ _correlation_exposure_gauge = Gauge(
 )
 
 
-def classify_market(market_ticker: str, event_slug: Optional[str] = None) -> str:
+def classify_market_broad(market_ticker: str, event_slug: Optional[str] = None) -> str:
     """Classify a market into a category based on ticker and event slug keywords.
 
     Returns the matched category name, or 'uncategorized' if no keywords match.
@@ -96,11 +96,11 @@ class CorrelationMonitor:
 
                 category_exposure: Dict[str, float] = {}
                 for t_market, t_event, t_size in open_trades:
-                    cat = classify_market(t_market, t_event)
+                    cat = classify_market_broad(t_market, t_event)
                     category_exposure[cat] = category_exposure.get(cat, 0.0) + float(t_size or 0.0)
 
                 # Add the proposed trade
-                new_cat = classify_market(market_ticker, event_slug)
+                new_cat = classify_market_broad(market_ticker, event_slug)
                 category_exposure[new_cat] = category_exposure.get(new_cat, 0.0) + trade_size
 
                 # Compute correlation-adjusted exposure:

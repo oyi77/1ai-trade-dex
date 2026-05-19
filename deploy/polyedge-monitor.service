@@ -1,0 +1,24 @@
+[Unit]
+Description=PolyEdge Autonomous Monitor Daemon
+After=network.target polyedge-api.service
+Wants=polyedge-api.service
+
+[Service]
+Type=forking
+User=openclaw
+Group=openclaw
+
+WorkingDirectory=/home/openclaw/projects/polyedge
+Environment="PATH=/home/openclaw/projects/polyedge/venv/bin:/usr/local/bin:/usr/bin"
+Environment="PYTHONPATH=/home/openclaw/projects/polyedge"
+ExecStart=/home/openclaw/projects/polyedge/backend/agents/monitor/self_wake.sh start
+ExecStop=/home/openclaw/projects/polyedge/backend/agents/monitor/self_wake.sh stop
+ExecReload=/home/openclaw/projects/polyedge/backend/agents/monitor/self_wake.sh restart
+PIDFile=/tmp/polyedge-monitor.pid
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/openclaw/projects/polyedge/logs/monitor-daemon.log
+StandardError=append:/home/openclaw/projects/polyedge/logs/monitor-daemon.log
+
+[Install]
+WantedBy=multi-user.target

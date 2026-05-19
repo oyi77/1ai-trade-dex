@@ -34,8 +34,8 @@ DEFAULT_SETTINGS = {
     "PAPER_MIN_SLIPPAGE_BPS": ("5.0", "Minimum slippage in basis points regardless of base"),
     "PAPER_SIZE_IMPACT_FACTOR": ("0.5", "Size impact factor — larger trades get more slippage"),
     "PAPER_CLOB_FEE_RATE": ("0.02", "CLOB fee rate applied to paper trade profits (2%)"),
-    "PAPER_MIN_DEPTH_USD": ("0.0", "Minimum orderbook depth in USD for trade to pass (0=no check)"),
-    "PAPER_RANDOM_SLIPPAGE": ("false", "Add random slippage jitter to each trade fill"),
+    "PAPER_MIN_DEPTH_USD": ("100.0", "Minimum orderbook depth in USD for trade to pass (0=no check)"),
+    "PAPER_RANDOM_SLIPPAGE": ("true", "Add random slippage jitter to each trade fill"),
 }
 
 

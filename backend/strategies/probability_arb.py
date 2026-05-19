@@ -198,9 +198,10 @@ class ProbabilityArb(BaseStrategy):
     )
     category = "arb"
     default_params = {
-            "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
+        "_force_disabled": True,
+        "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
         "max_position": 100.0,
-        "enabled": True,
+
     }
 
     async def detect(self, yes_price: float, no_price: float) -> Optional[ArbOpportunity]:

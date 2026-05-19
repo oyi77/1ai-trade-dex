@@ -38,6 +38,7 @@ from backend.core.position_monitor import (
     sell_signal_monitor_job,
     SELL_MONITOR_INTERVAL_MINUTES,
 )
+# auto_sell is opt-in per strategy, not imported globally
 from backend.models.database import ScheduledJob, Trade
 from backend.core.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
@@ -561,6 +562,9 @@ def start_scheduler():
         max_instances=1,
         misfire_grace_time=120,
     )
+
+    # Auto-sell: opt-in module only. Strategies import AutoSellManager directly.
+    # NOT forced globally — each strategy decides whether to use profit-target exits.
 
     # AGI self-tuning: periodic review of all strategies every 30 minutes
     from backend.core.agi_self_tuner import get_agi_self_tuner
