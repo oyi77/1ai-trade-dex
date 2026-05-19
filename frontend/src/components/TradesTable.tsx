@@ -74,6 +74,15 @@ export function TradesTable({ trades }: Props) {
       : <ArrowDown className="w-2.5 h-2.5 text-amber-500" />
   }
 
+  // ⚡ Bolt: Memoized array filtering for tab counts to prevent O(4N) operations on every render
+  const filterButtons = useMemo<{ key: FilterType; label: string; count: number }[]>(() => [
+    { key: 'all', label: 'All', count: trades.length },
+    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
+    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
+    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
+    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
+  ], [trades])
+
   if (trades.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-neutral-600">
@@ -82,14 +91,6 @@ export function TradesTable({ trades }: Props) {
       </div>
     )
   }
-
-  const filterButtons: { key: FilterType; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: trades.length },
-    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
-    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
-    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
-    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
-  ]
 
   return (
     <div className="flex flex-col h-full">

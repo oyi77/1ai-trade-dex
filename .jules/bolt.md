@@ -9,3 +9,7 @@
 ## 2024-05-24 - [Avoid lockfile changes when optimizing]
 **Learning:** In a heavily configured frontend setup using pnpm and Vite, running `npm run` or installing dependencies indiscriminately just to get linting/tests working can severely pollute lockfiles and break cross-platform builds by unlinking platform specific packages like `esbuild`.
 **Action:** When making minor React performance optimizations, do NOT touch package.json or install new versions of build tools (like Vite) just to fix testing environments. Restore any untracked lockfile modifications before creating a PR to ensure safe, localized optimization.
+
+## 2026-05-19 - [Memoizing derived UI tab configurations in React]
+**Learning:** In the React frontend, UI configuration arrays that depend on expensive operations like `.filter()` over large lists (e.g. mapping over trade lists to compute tab counts) will execute O(M*N) operations on *every render* if placed directly in the component body. This was observed in `TradesTable.tsx` where filter tab counts were recalculated on every render, severely impacting performance for long lists.
+**Action:** Always wrap UI configuration arrays that compute lengths or derived state from props using `useMemo` to ensure O(N) operations only occur when the underlying data changes, rather than on every component render.
