@@ -275,7 +275,7 @@ class StrategySynthesizer:
                 "[StrategySynthesizer] Backtest gate skipped for '%s' (no historical data): %s",
                 strategy_name, e,
             )
-            return {"passed": True, "reason": f"skipped:{e}", "sharpe": 0.0, "max_drawdown": 0.0}
+            return {"passed": False, "reason": f"skipped:{e}", "sharpe": 0.0, "max_drawdown": 0.0}
 
     def safe_import_test(self, code: str) -> ValidationResult:
         """Gate 4: exec the generated code in a restricted sandbox namespace.

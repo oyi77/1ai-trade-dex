@@ -86,8 +86,8 @@ class AGISelfTuner:
         2. If strategy needs tuning, trigger evaluate_and_tune
         3. Store the tuning decision in CognitiveCore
         """
-        if settings.SHADOW_MODE:
-            return  # only collect data in shadow mode
+        if settings.SHADOW_MODE and not settings.AGI_SELF_TUNE_IN_PAPER:
+            return  # only collect data in shadow mode (unless paper tuning enabled)
 
         try:
             # Check if we need to rollback a previous change
@@ -211,7 +211,7 @@ class AGISelfTuner:
         3. If win rate > 60% after 20+ trades, consider loosening constraints
         4. Store decisions in CognitiveCore for future reference
         """
-        if settings.SHADOW_MODE:
+        if settings.SHADOW_MODE and not settings.AGI_SELF_TUNE_IN_PAPER:
             logger.debug("[AGISelfTuner] Shadow mode — skipping periodic review")
             return
 

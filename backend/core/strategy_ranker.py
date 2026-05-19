@@ -54,7 +54,7 @@ class StrategyRanker:
 
         ranked = []
         for (strategy_name,) in strategies:
-            if not strategy_name:
+            if not strategy_name or strategy_name == "wallet_import":
                 continue
 
             trades = (

@@ -72,6 +72,7 @@ class ExperimentRecord(Base):
     degradation_count = Column(Integer, default=0)
     last_degradation_at = Column(DateTime, nullable=True)
     review_reason = Column(Text, nullable=True)
+    misc_data = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     promoted_at = Column(DateTime, nullable=True)
     retired_at = Column(DateTime, nullable=True)

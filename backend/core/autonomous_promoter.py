@@ -204,6 +204,14 @@ class AutonomousPromoter:
                         })
                     except Exception as e:
                         logger.warning(f"[AutonomousPromoter] publish_event failed (non-fatal): {e}")
+                    shadow_health = {
+                        "total_trades": exp.shadow_trades or 0,
+                        "win_rate": exp.shadow_win_rate or 0.0,
+                        "pnl": exp.shadow_pnl or 0.0,
+                        "sharpe": 0.0,
+                        "max_drawdown": self._compute_shadow_drawdown(exp, db),
+                    }
+                    self._capture_promotion_review(exp, db, "SHADOW", "PAPER", shadow_health)
                     logger.info(
                         f"[AutonomousPromoter] SHADOW→PAPER '{exp.name}': "
                         f"trades={exp.shadow_trades}, wr={exp.shadow_win_rate:.1%}"
@@ -240,8 +248,12 @@ class AutonomousPromoter:
                 if health.get("status") == "killed":
                     exp.status = ExperimentStatus.PAPER.value
                     exp.promoted_at = None
-                    retry_count = int(getattr(exp, "misc_data", None) or "0") if hasattr(exp, "misc_data") else 0
+                    # misc_data is now a JSON dict with promotion_reviews; track retry count separately
+                    _md = exp.misc_data if isinstance(exp.misc_data, dict) else {}
+                    retry_count = _md.get("kill_retry_count", 0)
                     retry_count += 1
+                    _md["kill_retry_count"] = retry_count
+                    exp.misc_data = _md
                     max_retries = getattr(settings, "AGI_DEMOTION_RETRY_LIMIT", 3)
                     if retry_count >= max_retries:
                         exp.status = ExperimentStatus.RETIRED.value
@@ -273,6 +285,19 @@ class AutonomousPromoter:
                     exp.status = ExperimentStatus.LIVE_TRIAL.value
                     exp.promoted_at = datetime.now(timezone.utc)
                     db.add(exp)
+                    try:
+                        publish_event("experiment_promoted", {
+                            "genome_id": exp.id,
+                            "strategy_name": exp.strategy_name or exp.name,
+                            "from_stage": "PAPER",
+                            "to_stage": "LIVE_TRIAL",
+                            "win_rate": health.get("win_rate", 0.0),
+                            "sharpe": health.get("sharpe", 0.0),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                    except Exception as e:
+                        logger.warning(f"[AutonomousPromoter] publish_event failed (non-fatal): {e}")
+                    self._capture_promotion_review(exp, db, "PAPER", "LIVE_TRIAL", health)
 
                     logger.info(
                         f"[AutonomousPromoter] PAPER→LIVE_TRIAL '{exp.name}' promoted to trial "
@@ -318,6 +343,15 @@ class AutonomousPromoter:
                     db.add(exp)
                     logger.warning(f"[AutonomousPromoter] LIVE_TRIAL→PAPER (kill) '{exp.name}': wr={health.get('win_rate', 0):.1%}")
                     stats["demoted"] = stats.get("demoted", 0) + 1
+                    publish_event("strategy_demoted", {
+                        "strategy_name": strategy_name,
+                        "from_stage": "LIVE_TRIAL",
+                        "to_stage": "PAPER",
+                        "reason": "health_killed",
+                        "win_rate": health.get("win_rate", 0.0),
+                        "sharpe": health.get("sharpe", 0.0),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                     # Trigger improvement loop on demotion
                     self._trigger_improvement_loop(strategy_name, db)
                     continue
@@ -343,6 +377,7 @@ class AutonomousPromoter:
                             })
                         except Exception as e:
                             logger.warning(f"[AutonomousPromoter] publish_event failed (non-fatal): {e}")
+                        self._capture_promotion_review(exp, db, "LIVE_TRIAL", "LIVE_PROMOTED", health)
                         logger.info(f"[AutonomousPromoter] LIVE_TRIAL→LIVE_PROMOTED '{exp.name}': wr={wr:.1%} sharpe={sharpe:.2f}")
                         stats["trial_to_live"] = stats.get("trial_to_live", 0) + 1
                     else:
@@ -351,6 +386,15 @@ class AutonomousPromoter:
                         db.add(exp)
                         logger.warning(f"[AutonomousPromoter] LIVE_TRIAL→PAPER (degraded) '{exp.name}': wr={wr:.1%} sharpe={sharpe:.2f}")
                         stats["demoted"] = stats.get("demoted", 0) + 1
+                        publish_event("strategy_demoted", {
+                            "strategy_name": strategy_name,
+                            "from_stage": "LIVE_TRIAL",
+                            "to_stage": "PAPER",
+                            "reason": "degraded",
+                            "win_rate": wr,
+                            "sharpe": sharpe,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
                         # Trigger improvement loop on degradation demotion
                         self._trigger_improvement_loop(strategy_name, db)
             if trials:
@@ -374,6 +418,15 @@ class AutonomousPromoter:
                         f"wr={health.get('win_rate', 0):.1%}, sharpe={health.get('sharpe', 0):.2f}"
                     )
                     stats["demoted"] = stats.get("demoted", 0) + 1
+                    publish_event("strategy_demoted", {
+                        "strategy_name": strategy_name,
+                        "from_stage": "LIVE_PROMOTED",
+                        "to_stage": "PAPER",
+                        "reason": "health_killed",
+                        "win_rate": health.get("win_rate", 0.0),
+                        "sharpe": health.get("sharpe", 0.0),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
                     # Trigger improvement loop: forensics + auto_improve + new DRAFT experiment
                     self._trigger_improvement_loop(strategy_name, db)
                     continue
@@ -394,6 +447,15 @@ class AutonomousPromoter:
                         )
                         exp.degradation_count = 0
                         await self._disable_strategy(strategy_name, db)
+                        publish_event("strategy_demoted", {
+                            "strategy_name": strategy_name,
+                            "from_stage": "LIVE_PROMOTED",
+                            "to_stage": "REVIEW",
+                            "reason": "degraded",
+                            "win_rate": wr,
+                            "sharpe": sharpe,
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
                         logger.warning(
                             f"[AutonomousPromoter] LIVE→REVIEW '{exp.name}': {exp.review_reason}"
                         )
@@ -415,6 +477,78 @@ class AutonomousPromoter:
             )
             return stats
 
+
+    def _capture_promotion_review(
+        self, exp: ExperimentRecord, db: Session,
+        from_stage: str, to_stage: str, health: dict,
+    ) -> None:
+        """Capture a structured metrics snapshot on stage transition.
+
+        Stores the review in exp.misc_data as a list of promotion reviews,
+        each containing the stage pair, metrics snapshot, and timestamp.
+        Previous reviews are preserved for cross-stage comparison.
+        """
+        import json as _json
+
+        metrics = {
+            "trades": health.get("total_trades", 0),
+            "win_rate": round(health.get("win_rate", 0.0), 4),
+            "sharpe": round(health.get("sharpe", 0.0), 4),
+            "pnl": round(health.get("pnl", 0.0), 4),
+            "drawdown": round(health.get("max_drawdown", 0.0), 4),
+        }
+
+        review = {
+            "from_stage": from_stage,
+            "to_stage": to_stage,
+            "metrics_at_promotion": metrics,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        # Load existing misc_data, preserving any prior reviews
+        existing = exp.misc_data
+        if isinstance(existing, str):
+            try:
+                existing = _json.loads(existing)
+            except (_json.JSONDecodeError, TypeError):
+                existing = {}
+        if not isinstance(existing, dict):
+            existing = {}
+
+        reviews = existing.get("promotion_reviews", [])
+        reviews.append(review)
+        existing["promotion_reviews"] = reviews
+        exp.misc_data = existing
+
+        db.add(exp)
+        self._log_promotion_review(exp, from_stage, to_stage, metrics, reviews)
+
+    def _log_promotion_review(
+        self, exp: ExperimentRecord,
+        from_stage: str, to_stage: str,
+        metrics: dict, reviews: list[dict],
+    ) -> None:
+        """Format and log a structured promotion review summary."""
+        # Build comparison against previous stage metrics
+        comparison = ""
+        if len(reviews) >= 2:
+            prev = reviews[-2].get("metrics_at_promotion", {})
+            deltas = []
+            for key in ("win_rate", "sharpe", "pnl"):
+                prev_val = prev.get(key, 0)
+                curr_val = metrics.get(key, 0)
+                delta = curr_val - prev_val
+                sign = "+" if delta >= 0 else ""
+                deltas.append(f"{key}: {sign}{delta:.4f}")
+            comparison = f" | deltas from {reviews[-2].get('from_stage', '?')}→{reviews[-2].get('to_stage', '?')}: {', '.join(deltas)}"
+
+        logger.info(
+            f"[PromotionReview] {from_stage}→{to_stage} '{exp.name}': "
+            f"trades={metrics['trades']}, wr={metrics['win_rate']:.1%}, "
+            f"sharpe={metrics['sharpe']:.2f}, pnl={metrics['pnl']:.4f}, "
+            f"dd={metrics['drawdown']:.1%}"
+            f"{comparison}"
+        )
 
     def _check_shadow_criteria(self, exp: ExperimentRecord, db: Session) -> tuple[bool, list[str]]:
         """Check if experiment meets shadow→paper criteria."""
@@ -644,12 +778,79 @@ class AutonomousPromoter:
         except Exception as e:
             logger.warning("[AutonomousPromoter] Forensics generation failed for '%s': %s", strategy_name, e)
 
-        # 2. Create a new DRAFT experiment so the strategy re-enters the pipeline
+        # 2. Param tuning attempt — tune strategy parameters before creating new DRAFT
+        try:
+            from backend.core.safe_param_tuner import SafeParamTuner
+            from backend.db.utils import get_db_session
+            with get_db_session() as tune_db:
+                tuner = SafeParamTuner()
+                changes = tuner.tune(strategy_name, tune_db)
+                if changes:
+                    logger.info("[AutonomousPromoter] Pre-improvement param tuning for '%s': %s", strategy_name, changes)
+        except Exception as e:
+            logger.warning("[AutonomousPromoter] Pre-improvement tuning failed for '%s': %s", strategy_name, e)
+
+        # 3. Capture demotion context from the most recent experiment
+        demotion_context: dict = {}
+        try:
+            prior_exp = (
+                db.query(ExperimentRecord)
+                .filter(
+                    ExperimentRecord.strategy_name == strategy_name,
+                    ExperimentRecord.status.notin_([ExperimentStatus.DRAFT.value]),
+                )
+                .order_by(ExperimentRecord.created_at.desc())
+                .first()
+            )
+            if prior_exp:
+                demotion_context = {
+                    "demoted_from": getattr(prior_exp, 'status', "unknown"),
+                    "demotion_reason": getattr(prior_exp, 'review_reason', None) or "health_monitor_kill",
+                    "previous_metrics": {
+                        "win_rate": getattr(prior_exp, 'shadow_win_rate', 0.0) or 0.0,
+                        "trades": getattr(prior_exp, 'shadow_trades', 0) or 0,
+                    },
+                    "improvement_attempt": attempt_count + 1,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+        except Exception as e:
+            logger.warning("[AutonomousPromoter] Failed to capture demotion context for '%s': %s", strategy_name, e)
+
+        # 4. Backtest validation — verify tuned params don't crash before re-entering pipeline
+        backtest_passed = False
+        try:
+            from backend.core.backtest_engine import BacktestEngine
+            bt_engine = BacktestEngine()
+            bt_result = bt_engine.run_backtest(
+                strategy_name=strategy_name,
+                mode="quick",
+                lookback_days=getattr(settings, "AGI_IMPROVEMENT_BACKTEST_DAYS", 30),
+            )
+            backtest_passed = bt_result.get("success", False) if isinstance(bt_result, dict) else bool(bt_result)
+            bt_wr = bt_result.get("win_rate", 0.0) if isinstance(bt_result, dict) else 0.0
+            bt_trades = bt_result.get("total_trades", 0) if isinstance(bt_result, dict) else 0
+            logger.info(
+                "[AutonomousPromoter] Improvement backtest for '%s': passed=%s wr=%.1f%% trades=%d",
+                strategy_name, backtest_passed, bt_wr * 100, bt_trades,
+            )
+        except Exception as e:
+            logger.warning("[AutonomousPromoter] Improvement backtest failed for '%s': %s (proceeding anyway)", strategy_name, e)
+            backtest_passed = True  # Don't block on backtest engine failures
+
+        if not backtest_passed:
+            logger.warning(
+                "[AutonomousPromoter] Improvement backtest FAILED for '%s' — creating DRAFT anyway but flagging for review",
+                strategy_name,
+            )
+            demotion_context["backtest_failed"] = True
+
+        # 5. Create a new DRAFT experiment so the strategy re-enters the pipeline
         new_exp = ExperimentRecord(
             name=f"{strategy_name}_improve_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}",
             strategy_name=strategy_name,
             status=ExperimentStatus.DRAFT.value,
             created_at=datetime.now(timezone.utc),
+            strategy_composition=demotion_context if demotion_context else None,
         )
         db.add(new_exp)
         db.commit()

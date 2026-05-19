@@ -340,6 +340,45 @@ async def on_archetype_allocation_changed(event_type: str, data: Dict[str, Any])
     logger.info(f"EVENT [archetype_allocation_changed] regime={data.get('regime')} archetypes={data.get('archetypes')}")
 
 
+async def on_strategy_demoted(event_type: str, data: Dict[str, Any]) -> None:
+    """Handle strategy_demoted events: trigger AGI improvement cycle for demoted strategy."""
+    if not _handler_flag("strategy_demoted"):
+        return
+    strategy_name = data.get("strategy_name")
+    from_stage = data.get("from_stage")
+    to_stage = data.get("to_stage")
+    reason = data.get("reason")
+    logger.info(
+        f"EVENT [strategy_demoted] strategy={strategy_name} "
+        f"{from_stage}→{to_stage} reason={reason}"
+    )
+    # Trigger AGI improvement cycle for the demoted strategy
+    try:
+        from backend.core.agi_self_tuner import get_agi_self_tuner
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            tuner = get_agi_self_tuner()
+            await tuner.evaluate_and_tune(strategy_name, db)
+            logger.info(f"[strategy_demoted] Self-tune triggered for '{strategy_name}' after demotion")
+    except Exception as exc:
+        logger.error(f"Handler strategy_demoted self_tune failed: {exc}", exc_info=True)
+    # Store demotion context in KnowledgeGraph for analysis
+    try:
+        from backend.core.knowledge_graph import KnowledgeGraph
+        kg = KnowledgeGraph()
+        kg.add_entity("demotion", f"demotion:{strategy_name}:{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}", {
+            "strategy_name": strategy_name,
+            "from_stage": from_stage,
+            "to_stage": to_stage,
+            "reason": reason,
+            "win_rate": data.get("win_rate"),
+            "sharpe": data.get("sharpe"),
+            "timestamp": data.get("timestamp"),
+        })
+    except Exception as exc:
+        logger.error(f"Handler strategy_demoted KG failed: {exc}", exc_info=True)
+
+
 REGISTRY: Dict[str, Any] = {
     "trade_executed": on_trade_executed,
     "trade_settled": on_trade_settled,
@@ -358,6 +397,7 @@ REGISTRY: Dict[str, Any] = {
     "necromancy_report": on_necromancy_report,
     "archetype_allocation_changed": on_archetype_allocation_changed,
     "nightly_review_complete": on_nightly_review_complete,
+    "strategy_demoted": on_strategy_demoted,
 }
 
 

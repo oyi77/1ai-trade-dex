@@ -692,6 +692,36 @@ class PolymarketCLOB:
             )
             return []
 
+    async def get_order(self, order_id: str) -> Optional[dict]:
+        """Fetch a single order by CLOB order ID.
+
+        Args:
+            order_id: The CLOB order ID to look up.
+
+        Returns:
+            Order dict from CLOB API, or None if not found / error.
+        """
+        if not order_id:
+            return None
+        try:
+            resp = await self._http.get(f"{self._clob_host}/order/{order_id}")
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return None
+            logger.warning(
+                f"[polymarket_clob.get_order] HTTP {e.response.status_code} for order {order_id}: {e}"
+            )
+            return None
+        except Exception as e:
+            logger.warning(
+                f"[polymarket_clob.get_order] Failed to get order {order_id}: {e}"
+            )
+            return None
+
     async def cancel_all_orders(self) -> bool:
         """Cancel all open orders. Delegates to py-clob-client."""
         if self.is_paper:

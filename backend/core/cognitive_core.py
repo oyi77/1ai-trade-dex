@@ -548,8 +548,17 @@ def create_cognitive_core(
 ) -> CognitiveCoreAdapter:
     """Create the best available cognitive core.
 
-    Attempts OneAIHubCore if a hub URL is configured; returns DegradedCore otherwise.
+    Attempts OneAIHubCore with DegradedCore fallback.
+    Reads BRAIN_API_URL from settings when hub_url is not provided.
+    Never returns MockCore outside of tests.
     """
+    if not hub_url:
+        try:
+            from backend.config import settings as _settings
+            hub_url = getattr(_settings, "BRAIN_API_URL", "")
+        except Exception:
+            pass
+
     if hub_url:
         try:
             core = OneAIHubCore(base_url=hub_url, api_key=hub_api_key)
