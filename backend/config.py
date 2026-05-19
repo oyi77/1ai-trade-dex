@@ -261,10 +261,13 @@ class ConfigRegistry:
     SAFE_TUNER_MAX_CHANGE_PCT: float = 0.10  #max parameter drift per tuning
     SAFE_TUNER_MIN_TRADES_FOR_TUNING: int = 20
     SAFE_TUNER_REVERT_SIGMA_THRESHOLD: float = 2.0
-    PAPER_SLIPPAGE_BPS: float = 0.0  #paper slippage in basis points
+    PAPER_SLIPPAGE_BPS: float = 20.0  #paper slippage in basis points
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  #minimum slippage (0.05%)
     HFT_MAX_SLIPPAGE_BPS: float = 20.0
-    PAPER_RANDOM_SLIPPAGE: bool = False  #add random jitter to slippage
+    PAPER_RANDOM_SLIPPAGE: bool = True  #add random jitter to slippage
+    PAPER_SIZE_IMPACT_FACTOR: float = 0.5  #logarithmic size impact on slippage
+    PAPER_CLOB_FEE_RATE: float = 0.02  #Polymarket fee rate (2%)
+    PAPER_MIN_DEPTH_USD: float = 100.0  #reject if orderbook depth below this
 
     # Weather parameters
     WEATHER_ENABLED: bool = True
@@ -287,13 +290,13 @@ class ConfigRegistry:
     # Scanner parameters
     SCANNER_PAGE_SIZE: int = 500
     SCANNER_SEMAPHORE_LIMIT: int = 50
-    SCANNER_MIN_EDGE: float = 0.02
+    SCANNER_MIN_EDGE: float = 0.05
     SCANNER_STALE_THRESHOLD_SECONDS: float = 5.0
     SCANNER_MAX_MARKETS: int = 10000
     MARKET_UNIVERSE_CACHE_TTL_SECONDS: int = 300
 
-    # Order executor
-    ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 50.0
+    # Order executor thresholds (Phase 3: stricter copy-trade filtering)
+    ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 100.0
     ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION: int = 7
 
     #Line movement detector
@@ -312,17 +315,17 @@ class ConfigRegistry:
     LINE_MOVE_NEWS_BOOST: float = 0.1
     LINE_MOVE_MAX_CONFIDENCE: float = 0.95
 
-    # Bond Scanner
-    BOND_SCANNER_MIN_PRICE: float = 0.88
-    BOND_SCANNER_MAX_PRICE: float = 0.97
+    # Bond Scanner — tuned for tighter entry criteria (Phase 3)
+    BOND_SCANNER_MIN_PRICE: float = 0.90
+    BOND_SCANNER_MAX_PRICE: float = 0.96
     BOND_SCANNER_MIN_DAYS_TO_RESOLUTION: float = 0.5
-    BOND_SCANNER_KELLY_FRACTION: float = 0.25
-    BOND_SCANNER_BANKROLL_PCT: float = 0.08
-    BOND_SCANNER_MIN_EDGE: float = 0.005
+    BOND_SCANNER_KELLY_FRACTION: float = 0.15
+    BOND_SCANNER_BANKROLL_PCT: float = 0.05
+    BOND_SCANNER_MIN_EDGE: float = 0.05
     BOND_SCANNER_PROXIMITY_BOOST_SCALE: float = 0.01
-    BOND_SCANNER_MAX_POSITION_SIZE: float = 8.0
-    BOND_SCANNER_MAX_CONCURRENT_BONDS: int = 8
-    BOND_SCANNER_MIN_VOLUME: int = 1000
+    BOND_SCANNER_MAX_POSITION_SIZE: float = 5.0
+    BOND_SCANNER_MAX_CONCURRENT_BONDS: int = 4
+    BOND_SCANNER_MIN_VOLUME: int = 5000
     BOND_SCANNER_MAX_DAYS_TO_RESOLUTION: int = 14
     BOND_SCANNER_MIN_SIZE_USD: float = 5.0
 
@@ -330,7 +333,7 @@ class ConfigRegistry:
     BTC_ORACLE_MIN_POSITION_USD: float = 1.0
     BTC_ORACLE_MAX_POSITION_USD: float = 50.0
     BTC_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.10
-    BTC_ORACLE_MIN_EDGE: float = 0.03
+    BTC_ORACLE_MIN_EDGE: float = 0.05
     BTC_ORACLE_INTERVAL_SECONDS: int = 30
     BTC_ORACLE_MAX_MINUTES_TO_RESOLUTION: int = 5
 
@@ -352,7 +355,7 @@ class ConfigRegistry:
     CROSS_ARB_MIN_SPREAD_PCT: float = 0.013  # 1.3% minimum spread to cover fees
 
     # General Market Scanner
-    GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.02
+    GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.05
     GENERAL_MARKET_SCANNER_MAX_PRICE: float = 0.80
     GENERAL_MARKET_SCANNER_MIN_PRICE: float = 0.10
     GENERAL_MARKET_SCANNER_MIN_REWARD_RISK: float = 0.3
@@ -387,10 +390,10 @@ class ConfigRegistry:
     GM_SCANNER_CATEGORY_CAP_POLITICS: float = 1.50
     GM_SCANNER_CATEGORY_CAP_CRYPTO: float = 2.00
 
-    # Order Executor - Leaderboard weights
-    ORDER_EXECUTOR_WEIGHT_PROFIT_30D: float = 0.35
-    ORDER_EXECUTOR_WEIGHT_WIN_RATE: float = 0.25
-    ORDER_EXECUTOR_WEIGHT_MARKET_DIVERSITY: float = 0.20
+    # Order Executor - Leaderboard weights (Phase 3: favor win-rate traders)
+    ORDER_EXECUTOR_WEIGHT_PROFIT_30D: float = 0.25
+    ORDER_EXECUTOR_WEIGHT_WIN_RATE: float = 0.40
+    ORDER_EXECUTOR_WEIGHT_MARKET_DIVERSITY: float = 0.15
     ORDER_EXECUTOR_WEIGHT_CONSISTENCY: float = 0.20
 
     # Probability Arbitrage - Retry backoff
@@ -401,12 +404,12 @@ class ConfigRegistry:
     MARKET_MAKER_DEFAULT_CONFIDENCE: float = 0.5
 
     # Market Maker
-    MARKET_MAKER_BASE_SPREAD: float = 0.04
-    MARKET_MAKER_MAX_INVENTORY: float = 500.0
-    MARKET_MAKER_INVENTORY_SKEW_FACTOR: float = 0.5
-    MARKET_MAKER_MIN_SPREAD: float = 0.02
-    MARKET_MAKER_MAX_SPREAD: float = 0.15
-    MARKET_MAKER_QUOTE_SIZE: float = 25.0
+    MARKET_MAKER_BASE_SPREAD: float = 0.06
+    MARKET_MAKER_MAX_INVENTORY: float = 250.0
+    MARKET_MAKER_INVENTORY_SKEW_FACTOR: float = 0.7
+    MARKET_MAKER_MIN_SPREAD: float = 0.03
+    MARKET_MAKER_MAX_SPREAD: float = 0.18
+    MARKET_MAKER_QUOTE_SIZE: float = 15.0
     MARKET_MAKER_LMSR_LIQUIDITY_PARAM: float = 10.0
 
     # Arb Executor (intra-market)
@@ -417,8 +420,8 @@ class ConfigRegistry:
     UNIVERSAL_SCANNER_RETRY_BACKOFF_BASE: float = 0.1
     UNIVERSAL_SCANNER_RETRY_BACKOFF_MULTIPLIER: float = 2.0
 
-    # Wallet Sync - Exit threshold
-    WALLET_SYNC_EXIT_THRESHOLD: float = 0.50
+    # Wallet Sync - Exit threshold (Phase 3: exit earlier on partial sells)
+    WALLET_SYNC_EXIT_THRESHOLD: float = 0.40
 
     # BTC Oracle - Algorithm constants
     BTC_ORACLE_ORACLE_IMPLIED_BASE: float = 0.50
@@ -426,7 +429,7 @@ class ConfigRegistry:
 
     # Crypto Oracle (multi-asset generalization of BTC Oracle)
     CRYPTO_ORACLE_ASSETS: str = "bitcoin,ethereum,solana"  # comma-separated CoinGecko IDs
-    CRYPTO_ORACLE_MIN_EDGE: float = 0.03
+    CRYPTO_ORACLE_MIN_EDGE: float = 0.05
     CRYPTO_ORACLE_MAX_MINUTES_TO_RESOLUTION: float = 10.0
     CRYPTO_ORACLE_INTERVAL_SECONDS: int = 15
     CRYPTO_ORACLE_MAX_POSITION_USD: float = 50.0
@@ -564,7 +567,7 @@ class ConfigRegistry:
     HFT_SCANNER_MAX_MARKETS: int = 10000
     HFT_SCANNER_STALE_THRESHOLD_SEC: float = 5.0
     HFT_SCANNER_PAGE_SIZE: int = 500
-    HFT_SCANNER_MIN_EDGE: float = 0.02
+    HFT_SCANNER_MIN_EDGE: float = 0.05
     HFT_SCANNER_MIN_VOLUME: float = 1000.0
     HFT_SCANNER_MAX_RETRIES: int = 3
     HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD: int = 5
@@ -594,6 +597,14 @@ class ConfigRegistry:
     HFT_LATENCY_MAX_EXECUTION_LATENCY_MS: float = 50.0
     HFT_LATENCY_LATENCY_ALERT_THRESHOLD_MS: float = 100.0
     HFT_LATENCY_CACHE_TTL_SEC: float = 1.0
+
+    # --------------------------------------------------------------------------
+    # AUTO-SELL — Pre-settlement profit-taking
+    # --------------------------------------------------------------------------
+    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.03    # 3% profit target (must cover ~1% PM fee + 0.5% slippage)
+    AUTO_SELL_STOP_LOSS_PCT: float = 0.03        # 3% stop-loss
+    AUTO_SELL_MAX_HOLD_SECONDS: int = 300         # 5 min max hold
+    AUTO_SELL_INTERVAL_SECONDS: int = 30          # Check every 30s
 
     # --------------------------------------------------------------------------
     # POLLING - Interval settings for jobs and tasks
@@ -921,8 +932,8 @@ class ConfigRegistry:
     MAX_TIME_REMAINING_CONFIG: int = 1800
     HFT_MAX_SLIPPAGE_BPS_CONFIG: float = 20.0
     PAPER_MIN_SLIPPAGE_BPS_CONFIG: float = 5.0
-    PAPER_SLIPPAGE_BPS_CONFIG: float = 0.0
-    PAPER_RANDOM_SLIPPAGE_CONFIG: bool = False
+    PAPER_SLIPPAGE_BPS_CONFIG: float = 20.0
+    PAPER_RANDOM_SLIPPAGE_CONFIG: bool = True
     HFT_ENABLED_CONFIG: bool = True
     HFT_MAX_POSITION_USD_CONFIG: float = 1000.0
     HFT_POSITION_SIZE_PCT_CONFIG: float = 0.25
@@ -1513,10 +1524,10 @@ class Settings(BaseSettings):
     PAPER_TOPUP_AMOUNT: float = 500.0
 
     # Paper trading slippage simulation (defaults = disabled for backward compatibility)
-    PAPER_SLIPPAGE_BPS: float = 0.0  # Base slippage in basis points (0 = disabled)
+    PAPER_SLIPPAGE_BPS: float = 20.0  # Base slippage in basis points (20 = 0.2%)
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # Minimum slippage even for small orders (0.05%)
     HFT_MAX_SLIPPAGE_BPS: float = 20.0
-    PAPER_RANDOM_SLIPPAGE: bool = False  # Add random ±20% jitter to slippage
+    PAPER_RANDOM_SLIPPAGE: bool = True  # Add random ±20% jitter to slippage
 
     MAX_TOPUPS: int = 10
     HISTORICAL_DATA_COLLECTOR_INTERVAL_HOURS: int = 6
@@ -1674,13 +1685,13 @@ class Settings(BaseSettings):
     # Universal scanner thresholds
     SCANNER_PAGE_SIZE: int = 500
     SCANNER_SEMAPHORE_LIMIT: int = 50
-    SCANNER_MIN_EDGE: float = 0.02
+    SCANNER_MIN_EDGE: float = 0.05
     SCANNER_STALE_THRESHOLD_SECONDS: float = 5.0
     SCANNER_MAX_MARKETS: int = 10000
     MARKET_UNIVERSE_CACHE_TTL_SECONDS: int = int(os.getenv("MARKET_UNIVERSE_CACHE_TTL_SECONDS", "300"))
 
-    # Order executor thresholds
-    ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 50.0
+    # Order executor thresholds (Phase 3: stricter copy-trade filtering)
+    ORDER_EXECUTOR_MIN_WHALE_SIZE: float = 100.0
     ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION: int = 7
 
     # Line movement detector confidence weights

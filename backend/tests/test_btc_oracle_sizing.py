@@ -40,8 +40,8 @@ async def test_btc_oracle_does_not_place_direct_clob_orders():
         market_id = "btc-5m-test"
         slug = "btc-5m-test"
         window_end = __import__("datetime").datetime.now(__import__("datetime").timezone.utc) + __import__("datetime").timedelta(minutes=1)
-        up_price = 0.40
-        down_price = 0.60
+        up_price = 0.55
+        down_price = 0.45
         up_token_id = "up-token"
         down_token_id = "down-token"
 

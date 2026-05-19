@@ -7,7 +7,7 @@ from pathlib import Path
 def test_queue_worker_mode_keeps_settlement_check_scheduled():
     """Queue mode must not remove settlement_check without a periodic queue producer."""
 
-    source = Path("backend/core/scheduler.py").read_text()
+    source = Path("backend/core/scheduling/scheduler.py").read_text()
     tree = ast.parse(source)
 
     assignments = []
@@ -29,7 +29,7 @@ def test_queue_worker_mode_keeps_settlement_check_scheduled():
 def test_settlement_check_has_misfire_grace_for_transient_lock_delays():
     """Settlement should recover from short scheduler stalls instead of being dropped."""
 
-    source = Path("backend/core/scheduler.py").read_text()
+    source = Path("backend/core/scheduling/scheduler.py").read_text()
     tree = ast.parse(source)
     persist_calls = [
         node
@@ -63,7 +63,7 @@ def test_settlement_check_has_misfire_grace_for_transient_lock_delays():
 def test_auto_redeem_is_registered_for_crash_recovery_when_enabled():
     """Automatic redemption must survive scheduler restarts when explicitly enabled."""
 
-    source = Path("backend/core/scheduler.py").read_text()
+    source = Path("backend/core/scheduling/scheduler.py").read_text()
     tree = ast.parse(source)
 
     registry = next(

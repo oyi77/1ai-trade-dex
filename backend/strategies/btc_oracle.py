@@ -145,11 +145,11 @@ def parse_end_date(end_date_str: str | None) -> datetime | None:
         return None
 
 
-def implied_direction(question: str, btc_price: float) -> str | None:
+def implied_direction(question: str, btc_price: float) -> tuple[str, float] | None:
     """
     Infer YES/NO from market question and current price.
-    e.g. "Will BTC exceed $95,000 on March 15?" + btc_price=96000 -> "yes"
-    Returns "yes", "no", or None if cannot determine.
+    e.g. "Will BTC exceed $95,000 on March 15?" + btc_price=96000 -> ("yes", 95000)
+    Returns (direction, threshold) or None if cannot determine.
     """
     import re
 
@@ -185,9 +185,9 @@ def implied_direction(question: str, btc_price: float) -> str | None:
     )
 
     if is_above:
-        return "yes" if btc_price > threshold else "no"
+        return ("yes", threshold) if btc_price > threshold else ("no", threshold)
     if is_below:
-        return "yes" if btc_price < threshold else "no"
+        return ("yes", threshold) if btc_price < threshold else ("no", threshold)
     return None
 
 
@@ -199,6 +199,7 @@ class BtcOracleStrategy(BaseStrategy):
     )
     category = "arbitrage"
     default_params = {
+        "_force_disabled": True,
         "min_edge": settings.BTC_ORACLE_MIN_EDGE,
         "max_minutes_to_resolution": settings.BTC_ORACLE_MAX_MINUTES_TO_RESOLUTION,
         "interval_seconds": settings.BTC_ORACLE_INTERVAL_SECONDS,
@@ -209,6 +210,15 @@ class BtcOracleStrategy(BaseStrategy):
         "oracle_implied_scale": settings.BTC_ORACLE_ORACLE_IMPLIED_SCALE,
         "debate_enabled": True,
         "debate_min_confidence": 0.55,
+        # FIX 2026-05-19: Data shows DOWN=-441 (30.4% WR) vs UP=+33 (50.7% WR)
+        # Block DOWN direction entirely until composite signal is fixed
+        "block_direction_down": True,
+        # FIX 2026-05-19: Data shows mid-low bucket (0.35-0.50) = -443 (30% WR)
+        # Tighten bucket to 0.50-0.65 only
+        "min_price_bucket": 0.50,
+        # FIX 2026-05-19: 23:00-01:00 UTC = -$295 (38% WR)
+        # Block late US session
+        "blocked_hours_utc": [23, 0, 1],
     }
 
     async def _debate_validate(self, question: str, market_price: float, context: str = "", db=None) -> tuple[bool, float]:
@@ -280,7 +290,17 @@ class BtcOracleStrategy(BaseStrategy):
         if trade_price <= 0 or trade_price >= 1:
             return None
 
+        # FIX 2026-05-19: Session filter
+        now_utc = datetime.now(timezone.utc)
+        blocked_hours = params.get("blocked_hours_utc", [23, 0, 1])
+        if now_utc.hour in blocked_hours:
+            return None
+
         direction = "up" if trade_price > 0.5 else "down"
+
+        # FIX 2026-05-19: Block DOWN direction
+        if params.get("block_direction_down", True) and direction == "down":
+            return None
         market_mid = trade_price
 
         # Price bucket filter: reject negative-EV territory
@@ -429,10 +449,21 @@ class BtcOracleStrategy(BaseStrategy):
 
         now = datetime.now(timezone.utc)
 
-        # Price bucket filter: only trade in the 40-60c range where edge is proven.
-        # Negative-EV territory is below 35c and above 65c (backtest: 85.6% WR in 50-55c).
-        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
-        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+        # FIX 2026-05-19: Session filter — block 23:00-01:00 UTC
+        current_hour = now.hour
+        blocked_hours = params.get("blocked_hours_utc", [23, 0, 1])
+        if current_hour in blocked_hours:
+            logger.info(
+                "BtcOracleStrategy: session filter — hour %d UTC blocked (hours %s)",
+                current_hour, blocked_hours,
+            )
+            return result
+
+        # Price bucket filter: only trade in the 50-60c range where edge is proven.
+        # FIX 2026-05-19: Data shows mid-low bucket (0.35-0.50) = -$443 (30% WR).
+        # Tightened from [0.35, 0.65] to [0.50, 0.65].
+        min_price_bucket = params.get("min_price_bucket", 0.50)
+        max_price_bucket = params.get("max_price_bucket", 0.65)
 
         for market in btc_5m_markets:
             end_dt = market.window_end
@@ -440,6 +471,16 @@ class BtcOracleStrategy(BaseStrategy):
                 end_dt = end_dt.replace(tzinfo=timezone.utc)
             minutes_remaining = (end_dt - now).total_seconds() / 60.0
             if minutes_remaining < 0 or minutes_remaining > max_minutes:
+                continue
+
+            # FIX 2026-05-19: Session filter — block 23:00-01:00 UTC
+            current_hour = now.hour
+            blocked_hours = params.get("blocked_hours_utc", [23, 0, 1])
+            if current_hour in blocked_hours:
+                logger.debug(
+                    "BtcOracleStrategy: skipping — hour %d UTC is in blocked hours %s",
+                    current_hour, blocked_hours,
+                )
                 continue
 
             # Direct direction from RSI/momentum — if RSI < 50, momentum
@@ -456,6 +497,14 @@ class BtcOracleStrategy(BaseStrategy):
             else:
                 # Fallback: no directional bias from indicator
                 direction = "down" if market.up_price > market.down_price else "up"
+
+            # FIX 2026-05-19: Block DOWN direction — data shows 30.4% WR, -$441 loss
+            block_down = params.get("block_direction_down", True)
+            if block_down and direction == "down":
+                logger.debug(
+                    "BtcOracleStrategy: skipping DOWN direction — blocked (data shows 30%% WR)",
+                )
+                continue
 
             market_mid = market.up_price if direction == "up" else market.down_price
 
@@ -586,8 +635,14 @@ class BtcOracleStrategy(BaseStrategy):
                 continue
 
             # Determine which direction oracle price implies
-            direction = implied_direction(market.question, btc_price)
-            if direction is None:
+            result = implied_direction(market.question, btc_price)
+            if result is None:
+                continue
+            direction, strike_price = result
+
+            # FIX 2026-05-19: Block DOWN direction — data shows 30.4% WR
+            block_down = params.get("block_direction_down", True)
+            if block_down and direction == "down":
                 continue
 
             market_mid = market.yes_price if direction == "yes" else market.no_price

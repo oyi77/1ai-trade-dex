@@ -90,6 +90,16 @@ backend/strategies/
 └── probability_arb.py      # DISABLED
 ```
 
+### Utility Modules (Not Strategies)
+
+| Module | File | Purpose |
+|--------|------|---------|
+| `fingerprint` | `fingerprint.py` | 14-dimension strategy profiling from position history |
+| `replication` | `replication.py` | Extract decision logic from profitable wallets, paper simulation |
+| `opportunity_detector` | `opportunity_detector.py` | Multi-type opportunity scanning (arb, momentum, liquidity gap, emotional) |
+
+These are NOT BaseStrategy subclasses — they are utility modules used by the wallet intelligence pipeline.
+
 ## ANTI-PATTERNS
 
 - ❌ Manual enabling of auto-killed strategies (DB-driven governance only)

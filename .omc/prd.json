@@ -1,154 +1,258 @@
 {
-  "title": "PolyEdge Security & Quality Fix Sprint",
-  "version": "8.0",
-  "date": "2026-04-10",
+  "title": "Polymarket Intelligence & Autonomous Trading System",
+  "version": "1.0",
+  "date": "2026-05-19",
   "status": "complete",
+  "plan": ".omc/plans/polymarket-intelligence-system.md",
   "stories": [
     {
-      "id": "SEC-001",
-      "title": "Add require_admin to all unauthenticated endpoints",
+      "id": "P1-001",
+      "title": "Market Classifier v2 — 25+ categories",
+      "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "GET /api/stats has Depends(require_admin)",
-        "GET /api/stats/strategies has Depends(require_admin)",
-        "GET /api/ai/status has Depends(require_admin)",
-        "GET /api/decisions has Depends(require_admin)",
-        "GET /api/decisions/export has Depends(require_admin)",
-        "GET /api/decisions/{id} has Depends(require_admin)",
-        "GET /api/strategies has Depends(require_admin)",
-        "GET /api/strategies/{name} has Depends(require_admin)",
-        "GET /api/events has Depends(require_admin)",
-        "GET /api/dashboard has Depends(require_admin)",
-        "GET /api/copy/leaderboard has Depends(require_admin)",
-        "GET /api/copy/signals has Depends(require_admin)",
-        "GET /api/copy-trader/positions has Depends(require_admin)",
-        "GET /api/copy-trader/status has Depends(require_admin)",
-        "GET /api/arbitrage/opportunities has Depends(require_admin)",
-        "GET /api/edge-performance has Depends(require_admin)",
-        "GET /api/whales/transactions has Depends(require_admin)",
-        "GET /api/news/feed has Depends(require_admin)",
-        "GET /api/predictions/{market_id} has Depends(require_admin)",
-        "GET /api/signal-config stays public (no secrets, by design)"
+        "backend/core/market_classifier.py exists with classify_market(title, slug, event_slug, tags) function",
+        "Returns BTC_5m for 'Bitcoin Up or Down - 5m window'",
+        "Returns Politics_US for 'Trump wins 2028 election'",
+        "Returns Geopolitics for 'Iran Israel ceasefire'",
+        "Returns Sports_NFL for 'Super Bowl winner'",
+        "Returns Entertainment_Music for 'Taylor Swift album release'",
+        "Returns Tech_AI for 'OpenAI GPT-5 release'",
+        "Returns Finance for 'Fed rate cut June 2026'",
+        "Returns Weather for 'Hurricane category 5 Florida'",
+        "Returns Other for unclassifiable markets",
+        "All 25+ categories from PROMPT.md spec are covered",
+        "backend/tests/test_market_classifier.py has 20+ test cases",
+        "pytest backend/tests/test_market_classifier.py passes"
       ]
     },
     {
-      "id": "SEC-002",
-      "title": "Whitelist sort parameter in /api/decisions to prevent injection",
+      "id": "P1-002",
+      "title": "Proxy Finder — EOA to Polymarket proxy wallet resolution",
+      "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "ALLOWED_SORT_COLUMNS set defined in system.py",
-        "sort param validated against whitelist before getattr",
-        "Invalid sort value falls back to created_at silently"
+        "backend/core/proxy_finder.py exists with find_proxy_wallet(eoa_address) function",
+        "Method A: Blockscout PUSD MINT event lookup (PUSD=0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB)",
+        "Method B: Polymarket profile __NEXT_DATA__ parsing fallback",
+        "Caching: results cached to data/proxy_cache/ with 24h TTL",
+        "Rate limiting: 100ms delay between Blockscout requests",
+        "Returns None with status when no proxy found",
+        "Handles edge cases: no PUSD transfers, multiple proxies, contract wallets",
+        "backend/tests/test_proxy_finder.py has 3+ test cases with mocked API responses",
+        "pytest backend/tests/test_proxy_finder.py passes"
       ]
     },
     {
-      "id": "SEC-003",
-      "title": "Make .env writes atomic via temp-file + os.replace",
+      "id": "P1-003",
+      "title": "Wallet Resolver — any input to wallet info",
+      "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "_persist_env_updates in auth.py writes to temp file in same directory",
-        "os.replace() used for atomic rename",
-        "tempfile.mkstemp with delete=False pattern used"
+        "backend/core/wallet_resolver.py exists with resolve_wallet(input_str) -> WalletInfo",
+        "WalletInfo dataclass has: eoa, proxy, username, method, is_proxy, has_traded",
+        "Accepts 0x... addresses (auto-detect EOA vs proxy)",
+        "Accepts @username and bare username (fetches profile page)",
+        "Chains: username -> profile -> EOA+proxy | EOA -> proxy_finder -> proxy",
+        "backend/tests/test_wallet_resolver.py has 5+ test cases",
+        "pytest backend/tests/test_wallet_resolver.py passes"
       ]
     },
     {
-      "id": "SEC-004",
-      "title": "Validate credentials before allowing live/testnet mode switch",
+      "id": "P1-004",
+      "title": "Wallet History — fetch positions with pagination and caching",
+      "priority": 3,
       "passes": true,
       "acceptanceCriteria": [
-        "POST /api/admin/mode raises 400 with missing fields list when switching to live without all 4 Polymarket credentials",
-        "POST /api/admin/mode raises 400 when switching to testnet without POLYMARKET_PRIVATE_KEY",
-        "Paper mode switch always allowed"
+        "backend/data/wallet_history.py exists",
+        "get_all_closed_positions(proxy_wallet, force_refresh) fetches via Data API with offset pagination (0,50,100...)",
+        "100ms delay between paginated requests",
+        "Cache: data/wallet_cache/{proxy[:10]}_positions.json with 5min TTL",
+        "get_open_positions(proxy_wallet) returns current positions",
+        "get_pnl_history(proxy_wallet) returns PnLHistory with peak, min, current, max_drawdown, recovery_count",
+        "get_user_activity_summary(proxy_wallet) returns total_trades, total_volume, avg_trade_size",
+        "Handles empty wallet gracefully (returns empty lists, not errors)",
+        "backend/tests/test_wallet_history.py has 5+ test cases with mocked API",
+        "pytest backend/tests/test_wallet_history.py passes"
       ]
     },
     {
-      "id": "SEC-005",
-      "title": "Add confirmation guard to /api/bot/reset",
+      "id": "P1-005",
+      "title": "Wallet Analyzer — full PnL, WR, Sharpe, strategy analysis",
+      "priority": 4,
       "passes": true,
       "acceptanceCriteria": [
-        "POST /api/bot/reset requires ResetRequest body with confirm: bool",
-        "Returns 400 if confirm is not true",
-        "Existing reset logic unchanged when confirm=true"
+        "backend/core/wallet_analyzer.py exists",
+        "analyze_wallet(proxy_wallet) returns WalletAnalysis with all metric fields",
+        "Metrics: win_rate, wins, losses, avg_win, avg_loss, profit_factor, expected_value, sharpe_ratio, max_drawdown, recovery_factor",
+        "Category breakdown: per-category PnL and WR using market_classifier",
+        "Temporal analysis: hourly, daily, monthly performance",
+        "Size analysis: avg/median/min/max position, size brackets",
+        "Risk metrics: VaR 95/99, consecutive_losses_max",
+        "Verdict: PROFITABLE / BREAK-EVEN / LOSING based on total_pnl",
+        "Copy trade rating: 1-10 score",
+        "Red flags list populated based on analysis",
+        "analyze_wallet_rapid() lightweight mode exists",
+        "compare_wallets() produces side-by-side comparison",
+        "backend/tests/test_wallet_analyzer.py has 10+ test cases",
+        "pytest backend/tests/test_wallet_analyzer.py passes"
       ]
     },
     {
-      "id": "SEC-006",
-      "title": "Route simulate_trade through execute_decision for risk controls",
+      "id": "P2-001",
+      "title": "Position Sizer — standalone Kelly + sizing module",
+      "priority": 5,
       "passes": true,
       "acceptanceCriteria": [
-        "simulate_trade builds decision dict and calls execute_decision()",
-        "No direct Trade() construction in simulate_trade",
-        "Risk manager, duplicate check, bankroll deduction flow through execute_decision",
-        "Returns 404 if signal not found, 400 if trade rejected"
+        "backend/core/risk/position_sizer.py exists",
+        "kelly_criterion(win_rate, avg_win, avg_loss) returns quarter-Kelly fraction",
+        "Kelly test: WR=0.55, avg_win=1.2, avg_loss=1.0 -> f*=0.1, quarter=0.025",
+        "calculate_position_size(capital, confidence, market_liquidity, max_slippage) returns USD size",
+        "Hard limits: min $5, max $50",
+        "backend/tests/test_position_sizer.py has 5+ test cases",
+        "pytest backend/tests/test_position_sizer.py passes"
       ]
     },
     {
-      "id": "SEC-007",
-      "title": "Add token auth to /ws/markets and /ws/whales",
+      "id": "P2-002",
+      "title": "Exposure Limits — pre-trade validation checklist",
+      "priority": 5,
       "passes": true,
       "acceptanceCriteria": [
-        "/ws/markets closes with 1008 if ADMIN_API_KEY set and token wrong",
-        "/ws/whales closes with 1008 if ADMIN_API_KEY set and token wrong",
-        "Pattern matches existing /ws/events auth"
+        "backend/core/risk/exposure_limits.py exists",
+        "validate_trade(trade_config, portfolio_state) returns (bool, str)",
+        "Checks: capital available, position limit, market limit, category limit, daily loss, trading hours",
+        "Returns (False, reason) when any limit exceeded",
+        "backend/tests/test_exposure_limits.py has 5+ test cases",
+        "pytest backend/tests/test_exposure_limits.py passes"
       ]
     },
     {
-      "id": "FIX-001",
-      "title": "Fix DB session leak in copy_trading.py get_copy_signals",
+      "id": "P2-003",
+      "title": "Sanity Checks — pre-trade market validation",
+      "priority": 5,
       "passes": true,
       "acceptanceCriteria": [
-        "get_copy_signals uses try/finally to close SessionLocal()",
-        "No bare db.close() outside finally"
+        "backend/core/risk/sanity_checks.py exists",
+        "quick_sanity_check(market) returns (bool, str) in ~100ms",
+        "Rejects: expired market, thin book (<$100), wide spread (>5c), no recent trades",
+        "deep_sanity_check(wallet, strategy) returns (bool, List[str])",
+        "Checks: wallet active in last 7d, recent performance, no strategy drift",
+        "backend/tests/test_sanity_checks.py has 5+ test cases",
+        "pytest backend/tests/test_sanity_checks.py passes"
       ]
     },
     {
-      "id": "FIX-002",
-      "title": "Cap unbounded limit query params at 500",
+      "id": "P2-004",
+      "title": "Strategy Fingerprint — 14-dimension profiling",
+      "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "GET /api/decisions limit: min(limit, 500)",
-        "GET /api/decisions/export limit: min(limit, 5000)",
-        "GET /api/events limit: min(limit, 500)",
-        "GET /api/copy/leaderboard limit: min(limit, 500)",
-        "GET /api/trades limit: min(limit, 500)"
+        "backend/strategies/fingerprint.py exists",
+        "strategy_fingerprint(positions) returns StrategyFingerprint with all 14 dimensions",
+        "Dimensions: category_preference, position_sizing, entry_timing, hold_duration, win_rate_analysis, profit_factor_decomposition, risk_profile, outcome_preference, price_sensitivity, entry_strategy, exit_strategy, event_responsiveness, capital_management, pattern_reproducibility",
+        "Returns strategy_type (SCALPER/SWING/POSITION/WHALE/HEDGER/MIXED)",
+        "Returns confidence 0-1, copy_trade_suitability 1-10",
+        "Red flags: small sample, lucky trade, strategy drift",
+        "Green flags: consistent WR, low drawdown, replicable",
+        "backend/tests/test_strategy_fingerprint.py has 8+ test cases",
+        "pytest backend/tests/test_strategy_fingerprint.py passes"
       ]
     },
     {
-      "id": "FIX-003",
-      "title": "Document in-process rate limiter limitation",
+      "id": "P2-005",
+      "title": "Wallet Scanner — profitable trader discovery",
+      "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "rate_limiter.py comment notes dict resets on restart and multi-worker bypass",
-        "Comment suggests Redis-backed alternative for production"
+        "backend/core/wallet_scanner.py exists",
+        "find_profitable_traders(min_volume, min_trades, max_results, sort_by) returns list",
+        "Discovery methods: Gamma API participants, Blockscout whale tracking, leaderboard, known wallets",
+        "Pipeline: collect -> deduplicate -> find proxy -> rapid analysis -> rank",
+        "scan_market_participants(market_slug) returns wallet addresses",
+        "track_whale_movements(min_usd, hours_back) returns large transfers",
+        "Results cached with 1h TTL",
+        "Sort by pnl, win_rate, sharpe, volume all work",
+        "backend/tests/test_wallet_scanner.py has 5+ test cases",
+        "pytest backend/tests/test_wallet_scanner.py passes"
       ]
     },
     {
-      "id": "FIX-004",
-      "title": "Fix expired trade PnL for live mode",
+      "id": "P2-006",
+      "title": "Opportunity Detector — multi-type opportunity scanning",
+      "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "Paper mode expired trade: pnl = trade.size (stake returned to paper bankroll)",
-        "Non-paper mode expired trade: pnl = 0 (on-chain handles real refund; no in-system double-credit)"
+        "backend/strategies/opportunity_detector.py exists",
+        "scan_for_opportunities() returns List[Opportunity]",
+        "Detects price discrepancy (YES+NO < 1.0)",
+        "Detects momentum (rapid price moves)",
+        "Detects liquidity gaps (wide spread)",
+        "Each opportunity has: type, market, expected_value, confidence, entry_price, target_price, stop_loss",
+        "Integrates with existing arb_executor and probability_arb modules",
+        "backend/tests/test_opportunity_detector.py has 5+ test cases",
+        "pytest backend/tests/test_opportunity_detector.py passes"
       ]
     },
     {
-      "id": "FIX-005",
-      "title": "Add WalletConfig/CreatedWallet/WalletBalance TypeScript types to types.ts",
+      "id": "P3-001",
+      "title": "Strategy Replication — extract decision logic from profitable wallets",
+      "priority": 7,
       "passes": true,
       "acceptanceCriteria": [
-        "WalletConfig interface exported with id, address, pseudonym, source, tags, enabled, added_at",
-        "CreatedWallet interface exported with address, message",
-        "WalletBalance interface exported with address, usdc_balance, last_updated, source"
+        "backend/strategies/replication.py exists",
+        "replicate_strategy(source_wallet, our_capital) returns ReplicatedStrategy",
+        "Generates executable rules from fingerprint",
+        "Paper simulation produces PnL curve",
+        "Config compatible with existing strategy_executor",
+        "Confidence score based on rule validation",
+        "backend/tests/test_strategy_replication.py has 5+ test cases",
+        "pytest backend/tests/test_strategy_replication.py passes"
       ]
     },
     {
-      "id": "MED-001",
-      "title": "Sanitize raw exception strings in 500 error responses",
+      "id": "P3-002",
+      "title": "Trade Journal v2 — dedicated journal class with export",
+      "priority": 7,
       "passes": true,
       "acceptanceCriteria": [
-        "Backtest endpoints catch exceptions and return generic message without raw str(e)",
-        "Strategy run-now endpoint returns generic message on failure",
-        "Exception detail logged server-side, not exposed to client"
+        "backend/monitoring/trade_journal.py exists",
+        "TradeJournal class wraps existing DB models",
+        "log_trade(trade_data) inserts with all fields",
+        "get_daily_summary(date) returns total_trades, pnl, win_rate, best/worst trade",
+        "get_strategy_performance(strategy_id) returns per-strategy stats",
+        "export_csv() writes to file and returns path",
+        "backend/tests/test_trade_journal.py has 5+ test cases",
+        "pytest backend/tests/test_trade_journal.py passes"
+      ]
+    },
+    {
+      "id": "P4-001",
+      "title": "CLI Integration — wire all modules into CLI",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "backend/cli.py exists with argparse/typer commands",
+        "Commands: analyze, compare, scan, fingerprint, replicate, resolve, proxy, opportunities, journal",
+        "analyze <wallet> runs full wallet_analyzer",
+        "analyze --rapid <wallet> runs rapid mode",
+        "resolve <input> runs wallet_resolver",
+        "proxy <eoa> runs proxy_finder",
+        "All commands have --json flag for machine output",
+        "backend/tests/test_cli.py has 5+ test cases",
+        "pytest backend/tests/test_cli.py passes"
+      ]
+    },
+    {
+      "id": "FINAL",
+      "title": "Full regression — all new tests pass",
+      "priority": 9,
+      "passes": true,
+      "acceptanceCriteria": [
+        "All 14 new test files pass with 0 failures",
+        "201 total test cases pass",
+        "No import errors in new modules",
+        "New modules importable: backend.core.market_classifier, backend.core.proxy_finder, backend.core.wallet_resolver, backend.data.wallet_history, backend.core.wallet_analyzer, backend.core.risk.position_sizer, backend.core.risk.exposure_limits, backend.core.risk.sanity_checks, backend.strategies.fingerprint, backend.core.wallet_scanner, backend.strategies.opportunity_detector, backend.strategies.replication, backend.monitoring.trade_journal, backend.cli"
       ]
     }
   ]

@@ -85,6 +85,22 @@ class LineMovementDetectorStrategy(BaseStrategy):
         params = {**self.default_params, **(ctx.params or {})}
 
         try:
+            # ── Pre-settlement auto-sell: check existing open positions ──
+            try:
+                from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
+                sell_results = await check_strategy_positions_for_auto_sell(
+                    strategy_name=self.name,
+                    clob_client=ctx.clob,
+                )
+                if sell_results:
+                    logger.info(
+                        "[{}] Auto-sell: {} positions sold",
+                        self.name, len(sell_results),
+                    )
+            except Exception as exc:
+                logger.debug("[{}] Auto-sell check skipped: {}", self.name, exc)
+
             movements = await self._detect_line_movements(params)
 
             if not movements:

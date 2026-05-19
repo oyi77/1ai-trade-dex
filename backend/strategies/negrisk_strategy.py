@@ -20,7 +20,6 @@ from backend.strategies.base import (
 )
 from backend.config import settings
 
-from loguru import logger
 
 
 # ---------------------------------------------------------------------------

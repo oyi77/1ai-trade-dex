@@ -103,8 +103,8 @@ class PaperSlippageSimulator:
                 "rejection_reason": ""
             }
 
-        # Check liquidity constraints
-        if min_depth_usd > 0 and orderbook_depth_usd < min_depth_usd:
+        # Check liquidity constraints (only reject when we have depth data)
+        if min_depth_usd > 0 and orderbook_depth_usd > 0 and orderbook_depth_usd < min_depth_usd:
             return {
                 "fill_price": entry_price,
                 "slippage_bps": 0.0,
@@ -134,10 +134,14 @@ class PaperSlippageSimulator:
         # Clamp price to Polymarket bounds [0.01, 0.99]
         fill_price = max(0.01, min(0.99, fill_price))
 
-        # Estimate CLOB fee (2% of expected profit,
-        # For simplicity, we assume a worst-case scenario where the trade goes to 1.0
-        expected_profit = size * (1.0 - fill_price) if direction == "BUY" else size * fill_price
-        fee_usd = max(expected_profit * clob_fee_rate, size * 0.001)
+        # Polymarket CLOB fee: 2% on winning proceeds (payout - cost), not on expected profit
+        # For BUY at fill_price: cost = size, payout = size / fill_price, fee = (payout - cost) * 2%
+        # For SELL: fee is on the proceeds from selling
+        if direction == "BUY":
+            payout = size / fill_price
+            fee_usd = max((payout - size) * clob_fee_rate, size * 0.001)
+        else:
+            fee_usd = max(size * clob_fee_rate, size * 0.001)
 
         return {
             "fill_price": fill_price,

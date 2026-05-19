@@ -197,7 +197,7 @@ async def main():
     parser.add_argument("--benchmark", choices=["latency", "throughput", "all"], default="all")
     args = parser.parse_args()
 
-    print(f"PolyEdge Performance Benchmarks")
+    print("PolyEdge Performance Benchmarks")
     print(f"Date: {datetime.now(timezone.utc).isoformat()}")
     print(f"Iterations: {args.iterations}")
 

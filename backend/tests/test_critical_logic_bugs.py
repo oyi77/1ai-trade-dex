@@ -160,7 +160,7 @@ class TestE12WalletAllocationMethod:
 
     def test_method_inside_class(self):
         """get_wallet_allocation should exist in bankroll_allocator."""
-        from backend.core import bankroll_allocator
+        from backend.core.wallet import bankroll_allocator
         import inspect
 
         source = inspect.getsource(bankroll_allocator)

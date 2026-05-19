@@ -1,0 +1,230 @@
+"""Tests for backend.core.auto_sell — pre-settlement profit-taking."""
+
+import pytest
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, MagicMock
+
+from backend.core.auto_sell import (
+    AutoSellManager,
+    AutoSellResult,
+    _get_auto_sell_config,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _make_trade(
+    trade_id: int = 1,
+    ticker: str = "test-market",
+    direction: str = "yes",
+    entry_price: float = 0.50,
+    size: float = 20.0,
+    token_id: str = "tok123",
+    settled: bool = False,
+    timestamp: datetime | None = None,
+) -> MagicMock:
+    """Build a mock Trade object."""
+    trade = MagicMock()
+    trade.id = trade_id
+    trade.market_ticker = ticker
+    trade.direction = direction
+    trade.entry_price = entry_price
+    trade.size = size
+    trade.token_id = token_id
+    trade.settled = settled
+    trade.timestamp = timestamp or datetime.now(timezone.utc) - timedelta(seconds=10)
+    return trade
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+
+def test_get_auto_sell_config_defaults():
+    cfg = _get_auto_sell_config()
+    assert cfg["profit_target_pct"] == 0.03
+    assert cfg["stop_loss_pct"] == 0.03
+    assert cfg["max_hold_seconds"] == 300
+
+
+# ---------------------------------------------------------------------------
+# Profit target
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_profit_target_triggers_sell():
+    """YES position with price up 1% should trigger TAKE_PROFIT (target=0.8%)."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="yes")
+    # 0.50 -> 0.505 = +1% PnL > 0.8% target
+    result = await manager.check_and_sell(trade, current_price=0.505)
+    assert result is not None
+    assert result.triggered is True
+    assert result.trigger_reason == "TAKE_PROFIT"
+    assert result.pnl_pct > 0.008
+
+
+@pytest.mark.asyncio
+async def test_no_sell_within_bounds():
+    """Price within +/- 0.8% should NOT trigger any sell."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=9999)
+    trade = _make_trade(entry_price=0.50, direction="yes")
+    # 0.50 -> 0.502 = +0.4% PnL < 0.8% target
+    result = await manager.check_and_sell(trade, current_price=0.502)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Stop loss
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stop_loss_triggers_sell():
+    """YES position with price down 1% should trigger STOP_LOSS."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="yes")
+    # 0.50 -> 0.495 = -1% PnL < -0.8% stop
+    result = await manager.check_and_sell(trade, current_price=0.495)
+    assert result is not None
+    assert result.triggered is True
+    assert result.trigger_reason == "STOP_LOSS"
+    assert result.pnl_pct < -0.008
+
+
+# ---------------------------------------------------------------------------
+# Time exit
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_time_exit_triggers_sell():
+    """Position held longer than max_hold should trigger TIME_EXIT."""
+    manager = AutoSellManager(profit_target_pct=0.50, stop_loss_pct=0.50, max_hold_seconds=60)
+    old_ts = datetime.now(timezone.utc) - timedelta(seconds=120)
+    trade = _make_trade(entry_price=0.50, direction="yes", timestamp=old_ts)
+    # Price unchanged (0.50 -> 0.50) so no profit/loss trigger, but 120s > 60s max_hold
+    result = await manager.check_and_sell(trade, current_price=0.50)
+    assert result is not None
+    assert result.triggered is True
+    assert result.trigger_reason == "TIME_EXIT"
+
+
+# ---------------------------------------------------------------------------
+# Direction handling (NO positions)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_no_direction_profit():
+    """NO position: entry=0.50, current=0.49 means NO side gained (price dropped = YES lost = NO won)."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="no")
+    # For NO: pnl = (entry - current) / entry = (0.50 - 0.49) / 0.50 = 0.02 = 2%
+    result = await manager.check_and_sell(trade, current_price=0.49)
+    assert result is not None
+    assert result.trigger_reason == "TAKE_PROFIT"
+
+
+@pytest.mark.asyncio
+async def test_no_direction_stop_loss():
+    """NO position: entry=0.50, current=0.51 means NO side lost (price rose = YES won = NO lost)."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="no")
+    # For NO: pnl = (0.50 - 0.51) / 0.50 = -0.02 = -2%
+    result = await manager.check_and_sell(trade, current_price=0.51)
+    assert result is not None
+    assert result.trigger_reason == "STOP_LOSS"
+
+
+# ---------------------------------------------------------------------------
+# Invalid entry price
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_invalid_entry_price_returns_none():
+    """Entry price <= 0 or >= 1 should be skipped."""
+    manager = AutoSellManager()
+    trade = _make_trade(entry_price=0.0)
+    result = await manager.check_and_sell(trade, current_price=0.50)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# CLOB order placement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_sell_order_placed_with_clob_client():
+    """When clob_client is provided and sell triggers, order is placed."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="yes", token_id="tok_abc")
+
+    clob = AsyncMock()
+    mock_order_result = MagicMock()
+    mock_order_result.order_id = "order-42"
+    clob.place_limit_order.return_value = mock_order_result
+
+    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=clob)
+    assert result is not None
+    assert result.triggered is True
+    assert result.order_id == "order-42"
+    clob.place_limit_order.assert_awaited_once_with(
+        token_id="tok_abc", side="SELL", price=0.51, size=20.0,
+    )
+
+
+@pytest.mark.asyncio
+async def test_no_order_when_clob_is_none():
+    """Without clob_client, sell is signalled but no order placed."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    trade = _make_trade(entry_price=0.50, direction="yes")
+    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=None)
+    assert result is not None
+    assert result.triggered is True
+    assert result.order_id is None
+
+
+# ---------------------------------------------------------------------------
+# scan_and_sell_all
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_scan_and_sell_all():
+    """Bulk scan should evaluate all trades and return only triggered ones."""
+    manager = AutoSellManager(profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300)
+    t1 = _make_trade(trade_id=1, entry_price=0.50, direction="yes")  # will trigger (price up)
+    t2 = _make_trade(trade_id=2, entry_price=0.50, direction="yes")  # won't trigger (price same)
+    prices = {"test-market": 0.51}  # 2% up for t1
+
+    # Give t2 a different ticker so it gets no price
+    t2.market_ticker = "other-market"
+    prices["other-market"] = 0.50
+
+    results = await manager.scan_and_sell_all([t1, t2], prices)
+    assert len(results) == 1
+    assert results[0].trade_id == 1
+
+
+# ---------------------------------------------------------------------------
+# AutoSellResult.to_dict
+# ---------------------------------------------------------------------------
+
+
+def test_auto_sell_result_to_dict():
+    r = AutoSellResult(
+        trade_id=5, market_ticker="mkt", triggered=True,
+        trigger_reason="TAKE_PROFIT", entry_price=0.50,
+        current_price=0.51, pnl_pct=0.02,
+    )
+    d = r.to_dict()
+    assert d["trade_id"] == 5
+    assert d["trigger_reason"] == "TAKE_PROFIT"
+    assert d["triggered"] is True

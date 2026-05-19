@@ -87,31 +87,31 @@ def _state_for_mode(db, mode: str) -> BotState:
 class TestPnlWin:
     def test_up_position_wins_at_settlement_1(self):
         """Bought UP at 0.40, market settled UP (1.0) → profit.
-        size is shares, entry_price is cost per share.
-        Win PnL = (1.0 - entry_price) * size."""
+        size is dollars ($10), converted to shares ($10 / $0.40 = 25 shares).
+        Win PnL = (1.0 - entry_price) * shares = 0.60 * 25 = 15.0."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
-        trade.size = 10.0
+        trade.size = 10.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        expected = (1.0 - 0.40) * 10.0  # 6.0
+        expected = (1.0 - 0.40) * (10.0 / 0.40)  # 15.0
         assert pnl == pytest.approx(expected)
         assert pnl > 0.0
 
     def test_down_position_wins_at_settlement_0(self):
         """Bought DOWN at 0.40, market settled DOWN (0.0) → profit.
-        size is shares, entry_price is cost per share.
-        Win PnL = (1.0 - entry_price) * size."""
+        size is dollars ($10), converted to shares ($10 / $0.40 = 25 shares).
+        Win PnL = (1.0 - entry_price) * shares = 0.60 * 25 = 15.0."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
-        trade.size = 10.0
+        trade.size = 10.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = (1.0 - 0.40) * 10.0  # 6.0
+        expected = (1.0 - 0.40) * (10.0 / 0.40)  # 15.0
         assert pnl == pytest.approx(expected)
         assert pnl > 0.0
 
@@ -119,43 +119,44 @@ class TestPnlWin:
 class TestPnlLoss:
     def test_up_position_loses_at_settlement_0(self):
         """Bought UP at 0.40, market settled DOWN (0.0) → loss.
-        size is shares, entry_price is cost per share.
-        Loss PnL = -(entry_price * size)."""
+        size is dollars ($10), converted to shares ($10 / $0.40 = 25 shares).
+        Loss PnL = -(entry_price * shares) = -(0.40 * 25) = -10.0."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
-        trade.size = 10.0
+        trade.size = 10.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = -(0.40 * 10.0)  # -4.0
+        expected = -(0.40 * (10.0 / 0.40))  # -10.0
         assert pnl == pytest.approx(expected)
         assert pnl < 0.0
 
     def test_down_position_loses_at_settlement_1(self):
         """Bought DOWN at 0.40, market settled UP (1.0) → loss.
-        size is shares, entry_price is cost per share.
-        Loss PnL = -(entry_price * size)."""
+        size is dollars ($10), converted to shares ($10 / $0.40 = 25 shares).
+        Loss PnL = -(entry_price * shares) = -(0.40 * 25) = -10.0."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
-        trade.size = 10.0
+        trade.size = 10.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        expected = -(0.40 * 10.0)  # -4.0
+        expected = -(0.40 * (10.0 / 0.40))  # -10.0
         assert pnl == pytest.approx(expected)
         assert pnl < 0.0
 
     def test_loss_magnitude(self):
-        """Loss magnitude = entry_price * size (shares * cost per share)."""
+        """Loss magnitude = entry_price * shares (dollars / entry_price).
+        size is dollars ($20), shares = $20 / 0.55. Loss = full dollar amount."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.55
-        trade.size = 20.0
+        trade.size = 20.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
-        assert pnl == pytest.approx(-(0.55 * 20.0))  # -11.0
+        assert pnl == pytest.approx(-20.0)  # full dollar amount lost
 
 
 class TestPnlPush:

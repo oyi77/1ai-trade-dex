@@ -25,7 +25,15 @@ Kernel coordination of strategy execution, scheduling, settlement reconciliation
 | `evolution_harness.py` | ~680 | Pluggable evolution engine (ADR-010): DEAPEvolutionBackend (NSGA-II) and LegacyBackend; PopulationStats, Pareto front |
 | `learning_pipeline.py` | ~500 | Post-settlement feedback loop (ADR-013): forensics → lesson extraction → brain storage → genome fitness → KG update; PipelineMetrics |
 | `correlation_monitor.py` | ~160 | Cross-market correlation monitor: classifies markets into 5 categories, blocks clustered exposure exceeding MAX_CORRELATED_EXPOSURE_PCT |
+| `risk/position_sizer.py` | ~100 | Kelly Criterion + dynamic position sizing (quarter-Kelly, confidence discount, liquidity cap) |
+| `risk/exposure_limits.py` | ~100 | Pre-trade validation: 8 checks (capital, positions, market, category, daily loss, hours, size) |
+| `risk/sanity_checks.py` | ~150 | Market health (quick: 6 checks) + source wallet quality (deep: 6 checks) |
 | `position_monitor.py` | ~750 | Stale position detection + sell signal generation (profit-take, stop-loss, time-decay); closes the 948-buy-vs-4-sell gap |
+| `market_classifier.py` | ~200 | 25+ market categories (BTC_5m, Politics_US, Geopolitics, Sports, etc.) with word-boundary matching |
+| `wallet_analyzer.py` | ~500 | Full wallet analysis: PnL, WR, Sharpe, VaR, category/temporal/size breakdowns, copy-trade rating |
+| `wallet_resolver.py` | ~160 | Any input (0x, @username) → WalletInfo (eoa, proxy, username, method) |
+| `wallet_scanner.py` | ~300 | Ecosystem-wide profitable trader discovery via Gamma API + Blockscout whale tracking |
+| `proxy_finder.py` | ~200 | EOA → Polymarket proxy wallet resolution via Blockscout PUSD MINT events |
 
 ## SUBDIRECTORIES
 

@@ -65,9 +65,10 @@ async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(d
     reports = await reconcile_bot_state(db_session, modes=("paper",), apply=True, commit=True, source="test")
 
     db_session.refresh(state)
-    assert reports[0].new_bankroll == pytest.approx(93.0)
-    assert state.paper_bankroll == pytest.approx(93.0)
-    assert state.bankroll == pytest.approx(93.0)
+    # INITIAL_BANKROLL=2000, realized_pnl=5.0, open_exposure=12.0 => 2000+5-12=1993
+    assert reports[0].new_bankroll == pytest.approx(1993.0)
+    assert state.paper_bankroll == pytest.approx(1993.0)
+    assert state.bankroll == pytest.approx(1993.0)
     assert state.paper_pnl == pytest.approx(5.0)
     assert state.paper_trades == 2
     assert state.paper_wins == 1
@@ -134,7 +135,7 @@ async def test_live_reconciliation_uses_total_equity_not_position_value_only(
         return 163.56
 
     monkeypatch.setattr(
-        "backend.core.bankroll_reconciliation.fetch_pm_total_equity",
+        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
         fake_total_equity,
     )
 
@@ -178,7 +179,7 @@ async def test_live_reconciliation_keeps_realized_ledger_pnl_even_if_profile_pnl
         return 163.56
 
     monkeypatch.setattr(
-        "backend.core.bankroll_reconciliation.fetch_pm_total_equity",
+        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
         fake_total_equity,
     )
 
@@ -221,7 +222,7 @@ async def test_live_reconciliation_preserves_financial_cache_when_equity_unavail
         return None
 
     monkeypatch.setattr(
-        "backend.core.bankroll_reconciliation.fetch_pm_total_equity",
+        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
         unavailable_total_equity,
     )
 

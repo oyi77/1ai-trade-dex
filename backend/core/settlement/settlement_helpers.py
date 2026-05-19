@@ -3,7 +3,7 @@
 import asyncio
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -722,11 +722,12 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     - UP position wins when settlement = 1.0
     - DOWN position wins when settlement = 0.0
 
-    IMPORTANT: `size` is the number of shares purchased (not dollars spent).
-    `entry_price` is the cost per share (0.0–1.0).
-    On a win, each share pays $1: net profit = (1.0 - entry_price) * size.
-    On a loss, shares are worth $0: net loss = -(entry_price * size).
-    Verified against real CLOB fills: entry=0.505, size=24.75 → win pnl=12.25, loss pnl=-12.50.
+    IMPORTANT: The execution pipeline stores `size` as a DOLLAR AMOUNT
+    (not shares). This function converts dollars to shares using entry_price
+    before applying the PnL formula.
+    `entry_price` is the cost per share (0.0-1.0).
+    On a win, each share pays $1: net profit = (1.0 - entry_price) * shares.
+    On a loss, shares are worth $0: net loss = -(entry_price * shares).
     """
     # Map up/down to yes/no logic
     direction = trade.direction
@@ -740,6 +741,11 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
 
     _fill_price = getattr(trade, "fill_price", None)
     entry_price = float(_fill_price) if isinstance(_fill_price, (int, float)) else trade.entry_price
+
+    # Convert dollar amount to shares if needed
+    # The execution pipeline stores dollars, but PnL formula expects shares
+    if entry_price and entry_price > 0 and entry_price < 1.0:
+        size = size / entry_price
 
     if not entry_price or entry_price <= 0 or entry_price >= 1.0:
         if entry_price and entry_price >= 1.0:
@@ -1336,6 +1342,18 @@ async def process_settled_trade(
             e,
         )
 
+    # Record outcome to strategy_outcomes table
+    try:
+        from backend.core.outcome_repository import record_outcome
+        record_outcome(trade, db)
+    except Exception as e:
+        logger.opt(exception=True).debug(
+            "[settlement_helpers.process_settled_trade] {}: outcome_repository.record_outcome failed for {}: {!r}",
+            type(e).__name__,
+            trade.market_ticker,
+            e,
+        )
+
     return True
 
 
@@ -1445,6 +1463,18 @@ async def resolve_paper_trades(db) -> List[Trade]:
     settled = []
     now = datetime.now(timezone.utc)
 
+    # Filter out trades that are too young to settle (prevents premature settlement
+    # on markets that haven't had time to resolve — Gamma prices can spike to extremes
+    # on illiquid markets before actual resolution)
+    MIN_SETTLE_AGE = timedelta(hours=1)
+    pending = [
+        t for t in pending
+        if t.timestamp and (now - (t.timestamp.replace(tzinfo=timezone.utc) if t.timestamp.tzinfo is None else t.timestamp)) > MIN_SETTLE_AGE
+    ]
+
+    if not pending:
+        return []
+
     # Deduplicate by market_ticker
     tickers = list(set(t.market_ticker for t in pending))
 
@@ -1514,6 +1544,15 @@ async def resolve_paper_trades(db) -> List[Trade]:
             logger.error(f"Failed to commit paper settlements: {e}")
             db.rollback()
             return []
+
+        # Record outcomes to strategy_outcomes table
+        try:
+            from backend.core.outcome_repository import record_outcome
+            for trade in settled:
+                if trade.result in ("win", "loss"):
+                    record_outcome(trade, db)
+        except Exception as e:
+            logger.error(f"Failed to record paper outcomes: {e}")
 
         # Update bot_state inline to avoid circular import
         if settled:

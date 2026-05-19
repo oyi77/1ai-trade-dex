@@ -332,7 +332,7 @@ def mutate_genome(
         actual_vol = 1.0
         risk_chromo = genome.chromosomes.get("risk")
         if risk_chromo:
-            actual_vol = risk_chromo.genes.get("volatility_target", 1.0)
+            actual_vol = getattr(risk_chromo, "volatility_target", 1.0)
         old, new = shift_timeframe(genome, current_volatility=actual_vol)
         mutations.append({"type": "timeframe_shift", "old": old, "new": new})
 

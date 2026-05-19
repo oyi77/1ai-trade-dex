@@ -4,7 +4,7 @@ Polymarket has a /batch-prices-history endpoint that fetches price history
 for multiple markets in a single request, instead of N individual calls.
 """
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
