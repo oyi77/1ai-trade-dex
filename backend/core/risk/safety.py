@@ -97,7 +97,7 @@ class RiskMonitor:
                     misc = json.loads(bot_state.misc_data)
                     alerts = misc.get("safety_alerts", [])
                 except json.JSONDecodeError:
-                    pass
+                    logger.exception("safety: failed to parse bot_state.misc_data as JSON")
 
             alerts.append(alert)
             misc = {"safety_alerts": alerts}

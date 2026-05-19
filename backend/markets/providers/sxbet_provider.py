@@ -12,6 +12,9 @@ try:
 except ImportError:
     HAS_SXBET = False
 
+if not os.getenv("SXBET_API_URL"):
+    logger.info("[SXBetProvider] SXBET_API_URL not set — provider disabled")
+
 
 @market_registry.plugin
 class SXBetProvider(BaseMarketProvider):

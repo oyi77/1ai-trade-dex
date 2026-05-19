@@ -11,6 +11,7 @@ from backend.models.database import (
     Trade,
     WhaleTransaction,
 )
+from loguru import logger
 router = APIRouter(tags=["market_intel"])
 
 
@@ -150,7 +151,8 @@ async def get_prediction(market_id: str):
     from backend.ai.prediction_engine import PredictionEngine
 
     engine = PredictionEngine()
-    # Stub features — PE-013 will wire real market data
+    # TODO: wire real market data from Gamma API
+    logger.warning("[market_intel] get_prediction() using stub features — wire real market data")
     features = engine.extract_features({"volume": 0}, {})
     pred = engine.predict(features)
     return {"market_id": market_id, "prediction": pred.__dict__}

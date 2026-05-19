@@ -145,7 +145,7 @@ class RiskManager:
         try:
             db_query_duration.labels(query_type="get_bankroll").observe(_time.monotonic() - _qstart)
         except Exception:
-            pass
+            logger.exception("[risk_manager.get_bankroll] failed to observe db_query_duration metric")
         if state and state.bankroll is not None:
             return float(state.bankroll)
         return self.s.INITIAL_BANKROLL
@@ -734,7 +734,7 @@ class RiskManager:
                 type(e).__name__,
                 e,
             )
-            return 0
+            return -1
 
     def _get_strategy_allocation(self, strategy_name: str, bankroll: float, db) -> float:
         """Get strategy allocation using AGI allocation if available, otherwise equal-weight fallback."""
@@ -983,7 +983,7 @@ class RiskManager:
             logger.opt(exception=True).error(
                 "[risk_manager._check_strategy_drawdown] {}: {}", type(e).__name__, e,
             )
-            return 0.0
+            return -1.0
 
     def check_concentration(
         self, market_ticker: str, trade_size: float, bankroll: float, db, mode: str

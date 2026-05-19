@@ -184,7 +184,7 @@ async def fetch_polymarket_resolution(
                         if result[0]:
                             return result
         except Exception:
-            pass
+            logger.exception(f"[settlement] Gamma API resolution failed for market {market_id}")
 
     if _looks_like_token_id(market_id):
         resolved, value = await _resolve_pm_by_token_id(market_id)
@@ -417,7 +417,7 @@ def _parse_market_resolution(market: dict) -> Tuple[bool, Optional[float]]:
                 if now > end_date:
                     hours_past_end = (now - end_date).total_seconds() / 3600.0
             except (ValueError, TypeError):
-                pass
+                logger.exception("[settlement] failed to parse market end_date for early resolution check")
 
         # If the game is explicitly live AND the endDate hasn't been
         # surpassed by a wide margin, don't early-resolve.
@@ -592,7 +592,7 @@ def _check_event_concluded(market: dict) -> bool:
                 ):
                     return False
         except (ValueError, TypeError):
-            pass
+            logger.exception("[settlement] failed to parse market end_date for BTC updown resolution")
 
     return False
 
@@ -682,7 +682,7 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
             if is_resolved:
                 return True, value
     except Exception:
-        pass
+        logger.exception(f"[settlement] provider.resolve_market failed for {trade.market_ticker}")
 
     # Legacy fallback — wrap in error handling to prevent scheduler hang on API timeout
     try:
@@ -1428,6 +1428,7 @@ async def reconcile_positions(db: Session) -> List[int]:
         return trades_to_close
 
     except Exception as e:
+        logger.error("[Settlement] reconciliation error: {}", e)
         logger.error(
             f"[settlement_helpers.reconcile_positions] {type(e).__name__}: "
             f"Position reconciliation failed: {e}",
@@ -1541,6 +1542,7 @@ async def resolve_paper_trades(db) -> List[Trade]:
         try:
             db.commit()
         except Exception as e:
+            logger.error("[Settlement] reconciliation error: {}", e)
             logger.error(f"Failed to commit paper settlements: {e}")
             db.rollback()
             return []

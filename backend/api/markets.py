@@ -1,5 +1,6 @@
 """Market data routes - BTC, Polymarket, Kalshi, Weather."""
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -140,7 +141,7 @@ async def get_btc_windows():
         ]
     except Exception as e:
         logger.warning(f"Weather forecasts fetch failed: {e}")
-        return []
+        return JSONResponse(status_code=503, content={"error": "Market data unavailable", "retry_after": 30})
 
 
 # ============================================================================
@@ -182,7 +183,7 @@ async def get_kalshi_status():
 async def get_weather_forecasts():
     """Get ensemble forecasts for configured cities."""
     if not settings.WEATHER_ENABLED:
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather data unavailable", "retry_after": 30})
 
     try:
         from backend.data.weather import fetch_ensemble_forecast, CITY_CONFIG
@@ -212,14 +213,14 @@ async def get_weather_forecasts():
         return forecasts
     except Exception:
         logger.exception("Failed to fetch weather forecasts")
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather data unavailable", "retry_after": 30})
 
 
 @router.get("/weather/markets", response_model=List[WeatherMarketResponse])
 async def get_weather_markets():
     """Get active weather temperature markets."""
     if not settings.WEATHER_ENABLED:
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather markets unavailable", "retry_after": 30})
 
     try:
         from backend.data.weather_markets import fetch_polymarket_weather_markets
@@ -259,14 +260,14 @@ async def get_weather_markets():
         ]
     except Exception:
         logger.exception("Failed to fetch weather markets")
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather markets unavailable", "retry_after": 30})
 
 
 @router.get("/weather/signals", response_model=List[WeatherSignalResponse])
 async def get_weather_signals():
     """Get current weather trading signals."""
     if not settings.WEATHER_ENABLED:
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather signals unavailable", "retry_after": 30})
 
     try:
         from backend.core.weather_signals import scan_for_weather_signals
@@ -275,7 +276,7 @@ async def get_weather_signals():
         return [_weather_signal_to_response(s) for s in signals]
     except Exception:
         logger.exception("Failed to fetch weather signals")
-        return []
+        return JSONResponse(status_code=503, content={"error": "Weather signals unavailable", "retry_after": 30})
 
 
 def _weather_signal_to_response(s) -> WeatherSignalResponse:

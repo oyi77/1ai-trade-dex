@@ -48,7 +48,7 @@ class NotifyStage(BaseExecutionStage):
         return {"status": "notified", "providers_notified": len(notification_registry._plugins)}
 
     def record(self, decision, result, ctx):
-        pass
+        logger.debug("[NotifyStage] record() not implemented")
 
     def validate(self, decision, ctx):
         return True

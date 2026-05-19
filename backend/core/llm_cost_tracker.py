@@ -41,7 +41,9 @@ class BudgetStatus:
 
 
 class LLMCostTracker:
+    """LLM cost tracking — not yet fully wired in production."""
     def __init__(self, daily_budget: Optional[float] = None):
+        logger.warning("[LLMCostTracker] Not implemented — LLM costs not tracked")
         self.daily_budget = daily_budget or float(os.environ.get("LLM_DAILY_BUDGET", DAILY_BUDGET_DEFAULT))
         self.calls: list[LLMCostRecord] = []
         self._period_start = datetime.now(timezone.utc).replace(

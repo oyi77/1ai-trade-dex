@@ -319,6 +319,7 @@ async def scan_and_trade_job(mode: str):
     STRATEGY_REGISTRY so the bot can scan every enabled strategy instead of only
     BTC 5-minute markets.
     """
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
     from backend.strategies.base import StrategyContext
     from backend.strategies.registry import STRATEGY_REGISTRY
@@ -582,6 +583,7 @@ async def weather_scan_and_trade_job(mode: str):
 
 async def settlement_job():
     """Check and settle pending trades. Runs every 2 minutes."""
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Checking BTC trade settlements...")
@@ -697,6 +699,7 @@ async def arbitrage_scan_job():
 
 async def auto_trader_job(mode: str):
     """Run AutoTrader against unexecuted signals when AUTO_TRADER_ENABLED."""
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
 
     if not settings.AUTO_TRADER_ENABLED:
@@ -840,6 +843,7 @@ async def auto_trader_job(mode: str):
 
 async def auto_redeem_job() -> None:
     """Automatically redeem resolved Polymarket positions when explicitly enabled."""
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
 
     if not getattr(settings, "AUTO_REDEEM_ENABLED", False):
@@ -900,6 +904,7 @@ async def auto_redeem_job() -> None:
 
 async def heartbeat_job():
     """Periodic heartbeat. Runs every minute."""
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
     from backend.db.utils import get_db_session
 
@@ -933,6 +938,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         strategy_name: Name of the strategy to run.
         mode: Trading mode (paper, testnet, live).
     """
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
     from backend.core.heartbeat import update_heartbeat as _update_heartbeat
 
@@ -1080,9 +1086,8 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
 
 async def sync_testnet_wallet():
-    """Testnet wallet sync — skipped since blockchain wallet is live-only."""
-    logger.debug("Testnet wallet sync skipped (blockchain wallet is live-only)")
-    pass
+    """Testnet wallet sync — not yet implemented."""
+    logger.warning("[sync_testnet_wallet] Not implemented — skipping")
 
 
 async def sync_live_wallet():
@@ -1136,6 +1141,7 @@ async def sync_live_wallet():
 
 async def verify_settlement_blockchain():
     """Check unsettled trades and update with blockchain-verified settlement data."""
+    await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
     from backend.core.settlement_helpers import (
         fetch_resolution_for_trade,

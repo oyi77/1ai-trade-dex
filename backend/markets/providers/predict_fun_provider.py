@@ -12,6 +12,9 @@ try:
 except ImportError:
     HAS_AZURO = False
 
+if not os.getenv("AZURO_GRAPH_URL"):
+    logger.info("[AzuroProvider] AZURO_GRAPH_URL not set — provider disabled")
+
 
 @market_registry.plugin
 class PredictFunProvider(BaseMarketProvider):

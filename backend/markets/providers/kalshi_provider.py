@@ -14,6 +14,10 @@ try:
 except ImportError:
     HAS_KALSHI = False
 
+import os
+if not os.getenv("KALSHI_API_KEY") and not os.getenv("KALSHI_API_KEY_ID"):
+    logger.info("[KalshiProvider] KALSHI_API_KEY not set — provider disabled")
+
 
 @market_registry.plugin
 class KalshiProvider(BaseMarketProvider):

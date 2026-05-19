@@ -1,3 +1,5 @@
+from loguru import logger
+
 from backend.core.execution_pipeline.base import BaseExecutionStage, ExecutionStageManifest
 from backend.core.execution_pipeline.registry import registry
 from backend.core.risk_manager import RiskManager
@@ -46,7 +48,7 @@ class ValidationStage(BaseExecutionStage):
         return {"validation_passed": True}
 
     def record(self, decision, result, ctx):
-        pass
+        logger.debug("[ValidationStage] record() not implemented")
 
 
 registry.plugin(ValidationStage)

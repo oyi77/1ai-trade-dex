@@ -12,6 +12,9 @@ try:
 except ImportError:
     HAS_LIMITLESS = False
 
+if not os.getenv("LIMITLESS_API_URL"):
+    logger.info("[LimitlessProvider] LIMITLESS_API_URL not set — provider disabled")
+
 
 @market_registry.plugin
 class LimitlessProvider(BaseMarketProvider):

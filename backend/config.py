@@ -1875,6 +1875,11 @@ def _validate_startup():
 
 _validate_startup()
 
+# Log missing optional API keys
+for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
+    if not getattr(settings, _key, None):
+        logger.debug(f"[Config] {_key} not set — fallback provider disabled")
+
 # Backwards compatibility: Settings still exists for existing code
 # This provides a bridge during migration to the new registry system
 # New code should use the ConfigRegistry directly or through settings

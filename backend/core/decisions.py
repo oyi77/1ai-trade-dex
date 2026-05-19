@@ -101,7 +101,6 @@ def record_decision(
                 db.rollback()
             except Exception:
                 logger.exception("record_decision: failed to rollback after OperationalError")
-                pass
             time.sleep(_DB_LOCKED_RETRY_DELAY)
         except Exception as e:
             logger.error(

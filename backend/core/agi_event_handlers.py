@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any
 
@@ -16,6 +17,7 @@ def _handler_flag(name: str, default: bool = True) -> bool:
 
 
 async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("trade_executed"):
         return
     strategy_name = data.get("strategy_name")
@@ -48,6 +50,7 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("trade_settled"):
         return
     strategy_name = data.get("strategy_name")
@@ -85,6 +88,7 @@ async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_trade_rejected(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("trade_rejected"):
         return
     strategy_name = data.get("strategy_name")
@@ -95,6 +99,7 @@ async def on_trade_rejected(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("strategy_killed"):
         return
     strategy_name = data.get("strategy_name")
@@ -135,6 +140,7 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("experiment_promoted"):
         return
     genome_id = data.get("genome_id")
@@ -163,6 +169,7 @@ async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_chromosome_flagged(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("chromosome_flagged"):
         return
     genome_id = data.get("genome_id")
@@ -182,6 +189,7 @@ async def on_chromosome_flagged(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_mutation_proposed(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("mutation_proposed"):
         return
     strategy_name = data.get("strategy_name")
@@ -199,6 +207,7 @@ async def on_mutation_proposed(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("regime_shift"):
         return
     new_regime = data.get("new_regime")
@@ -230,6 +239,7 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
 
 async def on_signal_found(event_type: str, data: Dict[str, Any]) -> None:
     """Handle signal_found events: log and persist to KnowledgeGraph for downstream analysis."""
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("signal_found"):
         return
     market_ticker = data.get("market_ticker")
@@ -255,12 +265,14 @@ async def on_signal_found(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_genome_promoted(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("genome_promoted"):
         return
     await on_experiment_promoted(event_type, data)
 
 
 async def on_lifecycle_transition(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("lifecycle_transition"):
         return
     to_stage = data.get("to_stage")
@@ -270,6 +282,7 @@ async def on_lifecycle_transition(event_type: str, data: Dict[str, Any]) -> None
 
 
 async def on_evolution_action(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("evolution_action"):
         return
     logger.info(f"EVENT [evolution_action] type={data.get('action_type')} genome={data.get('genome_id')}")
@@ -282,6 +295,7 @@ async def on_evolution_action(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_synthesis_priors_updated(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("synthesis_priors_updated"):
         return
     logger.info(f"EVENT [synthesis_priors_updated] prefer={len(data.get('prefer', []))} avoid={len(data.get('avoid', []))}")
@@ -295,12 +309,14 @@ async def on_synthesis_priors_updated(event_type: str, data: Dict[str, Any]) -> 
 
 async def on_risk_manager_updated(event_type: str, data: Dict[str, Any]) -> None:
     """Log-only handler: no downstream action needed for risk_manager_updated events yet."""
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("risk_manager_updated"):
         return
     logger.info(f"EVENT [risk_manager_updated] rules={len(data.get('new_rules', []))}")
 
 
 async def on_necromancy_report(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("necromancy_report"):
         return
     logger.info(f"EVENT [necromancy_report] deaths={len(data.get('death_causes', []))}")
@@ -313,6 +329,7 @@ async def on_necromancy_report(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_nightly_review_complete(event_type: str, data: Dict[str, Any]) -> None:
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("nightly_review_complete"):
         return
     logger.info(f"[NightlyReviewKG] Review complete: {data.get('date')}")
@@ -335,6 +352,7 @@ async def on_nightly_review_complete(event_type: str, data: Dict[str, Any]) -> N
 
 async def on_archetype_allocation_changed(event_type: str, data: Dict[str, Any]) -> None:
     """Log-only handler: no downstream action needed for archetype_allocation_changed events yet."""
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("archetype_allocation_changed"):
         return
     logger.info(f"EVENT [archetype_allocation_changed] regime={data.get('regime')} archetypes={data.get('archetypes')}")
@@ -342,6 +360,7 @@ async def on_archetype_allocation_changed(event_type: str, data: Dict[str, Any])
 
 async def on_strategy_demoted(event_type: str, data: Dict[str, Any]) -> None:
     """Handle strategy_demoted events: trigger AGI improvement cycle for demoted strategy."""
+    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("strategy_demoted"):
         return
     strategy_name = data.get("strategy_name")

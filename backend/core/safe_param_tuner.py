@@ -55,7 +55,8 @@ class SafeParamTuner:
 
         try:
             params = json.loads(config.params) if isinstance(config.params, str) else config.params
-        except Exception:
+        except Exception as e:
+            logger.error("[SafeParamTuner] error: {}", e)
             logger.exception(f"[SafeParamTuner] {strategy}: failed to parse strategy config params")
             return {}
 
@@ -95,6 +96,7 @@ class SafeParamTuner:
                 config.params = json.dumps(params)
                 db.commit()
             except Exception as e:
+                logger.error("[SafeParamTuner] error: {}", e)
                 logger.error(f"[SafeParamTuner] Failed to save params for {strategy}: {e}")
                 db.rollback()
 
@@ -144,6 +146,7 @@ class SafeParamTuner:
                         )
                         return True
                 except Exception as e:
+                    logger.error("[SafeParamTuner] error: {}", e)
                     logger.error(f"[SafeParamTuner] Revert failed for {strategy}: {e}")
                     db.rollback()
 

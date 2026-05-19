@@ -124,7 +124,8 @@ class StrategyPerformanceTracker:
                     avg_edge_at_entry=sum(edges) / len(edges) if edges else 0.0,
                     last_trade_at=last_trade.isoformat() if last_trade else None,
                 )
-        except Exception:
+        except Exception as e:
+            logger.error("[PerformanceTracker] error: {}", e)
             logger.exception(
                 f"[PerformanceTracker] Failed to get performance for {strategy_name}"
             )
@@ -162,7 +163,8 @@ class StrategyPerformanceTracker:
                     for k, v in params.items()
                     if isinstance(v, (int, float)) and v != 0
                 }
-        except Exception:
+        except Exception as e:
+            logger.error("[PerformanceTracker] error: {}", e)
             logger.exception(
                 f"[PerformanceTracker] Failed to get tunable params for {strategy_name}"
             )

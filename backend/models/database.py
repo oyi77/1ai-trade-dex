@@ -1508,6 +1508,9 @@ def _safe_ddl_type(type_str: str) -> str:
 
 def ensure_schema():
     """Ensure newer schema fields exist even if migration wasn't run."""
+    # NOTE: ensure_schema() bypasses alembic migrations. This creates drift risk.
+    # For production, prefer alembic-only schema management.
+    # See: IMPLEMENTATION_GAPS.md #14
     inspector = inspect(engine)
 
     try:

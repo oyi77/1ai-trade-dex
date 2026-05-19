@@ -441,7 +441,7 @@ def _execute_decision_paper_or_kalshi(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    pass
+                    logger.exception(f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}")
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
@@ -586,7 +586,7 @@ def _execute_decision_paper_or_kalshi(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    pass
+                    logger.exception(f"[strategy_executor] failed to parse market_end_date for trade recording")
 
             slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
             fee = None
@@ -1295,7 +1295,7 @@ async def _execute_decision_live_clob(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    pass
+                    logger.exception(f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}")
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
@@ -1507,7 +1507,7 @@ async def _execute_decision_live_clob(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    pass
+                    logger.exception(f"[strategy_executor] failed to parse market_end_date for trade recording")
 
             slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
             fee = None
