@@ -3,12 +3,15 @@
 
 import asyncio
 import sys, json
+import logging
 from decimal import Decimal
 sys.path.insert(0, "/home/openclaw/projects/polyedge")
 
 from sqlalchemy import create_engine, text
 from backend.config import settings
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 
 def _fetch_real_equity():
     """Fetch real PM total equity (sync wrapper around async call)."""
@@ -48,8 +51,8 @@ def main():
                         ts = datetime.fromisoformat(v)
                         age_min = (now - ts).total_seconds() / 60
                         report["heartbeats"][name] = {"last_beat": v, "age_minutes": round(age_min, 1)}
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.debug(f"Heartbeat parse error: {e}")
 
         # ── Strategy PnL (7d, LIVE only) ──
         rows = conn.execute(text("""
