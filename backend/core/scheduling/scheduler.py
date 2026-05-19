@@ -9,6 +9,7 @@ import datetime as dt_module
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from loguru import logger
@@ -73,6 +74,8 @@ from backend.mesh.auditor import audit_source_performance
 from backend.mesh.learning import update_source_weights_from_outcomes
 from backend.ai.rejection_learner import generate_rejection_proposals
 from backend.core.strategy_evolution_loop import strategy_evolution_loop
+from backend.core.wr_monitor import wr_monitor_job
+from backend.core.wallet_reconciler import wallet_reconciler_job
 
 scheduler: Optional[AsyncIOScheduler] = None
 
@@ -200,6 +203,7 @@ JOB_FUNCTION_REGISTRY = {
     "position_monitor_job": position_monitor_job,
     "sell_signal_monitor_job": sell_signal_monitor_job,
     "strategy_evolution_loop": strategy_evolution_loop,
+    "wallet_reconciler_job": wallet_reconciler_job,
 }
 
 
@@ -427,6 +431,25 @@ def _register_event_driven_strategies() -> None:
     logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
 
+def _job_executed_listener(event):
+    """Update ScheduledJob.last_run after each job completes."""
+    job_id = event.job_id
+    try:
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            row = db.query(ScheduledJob).filter(ScheduledJob.job_name == job_id).first()
+            if row:
+                row.last_run = datetime.now(timezone.utc)
+                sched = _get_scheduler()
+                if sched:
+                    job = sched.get_job(job_id)
+                    if job and job.next_run_time:
+                        row.next_run = job.next_run_time
+                db.commit()
+    except Exception as exc:
+        logger.debug(f"Failed to update last_run for job '{job_id}': {exc}")
+
+
 def start_scheduler():
     """Start the background scheduler for multi-strategy trading."""
     global queue, worker, worker_task
@@ -613,6 +636,18 @@ def start_scheduler():
         max_instances=1,
     )
 
+    # Wallet reconciler: periodic balance sync every 5 minutes (async, non-blocking)
+    _persist_and_add_job(
+        scheduler,
+        wallet_reconciler_job,
+        IntervalTrigger(minutes=5),
+        id="wallet_reconciler",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=120,
+    )
+    logger.info("Scheduled wallet reconciler job every 5 minutes")
+
     # Wallet sync disabled — contains blocking synchronous DB calls that freeze the event loop.
     # Re-enable after refactoring to use async DB (asyncpg/databases) or thread pool execution.
     # First, remove any restored wallet_sync_live job from crash recovery state.
@@ -697,6 +732,10 @@ def start_scheduler():
         max_instances=1,
     )
     logger.info("Scheduled weekly HuggingFace dataset ingestion job")
+
+    # Health: update last_run/next_run after each job execution
+    scheduler.add_listener(_job_executed_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
     # Start the scheduler
     scheduler.start()
     for job in scheduler.get_jobs():
@@ -1033,6 +1072,16 @@ def start_scheduler():
         max_instances=1,
     )
     logger.info("Scheduled disk space check job every 15 minutes")
+
+    # WR Monitor: check live strategy win rates every 6 hours
+    scheduler.add_job(
+        wr_monitor_job,
+        IntervalTrigger(hours=6, jitter=600),
+        id="wr_monitor",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Scheduled WR monitor job every 6 hours")
 
     from backend.core.proposal_executor import (
         execute_approved_proposals_job,

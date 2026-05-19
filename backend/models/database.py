@@ -530,6 +530,12 @@ class BotState(Base):
     # Settlement verification tracking
     settlement_last_check_at = Column(DateTime, nullable=True, default=None)
 
+    # Wallet reconciliation tracking
+    total_deposits = Column(Float, default=0.0)
+    total_withdrawals = Column(Float, default=0.0)
+    last_wallet_sync_at = Column(DateTime, nullable=True)
+    wallet_pnl = Column(Float, default=0.0)
+
     def __repr__(self):
         return (f"<BotState(id={self.id}, mode={self.mode}, bankroll={self.bankroll}, "
                 f"total_pnl={self.total_pnl}, total_trades={self.total_trades}, "
