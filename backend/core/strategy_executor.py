@@ -432,7 +432,7 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
-            # --- Stale-market filter: skip markets within 1 hour of resolution ---
+            # --- Stale-market filter: dynamic threshold based on market lifetime ---
             from datetime import timedelta
             market_end_date = None
             if market_end_date_str:
@@ -445,10 +445,13 @@ def _execute_decision_paper_or_kalshi(
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
-                if _time_to_resolution < 60:
+                # Dynamic threshold: 2 min for short-lived (5m/15m) markets, 60 min otherwise
+                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(market_ticker)
+                _stale_threshold = 2.0 if _is_short_lived else 60.0
+                if _time_to_resolution < _stale_threshold:
                     logger.info(
                         f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "
-                        f"{_time_to_resolution:.1f} min (< 60 min threshold)"
+                        f"{_time_to_resolution:.1f} min (< {_stale_threshold:.0f} min threshold)"
                     )
                     attempt_recorder.record_rejected(
                         f"Stale market: {market_ticker} resolves in {_time_to_resolution:.1f} min",
@@ -1283,7 +1286,7 @@ async def _execute_decision_live_clob(
                 db.commit()
                 return None
 
-            # --- Stale-market filter: skip markets within 1 hour of resolution ---
+            # --- Stale-market filter: dynamic threshold based on market lifetime ---
             from datetime import timedelta
             market_end_date = None
             if market_end_date_str:
@@ -1296,10 +1299,13 @@ async def _execute_decision_live_clob(
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
-                if _time_to_resolution < 60:
+                # Dynamic threshold: 2 min for short-lived (5m/15m) markets, 60 min otherwise
+                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(market_ticker)
+                _stale_threshold = 2.0 if _is_short_lived else 60.0
+                if _time_to_resolution < _stale_threshold:
                     logger.info(
                         f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "
-                        f"{_time_to_resolution:.1f} min (< 60 min threshold)"
+                        f"{_time_to_resolution:.1f} min (< {_stale_threshold:.0f} min threshold)"
                     )
                     attempt_recorder.record_rejected(
                         f"Stale market: {market_ticker} resolves in {_time_to_resolution:.1f} min",

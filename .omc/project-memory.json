@@ -295,6 +295,91 @@
       "keyFiles": []
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": ".env",
+      "accessCount": 11,
+      "lastAccessed": 1779206582470,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/strategy_executor.py",
+      "accessCount": 10,
+      "lastAccessed": 1779206176506,
+      "type": "directory"
+    },
+    {
+      "path": "backend/config.py",
+      "accessCount": 7,
+      "lastAccessed": 1779206717010,
+      "type": "directory"
+    },
+    {
+      "path": "backend/strategies/cex_pm_leadlag.py",
+      "accessCount": 4,
+      "lastAccessed": 1779206228234,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 3,
+      "lastAccessed": 1779205541692,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_manager.py",
+      "accessCount": 3,
+      "lastAccessed": 1779206444964,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/correlation_monitor.py",
+      "accessCount": 3,
+      "lastAccessed": 1779206523974,
+      "type": "directory"
+    },
+    {
+      "path": "backend/monitoring/__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1779204769928,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/scheduling",
+      "accessCount": 1,
+      "lastAccessed": 1779204942486,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/external_rate_limiter.py",
+      "accessCount": 1,
+      "lastAccessed": 1779204971936,
+      "type": "file"
+    },
+    {
+      "path": "backend",
+      "accessCount": 1,
+      "lastAccessed": 1779205093968,
+      "type": "directory"
+    },
+    {
+      "path": "backend/scripts/seed_hft_strategies.py",
+      "accessCount": 1,
+      "lastAccessed": 1779205128787,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk",
+      "accessCount": 1,
+      "lastAccessed": 1779205892534,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/strategy_gate.py",
+      "accessCount": 1,
+      "lastAccessed": 1779206821783,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

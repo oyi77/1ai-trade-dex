@@ -212,6 +212,8 @@ class ConfigRegistry:
     KELLY_FRACTION: float = 0.30  #Kelly fraction (0.30 = 30% Kelly)
     MAX_POSITION_FRACTION: float = 0.08  #max position as % of bankroll
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  #max total exposure
+    CORRELATION_MULTIPLIER: float = 1.0  # same-category exposure multiplier (1.0=no inflation)
+    MAX_CORRELATED_EXPOSURE_PCT: float = 0.50  # max correlation-adjusted exposure % of bankroll
     MAX_TRADE_SIZE: float = 100.0  #max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  #minimum order size (live)
     PAPER_MIN_ORDER_USDC: float = 5.0  #minimum order size (paper — matches live to prevent hallucination)
@@ -341,7 +343,7 @@ class ConfigRegistry:
     CEX_PM_LEADLAG_MIN_MOMENTUM: float = 0.003
     CEX_PM_LEADLAG_MIN_EDGE: float = 0.05
     CEX_PM_LEADLAG_MAX_MINUTES_TO_RESOLUTION: int = 90
-    CEX_PM_LEADLAG_MAX_POSITION_USD: float = 50.0
+    CEX_PM_LEADLAG_MAX_POSITION_USD: float = 20.0
     CEX_PM_LEADLAG_INTERVAL_SECONDS: int = 15
 
     # Cross-Market Arbitrage
