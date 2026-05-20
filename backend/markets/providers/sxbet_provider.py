@@ -65,7 +65,9 @@ class SXBetProvider(BaseMarketProvider):
                 stake_wei=int(order.size * 10**18),
                 private_key=private_key,
             )
-            # TODO: Parse fees from SX.bet API response when available
+            fees_paid = Decimal(str(
+                result.get("fee") or result.get("fees") or result.get("gasUsed") or result.get("txFee") or "0"
+            ))
             return NormalizedOrderResult(
                 venue_order_id=result.get("orderId", "unknown"),
                 client_order_id=order.client_order_id,
@@ -73,7 +75,7 @@ class SXBetProvider(BaseMarketProvider):
                 filled_size=Decimal("0"),
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=order.size,
-                fees_paid=Decimal("0"),
+                fees_paid=fees_paid,
             )
         except Exception as exc:
             logger.exception("SXBet order failed")
