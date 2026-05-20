@@ -1,4 +1,3 @@
-import pytest
 
 
 def test_create_trading_wallet(test_app):

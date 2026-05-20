@@ -32,29 +32,20 @@ from backend.core.alert_manager import AlertManager
 from backend.db.utils import get_db_session
 from backend.models.database import Trade
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 # Stale window. 30 minutes per task spec. Override with env STALE_POSITION_MINUTES.
-STALE_INTERVAL_MINUTES: int = int(
-    getattr(settings, "STALE_POSITION_MINUTES", 30) or 30
-)
+STALE_INTERVAL_MINUTES: int = int(getattr(settings, "STALE_POSITION_MINUTES", 30) or 30)
 
 # Sell-signal thresholds (configurable via settings / env)
 PROFIT_TAKE_PROBABILITY: float = float(
     getattr(settings, "SELL_PROFIT_TAKE_PROBABILITY", 0.80)
 )
-STOP_LOSS_DROP_PP: float = float(
-    getattr(settings, "SELL_STOP_LOSS_DROP_PP", 0.15)
-)
-TIME_DECAY_MINUTES: int = int(
-    getattr(settings, "SELL_TIME_DECAY_MINUTES", 60)
-)
-SELL_SIGNAL_MIN_EDGE: float = float(
-    getattr(settings, "SELL_SIGNAL_MIN_EDGE", 0.02)
-)
+STOP_LOSS_DROP_PP: float = float(getattr(settings, "SELL_STOP_LOSS_DROP_PP", 0.15))
+TIME_DECAY_MINUTES: int = int(getattr(settings, "SELL_TIME_DECAY_MINUTES", 60))
+SELL_SIGNAL_MIN_EDGE: float = float(getattr(settings, "SELL_SIGNAL_MIN_EDGE", 0.02))
 
 # Sell monitor interval (separate from stale detection)
 SELL_MONITOR_INTERVAL_MINUTES: int = int(
@@ -487,13 +478,17 @@ def _evaluate_sell_triggers(
     # --- 3. Time decay ---
     # Sell when settlement is imminent and edge is marginal.
     if snapshot.market_end_date is not None:
-        minutes_to_settlement = (
-            snapshot.market_end_date - now
-        ).total_seconds() / 60.0
+        minutes_to_settlement = (snapshot.market_end_date - now).total_seconds() / 60.0
         if 0 < minutes_to_settlement <= TIME_DECAY_MINUTES:
             edge = abs(current - entry)
             if edge < SELL_SIGNAL_MIN_EDGE:
-                confidence = min(0.85, 0.5 + (TIME_DECAY_MINUTES - minutes_to_settlement) / TIME_DECAY_MINUTES * 0.3)
+                confidence = min(
+                    0.85,
+                    0.5
+                    + (TIME_DECAY_MINUTES - minutes_to_settlement)
+                    / TIME_DECAY_MINUTES
+                    * 0.3,
+                )
                 return SellSignal(
                     trade_id=snapshot.trade_id,
                     market_ticker=snapshot.market_ticker,
@@ -574,12 +569,14 @@ async def execute_sell_signals(
 
     for sig in signals:
         if dry_run:
-            results.append({
-                "trade_id": sig.trade_id,
-                "trigger": sig.trigger,
-                "action": "dry_run",
-                "reason": sig.reason,
-            })
+            results.append(
+                {
+                    "trade_id": sig.trade_id,
+                    "trigger": sig.trigger,
+                    "action": "dry_run",
+                    "reason": sig.reason,
+                }
+            )
             continue
 
         # Build a decision dict compatible with strategy_executor.execute_decision
@@ -603,35 +600,45 @@ async def execute_sell_signals(
         try:
             result = await execute_decision(decision, strategy_name, mode=mode)
             if result:
-                results.append({
-                    "trade_id": sig.trade_id,
-                    "trigger": sig.trigger,
-                    "action": "executed",
-                    "result": result,
-                    "shadow_mode": shadow,
-                })
+                results.append(
+                    {
+                        "trade_id": sig.trade_id,
+                        "trigger": sig.trigger,
+                        "action": "executed",
+                        "result": result,
+                        "shadow_mode": shadow,
+                    }
+                )
                 logger.info(
                     "Sell signal executed: trade_id={} trigger={} mode={} shadow={}",
-                    sig.trade_id, sig.trigger, mode, shadow,
+                    sig.trade_id,
+                    sig.trigger,
+                    mode,
+                    shadow,
                 )
             else:
-                results.append({
-                    "trade_id": sig.trade_id,
-                    "trigger": sig.trigger,
-                    "action": "blocked",
-                    "reason": "execute_decision returned None (duplicate/risk rejection)",
-                })
+                results.append(
+                    {
+                        "trade_id": sig.trade_id,
+                        "trigger": sig.trigger,
+                        "action": "blocked",
+                        "reason": "execute_decision returned None (duplicate/risk rejection)",
+                    }
+                )
         except Exception as exc:
             logger.exception(
                 "Sell signal execution failed: trade_id={} trigger={}",
-                sig.trade_id, sig.trigger,
+                sig.trade_id,
+                sig.trigger,
             )
-            results.append({
-                "trade_id": sig.trade_id,
-                "trigger": sig.trigger,
-                "action": "error",
-                "error": str(exc),
-            })
+            results.append(
+                {
+                    "trade_id": sig.trade_id,
+                    "trigger": sig.trigger,
+                    "action": "error",
+                    "error": str(exc),
+                }
+            )
 
     return results
 
