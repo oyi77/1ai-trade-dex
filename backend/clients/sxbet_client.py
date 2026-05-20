@@ -1,7 +1,6 @@
 """SX.bet REST + EIP-712 client."""
 import os
 import httpx
-from loguru import logger
 
 
 class SXBetClient:

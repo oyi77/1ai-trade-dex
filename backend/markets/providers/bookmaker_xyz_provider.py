@@ -65,7 +65,7 @@ class BookmakerXYZProvider(BaseMarketProvider):
             # Estimate gas fee based on typical Polygon gas price (~0.01 USDC per tx)
             gas_fee_wei = await self._client.estimate_gas_fee() if hasattr(self._client, 'estimate_gas_fee') else 10_000_000_000_000_000  # ~0.01 USDC default
             fees_paid = Decimal(str(gas_fee_wei)) / Decimal("1000000000000000000")
-            
+
             return NormalizedOrderResult(
                 venue_order_id=tx_hash,
                 client_order_id=order.client_order_id,

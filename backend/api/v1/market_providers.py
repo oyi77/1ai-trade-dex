@@ -1,4 +1,5 @@
 """Market provider API router for PolyEdge plugin system."""
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -8,6 +9,8 @@ from backend.markets.provider_registry import market_registry
 from backend.core.plugin_errors import (
     MarketProviderNotFound, MarketProviderHasOpenPositions,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Market Providers"])
 

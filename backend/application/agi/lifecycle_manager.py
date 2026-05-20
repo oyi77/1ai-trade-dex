@@ -6,6 +6,7 @@ DRAFT → SHADOW → PAPER → LIVE → BREEDING → LEGEND → GRAVEYARD
 """
 
 import json
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -14,6 +15,8 @@ from backend.domain.genome.models import StrategyGenome, DeathCertificate
 from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.domain.evolution.fitness import calculate_fitness
 from backend.core.event_bus import publish_event
+
+logger = logging.getLogger(__name__)
 
 
 # Auto-kill conditions from spec lines 227-232

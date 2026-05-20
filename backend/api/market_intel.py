@@ -150,7 +150,6 @@ async def get_news_feed():
 @router.get("/predictions/{market_id}")
 async def get_prediction(market_id: str):
     """Return AI prediction for a specific market."""
-    from backend.ai.prediction_engine import PredictionEngine
 
     return JSONResponse(
         status_code=503,

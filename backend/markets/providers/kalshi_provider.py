@@ -60,7 +60,7 @@ class KalshiProvider(BaseMarketProvider):
                 filled_size=order.size,
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=Decimal("0"),
-            fees_paid=fees_paid,
+                fees_paid=Decimal("0"),
             )
 
         if order.price is None:

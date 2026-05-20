@@ -6,9 +6,7 @@ plus specific consistency and complexity checks to provide a final AGI-Score.
 
 import json
 import random
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, Optional, Any
+from typing import Dict, Optional
 from pathlib import Path
 
 from loguru import logger
@@ -16,7 +14,7 @@ from loguru import logger
 logger = logger.bind(task="evals", benchmark_id="agi_score")
 
 
-from backend.evals.benchmarks.shared import BenchmarkResult
+from backend.evals.benchmarks.shared import BenchmarkResult  # noqa: E402
 
 
 class AGIScoreBenchmark:

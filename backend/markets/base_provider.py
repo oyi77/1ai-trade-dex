@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import AsyncGenerator
 
-logger = logging.getLogger(__name__)
-
 from backend.markets.order_types import (
     MarketInfo,
     NormalizedBalance,
@@ -14,6 +12,8 @@ from backend.markets.order_types import (
     NormalizedPosition,
     VenueCapability,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

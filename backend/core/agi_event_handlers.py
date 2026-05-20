@@ -50,7 +50,7 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
-    await asyncio.sleep(0)  # yield control to event loop
+    await asyncio.sleep(0)  # noqa: F823 — yield control to event loop
     if not _handler_flag("trade_settled"):
         return
     strategy_name = data.get("strategy_name")
@@ -140,7 +140,7 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
 
 
 async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
-    await asyncio.sleep(0)  # yield control to event loop
+    await asyncio.sleep(0)  # noqa: F823 — yield control to event loop
     if not _handler_flag("experiment_promoted"):
         return
     genome_id = data.get("genome_id")
