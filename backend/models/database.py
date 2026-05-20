@@ -524,6 +524,17 @@ class BotState(Base):
                                        "Deposits do NOT update this — it stays anchored so PnL "
                                        "reflects only trading performance, never capital injections.")
 
+    # Per-track bankroll and PNL tracking (for isolation mode)
+    track_bankroll_realtime = Column(Float, default=100.0)
+    track_bankroll_whale = Column(Float, default=100.0)
+    track_bankroll_commodity = Column(Float, default=100.0)
+    track_pnl_realtime = Column(Float, default=0.0)
+    track_pnl_whale = Column(Float, default=0.0)
+    track_pnl_commodity = Column(Float, default=0.0)
+    track_loss_limit_realtime = Column(Float, default=50.0)
+    track_loss_limit_whale = Column(Float, default=50.0)
+    track_loss_limit_commodity = Column(Float, default=50.0)
+
     # Generic JSON blob for strategy heartbeats and ad-hoc state
     misc_data = Column(Text, nullable=True)
 
