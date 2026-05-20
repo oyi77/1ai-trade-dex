@@ -1,5 +1,3 @@
-
-
 def test_create_trading_wallet(test_app):
     from backend.api.auth import require_admin
     from backend.api.main import app

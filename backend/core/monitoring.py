@@ -34,13 +34,17 @@ class ProductionMonitor:
         """Check database for anomalies"""
         issues = []
 
-        duplicates = self.db.execute(text("""
+        duplicates = self.db.execute(
+            text(
+                """
             SELECT market_ticker, COUNT(*) as count
             FROM trades
             WHERE trading_mode = 'live'
             GROUP BY market_ticker
             HAVING count > 1
-        """)).fetchall()
+        """
+            )
+        ).fetchall()
 
         if duplicates:
             issues.append(
@@ -64,11 +68,15 @@ class ProductionMonitor:
                 }
             )
 
-        missing_pnl = self.db.execute(text("""
+        missing_pnl = self.db.execute(
+            text(
+                """
             SELECT COUNT(*)
             FROM trades
             WHERE settled = TRUE AND pnl IS NULL
-        """)).fetchone()[0]
+        """
+            )
+        ).fetchone()[0]
 
         if missing_pnl > 0:
             issues.append(
@@ -107,10 +115,12 @@ class ProductionMonitor:
                 reported_pnl = bot.total_pnl or 0.0
 
                 result = self.db.execute(
-                    text("""
+                    text(
+                        """
                     SELECT COALESCE(SUM(pnl), 0) FROM trades
                     WHERE settled = TRUE AND trading_mode = :mode
-                """),
+                """
+                    ),
                     {"mode": mode},
                 ).fetchone()
 

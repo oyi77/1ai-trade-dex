@@ -228,9 +228,9 @@ def save_scheduler_state(
 ) -> None:
     """Persist a single scheduled job's registration metadata to DB."""
     try:
-        from backend.models.database import (
+        from backend.models.database import (  # noqa: F401
             SessionLocal,
-        )  # noqa: F401  (kept for compatibility)
+        )
         from backend.db.utils import get_db_session
 
         state = {

@@ -48,7 +48,8 @@ def upgrade():
 
     # Add genome_id column to strategyconfig (SQLite compatible)
     op.execute("ALTER TABLE strategyconfig ADD COLUMN genome_id TEXT")
-    op.execute("""
+    op.execute(
+        """
         CREATE TABLE strategyconfig_new (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
@@ -60,14 +61,17 @@ def upgrade():
             genome_id TEXT,
             FOREIGN KEY (genome_id) REFERENCES genome_registry(genome_id)
         )
-    """)
+    """
+    )
 
     # Copy data
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO strategyconfig_new (id, name, description, config_json, is_active, created_at, updated_at, genome_id)
         SELECT id, name, description, config_json, is_active, created_at, updated_at, genome_id
         FROM strategyconfig
-    """)
+    """
+    )
 
     # Replace table
     op.execute("DROP TABLE strategyconfig")
@@ -76,7 +80,8 @@ def upgrade():
 
 def downgrade():
     # Remove foreign key by recreating table without it
-    op.execute("""
+    op.execute(
+        """
         CREATE TABLE strategyconfig_new (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
@@ -86,14 +91,17 @@ def downgrade():
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL
         )
-    """)
+    """
+    )
 
     # Copy data (excluding genome_id)
-    op.execute("""
+    op.execute(
+        """
         INSERT INTO strategyconfig_new (id, name, description, config_json, is_active, created_at, updated_at)
         SELECT id, name, description, config_json, is_active, created_at, updated_at
         FROM strategyconfig
-    """)
+    """
+    )
 
     # Replace table
     op.execute("DROP TABLE strategyconfig")

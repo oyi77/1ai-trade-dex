@@ -1,9 +1,15 @@
 """Myriad Markets prediction market provider."""
+
 import os
 from decimal import Decimal
 from backend.markets.base_provider import (
-    BaseMarketProvider, MarketProviderManifest, NormalizedOrder,
-    NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability,
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
 )
 from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
@@ -11,6 +17,7 @@ from loguru import logger
 
 try:
     from backend.clients.myriad_client import MyriadClient
+
     HAS_MYRIAD = True
 except ImportError:
     HAS_MYRIAD = False
@@ -36,7 +43,11 @@ class MyriadProvider(BaseMarketProvider):
             display_name="Myriad Markets",
             version="1.0.0",
             venue_type="prediction_market",
-            capabilities=[VenueCapability.LIMIT_ORDERS, VenueCapability.MARKET_ORDERS, VenueCapability.MARKET_SEARCH],
+            capabilities=[
+                VenueCapability.LIMIT_ORDERS,
+                VenueCapability.MARKET_ORDERS,
+                VenueCapability.MARKET_SEARCH,
+            ],
             supported_currencies=["USDC"],
             required_env_vars=["MYRIAD_API_URL"],
             supports_paper_mode=True,
@@ -105,7 +116,9 @@ class MyriadProvider(BaseMarketProvider):
     async def search_markets(self, query: str, category=None, limit=20) -> list:
         markets = await self._client.get_markets(limit=limit)
         if query:
-            markets = [m for m in markets if query.lower() in m.get("title", "").lower()]
+            markets = [
+                m for m in markets if query.lower() in m.get("title", "").lower()
+            ]
         return [
             MarketInfo(
                 market_id=m.get("id", ""),

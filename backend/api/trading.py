@@ -95,9 +95,9 @@ class CreateSignalRequest(BaseModel):
     weight: float = 1.0
 
 
-from backend.api.validation import (
+from backend.api.validation import (  # noqa: E402
     SignalCreateRequest as ValidatedSignalCreateRequest,
-)  # noqa: E402
+)
 
 # ============================================================================
 # Helper Functions

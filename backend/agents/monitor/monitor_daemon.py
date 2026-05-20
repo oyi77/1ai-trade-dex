@@ -429,9 +429,7 @@ class MonitorDaemon:
 
         # Warnings & Critical
         if report.get("warnings"):
-            lines.extend(
-                ["", "⚠️ WARNINGS:"] + [f"  • {w}" for w in report["warnings"]]
-            )
+            lines.extend(["", "⚠️ WARNINGS:"] + [f"  • {w}" for w in report["warnings"]])
         if report.get("critical"):
             lines.extend(
                 ["", "🚨 CRITICAL:"] + [f"  • {c}" for c in report["critical"]]
