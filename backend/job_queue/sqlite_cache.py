@@ -56,13 +56,15 @@ class SQLiteCache(AbstractCache):
         with self._lock:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute("""
+                conn.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS cache_kv (
                         key TEXT PRIMARY KEY,
                         value TEXT NOT NULL,
                         expires_at REAL
                     )
-                    """)
+                    """
+                )
                 conn.commit()
             finally:
                 conn.close()

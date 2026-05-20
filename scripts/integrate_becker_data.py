@@ -27,7 +27,8 @@ def integrate(data_path: str, db_path: str = "tradingbot.db"):
         sys.exit(1)
 
     conn = sqlite3.connect(db_path)
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS historical_markets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             slug TEXT,
@@ -38,8 +39,10 @@ def integrate(data_path: str, db_path: str = "tradingbot.db"):
             yes_final_price REAL,
             volume REAL
         )
-    """)
-    conn.execute("""
+    """
+    )
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS historical_trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             market_slug TEXT,
@@ -49,7 +52,8 @@ def integrate(data_path: str, db_path: str = "tradingbot.db"):
             size REAL,
             platform TEXT
         )
-    """)
+    """
+    )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_hm_slug ON historical_markets(slug)")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_ht_slug ON historical_trades(market_slug)"

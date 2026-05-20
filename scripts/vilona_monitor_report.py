@@ -38,10 +38,14 @@ def main():
 
     with engine.connect() as conn:
         # ── All strategies ──
-        rows = conn.execute(text("""
+        rows = conn.execute(
+            text(
+                """
             SELECT strategy_name, enabled, trading_mode, mode, time_horizon, risk_tier, disabled_at
             FROM strategy_config ORDER BY strategy_name
-        """)).fetchall()
+        """
+            )
+        ).fetchall()
 
         strategies = []
         for r in rows:
@@ -77,7 +81,9 @@ def main():
                         logger.debug(f"Heartbeat parse error: {e}")
 
         # ── Strategy PnL (7d, LIVE only) ──
-        rows = conn.execute(text("""
+        rows = conn.execute(
+            text(
+                """
             SELECT strategy, COUNT(*) as trades,
                    COALESCE(SUM(CASE WHEN pnl > 0 THEN pnl ELSE 0 END), 0) as gross_win,
                    COALESCE(SUM(CASE WHEN pnl <= 0 THEN pnl ELSE 0 END), 0) as gross_loss,
@@ -87,7 +93,9 @@ def main():
             WHERE settled = true AND trading_mode = 'live'
                   AND timestamp >= NOW() - INTERVAL '7 days'
             GROUP BY strategy ORDER BY SUM(pnl) DESC
-        """)).fetchall()
+        """
+            )
+        ).fetchall()
 
         for r in rows:
             pf = abs(r[2] / r[3]) if r[3] != 0 else 999
@@ -128,7 +136,9 @@ def main():
             }
 
         # ── Live PnL from trades (source of truth) ──
-        row = conn.execute(text("""
+        row = conn.execute(
+            text(
+                """
             SELECT COUNT(*) as trades,
                    COALESCE(SUM(CASE WHEN pnl > 0 THEN pnl ELSE 0 END), 0) as gross_win,
                    COALESCE(SUM(CASE WHEN pnl <= 0 THEN pnl ELSE 0 END), 0) as gross_loss,
@@ -136,7 +146,9 @@ def main():
                    COALESCE(AVG(CASE WHEN pnl > 0 THEN 1.0 ELSE 0.0 END), 0) as wr
             FROM trades
             WHERE trading_mode = 'live' AND settled = true
-        """)).fetchone()
+        """
+            )
+        ).fetchone()
         report["summary"]["live_total_trades"] = row[0]
         report["summary"]["live_total_pnl"] = round(float(row[3]), 2)
         report["summary"]["live_win_rate"] = round(float(row[4]), 4)
@@ -144,22 +156,30 @@ def main():
         report["summary"]["live_gross_loss"] = round(float(row[2]), 2)
 
         # ── Last 24h trades (LIVE only) ──
-        rows = conn.execute(text("""
+        rows = conn.execute(
+            text(
+                """
             SELECT COUNT(*), COALESCE(SUM(pnl), 0)
             FROM trades
             WHERE trading_mode = 'live'
                   AND timestamp >= NOW() - INTERVAL '24 hours'
-        """)).fetchall()
+        """
+            )
+        ).fetchall()
         report["summary"]["trades_24h"] = rows[0][0]
         report["summary"]["pnl_24h"] = round(float(rows[0][1]), 2)
 
         # ── Open positions (LIVE only) ──
-        rows = conn.execute(text("""
+        rows = conn.execute(
+            text(
+                """
             SELECT strategy, market_slug, side, size, entry_price, timestamp
             FROM trades
             WHERE trading_mode = 'live' AND settled = false
             ORDER BY timestamp DESC
-        """)).fetchall()
+        """
+            )
+        ).fetchall()
         report["summary"]["open_positions"] = len(rows)
         report["summary"]["open_exposure"] = round(
             sum(float(r[3] or 0) for r in rows), 2

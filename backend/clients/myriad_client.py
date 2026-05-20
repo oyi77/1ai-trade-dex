@@ -1,4 +1,5 @@
 """Myriad Markets client — prediction market on Polygon."""
+
 import os
 from decimal import Decimal
 from typing import Any, Dict, List, Optional

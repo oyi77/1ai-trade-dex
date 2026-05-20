@@ -156,10 +156,10 @@ async def _fetch_token_id(
 
 
 # Import from extracted modules
-from backend.strategies.wallet_sync import (
-    WalletWatcher,
-    WalletTrade,
-)  # noqa: E402, F401
+from backend.strategies.wallet_sync import (  # noqa: E402
+    WalletWatcher as WalletWatcher,  # noqa: F401
+    WalletTrade as WalletTrade,  # noqa: F401
+)
 from backend.strategies.order_executor import (  # noqa: E402
     LeaderboardScorer,
     ScoredTrader,

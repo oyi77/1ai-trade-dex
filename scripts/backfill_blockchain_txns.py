@@ -92,11 +92,13 @@ async def backfill_transactions():
 
             # Insert transaction
             db.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO blockchain_transactions 
                 (txhash, timestamp, from_address, to_address, amount, token_symbol, type, notes)
                 VALUES (:txhash, :timestamp, :from_addr, :to_addr, :amount, 'USDC', :type, :notes)
-            """),
+            """
+                ),
                 {
                     "txhash": tx["txhash"],
                     "timestamp": tx["timestamp"],

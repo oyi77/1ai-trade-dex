@@ -237,7 +237,8 @@ class DBSessionShadowRunner:
         try:
             # Query for promotion eligibility metrics
             result = db.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     COUNT(*) as total_trades,
                     MIN(timestamp) as first_trade,
@@ -245,7 +246,8 @@ class DBSessionShadowRunner:
                     MAX(julianday('now') - julianday(timestamp)) as days_active
                 FROM shadow_trade
                 WHERE genome_id = :genome_id AND timestamp >= datetime('now', '-30 days')
-                """),
+                """
+                ),
                 {"genome_id": genome_id},
             )
 

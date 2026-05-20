@@ -184,12 +184,14 @@ def _count_paper_trades(strategy_name: str, db: Session) -> int:
 
     return (
         db.execute(
-            text("""
+            text(
+                """
         SELECT COUNT(*) FROM trades
         WHERE strategy = :s AND trading_mode = 'paper'
           AND result IN ('win', 'loss')
           AND condition_id IS NOT NULL
-    """),
+    """
+            ),
             {"s": strategy_name},
         ).scalar()
         or 0
@@ -321,20 +323,26 @@ def check_risk_and_disable(db) -> list[str]:
     today = datetime.now(timezone.utc).date()
 
     # 1. Per-strategy daily loss check
-    strats = db.execute(text("""
+    strats = db.execute(
+        text(
+            """
         SELECT strategy_name FROM strategy_config
         WHERE enabled = true AND mode = 'live'
-    """)).fetchall()
+    """
+        )
+    ).fetchall()
 
     for (sname,) in strats:
         daily_loss = (
             db.execute(
-                text("""
+                text(
+                    """
             SELECT COALESCE(SUM(pnl), 0) FROM trades
             WHERE strategy = :s AND trading_mode = 'live'
               AND DATE(timestamp) = :today
               AND result = 'loss'
-        """),
+        """
+                ),
                 {"s": sname, "today": today},
             ).scalar()
             or 0
@@ -342,10 +350,12 @@ def check_risk_and_disable(db) -> list[str]:
 
         if abs(daily_loss) > MAX_DAILY_LOSS_PER_STRATEGY:
             db.execute(
-                text("""
+                text(
+                    """
                 UPDATE strategy_config SET enabled = false
                 WHERE strategy_name = :s
-            """),
+            """
+                ),
                 {"s": sname},
             )
             disabled.append(
@@ -356,18 +366,29 @@ def check_risk_and_disable(db) -> list[str]:
             )
 
     # 2. Total drawdown check
-    total_pnl = db.execute(text("""
+    total_pnl = (
+        db.execute(
+            text(
+                """
         SELECT COALESCE(SUM(pnl), 0) FROM trades
         WHERE trading_mode = 'live' AND settled = true
-    """)).scalar() or 0
+    """
+            )
+        ).scalar()
+        or 0
+    )
     initial = 100.0
     drawdown_pct = abs(min(0, total_pnl)) / initial * 100
 
     if drawdown_pct > MAX_TOTAL_DRAWDOWN_PCT and total_pnl < 0:
-        db.execute(text("""
+        db.execute(
+            text(
+                """
             UPDATE strategy_config SET enabled = false
             WHERE mode = 'live' AND enabled = true
-        """))
+        """
+            )
+        )
         disabled.append(
             f"ALL LIVE: drawdown {drawdown_pct:.1f}% > {MAX_TOTAL_DRAWDOWN_PCT}%"
         )

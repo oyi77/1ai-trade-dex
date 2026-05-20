@@ -110,13 +110,17 @@ async def backfill(dry_run: bool = True):
     """Main backfill logic."""
     db = Session()
 
-    unresolved = db.execute(text("""
+    unresolved = db.execute(
+        text(
+            """
         SELECT id, market_ticker, direction, entry_price, size, 
                strategy, timestamp, event_slug, token_id, condition_id
         FROM trades 
         WHERE result = 'closed_unresolved' AND settled = true AND trading_mode = 'live'
         ORDER BY timestamp DESC
-    """)).fetchall()
+    """
+        )
+    ).fetchall()
 
     print(f"\n{'='*60}")
     print(f"BACKFILL V2: {len(unresolved)} unresolved trades")
@@ -176,14 +180,16 @@ async def backfill(dry_run: bool = True):
 
             if not dry_run:
                 db.execute(
-                    text("""
+                    text(
+                        """
                     UPDATE trades 
                     SET result = :result, pnl = :pnl, 
                         settlement_value = :sv, condition_id = :cond_id,
                         settlement_source = 'backfill_v2',
                         settlement_time = NOW()
                     WHERE id = :tid
-                """),
+                """
+                    ),
                     {
                         "result": result_str,
                         "pnl": pnl,
@@ -230,17 +236,26 @@ async def backfill(dry_run: bool = True):
     # After updating trades, reconcile bot_state
     if not dry_run and resolved_count > 0:
         print(f"\n🔄 Re-calculating bot_state live bankroll...")
-        new_pnl = db.execute(text("""
+        new_pnl = (
+            db.execute(
+                text(
+                    """
             SELECT SUM(pnl) FROM trades 
             WHERE trading_mode = 'live' AND pnl IS NOT NULL AND settled = true
-        """)).scalar() or 0
+        """
+                )
+            ).scalar()
+            or 0
+        )
         new_bankroll = 100.0 + new_pnl
         db.execute(
-            text("""
+            text(
+                """
             UPDATE bot_state SET bankroll = :br, total_pnl = :pnl, 
                 last_sync_at = NOW()
             WHERE mode = 'live'
-        """),
+        """
+            ),
             {"br": round(new_bankroll, 2), "pnl": round(new_pnl, 2)},
         )
         db.commit()
