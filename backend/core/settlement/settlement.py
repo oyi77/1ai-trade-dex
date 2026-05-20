@@ -23,6 +23,12 @@ from backend.core.settlement.settlement_helpers import (
 from loguru import logger
 _settlement_lock = asyncio.Lock()
 
+# Track trades whose position is gone but API couldn't confirm resolution.
+# Maps trade_id -> datetime of first detection. Used to implement a grace
+# period before force-settling as loss, preventing false loss markings from
+# temporary API failures.
+_closed_unresolved_grace: dict = {}
+
 
 async def _fetch_pm_portfolio_value() -> float | None:
     """Fetch live total equity (USDC cash + open position value)."""
@@ -40,6 +46,12 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
        went UP or DOWN relative to window start
     3. If both fail, mark as expired_unresolved instead of push (zero PnL misreports wins)
     """
+    # BUG FIX: Skip trades already settled (e.g. by closed_unresolved in a prior
+    # cycle). Without this guard, a trade settled as loss could be re-settled as
+    # win/loss via CEX fallback, creating duplicate settlements and corrupting PnL.
+    if trade.settled:
+        return None
+
     ticker = trade.market_ticker or ""
     match = _re.search(r"btc-updown-5m-(\d+)", ticker)
     if not match:
@@ -202,6 +214,10 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 for trade_id in trades_to_close:
                     trade = db.query(Trade).filter(Trade.id == trade_id).first()
                     if trade and (not trade.settled or trade.pnl is None):
+                        # BUG FIX: Previously, if fetch_resolution_for_trade returned
+                        # False (API timeout/error), the trade was immediately marked as
+                        # loss. This corrupted PnL/WR when the actual outcome was a win.
+                        # Now: retry resolution with grace period before force-settling.
                         is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
 
                         if is_resolved and settlement_value is not None:
@@ -213,6 +229,41 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                 f"Position reconciliation: trade {trade.id} settled with resolution (pnl=${pnl:+.2f})"
                             )
                         else:
+                            # Position is gone but API couldn't confirm outcome.
+                            # Apply grace period before force-settling as loss.
+                            first_detected = _closed_unresolved_grace.get(trade.id)
+                            if first_detected is None:
+                                # First detection — record and attempt resolution once more
+                                _closed_unresolved_grace[trade.id] = now
+                                logger.warning(
+                                    "Position reconciliation: trade {} position gone, "
+                                    "resolution unavailable — will retry (market={})",
+                                    trade.id,
+                                    trade.market_ticker,
+                                )
+
+                            grace_elapsed = (now - _closed_unresolved_grace.get(trade.id, now)).total_seconds()
+                            unresolved_grace_hours = getattr(settings, 'CLOSED_UNRESOLVED_GRACE_HOURS', 6)
+
+                            if grace_elapsed < unresolved_grace_hours * 3600:
+                                # Still within grace period — try resolution one more time
+                                try:
+                                    re_resolved, re_value = await fetch_resolution_for_trade(trade)
+                                    if re_resolved and re_value is not None:
+                                        pnl = calculate_pnl(trade, re_value)
+                                        await process_settled_trade(trade, True, re_value, pnl, db)
+                                        _closed_unresolved_grace.pop(trade.id, None)
+                                        logger.info(
+                                            f"Position reconciliation: trade {trade.id} "
+                                            f"resolved on retry within grace period (pnl=${pnl:+.2f})"
+                                        )
+                                except Exception:
+                                    pass
+                                # Leave unsettled for next cycle
+                                continue
+
+                            # Grace period exhausted — force-settle as loss
+                            _closed_unresolved_grace.pop(trade.id, None)
                             trade.settled = True
                             trade.result = "loss"
                             trade.settlement_time = now
@@ -222,9 +273,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             if trade.settlement_value is None:
                                 trade.settlement_value = 0.0
                             logger.warning(
-                                "Position reconciliation: trade {} position gone but resolution unavailable — "
-                                "marking closed_unresolved to release exposure (market={})",
+                                "Position reconciliation: trade {} position gone, "
+                                "resolution unavailable after {}h grace — "
+                                "marking closed_unresolved (market={})",
                                 trade.id,
+                                unresolved_grace_hours,
                                 trade.market_ticker,
                             )
 
@@ -434,6 +487,12 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             if ts and ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
             if ts and ts < stale_threshold:
+                # BUG FIX: Skip already-settled trades to prevent duplicate settlement
+                # (e.g. trade settled by closed_unresolved in reconciliation, then
+                # re-processed here as stale_expired, corrupting PnL/WR)
+                if trade.settled:
+                    continue
+
                 trade_age_hours = (now - ts).total_seconds() / 3600
                 stale_grace_hours = getattr(settings, 'SETTLEMENT_GRACE_HOURS', 72)
                 if trade_age_hours < stale_grace_hours:
