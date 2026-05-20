@@ -34,6 +34,8 @@ jobs:
         env:
           SIMULATION_MODE: "true"
           DATABASE_URL: "sqlite:///./test.db"
+          KALSHI_API_KEY_ID: "test-key"
+          KALSHI_PRIVATE_KEY_PATH: "/dev/null"
         run: |
           export WALLET_FERNET_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
           python -m pytest backend/tests/ tests/ -k "not live" \
