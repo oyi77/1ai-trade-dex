@@ -13,6 +13,8 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
+from loguru import logger
+
 from backend.strategies.base import (
     BaseStrategy,
     CycleResult,
@@ -438,7 +440,7 @@ class NegRiskStrategy(BaseStrategy):
                 bal = await ctx.clob.get_wallet_balance()
                 return float(bal.get("usdc_balance", 100.0))
         except Exception:
-            pass
+            logger.warning("Failed to fetch wallet balance for Kelly sizing, using default")
         return float(_cfg("NEGRISK_DEFAULT_BANKROLL", 100.0))
 
     async def _execute_order(

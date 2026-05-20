@@ -420,7 +420,7 @@ class HFTScalperStrategy(BaseStrategy):
                     balance = await ctx.clob.get_usdc_balance()
                     bankroll = float(balance) if balance else 100.0
             except Exception:
-                pass
+                logger.warning("Failed to fetch USDC balance from CLOB, using default bankroll")
 
             for market in markets:
                 try:

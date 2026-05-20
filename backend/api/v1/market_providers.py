@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
+from loguru import logger
 
 from backend.api.auth import require_admin
 from backend.markets.provider_registry import market_registry

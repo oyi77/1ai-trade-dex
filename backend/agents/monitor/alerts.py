@@ -13,10 +13,10 @@ import json
 import threading
 import time
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Optional, Dict, List
 
 from loguru import logger
+from pathlib import Path
+from typing import Optional, Dict, List
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -131,7 +131,7 @@ class AlertManager:
                         except (json.JSONDecodeError, KeyError, ValueError):
                             continue
         except Exception:
-            pass
+            logger.exception("Failed to read alerts from log file")
 
         return alerts[-50:]  # Return last 50 max
 

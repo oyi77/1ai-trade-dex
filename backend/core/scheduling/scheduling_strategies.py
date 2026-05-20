@@ -326,22 +326,15 @@ async def scan_and_trade_job(mode: str):
 
     log_event("info", f"[{mode.upper()}] Running registry-driven market scan...")
 
-    from backend.db.utils import get_db_session
-    try:
+    def _read_scan_config():
+        import json as _json
+        from backend.db.utils import get_db_session
         with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state:
-                log_event("error", f"[{mode.upper()}] Bot state not initialized")
-                return
-
+                return {"error": "not_initialized"}
             if not state.is_running:
-                log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
-                return
-
-            import json as _json
-            from backend.core.strategy_executor import execute_decisions
-            from backend.markets.provider_registry import market_registry
-
+                return {"error": "paused"}
             configs = (
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
@@ -350,28 +343,45 @@ async def scan_and_trade_job(mode: str):
                 )
                 .all()
             )
-            total_decisions = 0
-            total_trades = 0
+            config_data = []
+            for cfg in configs:
+                params = {}
+                if cfg.params:
+                    try:
+                        params = _json.loads(cfg.params)
+                    except Exception:
+                        pass
+                config_data.append({"strategy_name": cfg.strategy_name, "params": params})
+            return {"configs": config_data}
 
-            for config in configs:
-                strategy_cls = STRATEGY_REGISTRY.get(config.strategy_name)
+    try:
+        data = await asyncio.to_thread(_read_scan_config)
+        if data.get("error") == "not_initialized":
+            log_event("error", f"[{mode.upper()}] Bot state not initialized")
+            return
+        if data.get("error") == "paused":
+            log_event("info", f"[{mode.upper()}] Bot is paused, skipping trades")
+            return
+
+        from backend.core.strategy_executor import execute_decisions
+        from backend.markets.provider_registry import market_registry
+
+        configs = data["configs"]
+        total_decisions = 0
+        total_trades = 0
+
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            for cfg in configs:
+                strategy_cls = STRATEGY_REGISTRY.get(cfg["strategy_name"])
                 if strategy_cls is None:
                     continue
-                params = {}
-                if config.params:
-                    try:
-                        params = _json.loads(config.params)
-                    except Exception:
-                        logger.exception(
-                            "[scheduling_strategies] Failed to parse StrategyConfig params JSON for %s",
-                            config.strategy_name,
-                        )
                 strategy_ctx = StrategyContext(
                     db=db,
                     clob=None,
                     settings=settings,
                     logger=logger,
-                    params=params,
+                    params=cfg["params"],
                     mode=mode,
                     market_registry=market_registry,
                 )
@@ -389,7 +399,7 @@ async def scan_and_trade_job(mode: str):
                 if not buy_decisions:
                     log_event(
                         "info",
-                        f"[{mode.upper()}] {config.strategy_name}: no actionable signals (errors={len(result.errors)})",
+                        f"[{mode.upper()}] {cfg['strategy_name']}: no actionable signals (errors={len(result.errors)})",
                     )
                     continue
 
@@ -399,26 +409,32 @@ async def scan_and_trade_job(mode: str):
                     copied.setdefault("market_ticker", copied.get("token_id"))
                     copied["trading_mode"] = mode
                     decisions_copy.append(copied)
-                executed = await execute_decisions(decisions_copy, config.strategy_name, mode=mode)
+                executed = await execute_decisions(decisions_copy, cfg["strategy_name"], mode=mode)
                 total_trades += len(executed)
                 log_event(
                     "success",
-                    f"[{mode.upper()}] {config.strategy_name}: executed {len(executed)} trade(s)",
+                    f"[{mode.upper()}] {cfg['strategy_name']}: executed {len(executed)} trade(s)",
                 )
 
-            log_event(
-                "info",
-                f"[{mode.upper()}] Registry market scan done: strategies={len(configs)} decisions={total_decisions} trades={total_trades}",
-            )
+        log_event(
+            "info",
+            f"[{mode.upper()}] Registry market scan done: strategies={len(configs)} decisions={total_decisions} trades={total_trades}",
+        )
 
+        def _update_last_run():
+            from backend.db.utils import get_db_session
             try:
-                state.last_run = datetime.now(timezone.utc)
-                db.commit()
+                with get_db_session() as db:
+                    state = db.query(BotState).filter_by(mode=mode).first()
+                    if state:
+                        state.last_run = datetime.now(timezone.utc)
+                        db.commit()
             except Exception as last_run_err:
-                db.rollback()
                 logger.warning(
                     f"[{mode.upper()}] Market scan completed but last_run update failed: {last_run_err}"
                 )
+
+        await asyncio.to_thread(_update_last_run)
 
     except Exception as e:
         log_event("error", f"[{mode.upper()}] Market scan error: {str(e)}")
@@ -449,46 +465,57 @@ async def weather_scan_and_trade_job(mode: str):
         if not actionable:
             log_event("info", f"[{mode.upper()}] No actionable weather signals")
             # Still update heartbeat so watchdog knows we ran
-            from backend.db.utils import get_db_session
-            with get_db_session() as _hb_db:
-                update_heartbeat("weather_emos")
+            await asyncio.to_thread(update_heartbeat, "weather_emos")
             return
-
-        from backend.db.utils import get_db_session
 
         MAX_TRADES_PER_SCAN = settings.MAX_TRADES_PER_SCAN
         MIN_TRADE_SIZE = 10
         MAX_WEATHER_ALLOCATION = 500.0
 
-        with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode=mode).first()
-            if not state:
-                log_event("error", f"[{mode.upper()}] Bot state not initialized")
-                return
-
-            if not state.is_running:
-                log_event("info", f"[{mode.upper()}] Bot is paused, skipping weather trades")
-                return
-
-            bankroll = _get_bankroll_for_mode(state, mode)
-            weather_pending = (
-                db.query(func.coalesce(func.sum(Trade.size), 0.0))
-                .filter(
-                    Trade.settled.is_(False),
-                    Trade.market_type == "weather",
-                    Trade.trading_mode == mode,
+        def _read_weather_state():
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
+                state = db.query(BotState).filter_by(mode=mode).first()
+                if not state:
+                    return {"error": "not_initialized"}
+                if not state.is_running:
+                    return {"error": "paused"}
+                bankroll = _get_bankroll_for_mode(state, mode)
+                weather_pending = float(
+                    db.query(func.coalesce(func.sum(Trade.size), 0.0))
+                    .filter(
+                        Trade.settled.is_(False),
+                        Trade.market_type == "weather",
+                        Trade.trading_mode == mode,
+                    )
+                    .scalar()
+                    or 0.0
                 )
-                .scalar()
-            )
-            existing_market_ids = {
-                row[0]
-                for row in db.query(Trade.market_ticker)
-                .filter(
-                    Trade.settled.is_(False),
-                    Trade.trading_mode == mode,
-                )
-                .all()
-            }
+                existing_market_ids = {
+                    row[0]
+                    for row in db.query(Trade.market_ticker)
+                    .filter(
+                        Trade.settled.is_(False),
+                        Trade.trading_mode == mode,
+                    )
+                    .all()
+                }
+                return {
+                    "bankroll": bankroll,
+                    "weather_pending": weather_pending,
+                    "existing_market_ids": existing_market_ids,
+                }
+
+        ws = await asyncio.to_thread(_read_weather_state)
+        if ws.get("error") == "not_initialized":
+            log_event("error", f"[{mode.upper()}] Bot state not initialized")
+            return
+        if ws.get("error") == "paused":
+            log_event("info", f"[{mode.upper()}] Bot is paused, skipping weather trades")
+            return
+        bankroll = ws["bankroll"]
+        weather_pending = ws["weather_pending"]
+        existing_market_ids = ws["existing_market_ids"]
 
         if weather_pending >= MAX_WEATHER_ALLOCATION:
             log_event(
@@ -562,18 +589,25 @@ async def weather_scan_and_trade_job(mode: str):
                 },
             )
 
-        with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode=mode).first()
-            if state:
-                state.last_run = datetime.now(timezone.utc)
-                db.commit()
+        def _update_weather_last_run():
+            from backend.db.utils import get_db_session
+            try:
+                with get_db_session() as db:
+                    state = db.query(BotState).filter_by(mode=mode).first()
+                    if state:
+                        state.last_run = datetime.now(timezone.utc)
+                        db.commit()
+            except Exception:
+                pass
+
+        await asyncio.to_thread(_update_weather_last_run)
 
         if trades_executed > 0:
             log_event("success", f"[{mode.upper()}] Executed {trades_executed} weather trade(s)")
         else:
             log_event("info", f"[{mode.upper()}] No new weather trades executed")
 
-        update_heartbeat("weather_emos")
+        await asyncio.to_thread(update_heartbeat, "weather_emos")
 
 
     except Exception as e:
@@ -588,6 +622,11 @@ async def settlement_job():
 
     log_event("info", "Checking BTC trade settlements...")
 
+    def _read_pending_count():
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            return db.query(Trade).filter(Trade.settled.is_(False)).count()
+
     try:
         from backend.core.settlement import (
             settle_pending_trades,
@@ -595,22 +634,16 @@ async def settlement_job():
             reconcile_bot_state,
         )
 
+        pending_count = await asyncio.to_thread(_read_pending_count)
+
+        if pending_count == 0:
+            log_event("data", "No pending trades to settle")
+            return
+
+        log_event("data", f"Processing {pending_count} pending trades")
+
         from backend.db.utils import get_db_session
         with get_db_session() as db:
-            pending_count = (
-                db.query(Trade)
-                .filter(
-                    Trade.settled.is_(False),
-                )
-                .count()
-            )
-
-            if pending_count == 0:
-                log_event("data", "No pending trades to settle")
-                return
-
-            log_event("data", f"Processing {pending_count} pending trades")
-
             settled = await settle_pending_trades(db)
 
             if settled:
@@ -644,7 +677,6 @@ async def settlement_job():
                 log_event("info", "No trades ready for settlement")
 
             await reconcile_bot_state(db)
-
 
     except Exception as e:
         log_event("error", f"Settlement error: {str(e)}")
@@ -705,20 +737,14 @@ async def auto_trader_job(mode: str):
 
     if not settings.AUTO_TRADER_ENABLED:
         return
-    try:
-        from backend.core.auto_trader import AutoTrader
-        from backend.core.risk_manager import RiskManager
-        from backend.data.polymarket_clob import clob_from_settings
 
-        trader = AutoTrader(RiskManager(), clob_factory=clob_from_settings)
+    def _read_auto_trader_signals():
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
-                return
-
+                return None
             bankroll = _get_bankroll_for_mode(state, mode)
-
             signals = (
                 db.query(Signal)
                 .filter(
@@ -730,9 +756,7 @@ async def auto_trader_job(mode: str):
                 .all()
             )
             if not signals:
-                log_event("info", f"[{mode.upper()}] AutoTrader cycle: no pending signals")
-                return
-
+                return {"bankroll": bankroll, "signal_rows": [], "current_exposure": 0.0}
             current_exposure = float(
                 db.query(func.coalesce(func.sum(Trade.size), 0.0))
                 .filter(
@@ -755,7 +779,24 @@ async def auto_trader_job(mode: str):
                 }
                 for sig in signals
             ]
-            signal_ids = [sig["id"] for sig in signal_rows]
+            return {"bankroll": bankroll, "signal_rows": signal_rows, "current_exposure": current_exposure}
+
+    try:
+        from backend.core.auto_trader import AutoTrader
+        from backend.core.risk_manager import RiskManager
+        from backend.data.polymarket_clob import clob_from_settings
+
+        trader = AutoTrader(RiskManager(), clob_factory=clob_from_settings)
+        data = await asyncio.to_thread(_read_auto_trader_signals)
+        if data is None:
+            return
+        bankroll = data["bankroll"]
+        signal_rows = data["signal_rows"]
+        current_exposure = data["current_exposure"]
+        signal_ids = [sig["id"] for sig in signal_rows]
+        if not signal_rows:
+            log_event("info", f"[{mode.upper()}] AutoTrader cycle: no pending signals")
+            return
 
         executed = 0
         queued = 0
@@ -820,11 +861,14 @@ async def auto_trader_job(mode: str):
                     skipped += 1
 
         if processed_signal_ids:
-            with get_db_session() as db:
-                db.query(Signal).filter(Signal.id.in_(processed_signal_ids)).update(
-                    {Signal.executed: True}, synchronize_session=False
-                )
-                db.commit()
+            def _mark_signals_executed():
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
+                    db.query(Signal).filter(Signal.id.in_(processed_signal_ids)).update(
+                        {Signal.executed: True}, synchronize_session=False
+                    )
+                    db.commit()
+            await asyncio.to_thread(_mark_signals_executed)
 
         log_event(
             "info",
@@ -907,27 +951,30 @@ async def heartbeat_job():
     """Periodic heartbeat. Runs every minute."""
     await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
-    from backend.db.utils import get_db_session
 
-    try:
+    def _read_heartbeat_state():
+        from backend.db.utils import get_db_session
         with get_db_session() as db:
-            # Read-only check — for_update here caused PG deadlocks with strategy cycles
             state = db.query(BotState).first()
             pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
-
             if state is None:
-                log_event("warning", "Heartbeat: Bot state not initialized")
-                return
+                return None
+            return {
+                "pending_trades": pending,
+                "bankroll": state.bankroll,
+                "is_running": state.is_running,
+            }
 
-            log_event(
-                "data",
-                f"Heartbeat: {pending} pending trades, bankroll: ${state.bankroll:.2f}",
-                {
-                    "pending_trades": pending,
-                    "bankroll": state.bankroll,
-                    "is_running": state.is_running,
-                },
-            )
+    try:
+        hb = await asyncio.to_thread(_read_heartbeat_state)
+        if hb is None:
+            log_event("warning", "Heartbeat: Bot state not initialized")
+            return
+        log_event(
+            "data",
+            f"Heartbeat: {hb['pending_trades']} pending trades, bankroll: ${hb['bankroll']:.2f}",
+            hb,
+        )
     except Exception as e:
         log_event("warning", f"Heartbeat failed: {str(e)}")
 
@@ -997,8 +1044,14 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         from backend.config import settings as _settings
         from backend.markets.provider_registry import market_registry
 
-        # Phase 2: Run strategy with a fresh session
-        with get_db_session() as db:
+        # Phase 2: Run strategy — sync DB reads happen inside strategy.run(),
+        # so open the session in a thread to avoid blocking the event loop.
+        def _open_db_session():
+            from backend.db.utils import get_db_session
+            return get_db_session()
+
+        db = await asyncio.to_thread(_open_db_session)
+        try:
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1063,12 +1116,14 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
 
-        _update_heartbeat(strategy_name)
+            _update_heartbeat(strategy_name)
 
-        log_event(
-            "info",
-            f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
-        )
+            log_event(
+                "info",
+                f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
+            )
+        finally:
+            db.close()
 
     except asyncio.CancelledError:
         logger.info(f"strategy_cycle_job({strategy_name}) cancelled during shutdown")
@@ -1108,15 +1163,20 @@ async def sync_live_wallet():
                 result = await reconciler.full_reconciliation()
 
         logger.info("[sync_live_wallet] Reconciliation done, updating BotState timestamp...")
-        with get_db_session() as db:
-            state = db.query(BotState).filter_by(mode="live").first()
-            if state and result.last_sync_at:
-                state.last_sync_at = result.last_sync_at
-                try:
-                    db.flush()
-                except Exception as flush_err:
-                    logger.warning(f"[sync_live_wallet] flush failed: {flush_err}")
-                    db.rollback()
+
+        def _update_bot_state_sync():
+            from backend.db.utils import get_db_session
+            with get_db_session() as db:
+                state = db.query(BotState).filter_by(mode="live").first()
+                if state and result.last_sync_at:
+                    state.last_sync_at = result.last_sync_at
+                    try:
+                        db.flush()
+                    except Exception as flush_err:
+                        logger.warning(f"[sync_live_wallet] flush failed: {flush_err}")
+                        db.rollback()
+
+        await asyncio.to_thread(_update_bot_state_sync)
 
         logger.info("[sync_live_wallet] Calling reconcile_bot_state...")
         try:
@@ -1149,23 +1209,48 @@ async def verify_settlement_blockchain():
         calculate_pnl,
     )
 
-    from backend.db.utils import get_db_session
-    try:
+    def _read_unsettled_trades():
+        from backend.db.utils import get_db_session
         with get_db_session() as db:
-            unsettled_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
-
-            if not unsettled_trades:
-                log_event("data", "Settlement verification: no unsettled trades")
+            unsettled = db.query(Trade).filter(Trade.settled.is_(False)).all()
+            if not unsettled:
                 state = db.query(BotState).first()
                 if state:
                     state.settlement_last_check_at = datetime.now(timezone.utc)
                     db.flush()
-                return
+                return []
+            return [
+                {
+                    "id": t.id, "market_ticker": t.market_ticker,
+                    "settled": t.settled, "settlement_value": t.settlement_value,
+                    "pnl": t.pnl, "result": t.result, "direction": t.direction,
+                    "size": t.size, "entry_price": t.entry_price,
+                    "event_slug": t.event_slug, "token_id": t.token_id,
+                    "trading_mode": t.trading_mode, "market_type": t.market_type,
+                    "outcome": t.outcome,
+                }
+                for t in unsettled
+            ]
 
-            settled_count = 0
-            error_count = 0
+    try:
+        trade_dicts = await asyncio.to_thread(_read_unsettled_trades)
+        if not trade_dicts:
+            log_event("data", "Settlement verification: no unsettled trades")
+            return
 
-            for trade in unsettled_trades:
+        settled_count = 0
+        error_count = 0
+        settlements = []
+
+        from backend.db.utils import get_db_session
+        with get_db_session() as db:
+            unsettled_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
+            trade_map = {t.id: t for t in unsettled_trades}
+
+            for td in trade_dicts:
+                trade = trade_map.get(td["id"])
+                if not trade:
+                    continue
                 try:
                     is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
 
@@ -1186,15 +1271,12 @@ async def verify_settlement_blockchain():
                             trade.result = "push"
 
                         settled_count += 1
-                        logger.info(
-                            f"Settlement verified: trade_id={trade.id} market={trade.market_ticker} "
-                            f"result={trade.result} pnl=${pnl:.2f}"
-                        )
+                        settlements.append({"id": trade.id, "market": trade.market_ticker, "result": trade.result, "pnl": pnl})
 
                 except Exception as e:
                     error_count += 1
                     logger.warning(
-                        f"Settlement verification failed for trade {trade.id}: {e}"
+                        f"Settlement verification failed for trade {td['id']}: {e}"
                     )
                     continue
 
@@ -1204,15 +1286,21 @@ async def verify_settlement_blockchain():
 
             db.commit()
 
-            log_event(
-                "success" if settled_count > 0 else "info",
-                f"Settlement verified: {settled_count} trades settled, {error_count} errors",
-                {
-                    "settled_count": settled_count,
-                    "error_count": error_count,
-                    "total_checked": len(unsettled_trades),
-                },
+        for s in settlements:
+            logger.info(
+                f"Settlement verified: trade_id={s['id']} market={s['market']} "
+                f"result={s['result']} pnl=${s['pnl']:.2f}"
             )
+
+        log_event(
+            "success" if settled_count > 0 else "info",
+            f"Settlement verified: {settled_count} trades settled, {error_count} errors",
+            {
+                "settled_count": settled_count,
+                "error_count": error_count,
+                "total_checked": len(trade_dicts),
+            },
+        )
 
     except Exception as e:
         log_event("error", f"Settlement verification job failed: {e}")

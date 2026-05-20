@@ -9,6 +9,7 @@ import json
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+from loguru import logger
 from sqlalchemy.orm import Session
 from backend.domain.genome.models import StrategyGenome, DeathCertificate
 from backend.domain.evolution.evolution_action import EvolutionAction

@@ -9,11 +9,20 @@ import statistics
 import time
 
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.config import settings
 
 from loguru import logger
-# Circuit breaker for Open-Meteo API calls
+# Circuit breakers for weather API calls
 openmeteo_breaker = CircuitBreaker("open_meteo")
+nws_breaker = CircuitBreaker("nws_api", failure_threshold=5, recovery_timeout=60.0)
+noaa_metar_breaker = CircuitBreaker("noaa_metar", failure_threshold=5, recovery_timeout=60.0)
+
+# Rate limiter for weather API calls (30 requests/min default)
+_weather_rate_limiter = ExternalRateLimiter(
+    name="weather",
+    max_calls_per_minute=getattr(settings, 'RATE_LIMIT_WEATHER', 30),
+)
 
 # City configurations — AIRPORT coordinates matching METAR stations used by Polymarket
 # Using airport lat/lon eliminates the systematic 3-8°F error from city-center coords
@@ -322,7 +331,7 @@ async def fetch_nws_observed_temperature(city_key: str, target_date: Optional[da
     if target_date is None:
         target_date = date.today()
 
-    try:
+    async def _fetch_nws():
         async with httpx.AsyncClient(timeout=15.0) as client:
             # NWS observations endpoint
             station = city["nws_station"]
@@ -335,27 +344,33 @@ async def fetch_nws_observed_temperature(city_key: str, target_date: Optional[da
 
             response = await client.get(url, params={"start": start, "end": end}, headers=headers)
             response.raise_for_status()
-            data = response.json()
+            return response.json()
 
-            features = data.get("features", [])
-            if not features:
-                return None
+    try:
+        data = await _weather_rate_limiter.call(nws_breaker.call, _fetch_nws)
 
-            temps = []
-            for obs in features:
-                props = obs.get("properties", {})
-                temp_c = props.get("temperature", {}).get("value")
-                if temp_c is not None:
-                    temps.append(_celsius_to_fahrenheit(temp_c))
+        features = data.get("features", [])
+        if not features:
+            return None
 
-            if not temps:
-                return None
+        temps = []
+        for obs in features:
+            props = obs.get("properties", {})
+            temp_c = props.get("temperature", {}).get("value")
+            if temp_c is not None:
+                temps.append(_celsius_to_fahrenheit(temp_c))
 
-            return {
-                "high": max(temps),
-                "low": min(temps),
-            }
+        if not temps:
+            return None
 
+        return {
+            "high": max(temps),
+            "low": min(temps),
+        }
+
+    except CircuitOpenError:
+        logger.warning("NWS circuit OPEN, skipping observation fetch for %s", city_key)
+        return None
     except Exception as e:
         logger.warning(f"Failed to fetch NWS observations for {city_key}: {e}")
         return None
@@ -384,13 +399,19 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
         "startTime": f"{date}T00:00Z",
         "endTime": f"{date}T23:59Z",
     }
-    try:
+    async def _fetch_metar():
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(NOAA_METAR_URL, params=params)
             if resp.status_code != 200:
-                logger.warning("METAR fetch HTTP %s for %s on %s", resp.status_code, station_id, date)
-                return None
-            data = resp.json()
+                raise httpx.HTTPStatusError(
+                    f"METAR HTTP {resp.status_code}",
+                    request=resp.request,
+                    response=resp,
+                )
+            return resp.json()
+
+    try:
+        data = await _weather_rate_limiter.call(noaa_metar_breaker.call, _fetch_metar)
 
         features = data.get("features", [])
         if not features:
@@ -414,6 +435,9 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
             "visibility_mi": props.get("visibility_statute_mi"),
             "weather": props.get("wx_string"),
         }
+    except CircuitOpenError:
+        logger.warning("NOAA METAR circuit OPEN, skipping for %s on %s", station_id, date)
+        return None
     except Exception as e:
         logger.warning("Exception in fetch_noaa_metar(%s, %s): %s", station_id, date, e)
         return None

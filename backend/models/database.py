@@ -101,7 +101,7 @@ Base = declarative_base()
 botstate_mutex = asyncio.Lock()
 
 
-POSTGRES_LOCK_TIMEOUT = "5s"
+POSTGRES_LOCK_TIMEOUT = "10s"
 POSTGRES_STATEMENT_TIMEOUT = "30s"
 
 

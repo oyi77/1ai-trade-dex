@@ -245,7 +245,7 @@ class BaseStrategy(ABC):
         try:
             signal_latency_seconds.labels(strategy_name=self.name).observe(elapsed_s)
         except Exception:
-            pass
+            logger.debug("Failed to record Prometheus latency for strategy '%s'", self.name)
 
         # Heartbeat: update strategy last-seen timestamp in DB (best effort)
         try:

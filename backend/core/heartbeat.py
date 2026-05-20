@@ -348,6 +348,11 @@ def _sync_balance_to_db(balance: float, mode: str) -> None:
                 db.commit()
                 logger.debug(f"wallet_sync: {mode} balance updated to ${state.bankroll:.2f}")
     except Exception as e:
+        if _is_lock_timeout_error(e):
+            logger.warning(f"wallet_sync: deferred {mode} balance update due to BotState contention")
+        else:
+            logger.warning(f"wallet_sync: failed to update {mode} balance: {e}")
+    except Exception as e:
         logger.warning(f"wallet_sync: {mode} balance update failed: {e}")
 
 

@@ -13,6 +13,7 @@ import httpx
 
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.errors import ExternalAPIError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
 from loguru import logger
@@ -94,16 +95,32 @@ async def fetch_markets(
             return await _gamma_rate_limiter.call(_fetch_single_page_limited)
         except CircuitOpenError:
             logger.warning("[gamma] Gamma API circuit open, skipping")
-            return []
+            raise
         except httpx.TimeoutException:
             logger.warning("[gamma] Gamma API request timed out")
-            return []
+            raise ExternalAPIError(
+                "Gamma API request timed out",
+                source="gamma_api",
+                status_code=408,
+                is_transient=True,
+            )
         except httpx.HTTPStatusError as e:
             logger.warning("[gamma] Gamma API HTTP error: %s", e.response.status_code)
-            return []
+            raise ExternalAPIError(
+                f"Gamma API HTTP error: {e.response.status_code}",
+                source="gamma_api",
+                status_code=e.response.status_code,
+                is_transient=e.response.status_code >= 500,
+            )
+        except ExternalAPIError:
+            raise
         except Exception as e:
             logger.warning("[gamma] Gamma API fetch failed: %s", e)
-            return []
+            raise ExternalAPIError(
+                f"Gamma API fetch failed: {e}",
+                source="gamma_api",
+                is_transient=True,
+            )
 
     async def _fetch_page(client: httpx.AsyncClient, cursor: Optional[str]) -> Optional[list]:
         for attempt in range(_RATE_LIMIT_MAX_RETRIES):

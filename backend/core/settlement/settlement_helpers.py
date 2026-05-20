@@ -742,10 +742,13 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     _fill_price = getattr(trade, "fill_price", None)
     entry_price = float(_fill_price) if isinstance(_fill_price, (int, float)) else trade.entry_price
 
-    # Account for Polymarket taker fee on dollar amount
-    from backend.config import settings
-    fee_rate = getattr(settings, 'TAKER_FEE_RATE', 0.02)
-    dollar_cost = size * (1.0 + fee_rate)  # actual USDC spent including fee
+    # Account for Polymarket taker fee
+    # Exact formula: (fee_bps / 10000) * min(price, 1-price) * size
+    # Fee is proportional to uncertainty — max at 0.50, near zero at extremes
+    fee_bps = 100  # Polymarket taker fee: 100 bps (1%)
+    uncertainty = min(entry_price, 1.0 - entry_price) if 0 < entry_price < 1.0 else 0.0
+    fee = (fee_bps / 10000.0) * uncertainty * size
+    dollar_cost = size + fee  # actual USDC spent including fee
 
     # Convert dollar amount to shares if needed
     # The execution pipeline stores dollars, but PnL formula expects shares

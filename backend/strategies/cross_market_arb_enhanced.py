@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
+from loguru import logger
 
 @dataclass
 class ArbOpportunityEnhanced:
@@ -287,7 +287,7 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
         except Exception:
-            pass
+            logger.debug("Failed to parse outcome price from operation data: %s", op)
     return None
 
 

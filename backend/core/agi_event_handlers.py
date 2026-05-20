@@ -25,7 +25,7 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
     genome_id = data.get("genome_id")
     logger.info(f"EVENT [trade_executed] strategy={strategy_name} trade_id={trade_id} genome={genome_id}")
     if genome_id and trade_id:
-        try:
+        def _attribute():
             from backend.application.agi.performance_attributor import attribute_trade_to_chromosomes
             from backend.models.database import GenomeRegistry, Trade
             from backend.db.utils import get_db_session
@@ -33,18 +33,17 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
                 trade = db.query(Trade).filter_by(id=trade_id).first()
                 genome = db.query(GenomeRegistry).filter_by(genome_id=genome_id).first()
                 if trade and genome and genome.chromosomes:
-                    try:
-                        from backend.domain.genome.models import StrategyGenome
-                        strategy_genome = StrategyGenome(
-                            genome_id=genome.genome_id,
-                            strategy_name=genome.strategy_name,
-                            chromosomes=genome.chromosomes,  # hybrid property auto-deserializes
-                        )
-                        market_state = {"regime": "neutral"}
-                        attribute_trade_to_chromosomes(trade, strategy_genome, market_state)
-                        logger.info(f"Performance attribution triggered for genome={genome_id}")
-                    except Exception as e:
-                        logger.error(f"[agi_event_handlers] on_trade_executed inner error: {e}", exc_info=True)
+                    from backend.domain.genome.models import StrategyGenome
+                    strategy_genome = StrategyGenome(
+                        genome_id=genome.genome_id,
+                        strategy_name=genome.strategy_name,
+                        chromosomes=genome.chromosomes,
+                    )
+                    market_state = {"regime": "neutral"}
+                    attribute_trade_to_chromosomes(trade, strategy_genome, market_state)
+                    logger.info(f"Performance attribution triggered for genome={genome_id}")
+        try:
+            await asyncio.to_thread(_attribute)
         except Exception as exc:
             logger.error(f"Handler trade_executed attribution failed: {exc}", exc_info=True)
 
@@ -70,18 +69,19 @@ async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
     except Exception as exc:
         logger.error(f"Handler trade_settled goal_engine failed: {exc}", exc_info=True)
     if result == "loss":
-        try:
+        def _forensics():
             from backend.core.forensics_integration import generate_forensics_proposals
             from backend.db.utils import get_db_session
             with get_db_session() as db:
                 generate_forensics_proposals(db=db)
                 db.commit()
+        try:
+            await asyncio.to_thread(_forensics)
         except Exception as exc:
             logger.error(f"Handler trade_settled forensics failed: {exc}", exc_info=True)
     if mode in ("shadow", "paper") and genome_id:
         try:
             from backend.core.autonomous_promoter import autonomous_promoter
-            import asyncio
             asyncio.create_task(autonomous_promoter.run_once())
         except Exception as exc:
             logger.error(f"Handler trade_settled promoter failed: {exc}", exc_info=True)
@@ -105,20 +105,23 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
     strategy_name = data.get("strategy_name")
     reason = data.get("reason")
     logger.info(f"EVENT [strategy_killed] strategy={strategy_name} reason={reason}")
-    try:
+    def _necromancy():
         from backend.application.agi.necromancer import run_necromancy_analysis
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             report = run_necromancy_analysis(db)
             db.commit()
-            publish_event("necromancy_report", {
-                "death_causes": report.death_causes if hasattr(report, "death_causes") else [],
-                "high_risk_genes": len(report.high_risk_genes) if hasattr(report, "high_risk_genes") else 0,
-                "legend_genes": len(report.legend_genes) if hasattr(report, "legend_genes") else 0,
-            })
+            return report
+    try:
+        report = await asyncio.to_thread(_necromancy)
+        publish_event("necromancy_report", {
+            "death_causes": report.death_causes if hasattr(report, "death_causes") else [],
+            "high_risk_genes": len(report.high_risk_genes) if hasattr(report, "high_risk_genes") else 0,
+            "legend_genes": len(report.legend_genes) if hasattr(report, "legend_genes") else 0,
+        })
     except Exception as exc:
         logger.error(f"Handler strategy_killed necromancy failed: {exc}", exc_info=True)
-    try:
+    def _graveyard():
         from backend.models.database import GenomeRegistry
         from backend.db.utils import get_db_session
         with get_db_session() as db:
@@ -127,14 +130,19 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
                 genome.stage = "GRAVEYARD"
                 genome.updated_at = datetime.now(timezone.utc)
                 db.commit()
-                publish_event("lifecycle_transition", {
-                    "genome_id": genome.genome_id,
-                    "strategy_name": strategy_name,
-                    "from_stage": "LIVE",
-                    "to_stage": "GRAVEYARD",
-                    "reason": reason,
-                })
-                logger.info(f"Moved genome {genome.genome_id} to GRAVEYARD")
+                return genome
+        return None
+    try:
+        genome = await asyncio.to_thread(_graveyard)
+        if genome:
+            publish_event("lifecycle_transition", {
+                "genome_id": genome.genome_id,
+                "strategy_name": strategy_name,
+                "from_stage": "LIVE",
+                "to_stage": "GRAVEYARD",
+                "reason": reason,
+            })
+            logger.info(f"Moved genome {genome.genome_id} to GRAVEYARD")
     except Exception as exc:
         logger.error(f"Handler strategy_killed lifecycle failed: {exc}", exc_info=True)
 
@@ -150,12 +158,11 @@ async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.bankroll_allocator import BankrollAllocator
         allocator = BankrollAllocator()
-        import asyncio
         asyncio.create_task(allocator.run_once())
     except Exception as exc:
         logger.error(f"Handler experiment_promoted bankroll failed: {exc}", exc_info=True)
     if to_stage == "LIVE" and getattr(settings, "AGI_AUTO_ENABLE", False):
-        try:
+        def _auto_enable():
             from backend.db.utils import get_db_session
             from backend.models.database import StrategyConfig
             with get_db_session() as db:
@@ -164,6 +171,8 @@ async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
                     cfg.enabled = True
                     db.commit()
                     logger.info(f"Auto-enabled strategy {strategy_name} after LIVE promotion")
+        try:
+            await asyncio.to_thread(_auto_enable)
         except Exception as exc:
             logger.error(f"Handler experiment_promoted auto_enable failed: {exc}", exc_info=True)
 
@@ -176,13 +185,15 @@ async def on_chromosome_flagged(event_type: str, data: Dict[str, Any]) -> None:
     chrom_name = data.get("chromosome")
     avg_score = data.get("avg_score", "N/A")
     logger.info(f"EVENT [chromosome_flagged] genome={genome_id} chrom={chrom_name} avg_score={avg_score}")
-    try:
+    def _mutate():
         from backend.application.agi.evolution_jobs import targeted_mutation
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             targeted_mutation(genome_id=genome_id, chrom_name=chrom_name, db=db)
             db.commit()
-            logger.info(f"Targeted mutation applied: genome={genome_id} chrom={chrom_name}")
+    try:
+        await asyncio.to_thread(_mutate)
+        logger.info(f"Targeted mutation applied: genome={genome_id} chrom={chrom_name}")
     except Exception as exc:
         logger.warning(f"Targeted mutation failed for genome={genome_id}: {exc}")
         logger.error(f"Handler chromosome_flagged failed: {exc}", exc_info=True)
@@ -195,13 +206,15 @@ async def on_mutation_proposed(event_type: str, data: Dict[str, Any]) -> None:
     strategy_name = data.get("strategy_name")
     root_cause = data.get("root_cause")
     logger.info(f"EVENT [mutation_proposed] strategy={strategy_name} cause={root_cause}")
-    try:
+    def _forensics():
         from backend.core.forensics_integration import generate_forensics_proposals
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             generate_forensics_proposals(db=db)
             db.commit()
-            logger.info(f"Forensics proposals generated for {strategy_name}")
+    try:
+        await asyncio.to_thread(_forensics)
+        logger.info(f"Forensics proposals generated for {strategy_name}")
     except Exception as exc:
         logger.error(f"Handler mutation_proposed forensics failed: {exc}", exc_info=True)
 
@@ -213,11 +226,13 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
     new_regime = data.get("new_regime")
     old_regime = data.get("old_regime", "unknown")
     logger.info(f"EVENT [regime_shift] {old_regime}→{new_regime}")
-    try:
+    def _rebalance():
         from backend.application.agi.regime_population_manager import detect_regime_and_rebalance
         from backend.db.utils import get_db_session
         with get_db_session() as db:
             detect_regime_and_rebalance(db)
+    try:
+        await asyncio.to_thread(_rebalance)
     except Exception as exc:
         logger.error(f"Handler regime_shift rebalance failed: {exc}", exc_info=True)
     try:
@@ -375,10 +390,17 @@ async def on_strategy_demoted(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.agi_self_tuner import get_agi_self_tuner
         from backend.db.utils import get_db_session
-        with get_db_session() as db:
+        # evaluate_and_tune is async, so we can't use to_thread for the whole block.
+        # Wrap only the sync DB session setup in to_thread, keep await for async tuner.
+        def _get_db():
+            return get_db_session()
+        db = await asyncio.to_thread(_get_db)
+        try:
             tuner = get_agi_self_tuner()
             await tuner.evaluate_and_tune(strategy_name, db)
             logger.info(f"[strategy_demoted] Self-tune triggered for '{strategy_name}' after demotion")
+        finally:
+            await asyncio.to_thread(db.close)
     except Exception as exc:
         logger.error(f"Handler strategy_demoted self_tune failed: {exc}", exc_info=True)
     # Store demotion context in KnowledgeGraph for analysis

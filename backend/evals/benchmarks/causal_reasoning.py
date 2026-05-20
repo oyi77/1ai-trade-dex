@@ -8,17 +8,14 @@ Threshold: causal_accuracy > 80% on intervention test set
 
 import json
 import random
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 
 from loguru import logger
+from backend.evals.benchmarks.shared import BenchmarkResult
 
 logger = logger.bind(task="evals", benchmark_id="causal_reasoning")
-
-
-from backend.evals.benchmarks.shared import BenchmarkResult
 
 
 @dataclass

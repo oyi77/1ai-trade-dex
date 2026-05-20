@@ -1,5 +1,6 @@
 """Tests for LLM Cost Tracker — budget enforcement, cost tracking, daily reset."""
 import pytest
+from unittest.mock import patch
 
 from backend.core.llm_cost_tracker import (
     LLMCostTracker,
@@ -99,3 +100,35 @@ class TestLLMCostTracker:
         tracker = LLMCostTracker(daily_budget=10.0)
         tracker.record_call("claude-3-opus", 1500, 0.045, "strategy_generation")
         assert tracker.calls[0].budget_remaining == pytest.approx(9.955)
+
+    def test_alert_at_80_percent_budget(self):
+        """Verify warning log fires when 80% budget threshold is crossed."""
+        tracker = LLMCostTracker(daily_budget=10.0)
+        # Spend up to just below 80% ($7.90)
+        tracker.record_call("claude-3-opus", 1000, 7.90, "signal_analysis")
+        # This call crosses 80% ($8.00+) — should trigger alert
+        with patch("backend.core.llm_cost_tracker.logger") as mock_logger:
+            tracker.record_call("claude-3-opus", 1000, 0.20, "signal_analysis")
+            mock_logger.warning.assert_called()
+            warning_msg = mock_logger.warning.call_args[0][0]
+            assert "80%" in warning_msg
+
+    def test_no_alert_below_80_percent(self):
+        """Verify no alert when below 80% threshold."""
+        tracker = LLMCostTracker(daily_budget=10.0)
+        with patch("backend.core.llm_cost_tracker.logger") as mock_logger:
+            tracker.record_call("claude-3-opus", 1000, 5.00, "signal_analysis")
+            mock_logger.warning.assert_not_called()
+
+    def test_alert_fires_only_once_at_threshold(self):
+        """Verify alert fires only when crossing 80%, not on every call after."""
+        tracker = LLMCostTracker(daily_budget=10.0)
+        tracker.record_call("claude-3-opus", 1000, 7.90, "signal_analysis")
+        # First call crossing 80% — should alert
+        with patch("backend.core.llm_cost_tracker.logger") as mock_logger:
+            tracker.record_call("claude-3-opus", 1000, 0.20, "signal_analysis")
+            assert mock_logger.warning.call_count == 1
+        # Second call above 80% — should NOT alert again
+        with patch("backend.core.llm_cost_tracker.logger") as mock_logger:
+            tracker.record_call("claude-3-opus", 1000, 0.50, "signal_analysis")
+            mock_logger.warning.assert_not_called()

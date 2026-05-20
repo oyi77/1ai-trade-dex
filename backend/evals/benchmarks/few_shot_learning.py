@@ -9,17 +9,15 @@ Threshold: success_rate > 70% on held-out set
 
 import json
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 
 from loguru import logger
+from backend.evals.benchmarks.shared import BenchmarkResult
 
 logger = logger.bind(task="evals", benchmark_id="few_shot_learning")
-
-
-from backend.evals.benchmarks.shared import BenchmarkResult
 
 
 @dataclass

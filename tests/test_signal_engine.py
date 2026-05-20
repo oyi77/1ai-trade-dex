@@ -233,7 +233,7 @@ class TestCalibration:
 
     def test_welford_update(self, tmp_path):
         """Welford algorithm converges on correct mean error."""
-        from backend.core import calibration as cal_module
+        from backend.core.learning import calibration as cal_module
 
         # Point to tmp calibration file
         original_file = cal_module._CALIBRATION_FILE

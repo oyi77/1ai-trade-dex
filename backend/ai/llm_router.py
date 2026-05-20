@@ -10,6 +10,17 @@ from typing import Optional
 
 from loguru import logger
 
+# Approximate cost per 1K tokens by provider type (USD)
+_PROVIDER_COST_PER_1K: dict[str, float] = {
+    "groq": 0.0002,
+    "claude": 0.015,
+    "openai": 0.005,
+    "together": 0.002,
+    "fireworks": 0.002,
+    "ollama": 0.0,
+    "custom": 0.002,
+}
+
 ROLE_SETTING_MAP = {
     "default": "LLM_DEFAULT_PROVIDER",
     "debate_agent": "LLM_DEBATE_PROVIDER",
@@ -89,11 +100,13 @@ def _discover_providers() -> dict[str, dict]:
 class LLMRouter:
     def __init__(self):
         from backend.config import settings
+        from backend.core.llm_cost_tracker import LLMCostTracker
 
         self.providers: dict[str, dict] = _discover_providers()
         self.default_provider: str = getattr(settings, "LLM_DEFAULT_PROVIDER", "groq")
         if self.default_provider not in self.providers and self.providers:
             self.default_provider = next(iter(self.providers))
+        self._cost_tracker = LLMCostTracker()
 
     def _resolve_provider(self, role: str) -> Optional[str]:
         from backend.config import settings
@@ -203,13 +216,36 @@ class LLMRouter:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
+        # Lazy-init cost tracker (may be absent if __init__ was patched in tests)
+        cost_tracker = getattr(self, "_cost_tracker", None)
+        if cost_tracker is None:
+            from backend.core.llm_cost_tracker import LLMCostTracker
+            cost_tracker = LLMCostTracker()
+            self._cost_tracker = cost_tracker
+
         last_error: Optional[Exception] = None
         for provider_name in self._fallback_order(primary):
             config = self.providers[provider_name]
+            # Estimate cost before calling
+            est_cost_per_1k = _PROVIDER_COST_PER_1K.get(config.get("provider_type", provider_name), 0.002)
+            est_cost = est_cost_per_1k * (config.get("max_tokens", 250) + 500) / 1000
+            if not cost_tracker.can_spend(est_cost):
+                logger.warning(f"LLMRouter: daily budget exhausted, skipping {provider_name}")
+                continue
             try:
-                text, _tokens = await self._dispatch(
+                text, tokens = await self._dispatch(
                     provider_name, config, messages, **kwargs
                 )
+                actual_cost = est_cost_per_1k * max(tokens, 1) / 1000
+                try:
+                    cost_tracker.record_call(
+                        model=config.get("model", provider_name),
+                        token_count=tokens,
+                        cost_usd=actual_cost,
+                        purpose=role,
+                    )
+                except Exception as ct_err:
+                    logger.warning(f"LLMRouter: cost tracking failed: {ct_err}")
                 return text
             except Exception as e:
                 logger.warning(f"LLMRouter: {provider_name} failed: {e}")

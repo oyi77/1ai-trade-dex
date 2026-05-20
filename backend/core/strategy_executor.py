@@ -586,7 +586,7 @@ def _execute_decision_paper_or_kalshi(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception(f"[strategy_executor] failed to parse market_end_date for trade recording")
+                    logger.exception("[strategy_executor] failed to parse market_end_date for trade recording")
 
             slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
             fee = None
@@ -1507,7 +1507,7 @@ async def _execute_decision_live_clob(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception(f"[strategy_executor] failed to parse market_end_date for trade recording")
+                    logger.exception("[strategy_executor] failed to parse market_end_date for trade recording")
 
             slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
             fee = None
