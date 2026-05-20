@@ -742,34 +742,38 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     _fill_price = getattr(trade, "fill_price", None)
     entry_price = float(_fill_price) if isinstance(_fill_price, (int, float)) else trade.entry_price
 
+    # Account for Polymarket taker fee on dollar amount
+    from backend.config import settings
+    fee_rate = getattr(settings, 'TAKER_FEE_RATE', 0.02)
+    dollar_cost = size * (1.0 + fee_rate)  # actual USDC spent including fee
+
     # Convert dollar amount to shares if needed
     # The execution pipeline stores dollars, but PnL formula expects shares
+    shares = size
     if entry_price and entry_price > 0 and entry_price < 1.0:
-        size = size / entry_price
+        shares = dollar_cost / entry_price
 
     if not entry_price or entry_price <= 0 or entry_price >= 1.0:
         if entry_price and entry_price >= 1.0:
-            # Entry at $1.00+: win gives 0 profit (bought at $1, get $1 back),
-            # loss costs the full size (bought at $1, get $0 back).
             if direction == "yes":
-                return 0.0 if settlement_value == 1.0 else round(-size, 2)
+                return 0.0 if settlement_value == 1.0 else round(-dollar_cost, 2)
             else:
-                return 0.0 if settlement_value == 0.0 else round(-size, 2)
+                return 0.0 if settlement_value == 0.0 else round(-dollar_cost, 2)
         if direction == "yes":
-            return round(size if settlement_value == 1.0 else -size, 2)
+            return round(dollar_cost if settlement_value == 1.0 else -dollar_cost, 2)
         else:
-            return round(size if settlement_value == 0.0 else -size, 2)
+            return round(dollar_cost if settlement_value == 0.0 else -dollar_cost, 2)
 
     if direction == "yes":
         if settlement_value == 1.0:
-            pnl = (1.0 - entry_price) * size
+            pnl = shares - dollar_cost
         else:
-            pnl = -(entry_price * size)
+            pnl = -dollar_cost
     else:
         if settlement_value == 0.0:
-            pnl = (1.0 - entry_price) * size
+            pnl = shares - dollar_cost
         else:
-            pnl = -(entry_price * size)
+            pnl = -dollar_cost
 
     return round(pnl, 2)
 

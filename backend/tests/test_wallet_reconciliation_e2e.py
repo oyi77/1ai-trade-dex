@@ -296,9 +296,9 @@ async def test_settlement_verification_external_closure(db, mock_clob):
         assert trade2_closed.settlement_source == "data_api"
         assert trade2_closed.blockchain_verified is True
         assert trade2_closed.result == "win"
-        # calculate_pnl converts dollars to shares: 50/0.40 = 125 shares
-        # profit = (1.0 - 0.40) * 125 = 75.0
-        assert trade2_closed.pnl == pytest.approx(75.0)
+        # calculate_pnl includes 2% fee: cost = 50 * 1.02 = 51.0
+        # shares = 51.0 / 0.40 = 127.5, profit = 127.5 - 51.0 = 76.5
+        assert trade2_closed.pnl == pytest.approx(76.5)
 
 
 # ---------------------------------------------------------------------------

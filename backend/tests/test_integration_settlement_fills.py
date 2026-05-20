@@ -110,8 +110,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # size is dollars; calculate_pnl converts to shares: 100/0.60 = 166.67
-        expected_pnl = round((1.0 - 0.60) * (100 / 0.60), 2)
+        # With 2% fee: cost=102, shares=170, pnl=68.0
+        expected_pnl = round((100 * 1.02 / 0.60) - (100 * 1.02), 2)
         assert pnl == expected_pnl
         assert pnl > 0
 
@@ -131,8 +131,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # loss = -(entry_price * shares) = -(0.60 * 166.67) = -100.0
-        expected_loss = round(-(0.60 * (100 / 0.60)), 2)
+        # With 2% fee: cost=102, loss=-102
+        expected_loss = round(-(100 * 1.02), 2)
         assert pnl == expected_loss
         assert pnl < 0
 
@@ -152,8 +152,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # shares = 100/0.50 = 200; profit = (1.0 - 0.50) * 200 = 100.0
-        expected_pnl = round((1.0 - 0.50) * (100 / 0.50), 2)
+        # With 2% fee: cost=102, shares=204, pnl=102
+        expected_pnl = round((100 * 1.02 / 0.50) - (100 * 1.02), 2)
         assert pnl == expected_pnl
         assert pnl > 0
 
@@ -173,8 +173,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # loss = -(entry_price * shares) = -(0.50 * 200) = -100.0
-        expected_loss = round(-(0.50 * (100 / 0.50)), 2)
+        # With 2% fee: cost=102, loss=-102
+        expected_loss = round(-(100 * 1.02), 2)
         assert pnl == expected_loss
         assert pnl < 0
 

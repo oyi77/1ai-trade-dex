@@ -80,14 +80,17 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
             if won:
                 trade.result = "win"
-                shares = size / entry_price if entry_price > 0 else 0.0
-                trade.pnl = (1.0 - entry_price) * shares if entry_price > 0 else 0.0
+                fee_rate = settings.TAKER_FEE_RATE
+                cost = size * (1.0 + fee_rate) if entry_price > 0 else size
+                shares = cost / entry_price if entry_price > 0 else 0.0
+                trade.pnl = round(shares - cost, 2)
                 trade.settlement_value = 1.0
                 record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "up", status="settled_win", latency_s=0.0)
             else:
                 trade.result = "loss"
-                shares = size / entry_price if entry_price > 0 else 0.0
-                trade.pnl = -(entry_price * shares) if entry_price > 0 else -size
+                fee_rate = settings.TAKER_FEE_RATE
+                cost = size * (1.0 + fee_rate) if entry_price > 0 else size
+                trade.pnl = round(-cost, 2)
                 trade.settlement_value = 0.0
                 record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "down", status="settled_loss", latency_s=0.0)
 
