@@ -41,9 +41,8 @@ class BudgetStatus:
 
 
 class LLMCostTracker:
-    """LLM cost tracking — not yet fully wired in production."""
+    """LLM cost tracking with daily budget enforcement."""
     def __init__(self, daily_budget: Optional[float] = None):
-        logger.warning("[LLMCostTracker] Not implemented — LLM costs not tracked")
         self.daily_budget = daily_budget or float(os.environ.get("LLM_DAILY_BUDGET", DAILY_BUDGET_DEFAULT))
         self.calls: list[LLMCostRecord] = []
         self._period_start = datetime.now(timezone.utc).replace(
@@ -55,7 +54,14 @@ class LLMCostTracker:
             raise BudgetExceededError(
                 f"Budget exceeded: ${cost_usd:.4f} would exceed daily limit of ${self.daily_budget:.2f}"
             )
-        remaining = self.daily_budget - self._spent_today() - cost_usd
+        spent_after = self._spent_today() + cost_usd
+        remaining = self.daily_budget - spent_after
+        # Alert at 80% budget consumption
+        if spent_after >= self.daily_budget * 0.8 and self._spent_today() < self.daily_budget * 0.8:
+            logger.warning(
+                "[LLMCostTracker] 80% daily budget consumed: ${:.4f} / ${:.2f} ({:.0f}%)",
+                spent_after, self.daily_budget, (spent_after / self.daily_budget) * 100,
+            )
         record = LLMCostRecord(
             timestamp=datetime.now(timezone.utc),
             model=model,

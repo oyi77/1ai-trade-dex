@@ -1,4 +1,6 @@
 """Kalshi market provider plugin."""
+import math
+import os
 from typing import List, Optional
 from decimal import Decimal
 import uuid
@@ -14,7 +16,26 @@ try:
 except ImportError:
     HAS_KALSHI = False
 
-import os
+KALSHI_TAKER_FEE_RATE = 0.07
+KALSHI_MAKER_FEE_RATE = 0.0175
+
+
+def _kalshi_fee(price: Decimal, size: Decimal, is_maker: bool = False) -> Decimal:
+    """Kalshi fee model.
+
+    Taker: ceil(contracts * P * (1-P) * 0.07 * 100)
+    Maker: ceil(contracts * P * (1-P) * 0.0175 * 100)
+
+    Fees peak at P=0.50 (max uncertainty), near zero at extremes.
+    Returns fee in dollars (Decimal).
+    """
+    rate = KALSHI_MAKER_FEE_RATE if is_maker else KALSHI_TAKER_FEE_RATE
+    p = float(price)
+    p = max(0.01, min(0.99, p))
+    fee_cents = math.ceil(float(size) * p * (1.0 - p) * rate * 100)
+    return Decimal(str(fee_cents)) / Decimal("100")
+
+
 if not os.getenv("KALSHI_API_KEY") and not os.getenv("KALSHI_API_KEY_ID"):
     logger.info("[KalshiProvider] KALSHI_API_KEY not set — provider disabled")
 
@@ -46,21 +67,23 @@ class KalshiProvider(BaseMarketProvider):
             supports_paper_mode=True,
             is_live_venue=True,
             min_order_size_usd=1.0,
-            maker_fee_bps=0,
-            taker_fee_bps=0,
+            maker_fee_bps=175,
+            taker_fee_bps=700,
             tags=["primary", "prediction_market"],
         )
 
     async def place_order(self, order: NormalizedOrder) -> NormalizedOrderResult:
         if self._paper_mode:
+            fill_price = order.price or Decimal("0.5")
+            fee = _kalshi_fee(fill_price, order.size)
             return NormalizedOrderResult(
                 venue_order_id=f"paper_{order.market_id}_{order.side.value}",
                 client_order_id=order.client_order_id,
                 status=OrderStatus.FILLED,
                 filled_size=order.size,
-                filled_avg_price=order.price or Decimal("0.5"),
+                filled_avg_price=fill_price,
                 remaining_size=Decimal("0"),
-            fees_paid=fees_paid,
+                fees_paid=fee,
             )
 
         if order.price is None:
@@ -81,7 +104,8 @@ class KalshiProvider(BaseMarketProvider):
         )
         status = self._map_status(str(order_result.get("status", "open")))
         filled_size = Decimal(str(order_result.get("filled_count", order_result.get("filled_count_fp", 0))))
-        fees_paid = Decimal(str(order_result.get("fees", order_result.get("fee", 0))))
+        fees_paid_raw = order_result.get("fees", order_result.get("fee", 0))
+        fees_paid = Decimal(str(fees_paid_raw)) if fees_paid_raw else _kalshi_fee(order.price, filled_size)
         remaining_size = max(order.size - filled_size, Decimal("0"))
         return NormalizedOrderResult(
             venue_order_id=venue_order_id,

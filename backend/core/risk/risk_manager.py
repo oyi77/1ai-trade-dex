@@ -361,7 +361,11 @@ class RiskManager:
             max_strat_dd = float(getattr(self.s, 'MAX_STRATEGY_DRAWDOWN_PCT', 0.15) or 0.15)
             strat_allocation = self._get_strategy_allocation(strategy_name, bankroll, db)
             strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
-            if strat_allocation > 0 and strat_dd < 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
+            if strat_dd is None:
+                logger.warning(
+                    "[risk_manager] Skipping drawdown check for {} (DB error)", strategy_name,
+                )
+            elif strat_allocation > 0 and strat_dd < 0 and abs(strat_dd) > strat_allocation * max_strat_dd:
                 record_signal(strategy=strategy_name, signal_type="rejected_strategy_drawdown")
                 increment_risk_rejection(strategy=strategy_name, reason="strategy_drawdown")
                 logger.info(
@@ -718,7 +722,7 @@ class RiskManager:
                 if owns_db:
                     db.close()
 
-    def _count_enabled_strategies(self, db) -> int:
+    def _count_enabled_strategies(self, db) -> Optional[int]:
         """Count the number of enabled strategies in StrategyConfig."""
         try:
             from backend.models.database import StrategyConfig
@@ -734,7 +738,7 @@ class RiskManager:
                 type(e).__name__,
                 e,
             )
-            return 1
+            return None
 
     def _get_strategy_allocation(self, strategy_name: str, bankroll: float, db) -> float:
         """Get strategy allocation using AGI allocation if available, otherwise equal-weight fallback."""
@@ -756,8 +760,10 @@ class RiskManager:
         # Fallback: equal-weight allocation
         enabled_count = self._count_enabled_strategies(db)
         max_pos_frac = float(getattr(self.s, 'MAX_POSITION_FRACTION', 0.25) or 0.25)
-        if enabled_count == 0:
-            # No enabled strategies - use MAX_POSITION_FRACTION
+        if enabled_count is None or enabled_count == 0:
+            # DB error or no enabled strategies - use MAX_POSITION_FRACTION as safe fallback
+            if enabled_count is None:
+                logger.warning("[risk_manager._get_strategy_allocation] DB error counting strategies, using MAX_POSITION_FRACTION fallback")
             return bankroll * max_pos_frac
 
         # Calculate equal share
@@ -961,8 +967,8 @@ class RiskManager:
                 e,
             )
 
-    def _check_strategy_drawdown(self, strategy_name: str, db, mode: str) -> float:
-        """Return total PnL for a strategy in the last 24h (negative = loss)."""
+    def _check_strategy_drawdown(self, strategy_name: str, db, mode: str) -> Optional[float]:
+        """Return total PnL for a strategy in the last 24h (negative = loss), or None on error."""
         try:
             now = datetime.now(timezone.utc)
             day_start = now - timedelta(hours=24)
@@ -983,7 +989,7 @@ class RiskManager:
             logger.opt(exception=True).error(
                 "[risk_manager._check_strategy_drawdown] {}: {}", type(e).__name__, e,
             )
-            return -1.0
+            return None
 
     def check_concentration(
         self, market_ticker: str, trade_size: float, bankroll: float, db, mode: str

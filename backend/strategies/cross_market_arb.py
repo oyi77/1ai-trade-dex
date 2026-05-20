@@ -271,7 +271,7 @@ class CrossMarketArb(BaseStrategy):
             if markets:
                 return markets
         except Exception:
-            pass
+            logger.exception("Failed to fetch markets from registry for venue '%s', falling back to legacy", venue)
 
         # Legacy fallback
         if venue == "polymarket":

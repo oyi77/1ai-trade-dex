@@ -240,6 +240,14 @@ Provide specific numerical suggestions in JSON format:
                         temperature=0.2,
                     )
                     raw = response.choices[0].message.content.strip()
+                    tokens = response.usage.total_tokens if response.usage else 0
+                    try:
+                        from backend.core.llm_cost_tracker import LLMCostTracker
+                        cost_tracker = LLMCostTracker()
+                        cost_per_1k = 0.0002  # Groq approximate cost
+                        cost_tracker.record_call(model, tokens, cost_per_1k * max(tokens, 1) / 1000, "optimizer")
+                    except Exception as ct_err:
+                        logger.debug(f"Cost tracking failed: {ct_err}")
                     suggestions = self.parse_suggestions(raw)
                     return {
                         "status": "ok",
@@ -270,6 +278,14 @@ Provide specific numerical suggestions in JSON format:
                         messages=[{"role": "user", "content": prompt}],
                     )
                     raw = message.content[0].text.strip()
+                    tokens = message.usage.input_tokens + message.usage.output_tokens
+                    try:
+                        from backend.core.llm_cost_tracker import LLMCostTracker
+                        cost_tracker = LLMCostTracker()
+                        cost_per_1k = 0.015  # Claude approximate cost
+                        cost_tracker.record_call(model, tokens, cost_per_1k * max(tokens, 1) / 1000, "optimizer")
+                    except Exception as ct_err:
+                        logger.debug(f"Cost tracking failed: {ct_err}")
                     suggestions = self.parse_suggestions(raw)
                     return {
                         "status": "ok",

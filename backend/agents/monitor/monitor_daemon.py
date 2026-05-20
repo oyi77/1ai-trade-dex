@@ -471,7 +471,7 @@ class MonitorDaemon:
             if STATE_FILE.exists():
                 return json.loads(STATE_FILE.read_text())
         except Exception:
-            pass
+            logger.exception("Failed to load monitor daemon state from %s", STATE_FILE)
         return None
 
     @property

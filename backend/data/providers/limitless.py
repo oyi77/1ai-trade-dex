@@ -152,5 +152,4 @@ class LimitlessProvider(DataProvider):
         raise RuntimeError("Limitless provider does not support order placement — use markets/providers/ instead")
 
     async def cancel_order(self, order_id: str) -> bool:
-        private_key: str = provider_config.get("limitless", "private_key")
         raise RuntimeError("Limitless provider does not support order cancellation — use markets/providers/ instead")

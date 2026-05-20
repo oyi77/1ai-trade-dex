@@ -21,7 +21,7 @@ def get_db_session():
                 try:
                     db.rollback()
                 except Exception:
-                    pass
+                    logger.exception("Failed to rollback session after PendingRollbackError")
                 return
             except Exception as commit_err:
                 db.rollback()

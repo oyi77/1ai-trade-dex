@@ -261,7 +261,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                             f"resolved on retry within grace period (pnl=${pnl:+.2f})"
                                         )
                                 except Exception:
-                                    pass
+                                    logger.exception("Failed to re-resolve position for trade %d during grace period", trade.id)
                                 # Leave unsettled for next cycle
                                 continue
 

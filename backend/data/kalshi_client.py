@@ -12,18 +12,17 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
-kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
-
 BASE_URL = settings.KALSHI_API_URL
+
+# Circuit breaker for Kalshi API
+kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
 
 # Rate limiter for Kalshi API (configurable requests per minute)
 _kalshi_rate_limiter = ExternalRateLimiter(
     name="kalshi",
     max_calls_per_minute=settings.RATE_LIMIT_KALSHI,
+    circuit_breaker=kalshi_breaker,
 )
-
-# Circuit breaker for Kalshi API (protects order operations)
-_kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
 
 
 class KalshiClient:
@@ -82,13 +81,10 @@ class KalshiClient:
         url = f"{BASE_URL}{path}"
         headers = self._sign_request("GET", full_path)
 
-        async def _fetch():
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.get(url, headers=headers, params=params)
-                response.raise_for_status()
-                return response.json()
-
-        return await _kalshi_rate_limiter.call(_fetch)
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            return response.json()
 
     async def get_markets(self, params: Optional[Dict[str, Any]] = None) -> dict:
         """Fetch markets with optional filters."""
@@ -113,6 +109,7 @@ class KalshiClient:
         return positions if isinstance(positions, list) else []
 
     async def _request(self, method: str, path: str, json: Optional[Dict[str, Any]] = None) -> dict:
+        """Authenticated request to Kalshi API through rate limiter + circuit breaker."""
         full_path = f"/trade-api/v2{path}"
         url = f"{BASE_URL}{path}"
         headers = self._sign_request(method.upper(), full_path)
@@ -123,7 +120,7 @@ class KalshiClient:
                 response.raise_for_status()
                 return response.json()
 
-        return await _kalshi_breaker.call(_fetch)
+        return await _kalshi_rate_limiter.call(_fetch)
 
     async def batch_create_orders(self, orders: list[dict]) -> dict:
         return await self._request("POST", "/portfolio/orders/batched", json={"orders": orders})

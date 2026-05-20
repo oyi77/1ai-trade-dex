@@ -8,17 +8,14 @@ Threshold: transfer_success_rate > 60% (adapted strategy beats random baseline)
 
 import json
 import random
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from typing import List, Dict, Optional, Any
 from pathlib import Path
 
 from loguru import logger
+from backend.evals.benchmarks.shared import BenchmarkResult
 
 logger = logger.bind(task="evals", benchmark_id="cross_domain_transfer")
-
-
-from backend.evals.benchmarks.shared import BenchmarkResult
 
 
 @dataclass

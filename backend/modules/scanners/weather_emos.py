@@ -392,7 +392,7 @@ def save_calibration_states(
             try:
                 db.rollback()
             except Exception:
-                pass
+                logger.exception("Failed to rollback DB after calibration commit failure")
             raise
     except Exception as e:
         logger.warning(f"Could not save calibration states: {e}")

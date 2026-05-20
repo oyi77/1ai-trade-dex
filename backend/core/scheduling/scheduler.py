@@ -983,7 +983,7 @@ def start_scheduler():
         f"improvement_cycle={agi_cycle_interval}h" if _agi_cycle_enabled else "improvement_cycle=DISABLED",
         f"health_check={getattr(settings, 'AGI_HEALTH_CHECK_INTERVAL_MINUTES', 15)}min" if _agi_health_enabled else "health_check=DISABLED",
         f"self_tune={agi_self_tune_interval}min",
-        f"shadow_validate=5min" if _agi_shadow_enabled else "shadow_validate=DISABLED",
+        "shadow_validate=5min" if _agi_shadow_enabled else "shadow_validate=DISABLED",
     ]
     logger.info(
         "[AGI Scheduler] All AGI jobs registered: %s",

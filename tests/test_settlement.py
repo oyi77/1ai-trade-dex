@@ -23,22 +23,32 @@ def make_trade(**kwargs) -> Trade:
 
 
 def pnl_win(size: float, entry: float) -> float:
-    """Expected P&L on a win.
+    """Expected P&L on a win (with Polymarket taker fee).
 
     Pipeline stores `size` as DOLLAR AMOUNT. calculate_pnl converts
-    dollars to shares: shares = size / entry_price.
-    Net profit = (1 - entry_price) * shares = (1 - entry_price) * (size / entry_price).
+    dollars to shares: shares = dollar_cost / entry_price.
+    Fee = (100/10000) * min(entry, 1-entry) * size
+    dollar_cost = size + fee
+    Net profit = shares - dollar_cost.
     """
-    shares = size / entry
-    return round((1.0 - entry) * shares, 2)
+    fee_bps = 100
+    uncertainty = min(entry, 1.0 - entry)
+    fee = (fee_bps / 10000.0) * uncertainty * size
+    dollar_cost = size + fee
+    shares = dollar_cost / entry
+    return round(shares - dollar_cost, 2)
 
 
 def pnl_loss(size: float, entry: float) -> float:
-    """Expected P&L on a loss.
+    """Expected P&L on a loss (with Polymarket taker fee).
 
-    shares = size / entry_price. Loss = -(entry_price * shares) = -size.
+    dollar_cost = size + fee. Loss = -dollar_cost.
     """
-    return round(-size, 2)
+    fee_bps = 100
+    uncertainty = min(entry, 1.0 - entry)
+    fee = (fee_bps / 10000.0) * uncertainty * size
+    dollar_cost = size + fee
+    return round(-dollar_cost, 2)
 
 
 class TestCalculatePnl:
@@ -144,7 +154,7 @@ class TestCheckMarketSettlement:
     async def test_settled_trade_returns_pnl(self):
         trade = make_trade(direction="up", entry_price=0.60, size=100.0)
 
-        with patch("backend.core.settlement_helpers.fetch_polymarket_resolution", new_callable=AsyncMock) as mock_fetch:
+        with patch("backend.core.settlement.settlement_helpers.fetch_polymarket_resolution", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = (True, 1.0)
             is_settled, settlement_value, pnl = await check_market_settlement(trade)
 
@@ -156,7 +166,7 @@ class TestCheckMarketSettlement:
     async def test_unresolved_market_returns_none(self):
         trade = make_trade(direction="up", entry_price=0.60, size=100.0)
 
-        with patch("backend.core.settlement_helpers.fetch_polymarket_resolution", new_callable=AsyncMock) as mock_fetch:
+        with patch("backend.core.settlement.settlement_helpers.fetch_polymarket_resolution", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = (False, None)
             is_settled, settlement_value, pnl = await check_market_settlement(trade)
 
