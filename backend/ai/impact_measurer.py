@@ -164,13 +164,10 @@ class ImpactMeasurer:
         avg_pnl = np.mean(pnls)
         std_pnl = np.std(pnls) if len(pnls) > 1 else 0.0
 
-        # Calculate Sharpe ratio (annualized, assuming 5-min trades)
-        # Sharpe = (mean_return / std_return) * sqrt(periods_per_year)
-        # For 5-min intervals: 12 per hour * 24 hours * 365 days = 105,120 periods/year
-        if std_pnl > 0:
-            sharpe_ratio = (avg_pnl / std_pnl) * np.sqrt(105120)
-        else:
-            sharpe_ratio = 0.0
+# Calculate Sharpe ratio (annualized based on trading days)
+        # If we had bankroll info: sharpe = (avg_return / std_return) * sqrt(252)
+        # Fallback to dollar Sharpe ratio but with proper annualization
+        sharpe_ratio = (avg_pnl / std_pnl * np.sqrt(252)) if std_pnl > 0 else 0.0
 
         # Calculate win rate
         wins = sum(1 for t in settled_trades if t.result == 'win')

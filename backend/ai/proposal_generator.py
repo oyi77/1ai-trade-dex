@@ -133,7 +133,8 @@ class ProposalGenerator:
         losing_trades = sum(1 for t in trades if t.pnl and t.pnl <= 0)
 
         total_pnl = sum(t.pnl for t in trades if t.pnl is not None)
-        avg_pnl = total_pnl / total_trades if total_trades > 0 else 0.0
+        settled_count = len([t for t in trades if t.pnl is not None])
+        avg_pnl = total_pnl / settled_count if settled_count > 0 else 0.0
 
         win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
 

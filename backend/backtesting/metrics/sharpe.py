@@ -58,7 +58,7 @@ class SharpeRatioMetrics(BaseBacktestMetrics):
         if std_return == 0:
             sharpe_ratio = 0.0
         else:
-            sharpe_ratio = mean_return / std_return
+            sharpe_ratio = (mean_return / std_return) * np.sqrt(252)
 
         negative_returns = returns_array[returns_array < 0]
         if len(negative_returns) > 0:

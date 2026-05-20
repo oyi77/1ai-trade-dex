@@ -147,7 +147,7 @@ class TradeJournal:
             summary.total_trades = len(trades)
             pnls = [t.pnl for t in trades if t.pnl is not None]
             summary.total_pnl = sum(pnls)
-            summary.volume = sum(t.size for t in trades if t.size)
+            summary.volume = sum(abs(t.size) * (t.entry_price or 0.5) for t in trades if t.size)
 
             settled = [t for t in trades if t.pnl is not None]
             summary.wins = sum(1 for t in settled if t.pnl > 0)

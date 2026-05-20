@@ -88,7 +88,6 @@ class PaperSlippageSimulator:
         base_slippage_bps = float(self._get_setting("PAPER_SLIPPAGE_BPS", 0.0, db))
         min_slippage_bps = float(self._get_setting("PAPER_MIN_SLIPPAGE_BPS", 5.0, db))
         size_impact_factor = float(self._get_setting("PAPER_SIZE_IMPACT_FACTOR", 0.5, db))
-        clob_fee_rate = float(self._get_setting("PAPER_CLOB_FEE_RATE", 0.02, db))
         min_depth_usd = float(self._get_setting("PAPER_MIN_DEPTH_USD", 0.0, db))
         random_slippage = bool(self._get_setting("PAPER_RANDOM_SLIPPAGE", False, db))
 
@@ -134,14 +133,8 @@ class PaperSlippageSimulator:
         # Clamp price to Polymarket bounds [0.01, 0.99]
         fill_price = max(0.01, min(0.99, fill_price))
 
-        # Polymarket CLOB fee: 2% on winning proceeds (payout - cost), not on expected profit
-        # For BUY at fill_price: cost = size, payout = size / fill_price, fee = (payout - cost) * 2%
-        # For SELL: fee is on the proceeds from selling
-        if direction == "BUY":
-            payout = size / fill_price
-            fee_usd = max((payout - size) * clob_fee_rate, size * 0.001)
-        else:
-            fee_usd = max(size * clob_fee_rate, size * 0.001)
+        # No fees charged at entry. Fees are handled separately at settlement.
+        fee_usd = 0.0
 
         return {
             "fill_price": fill_price,

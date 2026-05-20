@@ -72,7 +72,7 @@ class LimitlessProvider(BaseMarketProvider):
                 filled_size=Decimal("0"),
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=order.size,
-                fees_paid=Decimal("0"),
+                fees_paid=Decimal(str(result.get("fee", "0"))), # TODO: Verify if 'fee' is the correct field name in API response
             )
         except Exception as exc:
             logger.exception("Limitless order failed")

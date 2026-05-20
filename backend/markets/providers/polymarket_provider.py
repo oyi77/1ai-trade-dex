@@ -89,6 +89,7 @@ class PolymarketProvider(BaseMarketProvider):
         fill_price = Decimal(str(result.fill_price)) if result.fill_price is not None else price
         remaining = Decimal("0") if filled_size else order.size
         status = OrderStatus.FILLED if filled_size else OrderStatus.OPEN
+        fees_paid = Decimal(str(getattr(result, 'fee', 0) or 0))
         return NormalizedOrderResult(
             venue_order_id=result.order_id or f"polymarket_{uuid.uuid4().hex}",
             client_order_id=order.client_order_id,
@@ -96,7 +97,7 @@ class PolymarketProvider(BaseMarketProvider):
             filled_size=filled_size,
             filled_avg_price=fill_price if filled_size else None,
             remaining_size=remaining,
-            fees_paid=Decimal("0"),
+            fees_paid=fees_paid,
             raw={"idempotency_key": result.idempotency_key},
         )
 

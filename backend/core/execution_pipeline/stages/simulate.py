@@ -59,10 +59,10 @@ class PaperSimulationStage(BaseExecutionStage):
 
         if state:
             if mode == "paper" and hasattr(state, "paper_bankroll"):
-                state.paper_bankroll = max(0.0, (state.paper_bankroll or 0.0) - adjusted_size)
+                state.paper_bankroll = (state.paper_bankroll or 0.0) - adjusted_size
                 state.paper_trades = (state.paper_trades or 0) + 1
             elif mode == "testnet" and hasattr(state, "testnet_bankroll"):
-                state.testnet_bankroll = max(0.0, (state.testnet_bankroll or 0.0) - adjusted_size)
+                state.testnet_bankroll = (state.testnet_bankroll or 0.0) - adjusted_size
                 state.testnet_trades = (state.testnet_trades or 0) + 1
 
     def validate(self, decision, ctx):

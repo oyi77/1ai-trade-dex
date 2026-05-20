@@ -74,10 +74,12 @@ class ShadowRunner:
                 (trade.direction == "up" and settlement_value == 1.0)
                 or (trade.direction == "down" and settlement_value == 0.0)
             )
+            from backend.config import settings
+            fee_rate = getattr(settings, 'TAKER_FEE_RATE', 0.02)
             if direction_won:
-                trade.pnl = (1.0 - trade.entry_price) * trade.size
+                trade.pnl = round((1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2)
             else:
-                trade.pnl = -trade.entry_price * trade.size
+                trade.pnl = round(-trade.entry_price * trade.size * (1.0 + fee_rate), 2)
             logger.info(
                 "Shadow trade settled: %s %s pnl=%.4f",
                 trade.market_ticker,

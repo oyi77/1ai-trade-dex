@@ -604,6 +604,9 @@ def _mode_update_values(
         )
     elif report_live_sync_error := getattr(state, "last_live_sync_error", None):
         values["last_live_sync_error"] = report_live_sync_error
+    else:
+        values["track_bankroll_realtime"] = bankroll
+        values["track_pnl_realtime"] = total_pnl
     return values
 
 
@@ -640,10 +643,11 @@ def _build_report(
             warnings.append("PM total equity unavailable; live bankroll cache was not changed")
         else:
             new_bankroll = round(float(pm_portfolio_value), 2)
-            # Use realized_pnl from settled trades (same as paper/testnet).
-            # Do NOT use (bankroll - live_initial_bankroll): that would count
-            # deposits as profit whenever the user adds funds after the initial deposit.
-            new_total_pnl = realized_pnl
+            # For live mode, total_pnl must equal bankroll - initial_bankroll
+            # so the dashboard shows real wallet performance, not simulated
+            # trade.pnl sums which use incorrect fee models.
+            initial = _initial_bankroll_for_mode("live", state=state)
+            new_total_pnl = round(new_bankroll - initial, 2)
     else:
         derived_bankroll = round(_initial_bankroll_for_mode(mode, state=state) + realized_pnl - open_exposure, 2)
         new_bankroll = round(_available_bankroll_for_mode(mode, derived_bankroll), 2)

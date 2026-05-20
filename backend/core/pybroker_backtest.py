@@ -34,7 +34,7 @@ class PyBrokerConfig:
     min_edge: float = 0.02
     max_drawdown_pct: float = 0.25  # 25% max drawdown
     daily_loss_limit: float = 100.0
-    commission_bps: float = 10.0  # basis points per side
+    commission_bps: float = 200.0  # basis points per side (2% Polymarket taker fee)
 
 
 @dataclass

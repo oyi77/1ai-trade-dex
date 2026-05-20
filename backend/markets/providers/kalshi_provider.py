@@ -60,7 +60,7 @@ class KalshiProvider(BaseMarketProvider):
                 filled_size=order.size,
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=Decimal("0"),
-                fees_paid=Decimal("0"),
+            fees_paid=fees_paid,
             )
 
         if order.price is None:
@@ -81,6 +81,7 @@ class KalshiProvider(BaseMarketProvider):
         )
         status = self._map_status(str(order_result.get("status", "open")))
         filled_size = Decimal(str(order_result.get("filled_count", order_result.get("filled_count_fp", 0))))
+        fees_paid = Decimal(str(order_result.get("fees", order_result.get("fee", 0))))
         remaining_size = max(order.size - filled_size, Decimal("0"))
         return NormalizedOrderResult(
             venue_order_id=venue_order_id,
@@ -89,7 +90,7 @@ class KalshiProvider(BaseMarketProvider):
             filled_size=filled_size,
             filled_avg_price=order.price if filled_size else None,
             remaining_size=remaining_size,
-            fees_paid=Decimal("0"),
+            fees_paid=fees_paid,
             raw=response,
         )
 
