@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 from backend.models.database import Base, SessionLocal
 
 from loguru import logger
+
+
 class RiskProfileRow(Base):
     __tablename__ = "risk_profiles"
 
@@ -76,11 +78,18 @@ class RiskProfile:
 
 PRESETS: Dict[str, RiskProfile] = {
     "safe": RiskProfile(
-        name="safe", display_name="Safe", is_preset=True,
-        kelly_fraction=0.10, min_edge_threshold=0.40, max_trade_size=3.0,
-        max_position_fraction=0.03, max_total_exposure_fraction=0.30,
-        daily_loss_limit=2.0, daily_drawdown_limit_pct=0.05,
-        weekly_drawdown_limit_pct=0.10, slippage_tolerance=0.01,
+        name="safe",
+        display_name="Safe",
+        is_preset=True,
+        kelly_fraction=0.10,
+        min_edge_threshold=0.40,
+        max_trade_size=3.0,
+        max_position_fraction=0.03,
+        max_total_exposure_fraction=0.30,
+        daily_loss_limit=2.0,
+        daily_drawdown_limit_pct=0.05,
+        weekly_drawdown_limit_pct=0.10,
+        slippage_tolerance=0.01,
         auto_approve_min_confidence=0.70,
         daily_loss_limit_pct=0.05,
         longshot_no_bias_weight=0.05,
@@ -88,58 +97,95 @@ PRESETS: Dict[str, RiskProfile] = {
     # conservative sits between safe and normal — suitable for strategies that
     # have passed paper validation but haven't yet proven live performance.
     "conservative": RiskProfile(
-        name="conservative", display_name="Conservative", is_preset=True,
-        kelly_fraction=0.20, min_edge_threshold=0.35, max_trade_size=5.0,
-        max_position_fraction=0.05, max_total_exposure_fraction=0.50,
-        daily_loss_limit=3.0, daily_drawdown_limit_pct=0.07,
-        weekly_drawdown_limit_pct=0.15, slippage_tolerance=0.015,
+        name="conservative",
+        display_name="Conservative",
+        is_preset=True,
+        kelly_fraction=0.20,
+        min_edge_threshold=0.35,
+        max_trade_size=5.0,
+        max_position_fraction=0.05,
+        max_total_exposure_fraction=0.50,
+        daily_loss_limit=3.0,
+        daily_drawdown_limit_pct=0.07,
+        weekly_drawdown_limit_pct=0.15,
+        slippage_tolerance=0.015,
         auto_approve_min_confidence=0.60,
         daily_loss_limit_pct=0.07,
         longshot_no_bias_weight=0.07,
     ),
     "normal": RiskProfile(
-        name="normal", display_name="Normal", is_preset=True,
-        kelly_fraction=0.30, min_edge_threshold=0.30, max_trade_size=8.0,
-        max_position_fraction=0.08, max_total_exposure_fraction=0.70,
-        daily_loss_limit=5.0, daily_drawdown_limit_pct=0.10,
-        weekly_drawdown_limit_pct=0.20, slippage_tolerance=0.02,
+        name="normal",
+        display_name="Normal",
+        is_preset=True,
+        kelly_fraction=0.30,
+        min_edge_threshold=0.30,
+        max_trade_size=8.0,
+        max_position_fraction=0.08,
+        max_total_exposure_fraction=0.70,
+        daily_loss_limit=5.0,
+        daily_drawdown_limit_pct=0.10,
+        weekly_drawdown_limit_pct=0.20,
+        slippage_tolerance=0.02,
         auto_approve_min_confidence=0.50,
         daily_loss_limit_pct=0.10,
         longshot_no_bias_weight=0.10,
     ),
     "aggressive": RiskProfile(
-        name="aggressive", display_name="Aggressive", is_preset=True,
-        kelly_fraction=0.50, min_edge_threshold=0.15, max_trade_size=20.0,
-        max_position_fraction=0.15, max_total_exposure_fraction=0.85,
-        daily_loss_limit=15.0, daily_drawdown_limit_pct=0.20,
-        weekly_drawdown_limit_pct=0.35, slippage_tolerance=0.03,
+        name="aggressive",
+        display_name="Aggressive",
+        is_preset=True,
+        kelly_fraction=0.50,
+        min_edge_threshold=0.15,
+        max_trade_size=20.0,
+        max_position_fraction=0.15,
+        max_total_exposure_fraction=0.85,
+        daily_loss_limit=15.0,
+        daily_drawdown_limit_pct=0.20,
+        weekly_drawdown_limit_pct=0.35,
+        slippage_tolerance=0.03,
         auto_approve_min_confidence=0.35,
         daily_loss_limit_pct=0.20,
         longshot_no_bias_weight=0.12,
     ),
     "extreme": RiskProfile(
-        name="extreme", display_name="Extreme", is_preset=True,
-        kelly_fraction=0.80, min_edge_threshold=0.05, max_trade_size=50.0,
-        max_position_fraction=0.25, max_total_exposure_fraction=0.95,
-        daily_loss_limit=40.0, daily_drawdown_limit_pct=0.40,
-        weekly_drawdown_limit_pct=0.60, slippage_tolerance=0.05,
+        name="extreme",
+        display_name="Extreme",
+        is_preset=True,
+        kelly_fraction=0.80,
+        min_edge_threshold=0.05,
+        max_trade_size=50.0,
+        max_position_fraction=0.25,
+        max_total_exposure_fraction=0.95,
+        daily_loss_limit=40.0,
+        daily_drawdown_limit_pct=0.40,
+        weekly_drawdown_limit_pct=0.60,
+        slippage_tolerance=0.05,
         auto_approve_min_confidence=0.20,
         daily_loss_limit_pct=0.40,
-        daily_loss_floor_pct=-0.40, weekly_loss_floor_pct=-0.60,
+        daily_loss_floor_pct=-0.40,
+        weekly_loss_floor_pct=-0.60,
         longshot_no_bias_weight=0.15,
     ),
     # crazy tier is for unlimited paper experimentation only. BankrollAllocator
     # caps live allocation at 1% of bankroll for crazy-tier strategies.
     # FronttestValidator skips the 14-day minimum gate for crazy-tier.
     "crazy": RiskProfile(
-        name="crazy", display_name="Crazy (Experimental)", is_preset=True,
-        kelly_fraction=1.00, min_edge_threshold=0.01, max_trade_size=100.0,
-        max_position_fraction=0.50, max_total_exposure_fraction=1.00,
-        daily_loss_limit=100.0, daily_drawdown_limit_pct=0.80,
-        weekly_drawdown_limit_pct=0.95, slippage_tolerance=0.10,
+        name="crazy",
+        display_name="Crazy (Experimental)",
+        is_preset=True,
+        kelly_fraction=1.00,
+        min_edge_threshold=0.01,
+        max_trade_size=100.0,
+        max_position_fraction=0.50,
+        max_total_exposure_fraction=1.00,
+        daily_loss_limit=100.0,
+        daily_drawdown_limit_pct=0.80,
+        weekly_drawdown_limit_pct=0.95,
+        slippage_tolerance=0.10,
         auto_approve_min_confidence=0.10,
         daily_loss_limit_pct=0.80,
-        daily_loss_floor_pct=-0.80, weekly_loss_floor_pct=-0.95,
+        daily_loss_floor_pct=-0.80,
+        weekly_loss_floor_pct=-0.95,
         longshot_no_bias_weight=0.20,
     ),
 }
@@ -151,12 +197,12 @@ DEFAULT_PROFILE = "normal"
 # "moderate" cap.  "crazy" is intentionally capped at 1% for live trading;
 # paper/shadow experiments are uncapped by design.
 RISK_TIER_MAX_ALLOCATION: Dict[str, float] = {
-    "safe":         0.50,
+    "safe": 0.50,
     "conservative": 0.30,
-    "moderate":     0.20,
-    "aggressive":   0.15,
-    "extreme":      0.05,
-    "crazy":        0.01,
+    "moderate": 0.20,
+    "aggressive": 0.15,
+    "extreme": 0.05,
+    "crazy": 0.01,
 }
 
 
@@ -185,7 +231,9 @@ def get_active_profile_name() -> str:
     return os.environ.get("RISK_PROFILE", DEFAULT_PROFILE)
 
 
-def get_profile(name: Optional[str] = None, db: Optional[Session] = None) -> RiskProfile:
+def get_profile(
+    name: Optional[str] = None, db: Optional[Session] = None
+) -> RiskProfile:
     key = name or get_active_profile_name()
     _owned = db is None
     db = db or SessionLocal()
@@ -208,7 +256,9 @@ def get_profile(name: Optional[str] = None, db: Optional[Session] = None) -> Ris
     preset = PRESETS.get(key)
     if preset:
         return preset
-    logger.warning(f"[risk_profiles] Unknown profile '{key}', falling back to '{DEFAULT_PROFILE}'")
+    logger.warning(
+        f"[risk_profiles] Unknown profile '{key}', falling back to '{DEFAULT_PROFILE}'"
+    )
     return PRESETS[DEFAULT_PROFILE]
 
 
@@ -223,7 +273,9 @@ def list_profiles(db: Optional[Session] = None) -> Dict[str, RiskProfile]:
     except Exception as exc:
         _rollback_read_failure(db)
         if _is_missing_risk_profiles_table_error(exc):
-            logger.warning("[risk_profiles] risk_profiles table missing; serving preset profiles only")
+            logger.warning(
+                "[risk_profiles] risk_profiles table missing; serving preset profiles only"
+            )
         else:
             logger.exception("[risk_profiles] Failed to list profiles from database")
     finally:
@@ -256,7 +308,9 @@ def create_profile(profile: RiskProfile, db: Optional[Session] = None) -> RiskPr
             db.close()
 
 
-def update_profile(name: str, updates: dict, db: Optional[Session] = None) -> RiskProfile:
+def update_profile(
+    name: str, updates: dict, db: Optional[Session] = None
+) -> RiskProfile:
     _owned = db is None
     db = db or SessionLocal()
     try:
@@ -307,7 +361,9 @@ def delete_profile(name: str, db: Optional[Session] = None) -> bool:
             db.close()
 
 
-def apply_profile(name: Optional[str] = None, db: Optional[Session] = None) -> RiskProfile:
+def apply_profile(
+    name: Optional[str] = None, db: Optional[Session] = None
+) -> RiskProfile:
     from backend.config import settings
 
     profile = get_profile(name, db=db)
@@ -328,7 +384,9 @@ def apply_profile(name: Optional[str] = None, db: Optional[Session] = None) -> R
 
     _persist_profile_name(profile.name)
 
-    logger.info(f"[risk_profiles] Applied profile '{profile.display_name}' to runtime settings")
+    logger.info(
+        f"[risk_profiles] Applied profile '{profile.display_name}' to runtime settings"
+    )
     return profile
 
 

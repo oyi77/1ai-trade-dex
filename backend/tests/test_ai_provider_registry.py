@@ -1,4 +1,5 @@
 """Test suite for AI provider registry."""
+
 import pytest
 
 from backend.ai.base_provider import BaseAIProvider, ProviderManifest
@@ -21,7 +22,9 @@ class MockAIProvider(BaseAIProvider):
             tags=["test", "cheap"],
         )
 
-    async def complete(self, prompt, system=None, max_tokens=1000, temperature=0.7, **kwargs):
+    async def complete(
+        self, prompt, system=None, max_tokens=1000, temperature=0.7, **kwargs
+    ):
         return "mock response"
 
 
@@ -36,7 +39,9 @@ class EnvAIProvider(BaseAIProvider):
             tags=["test"],
         )
 
-    async def complete(self, prompt, system=None, max_tokens=1000, temperature=0.7, **kwargs):
+    async def complete(
+        self, prompt, system=None, max_tokens=1000, temperature=0.7, **kwargs
+    ):
         return "env response"
 
 
@@ -117,6 +122,3 @@ def test_get_best_provider_returns_best():
     registry.set_enabled("better_provider", False)
     provider = registry.get_best_provider(["nonexistent"])
     assert provider is None
-
-
-

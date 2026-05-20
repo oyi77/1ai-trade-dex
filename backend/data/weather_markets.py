@@ -1,4 +1,5 @@
 """Weather temperature market fetcher from Polymarket."""
+
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -8,13 +9,32 @@ from backend.core.market_scanner import fetch_markets_by_keywords
 from backend.data.market_types import UnifiedMarketView
 
 from loguru import logger
+
 # Month name to number
 MONTH_MAP = {
-    "january": 1, "february": 2, "march": 3, "april": 4,
-    "may": 5, "june": 6, "july": 7, "august": 8,
-    "september": 9, "october": 10, "november": 11, "december": 12,
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4,
-    "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 
 _DEFAULT_WEATHER_KEYWORDS = [
@@ -29,6 +49,7 @@ _DEFAULT_WEATHER_KEYWORDS = [
 @dataclass
 class WeatherMarket:
     """A weather temperature prediction market."""
+
     slug: str
     market_id: str
     platform: str
@@ -36,11 +57,11 @@ class WeatherMarket:
     city_key: str
     city_name: str
     target_date: date
-    threshold_f: float       # Temperature threshold in Fahrenheit
-    metric: str              # "high" or "low"
-    direction: str           # "above" or "below"
-    yes_price: float         # Price of YES outcome (0-1)
-    no_price: float          # Price of NO outcome (0-1)
+    threshold_f: float  # Temperature threshold in Fahrenheit
+    metric: str  # "high" or "low"
+    direction: str  # "above" or "below"
+    yes_price: float  # Price of YES outcome (0-1)
+    no_price: float  # Price of NO outcome (0-1)
     volume: float = 0.0
     closed: bool = False
 
@@ -52,7 +73,9 @@ class WeatherMarket:
         BtcMarket and WeatherMarket remain independent domain models.
         """
         # Convert date to datetime for closes_at (end of day UTC)
-        closes_at = datetime.combine(self.target_date, datetime.min.time()).replace(tzinfo=None)
+        closes_at = datetime.combine(self.target_date, datetime.min.time()).replace(
+            tzinfo=None
+        )
 
         return UnifiedMarketView(
             slug=self.slug,
@@ -93,12 +116,34 @@ def _extract_city_from_title(title: str) -> Optional[str]:
     import re as _re
 
     # Words to skip when they appear after "in"
-    _SKIP_WORDS = frozenset({
-        "The", "This", "Which", "What", "How", "March", "April", "May",
-        "June", "July", "August", "September", "October", "November",
-        "December", "January", "February", "Fahrenheit", "Celsius",
-        "Addition", "Total", "Fact", "Order", "General",
-    })
+    _SKIP_WORDS = frozenset(
+        {
+            "The",
+            "This",
+            "Which",
+            "What",
+            "How",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+            "January",
+            "February",
+            "Fahrenheit",
+            "Celsius",
+            "Addition",
+            "Total",
+            "Fact",
+            "Order",
+            "General",
+        }
+    )
 
     # Pattern A: "<CityName>'s" — e.g. "Miami's low", "Dallas's high"
     # Match a single capitalized word directly before 's.
@@ -111,9 +156,7 @@ def _extract_city_from_title(title: str) -> Optional[str]:
             return candidate
 
     # Pattern B: "in <CityName>" — most common (handles multi-word cities)
-    m = _re.search(
-        r'\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)', title
-    )
+    m = _re.search(r"\bin\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", title)
     if m:
         candidate = m.group(1).strip()
         if candidate not in _SKIP_WORDS:
@@ -121,7 +164,10 @@ def _extract_city_from_title(title: str) -> Optional[str]:
 
     # Pattern C: Title starts with city name (handles ALL-CAPS like "NYC")
     # e.g. "NYC high temperature above 80°F" or "Chicago daily high over 60°F"
-    m = _re.match(r'^([A-Z][A-Za-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:daily|high|low|temperature|temp)', title)
+    m = _re.match(
+        r"^([A-Z][A-Za-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:daily|high|low|temperature|temp)",
+        title,
+    )
     if m:
         return m.group(1).strip()
 
@@ -146,7 +192,10 @@ def _parse_weather_market_title(title: str) -> Optional[dict]:
     title_lower = title.lower()
 
     # Must be temperature-related
-    if not any(kw in title_lower for kw in ["temperature", "temp", "°f", "degrees", "high", "low"]):
+    if not any(
+        kw in title_lower
+        for kw in ["temperature", "temp", "°f", "degrees", "high", "low"]
+    ):
         return None
 
     # ── Extract city name from title ──────────────────────────────────
@@ -180,9 +229,9 @@ def _parse_weather_market_title(title: str) -> Optional[dict]:
         city_key = _slugify_city(city_name_raw)
 
     # Extract threshold temperature
-    temp_match = re.search(r'(\d+)\s*°?\s*f', title_lower)
+    temp_match = re.search(r"(\d+)\s*°?\s*f", title_lower)
     if not temp_match:
-        temp_match = re.search(r'(\d+)\s*degrees', title_lower)
+        temp_match = re.search(r"(\d+)\s*degrees", title_lower)
     if not temp_match:
         return None
     threshold_f = float(temp_match.group(1))
@@ -220,7 +269,9 @@ def _extract_date(text: str) -> Optional[date]:
     month_names = "|".join(MONTH_MAP.keys())
 
     # Pattern: "March 5, 2026" or "March 5 2026" or "March 5"
-    for match in re.finditer(rf'({month_names})\s+(\d{{1,2}})(?:\s*,?\s*(\d{{4}}))?', text):
+    for match in re.finditer(
+        rf"({month_names})\s+(\d{{1,2}})(?:\s*,?\s*(\d{{4}}))?", text
+    ):
         month_str = match.group(1)
         day = int(match.group(2))
         year = int(match.group(3)) if match.group(3) else today.year
@@ -233,7 +284,7 @@ def _extract_date(text: str) -> Optional[date]:
                 continue
 
     # Pattern: "3/5/2026" or "03/05"
-    match = re.search(r'(\d{1,2})/(\d{1,2})(?:/(\d{4}))?', text)
+    match = re.search(r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?", text)
     if match:
         month = int(match.group(1))
         day = int(match.group(2))
@@ -282,6 +333,7 @@ async def _ensure_market_city_registered(market: WeatherMarket) -> None:
     register it so that forecast fetches will work.
     """
     from backend.data.weather import get_city_config, ensure_city_registered
+
     if get_city_config(market.city_key) is None:
         await ensure_city_registered(market.city_name)
 

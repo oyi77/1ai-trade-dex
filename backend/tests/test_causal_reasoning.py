@@ -1,4 +1,3 @@
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -8,7 +7,11 @@ from backend.core.causal_reasoning import (
     Prediction,
 )
 from backend.core.agi_types import MarketRegime
-from backend.models.kg_models import Base, KGEntity as KGEntityModel, KGRelation as KGRelationModel
+from backend.models.kg_models import (
+    Base,
+    KGEntity as KGEntityModel,
+    KGRelation as KGRelationModel,
+)
 
 
 def make_reasoner_session():
@@ -26,7 +29,9 @@ class TestCausalReasonerWhyTradeFail:
         trade = {"direction": "up", "outcome": "loss", "strategy": "momentum"}
         context = {"regime": "bear"}
         result = reasoner.why_did_trade_fail(trade, context)
-        assert "bear" in result.cause.lower() or "regime mismatch" in result.cause.lower()
+        assert (
+            "bear" in result.cause.lower() or "regime mismatch" in result.cause.lower()
+        )
         assert result.counterfactual is not None
         assert result.confidence > 0.0
 
@@ -35,14 +40,19 @@ class TestCausalReasonerWhyTradeFail:
         trade = {"direction": "down", "outcome": "loss", "strategy": "momentum"}
         context = {"regime": "bull"}
         result = reasoner.why_did_trade_fail(trade, context)
-        assert "bull" in result.cause.lower() or "regime mismatch" in result.cause.lower()
+        assert (
+            "bull" in result.cause.lower() or "regime mismatch" in result.cause.lower()
+        )
 
     def test_loss_with_no_regime_mismatch(self):
         reasoner, _, _ = make_reasoner_session()
         trade = {"direction": "up", "outcome": "loss", "strategy": "momentum"}
         context = {"regime": "bull"}
         result = reasoner.why_did_trade_fail(trade, context)
-        assert "moved against" in result.cause.lower() or "underperformed" in result.cause.lower()
+        assert (
+            "moved against" in result.cause.lower()
+            or "underperformed" in result.cause.lower()
+        )
 
     def test_evidence_includes_trade_info(self):
         reasoner, _, _ = make_reasoner_session()
@@ -56,16 +66,27 @@ class TestCausalReasonerWhyTradeFail:
 class TestCausalReasonerWhyStrategySucceed:
     def test_high_win_rate_strategy(self):
         reasoner, _, _ = make_reasoner_session()
-        trades = [{"outcome": "win"} for _ in range(7)] + [{"outcome": "loss"} for _ in range(3)]
-        result = reasoner.why_did_strategy_succeed("momentum", MarketRegime.BULL, trades)
+        trades = [{"outcome": "win"} for _ in range(7)] + [
+            {"outcome": "loss"} for _ in range(3)
+        ]
+        result = reasoner.why_did_strategy_succeed(
+            "momentum", MarketRegime.BULL, trades
+        )
         assert "aligned" in result.cause.lower() or "bull" in result.cause.lower()
         assert result.confidence > 0.0
 
     def test_low_win_rate_strategy(self):
         reasoner, _, _ = make_reasoner_session()
-        trades = [{"outcome": "loss"} for _ in range(7)] + [{"outcome": "win"} for _ in range(3)]
-        result = reasoner.why_did_strategy_succeed("momentum", MarketRegime.BULL, trades)
-        assert "underperformed" in result.cause.lower() or "different" in result.cause.lower()
+        trades = [{"outcome": "loss"} for _ in range(7)] + [
+            {"outcome": "win"} for _ in range(3)
+        ]
+        result = reasoner.why_did_strategy_succeed(
+            "momentum", MarketRegime.BULL, trades
+        )
+        assert (
+            "underperformed" in result.cause.lower()
+            or "different" in result.cause.lower()
+        )
 
 
 class TestCausalReasonerWhatIf:

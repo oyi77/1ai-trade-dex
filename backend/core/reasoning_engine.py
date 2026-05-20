@@ -4,21 +4,26 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 from loguru import logger
 
+
 @dataclass(frozen=True)
 class ReasoningContext:
     """Context for the reasoning process."""
+
     domain: str
     query: str
     evidence: list[Any] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
 
+
 @dataclass(frozen=True)
 class ReasoningResult:
     """The outcome of a reasoning process."""
+
     conclusion: str
     confidence: float
     trace: list[str] = field(default_factory=list)
     supporting_evidence: list[Any] = field(default_factory=list)
+
 
 class ReasoningEngine:
     """
@@ -39,7 +44,9 @@ class ReasoningEngine:
 
         # Basic implementation for the skeleton:
         # In reality, this would orchestrate various reasoning modules
-        trace = [f"Started reasoning for query: {context.query} in domain {context.domain}"]
+        trace = [
+            f"Started reasoning for query: {context.query} in domain {context.domain}"
+        ]
 
         # Simulate reasoning process
         conclusion = f"Processed conclusion for {context.query}"
@@ -52,10 +59,12 @@ class ReasoningEngine:
             conclusion=conclusion,
             confidence=confidence,
             trace=trace,
-            supporting_evidence=context.evidence
+            supporting_evidence=context.evidence,
         )
 
-    def chain_steps(self, steps: list[Callable[[Any], Any]], initial_input: Any) -> ReasoningResult:
+    def chain_steps(
+        self, steps: list[Callable[[Any], Any]], initial_input: Any
+    ) -> ReasoningResult:
         """
         Chain-of-thought execution. Executes a series of functions sequentially,
         passing the output of one as the input to the next.
@@ -66,16 +75,16 @@ class ReasoningEngine:
 
         try:
             for i, step in enumerate(steps):
-                step_name = getattr(step, '__name__', f"step_{i}")
+                step_name = getattr(step, "__name__", f"step_{i}")
                 trace.append(f"Executing {step_name}...")
                 current_val = step(current_val)
                 trace.append(f"Result of {step_name}: {current_val}")
 
             return ReasoningResult(
                 conclusion=str(current_val),
-                confidence=1.0, # Chain success
+                confidence=1.0,  # Chain success
                 trace=trace,
-                supporting_evidence=[]
+                supporting_evidence=[],
             )
         except Exception as e:
             self._logger.error(f"Chain execution failed at step {i}: {e}")
@@ -83,7 +92,7 @@ class ReasoningEngine:
                 conclusion=f"Error during chain execution: {str(e)}",
                 confidence=0.0,
                 trace=trace,
-                supporting_evidence=[]
+                supporting_evidence=[],
             )
 
     def evaluate_hypothesis(self, hypothesis: str, evidence: list[Any]) -> float:
@@ -109,6 +118,8 @@ class ReasoningEngine:
         self._logger.info(f"Generalizing knowledge from {from_domain} to {to_domain}")
 
         # This is a placeholder for formal analogy mapping or transfer learning logic
-        generalized_knowledge = f"Transferred {knowledge} from {from_domain} to {to_domain} context"
+        generalized_knowledge = (
+            f"Transferred {knowledge} from {from_domain} to {to_domain} context"
+        )
 
         return generalized_knowledge

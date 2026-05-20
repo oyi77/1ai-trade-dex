@@ -35,7 +35,9 @@ class TaskManager:
         # Add callback to auto-remove task when done
         task.add_done_callback(self._on_task_done)
 
-        logger.debug(f"TaskManager: created task '{name or task.get_name()}' (total: {len(self.tasks)})")
+        logger.debug(
+            f"TaskManager: created task '{name or task.get_name()}' (total: {len(self.tasks)})"
+        )
 
         return task
 
@@ -79,4 +81,6 @@ class TaskManager:
             if self.tasks:
                 await asyncio.gather(*self.tasks, return_exceptions=True)
 
-        logger.warning(f"TaskManager: shutdown complete, {len(self.tasks)} task(s) remaining")
+        logger.warning(
+            f"TaskManager: shutdown complete, {len(self.tasks)} task(s) remaining"
+        )

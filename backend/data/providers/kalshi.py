@@ -12,7 +12,9 @@ async def fetch_kalshi_markets(limit: int = 100) -> list[dict]:
     """Fetch active Kalshi markets via KalshiClient.get_markets()."""
     client = KalshiClient()
     try:
-        data = await client.get_markets(params={"limit": min(limit, 1000), "status": "open"})
+        data = await client.get_markets(
+            params={"limit": min(limit, 1000), "status": "open"}
+        )
     except Exception as exc:
         logger.warning("_fetch_kalshi_markets error: {}", exc)
         return []
@@ -31,6 +33,7 @@ async def fetch_kalshi_markets(limit: int = 100) -> list[dict]:
         for m in markets
     ]
 
+
 class KalshiProvider(DataProvider):
     @property
     def platform_name(self) -> str:
@@ -44,7 +47,9 @@ class KalshiProvider(DataProvider):
             logger.debug("Kalshi health check failed")
             return False
 
-    async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:
+    async def get_markets(
+        self, category: Optional[str] = None, limit: int = 100
+    ) -> List[MarketEntry]:
         market_dicts = await fetch_kalshi_markets(limit=limit)
         if category:
             market_dicts = [m for m in market_dicts if m.get("category") == category]
@@ -91,7 +96,9 @@ class KalshiProvider(DataProvider):
         locked = float(balance.get("locked", balance.get("exposure", 0.0)))
         return BalanceInfo(available=available, locked=locked, total=available + locked)
 
-    async def place_order(self, market_id: str, side: str, size: float, price: float, **kwargs) -> dict:
+    async def place_order(
+        self, market_id: str, side: str, size: float, price: float, **kwargs
+    ) -> dict:
         client = KalshiClient()
         result = await client.place_order(market_id, side, int(size), price)
         return result if isinstance(result, dict) else {"status": "submitted"}

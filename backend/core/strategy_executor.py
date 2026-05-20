@@ -7,12 +7,23 @@ from typing import Optional
 import threading
 
 from backend.config import settings
-from backend.models.database import Trade, Signal, BotState, StrategyConfig, botstate_mutex
+from backend.models.database import (
+    Trade,
+    Signal,
+    BotState,
+    StrategyConfig,
+    botstate_mutex,
+)
 from backend.core.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
 from backend.core.alert_manager import AlertManager
-from backend.core.validation import TradeValidator, SignalValidator, ValidationError, log_validation_error
+from backend.core.validation import (
+    TradeValidator,
+    SignalValidator,
+    ValidationError,
+    log_validation_error,
+)
 from backend.core.errors import RateLimitError
 from backend.core.external_rate_limiter import TokenBucketRateLimiter
 from backend.core.trade_attempts import TradeAttemptRecorder
@@ -21,6 +32,7 @@ from sqlalchemy import case, func, and_, update
 from sqlalchemy.exc import OperationalError
 
 from loguru import logger
+
 risk_manager = RiskManager()
 
 # Per-asset locks allow concurrent execution across different markets while
@@ -47,6 +59,7 @@ def _get_rate_limiter() -> TokenBucketRateLimiter:
             global_window=1.0,
         )
     return _rate_limiter
+
 
 # Threading lock for BotState mutations inside thread-offloaded execution.
 # Used instead of asyncio.Lock when running in a thread pool.
@@ -77,7 +90,7 @@ def _is_lock_timeout_error(exc: OperationalError) -> bool:
 
 
 def _lock_retry_delay(attempt: int) -> float:
-    return _LOCK_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
+    return _LOCK_RETRY_BASE_DELAY_SECONDS * (2**attempt)
 
 
 def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
@@ -145,13 +158,18 @@ def _fetch_orderbook_depth(token_id: str | None) -> float:
         return 0.0
     try:
         from backend.data.orderbook_cache import get_orderbook_cache
+
         cache = get_orderbook_cache()
         # Access internal cache dict directly (sync context, no async lock needed)
         book = cache._cache.get(token_id)
         max_age = getattr(cache, "_max_age", 30.0)
         if book and book.age_seconds < max_age:
-            bid_depth = sum(float(b.get("price", 0)) * float(b.get("size", 0)) for b in book.bids)
-            ask_depth = sum(float(a.get("price", 0)) * float(a.get("size", 0)) for a in book.asks)
+            bid_depth = sum(
+                float(b.get("price", 0)) * float(b.get("size", 0)) for b in book.bids
+            )
+            ask_depth = sum(
+                float(a.get("price", 0)) * float(a.get("size", 0)) for a in book.asks
+            )
             return bid_depth + ask_depth
     except Exception as e:
         logger.debug("orderbook depth fetch failed for %s: %s", token_id, e)
@@ -191,7 +209,9 @@ def _record_unexpected_attempt_failure(
         try:
             db.rollback()
         except Exception:
-            logger.exception("[strategy_executor] db.rollback failed after TradeAttempt record failure")
+            logger.exception(
+                "[strategy_executor] db.rollback failed after TradeAttempt record failure"
+            )
         logger.opt(exception=True).warning(
             "[strategy_executor.execute_decision] failed to record unexpected TradeAttempt failure: %s",
             record_exc,
@@ -279,7 +299,11 @@ def _execute_decision_paper_or_kalshi(
                     f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
                 )
 
-                strategy_config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+                strategy_config = (
+                    db.query(StrategyConfig)
+                    .filter_by(strategy_name=strategy_name)
+                    .first()
+                )
                 if not strategy_config or not strategy_config.enabled:
                     logger.warning(
                         f"[{strategy_name}] Skipping execution as strategy is disabled or missing in config"
@@ -300,10 +324,11 @@ def _execute_decision_paper_or_kalshi(
                 return None
 
             # --- G-16: Cooldown after consecutive losses ---
-            cooldown_losses = getattr(settings, 'COOLDOWN_CONSECUTIVE_LOSSES', 3)
-            cooldown_minutes = getattr(settings, 'COOLDOWN_MINUTES', 60)
+            cooldown_losses = getattr(settings, "COOLDOWN_CONSECUTIVE_LOSSES", 3)
+            cooldown_minutes = getattr(settings, "COOLDOWN_MINUTES", 60)
             if cooldown_losses > 0:
                 from datetime import timedelta as _td
+
                 recent_trades = (
                     db.query(Trade)
                     .filter(
@@ -316,7 +341,7 @@ def _execute_decision_paper_or_kalshi(
                     .all()
                 )
                 if len(recent_trades) >= cooldown_losses:
-                    all_losses = all(t.result == 'loss' for t in recent_trades)
+                    all_losses = all(t.result == "loss" for t in recent_trades)
                     if all_losses:
                         last_loss_time = recent_trades[0].settlement_time
                         if last_loss_time and last_loss_time.tzinfo is None:
@@ -324,7 +349,9 @@ def _execute_decision_paper_or_kalshi(
                         cooldown_until = last_loss_time + _td(minutes=cooldown_minutes)
                         now_utc = datetime.now(timezone.utc)
                         if now_utc < cooldown_until:
-                            remaining = (cooldown_until - now_utc).total_seconds() / 60.0
+                            remaining = (
+                                cooldown_until - now_utc
+                            ).total_seconds() / 60.0
                             logger.info(
                                 f"[{strategy_name}] Cooldown active: {cooldown_losses} consecutive losses, "
                                 f"pausing for {remaining:.1f} more minutes"
@@ -359,7 +386,8 @@ def _execute_decision_paper_or_kalshi(
                 logger.warning(
                     "[%s] Negative bankroll ($%.2f) detected in thread-offloaded path; "
                     "skipping async reconciliation — using floor $0.00",
-                    mode.upper(), bankroll,
+                    mode.upper(),
+                    bankroll,
                 )
                 bankroll = 0.0
 
@@ -434,6 +462,7 @@ def _execute_decision_paper_or_kalshi(
 
             # --- Stale-market filter: dynamic threshold based on market lifetime ---
             from datetime import timedelta
+
             market_end_date = None
             if market_end_date_str:
                 try:
@@ -441,12 +470,16 @@ def _execute_decision_paper_or_kalshi(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception(f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}")
+                    logger.exception(
+                        f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}"
+                    )
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
                 # Dynamic threshold: 2 min for short-lived (5m/15m) markets, 60 min otherwise
-                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(market_ticker)
+                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(
+                    market_ticker
+                )
                 _stale_threshold = 2.0 if _is_short_lived else 60.0
                 if _time_to_resolution < _stale_threshold:
                     logger.info(
@@ -524,7 +557,7 @@ def _execute_decision_paper_or_kalshi(
                     direction=direction,
                     market_ticker=market_ticker,
                     orderbook_depth_usd=orderbook_depth_usd,
-                    db=db
+                    db=db,
                 )
 
                 if simulation_result["rejected"]:
@@ -553,6 +586,7 @@ def _execute_decision_paper_or_kalshi(
             if is_kalshi and mode in ("testnet", "live"):
                 try:
                     from backend.markets.provider_registry import market_registry
+
                     _client = market_registry.get("kalshi")
                     logger.info(
                         f"[{mode.upper()}][{strategy_name}] Kalshi order via registry for {market_ticker}"
@@ -564,6 +598,7 @@ def _execute_decision_paper_or_kalshi(
                     )
                     try:
                         from backend.data.kalshi_client import KalshiClient
+
                         _client = KalshiClient()
                     except Exception as legacy_err:
                         logger.error(
@@ -586,13 +621,21 @@ def _execute_decision_paper_or_kalshi(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception("[strategy_executor] failed to parse market_end_date for trade recording")
+                    logger.exception(
+                        "[strategy_executor] failed to parse market_end_date for trade recording"
+                    )
 
-            slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
+            slippage = (
+                abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
+            )
             fee = None
 
             if mode == "paper":
-                if 'simulation_result' in dir() and simulation_result and not simulation_result.get("rejected", True):
+                if (
+                    "simulation_result" in dir()
+                    and simulation_result
+                    and not simulation_result.get("rejected", True)
+                ):
                     fee = simulation_result.get("fee_usd", 0.0)
 
             trade_data = {
@@ -649,6 +692,7 @@ def _execute_decision_paper_or_kalshi(
             db.flush()
 
             from backend.models.audit_logger import log_trade_created
+
             log_trade_created(
                 db=db,
                 trade_id=trade.id,
@@ -685,7 +729,9 @@ def _execute_decision_paper_or_kalshi(
             try:
                 SignalValidator.validate_signal_data(signal_data)
             except ValidationError as e:
-                log_validation_error(e, context=f"execute_decision:signal:{strategy_name}")
+                log_validation_error(
+                    e, context=f"execute_decision:signal:{strategy_name}"
+                )
                 logger.error(f"[{strategy_name}] Signal validation failed: {e.message}")
                 attempt_recorder.record_rejected(
                     f"Signal validation failed: {e.message}",
@@ -765,6 +811,7 @@ def _execute_decision_paper_or_kalshi(
 
             try:
                 from backend.core.event_bus import publish_event
+
                 publish_event(
                     "trade_executed",
                     {
@@ -855,7 +902,10 @@ async def execute_decision(
             # Paper/testnet/Kalshi: no async CLOB calls — offload entirely to thread
             is_live_clob = (
                 mode == "live"
-                and not (decision.get("market_ticker", "").startswith("KX") or decision.get("platform") == "kalshi")
+                and not (
+                    decision.get("market_ticker", "").startswith("KX")
+                    or decision.get("platform") == "kalshi"
+                )
                 and decision.get("token_id") is not None
             )
             for lock_attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
@@ -865,17 +915,25 @@ async def execute_decision(
                             # db was provided (e.g. in tests) — run synchronously to
                             # avoid crossing thread boundaries with a caller-owned session
                             return _execute_decision_paper_or_kalshi(
-                                decision, strategy_name, mode, db,
+                                decision,
+                                strategy_name,
+                                mode,
+                                db,
                             )
                         return await asyncio.to_thread(
                             _execute_decision_paper_or_kalshi,
-                            decision, strategy_name, mode,
+                            decision,
+                            strategy_name,
+                            mode,
                         )
 
                     # Live mode with CLOB: must stay on event loop for async HTTP calls
                     # but still wrap DB ops where possible
                     return await _execute_decision_live_clob(
-                        decision, strategy_name, mode, db,
+                        decision,
+                        strategy_name,
+                        mode,
+                        db,
                     )
                 except _BotStateLockRetry:
                     if lock_attempt >= _MAX_LOCK_RETRY_ATTEMPTS - 1:
@@ -899,7 +957,9 @@ async def execute_decision(
 
 # Maker-first execution config (overridable via settings).
 MAKER_WAIT_SECONDS = float(getattr(settings, "MAKER_WAIT_SECONDS", 15.0))
-MAKER_POLL_INTERVAL_SECONDS = float(getattr(settings, "MAKER_POLL_INTERVAL_SECONDS", 2.0))
+MAKER_POLL_INTERVAL_SECONDS = float(
+    getattr(settings, "MAKER_POLL_INTERVAL_SECONDS", 2.0)
+)
 MAKER_FIRST_ENABLED = bool(getattr(settings, "MAKER_FIRST_ENABLED", True))
 
 
@@ -1080,6 +1140,7 @@ async def _execute_decision_live_clob(
 
     from backend.db.utils import get_db_session
     from contextlib import nullcontext
+
     owns_db = db is None
     ctx = get_db_session() if owns_db else nullcontext(db)
     with ctx as db:
@@ -1133,7 +1194,11 @@ async def _execute_decision_live_clob(
                     f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
                 )
 
-                strategy_config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+                strategy_config = (
+                    db.query(StrategyConfig)
+                    .filter_by(strategy_name=strategy_name)
+                    .first()
+                )
                 if not strategy_config or not strategy_config.enabled:
                     logger.warning(
                         f"[{strategy_name}] Skipping execution as strategy is disabled or missing in config"
@@ -1154,10 +1219,11 @@ async def _execute_decision_live_clob(
                 return None
 
             # --- G-16: Cooldown after consecutive losses (live CLOB path) ---
-            cooldown_losses = getattr(settings, 'COOLDOWN_CONSECUTIVE_LOSSES', 3)
-            cooldown_minutes = getattr(settings, 'COOLDOWN_MINUTES', 60)
+            cooldown_losses = getattr(settings, "COOLDOWN_CONSECUTIVE_LOSSES", 3)
+            cooldown_minutes = getattr(settings, "COOLDOWN_MINUTES", 60)
             if cooldown_losses > 0:
                 from datetime import timedelta as _td
+
                 recent_trades = (
                     db.query(Trade)
                     .filter(
@@ -1170,7 +1236,7 @@ async def _execute_decision_live_clob(
                     .all()
                 )
                 if len(recent_trades) >= cooldown_losses:
-                    all_losses = all(t.result == 'loss' for t in recent_trades)
+                    all_losses = all(t.result == "loss" for t in recent_trades)
                     if all_losses:
                         last_loss_time = recent_trades[0].settlement_time
                         if last_loss_time and last_loss_time.tzinfo is None:
@@ -1178,7 +1244,9 @@ async def _execute_decision_live_clob(
                         cooldown_until = last_loss_time + _td(minutes=cooldown_minutes)
                         now_utc = datetime.now(timezone.utc)
                         if now_utc < cooldown_until:
-                            remaining = (cooldown_until - now_utc).total_seconds() / 60.0
+                            remaining = (
+                                cooldown_until - now_utc
+                            ).total_seconds() / 60.0
                             logger.info(
                                 f"[{strategy_name}] Cooldown active: {cooldown_losses} consecutive losses, "
                                 f"pausing for {remaining:.1f} more minutes"
@@ -1213,7 +1281,8 @@ async def _execute_decision_live_clob(
             if bankroll < 0:
                 logger.warning(
                     "[%s] Negative bankroll ($%.2f) detected; flooring to $0.00",
-                    mode.upper(), bankroll,
+                    mode.upper(),
+                    bankroll,
                 )
                 bankroll = 0.0
 
@@ -1288,6 +1357,7 @@ async def _execute_decision_live_clob(
 
             # --- Stale-market filter: dynamic threshold based on market lifetime ---
             from datetime import timedelta
+
             market_end_date = None
             if market_end_date_str:
                 try:
@@ -1295,12 +1365,16 @@ async def _execute_decision_live_clob(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception(f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}")
+                    logger.exception(
+                        f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}"
+                    )
             if market_end_date is not None:
                 _now = datetime.now(timezone.utc)
                 _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
                 # Dynamic threshold: 2 min for short-lived (5m/15m) markets, 60 min otherwise
-                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(market_ticker)
+                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(
+                    market_ticker
+                )
                 _stale_threshold = 2.0 if _is_short_lived else 60.0
                 if _time_to_resolution < _stale_threshold:
                     logger.info(
@@ -1378,7 +1452,7 @@ async def _execute_decision_live_clob(
                     direction=direction,
                     market_ticker=market_ticker,
                     orderbook_depth_usd=orderbook_depth_usd,
-                    db=db
+                    db=db,
                 )
 
                 if simulation_result["rejected"]:
@@ -1406,6 +1480,7 @@ async def _execute_decision_live_clob(
             # Strategy gating: only place CLOB orders if strategy passed live gate
             if mode in ("testnet", "live") and token_id:
                 from backend.core.strategy_gate import StrategyGate
+
                 gate = StrategyGate.can_execute_live(strategy_name, db)
                 if not gate[0]:
                     logger.warning(
@@ -1436,56 +1511,90 @@ async def _execute_decision_live_clob(
                                 )
                             else:
                                 result = await clob.place_limit_order(
-                                    token_id=token_id, side="BUY", price=entry_price, size=adjusted_size
+                                    token_id=token_id,
+                                    side="BUY",
+                                    price=entry_price,
+                                    size=adjusted_size,
                                 )
                         if result.success:
                             clob_order_id = result.order_id
                             fill_price = result.fill_price or fill_price
-                            if hasattr(result, "filled_size") and result.filled_size is not None:
+                            if (
+                                hasattr(result, "filled_size")
+                                and result.filled_size is not None
+                            ):
                                 filled_size = result.fill_size
-                            logger.info(f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}")
+                            logger.info(
+                                f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}"
+                            )
                             break
                         err_msg = result.error or "CLOB order rejected"
-                        logger.warning(f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_msg}")
-                        if clob_attempt == 0 and "order_version_mismatch" in err_msg.lower():
+                        logger.warning(
+                            f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: {err_msg}"
+                        )
+                        if (
+                            clob_attempt == 0
+                            and "order_version_mismatch" in err_msg.lower()
+                        ):
                             try:
-                                fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                fresh_mid = await context.clob_client.get_mid_price(
+                                    token_id
+                                )
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying with refreshed mid price {entry_price:.4f}"
                                 )
                                 continue
                             except Exception as refresh_err:
-                                logger.warning(f"Failed to refresh mid price: {refresh_err}")
+                                logger.warning(
+                                    f"Failed to refresh mid price: {refresh_err}"
+                                )
                         attempt_recorder.record_rejected(
-                            err_msg, phase="execution", reason_code="REJECTED_BROKER_ORDER",
-                            adjusted_size=adjusted_size, order_id=getattr(result, "order_id", None),
+                            err_msg,
+                            phase="execution",
+                            reason_code="REJECTED_BROKER_ORDER",
+                            adjusted_size=adjusted_size,
+                            order_id=getattr(result, "order_id", None),
                         )
                         db.commit()
                         return None
                     except Exception as clob_err:
                         err_str = f"{type(clob_err).__name__}: {clob_err}"
-                        logger.opt(exception=True).error(f"[strategy_executor.execute_decision] {err_str} for {market_ticker}")
-                        if clob_attempt == 0 and "order_version_mismatch" in str(clob_err).lower():
+                        logger.opt(exception=True).error(
+                            f"[strategy_executor.execute_decision] {err_str} for {market_ticker}"
+                        )
+                        if (
+                            clob_attempt == 0
+                            and "order_version_mismatch" in str(clob_err).lower()
+                        ):
                             try:
-                                fresh_mid = await context.clob_client.get_mid_price(token_id)
+                                fresh_mid = await context.clob_client.get_mid_price(
+                                    token_id
+                                )
                                 entry_price = fresh_mid
                                 logger.warning(
                                     f"[{mode.upper()}][{strategy_name}] Retrying after exception with refreshed mid price {entry_price:.4f}"
                                 )
                                 continue
                             except Exception as refresh_err:
-                                logger.warning(f"Failed to refresh mid price: {refresh_err}")
+                                logger.warning(
+                                    f"Failed to refresh mid price: {refresh_err}"
+                                )
                         attempt_recorder.record_failed(
-                            f"CLOB execution error: {err_str}", phase="execution", adjusted_size=adjusted_size,
+                            f"CLOB execution error: {err_str}",
+                            phase="execution",
+                            adjusted_size=adjusted_size,
                         )
                         db.commit()
                         return None
                 if clob_order_id is None:
                     return None
                 alert_manager.check_high_slippage(
-                    trade_id=0, expected_price=entry_price, actual_price=fill_price,
-                    position_value=adjusted_size, mode=mode,
+                    trade_id=0,
+                    expected_price=entry_price,
+                    actual_price=fill_price,
+                    position_value=adjusted_size,
+                    mode=mode,
                 )
             elif mode in ("testnet", "live") and not token_id:
                 logger.warning(
@@ -1507,9 +1616,13 @@ async def _execute_decision_live_clob(
                         market_end_date_str.replace("Z", "+00:00")
                     )
                 except (ValueError, TypeError):
-                    logger.exception("[strategy_executor] failed to parse market_end_date for trade recording")
+                    logger.exception(
+                        "[strategy_executor] failed to parse market_end_date for trade recording"
+                    )
 
-            slippage = abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
+            slippage = (
+                abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
+            )
             fee = None
 
             trade_data = {
@@ -1566,6 +1679,7 @@ async def _execute_decision_live_clob(
             db.flush()
 
             from backend.models.audit_logger import log_trade_created
+
             log_trade_created(
                 db=db,
                 trade_id=trade.id,
@@ -1600,7 +1714,9 @@ async def _execute_decision_live_clob(
             try:
                 SignalValidator.validate_signal_data(signal_data)
             except ValidationError as e:
-                log_validation_error(e, context=f"execute_decision:signal:{strategy_name}")
+                log_validation_error(
+                    e, context=f"execute_decision:signal:{strategy_name}"
+                )
                 logger.error(f"[{strategy_name}] Signal validation failed: {e.message}")
                 attempt_recorder.record_rejected(
                     f"Signal validation failed: {e.message}",
@@ -1680,6 +1796,7 @@ async def _execute_decision_live_clob(
 
             try:
                 from backend.core.event_bus import publish_event
+
                 publish_event(
                     "trade_executed",
                     {
@@ -1764,7 +1881,7 @@ async def execute_quote(
     from backend.db.utils import get_db_session
     from backend.config import settings as s
 
-    if not getattr(s, 'HFT_ENABLED', False):
+    if not getattr(s, "HFT_ENABLED", False):
         logger.debug("[execute_quote] HFT_ENABLED=false, skipping quote")
         return None
 
@@ -1775,16 +1892,25 @@ async def execute_quote(
     ask_size = decision.get("ask_size", 0)
 
     if not bid_price or not ask_price or bid_size <= 0 or ask_size <= 0:
-        logger.warning("[execute_quote] Invalid quote: bid=%s/%s ask=%s/%s", bid_price, bid_size, ask_price, ask_size)
+        logger.warning(
+            "[execute_quote] Invalid quote: bid=%s/%s ask=%s/%s",
+            bid_price,
+            bid_size,
+            ask_price,
+            ask_size,
+        )
         return None
 
     from contextlib import nullcontext
+
     owns_db = db is None
     ctx = get_db_session() if owns_db else nullcontext(db)
 
     with ctx as db:
         try:
-            asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
+            asset_key = (
+                decision.get("condition_id") or decision.get("slug") or strategy_name
+            )
             asset_lock = await _get_asset_lock(str(asset_key))
             async with _trade_semaphore:
                 async with asset_lock:
@@ -1809,16 +1935,22 @@ async def execute_quote(
                             confidence=decision.get("confidence", 0.5),
                         )
                         db.add(trade)
-                        results.append({
-                            "side": side,
-                            "direction": direction,
-                            "price": price,
-                            "size": size,
-                            "role": "maker",
-                        })
+                        results.append(
+                            {
+                                "side": side,
+                                "direction": direction,
+                                "price": price,
+                                "size": size,
+                                "role": "maker",
+                            }
+                        )
                         logger.info(
                             "[execute_quote] %s %s %s $%.2f @ %.3f (maker)",
-                            strategy_name, side, direction, size, price,
+                            strategy_name,
+                            side,
+                            direction,
+                            size,
+                            price,
                         )
 
                     db.commit()
@@ -1829,7 +1961,9 @@ async def execute_quote(
             try:
                 db.rollback()
             except Exception:
-                logger.exception("[execute_quote] db.rollback failed after quote execution failure")
+                logger.exception(
+                    "[execute_quote] db.rollback failed after quote execution failure"
+                )
             return None
 
 

@@ -18,6 +18,7 @@ from typing import Callable, Optional
 from backend.config import settings
 
 from loguru import logger
+
 WS_URL = settings.POLYMARKET_WS_CLOB_URL
 MAX_BACKOFF_S = 60.0
 PING_INTERVAL_S = 30.0

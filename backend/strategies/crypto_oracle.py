@@ -8,10 +8,16 @@ by > min_edge AND time-to-resolution < max_minutes, fire a trade.
 
 Starts DISABLED (same as btc_oracle). Enable via StrategyConfig DB table.
 """
+
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
-from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
+from backend.strategies.base import (
+    BaseStrategy,
+    StrategyContext,
+    CycleResult,
+    MarketEvent,
+)
 from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
@@ -24,11 +30,12 @@ from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
 
-
 # Supported assets: CoinGecko IDs
 SUPPORTED_ASSETS = [
     a.strip()
-    for a in getattr(settings, "CRYPTO_ORACLE_ASSETS", "bitcoin,ethereum,solana").split(",")
+    for a in getattr(settings, "CRYPTO_ORACLE_ASSETS", "bitcoin,ethereum,solana").split(
+        ","
+    )
     if a.strip()
 ]
 
@@ -67,10 +74,28 @@ def _log_signal(
             market_id=str(market_id),
             market_mid=float(market_mid),
             btc_spot=float(crypto_spot) if crypto_spot is not None else None,
-            rsi=float(micro.rsi) if micro is not None and getattr(micro, "rsi", None) is not None else None,
-            momentum_5m=float(micro.momentum_5m) if micro is not None and getattr(micro, "momentum_5m", None) is not None else None,
-            vwap_deviation=float(micro.vwap_deviation) if micro is not None and getattr(micro, "vwap_deviation", None) is not None else None,
-            sma_crossover=float(micro.sma_crossover) if micro is not None and getattr(micro, "sma_crossover", None) is not None else None,
+            rsi=(
+                float(micro.rsi)
+                if micro is not None and getattr(micro, "rsi", None) is not None
+                else None
+            ),
+            momentum_5m=(
+                float(micro.momentum_5m)
+                if micro is not None and getattr(micro, "momentum_5m", None) is not None
+                else None
+            ),
+            vwap_deviation=(
+                float(micro.vwap_deviation)
+                if micro is not None
+                and getattr(micro, "vwap_deviation", None) is not None
+                else None
+            ),
+            sma_crossover=(
+                float(micro.sma_crossover)
+                if micro is not None
+                and getattr(micro, "sma_crossover", None) is not None
+                else None
+            ),
             proposed_side=direction,
             edge_pp=float(edge) * 100.0,
             oracle_implied=float(oracle_implied),
@@ -101,8 +126,14 @@ def _get_time_multiplier() -> float:
     """Return Kelly sizing multiplier based on UTC hour."""
     hour = datetime.now(timezone.utc).hour
     peak = getattr(settings, "CRYPTO_ORACLE_PEAK_HOURS", [17, 18])
-    normal = getattr(settings, "CRYPTO_ORACLE_NORMAL_HOURS", [13, 14, 15, 16, 19, 20, 21])
-    weights = getattr(settings, "CRYPTO_ORACLE_TIME_WEIGHTS", {"peak": 1.0, "normal": 0.5, "off_peak": 0.25})
+    normal = getattr(
+        settings, "CRYPTO_ORACLE_NORMAL_HOURS", [13, 14, 15, 16, 19, 20, 21]
+    )
+    weights = getattr(
+        settings,
+        "CRYPTO_ORACLE_TIME_WEIGHTS",
+        {"peak": 1.0, "normal": 0.5, "off_peak": 0.25},
+    )
     if hour in peak:
         return weights.get("peak", 1.0)
     if hour in normal:
@@ -151,8 +182,16 @@ def calculate_dynamic_size(
     if cap <= 0:
         return 0.0
 
-    _min_pos = min_position_usd if min_position_usd is not None else settings.CRYPTO_ORACLE_MIN_POSITION_USD
-    _edge_scale = edge_scale_threshold if edge_scale_threshold is not None else settings.CRYPTO_ORACLE_EDGE_SCALE_THRESHOLD
+    _min_pos = (
+        min_position_usd
+        if min_position_usd is not None
+        else settings.CRYPTO_ORACLE_MIN_POSITION_USD
+    )
+    _edge_scale = (
+        edge_scale_threshold
+        if edge_scale_threshold is not None
+        else settings.CRYPTO_ORACLE_EDGE_SCALE_THRESHOLD
+    )
 
     edge_score = min(1.0, max(0.0, edge) / max(_edge_scale, 0.001))
     confidence_score = min(1.0, max(0.0, confidence))
@@ -164,7 +203,9 @@ def calculate_dynamic_size(
     return round(min(proposed, cap), 2)
 
 
-def _kelly_size(market_mid: float, bankroll: float, cap: float, strategy_name: str = "crypto_oracle") -> float:
+def _kelly_size(
+    market_mid: float, bankroll: float, cap: float, strategy_name: str = "crypto_oracle"
+) -> float:
     """Compute Kelly-calibrated size from bucket win rate and market price."""
     win_rate = get_bucket_win_rate(market_mid, strategy_name)
     if win_rate is None:
@@ -186,7 +227,9 @@ async def fetch_crypto_price_for_asset(asset: str = "bitcoin") -> Optional[float
         if micro and micro.price > 0:
             return micro.price
     except Exception as e:
-        logger.warning(f"CryptoOracleStrategy: microstructure fetch failed for {asset}: {e}")
+        logger.warning(
+            f"CryptoOracleStrategy: microstructure fetch failed for {asset}: {e}"
+        )
 
     try:
         from backend.data.crypto import fetch_crypto_price
@@ -198,7 +241,9 @@ async def fetch_crypto_price_for_asset(asset: str = "bitcoin") -> Optional[float
         if result and result.current_price > 0:
             return result.current_price
     except Exception as e:
-        logger.warning(f"CryptoOracleStrategy: CoinGecko fallback failed for {asset}: {e}")
+        logger.warning(
+            f"CryptoOracleStrategy: CoinGecko fallback failed for {asset}: {e}"
+        )
     return None
 
 
@@ -238,8 +283,15 @@ def implied_direction(question: str, crypto_price: float) -> Optional[str]:
     is_above = any(
         kw in q
         for kw in (
-            "above", "exceed", "over", "higher", "more than",
-            "at least", "reach", "hit", "top",
+            "above",
+            "exceed",
+            "over",
+            "higher",
+            "more than",
+            "at least",
+            "reach",
+            "hit",
+            "top",
         )
     )
     is_below = any(
@@ -276,7 +328,9 @@ class CryptoOracleStrategy(BaseStrategy):
 
     supported_assets = SUPPORTED_ASSETS
 
-    async def _debate_validate(self, question: str, market_price: float, context: str = "", db=None) -> tuple[bool, float]:
+    async def _debate_validate(
+        self, question: str, market_price: float, context: str = "", db=None
+    ) -> tuple[bool, float]:
         if not self.default_params.get("debate_enabled", True):
             return True, 0.5
         try:
@@ -288,9 +342,15 @@ class CryptoOracleStrategy(BaseStrategy):
                 max_rounds=2,
             )
             if result and result.confidence > 0:
-                return result.confidence >= self.default_params.get("debate_min_confidence", 0.55), result.confidence
+                return (
+                    result.confidence
+                    >= self.default_params.get("debate_min_confidence", 0.55),
+                    result.confidence,
+                )
         except Exception:
-            logger.warning("CryptoOracleStrategy: debate validation failed, allowing trade")
+            logger.warning(
+                "CryptoOracleStrategy: debate validation failed, allowing trade"
+            )
         return True, 0.5
 
     # -- Event-driven (WebSocket) subscription config --
@@ -313,7 +373,9 @@ class CryptoOracleStrategy(BaseStrategy):
                         if m.down_token_id:
                             token_ids.add(m.down_token_id)
                 except Exception as e:
-                    logger.debug(f"CryptoOracleStrategy: failed to fetch {asset_prefix} markets: {e}")
+                    logger.debug(
+                        f"CryptoOracleStrategy: failed to fetch {asset_prefix} markets: {e}"
+                    )
 
             self.subscribed_tokens = token_ids
             logger.info(
@@ -322,15 +384,23 @@ class CryptoOracleStrategy(BaseStrategy):
             )
             await self.register_with_event_bus()
         except Exception as e:
-            logger.warning("CryptoOracleStrategy: failed to populate subscribed_tokens: %s", e)
+            logger.warning(
+                "CryptoOracleStrategy: failed to populate subscribed_tokens: %s", e
+            )
 
     async def on_market_event(self, event: MarketEvent) -> Optional[dict]:
         """Handle a real-time WS market event for a subscribed crypto token."""
         params = {**self.default_params}
         min_edge = params.get("min_edge", self.default_params["min_edge"])
-        max_position_usd = float(params.get("max_position_usd", self.default_params["max_position_usd"]))
-        edge_scale_threshold = params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"])
-        min_position_usd = params.get("min_position_usd", self.default_params["min_position_usd"])
+        max_position_usd = float(
+            params.get("max_position_usd", self.default_params["max_position_usd"])
+        )
+        edge_scale_threshold = params.get(
+            "edge_scale_threshold", self.default_params["edge_scale_threshold"]
+        )
+        min_position_usd = params.get(
+            "min_position_usd", self.default_params["min_position_usd"]
+        )
 
         price_str = event.data.get("price") or event.data.get("last_trade_price")
         if not price_str:
@@ -347,12 +417,20 @@ class CryptoOracleStrategy(BaseStrategy):
         market_mid = trade_price
 
         # Price bucket filter: reject negative-EV territory
-        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
-        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+        min_price_bucket = params.get(
+            "min_price_bucket",
+            getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35),
+        )
+        max_price_bucket = params.get(
+            "max_price_bucket",
+            getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65),
+        )
         if market_mid < min_price_bucket or market_mid > max_price_bucket:
             logger.debug(
                 "CryptoOracleStrategy.on_market_event: skipping — market_mid=%.2f outside bucket [%.2f, %.2f]",
-                market_mid, min_price_bucket, max_price_bucket,
+                market_mid,
+                min_price_bucket,
+                max_price_bucket,
             )
             return None
 
@@ -361,7 +439,10 @@ class CryptoOracleStrategy(BaseStrategy):
 
         crypto_price = await fetch_crypto_price_for_asset(asset)
         if crypto_price is None:
-            logger.debug("CryptoOracleStrategy.on_market_event: could not fetch %s price, skipping", asset)
+            logger.debug(
+                "CryptoOracleStrategy.on_market_event: could not fetch %s price, skipping",
+                asset,
+            )
             return None
 
         from backend.data.crypto import compute_crypto_microstructure
@@ -369,7 +450,9 @@ class CryptoOracleStrategy(BaseStrategy):
         try:
             micro = await compute_crypto_microstructure(asset)
         except Exception:
-            logger.exception("crypto_oracle: failed to fetch %s price for oracle signal", asset)
+            logger.exception(
+                "crypto_oracle: failed to fetch %s price for oracle signal", asset
+            )
             micro = None
 
         if micro:
@@ -383,8 +466,12 @@ class CryptoOracleStrategy(BaseStrategy):
                 + vwap_signal * 0.25
                 + sma_signal * 0.20
             )
-            oracle_base = params.get("oracle_implied_base", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_BASE)
-            oracle_scale = params.get("oracle_implied_scale", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE)
+            oracle_base = params.get(
+                "oracle_implied_base", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_BASE
+            )
+            oracle_scale = params.get(
+                "oracle_implied_scale", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE
+            )
             oracle_implied = oracle_base + composite * oracle_scale
             if direction == "down":
                 oracle_implied = 1.0 - oracle_implied
@@ -396,10 +483,18 @@ class CryptoOracleStrategy(BaseStrategy):
         if edge <= 0:
             return None
 
-        confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
-        kelly = kelly_fraction(get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid)
+        confidence_score = (
+            min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+        )
+        kelly = kelly_fraction(
+            get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid
+        )
         if kelly > 0:
-            suggested_size = min(settings.INITIAL_BANKROLL * kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+            suggested_size = min(
+                settings.INITIAL_BANKROLL * kelly,
+                settings.INITIAL_BANKROLL * 0.02,
+                max_position_usd,
+            )
         else:
             suggested_size = calculate_dynamic_size(
                 edge=edge,
@@ -409,7 +504,11 @@ class CryptoOracleStrategy(BaseStrategy):
                 edge_scale_threshold=edge_scale_threshold,
             )
 
-        market_ticker = event.data.get("market_ticker") or event.data.get("market_id") or event.token_id
+        market_ticker = (
+            event.data.get("market_ticker")
+            or event.data.get("market_id")
+            or event.token_id
+        )
         token_id = event.token_id
 
         record_decision_standalone(
@@ -463,7 +562,10 @@ class CryptoOracleStrategy(BaseStrategy):
         return [
             m
             for m in markets
-            if any(kw in m.slug.lower() or kw in m.question.lower() for kw in crypto_keywords)
+            if any(
+                kw in m.slug.lower() or kw in m.question.lower()
+                for kw in crypto_keywords
+            )
             and m.end_date is not None
         ]
 
@@ -475,8 +577,13 @@ class CryptoOracleStrategy(BaseStrategy):
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
         params = {**self.default_params, **(ctx.params or {})}
         min_edge = params.get("min_edge", self.default_params["min_edge"])
-        max_minutes = params.get("max_minutes_to_resolution", self.default_params["max_minutes_to_resolution"])
-        max_position_usd = float(params.get("max_position_usd", self.default_params["max_position_usd"]))
+        max_minutes = params.get(
+            "max_minutes_to_resolution",
+            self.default_params["max_minutes_to_resolution"],
+        )
+        max_position_usd = float(
+            params.get("max_position_usd", self.default_params["max_position_usd"])
+        )
 
         from backend.data.btc_markets import fetch_active_crypto_markets
         from backend.core.market_scanner import fetch_markets_by_keywords
@@ -485,34 +592,53 @@ class CryptoOracleStrategy(BaseStrategy):
 
         # Price bucket filter: only trade in the 40-60c range where edge is proven.
         # Negative-EV territory is below 35c and above 65c (backtest: 85.6% WR in 50-55c).
-        min_price_bucket = params.get("min_price_bucket", getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35))
-        max_price_bucket = params.get("max_price_bucket", getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65))
+        min_price_bucket = params.get(
+            "min_price_bucket",
+            getattr(settings, "CRYPTO_ORACLE_MIN_PRICE_BUCKET", 0.35),
+        )
+        max_price_bucket = params.get(
+            "max_price_bucket",
+            getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65),
+        )
 
         # Dynamic allocation: compute per-asset weights from rolling WR
         asset_weights: Dict[str, float] = {}
         if getattr(settings, "CRYPTO_ORACLE_DYNAMIC_ALLOCATION", False):
             asset_weights = _compute_asset_weights(self.supported_assets)
-            logger.info("CryptoOracleStrategy: dynamic allocation weights = %s", asset_weights)
+            logger.info(
+                "CryptoOracleStrategy: dynamic allocation weights = %s", asset_weights
+            )
 
         # Time-of-day multiplier
         time_mult = _get_time_multiplier()
         if time_mult < 1.0:
-            logger.debug("CryptoOracleStrategy: time multiplier = %.2f (hour=%d UTC)", time_mult, now.hour)
+            logger.debug(
+                "CryptoOracleStrategy: time multiplier = %.2f (hour=%d UTC)",
+                time_mult,
+                now.hour,
+            )
 
         # Iterate over all supported assets
         for coingecko_id in self.supported_assets:
-            asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(coingecko_id, coingecko_id[:3])
+            asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(
+                coingecko_id, coingecko_id[:3]
+            )
 
             crypto_price = await fetch_crypto_price_for_asset(coingecko_id)
             if crypto_price is None:
-                logger.debug("CryptoOracleStrategy: could not fetch %s price, skipping", coingecko_id)
+                logger.debug(
+                    "CryptoOracleStrategy: could not fetch %s price, skipping",
+                    coingecko_id,
+                )
                 continue
 
             # Fetch dedicated 5-min markets for this asset
             try:
                 asset_markets = await fetch_active_crypto_markets(asset=asset_prefix)
             except Exception as e:
-                logger.warning(f"CryptoOracleStrategy.run_cycle: failed to fetch {coingecko_id} markets: {e}")
+                logger.warning(
+                    f"CryptoOracleStrategy.run_cycle: failed to fetch {coingecko_id} markets: {e}"
+                )
                 continue
 
             for market in asset_markets:
@@ -524,10 +650,15 @@ class CryptoOracleStrategy(BaseStrategy):
                     continue
 
                 from backend.data.crypto import compute_crypto_microstructure
+
                 try:
                     micro = await compute_crypto_microstructure(coingecko_id)
                 except Exception as e:
-                    logger.debug("Crypto microstructure computation failed for %s: %s", coingecko_id, e)
+                    logger.debug(
+                        "Crypto microstructure computation failed for %s: %s",
+                        coingecko_id,
+                        e,
+                    )
                     micro = None
 
                 if micro and micro.momentum_5m is not None:
@@ -541,7 +672,10 @@ class CryptoOracleStrategy(BaseStrategy):
                 if market_mid < min_price_bucket or market_mid > max_price_bucket:
                     logger.debug(
                         "CryptoOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
-                        market.slug, market_mid, min_price_bucket, max_price_bucket,
+                        market.slug,
+                        market_mid,
+                        min_price_bucket,
+                        max_price_bucket,
                     )
                     continue
 
@@ -557,8 +691,14 @@ class CryptoOracleStrategy(BaseStrategy):
                         + vwap_signal * 0.25
                         + sma_signal * 0.20
                     )
-                    oracle_base = params.get("oracle_implied_base", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_BASE)
-                    oracle_scale = params.get("oracle_implied_scale", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE)
+                    oracle_base = params.get(
+                        "oracle_implied_base",
+                        settings.CRYPTO_ORACLE_ORACLE_IMPLIED_BASE,
+                    )
+                    oracle_scale = params.get(
+                        "oracle_implied_scale",
+                        settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE,
+                    )
                     oracle_implied = oracle_base + composite * oracle_scale
 
                     if direction == "down":
@@ -569,7 +709,9 @@ class CryptoOracleStrategy(BaseStrategy):
                 edge = abs(oracle_implied - market_mid) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"
-                confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                confidence_score = (
+                    min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                )
 
                 record_decision_standalone(
                     self.name,
@@ -591,12 +733,17 @@ class CryptoOracleStrategy(BaseStrategy):
 
                 if decision == "BUY":
                     debate_ok, debate_conf = await self._debate_validate(
-                        question=market.slug, market_price=market_mid,
+                        question=market.slug,
+                        market_price=market_mid,
                         context=f"{coingecko_id}=${crypto_price:,.0f} edge={edge:.3f} dir={direction} t={minutes_remaining:.1f}min",
-                        db=getattr(ctx, 'db', None),
+                        db=getattr(ctx, "db", None),
                     )
                     if not debate_ok:
-                        logger.info("CryptoOracleStrategy: debate rejected BUY for {} (confidence={:.2f})", market.slug, debate_conf)
+                        logger.info(
+                            "CryptoOracleStrategy: debate rejected BUY for {} (confidence={:.2f})",
+                            market.slug,
+                            debate_conf,
+                        )
                         continue
                     confidence_score = max(confidence_score, debate_conf)
 
@@ -612,24 +759,39 @@ class CryptoOracleStrategy(BaseStrategy):
                         asset=coingecko_id,
                     )
                     entry_price = (
-                        market.up_price
-                        if direction == "up"
-                        else market.down_price
+                        market.up_price if direction == "up" else market.down_price
                     )
-                    token_id = market.up_token_id if direction == "up" else market.down_token_id
-                    kelly = kelly_fraction(get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid)
+                    token_id = (
+                        market.up_token_id
+                        if direction == "up"
+                        else market.down_token_id
+                    )
+                    kelly = kelly_fraction(
+                        get_bucket_win_rate(market_mid, "crypto_oracle") or 0,
+                        market_mid,
+                    )
                     # Apply time-of-day multiplier and asset weight to Kelly
                     asset_weight = asset_weights.get(coingecko_id, 1.0)
                     adjusted_kelly = kelly * time_mult * asset_weight
                     if adjusted_kelly > 0:
-                        suggested_size = min(settings.INITIAL_BANKROLL * adjusted_kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                        suggested_size = min(
+                            settings.INITIAL_BANKROLL * adjusted_kelly,
+                            settings.INITIAL_BANKROLL * 0.02,
+                            max_position_usd,
+                        )
                     else:
                         suggested_size = calculate_dynamic_size(
                             edge=edge,
                             confidence=confidence_score,
                             max_position_usd=max_position_usd,
-                            min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
-                            edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
+                            min_position_usd=params.get(
+                                "min_position_usd",
+                                self.default_params["min_position_usd"],
+                            ),
+                            edge_scale_threshold=params.get(
+                                "edge_scale_threshold",
+                                self.default_params["edge_scale_threshold"],
+                            ),
                         )
                     result.decisions.append(
                         {
@@ -678,28 +840,41 @@ class CryptoOracleStrategy(BaseStrategy):
                     if direction is None:
                         continue
 
-                    market_mid = market.yes_price if direction == "yes" else market.no_price
+                    market_mid = (
+                        market.yes_price if direction == "yes" else market.no_price
+                    )
 
                     # Price bucket filter: reject negative-EV territory
                     if market_mid < min_price_bucket or market_mid > max_price_bucket:
                         logger.debug(
                             "CryptoOracleStrategy: skipping %s — market_mid=%.2f outside bucket [%.2f, %.2f]",
-                            market.ticker, market_mid, min_price_bucket, max_price_bucket,
+                            market.ticker,
+                            market_mid,
+                            min_price_bucket,
+                            max_price_bucket,
                         )
                         continue
 
                     # Compute real edge: oracle probability from spot price vs strike
                     # Extract strike from question for edge calculation
                     import re as _re
+
                     _q = market.question.lower()
                     _match = _re.search(r"\$?([\d,]+\.?\d*)\s*k?\b", _q)
                     if _match:
                         _raw = _match.group(1).replace(",", "")
                         _threshold = float(_raw)
-                        if "k" in _q[_match.start():_match.end() + 2].lower() and _threshold < 10000:
+                        if (
+                            "k" in _q[_match.start() : _match.end() + 2].lower()
+                            and _threshold < 10000
+                        ):
                             _threshold *= 1000
                         # pct_diff: how far spot is from strike (positive = above)
-                        pct_diff = (crypto_price - _threshold) / _threshold if _threshold > 0 else 0.0
+                        pct_diff = (
+                            (crypto_price - _threshold) / _threshold
+                            if _threshold > 0
+                            else 0.0
+                        )
                         # Oracle probability: sigmoid-like mapping centered at strike
                         # +2% above strike → ~0.60, +10% → ~0.95
                         if direction == "yes":
@@ -708,7 +883,9 @@ class CryptoOracleStrategy(BaseStrategy):
                             oracle_implied = max(0.05, min(0.95, 0.5 - pct_diff * 5.0))
                     else:
                         # Fallback: use moderate edge from market_mid
-                        oracle_implied = market_mid + (min_edge * 2 if direction == "yes" else -min_edge * 2)
+                        oracle_implied = market_mid + (
+                            min_edge * 2 if direction == "yes" else -min_edge * 2
+                        )
                         oracle_implied = max(0.05, min(0.95, oracle_implied))
                     edge = oracle_implied - market_mid
                     # No sign flip needed — market_mid is already market.no_price
@@ -716,7 +893,11 @@ class CryptoOracleStrategy(BaseStrategy):
                     # gives correct positive edge when NO is underpriced.
 
                     decision = "BUY" if edge > 0 else "SKIP"
-                    confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                    confidence_score = (
+                        min(1.0, abs(edge + min_edge) / min_edge)
+                        if min_edge > 0
+                        else 0.0
+                    )
 
                     record_decision_standalone(
                         self.name,
@@ -751,17 +932,22 @@ class CryptoOracleStrategy(BaseStrategy):
                         },
                         confidence=confidence_score,
                         mode=ctx.mode,
-                        db=ctx.db
+                        db=ctx.db,
                     )
 
                     if decision == "BUY":
                         debate_ok, debate_conf = await self._debate_validate(
-                            question=market.question, market_price=market_mid,
+                            question=market.question,
+                            market_price=market_mid,
                             context=f"{coingecko_id}=${crypto_price:,.0f} edge={edge:.3f} dir={direction} t={minutes_remaining:.1f}min",
-                            db=getattr(ctx, 'db', None),
+                            db=getattr(ctx, "db", None),
                         )
                         if not debate_ok:
-                            logger.info("CryptoOracleStrategy: debate rejected BUY for {} (confidence={:.2f})", market.ticker, debate_conf)
+                            logger.info(
+                                "CryptoOracleStrategy: debate rejected BUY for {} (confidence={:.2f})",
+                                market.ticker,
+                                debate_conf,
+                            )
                             continue
                         confidence_score = max(confidence_score, debate_conf)
 
@@ -781,13 +967,20 @@ class CryptoOracleStrategy(BaseStrategy):
                         clob_token_ids = market.metadata.get("clobTokenIds") or []
                         if isinstance(clob_token_ids, str):
                             import json as _json
+
                             try:
                                 clob_token_ids = _json.loads(clob_token_ids)
                             except Exception as e:
-                                logger.debug("Failed to parse CLOB token IDs from JSON: %s", e)
+                                logger.debug(
+                                    "Failed to parse CLOB token IDs from JSON: %s", e
+                                )
                                 clob_token_ids = []
                         if clob_token_ids and len(clob_token_ids) >= 2:
-                            clob_token_id = str(clob_token_ids[0] if direction in ("yes", "up") else clob_token_ids[1])
+                            clob_token_id = str(
+                                clob_token_ids[0]
+                                if direction in ("yes", "up")
+                                else clob_token_ids[1]
+                            )
                         elif clob_token_ids:
                             clob_token_id = str(clob_token_ids[0])
 
@@ -796,19 +989,36 @@ class CryptoOracleStrategy(BaseStrategy):
                             if direction in ("yes", "up")
                             else round(1.0 - market_mid, 6)
                         )
-                        confidence_score = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
-                        kelly = kelly_fraction(get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid)
+                        confidence_score = (
+                            min(1.0, abs(edge + min_edge) / min_edge)
+                            if min_edge > 0
+                            else 0.0
+                        )
+                        kelly = kelly_fraction(
+                            get_bucket_win_rate(market_mid, "crypto_oracle") or 0,
+                            market_mid,
+                        )
                         asset_weight = asset_weights.get(coingecko_id, 1.0)
                         adjusted_kelly = kelly * time_mult * asset_weight
                         if adjusted_kelly > 0:
-                            suggested_size = min(settings.INITIAL_BANKROLL * adjusted_kelly, settings.INITIAL_BANKROLL * 0.02, max_position_usd)
+                            suggested_size = min(
+                                settings.INITIAL_BANKROLL * adjusted_kelly,
+                                settings.INITIAL_BANKROLL * 0.02,
+                                max_position_usd,
+                            )
                         else:
                             suggested_size = calculate_dynamic_size(
                                 edge=edge,
                                 confidence=confidence_score,
                                 max_position_usd=max_position_usd,
-                                min_position_usd=params.get("min_position_usd", self.default_params["min_position_usd"]),
-                                edge_scale_threshold=params.get("edge_scale_threshold", self.default_params["edge_scale_threshold"]),
+                                min_position_usd=params.get(
+                                    "min_position_usd",
+                                    self.default_params["min_position_usd"],
+                                ),
+                                edge_scale_threshold=params.get(
+                                    "edge_scale_threshold",
+                                    self.default_params["edge_scale_threshold"],
+                                ),
                             )
                         result.decisions.append(
                             {
@@ -821,7 +1031,9 @@ class CryptoOracleStrategy(BaseStrategy):
                                 "size": suggested_size,
                                 "entry_price": oracle_entry_price,
                                 "suggested_size": suggested_size,
-                                "model_probability": max(0.05, min(0.95, oracle_implied)),
+                                "model_probability": max(
+                                    0.05, min(0.95, oracle_implied)
+                                ),
                                 "market_probability": market_mid,
                                 "platform": settings.DEFAULT_VENUE,
                                 "strategy_name": self.name,
@@ -831,7 +1043,9 @@ class CryptoOracleStrategy(BaseStrategy):
                             }
                         )
             except Exception as e:
-                logger.debug(f"CryptoOracleStrategy: keyword scan failed for {coingecko_id}: {e}")
+                logger.debug(
+                    f"CryptoOracleStrategy: keyword scan failed for {coingecko_id}: {e}"
+                )
 
         return result
 

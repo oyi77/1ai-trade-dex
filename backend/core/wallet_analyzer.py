@@ -214,8 +214,7 @@ def compute_analysis(
             "timestamp": _timestamp(best),
         }
         result.top_10_wins = [
-            {"title": _title(p), "pnl": _pnl(p)}
-            for p in sorted_wins[:10]
+            {"title": _title(p), "pnl": _pnl(p)} for p in sorted_wins[:10]
         ]
     if sorted_losses:
         worst = sorted_losses[0]
@@ -225,8 +224,7 @@ def compute_analysis(
             "timestamp": _timestamp(worst),
         }
         result.worst_10_losses = [
-            {"title": _title(p), "pnl": _pnl(p)}
-            for p in sorted_losses[:10]
+            {"title": _title(p), "pnl": _pnl(p)} for p in sorted_losses[:10]
         ]
 
     # --- Consecutive streaks ---
@@ -428,9 +426,7 @@ def _assign_red_flags(result: WalletAnalysis) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def analyze_wallet(
-    proxy_wallet: str, detailed: bool = True
-) -> WalletAnalysis:
+async def analyze_wallet(proxy_wallet: str, detailed: bool = True) -> WalletAnalysis:
     """Full wallet analysis with category, temporal, and size breakdowns."""
     positions = await get_all_closed_positions(proxy_wallet)
     return compute_analysis(proxy_wallet, positions, detailed=detailed)

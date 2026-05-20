@@ -22,11 +22,19 @@ from typing import Optional
 
 import httpx
 
-from backend.strategies.base import BaseStrategy, CycleResult, MarketInfo, StrategyContext, MarketEvent
+from backend.strategies.base import (
+    BaseStrategy,
+    CycleResult,
+    MarketInfo,
+    StrategyContext,
+    MarketEvent,
+)
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
 from loguru import logger
+
+
 def _cfg(name, default):
     return getattr(settings, name, default)
 
@@ -36,9 +44,7 @@ GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 PAGE_SIZE = _cfg("SCANNER_PAGE_SIZE", 500)
 MAX_MARKETS = _cfg("SCANNER_MAX_MARKETS", 10000)
 
-_gamma_breaker = CircuitBreaker(
-    "gamma_api", failure_threshold=5, recovery_timeout=60.0
-)
+_gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
 _market_locks: dict[str, asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()
 _MAX_MARKET_LOCKS = 500  # E-105: prevent unbounded memory growth
@@ -75,6 +81,7 @@ def _parse_prices(m: dict) -> tuple[float, float]:
     if isinstance(outcome_prices, str):
         try:
             import json
+
             outcome_prices = json.loads(outcome_prices)
         except Exception:
             logger.exception("Failed to parse outcome prices JSON")
@@ -167,7 +174,9 @@ async def _fetch_page_with_retry(
         except Exception as exc:
             if retry_count < _cfg("ARB_MAX_RETRIES", 3):
                 # Exponential backoff
-                wait = settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_BASE * (settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_MULTIPLIER ** retry_count)
+                wait = settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_BASE * (
+                    settings.UNIVERSAL_SCANNER_RETRY_BACKOFF_MULTIPLIER**retry_count
+                )
                 await asyncio.sleep(wait)
                 return await _fetch_page_with_retry(
                     client, offset, semaphore, retry_count + 1, breaker
@@ -181,6 +190,7 @@ async def _fetch_page_with_retry(
 async def _fetch_web_context(question: str) -> str:
     try:
         from backend.clients.websearch import get_websearch
+
         client = get_websearch()
         if not client.is_enabled:
             return ""
@@ -193,6 +203,7 @@ async def _fetch_web_context(question: str) -> str:
 async def _fetch_brain_context(question: str) -> str:
     try:
         from backend.clients.bigbrain import BigBrainClient
+
         brain = BigBrainClient()
         results = await brain.search_context(question, limit=5)
         if not results:
@@ -219,18 +230,31 @@ async def _run_debate_gate(
 ):
     try:
         from backend.ai.debate_router import run_debate_with_routing
+
         if db is None:
             from backend.ai.debate_engine import run_debate
+
             return await run_debate(
-                question=question, market_price=market_price, volume=volume,
-                category=category, context=context, data_sources=data_sources,
+                question=question,
+                market_price=market_price,
+                volume=volume,
+                category=category,
+                context=context,
+                data_sources=data_sources,
             )
         return await run_debate_with_routing(
-            db=db, question=question, market_price=market_price, volume=volume,
-            category=category, context=context, data_sources=data_sources,
+            db=db,
+            question=question,
+            market_price=market_price,
+            volume=volume,
+            category=category,
+            context=context,
+            data_sources=data_sources,
         )
     except Exception as exc:
-        logger.warning("[universal_scanner._run_debate_gate] %s: %s", type(exc).__name__, exc)
+        logger.warning(
+            "[universal_scanner._run_debate_gate] %s: %s", type(exc).__name__, exc
+        )
         return None
 
 
@@ -281,7 +305,7 @@ class UniversalScanner(BaseStrategy):
     )
     category = "general"
     default_params = {
-            "min_edge": _cfg("SCANNER_MIN_EDGE", 0.02),
+        "min_edge": _cfg("SCANNER_MIN_EDGE", 0.02),
         "min_volume": 1000.0,
         "max_signals": 100,
         "max_decision_size": 10.0,
@@ -362,11 +386,17 @@ class UniversalScanner(BaseStrategy):
 
         # Reuse debate_result from edge calc above (already fetched)
         if debate_result is not None:
-            llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
+            llm_conf = (
+                debate_result.consensus_probability
+                if hasattr(debate_result, "consensus_probability")
+                else 0.5
+            )
         else:
             llm_conf = max(0.4, min(abs(edge) * 10.0, 1.0))
 
-        logger.info(f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}")
+        logger.info(
+            f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}"
+        )
 
         return {
             "decision": "BUY",
@@ -381,7 +411,9 @@ class UniversalScanner(BaseStrategy):
 
     async def _handle_price_event(self, token_id: str, data: dict) -> dict | None:
         """Evaluate a token for edge on book/price_change events."""
-        price = data.get("price") or data.get("last_trade_price") or data.get("mid_price")
+        price = (
+            data.get("price") or data.get("last_trade_price") or data.get("mid_price")
+        )
         if price is None:
             return None
 
@@ -404,7 +436,9 @@ class UniversalScanner(BaseStrategy):
             data_sources=[f"{settings.DEFAULT_VENUE}_ws"],
             db=None,
         )
-        if debate_result is not None and hasattr(debate_result, "consensus_probability"):
+        if debate_result is not None and hasattr(
+            debate_result, "consensus_probability"
+        ):
             model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
         else:
             model_prob = max(0.01, min(0.99, price))
@@ -431,7 +465,9 @@ class UniversalScanner(BaseStrategy):
             data_source_count=1,
         )
 
-        logger.info(f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}")
+        logger.info(
+            f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}"
+        )
 
         return {
             "decision": "BUY",
@@ -472,11 +508,11 @@ class UniversalScanner(BaseStrategy):
 
         async with httpx.AsyncClient() as client:
             # Step 1: Fetch first page to determine market availability
-            first_page, success = await _fetch_page_with_retry(
-                client, 0, semaphore
-            )
+            first_page, success = await _fetch_page_with_retry(client, 0, semaphore)
             if not success or not first_page:
-                logger.warning("[universal_scanner] First page fetch failed — graceful degradation")
+                logger.warning(
+                    "[universal_scanner] First page fetch failed — graceful degradation"
+                )
                 return []
 
             # Step 2: Parse first page
@@ -587,7 +623,11 @@ class UniversalScanner(BaseStrategy):
             )
 
             if debate_result is not None:
-                llm_conf = debate_result.consensus_probability if hasattr(debate_result, "consensus_probability") else 0.5
+                llm_conf = (
+                    debate_result.consensus_probability
+                    if hasattr(debate_result, "consensus_probability")
+                    else 0.5
+                )
                 debate_conf = llm_conf
             else:
                 llm_conf = 0.5
@@ -596,7 +636,9 @@ class UniversalScanner(BaseStrategy):
             engine_conf = None
             data_source_count = len(data_sources)
             confidence = _compute_composite_confidence(
-                llm_conf, abs(edge), market.volume,
+                llm_conf,
+                abs(edge),
+                market.volume,
                 engine_confidence=engine_conf,
                 debate_confidence=debate_conf,
                 data_source_count=data_source_count,
@@ -650,17 +692,19 @@ class UniversalScanner(BaseStrategy):
                 size = max(size, 1.0)
                 side = "YES" if edge > 0 else "NO"
 
-                decisions.append({
-                    "decision": "BUY",
-                    "market_ticker": sig["ticker"],
-                    "token_id": sig["ticker"],
-                    "size": round(size, 2),
-                    "confidence": round(confidence, 4),
-                    "edge": round(edge, 4),
-                    "direction": side.lower(),
-                    "strategy": self.name,
-                    "reason": f"Edge {edge:+.4f} on {sig['question'][:60]}",
-                })
+                decisions.append(
+                    {
+                        "decision": "BUY",
+                        "market_ticker": sig["ticker"],
+                        "token_id": sig["ticker"],
+                        "size": round(size, 2),
+                        "confidence": round(confidence, 4),
+                        "edge": round(edge, 4),
+                        "direction": side.lower(),
+                        "strategy": self.name,
+                        "reason": f"Edge {edge:+.4f} on {sig['question'][:60]}",
+                    }
+                )
 
             elapsed_ms = (time.monotonic() - start) * 1000
             logger.info(
@@ -676,8 +720,12 @@ class UniversalScanner(BaseStrategy):
             )
 
         except CircuitOpenError:
-            logger.warning("[universal_scanner] Circuit breaker OPEN — graceful degradation")
-            return CycleResult(0, 0, 0, errors=["Circuit breaker open"], cycle_duration_ms=0)
+            logger.warning(
+                "[universal_scanner] Circuit breaker OPEN — graceful degradation"
+            )
+            return CycleResult(
+                0, 0, 0, errors=["Circuit breaker open"], cycle_duration_ms=0
+            )
         except Exception as exc:
             logger.exception(f"[universal_scanner] Cycle failed: {exc}")
             return CycleResult(0, 0, 0, errors=[str(exc)])

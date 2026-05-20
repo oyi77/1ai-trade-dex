@@ -50,7 +50,9 @@ class StrategyMeta:
     enabled: bool = False  # filled from DB at query time by the API layer
 
 
-def create_strategy(name: str, db=None, force_enable: bool = False, **kwargs) -> BaseStrategy:
+def create_strategy(
+    name: str, db=None, force_enable: bool = False, **kwargs
+) -> BaseStrategy:
     """Instantiate a registered strategy by name.
 
     Args:
@@ -88,6 +90,7 @@ def _check_performance_gate(name: str) -> None:
     """Warn and block instantiation of strategies with documented poor performance."""
     try:
         from backend.config import settings
+
         min_win_rate = getattr(settings, "REGISTRY_MIN_WIN_RATE", 0.30)
         min_roi = getattr(settings, "REGISTRY_MIN_ROI", -0.30)
     except Exception as e:
@@ -108,7 +111,9 @@ def _check_performance_gate(name: str) -> None:
     if roi is not None and roi < min_roi:
         logger.warning(
             "Strategy '%s' has documented ROI %.1f%% below threshold %.1f%% — auto-blocked",
-            name, roi * 100, min_roi * 100,
+            name,
+            roi * 100,
+            min_roi * 100,
         )
         raise ValueError(
             f"Strategy '{name}' is auto-blocked: documented ROI {roi*100:.1f}% is below threshold {min_roi*100:.1f}%. "
@@ -117,7 +122,9 @@ def _check_performance_gate(name: str) -> None:
     if win_rate is not None and win_rate < min_win_rate:
         logger.warning(
             "Strategy '%s' has documented win rate %.1f%% below threshold %.1f%% — auto-blocked",
-            name, win_rate * 100, min_win_rate * 100,
+            name,
+            win_rate * 100,
+            min_win_rate * 100,
         )
         raise ValueError(
             f"Strategy '{name}' is auto-blocked: documented win rate {win_rate*100:.1f}% is below threshold {min_win_rate*100:.1f}%. "
@@ -140,6 +147,7 @@ def _extract_metric(text: str, keyword: str) -> float | None:
         Metric as decimal (e.g., -49.5% → -0.495) or None if not found
     """
     import re
+
     # Pattern 1: "keyword[: ]+number%" (e.g., "ROI: -49.5%" or "ROI -49.5%")
     pattern = rf"{keyword}[:\s]+(-?\d+\.?\d*)%"
     match = re.search(pattern, text, re.IGNORECASE)
@@ -158,6 +166,7 @@ def _extract_metric(text: str, keyword: str) -> float | None:
 
 def _extract_win_rate(text: str) -> float | None:
     import re
+
     match = re.search(r"(\d+)W/(\d+)L", text)
     if match:
         wins = int(match.group(1))
@@ -178,14 +187,21 @@ def is_strategy_enabled(name: str, db=None) -> bool:
         return False
     try:
         from backend.models.database import StrategyConfig
-        config = db.query(StrategyConfig).filter(
-            StrategyConfig.strategy_name == name
-        ).first()
+
+        config = (
+            db.query(StrategyConfig)
+            .filter(StrategyConfig.strategy_name == name)
+            .first()
+        )
         if config is None:
             return True  # not configured = default enabled
         return bool(config.enabled)
     except Exception as e:
-        logger.warning("Error checking strategy '%s' enabled state, defaulting to enabled: %s", name, e)
+        logger.warning(
+            "Error checking strategy '%s' enabled state, defaulting to enabled: %s",
+            name,
+            e,
+        )
         return True  # on error, default to enabled
 
 

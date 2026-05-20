@@ -15,6 +15,7 @@ from backend.core.circuit_breaker import CircuitBreaker
 from backend.config import settings
 
 from loguru import logger
+
 WHALE_WS_URL = settings.POLYMARKET_WS_WHALE_URL
 RECONNECT_MAX_RETRIES = 5
 RECONNECT_BASE_DELAY = 0.1
@@ -33,7 +34,9 @@ class WhaleMonitorWS:
         self._running = False
         self._reconnect_count = 0
         self._buffer: list[dict] = []
-        self._breaker = CircuitBreaker("whale_ws", failure_threshold=5, recovery_timeout=60.0)
+        self._breaker = CircuitBreaker(
+            "whale_ws", failure_threshold=5, recovery_timeout=60.0
+        )
 
     async def connect(self) -> bool:
         """Establish WebSocket connection."""

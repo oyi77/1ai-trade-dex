@@ -43,7 +43,9 @@ class ExchangeFeedRegistry(PluginRegistry[ExchangeFeedManifest, BaseExchangeFeed
 
         missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
         if missing:
-            raise PluginEnvVarMissing(f"Exchange feed '{name}' requires env vars: {missing}")
+            raise PluginEnvVarMissing(
+                f"Exchange feed '{name}' requires env vars: {missing}"
+            )
 
         try:
             instance = feed_class()
@@ -65,6 +67,7 @@ class ExchangeFeedRegistry(PluginRegistry[ExchangeFeedManifest, BaseExchangeFeed
                 return None
             plugin = self._plugins[feed_name]
             import asyncio
+
             loop = asyncio.new_event_loop()
             try:
                 asyncio.set_event_loop(loop)
@@ -79,6 +82,7 @@ class ExchangeFeedRegistry(PluginRegistry[ExchangeFeedManifest, BaseExchangeFeed
             return None
 
         import asyncio
+
         loop = asyncio.new_event_loop()
         try:
             asyncio.set_event_loop(loop)

@@ -4,6 +4,7 @@ import httpx
 from loguru import logger
 from backend.config import settings
 
+
 @dataclass
 class PolymeteoResolution:
     city: str
@@ -13,7 +14,10 @@ class PolymeteoResolution:
     precipitation: float
     outcome: Optional[str] = None  # "yes" or "no" if resolved
 
-async def fetch_polymeteo_resolutions(city: str, start_date: str, end_date: str) -> List[PolymeteoResolution]:
+
+async def fetch_polymeteo_resolutions(
+    city: str, start_date: str, end_date: str
+) -> List[PolymeteoResolution]:
     api_key = getattr(settings, "POLYMETEO_API_KEY", None)
     if not api_key:
         logger.warning("POLYMETEO_API_KEY not set")
@@ -41,7 +45,10 @@ async def fetch_polymeteo_resolutions(city: str, start_date: str, end_date: str)
             ]
         return []
 
-async def fetch_polymeteo_candles(city: str, market_id: str, timeframe: str) -> List[dict]:
+
+async def fetch_polymeteo_candles(
+    city: str, market_id: str, timeframe: str
+) -> List[dict]:
     api_key = getattr(settings, "POLYMETEO_API_KEY", None)
     if not api_key:
         return []

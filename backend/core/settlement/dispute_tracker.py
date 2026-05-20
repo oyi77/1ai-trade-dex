@@ -4,6 +4,7 @@ Dispute risk tracker for PolyEdge.
 Assesses the likelihood of market resolution disputes based on category,
 resolution criteria clarity, volume at stake, and time pressure.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -72,12 +73,16 @@ class DisputeTracker:
           volume_at_stake     15%
           time_pressure       15%
         """
-        market_id = str(market_data.get("id") or market_data.get("market_id", "unknown"))
+        market_id = str(
+            market_data.get("id") or market_data.get("market_id", "unknown")
+        )
         status = DisputeStatus(market_data.get("status", DisputeStatus.NONE))
         warnings: list[str] = []
 
         # --- resolution_clarity (0-100, higher = less clear = more risk) ---
-        criteria: str = str(market_data.get("resolution_criteria") or market_data.get("question", ""))
+        criteria: str = str(
+            market_data.get("resolution_criteria") or market_data.get("question", "")
+        )
         criteria_lower = criteria.lower()
         found_keywords = [kw for kw in _SUBJECTIVE_KEYWORDS if kw in criteria_lower]
         if found_keywords:
@@ -96,7 +101,9 @@ class DisputeTracker:
             category_score = 20.0
 
         # --- volume_at_stake (0-100) ---
-        volume = float(market_data.get("volume") or market_data.get("volume_usd") or 0.0)
+        volume = float(
+            market_data.get("volume") or market_data.get("volume_usd") or 0.0
+        )
         if volume > _HIGH_VOLUME_USD:
             volume_score = 80.0
             warnings.append(
@@ -113,10 +120,10 @@ class DisputeTracker:
             or market_data.get("time_remaining_seconds")
             or 86400  # default 1 day
         )
-        if seconds_remaining < 3600:        # < 1 hour
+        if seconds_remaining < 3600:  # < 1 hour
             time_score = 80.0
             warnings.append("Market closes in < 1 hour — elevated time pressure")
-        elif seconds_remaining < 21600:     # < 6 hours
+        elif seconds_remaining < 21600:  # < 6 hours
             time_score = 50.0
         else:
             time_score = 10.0

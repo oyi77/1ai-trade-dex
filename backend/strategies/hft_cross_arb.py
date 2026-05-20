@@ -7,6 +7,7 @@ immediately cancelled to prevent unhedged exposure.
 Execution flow:
   detect_arb() -> calculate_sizes() -> place_both_legs() -> verify_fills() -> record()
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,9 +35,11 @@ def _cfg(name: str, default=None):
 # Execution result dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AtomicArbResult:
     """Result of an atomic cross-exchange arbitrage execution."""
+
     arb_id: str
     opportunity: Optional[ArbOpportunityEnhanced] = None
     poly_order_id: Optional[str] = None
@@ -74,13 +77,22 @@ class AtomicArbResult:
 
 _ARB_CB_THRESHOLD = _cfg("ARB_CIRCUIT_BREAKER_THRESHOLD", 5)
 _ARB_CB_TIMEOUT = _cfg("ARB_CIRCUIT_BREAKER_TIMEOUT", 60.0)
-_poly_breaker = CircuitBreaker("hft_arb_polymarket", failure_threshold=_ARB_CB_THRESHOLD, recovery_timeout=_ARB_CB_TIMEOUT)
-_kalshi_breaker = CircuitBreaker("hft_arb_kalshi", failure_threshold=_ARB_CB_THRESHOLD, recovery_timeout=_ARB_CB_TIMEOUT)
+_poly_breaker = CircuitBreaker(
+    "hft_arb_polymarket",
+    failure_threshold=_ARB_CB_THRESHOLD,
+    recovery_timeout=_ARB_CB_TIMEOUT,
+)
+_kalshi_breaker = CircuitBreaker(
+    "hft_arb_kalshi",
+    failure_threshold=_ARB_CB_THRESHOLD,
+    recovery_timeout=_ARB_CB_TIMEOUT,
+)
 
 
 # ---------------------------------------------------------------------------
 # Position sizing: Kelly criterion for arbitrage
 # ---------------------------------------------------------------------------
+
 
 def _kelly_size(
     edge: float,
@@ -107,6 +119,7 @@ def _kelly_size(
 # Fee calculation
 # ---------------------------------------------------------------------------
 
+
 def _calculate_fees(
     poly_price: float,
     kalshi_price: float,
@@ -120,8 +133,16 @@ def _calculate_fees(
 
     Returns (poly_fee, kalshi_fee, total_slippage_cost).
     """
-    pf = poly_fee_pct if poly_fee_pct is not None else _cfg("CROSS_MARKET_ARB_POLYMARKET_FEE", 0.01)
-    kf = kalshi_fee_pct if kalshi_fee_pct is not None else _cfg("CROSS_MARKET_ARB_KALSHI_FEE", 0.01)
+    pf = (
+        poly_fee_pct
+        if poly_fee_pct is not None
+        else _cfg("CROSS_MARKET_ARB_POLYMARKET_FEE", 0.01)
+    )
+    kf = (
+        kalshi_fee_pct
+        if kalshi_fee_pct is not None
+        else _cfg("CROSS_MARKET_ARB_KALSHI_FEE", 0.01)
+    )
     poly_fee = poly_price * poly_size * pf
     kalshi_fee = kalshi_price * kalshi_size * kf
     slippage_cost = (slippage_bps / 10_000) * (poly_size + kalshi_size)
@@ -131,6 +152,7 @@ def _calculate_fees(
 # ---------------------------------------------------------------------------
 # Core executor
 # ---------------------------------------------------------------------------
+
 
 class HFTCrossArbExecutor:
     """Atomic cross-exchange arbitrage executor.
@@ -172,6 +194,7 @@ class HFTCrossArbExecutor:
     def _get_kalshi_client(self) -> Any:
         if self._kalshi is None:
             from backend.data.kalshi_client import KalshiClient
+
             self._kalshi = KalshiClient()
         return self._kalshi
 
@@ -286,12 +309,20 @@ class HFTCrossArbExecutor:
 
         try:
             poly_order, kalshi_order = await asyncio.gather(
-                self._place_poly_leg(poly_token, poly_side, poly_price, poly_size, arb_id),
-                self._place_kalshi_leg(kalshi_ticker, kalshi_side, kalshi_price, kalshi_size, arb_id),
+                self._place_poly_leg(
+                    poly_token, poly_side, poly_price, poly_size, arb_id
+                ),
+                self._place_kalshi_leg(
+                    kalshi_ticker, kalshi_side, kalshi_price, kalshi_size, arb_id
+                ),
                 return_exceptions=True,
             )
 
-            poly_ok = isinstance(poly_order, str) and poly_order.startswith("paper_") or (isinstance(poly_order, str) and bool(poly_order))
+            poly_ok = (
+                isinstance(poly_order, str)
+                and poly_order.startswith("paper_")
+                or (isinstance(poly_order, str) and bool(poly_order))
+            )
             kalshi_ok = isinstance(kalshi_order, str) and bool(kalshi_order)
 
             if isinstance(poly_order, Exception):
@@ -303,8 +334,12 @@ class HFTCrossArbExecutor:
 
             if poly_ok and kalshi_ok:
                 # Both filled
-                result.poly_order_id = poly_order if isinstance(poly_order, str) else str(poly_order)
-                result.kalshi_order_id = kalshi_order if isinstance(kalshi_order, str) else str(kalshi_order)
+                result.poly_order_id = (
+                    poly_order if isinstance(poly_order, str) else str(poly_order)
+                )
+                result.kalshi_order_id = (
+                    kalshi_order if isinstance(kalshi_order, str) else str(kalshi_order)
+                )
                 result.poly_fill_price = poly_price
                 result.kalshi_fill_price = kalshi_price
                 result.poly_size = poly_size
@@ -321,23 +356,39 @@ class HFTCrossArbExecutor:
 
             elif poly_ok and not kalshi_ok:
                 # Poly filled, Kalshi failed -> cancel poly
-                result.poly_order_id = poly_order if isinstance(poly_order, str) else str(poly_order)
+                result.poly_order_id = (
+                    poly_order if isinstance(poly_order, str) else str(poly_order)
+                )
                 result.status = "partial"
                 result.error = f"Kalshi leg failed: {kalshi_order}"
                 await _kalshi_breaker.record_failure()
-                await self._emergency_cancel_poly(poly_order if isinstance(poly_order, str) else str(poly_order), arb_id)
+                await self._emergency_cancel_poly(
+                    poly_order if isinstance(poly_order, str) else str(poly_order),
+                    arb_id,
+                )
 
             elif not poly_ok and kalshi_ok:
                 # Kalshi filled, Poly failed -> cancel kalshi
-                result.kalshi_order_id = kalshi_order if isinstance(kalshi_order, str) else str(kalshi_order)
+                result.kalshi_order_id = (
+                    kalshi_order if isinstance(kalshi_order, str) else str(kalshi_order)
+                )
                 result.status = "partial"
                 result.error = f"Poly leg failed: {poly_order}"
                 await _poly_breaker.record_failure()
-                await self._emergency_cancel_kalshi(kalshi_order if isinstance(kalshi_order, str) else str(kalshi_order), arb_id)
+                await self._emergency_cancel_kalshi(
+                    (
+                        kalshi_order
+                        if isinstance(kalshi_order, str)
+                        else str(kalshi_order)
+                    ),
+                    arb_id,
+                )
 
             else:
                 result.status = "failed"
-                result.error = f"Both legs failed: poly={poly_order}, kalshi={kalshi_order}"
+                result.error = (
+                    f"Both legs failed: poly={poly_order}, kalshi={kalshi_order}"
+                )
                 await _poly_breaker.record_failure()
                 await _kalshi_breaker.record_failure()
 
@@ -357,7 +408,12 @@ class HFTCrossArbExecutor:
     # ---- platform-specific leg placement ----
 
     async def _place_poly_leg(
-        self, token_id: str, side: str, price: float, size: float, arb_id: str,
+        self,
+        token_id: str,
+        side: str,
+        price: float,
+        size: float,
+        arb_id: str,
     ) -> Optional[str]:
         """Place Polymarket order leg with circuit breaker + retry."""
         if self._clob is None:
@@ -368,6 +424,7 @@ class HFTCrossArbExecutor:
 
         for attempt in range(self._MAX_RETRIES):
             try:
+
                 async def _do():
                     result = await self._clob.place_limit_order(
                         token_id=token_id,
@@ -378,7 +435,9 @@ class HFTCrossArbExecutor:
                     if hasattr(result, "order_id") and result.order_id:
                         return result.order_id
                     if hasattr(result, "success") and not result.success:
-                        raise ValueError(f"Order failed: {getattr(result, 'error', 'unknown')}")
+                        raise ValueError(
+                            f"Order failed: {getattr(result, 'error', 'unknown')}"
+                        )
                     return getattr(result, "order_id", f"poly_{int(time.time())}")
 
                 return await _poly_breaker.call(_do)
@@ -390,12 +449,17 @@ class HFTCrossArbExecutor:
                     f"[hft_cross_arb] Poly leg attempt {attempt + 1}/{self._MAX_RETRIES} failed: {exc}"
                 )
                 if attempt < self._MAX_RETRIES - 1:
-                    await asyncio.sleep(0.01 * (2 ** attempt))
+                    await asyncio.sleep(0.01 * (2**attempt))
                 else:
                     raise
 
     async def _place_kalshi_leg(
-        self, ticker: str, side: str, price: float, contracts: float, arb_id: str,
+        self,
+        ticker: str,
+        side: str,
+        price: float,
+        contracts: float,
+        arb_id: str,
     ) -> Optional[str]:
         """Place Kalshi order leg with circuit breaker + retry."""
         # CircuitBreaker.call() raises CircuitOpenError if breaker is open
@@ -403,6 +467,7 @@ class HFTCrossArbExecutor:
 
         for attempt in range(self._MAX_RETRIES):
             try:
+
                 async def _do():
                     client = self._get_kalshi_client()
                     result = await client.place_order(
@@ -412,7 +477,9 @@ class HFTCrossArbExecutor:
                         price=price,
                     )
                     if isinstance(result, dict):
-                        order_id = result.get("order", {}).get("order_id") or result.get("order_id")
+                        order_id = result.get("order", {}).get(
+                            "order_id"
+                        ) or result.get("order_id")
                         if order_id:
                             return order_id
                         status = result.get("status", "")
@@ -429,7 +496,7 @@ class HFTCrossArbExecutor:
                     f"[hft_cross_arb] Kalshi leg attempt {attempt + 1}/{self._MAX_RETRIES} failed: {exc}"
                 )
                 if attempt < self._MAX_RETRIES - 1:
-                    await asyncio.sleep(0.01 * (2 ** attempt))
+                    await asyncio.sleep(0.01 * (2**attempt))
                 else:
                     raise
 
@@ -440,20 +507,30 @@ class HFTCrossArbExecutor:
         try:
             if self._clob and hasattr(self._clob, "cancel_order"):
                 await self._clob.cancel_order(order_id)
-                logger.warning(f"[hft_cross_arb] EMERGENCY CANCEL poly order={order_id} arb_id={arb_id}")
+                logger.warning(
+                    f"[hft_cross_arb] EMERGENCY CANCEL poly order={order_id} arb_id={arb_id}"
+                )
             else:
-                logger.error(f"[hft_cross_arb] Cannot cancel poly order={order_id}: no CLOB client")
+                logger.error(
+                    f"[hft_cross_arb] Cannot cancel poly order={order_id}: no CLOB client"
+                )
         except Exception as exc:
-            logger.exception(f"[hft_cross_arb] Failed to cancel poly order={order_id}: {exc}")
+            logger.exception(
+                f"[hft_cross_arb] Failed to cancel poly order={order_id}: {exc}"
+            )
 
     async def _emergency_cancel_kalshi(self, order_id: str, arb_id: str) -> None:
         """Cancel Kalshi order after Polymarket leg failure."""
         try:
             client = self._get_kalshi_client()
             await client.cancel_order(order_id)
-            logger.warning(f"[hft_cross_arb] EMERGENCY CANCEL kalshi order={order_id} arb_id={arb_id}")
+            logger.warning(
+                f"[hft_cross_arb] EMERGENCY CANCEL kalshi order={order_id} arb_id={arb_id}"
+            )
         except Exception as exc:
-            logger.exception(f"[hft_cross_arb] Failed to cancel kalshi order={order_id}: {exc}")
+            logger.exception(
+                f"[hft_cross_arb] Failed to cancel kalshi order={order_id}: {exc}"
+            )
 
     # ---- verification ----
 
@@ -526,6 +603,7 @@ class HFTCrossArbExecutor:
 # ---------------------------------------------------------------------------
 # Strategy wrapper for HFT dispatcher integration
 # ---------------------------------------------------------------------------
+
 
 class HFTCrossArbStrategy(BaseStrategy):
     """Wraps HFTCrossArbExecutor as a BaseStrategy for the HFT dispatcher.
@@ -619,6 +697,7 @@ class HFTCrossArbStrategy(BaseStrategy):
             pass
         try:
             from backend.data.gamma import fetch_markets
+
             return await fetch_markets(limit=500)
         except Exception as exc:
             logger.warning(f"[hft_cross_arb] Poly fetch failed: {exc}")
@@ -634,6 +713,7 @@ class HFTCrossArbStrategy(BaseStrategy):
             pass
         try:
             from backend.data.kalshi_client import KalshiClient
+
             client = KalshiClient()
             data = await client.get_markets(params={"limit": 500, "status": "open"})
             return data.get("markets", []) if isinstance(data, dict) else []

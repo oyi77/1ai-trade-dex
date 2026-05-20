@@ -30,7 +30,13 @@ class MarketRiskGrader:
         "category_risk": 0.10,
     }
 
-    SUBJECTIVE_KEYWORDS = ["effectively", "substantially", "consensus", "arguably", "reasonable"]
+    SUBJECTIVE_KEYWORDS = [
+        "effectively",
+        "substantially",
+        "consensus",
+        "arguably",
+        "reasonable",
+    ]
 
     HIGH_RISK_CATEGORIES = ["politics", "legal", "regulatory", "geopolitical"]
     LOW_RISK_CATEGORIES = ["sports", "crypto", "weather", "finance", "science"]
@@ -49,7 +55,9 @@ class MarketRiskGrader:
 
         # 1. Resolution clarity
         clarity = 80.0
-        found_keywords = [kw for kw in self.SUBJECTIVE_KEYWORDS if kw in question.lower()]
+        found_keywords = [
+            kw for kw in self.SUBJECTIVE_KEYWORDS if kw in question.lower()
+        ]
         clarity -= len(found_keywords) * 15
         if len(question) > 200:
             clarity -= 10
@@ -154,4 +162,6 @@ class MarketRiskGrader:
         else:
             grade = RiskGrade.F
 
-        return MarketRiskGrade(grade=grade, score=score, factor_breakdown=factors, warnings=warnings)
+        return MarketRiskGrade(
+            grade=grade, score=score, factor_breakdown=factors, warnings=warnings
+        )

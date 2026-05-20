@@ -25,7 +25,11 @@ class TestFullAGICycle:
             "volatility": 0.02,
         }
         regime_result = detector.detect_regime(market_data)
-        assert regime_result.regime in [MarketRegime.BULL, MarketRegime.SIDEWAYS, MarketRegime.UNKNOWN]
+        assert regime_result.regime in [
+            MarketRegime.BULL,
+            MarketRegime.SIDEWAYS,
+            MarketRegime.UNKNOWN,
+        ]
 
         goal = goal_engine.get_current_goal(regime_result.regime)
         assert isinstance(goal, AGIGoal)
@@ -53,7 +57,9 @@ class TestFullAGICycle:
             capital=10000.0,
         )
 
-        goal_engine.handle_regime_change({"from_regime": "bull", "to_regime": "bear", "confidence": 0.85})
+        goal_engine.handle_regime_change(
+            {"from_regime": "bull", "to_regime": "bear", "confidence": 0.85}
+        )
         bear_goal = goal_engine.get_current_goal(MarketRegime.BEAR)
         _bear_alloc = allocator.allocate(
             strategies=["btc_momentum", "whale_tracker", "weather_emos"],
@@ -108,8 +114,14 @@ class TestFullAGICycle:
     def test_knowledge_graph_update_after_trade(self):
         kg = KnowledgeGraph()
 
-        kg.add_entity("trade_outcome", "trade_001", {"market": "btc_momentum", "pnl": 15.0, "regime": "bull"})
-        kg.add_relation("bull_regime", "trade_001", "caused", weight=0.8, confidence=0.85)
+        kg.add_entity(
+            "trade_outcome",
+            "trade_001",
+            {"market": "btc_momentum", "pnl": 15.0, "regime": "bull"},
+        )
+        kg.add_relation(
+            "bull_regime", "trade_001", "caused", weight=0.8, confidence=0.85
+        )
 
         entity = kg.get_entity("trade_001")
         assert entity is not None
@@ -179,5 +191,7 @@ class TestAGIConcurrency:
     def test_kg_no_self_loops(self):
         kg = KnowledgeGraph()
         kg.add_entity("test", "self_ref", {})
-        result = kg.validate_relation("self_ref", "self_ref", "self_loop", weight=0.5, confidence=0.9)
+        result = kg.validate_relation(
+            "self_ref", "self_ref", "self_loop", weight=0.5, confidence=0.9
+        )
         assert result is not None

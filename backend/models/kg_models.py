@@ -1,6 +1,17 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, Float, Integer, DateTime, JSON, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import (
+    Column,
+    String,
+    Float,
+    Integer,
+    DateTime,
+    JSON,
+    Text,
+    ForeignKey,
+    UniqueConstraint,
+    Index,
+)
 
 from backend.models.database import Base
 
@@ -17,7 +28,11 @@ class KGEntity(Base):
     entity_id = Column(String, nullable=False)
     properties = Column(JSON, default=dict)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class KGRelation(Base):
@@ -39,9 +54,7 @@ class KGRelation(Base):
 
 class MarketRegimeSnapshot(Base):
     __tablename__ = "market_regime_snapshots"
-    __table_args__ = (
-        Index("ix_regime_detected_at", "detected_at"),
-    )
+    __table_args__ = (Index("ix_regime_detected_at", "detected_at"),)
 
     id = Column(Integer, primary_key=True)
     regime = Column(String, nullable=False)
@@ -60,7 +73,12 @@ class ExperimentRecord(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    strategy_name = Column(String, ForeignKey("strategy_config.strategy_name", ondelete="SET NULL"), nullable=True, index=True)
+    strategy_name = Column(
+        String,
+        ForeignKey("strategy_config.strategy_name", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     strategy_composition = Column(JSON)
     status = Column(String, nullable=False, default="draft")
     shadow_pnl = Column(Float, default=0.0)
@@ -80,9 +98,7 @@ class ExperimentRecord(Base):
 
 class DecisionAuditLog(Base):
     __tablename__ = "decision_audit_logs"
-    __table_args__ = (
-        Index("ix_decision_timestamp", "timestamp"),
-    )
+    __table_args__ = (Index("ix_decision_timestamp", "timestamp"),)
 
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -109,4 +125,8 @@ class LLMCostRecord(Base):
     cost_usd = Column(Float, nullable=False)
     purpose = Column(String, nullable=False)
     budget_remaining = Column(Float, nullable=False)
-    date_key = Column(String, nullable=False, default=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    date_key = Column(
+        String,
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    )

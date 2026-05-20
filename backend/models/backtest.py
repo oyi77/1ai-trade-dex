@@ -13,10 +13,11 @@ from sqlalchemy import (
     Boolean,
     Text,
     ForeignKey,
-    Index
+    Index,
 )
 from sqlalchemy.orm import relationship
 from backend.models.database import Base
+
 
 class BacktestRun(Base):
     """Stores information about each backtest run."""
@@ -49,7 +50,10 @@ class BacktestRun(Base):
     error_message = Column(Text, nullable=True)
 
     # Relationship to individual trades
-    trades = relationship("BacktestTrade", back_populates="run", cascade="all, delete-orphan")
+    trades = relationship(
+        "BacktestTrade", back_populates="run", cascade="all, delete-orphan"
+    )
+
 
 class BacktestTrade(Base):
     """Stores individual trades from a backtest run."""
@@ -82,7 +86,8 @@ class BacktestTrade(Base):
     # Relationship
     run = relationship("BacktestRun", back_populates="trades")
 
+
 # Indexes for performance
-Index('idx_backtest_runs_strategy_date', 'strategy_name', 'start_date', 'end_date')
-Index('idx_backtest_trades_run_result', 'run_id', 'result')
-Index('idx_backtest_trades_timestamp', 'timestamp')
+Index("idx_backtest_runs_strategy_date", "strategy_name", "start_date", "end_date")
+Index("idx_backtest_trades_run_result", "run_id", "result")
+Index("idx_backtest_trades_timestamp", "timestamp")

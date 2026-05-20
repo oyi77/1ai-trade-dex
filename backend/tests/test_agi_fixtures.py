@@ -14,7 +14,11 @@ class TestFixtureImports:
         assert regime_data_bear["atr_percentile"] > 0.5
 
     def test_regime_data_sideways(self, regime_data_sideways):
-        assert abs(regime_data_sideways["sma_50"] - regime_data_sideways["sma_200"]) / regime_data_sideways["sma_200"] < 0.02
+        assert (
+            abs(regime_data_sideways["sma_50"] - regime_data_sideways["sma_200"])
+            / regime_data_sideways["sma_200"]
+            < 0.02
+        )
 
     def test_regime_data_crisis(self, regime_data_crisis):
         assert regime_data_crisis["drawdown"] > 0.15
@@ -45,7 +49,10 @@ class TestFixtureImports:
 
     def test_agi_db_fixture(self, agi_db):
         from backend.models.kg_models import KGEntity as KGEntityModel
-        entity = KGEntityModel(entity_type="test", entity_id="test_entity", properties={"key": "value"})
+
+        entity = KGEntityModel(
+            entity_type="test", entity_id="test_entity", properties={"key": "value"}
+        )
         agi_db.add(entity)
         agi_db.commit()
         fetched = agi_db.query(KGEntityModel).first()
@@ -55,12 +62,14 @@ class TestFixtureImports:
 class TestShadowModeFixture:
     def test_shadow_mode_enforced(self, shadow_mode_settings):
         from backend.config import settings
+
         assert settings.ACTIVE_MODES == "paper"
 
 
 class TestRiskBoundingFixture:
     def test_risk_bounding_settings(self, risk_bounding_settings):
         from backend.config import settings
+
         assert settings.MAX_TRADE_SIZE == 50.0
         assert settings.DAILY_LOSS_LIMIT == 100.0
         assert settings.KELLY_FRACTION == 0.5
@@ -77,6 +86,7 @@ class TestIntegrationBase:
 
     def test_kg_integrity_assertion(self):
         from backend.core.knowledge_graph import KnowledgeGraph
+
         base = AGIIntegrationBase()
         kg = KnowledgeGraph()
         kg.add_entity("strategy", "test_strat", {"win_rate": 0.6})

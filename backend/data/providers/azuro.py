@@ -122,7 +122,9 @@ class AzuroProvider(DataProvider):
         for game in games:
             for cond in game.get("conditions", []):
                 outcomes = cond.get("outcomes", [])
-                yes_odds = float(outcomes[0].get("currentOdds", 2.0)) if outcomes else 2.0
+                yes_odds = (
+                    float(outcomes[0].get("currentOdds", 2.0)) if outcomes else 2.0
+                )
                 entries.append(
                     MarketEntry(
                         ticker=cond.get("conditionId", ""),
@@ -139,13 +141,22 @@ class AzuroProvider(DataProvider):
 
     async def get_orderbook(self, market_id: str) -> dict:
         # Azuro uses on-chain orderbook — no REST orderbook endpoint
-        return {"bids": [], "asks": [], "market_id": market_id, "platform": self._platform}
+        return {
+            "bids": [],
+            "asks": [],
+            "market_id": market_id,
+            "platform": self._platform,
+        }
 
     async def get_positions(self) -> list[PositionEntry]:
-        raise RuntimeError("Azuro provider does not support position queries — use markets/providers/ instead")
+        raise RuntimeError(
+            "Azuro provider does not support position queries — use markets/providers/ instead"
+        )
 
     async def get_balance(self) -> BalanceInfo:
-        raise RuntimeError("Azuro provider does not support balance queries — use markets/providers/ instead")
+        raise RuntimeError(
+            "Azuro provider does not support balance queries — use markets/providers/ instead"
+        )
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, **kwargs
@@ -155,7 +166,9 @@ class AzuroProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Returns {"tx_hash": "0x...", "status": "submitted"} on success.
         """
-        raise RuntimeError("Azuro provider does not support order placement — use markets/providers/ instead")
+        raise RuntimeError(
+            "Azuro provider does not support order placement — use markets/providers/ instead"
+        )
 
     async def cancel_order(self, order_id: str) -> bool:
         # Azuro bets are non-cancellable once submitted on-chain

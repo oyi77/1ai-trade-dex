@@ -29,18 +29,27 @@ class TestSettingsPriority:
             assert settings.AI_PROVIDER == "groq"
 
     def test_env_overrides_defaults(self):
-        with patch.dict(os.environ, {
-            "INITIAL_BANKROLL": "500.0",
-            "MIN_EDGE_THRESHOLD": "0.15",
-            "AI_PROVIDER": "claude",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "INITIAL_BANKROLL": "500.0",
+                "MIN_EDGE_THRESHOLD": "0.15",
+                "AI_PROVIDER": "claude",
+            },
+        ):
             settings = Settings()
             assert settings.INITIAL_BANKROLL == 500.0
             assert settings.MIN_EDGE_THRESHOLD == 0.15
             assert settings.AI_PROVIDER == "claude"
 
     def test_active_modes_parsing(self):
-        with patch.dict(os.environ, {"ACTIVE_MODES": "paper,testnet", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
+        with patch.dict(
+            os.environ,
+            {
+                "ACTIVE_MODES": "paper,testnet",
+                "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234",
+            },
+        ):
             settings = Settings()
             assert settings.active_modes_set == {"paper", "testnet"}
             assert settings.is_mode_active("paper")
@@ -57,12 +66,24 @@ class TestSettingsPriority:
             settings = Settings()
             assert settings.SIMULATION_MODE is True
 
-        with patch.dict(os.environ, {"ACTIVE_MODES": "live", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
+        with patch.dict(
+            os.environ,
+            {
+                "ACTIVE_MODES": "live",
+                "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234",
+            },
+        ):
             settings = Settings()
             assert settings.SIMULATION_MODE is False
 
     def test_trading_mode_property(self):
-        with patch.dict(os.environ, {"ACTIVE_MODES": "testnet,paper", "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234"}):
+        with patch.dict(
+            os.environ,
+            {
+                "ACTIVE_MODES": "testnet,paper",
+                "POLYMARKET_PRIVATE_KEY": "0x1234567890123456789012345678901234567890123456789012345678901234",
+            },
+        ):
             settings = Settings()
             assert settings.TRADING_MODE == "testnet"
 
@@ -79,28 +100,34 @@ class TestExtendedSettings:
         assert settings.MIROFISH_ENABLED is True
 
     def test_extended_env_override(self):
-        with patch.dict(os.environ, {
-            "MIROFISH_API_URL": "https://custom-api.example.com",
-            "POLYGON_RPC_URL": "https://custom-rpc.example.com",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "MIROFISH_API_URL": "https://custom-api.example.com",
+                "POLYGON_RPC_URL": "https://custom-rpc.example.com",
+            },
+        ):
             settings = ExtendedSettings()
             assert settings.MIROFISH_API_URL == "https://custom-api.example.com"
             assert settings.POLYGON_RPC_URL == "https://custom-rpc.example.com"
 
     def test_extended_inherits_base_settings(self):
         settings = UnifiedSettings()
-        assert hasattr(settings, 'INITIAL_BANKROLL')
-        assert hasattr(settings, 'MIROFISH_API_URL')
-        assert hasattr(settings, 'MIROFISH_ENABLED')
+        assert hasattr(settings, "INITIAL_BANKROLL")
+        assert hasattr(settings, "MIROFISH_API_URL")
+        assert hasattr(settings, "MIROFISH_ENABLED")
 
 
 class TestRiskSettings:
     def test_risk_env_overrides(self):
-        with patch.dict(os.environ, {
-            "DAILY_LOSS_LIMIT": "10.0",
-            "MAX_TRADE_SIZE": "20.0",
-            "DAILY_DRAWDOWN_LIMIT_PCT": "0.15",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "DAILY_LOSS_LIMIT": "10.0",
+                "MAX_TRADE_SIZE": "20.0",
+                "DAILY_DRAWDOWN_LIMIT_PCT": "0.15",
+            },
+        ):
             settings = Settings()
             assert settings.DAILY_LOSS_LIMIT == 10.0
             assert settings.MAX_TRADE_SIZE == 20.0
@@ -117,7 +144,9 @@ class TestDatabaseSettings:
         assert len(settings.DATABASE_URL) > 0
 
     def test_custom_database_url(self):
-        with patch.dict(os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/mydb"}):
+        with patch.dict(
+            os.environ, {"DATABASE_URL": "postgresql://user:pass@localhost/mydb"}
+        ):
             settings = Settings()
             assert settings.DATABASE_URL == "postgresql://user:pass@localhost/mydb"
 
@@ -136,10 +165,13 @@ class TestFeatureFlags:
         assert settings.ARBITRAGE_DETECTOR_ENABLED is False
 
     def test_feature_flag_overrides(self):
-        with patch.dict(os.environ, {
-            "WHALE_LISTENER_ENABLED": "true",
-            "ARBITRAGE_DETECTOR_ENABLED": "true",
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "WHALE_LISTENER_ENABLED": "true",
+                "ARBITRAGE_DETECTOR_ENABLED": "true",
+            },
+        ):
             settings = Settings()
             assert settings.WHALE_LISTENER_ENABLED is True
             assert settings.ARBITRAGE_DETECTOR_ENABLED is True

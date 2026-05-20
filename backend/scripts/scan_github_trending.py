@@ -27,7 +27,9 @@ SEARCH_QUERIES = [
 ]
 
 
-def search_repos(query: str, min_stars: int = 5, limit: int = 30) -> list[dict[str, Any]]:
+def search_repos(
+    query: str, min_stars: int = 5, limit: int = 30
+) -> list[dict[str, Any]]:
     """Search GitHub repos matching a query.
 
     Args:
@@ -51,12 +53,19 @@ def search_repos(query: str, min_stars: int = 5, limit: int = 30) -> list[dict[s
     }
 
     try:
-        resp = httpx.get(f"{GITHUB_API}/search/repositories", params=params, headers=headers, timeout=15.0)
+        resp = httpx.get(
+            f"{GITHUB_API}/search/repositories",
+            params=params,
+            headers=headers,
+            timeout=15.0,
+        )
         resp.raise_for_status()
         data = resp.json()
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 403:
-            logger.warning("GitHub API rate limited. Set GITHUB_TOKEN for higher limits.")
+            logger.warning(
+                "GitHub API rate limited. Set GITHUB_TOKEN for higher limits."
+            )
         else:
             logger.warning("GitHub API error: {}", e)
         return []
@@ -66,21 +75,25 @@ def search_repos(query: str, min_stars: int = 5, limit: int = 30) -> list[dict[s
 
     repos = []
     for item in data.get("items", []):
-        repos.append({
-            "name": item["full_name"],
-            "url": item["html_url"],
-            "description": item.get("description", ""),
-            "stars": item["stargazers_count"],
-            "language": item.get("language"),
-            "last_updated": item.get("updated_at"),
-            "created_at": item.get("created_at"),
-            "topics": item.get("topics", []),
-        })
+        repos.append(
+            {
+                "name": item["full_name"],
+                "url": item["html_url"],
+                "description": item.get("description", ""),
+                "stars": item["stargazers_count"],
+                "language": item.get("language"),
+                "last_updated": item.get("updated_at"),
+                "created_at": item.get("created_at"),
+                "topics": item.get("topics", []),
+            }
+        )
 
     return repos
 
 
-def scan_trending(min_stars: int = 5, limit_per_query: int = 30) -> list[dict[str, Any]]:
+def scan_trending(
+    min_stars: int = 5, limit_per_query: int = 30
+) -> list[dict[str, Any]]:
     """Scan all configured queries and deduplicate results.
 
     Returns:
@@ -97,12 +110,16 @@ def scan_trending(min_stars: int = 5, limit_per_query: int = 30) -> list[dict[st
                 all_repos.append(repo)
 
     all_repos.sort(key=lambda r: r["stars"], reverse=True)
-    logger.info("Found {} unique repos across {} queries", len(all_repos), len(SEARCH_QUERIES))
+    logger.info(
+        "Found {} unique repos across {} queries", len(all_repos), len(SEARCH_QUERIES)
+    )
     return all_repos
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Scan GitHub for trending Polymarket repos")
+    parser = argparse.ArgumentParser(
+        description="Scan GitHub for trending Polymarket repos"
+    )
     parser.add_argument("--min-stars", type=int, default=5, help="Minimum star count")
     parser.add_argument("--limit", type=int, default=30, help="Results per query")
     parser.add_argument("--output", default=None, help="Output JSON file path")

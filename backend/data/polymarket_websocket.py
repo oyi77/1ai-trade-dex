@@ -28,6 +28,8 @@ from enum import Enum
 import websockets
 
 from loguru import logger
+
+
 class ChannelType(Enum):
     """WebSocket channel types"""
 
@@ -96,7 +98,9 @@ class WebSocketConfig:
     reconnect_delay: float = 1.0  # Initial reconnect delay
     max_reconnect_delay: float = 30.0  # Max reconnect delay (1s -> 30s)
     reconnect_backoff: float = 2.0  # Exponential backoff multiplier
-    max_reconnect_attempts: int = 10  # Max consecutive reconnect attempts before giving up
+    max_reconnect_attempts: int = (
+        10  # Max consecutive reconnect attempts before giving up
+    )
 
 
 class PolymarketWebSocket:
@@ -228,7 +232,8 @@ class PolymarketWebSocket:
             self._reconnect_count = 0
 
             from backend.api.main import app
-            if hasattr(app.state, 'task_manager'):
+
+            if hasattr(app.state, "task_manager"):
                 self._heartbeat_task = await app.state.task_manager.create_task(
                     self._heartbeat_loop(), name="polymarket_ws_heartbeat"
                 )
@@ -397,7 +402,10 @@ class PolymarketWebSocket:
             try:
                 from backend.core.event_bus import event_bus
 
-                event_bus.publish(EventType.PRICE_CHANGE.value, {**change, "timestamp": event["timestamp"]})
+                event_bus.publish(
+                    EventType.PRICE_CHANGE.value,
+                    {**change, "timestamp": event["timestamp"]},
+                )
             except Exception:
                 logger.exception("Failed to publish price_change event to EventBus")
 
@@ -446,7 +454,8 @@ class PolymarketWebSocket:
                 if elapsed > self._stale_timeout:
                     logger.warning(
                         "WebSocket stale for %.0fs (threshold: %.0fs) -- forcing reconnect",
-                        elapsed, self._stale_timeout,
+                        elapsed,
+                        self._stale_timeout,
                     )
                     if self.ws and not self.ws.closed:
                         await self.ws.close()
@@ -482,9 +491,11 @@ class PolymarketWebSocket:
             "message_count": self._message_count,
             "reconnect_count": self._reconnect_count,
             "last_message_time": self._last_message_time,
-            "uptime_seconds": time.time() - self._last_message_time
-            if self._last_message_time > 0
-            else 0,
+            "uptime_seconds": (
+                time.time() - self._last_message_time
+                if self._last_message_time > 0
+                else 0
+            ),
         }
 
 

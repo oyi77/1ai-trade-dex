@@ -59,7 +59,9 @@ class ResearchStorage:
                             content=item.content,
                         )
                     except Exception:
-                        logger.exception("BigBrain write failed for %s", item.fingerprint)
+                        logger.exception(
+                            "BigBrain write failed for %s", item.fingerprint
+                        )
 
             db.commit()
         return inserted

@@ -21,7 +21,9 @@ class DatadogBackend(BaseMetricsBackend):
             tags=["metrics", "commercial"],
         )
 
-    async def increment_counter(self, name: str, value: int = 1, tags: dict = None) -> None:
+    async def increment_counter(
+        self, name: str, value: int = 1, tags: dict = None
+    ) -> None:
         if not self.enabled:
             return
         await self._send_metric("count", name, float(value), tags or {})
@@ -31,12 +33,16 @@ class DatadogBackend(BaseMetricsBackend):
             return
         await self._send_metric("gauge", name, value, tags or {})
 
-    async def record_histogram(self, name: str, value: float, tags: dict = None) -> None:
+    async def record_histogram(
+        self, name: str, value: float, tags: dict = None
+    ) -> None:
         if not self.enabled:
             return
         await self._send_metric("histogram", name, value, tags or {})
 
-    async def _send_metric(self, metric_type: str, name: str, value: float, tags: Dict[str, str]) -> None:
+    async def _send_metric(
+        self, metric_type: str, name: str, value: float, tags: Dict[str, str]
+    ) -> None:
         import aiohttp
 
         if not self.enabled:
@@ -46,7 +52,9 @@ class DatadogBackend(BaseMetricsBackend):
             "series": [
                 {
                     "metric": name,
-                    "points": [{"value": value, "timestamp": int(__import__('time').time())}],
+                    "points": [
+                        {"value": value, "timestamp": int(__import__("time").time())}
+                    ],
                     "type": metric_type,
                     "tags": [f"{k}:{v}" for k, v in tags.items()],
                 }
@@ -55,6 +63,7 @@ class DatadogBackend(BaseMetricsBackend):
 
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 headers = {
                     "DD-API-KEY": self.api_key,

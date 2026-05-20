@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class AGIScoreMetric(ABC):
     """Base class for AGI-aligned scoring metrics."""
 

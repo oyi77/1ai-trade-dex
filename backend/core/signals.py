@@ -1,4 +1,5 @@
 """Signal generator for BTC 5-minute Up/Down markets."""
+
 from datetime import datetime, timezone
 from typing import Optional, List
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from backend.data.market_universe import MarketUniverseScanner
 from backend.models.database import Signal
 
 from loguru import logger
+
+
 @dataclass
 class TradingSignal:
     """A trading signal for a BTC 5-min market."""
@@ -111,7 +114,9 @@ def calculate_kelly_size(
     return size
 
 
-async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optional[TradingSignal]:
+async def generate_btc_signal(
+    market: BtcMarket, mode: str = "paper"
+) -> Optional[TradingSignal]:
     """Generate a trading signal for a BTC 5-min Up/Down market."""
     try:
         micro = await compute_btc_microstructure()
@@ -234,14 +239,19 @@ async def generate_btc_signal(market: BtcMarket, mode: str = "paper") -> Optiona
         from backend.models.database import BotState, for_update
 
         from backend.db.utils import get_db_session
+
         with get_db_session() as _db:
             _state = for_update(_db, _db.query(BotState).filter_by(mode=mode)).first()
             if _state:
                 bankroll = float(
-                    _state.bankroll if _state.bankroll is not None else settings.INITIAL_BANKROLL
+                    _state.bankroll
+                    if _state.bankroll is not None
+                    else settings.INITIAL_BANKROLL
                 )
     except Exception as _e:
-        logger.debug(f"Bankroll read failed for mode {mode}, using INITIAL_BANKROLL: {_e}")
+        logger.debug(
+            f"Bankroll read failed for mode {mode}, using INITIAL_BANKROLL: {_e}"
+        )
     suggested_size = calculate_kelly_size(
         edge=abs(edge),
         probability=model_up_prob,
@@ -360,6 +370,7 @@ def _persist_signals(signals: list, mode: str = "paper"):
     execution_mode = mode
 
     from backend.db.utils import get_db_session
+
     try:
         with get_db_session() as db:
             for signal in to_save:
@@ -424,16 +435,18 @@ def _persist_signals(signals: list, mode: str = "paper"):
                             "reasoning": db_signal.reasoning,
                             "timestamp": db_signal.timestamp.isoformat(),
                             "category": "trading",
-                            "btc_price": original_signal.btc_price
-                            if original_signal
-                            else None,
-                            "window_end": original_signal.market.window_end.isoformat()
-                            if original_signal and original_signal.market.window_end
-                            else None,
+                            "btc_price": (
+                                original_signal.btc_price if original_signal else None
+                            ),
+                            "window_end": (
+                                original_signal.market.window_end.isoformat()
+                                if original_signal and original_signal.market.window_end
+                                else None
+                            ),
                             "actionable": abs(db_signal.edge) >= 0.02,
-                            "event_slug": original_signal.market.slug
-                            if original_signal
-                            else None,
+                            "event_slug": (
+                                original_signal.market.slug if original_signal else None
+                            ),
                         },
                     )
                 except Exception as _e:

@@ -9,10 +9,10 @@ async def disk_space_check_job():
     from backend.config import settings
     from backend.core.scheduler import log_event
 
-    alert_pct = getattr(settings, 'DISK_USAGE_ALERT_PCT', 0.90)
+    alert_pct = getattr(settings, "DISK_USAGE_ALERT_PCT", 0.90)
 
     try:
-        usage = psutil.disk_usage('/')
+        usage = psutil.disk_usage("/")
         used_pct = usage.percent / 100.0
 
         if used_pct >= alert_pct:
@@ -26,6 +26,7 @@ async def disk_space_check_job():
             try:
                 from backend.core.alert_manager import AlertManager
                 from backend.db.utils import get_db_session
+
                 with get_db_session() as db:
                     am = AlertManager(db)
                     am.send_alert("disk_space_warning", msg, severity="warning")
@@ -34,7 +35,8 @@ async def disk_space_check_job():
         else:
             logger.debug(
                 "[disk_monitor] Disk usage OK: {:.1f}% ({:.1f} GB free)",
-                usage.percent, usage.free / (1024**3),
+                usage.percent,
+                usage.free / (1024**3),
             )
     except Exception as e:
         logger.warning("[disk_monitor] Disk check failed: {}", e)

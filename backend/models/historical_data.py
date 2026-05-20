@@ -27,9 +27,7 @@ class HistoricalCandle(Base):
 
 class MarketOutcome(Base):
     __tablename__ = "market_outcome"
-    __table_args__ = (
-        Index("ix_outcome_market", "market_ticker", "resolved_at"),
-    )
+    __table_args__ = (Index("ix_outcome_market", "market_ticker", "resolved_at"),)
 
     id = Column(Integer, primary_key=True, index=True)
     market_ticker = Column(String(256), nullable=False, index=True)
@@ -45,9 +43,7 @@ class MarketOutcome(Base):
 
 class WeatherSnapshot(Base):
     __tablename__ = "weather_snapshot"
-    __table_args__ = (
-        Index("ix_weather_city_ts", "city", "timestamp"),
-    )
+    __table_args__ = (Index("ix_weather_city_ts", "city", "timestamp"),)
 
     id = Column(Integer, primary_key=True, index=True)
     city = Column(String(100), nullable=False, index=True)

@@ -8,6 +8,7 @@ Pipeline:
   5. Gate 4 — sandbox import test (exec in isolated module).
   Only strategies passing all 4 gates enter the SHADOW stage.
 """
+
 from __future__ import annotations
 
 import ast
@@ -21,6 +22,7 @@ from backend.core.agi_types import MarketRegime
 from backend.models.kg_models import Base, ExperimentRecord
 
 from loguru import logger
+
 # Daily LLM cost budget for synthesis (overridden by AGI_SYNTHESIS_DAILY_BUDGET env var)
 _DEFAULT_DAILY_BUDGET = 2.00
 
@@ -56,7 +58,12 @@ class GeneratedStrategy:
 
 
 class ValidationResult:
-    def __init__(self, valid: bool, errors: list[str] | None = None, warnings: list[str] | None = None):
+    def __init__(
+        self,
+        valid: bool,
+        errors: list[str] | None = None,
+        warnings: list[str] | None = None,
+    ):
         self.valid = valid
         self.errors = errors or []
         self.warnings = warnings or []
@@ -98,9 +105,14 @@ class StrategySynthesizer:
     def _daily_budget(self) -> float:
         try:
             from backend.config import settings
-            return float(getattr(settings, "AGI_SYNTHESIS_DAILY_BUDGET", _DEFAULT_DAILY_BUDGET))
+
+            return float(
+                getattr(settings, "AGI_SYNTHESIS_DAILY_BUDGET", _DEFAULT_DAILY_BUDGET)
+            )
         except Exception:
-            logger.exception("[StrategySynthesizer] Failed to read AGI_SYNTHESIS_DAILY_BUDGET setting")
+            logger.exception(
+                "[StrategySynthesizer] Failed to read AGI_SYNTHESIS_DAILY_BUDGET setting"
+            )
             return _DEFAULT_DAILY_BUDGET
 
     async def generate_strategy(
@@ -130,6 +142,7 @@ class StrategySynthesizer:
         strategy_name: str | None = None
         try:
             from backend.ai.strategy_composer import StrategyComposer
+
             composer = StrategyComposer()
 
             compose_db = self._new_bound_session()
@@ -142,15 +155,20 @@ class StrategySynthesizer:
 
             if result and result.get("code"):
                 code = result["code"]
-                strategy_name = result.get("strategy_name", f"synth_{self._generation_count}")
+                strategy_name = result.get(
+                    "strategy_name", f"synth_{self._generation_count}"
+                )
                 # Rough cost estimate: ~2k tokens ≈ $0.006 for Claude Haiku
                 self._daily_cost += 0.006
                 logger.info(
                     "[StrategySynthesizer] LLM generated strategy '%s' (daily cost so far: $%.3f)",
-                    strategy_name, self._daily_cost,
+                    strategy_name,
+                    self._daily_cost,
                 )
             else:
-                logger.warning("[StrategySynthesizer] LLM returned no code — using stub")
+                logger.warning(
+                    "[StrategySynthesizer] LLM returned no code — using stub"
+                )
                 return self._stub_strategy(description, regime, reason="llm_no_output")
         except Exception as e:
             logger.error("[StrategySynthesizer] LLM synthesis failed: %s", e)
@@ -170,7 +188,11 @@ class StrategySynthesizer:
         g1 = self.validate_syntax(code)
         gate_results["syntax"] = {"passed": g1.valid, "errors": g1.errors}
         if not g1.valid:
-            logger.warning("[StrategySynthesizer] Gate 1 (syntax) FAILED for '%s': %s", strategy_name, g1.errors)
+            logger.warning(
+                "[StrategySynthesizer] Gate 1 (syntax) FAILED for '%s': %s",
+                strategy_name,
+                g1.errors,
+            )
             generated.gate_results = gate_results
             return generated
 
@@ -178,7 +200,11 @@ class StrategySynthesizer:
         g2 = self.lint_code(code)
         gate_results["lint"] = {"passed": g2.valid, "errors": g2.errors}
         if not g2.valid:
-            logger.warning("[StrategySynthesizer] Gate 2 (lint) FAILED for '%s': %s", strategy_name, g2.errors)
+            logger.warning(
+                "[StrategySynthesizer] Gate 2 (lint) FAILED for '%s': %s",
+                strategy_name,
+                g2.errors,
+            )
             generated.gate_results = gate_results
             return generated
 
@@ -188,7 +214,8 @@ class StrategySynthesizer:
         if not g3.get("passed"):
             logger.warning(
                 "[StrategySynthesizer] Gate 3 (backtest) FAILED for '%s': %s",
-                strategy_name, g3.get("reason"),
+                strategy_name,
+                g3.get("reason"),
             )
             generated.gate_results = gate_results
             return generated
@@ -197,14 +224,21 @@ class StrategySynthesizer:
         g4 = self.safe_import_test(code)
         gate_results["sandbox"] = {"passed": g4.valid, "errors": g4.errors}
         if not g4.valid:
-            logger.warning("[StrategySynthesizer] Gate 4 (sandbox) FAILED for '%s': %s", strategy_name, g4.errors)
+            logger.warning(
+                "[StrategySynthesizer] Gate 4 (sandbox) FAILED for '%s': %s",
+                strategy_name,
+                g4.errors,
+            )
             generated.gate_results = gate_results
             return generated
 
         # All gates passed
         generated.validation_passed = True
         generated.gate_results = gate_results
-        logger.info("[StrategySynthesizer] All 4 gates PASSED for '%s' — entering SHADOW", strategy_name)
+        logger.info(
+            "[StrategySynthesizer] All 4 gates PASSED for '%s' — entering SHADOW",
+            strategy_name,
+        )
         return generated
 
     # ------------------------------------------------------------------
@@ -266,16 +300,24 @@ class StrategySynthesizer:
                 "sharpe": round(sharpe, 4),
                 "max_drawdown": round(max_dd, 4),
                 "total_trades": result.total_trades,
-                "reason": None if passed else f"sharpe={sharpe:.3f} max_dd={max_dd:.1%}",
+                "reason": (
+                    None if passed else f"sharpe={sharpe:.3f} max_dd={max_dd:.1%}"
+                ),
             }
         except (ValueError, KeyError, IndexError, FileNotFoundError) as e:
             # Backtest failure is non-fatal for newly generated strategies with
             # no historical signals — treat as a soft pass with a warning.
             logger.warning(
                 "[StrategySynthesizer] Backtest gate skipped for '%s' (no historical data): %s",
-                strategy_name, e,
+                strategy_name,
+                e,
             )
-            return {"passed": False, "reason": f"skipped:{e}", "sharpe": 0.0, "max_drawdown": 0.0}
+            return {
+                "passed": False,
+                "reason": f"skipped:{e}",
+                "sharpe": 0.0,
+                "max_drawdown": 0.0,
+            }
 
     def safe_import_test(self, code: str) -> ValidationResult:
         """Gate 4: exec the generated code in a restricted sandbox namespace.
@@ -328,7 +370,9 @@ class StrategySynthesizer:
                     ):
                         return ValidationResult(valid=True)
                 except Exception:
-                    logger.debug("[StrategySynthesizer] Skipping invalid class in sandbox import test")
+                    logger.debug(
+                        "[StrategySynthesizer] Skipping invalid class in sandbox import test"
+                    )
                     continue
             # No BaseStrategy subclass found but exec succeeded — still pass
             return ValidationResult(valid=True)
@@ -347,7 +391,9 @@ class StrategySynthesizer:
                 f"{generated.gate_results}"
             )
 
-        existing = self._session.query(ExperimentRecord).filter_by(name=generated.name).first()
+        existing = (
+            self._session.query(ExperimentRecord).filter_by(name=generated.name).first()
+        )
         if existing:
             return str(existing.id)
 
@@ -377,16 +423,18 @@ class StrategySynthesizer:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _stub_strategy(self, description: str, regime: MarketRegime, reason: str = "") -> GeneratedStrategy:
+    def _stub_strategy(
+        self, description: str, regime: MarketRegime, reason: str = ""
+    ) -> GeneratedStrategy:
         """Return a non-validated stub when LLM synthesis is unavailable."""
         # E-125: Don't double-increment — _generation_count already incremented in generate()
         name = f"stub_strategy_{self._generation_count}"
         code = (
-            f'from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult\n\n'
+            f"from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult\n\n"
             f'class {name.title().replace("_", "")}(BaseStrategy):\n'
             f'    name = "{name}"\n'
-            f'    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:\n'
-            f'        return CycleResult()\n'
+            f"    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:\n"
+            f"        return CycleResult()\n"
         )
         return GeneratedStrategy(
             name=name,
@@ -406,7 +454,9 @@ class StrategySynthesizer:
             parts = []
             regimes = kg_context.get("recent_regimes", [])
             if regimes:
-                parts.append(f"Recent regimes: {', '.join(str(r) for r in regimes[:5])}")
+                parts.append(
+                    f"Recent regimes: {', '.join(str(r) for r in regimes[:5])}"
+                )
             best = kg_context.get("best_strategies", [])
             if best:
                 names = [s.get("name", "") for s in best[:3]]

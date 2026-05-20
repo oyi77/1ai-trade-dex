@@ -97,9 +97,7 @@ class StrategyPerformanceTracker:
                         StrategyOutcome.market_ticker.ilike(f"%{asset}%")
                     )
                 rows = (
-                    query.order_by(StrategyOutcome.settled_at.desc())
-                    .limit(limit)
-                    .all()
+                    query.order_by(StrategyOutcome.settled_at.desc()).limit(limit).all()
                 )
 
                 if not rows:

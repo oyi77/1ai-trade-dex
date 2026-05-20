@@ -42,22 +42,28 @@ _engine_kwargs = {
 }
 
 if _is_postgres:
-    _engine_kwargs.update({
-        "pool_size": settings.POSTGRES_POOL_SIZE,
-        "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
-    })
+    _engine_kwargs.update(
+        {
+            "pool_size": settings.POSTGRES_POOL_SIZE,
+            "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
+        }
+    )
 else:
     # SQLite needs generous pool for concurrent strategy cycles + API + workers
-    _engine_kwargs.update({
-        "pool_size": 20,
-        "max_overflow": 40,
-        "pool_timeout": 120,
-        "connect_args": {"check_same_thread": False},
-    })
+    _engine_kwargs.update(
+        {
+            "pool_size": 20,
+            "max_overflow": 40,
+            "pool_timeout": 120,
+            "connect_args": {"check_same_thread": False},
+        }
+    )
 
 engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 _TS_TYPE = "TIMESTAMP" if "postgresql" in settings.DATABASE_URL else "DATETIME"
+
+
 def configure_sqlite_wal(engine_obj):
     """Register a connect listener that enables WAL mode and performance PRAGMAs for SQLite."""
     if engine_obj.url.get_dialect().name != "sqlite":
@@ -118,15 +124,9 @@ def _apply_postgres_lock_timeouts(session) -> None:
     if session.get_bind().dialect.name != "postgresql":
         return
 
+    session.execute(text(f"SET LOCAL lock_timeout = '{POSTGRES_LOCK_TIMEOUT}'"))
     session.execute(
-        text(
-            f"SET LOCAL lock_timeout = '{POSTGRES_LOCK_TIMEOUT}'"
-        )
-    )
-    session.execute(
-        text(
-            f"SET LOCAL statement_timeout = '{POSTGRES_STATEMENT_TIMEOUT}'"
-        )
+        text(f"SET LOCAL statement_timeout = '{POSTGRES_STATEMENT_TIMEOUT}'")
     )
 
 
@@ -174,6 +174,7 @@ def _set_sqlite_busy_timeout(connection_or_session, timeout_ms: int) -> None:
     except Exception as exc:
         logger.debug(f"Could not set SQLite busy_timeout={timeout_ms}: {exc}")
 
+
 try:
     import backend.models.kg_models  # noqa: F401 — registers ExperimentRecord, StrategyProposal with Base.metadata
     import backend.models.outcome_tables  # noqa: F401 — registers learning tables with Base.metadata (requires kg_models first)
@@ -202,13 +203,13 @@ async def execute_with_timeout(db_operation, timeout: float = None):
 
     try:
         result = await asyncio.wait_for(
-            asyncio.to_thread(db_operation),
-            timeout=timeout
+            asyncio.to_thread(db_operation), timeout=timeout
         )
         return result
     except asyncio.TimeoutError:
         logger.error(f"Database query timeout after {timeout}s")
         from backend.monitoring.metrics import increment_timeouts
+
         increment_timeouts(timeout_type="database")
         raise
 
@@ -302,7 +303,9 @@ class HFTExecutionRecord(Base):
     status = Column(String)  # "pending", "filled", "failed", "queued", "cancelled"
     error = Column(String, nullable=True)
     timestamp = Column(Float)  # unix timestamp
-    created_at = Column(DateTime, server_default=text("(CURRENT_TIMESTAMP)"), index=True)
+    created_at = Column(
+        DateTime, server_default=text("(CURRENT_TIMESTAMP)"), index=True
+    )
 
     # Model performance tracking
     model_probability = Column(Float)
@@ -361,7 +364,9 @@ class GenomeRegistry(Base):
     strategy_name = Column(String, nullable=False, index=True)
     archetype = Column(String, nullable=False)
     version = Column(String, nullable=False)
-    stage = Column(String, nullable=False, index=True)  # DRAFT, SHADOW, PAPER, LIVE, GRAVEYARD
+    stage = Column(
+        String, nullable=False, index=True
+    )  # DRAFT, SHADOW, PAPER, LIVE, GRAVEYARD
     lineage_json = Column(Text, nullable=False)
     chromosomes_json = Column(Text, nullable=False)
     fitness_json = Column(Text, nullable=False)
@@ -370,7 +375,9 @@ class GenomeRegistry(Base):
 
     # Native columns derived from fitness_json for efficient querying
     fitness_score = Column(Float, nullable=True, index=True)  # 0.0–1.0 composite score
-    fitness_updated_at = Column(DateTime, nullable=True)  # when fitness was last recalculated
+    fitness_updated_at = Column(
+        DateTime, nullable=True
+    )  # when fitness was last recalculated
     total_pnl = Column(Float, nullable=True, default=0.0)
     win_rate = Column(Float, nullable=True, default=0.0)
     sharpe_ratio = Column(Float, nullable=True, default=0.0)
@@ -383,7 +390,9 @@ class GenomeRegistry(Base):
     updated_at = Column(DateTime, nullable=True)
 
     # Relationships
-    evolution_logs = relationship("EvolutionLog", back_populates="genome", cascade="all, delete-orphan")
+    evolution_logs = relationship(
+        "EvolutionLog", back_populates="genome", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_genome_stage_score", "stage", "fitness_score"),
@@ -445,6 +454,7 @@ class GenomeRegistry(Base):
     def chromosome_performance(self, value: dict):
         self.chromosome_perf_json = json.dumps(value) if value else "{}"
 
+
 class ShadowTrade(Base):
     """Shadow trades for strategy validation without real capital."""
 
@@ -462,7 +472,12 @@ class ShadowTrade(Base):
     settlement_value = Column(Float, nullable=True)
     pnl = Column(Float, nullable=True)
     accuracy_score = Column(Float, nullable=True)
-    genome_id = Column(String, ForeignKey("genome_registry.genome_id", ondelete="SET NULL"), nullable=True, index=True)
+    genome_id = Column(
+        String,
+        ForeignKey("genome_registry.genome_id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     predicted_outcome = Column(Float, nullable=True)
     actual_outcome = Column(Float, nullable=True)
 
@@ -504,25 +519,37 @@ class BotState(Base):
     paper_pnl = Column(Float, default=0.0)
     paper_trades = Column(Integer, default=0)
     paper_wins = Column(Integer, default=0)
-    paper_initial_bankroll = Column(Float, nullable=True, default=None,
-                                    doc="Effective initial bankroll for paper mode including top-ups. "
-                                        "None means use settings.INITIAL_BANKROLL.")
+    paper_initial_bankroll = Column(
+        Float,
+        nullable=True,
+        default=None,
+        doc="Effective initial bankroll for paper mode including top-ups. "
+        "None means use settings.INITIAL_BANKROLL.",
+    )
 
     # Testnet trading tracking (isolated from live)
     testnet_bankroll = Column(Float, default=100.0)
     testnet_pnl = Column(Float, default=0.0)
     testnet_trades = Column(Integer, default=0)
     testnet_wins = Column(Integer, default=0)
-    testnet_initial_bankroll = Column(Float, nullable=True, default=None,
-                                      doc="Effective initial bankroll for testnet mode including top-ups. "
-                                          "None means use 100.")
+    testnet_initial_bankroll = Column(
+        Float,
+        nullable=True,
+        default=None,
+        doc="Effective initial bankroll for testnet mode including top-ups. "
+        "None means use 100.",
+    )
 
     # Live trading tracking
-    live_initial_bankroll = Column(Float, nullable=True, default=None,
-                                   doc="Effective initial bankroll for live mode. "
-                                       "Set on first sync from settings.INITIAL_BANKROLL. "
-                                       "Deposits do NOT update this — it stays anchored so PnL "
-                                       "reflects only trading performance, never capital injections.")
+    live_initial_bankroll = Column(
+        Float,
+        nullable=True,
+        default=None,
+        doc="Effective initial bankroll for live mode. "
+        "Set on first sync from settings.INITIAL_BANKROLL. "
+        "Deposits do NOT update this — it stays anchored so PnL "
+        "reflects only trading performance, never capital injections.",
+    )
 
     # Per-track bankroll and PNL tracking (for isolation mode)
     track_bankroll_realtime = Column(Float, default=100.0)
@@ -548,9 +575,11 @@ class BotState(Base):
     wallet_pnl = Column(Float, default=0.0)
 
     def __repr__(self):
-        return (f"<BotState(id={self.id}, mode={self.mode}, bankroll={self.bankroll}, "
-                f"total_pnl={self.total_pnl}, total_trades={self.total_trades}, "
-                f"winning_trades={self.winning_trades})>")
+        return (
+            f"<BotState(id={self.id}, mode={self.mode}, bankroll={self.bankroll}, "
+            f"total_pnl={self.total_pnl}, total_trades={self.total_trades}, "
+            f"winning_trades={self.winning_trades})>"
+        )
 
 
 @event.listens_for(SQLAlchemySession, "before_flush")
@@ -658,6 +687,7 @@ class EMOSCalibrationState(Base):
     b = Column(Float, nullable=False)
     last_updated = Column(DateTime, nullable=True)
 
+
 class ScanLog(Base):
     """Log of each market scan run."""
 
@@ -735,7 +765,9 @@ class TradeAttempt(Base):
     id = Column(Integer, primary_key=True, index=True)
     attempt_id = Column(String, nullable=False, unique=True, index=True)
     correlation_id = Column(String, nullable=False, index=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -822,11 +854,19 @@ class StrategyConfig(Base):
     trading_mode = Column(
         String, nullable=True
     )  # "paper", "testnet", "live" - overrides global TRADING_MODE
-    mode = Column(String, nullable=True, default=None)  # "paper", "testnet", "live" - NULL = applies to all modes
-    time_horizon = Column(String, nullable=True, default="mid")  # "short", "mid", "long"
-    risk_tier = Column(String, nullable=True, default="moderate")  # "safe", "conservative", "moderate", "aggressive", "extreme", "crazy"
+    mode = Column(
+        String, nullable=True, default=None
+    )  # "paper", "testnet", "live" - NULL = applies to all modes
+    time_horizon = Column(
+        String, nullable=True, default="mid"
+    )  # "short", "mid", "long"
+    risk_tier = Column(
+        String, nullable=True, default="moderate"
+    )  # "safe", "conservative", "moderate", "aggressive", "extreme", "crazy"
     disabled_at = Column(DateTime, nullable=True, default=None)
-    rehab_allocation_pct = Column(Float, nullable=True, default=None)  # graduated rehab: 25→50→75→100
+    rehab_allocation_pct = Column(
+        Float, nullable=True, default=None
+    )  # graduated rehab: 25→50→75→100
     updated_at = Column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -928,12 +968,15 @@ class PendingApproval(Base):
 
 class ActivityLog(Base):
     """Log of all strategy decisions and trading activity."""
+
     __tablename__ = "activity_log"
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     strategy_name = Column(String(100), nullable=False, index=True)
-    decision_type = Column(String(50), nullable=False)  # 'entry', 'exit', 'hold', 'adjustment'
+    decision_type = Column(
+        String(50), nullable=False
+    )  # 'entry', 'exit', 'hold', 'adjustment'
     data = Column(JSON, nullable=False)  # Full decision context
     confidence_score = Column(Float, nullable=False)  # 0.0-1.0
     mode = Column(String(20), nullable=False)  # 'paper' or 'live'
@@ -941,6 +984,7 @@ class ActivityLog(Base):
 
 class StrategyProposal(Base):
     """Proposed strategy changes awaiting admin approval."""
+
     __tablename__ = "strategy_proposal"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -956,13 +1000,16 @@ class StrategyProposal(Base):
     backtest_win_rate = Column(Float, nullable=True)
     executed_at = Column(DateTime, nullable=True)
     impact_measured = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
     admin_user_id = Column(String(100), nullable=True)
     admin_decision_reason = Column(Text, nullable=True)
 
 
 class MiroFishSignal(Base):
     """AI-generated signals from Miro Fish debate engine for prediction markets."""
+
     __tablename__ = "mirofish_signal"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -972,8 +1019,14 @@ class MiroFishSignal(Base):
     reasoning = Column(Text, nullable=False)
     source = Column(String(50), default="mirofish", nullable=False)
     weight = Column(Float, default=1.0, nullable=False)  # Weight in debate engine
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
 
 class PerformanceMetric(Base):
@@ -982,7 +1035,9 @@ class PerformanceMetric(Base):
     __tablename__ = "performance_metrics"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
+    timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False
+    )
     metric_type = Column(String, nullable=False, index=True)
     endpoint = Column(String, nullable=True, index=True)
     method = Column(String, nullable=True)
@@ -999,20 +1054,25 @@ class PerformanceMetric(Base):
     error_message = Column(String, nullable=True)
 
     __table_args__ = (
-        Index('idx_metrics_type_timestamp', 'metric_type', 'timestamp'),
-        Index('idx_metrics_endpoint_timestamp', 'endpoint', 'timestamp'),
+        Index("idx_metrics_type_timestamp", "metric_type", "timestamp"),
+        Index("idx_metrics_endpoint_timestamp", "endpoint", "timestamp"),
     )
 
 
 class AuditLog(Base):
     """Comprehensive audit log for all money-related operations."""
+
     __tablename__ = "audit_log"
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    event_type = Column(String, nullable=False, index=True)  # TRADE_CREATED, SETTLEMENT_COMPLETED, POSITION_UPDATED, WALLET_RECONCILED
+    event_type = Column(
+        String, nullable=False, index=True
+    )  # TRADE_CREATED, SETTLEMENT_COMPLETED, POSITION_UPDATED, WALLET_RECONCILED
     entity_type = Column(String, nullable=False)  # TRADE, POSITION, WALLET, CONFIG
-    entity_id = Column(String, nullable=False, index=True)  # trade_id, position_id, wallet_address
+    entity_id = Column(
+        String, nullable=False, index=True
+    )  # trade_id, position_id, wallet_address
     old_value = Column(JSON, nullable=True)  # Previous state snapshot
     new_value = Column(JSON, nullable=True)  # New state snapshot
     user_id = Column(String, default="system")  # "system", "admin", "strategy:btc_5min"
@@ -1022,6 +1082,7 @@ class AuditLog(Base):
     action = Column(String, nullable=True)
     details = Column(JSON, nullable=True)
 
+
 class EvolutionLog(Base):
     """Log of genome evolution events and stage transitions."""
 
@@ -1029,7 +1090,9 @@ class EvolutionLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     genome_id = Column(String, ForeignKey("genome_registry.genome_id"), index=True)
-    event_type = Column(String, index=True)  # promotion, mutation, crossover, auto_killed, etc.
+    event_type = Column(
+        String, index=True
+    )  # promotion, mutation, crossover, auto_killed, etc.
     from_stage = Column(String, nullable=True)  # Source stage
     to_stage = Column(String, nullable=True)  # Target stage
     data = Column(JSON, default=lambda: {})  # Additional event data
@@ -1191,12 +1254,21 @@ class Setting(Base):
     value = Column(Text, nullable=False)
     description = Column(String, nullable=True)
     type = Column(String, default="string")  # string, int, bool, float
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), index=True)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
     updated_by_user_id = Column(String, nullable=True, default="system")
 
     def __repr__(self):
-        return f"<Setting(key={self.key}, type={self.type}, value={self.value[:50]}...)>"
+        return (
+            f"<Setting(key={self.key}, type={self.type}, value={self.value[:50]}...)>"
+        )
 
 
 class SystemSettings(Base):
@@ -1207,7 +1279,11 @@ class SystemSettings(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False, index=True)
     value = Column(JSON, nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
 
     def __repr__(self):
         return f"<SystemSettings(key={self.key}, value={self.value})>"
@@ -1219,7 +1295,9 @@ class ErrorLog(Base):
     __tablename__ = "error_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
+    timestamp = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False
+    )
     error_type = Column(String(255), nullable=False, index=True)
     message = Column(Text, nullable=False)
     endpoint = Column(String(255), nullable=True, index=True)
@@ -1231,8 +1309,8 @@ class ErrorLog(Base):
     details = Column(Text, nullable=True)
 
     __table_args__ = (
-        Index('idx_error_logs_type_timestamp', 'error_type', 'timestamp'),
-        Index('idx_error_logs_endpoint_timestamp', 'endpoint', 'timestamp'),
+        Index("idx_error_logs_type_timestamp", "error_type", "timestamp"),
+        Index("idx_error_logs_endpoint_timestamp", "endpoint", "timestamp"),
     )
 
 
@@ -1256,10 +1334,20 @@ def _attempt_data_recovery(db_path: str) -> dict[str, list[dict]]:
         return recovered
 
     RECOVERABLE_TABLES = (
-        "trades", "signals", "bot_state", "strategy_config",
-        "decision_log", "trade_attempts", "market_watch", "wallet_config",
-        "settlement_events", "equity_snapshots", "calibration_records",
-        "activity_log", "ai_logs", "scan_logs",
+        "trades",
+        "signals",
+        "bot_state",
+        "strategy_config",
+        "decision_log",
+        "trade_attempts",
+        "market_watch",
+        "wallet_config",
+        "settlement_events",
+        "equity_snapshots",
+        "calibration_records",
+        "activity_log",
+        "ai_logs",
+        "scan_logs",
     )
 
     try:
@@ -1270,7 +1358,11 @@ def _attempt_data_recovery(db_path: str) -> dict[str, list[dict]]:
         for table_name in RECOVERABLE_TABLES:
             try:
                 cursor.execute(f'SELECT * FROM "{table_name}"')
-                columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                columns = (
+                    [desc[0] for desc in cursor.description]
+                    if cursor.description
+                    else []
+                )
                 if not columns:
                     continue
                 rows = []
@@ -1322,7 +1414,9 @@ def _restore_recovered_data(recovered: dict[str, list[dict]]):
     for table_name, rows in recovered.items():
         model_class = model_map.get(table_name)
         if not model_class:
-            logger.warning(f"No model mapping for {table_name} — {len(rows)} rows unrecoverable")
+            logger.warning(
+                f"No model mapping for {table_name} — {len(rows)} rows unrecoverable"
+            )
             continue
 
         db = SessionLocal()
@@ -1340,7 +1434,8 @@ def _restore_recovered_data(recovered: dict[str, list[dict]]):
 
                     # Only include columns the model actually has (handles schema drift)
                     clean_data = {
-                        k: v for k, v in row_data.items()
+                        k: v
+                        for k, v in row_data.items()
                         if k != "id" and hasattr(model_class, k)
                     }
                     obj = model_class(**clean_data)
@@ -1361,19 +1456,27 @@ def _restore_recovered_data(recovered: dict[str, list[dict]]):
             db.close()
 
     if total_restored > 0:
-        logger.info(f"Recovery complete: {total_restored} rows restored, {total_skipped} skipped (already exist)")
+        logger.info(
+            f"Recovery complete: {total_restored} rows restored, {total_skipped} skipped (already exist)"
+        )
     elif total_skipped > 0:
-        logger.info(f"Recovery: all {total_skipped} rows already present, nothing to restore")
+        logger.info(
+            f"Recovery: all {total_skipped} rows already present, nothing to restore"
+        )
 
 
 def _publish_corruption_alert(event: str, detail: str, data: dict | None = None):
     try:
         from backend.core.event_bus import publish_event
-        publish_event(event, {
-            "source": "database",
-            "detail": detail,
-            **(data or {}),
-        })
+
+        publish_event(
+            event,
+            {
+                "source": "database",
+                "detail": detail,
+                **(data or {}),
+            },
+        )
     except Exception:
         logger.exception("database publish_corruption_alert failed")
 
@@ -1392,7 +1495,9 @@ def init_db(repair_if_needed: bool = True):
             recovered = _attempt_data_recovery(db_path)
             recovered_table_count = len(recovered)
             recovered_row_count = sum(len(rows) for rows in recovered.values())
-            logger.info(f"Recovered data from {recovered_table_count} table(s), {recovered_row_count} total rows before wiping")
+            logger.info(
+                f"Recovered data from {recovered_table_count} table(s), {recovered_row_count} total rows before wiping"
+            )
 
             try:
                 engine.dispose()
@@ -1408,10 +1513,14 @@ def init_db(repair_if_needed: bool = True):
                 if recovered:
                     _restore_recovered_data(recovered)
 
-                _publish_corruption_alert("database_repair_succeeded", "Database repaired after corruption", {
-                    "tables_recovered": recovered_table_count,
-                    "rows_recovered": recovered_row_count,
-                })
+                _publish_corruption_alert(
+                    "database_repair_succeeded",
+                    "Database repaired after corruption",
+                    {
+                        "tables_recovered": recovered_table_count,
+                        "rows_recovered": recovered_row_count,
+                    },
+                )
                 logger.info("Database repaired successfully")
             except Exception as repair_error:
                 _publish_corruption_alert("database_repair_failed", str(repair_error))
@@ -1447,7 +1556,9 @@ def seed_default_data():
                     paper_pnl=0.0,
                     paper_trades=0,
                     paper_wins=0,
-                    paper_initial_bankroll=initial_bankroll if mode == "paper" else None,
+                    paper_initial_bankroll=(
+                        initial_bankroll if mode == "paper" else None
+                    ),
                     testnet_bankroll=100.0,
                     testnet_pnl=0.0,
                     testnet_trades=0,
@@ -1475,10 +1586,13 @@ def seed_default_data():
 
         from backend.strategies.loader import load_all_strategies
         from backend.strategies.registry import STRATEGY_REGISTRY
+
         load_all_strategies()
 
         for strategy_name in STRATEGY_REGISTRY.keys():
-            existing = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+            existing = (
+                db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+            )
             if not existing:
                 strategy_config = StrategyConfig(
                     strategy_name=strategy_name,
@@ -1500,8 +1614,11 @@ def seed_default_data():
         db.close()
 
 
-_DDL_COL_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
-_DDL_TYPE_RE = re.compile(r'^(VARCHAR|TEXT|INTEGER|REAL|BOOLEAN|TIMESTAMP|DATETIME|JSON)(\s+.*)?$', re.IGNORECASE)
+_DDL_COL_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+_DDL_TYPE_RE = re.compile(
+    r"^(VARCHAR|TEXT|INTEGER|REAL|BOOLEAN|TIMESTAMP|DATETIME|JSON)(\s+.*)?$",
+    re.IGNORECASE,
+)
 
 
 def _safe_ddl_identifier(name: str) -> str:
@@ -1570,7 +1687,9 @@ def ensure_schema():
     try:
         bot_state_columns = [col["name"] for col in inspector.get_columns("bot_state")]
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect bot_state columns (paper tracking)")
+        logger.exception(
+            "database ensure_schema: failed to inspect bot_state columns (paper tracking)"
+        )
         bot_state_columns = []
 
     if bot_state_columns:
@@ -1650,7 +1769,9 @@ def ensure_schema():
     try:
         bot_state_columns = {col["name"] for col in inspector.get_columns("bot_state")}
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect bot_state columns (mode)")
+        logger.exception(
+            "database ensure_schema: failed to inspect bot_state columns (mode)"
+        )
         bot_state_columns = set()
 
     if bot_state_columns and "mode" not in bot_state_columns:
@@ -1658,7 +1779,9 @@ def ensure_schema():
             with engine.connect() as conn:
                 with conn.begin():
                     conn.execute(
-                        text("ALTER TABLE bot_state ADD COLUMN mode VARCHAR DEFAULT 'paper'")
+                        text(
+                            "ALTER TABLE bot_state ADD COLUMN mode VARCHAR DEFAULT 'paper'"
+                        )
                     )
                     logger.info("Added 'mode' column to bot_state")
         except Exception as e:
@@ -1667,44 +1790,64 @@ def ensure_schema():
         try:
             with engine.connect() as conn:
                 with conn.begin():
-                    result = conn.execute(
-                        text("SELECT COUNT(*) FROM bot_state")
-                    )
+                    result = conn.execute(text("SELECT COUNT(*) FROM bot_state"))
                     count = result.scalar()
 
                     if count == 1:
                         result = conn.execute(
-                            text("SELECT id, bankroll, total_trades, winning_trades, total_pnl, "
-                                 "paper_bankroll, paper_pnl, paper_trades, paper_wins, "
-                                 "testnet_bankroll, testnet_pnl, testnet_trades, testnet_wins "
-                                 "FROM bot_state LIMIT 1")
+                            text(
+                                "SELECT id, bankroll, total_trades, winning_trades, total_pnl, "
+                                "paper_bankroll, paper_pnl, paper_trades, paper_wins, "
+                                "testnet_bankroll, testnet_pnl, testnet_trades, testnet_wins "
+                                "FROM bot_state LIMIT 1"
+                            )
                         )
                         row = result.fetchone()
 
                         if row:
-                            (id_val, bankroll, total_trades, winning_trades, total_pnl,
-                             paper_bankroll, paper_pnl, paper_trades, paper_wins,
-                             testnet_bankroll, testnet_pnl, testnet_trades, testnet_wins) = row
+                            (
+                                id_val,
+                                bankroll,
+                                total_trades,
+                                winning_trades,
+                                total_pnl,
+                                paper_bankroll,
+                                paper_pnl,
+                                paper_trades,
+                                paper_wins,
+                                testnet_bankroll,
+                                testnet_pnl,
+                                testnet_trades,
+                                testnet_wins,
+                            ) = row
 
                             conn.execute(
-                                text("UPDATE bot_state SET bankroll = :bankroll, "
-                                     "total_trades = :total_trades, winning_trades = :winning_trades, "
-                                     "total_pnl = :total_pnl WHERE id = :id"),
-                                {"bankroll": paper_bankroll or bankroll,
-                                 "total_trades": paper_trades or total_trades,
-                                 "winning_trades": paper_wins or winning_trades,
-                                 "total_pnl": paper_pnl or total_pnl,
-                                 "id": id_val}
+                                text(
+                                    "UPDATE bot_state SET bankroll = :bankroll, "
+                                    "total_trades = :total_trades, winning_trades = :winning_trades, "
+                                    "total_pnl = :total_pnl WHERE id = :id"
+                                ),
+                                {
+                                    "bankroll": paper_bankroll or bankroll,
+                                    "total_trades": paper_trades or total_trades,
+                                    "winning_trades": paper_wins or winning_trades,
+                                    "total_pnl": paper_pnl or total_pnl,
+                                    "id": id_val,
+                                },
                             )
                             logger.info("Migrated existing bot_state row to paper mode")
         except Exception as e:
-            logger.warning(f"Schema migration: could not migrate bot_state to mode-based schema: {e}")
+            logger.warning(
+                f"Schema migration: could not migrate bot_state to mode-based schema: {e}"
+            )
 
     # Add per-track bankroll and PNL tracking to bot_state
     try:
         bot_state_columns = [col["name"] for col in inspector.get_columns("bot_state")]
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect bot_state columns (per-track)")
+        logger.exception(
+            "database ensure_schema: failed to inspect bot_state columns (per-track)"
+        )
         bot_state_columns = []
 
     if bot_state_columns:
@@ -1854,7 +1997,9 @@ def ensure_schema():
     try:
         existing_cols = {col["name"] for col in inspector.get_columns("trades")}
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect trades columns (state sync)")
+        logger.exception(
+            "database ensure_schema: failed to inspect trades columns (state sync)"
+        )
         existing_cols = set()
 
     if existing_cols:
@@ -1864,7 +2009,9 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE trades ADD COLUMN source VARCHAR DEFAULT 'bot'")
+                            text(
+                                "ALTER TABLE trades ADD COLUMN source VARCHAR DEFAULT 'bot'"
+                            )
                         )
                         logger.info("Added 'source' column to trades")
             except Exception as e:
@@ -1876,11 +2023,15 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE trades ADD COLUMN blockchain_verified BOOLEAN DEFAULT 0")
+                            text(
+                                "ALTER TABLE trades ADD COLUMN blockchain_verified BOOLEAN DEFAULT 0"
+                            )
                         )
                         logger.info("Added 'blockchain_verified' column to trades")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add trades.blockchain_verified: {e}")
+                logger.warning(
+                    f"Schema migration: could not add trades.blockchain_verified: {e}"
+                )
 
         # NEW FIELD 3: settlement_source
         if "settlement_source" not in existing_cols:
@@ -1888,11 +2039,15 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE trades ADD COLUMN settlement_source VARCHAR DEFAULT NULL")
+                            text(
+                                "ALTER TABLE trades ADD COLUMN settlement_source VARCHAR DEFAULT NULL"
+                            )
                         )
                         logger.info("Added 'settlement_source' column to trades")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add trades.settlement_source: {e}")
+                logger.warning(
+                    f"Schema migration: could not add trades.settlement_source: {e}"
+                )
 
         # NEW FIELD 4: last_sync_at
         if "last_sync_at" not in existing_cols:
@@ -1900,11 +2055,15 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text(f"ALTER TABLE trades ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL")
+                            text(
+                                f"ALTER TABLE trades ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL"
+                            )
                         )
                         logger.info("Added 'last_sync_at' column to trades")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add trades.last_sync_at: {e}")
+                logger.warning(
+                    f"Schema migration: could not add trades.last_sync_at: {e}"
+                )
 
         # NEW FIELD 5: external_import_at
         if "external_import_at" not in existing_cols:
@@ -1912,17 +2071,23 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text(f"ALTER TABLE trades ADD COLUMN external_import_at {_TS_TYPE} DEFAULT NULL")
+                            text(
+                                f"ALTER TABLE trades ADD COLUMN external_import_at {_TS_TYPE} DEFAULT NULL"
+                            )
                         )
                         logger.info("Added 'external_import_at' column to trades")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add trades.external_import_at: {e}")
+                logger.warning(
+                    f"Schema migration: could not add trades.external_import_at: {e}"
+                )
 
     # Migration: Add unified state sync columns to bot_state table
     try:
         bot_state_columns = {col["name"] for col in inspector.get_columns("bot_state")}
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect bot_state columns (state sync)")
+        logger.exception(
+            "database ensure_schema: failed to inspect bot_state columns (state sync)"
+        )
         bot_state_columns = set()
 
     if bot_state_columns:
@@ -1932,11 +2097,15 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text(f"ALTER TABLE bot_state ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL")
+                            text(
+                                f"ALTER TABLE bot_state ADD COLUMN last_sync_at {_TS_TYPE} DEFAULT NULL"
+                            )
                         )
                         logger.info("Added 'last_sync_at' column to bot_state")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add bot_state.last_sync_at: {e}")
+                logger.warning(
+                    f"Schema migration: could not add bot_state.last_sync_at: {e}"
+                )
 
         # NEW FIELD 2: last_live_sync_error
         if "last_live_sync_error" not in bot_state_columns:
@@ -1944,11 +2113,15 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text("ALTER TABLE bot_state ADD COLUMN last_live_sync_error VARCHAR DEFAULT NULL")
+                            text(
+                                "ALTER TABLE bot_state ADD COLUMN last_live_sync_error VARCHAR DEFAULT NULL"
+                            )
                         )
                         logger.info("Added 'last_live_sync_error' column to bot_state")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add bot_state.last_live_sync_error: {e}")
+                logger.warning(
+                    f"Schema migration: could not add bot_state.last_live_sync_error: {e}"
+                )
 
         # NEW FIELD 3: settlement_last_check_at
         if "settlement_last_check_at" not in bot_state_columns:
@@ -1956,11 +2129,17 @@ def ensure_schema():
                 with engine.connect() as conn:
                     with conn.begin():
                         conn.execute(
-                            text(f"ALTER TABLE bot_state ADD COLUMN settlement_last_check_at {_TS_TYPE} DEFAULT NULL")
+                            text(
+                                f"ALTER TABLE bot_state ADD COLUMN settlement_last_check_at {_TS_TYPE} DEFAULT NULL"
+                            )
                         )
-                        logger.info("Added 'settlement_last_check_at' column to bot_state")
+                        logger.info(
+                            "Added 'settlement_last_check_at' column to bot_state"
+                        )
             except Exception as e:
-                logger.warning(f"Schema migration: could not add bot_state.settlement_last_check_at: {e}")
+                logger.warning(
+                    f"Schema migration: could not add bot_state.settlement_last_check_at: {e}"
+                )
 
     # Create indexes for new fields
     try:
@@ -1968,19 +2147,27 @@ def ensure_schema():
             with conn.begin():
                 # Index for source filtering (Tasks 6-10, Task 11)
                 conn.execute(
-                    text("CREATE INDEX IF NOT EXISTS idx_trades_source ON trades(source)")
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_trades_source ON trades(source)"
+                    )
                 )
                 # Index for last_sync_at filtering
                 conn.execute(
-                    text("CREATE INDEX IF NOT EXISTS idx_trades_last_sync_at ON trades(last_sync_at)")
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_trades_last_sync_at ON trades(last_sync_at)"
+                    )
                 )
                 # Index for blockchain_verified filtering
                 conn.execute(
-                    text("CREATE INDEX IF NOT EXISTS idx_trades_blockchain_verified ON trades(blockchain_verified)")
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_trades_blockchain_verified ON trades(blockchain_verified)"
+                    )
                 )
                 # Index for clob_order_id uniqueness check (Task 5)
                 conn.execute(
-                    text("CREATE INDEX IF NOT EXISTS idx_trades_clob_order_id ON trades(clob_order_id)")
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_trades_clob_order_id ON trades(clob_order_id)"
+                    )
                 )
                 logger.info("Created indexes for unified state sync fields")
     except Exception as e:
@@ -2001,22 +2188,32 @@ def ensure_schema():
                 # Set blockchain_verified=false for all existing trades (conservative)
                 if "postgresql" in settings.DATABASE_URL:
                     conn.execute(
-                        text("UPDATE trades SET blockchain_verified = FALSE WHERE blockchain_verified IS NULL")
+                        text(
+                            "UPDATE trades SET blockchain_verified = FALSE WHERE blockchain_verified IS NULL"
+                        )
                     )
                 else:
                     # For SQLite and other databases
                     conn.execute(
-                        text("UPDATE trades SET blockchain_verified = 0 WHERE blockchain_verified IS NULL")
+                        text(
+                            "UPDATE trades SET blockchain_verified = 0 WHERE blockchain_verified IS NULL"
+                        )
                     )
-                logger.info("Backfilled 'blockchain_verified' field for existing trades")
+                logger.info(
+                    "Backfilled 'blockchain_verified' field for existing trades"
+                )
     except Exception as e:
         logger.warning(f"Could not backfill unified state sync fields: {e}")
 
     # Add mode column to strategy_config for per-mode strategy control
     try:
-        strategy_config_columns = {col["name"] for col in inspector.get_columns("strategy_config")}
+        strategy_config_columns = {
+            col["name"] for col in inspector.get_columns("strategy_config")
+        }
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect strategy_config columns")
+        logger.exception(
+            "database ensure_schema: failed to inspect strategy_config columns"
+        )
         strategy_config_columns = set()
 
     if strategy_config_columns and "mode" not in strategy_config_columns:
@@ -2035,36 +2232,59 @@ def ensure_schema():
             with engine.connect() as conn:
                 with conn.begin():
                     conn.execute(
-                        text(f"ALTER TABLE strategy_config ADD COLUMN disabled_at {_TS_TYPE}")
+                        text(
+                            f"ALTER TABLE strategy_config ADD COLUMN disabled_at {_TS_TYPE}"
+                        )
                     )
                     logger.info("Added 'disabled_at' column to strategy_config")
         except Exception as e:
-            logger.warning(f"Schema migration: could not add strategy_config.disabled_at: {e}")
+            logger.warning(
+                f"Schema migration: could not add strategy_config.disabled_at: {e}"
+            )
 
     # Add strategy_proposal columns for auto-promotion (v2 learning loop)
     try:
         proposal_columns = inspect(engine).get_columns("strategy_proposal")
-        proposal_col_names = {c["name"] for c in proposal_columns} if proposal_columns else set()
+        proposal_col_names = (
+            {c["name"] for c in proposal_columns} if proposal_columns else set()
+        )
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect strategy_proposal columns")
+        logger.exception(
+            "database ensure_schema: failed to inspect strategy_proposal columns"
+        )
         proposal_col_names = set()
-    for col, col_type in [("status", "TEXT DEFAULT 'pending'"), ("auto_promotable", "BOOLEAN DEFAULT 0"), ("proposed_params", "JSON"), ("backtest_passed", "BOOLEAN DEFAULT 0"), ("backtest_sharpe", "REAL"), ("backtest_win_rate", "REAL")]:
+    for col, col_type in [
+        ("status", "TEXT DEFAULT 'pending'"),
+        ("auto_promotable", "BOOLEAN DEFAULT 0"),
+        ("proposed_params", "JSON"),
+        ("backtest_passed", "BOOLEAN DEFAULT 0"),
+        ("backtest_sharpe", "REAL"),
+        ("backtest_win_rate", "REAL"),
+    ]:
         if col not in proposal_col_names:
             try:
                 safe_col = _safe_ddl_identifier(col)
                 safe_type = _safe_ddl_type(col_type)
                 with engine.connect() as conn:
                     with conn.begin():
-                        conn.execute(text(f"ALTER TABLE strategy_proposal ADD COLUMN {safe_col} {safe_type}"))
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE strategy_proposal ADD COLUMN {safe_col} {safe_type}"
+                            )
+                        )
                         logger.info(f"Added '{col}' column to strategy_proposal")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add strategy_proposal.{col}: {e}")
+                logger.warning(
+                    f"Schema migration: could not add strategy_proposal.{col}: {e}"
+                )
 
     # Add denormalized metric columns + composite indexes to genome_registry
     try:
         gr_cols = {c["name"] for c in inspector.get_columns("genome_registry")}
     except Exception:
-        logger.exception("database ensure_schema: failed to inspect genome_registry columns")
+        logger.exception(
+            "database ensure_schema: failed to inspect genome_registry columns"
+        )
         gr_cols = set()
 
     for col, coltype in [
@@ -2084,18 +2304,36 @@ def ensure_schema():
                 safe_type = _safe_ddl_type(coltype)
                 with engine.connect() as conn:
                     with conn.begin():
-                        conn.execute(text(f"ALTER TABLE genome_registry ADD COLUMN {safe_col} {safe_type}"))
+                        conn.execute(
+                            text(
+                                f"ALTER TABLE genome_registry ADD COLUMN {safe_col} {safe_type}"
+                            )
+                        )
                         logger.info(f"Added '{col}' column to genome_registry")
             except Exception as e:
-                logger.warning(f"Schema migration: could not add genome_registry.{col}: {e}")
+                logger.warning(
+                    f"Schema migration: could not add genome_registry.{col}: {e}"
+                )
 
     # Create composite indexes on genome_registry (idempotent — ignores errors if already exists)
     try:
         with engine.connect() as conn:
             with conn.begin():
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_stage_score ON genome_registry(stage, fitness_score)"))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_stage_winrate ON genome_registry(stage, win_rate)"))
-                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_genome_archetype_stage ON genome_registry(archetype, stage)"))
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_genome_stage_score ON genome_registry(stage, fitness_score)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_genome_stage_winrate ON genome_registry(stage, win_rate)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_genome_archetype_stage ON genome_registry(archetype, stage)"
+                    )
+                )
                 logger.info("Created composite indexes on genome_registry")
     except Exception as e:
         logger.warning(f"Could not create genome_registry composite indexes: {e}")
@@ -2121,7 +2359,9 @@ class KgNode(Base):
     __tablename__ = "kg_node"
 
     node_id = Column(String, primary_key=True, index=True)
-    node_type = Column(String, nullable=False, index=True)  # 'strategy', 'gene', 'market', 'trade', 'regime', 'event'
+    node_type = Column(
+        String, nullable=False, index=True
+    )  # 'strategy', 'gene', 'market', 'trade', 'regime', 'event'
     label = Column(String, nullable=False)
     properties_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -2133,18 +2373,24 @@ class KgEdge(Base):
     __tablename__ = "kg_edge"
 
     edge_id = Column(String, primary_key=True, index=True)
-    from_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
-    to_node_id = Column(String, ForeignKey("kg_node.node_id"), nullable=False, index=True)
-    relationship = Column(String, nullable=False)  # 'HAS_GENE', 'TRADED_ON', 'MUTATED_FROM', 'KILLED_BY', etc.
+    from_node_id = Column(
+        String, ForeignKey("kg_node.node_id"), nullable=False, index=True
+    )
+    to_node_id = Column(
+        String, ForeignKey("kg_node.node_id"), nullable=False, index=True
+    )
+    relationship = Column(
+        String, nullable=False
+    )  # 'HAS_GENE', 'TRADED_ON', 'MUTATED_FROM', 'KILLED_BY', etc.
     weight = Column(Float, default=1.0)
     properties_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # Indexes for Knowledge Graph
-Index('idx_kg_from', KgEdge.from_node_id, KgEdge.relationship)
-Index('idx_kg_to', KgEdge.to_node_id, KgEdge.relationship)
-Index('idx_kg_type', KgNode.node_type)
+Index("idx_kg_from", KgEdge.from_node_id, KgEdge.relationship)
+Index("idx_kg_to", KgEdge.to_node_id, KgEdge.relationship)
+Index("idx_kg_type", KgNode.node_type)
 
 
 class ClobEvent(Base):
@@ -2168,7 +2414,7 @@ class ClobEvent(Base):
         # declared via index=True on the Column definitions above to avoid
         # duplicate index creation errors when create_all() is called more than
         # once on the same database.
-        UniqueConstraint('tx_hash', name='uq_clob_events_tx_hash'),
+        UniqueConstraint("tx_hash", name="uq_clob_events_tx_hash"),
     )
 
 
@@ -2202,9 +2448,7 @@ class ProviderCredential(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint(
-            "provider_name", "config_key", name="uq_provider_credentials"
-        ),
+        UniqueConstraint("provider_name", "config_key", name="uq_provider_credentials"),
         Index("idx_provider_credentials_name", "provider_name"),
     )
 
@@ -2217,9 +2461,12 @@ def get_db():
     finally:
         db.close()
 
+
 # Re-import to ensure table registration without failing on circular import orderings.
 try:
-    from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot  # noqa: E402, F401
+    from backend.core.strategy_performance_registry import (
+        StrategyPerformanceSnapshot,
+    )  # noqa: E402, F401
 except ImportError as exc:
     logger.debug(
         "Deferred StrategyPerformanceSnapshot registration during database import: {}",

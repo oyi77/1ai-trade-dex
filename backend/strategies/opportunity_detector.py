@@ -17,11 +17,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-
-
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Opportunity:
@@ -56,6 +55,7 @@ class OddsAnalysis:
 # ---------------------------------------------------------------------------
 # Core resolution
 # ---------------------------------------------------------------------------
+
 
 def resolve_market_odds(
     yes_price: float,
@@ -290,6 +290,7 @@ def detect_liquidity_gap(
 # Type 4 — Event-driven (placeholder)
 # ---------------------------------------------------------------------------
 
+
 def detect_event_driven(
     market: dict,
     market_id: str = "",
@@ -306,7 +307,7 @@ def detect_event_driven(
 # Type 5 — Emotional trading
 # ---------------------------------------------------------------------------
 
-_EMOTIONAL_SPIKE = 0.10   # 10% move
+_EMOTIONAL_SPIKE = 0.10  # 10% move
 _EMOTIONAL_REVERT = 0.50  # 50% reversion of that move
 
 
@@ -349,7 +350,11 @@ def detect_emotional_trading(
 
         for j in range(i + 1, len(price_history)):
             reversion = (spike_price - price_history[j]) * spike_dir
-            revert_pct = reversion / abs(spike_price - base) if abs(spike_price - base) > 0 else 0
+            revert_pct = (
+                reversion / abs(spike_price - base)
+                if abs(spike_price - base) > 0
+                else 0
+            )
 
             if revert_pct >= _EMOTIONAL_REVERT:
                 confidence = min(abs(change) / 0.30, 1.0)
@@ -384,7 +389,10 @@ def detect_emotional_trading(
 # Composite scanner
 # ---------------------------------------------------------------------------
 
-async def scan_for_opportunities(markets: List[dict] | None = None) -> List[Opportunity]:
+
+async def scan_for_opportunities(
+    markets: List[dict] | None = None,
+) -> List[Opportunity]:
     """Run all detectors across provided markets.
 
     Parameters

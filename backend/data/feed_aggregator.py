@@ -1,4 +1,5 @@
 """RSS news feed aggregation for sentiment signals."""
+
 import asyncio
 import hashlib
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from typing import List, Optional
 from backend.config import settings
 
 from loguru import logger
+
 DEFAULT_FEEDS = [
     "https://feeds.bbci.co.uk/news/rss.xml",
     "https://feeds.reuters.com/reuters/businessNews",
@@ -59,6 +61,7 @@ class FeedAggregator:
 
     async def _fetch_one(self, url: str) -> List[NewsItem]:
         import feedparser
+
         loop = asyncio.get_running_loop()
         parsed = await loop.run_in_executor(None, feedparser.parse, url)
         out = []
@@ -67,13 +70,15 @@ class FeedAggregator:
                 pub = None
                 if getattr(entry, "published_parsed", None):
                     pub = datetime(*entry.published_parsed[:6])
-                out.append(NewsItem(
-                    source=parsed.feed.get("title", url),
-                    title=entry.get("title", ""),
-                    link=entry.get("link", ""),
-                    published_at=pub,
-                    summary=entry.get("summary", ""),
-                ))
+                out.append(
+                    NewsItem(
+                        source=parsed.feed.get("title", url),
+                        title=entry.get("title", ""),
+                        link=entry.get("link", ""),
+                        published_at=pub,
+                        summary=entry.get("summary", ""),
+                    )
+                )
             except Exception as e:
                 logger.debug(f"entry parse failed: {e}")
         return out

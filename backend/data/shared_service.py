@@ -28,6 +28,7 @@ def _check_rate_limit(client_id: str) -> bool:
 async def _get_markets_polymarket(limit: int = 100) -> list[dict]:
     try:
         from backend.data.gamma import fetch_markets
+
         return await fetch_markets(limit=limit)
     except Exception as exc:
         logger.exception("shared_service polymarket markets fetch failed")
@@ -52,26 +53,33 @@ async def _get_market_price(condition_id: str) -> dict:
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("shared_service market price lookup failed for condition_id=%s", condition_id)
+        logger.exception(
+            "shared_service market price lookup failed for condition_id=%s",
+            condition_id,
+        )
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 async def _get_orderbook(condition_id: str) -> dict:
     try:
         from backend.data.orderbook_ws import OrderbookWS
+
         ob = OrderbookWS(condition_id)
         await ob.connect()
         snapshot = ob.get_snapshot()
         await ob.disconnect()
         return snapshot
     except Exception:
-        logger.exception("shared_service orderbook fetch failed for condition_id=%s", condition_id)
+        logger.exception(
+            "shared_service orderbook fetch failed for condition_id=%s", condition_id
+        )
         return {"condition_id": condition_id, "bids": [], "asks": [], "spread": 0.0}
 
 
 async def _get_markets_kalshi(limit: int = 100) -> list[dict]:
     try:
         from backend.data.kalshi_client import KalshiClient
+
         client = KalshiClient()
         return await client.get_markets(params={"limit": limit})
     except Exception as exc:

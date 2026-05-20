@@ -58,37 +58,56 @@ class CircuitBreaker:
             win_rate = wins / total if total else 0.0
 
             # 2. PnL over last M days
-            cutoff = datetime.now(timezone.utc) - timedelta(days=STRATEGY_PNL_LOOKBACK_DAYS)
-            q_pnl = (
-                session.query(sa.func.sum(Trade.pnl))
-                .filter(
-                    Trade.strategy == strategy_name,
-                    Trade.settled,
-                    Trade.timestamp >= cutoff,
-                )
+            cutoff = datetime.now(timezone.utc) - timedelta(
+                days=STRATEGY_PNL_LOOKBACK_DAYS
+            )
+            q_pnl = session.query(sa.func.sum(Trade.pnl)).filter(
+                Trade.strategy == strategy_name,
+                Trade.settled,
+                Trade.timestamp >= cutoff,
             )
             total_pnl = q_pnl.scalar() or 0.0
 
             # 3. Get initial bankroll (uses BotState for appropriate mode)
             mode = getattr(settings, "TRADING_MODE", "paper")
             from backend.models.database import BotState
-            botstate = session.query(BotState).filter_by(mode=mode).order_by(BotState.id.desc()).first()
+
+            botstate = (
+                session.query(BotState)
+                .filter_by(mode=mode)
+                .order_by(BotState.id.desc())
+                .first()
+            )
             if botstate:
-                capital = botstate.bankroll or botstate.paper_bankroll or botstate.testnet_bankroll or 100.0
+                capital = (
+                    botstate.bankroll
+                    or botstate.paper_bankroll
+                    or botstate.testnet_bankroll
+                    or 100.0
+                )
             else:
                 capital = 100.0
             pnl_ratio = total_pnl / capital if capital > 0 else 0.0
 
             # 4. Evaluate gates
-            healthy = win_rate >= STRATEGY_MIN_WIN_RATE and pnl_ratio >= STRATEGY_MIN_PNL_RATIO
+            healthy = (
+                win_rate >= STRATEGY_MIN_WIN_RATE
+                and pnl_ratio >= STRATEGY_MIN_PNL_RATIO
+            )
             if not healthy:
                 # disable in StrategyConfig if enabled
-                config = session.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+                config = (
+                    session.query(StrategyConfig)
+                    .filter_by(strategy_name=strategy_name)
+                    .first()
+                )
                 if config and config.enabled:
                     config.enabled = False
                     config.disabled_at = datetime.now(timezone.utc)
                     session.commit()
-                    logger.warning(f"Strategy {strategy_name} auto-paused by circuit breaker (win_rate={win_rate:.2%}, pnl_ratio={pnl_ratio:.2%})")
+                    logger.warning(
+                        f"Strategy {strategy_name} auto-paused by circuit breaker (win_rate={win_rate:.2%}, pnl_ratio={pnl_ratio:.2%})"
+                    )
                 return False
             return True
         finally:
@@ -103,9 +122,19 @@ class CircuitBreaker:
         half_open_max: int | None = None,
     ):
         self.name = name
-        self.failure_threshold = failure_threshold if failure_threshold is not None else settings.CB_FAILURE_THRESHOLD
-        self.recovery_timeout = recovery_timeout if recovery_timeout is not None else settings.CB_RECOVERY_TIMEOUT
-        self.half_open_max = half_open_max if half_open_max is not None else settings.CB_HALF_OPEN_MAX
+        self.failure_threshold = (
+            failure_threshold
+            if failure_threshold is not None
+            else settings.CB_FAILURE_THRESHOLD
+        )
+        self.recovery_timeout = (
+            recovery_timeout
+            if recovery_timeout is not None
+            else settings.CB_RECOVERY_TIMEOUT
+        )
+        self.half_open_max = (
+            half_open_max if half_open_max is not None else settings.CB_HALF_OPEN_MAX
+        )
 
         self._state = State.CLOSED
         self.failure_count = 0
@@ -154,7 +183,9 @@ class CircuitBreaker:
             result = await func(*args, **kwargs)
         except Exception as _e:
             await self._on_failure()
-            logger.warning(f"Circuit breaker {self.name} caught error, failing ({self.failure_count}/{self.failure_threshold}): {_e}")
+            logger.warning(
+                f"Circuit breaker {self.name} caught error, failing ({self.failure_count}/{self.failure_threshold}): {_e}"
+            )
             raise
         finally:
             if is_half_open_probe:
@@ -225,10 +256,15 @@ class CircuitBreaker:
 
         try:
             from backend.monitoring.metrics import set_circuit_breaker_state
-            state_value = {State.OPEN: 0, State.HALF_OPEN: 1, State.CLOSED: 2}.get(new_state, 0)
+
+            state_value = {State.OPEN: 0, State.HALF_OPEN: 1, State.CLOSED: 2}.get(
+                new_state, 0
+            )
             set_circuit_breaker_state(self.name, state_value)
         except Exception:
-            logger.exception(f"CircuitBreaker '{self.name}': failed to update metrics state to {new_state}")
+            logger.exception(
+                f"CircuitBreaker '{self.name}': failed to update metrics state to {new_state}"
+            )
 
         if new_state == State.CLOSED:
             self.failure_count = 0

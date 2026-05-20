@@ -59,6 +59,7 @@ class MiroFishService:
 
         try:
             from backend.services.mirofish_monitor import get_monitor
+
             monitor = get_monitor()
             monitor.reset()
         except Exception as e:
@@ -87,7 +88,9 @@ class MiroFishService:
             return self._build_status(message="Already paused")
 
         if self._state == ServiceState.STOPPED:
-            return self._build_status(message="Cannot pause — service is stopped. Use start first.")
+            return self._build_status(
+                message="Cannot pause — service is stopped. Use start first."
+            )
 
         prev = self._state.value
         self._state = ServiceState.PAUSED
@@ -108,12 +111,15 @@ class MiroFishService:
 
         try:
             from backend.services.mirofish_monitor import reset_monitor
+
             reset_monitor()
         except Exception as e:
             logger.warning(f"Could not reset monitor on restart: {e}")
 
         logger.info(f"MiroFish service restarted (was {prev}, monitor reset)")
-        return self._build_status(message=f"Restarted (was {prev}, circuit breaker reset)")
+        return self._build_status(
+            message=f"Restarted (was {prev}, circuit breaker reset)"
+        )
 
     def record_signal_fetch(self, count: int = 0):
         """Record a signal fetch event."""
@@ -144,6 +150,7 @@ class MiroFishService:
             ).isoformat()
 
         from backend.config import settings as app
+
         engine_type = "builtin_debate_engine"
         if app.MIROFISH_ENABLED and app.MIROFISH_API_URL:
             engine_type = "external_mirofish_api"
@@ -156,7 +163,9 @@ class MiroFishService:
             "total_signals_fetched": self._total_signals_fetched,
             "error_message": self._error_message,
             "engine": engine_type,
-            "engine_url": app.MIROFISH_API_URL if engine_type == "external_mirofish_api" else None,
+            "engine_url": (
+                app.MIROFISH_API_URL if engine_type == "external_mirofish_api" else None
+            ),
         }
 
     def _transition(self, prev: str):

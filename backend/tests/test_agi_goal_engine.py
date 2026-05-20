@@ -1,4 +1,3 @@
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -65,7 +64,11 @@ class TestAGIGoalEngineSetGoal:
         audit_entry = engine.set_goal(AGIGoal.MAXIMIZE_PNL, "riding the bull trend")
         assert audit_entry is not None
         assert audit_entry.goal == AGIGoal.MAXIMIZE_PNL
-        db_audit = session.query(DecisionAuditLog).filter_by(decision_type="goal_change").first()
+        db_audit = (
+            session.query(DecisionAuditLog)
+            .filter_by(decision_type="goal_change")
+            .first()
+        )
         assert db_audit is not None
         assert "maximize_pnl" in str(db_audit.input_data)
 
@@ -121,7 +124,11 @@ class TestAGIGoalEngineRegimeChange:
         engine, session, _ = make_goal_session()
         transition = {"from_regime": "bull", "to_regime": "crisis", "confidence": 0.95}
         engine.handle_regime_change(transition)
-        audit = session.query(DecisionAuditLog).filter_by(decision_type="goal_change").first()
+        audit = (
+            session.query(DecisionAuditLog)
+            .filter_by(decision_type="goal_change")
+            .first()
+        )
         assert audit is not None
         assert "CRISIS" in str(audit.input_data) or "crisis" in str(audit.input_data)
 

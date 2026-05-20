@@ -42,6 +42,7 @@ class ProxyResult:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 async def find_proxy_wallet(
     eoa_address: str,
     force_refresh: bool = False,
@@ -77,6 +78,7 @@ async def find_proxy_wallet(
 # Method A -- Blockscout PUSD MINT events
 # ---------------------------------------------------------------------------
 
+
 async def _method_a_blockscout_mint(eoa: str) -> Optional[str]:
     """Look for PUSD MINT events (Transfer from 0x0000...000 to proxy)."""
     url = f"{BLOCKSCOUT_BASE}/addresses/{eoa}/token-transfers"
@@ -84,7 +86,9 @@ async def _method_a_blockscout_mint(eoa: str) -> Optional[str]:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, params={"limit": 50})
             if resp.status_code != 200:
-                logger.debug("Blockscout token-transfers %d for %s", resp.status_code, eoa)
+                logger.debug(
+                    "Blockscout token-transfers %d for %s", resp.status_code, eoa
+                )
                 return None
 
             data = resp.json()
@@ -107,6 +111,7 @@ async def _method_a_blockscout_mint(eoa: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Method C -- Internal transactions
 # ---------------------------------------------------------------------------
+
 
 async def _method_c_internal_tx(eoa: str) -> Optional[str]:
     """Look for CTF deposit events in internal transactions."""
@@ -134,6 +139,7 @@ async def _method_c_internal_tx(eoa: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # File-based cache
 # ---------------------------------------------------------------------------
+
 
 def _check_cache(eoa: str) -> Optional[str]:
     """Return cached proxy address if fresh, else ``None``."""
@@ -168,6 +174,7 @@ def _save_cache(eoa: str, proxy: str) -> None:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _rate_limit() -> None:
     """100 ms rate-limit pause between API calls."""

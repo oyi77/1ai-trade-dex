@@ -1,4 +1,5 @@
 """Trade settlement logic using Polymarket API. Helpers live in settlement_helpers.py."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -21,6 +22,7 @@ from backend.core.settlement.settlement_helpers import (
 )
 
 from loguru import logger
+
 _settlement_lock = asyncio.Lock()
 
 # Track trades whose position is gone but API couldn't confirm resolution.
@@ -69,6 +71,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
     try:
         from backend.data.btc_markets import fetch_btc_market_for_settlement
+
         btc_market = await fetch_btc_market_for_settlement(ticker)
         if btc_market and btc_market.closed:
             if direction == "up":
@@ -85,14 +88,24 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 shares = cost / entry_price if entry_price > 0 else 0.0
                 trade.pnl = round(shares - cost, 2)
                 trade.settlement_value = 1.0
-                record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "up", status="settled_win", latency_s=0.0)
+                record_execution(
+                    strategy=trade.strategy or "btc_5min",
+                    side=trade.direction or "up",
+                    status="settled_win",
+                    latency_s=0.0,
+                )
             else:
                 trade.result = "loss"
                 fee_rate = settings.TAKER_FEE_RATE
                 cost = size * (1.0 + fee_rate) if entry_price > 0 else size
                 trade.pnl = round(-cost, 2)
                 trade.settlement_value = 0.0
-                record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "down", status="settled_loss", latency_s=0.0)
+                record_execution(
+                    strategy=trade.strategy or "btc_5min",
+                    side=trade.direction or "down",
+                    status="settled_loss",
+                    latency_s=0.0,
+                )
 
             trade.settled = True
             trade.settlement_time = now
@@ -111,6 +124,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
     try:
         from backend.data.crypto import fetch_binance_klines
+
         klines = await fetch_binance_klines(limit=60)
         if klines and len(klines) > 1:
             start_price = None
@@ -125,7 +139,9 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
             if start_price is not None and end_price is not None:
                 went_up = end_price > start_price
-                won = (direction == "up" and went_up) or (direction == "down" and not went_up)
+                won = (direction == "up" and went_up) or (
+                    direction == "down" and not went_up
+                )
 
                 if won:
                     trade.result = "win"
@@ -147,7 +163,9 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
             elif end_price is not None or start_price is not None:
                 _reference_price = end_price or start_price
                 for k in klines:
-                    k_ts_ms = int(float(k[0])) if isinstance(k[0], (int, float, str)) else 0
+                    k_ts_ms = (
+                        int(float(k[0])) if isinstance(k[0], (int, float, str)) else 0
+                    )
                     k_ts_s = k_ts_ms // 1000
                     if window_start_ts <= k_ts_s <= window_start_ts + 300:
                         if start_price is None:
@@ -155,7 +173,9 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                         end_price = float(k[4])
                 if start_price is not None and end_price is not None:
                     went_up = end_price > start_price
-                    won = (direction == "up" and went_up) or (direction == "down" and not went_up)
+                    won = (direction == "up" and went_up) or (
+                        direction == "down" and not went_up
+                    )
                     if won:
                         trade.result = "win"
                         trade.pnl = calculate_pnl(trade, 1.0)
@@ -177,9 +197,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
     max_settle_age_hours = 24
     if now < trade.timestamp + timedelta(hours=max_settle_age_hours):
-        logger.info(
-            f"BTC 5min {ticker}: could not resolve yet, will retry next cycle"
-        )
+        logger.info(f"BTC 5min {ticker}: could not resolve yet, will retry next cycle")
         return None
 
     trade.settled = True
@@ -188,7 +206,12 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
     trade.settlement_time = now
     trade.settlement_source = "btc_5min_unresolved"
     trade.settlement_value = 0.0
-    record_execution(strategy=trade.strategy or "btc_5min", side=trade.direction or "n/a", status="settled_expired", latency_s=0.0)
+    record_execution(
+        strategy=trade.strategy or "btc_5min",
+        side=trade.direction or "n/a",
+        status="settled_expired",
+        latency_s=0.0,
+    )
     logger.warning(
         f"BTC 5min {ticker}: could not resolve via Polymarket or CEX after {max_settle_age_hours}h, "
         f"marking as expired_unresolved (assumed loss)"
@@ -221,7 +244,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         # False (API timeout/error), the trade was immediately marked as
                         # loss. This corrupted PnL/WR when the actual outcome was a win.
                         # Now: retry resolution with grace period before force-settling.
-                        is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
+                        is_resolved, settlement_value = (
+                            await fetch_resolution_for_trade(trade)
+                        )
 
                         if is_resolved and settlement_value is not None:
                             pnl = calculate_pnl(trade, settlement_value)
@@ -245,23 +270,34 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                     trade.market_ticker,
                                 )
 
-                            grace_elapsed = (now - _closed_unresolved_grace.get(trade.id, now)).total_seconds()
-                            unresolved_grace_hours = getattr(settings, 'CLOSED_UNRESOLVED_GRACE_HOURS', 6)
+                            grace_elapsed = (
+                                now - _closed_unresolved_grace.get(trade.id, now)
+                            ).total_seconds()
+                            unresolved_grace_hours = getattr(
+                                settings, "CLOSED_UNRESOLVED_GRACE_HOURS", 6
+                            )
 
                             if grace_elapsed < unresolved_grace_hours * 3600:
                                 # Still within grace period — try resolution one more time
                                 try:
-                                    re_resolved, re_value = await fetch_resolution_for_trade(trade)
+                                    re_resolved, re_value = (
+                                        await fetch_resolution_for_trade(trade)
+                                    )
                                     if re_resolved and re_value is not None:
                                         pnl = calculate_pnl(trade, re_value)
-                                        await process_settled_trade(trade, True, re_value, pnl, db)
+                                        await process_settled_trade(
+                                            trade, True, re_value, pnl, db
+                                        )
                                         _closed_unresolved_grace.pop(trade.id, None)
                                         logger.info(
                                             f"Position reconciliation: trade {trade.id} "
                                             f"resolved on retry within grace period (pnl=${pnl:+.2f})"
                                         )
                                 except Exception:
-                                    logger.exception("Failed to re-resolve position for trade %d during grace period", trade.id)
+                                    logger.exception(
+                                        "Failed to re-resolve position for trade %d during grace period",
+                                        trade.id,
+                                    )
                                 # Leave unsettled for next cycle
                                 continue
 
@@ -299,7 +335,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                     "mode": getattr(trade, "trading_mode", "paper"),
                                     "strategy_name": getattr(trade, "strategy", None),
                                     "genome_id": getattr(trade, "genome_id", None),
-                                    "settlement_source": getattr(trade, "settlement_source", None),
+                                    "settlement_source": getattr(
+                                        trade, "settlement_source", None
+                                    ),
                                     "timestamp": datetime.now(timezone.utc).isoformat(),
                                 },
                             )
@@ -310,13 +348,16 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         try:
                             from backend.core.knowledge_graph import KnowledgeGraph
                             from backend.db.utils import get_db_session
+
                             with get_db_session() as kg_db:
                                 kg = KnowledgeGraph(session=kg_db)
                                 kg.store_trade_memory(
                                     trade_id=trade.id,
-                                    strategy=getattr(trade, "strategy", "unknown") or "unknown",
+                                    strategy=getattr(trade, "strategy", "unknown")
+                                    or "unknown",
                                     market_id=trade.market_ticker or "unknown",
-                                    signal_reasoning=getattr(trade, "reasoning", "") or "",
+                                    signal_reasoning=getattr(trade, "reasoning", "")
+                                    or "",
                                     outcome_pnl=trade.pnl or 0.0,
                                     outcome_correct=(trade.result == "win"),
                                 )
@@ -341,12 +382,20 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
         try:
             import time as _time
+
             _qstart = _time.monotonic()
-            pending = db.query(Trade).filter(
-                (Trade.settled.is_(False)) | ((Trade.settled.is_(True)) & (Trade.pnl.is_(None)))
-            ).all()
+            pending = (
+                db.query(Trade)
+                .filter(
+                    (Trade.settled.is_(False))
+                    | ((Trade.settled.is_(True)) & (Trade.pnl.is_(None)))
+                )
+                .all()
+            )
             try:
-                db_query_duration.labels(query_type="settlement_pending").observe(_time.monotonic() - _qstart)
+                db_query_duration.labels(query_type="settlement_pending").observe(
+                    _time.monotonic() - _qstart
+                )
             except Exception:
                 pass
         except Exception as e:
@@ -414,7 +463,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             is_settled, settlement_value, pnl = _settlement_from_resolution(trade)
 
             # BTC 5-min UP/DOWN market settlement (btc-updown-5m-* tickers)
-            if not is_settled and trade.market_ticker and trade.market_ticker.startswith("btc-updown-5m-"):
+            if (
+                not is_settled
+                and trade.market_ticker
+                and trade.market_ticker.startswith("btc-updown-5m-")
+            ):
                 btc_result = await _settle_btc_5min_trade(trade, now)
                 if btc_result:
                     settled_trades.append(btc_result)
@@ -430,6 +483,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     latency_s=0.0,
                 )
                 from backend.models.audit_logger import log_settlement_completed
+
                 log_settlement_completed(
                     db=db,
                     trade_id=trade.id,
@@ -443,7 +497,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         "result": trade.result,
                         "pnl": trade.pnl,
                         "settlement_value": settlement_value,
-                        "settlement_time": trade.settlement_time.isoformat() if trade.settlement_time else None,
+                        "settlement_time": (
+                            trade.settlement_time.isoformat()
+                            if trade.settlement_time
+                            else None
+                        ),
                     },
                     user_id="system:settlement",
                 )
@@ -459,7 +517,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 if market_end < now:
                     expired_ago = (now - market_end).total_seconds()
 
-                    expired_resolution_grace_hours = getattr(settings, 'SETTLEMENT_GRACE_HOURS', 72)
+                    expired_resolution_grace_hours = getattr(
+                        settings, "SETTLEMENT_GRACE_HOURS", 72
+                    )
                     if expired_ago < expired_resolution_grace_hours * 3600:
                         logger.info(
                             f"Trade {trade.id}: market expired {expired_ago/3600:.1f}h ago, "
@@ -497,7 +557,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     continue
 
                 trade_age_hours = (now - ts).total_seconds() / 3600
-                stale_grace_hours = getattr(settings, 'SETTLEMENT_GRACE_HOURS', 72)
+                stale_grace_hours = getattr(settings, "SETTLEMENT_GRACE_HOURS", 72)
                 if trade_age_hours < stale_grace_hours:
                     logger.info(
                         f"Trade {trade.id}: stale ({trade_age_hours:.1f}h old) but within grace period, "
@@ -508,6 +568,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 _still_open = False
                 try:
                     import httpx
+
                     _wallet = settings.POLYMARKET_BUILDER_ADDRESS
                     if _wallet:
                         async with httpx.AsyncClient(timeout=8.0) as _client:
@@ -521,7 +582,11 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             for _pos in _positions:
                                 _asset = _pos.get("asset", "")
                                 _slug = _pos.get("slug", "")
-                                if _ticker in (_asset, _slug) or _asset in _ticker or _slug in _ticker:
+                                if (
+                                    _ticker in (_asset, _slug)
+                                    or _asset in _ticker
+                                    or _slug in _ticker
+                                ):
                                     if not _pos.get("redeemable", False):
                                         _still_open = True
                                         logger.info(
@@ -530,7 +595,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                                         )
                                         break
                 except Exception:
-                    logger.exception(f"settlement: failed to check on-chain position for stale trade {trade.id}")
+                    logger.exception(
+                        f"settlement: failed to check on-chain position for stale trade {trade.id}"
+                    )
                 if _still_open:
                     continue
 
@@ -549,24 +616,29 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 )
 
         unresolved_count = sum(
-            1 for t in settled_trades
-            if getattr(t, "settlement_source", None) in (
-                "expired_unresolved", "closed_unresolved", "stale_expired"
-            )
+            1
+            for t in settled_trades
+            if getattr(t, "settlement_source", None)
+            in ("expired_unresolved", "closed_unresolved", "stale_expired")
         )
         resolved_count = len(settled_trades) - unresolved_count
         try:
             from backend.monitoring.metrics import increment_settlement_by_status
+
             if resolved_count > 0:
                 increment_settlement_by_status("resolved")
             if unresolved_count > 0:
                 increment_settlement_by_status("unresolved")
         except Exception:
-            logger.exception("settlement: failed to increment settlement status metrics")
+            logger.exception(
+                "settlement: failed to increment settlement status metrics"
+            )
         if resolved_count:
             logger.info(f"Settled {resolved_count} trades with market resolution")
         if unresolved_count:
-            logger.info(f"Marked {unresolved_count} unresolvable trades as total losses")
+            logger.info(
+                f"Marked {unresolved_count} unresolvable trades as total losses"
+            )
         if not settled_trades:
             logger.info("No trades ready for settlement (markets still open)")
 
@@ -587,9 +659,12 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         # Resolve paper trades via Gamma outcome prices
         try:
             from backend.core.settlement.settlement_helpers import resolve_paper_trades
+
             paper_settled = await resolve_paper_trades(db)
             if paper_settled:
-                logger.info(f"Settled {len(paper_settled)} paper trades via Gamma outcomes")
+                logger.info(
+                    f"Settled {len(paper_settled)} paper trades via Gamma outcomes"
+                )
         except Exception as e:
             logger.warning(f"Paper trade settlement failed: {e}")
 
@@ -602,8 +677,13 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
             if paper_state:
                 current = float(paper_state.paper_bankroll or 0)
                 import json as _json
+
                 try:
-                    misc = _json.loads(paper_state.misc_data) if paper_state.misc_data else {}
+                    misc = (
+                        _json.loads(paper_state.misc_data)
+                        if paper_state.misc_data
+                        else {}
+                    )
                 except (ValueError, TypeError):
                     misc = {}
                 topup_count = int(misc.get("paper_topup_count", 0))
@@ -613,7 +693,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     paper_state._topup_count = topup_count + 1
                     # Update paper_initial_bankroll so reconciliation
                     # doesn't treat the topup as phantom PnL drift
-                    prev_initial = float(paper_state.paper_initial_bankroll or settings.INITIAL_BANKROLL)
+                    prev_initial = float(
+                        paper_state.paper_initial_bankroll or settings.INITIAL_BANKROLL
+                    )
                     paper_state.paper_initial_bankroll = prev_initial + paper_topup_amt
                     # Persist topup count across restarts via misc_data
                     misc["paper_topup_count"] = topup_count + 1
@@ -628,6 +710,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     # Record TransactionEvent for audit trail (deposit type)
                     try:
                         from backend.models.database import TransactionEvent
+
                         event = TransactionEvent(
                             type="deposit",
                             amount=paper_topup_amt,
@@ -643,7 +726,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         db.add(event)
                         db.commit()
                     except Exception as tee:
-                        logger.debug(f"TransactionEvent recording for auto-topup failed: {tee}")
+                        logger.debug(
+                            f"TransactionEvent recording for auto-topup failed: {tee}"
+                        )
         except Exception as e:
             logger.error(f"Paper bankroll top-up failed: {e}")
 
@@ -658,6 +743,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         # Risk check: auto-disable strategies exceeding loss thresholds
         try:
             from backend.core.strategy_gate import check_risk_and_disable
+
             disabled = check_risk_and_disable(db)
             if disabled:
                 logger.warning(f"[RISK] Auto-disabled strategies: {disabled}")
@@ -682,7 +768,8 @@ def _run_learning_pipeline_background(settled_trades: List[Trade]) -> None:
                 try:
                     await pipeline.process_settlement(
                         trade_id=trade.id,
-                        strategy_name=getattr(trade, "strategy", "unknown") or "unknown",
+                        strategy_name=getattr(trade, "strategy", "unknown")
+                        or "unknown",
                         market_id=trade.market_ticker or "unknown",
                         outcome=trade.result,
                         pnl_usd=trade.pnl or 0.0,
@@ -699,11 +786,13 @@ def _run_learning_pipeline_background(settled_trades: List[Trade]) -> None:
     except RuntimeError:
         # No running loop — run in a thread
         import threading
+
         def _runner() -> None:
             try:
                 asyncio.run(_process_all())
             except Exception as e:
                 logger.debug(f"Learning pipeline thread failed: {e}")
+
         threading.Thread(target=_runner, name="learning-pipeline", daemon=True).start()
 
 
@@ -733,24 +822,38 @@ async def update_bot_state_with_settlements(
                     if is_real_trade:
                         state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
                         fee = trade.fee or 0.0
-                        state.paper_bankroll = (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee
+                        state.paper_bankroll = (
+                            (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee
+                        )
                         state.paper_trades = (state.paper_trades or 0) + 1
                         if trade.result == "win":
                             state.paper_wins = (state.paper_wins or 0) + 1
-                    elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
-                        state.paper_bankroll = (state.paper_bankroll or 0.0) + trade.size
+                    elif is_expired_or_push or trade.result in (
+                        "expired_unresolved",
+                        "btc_5min_unresolved",
+                    ):
+                        state.paper_bankroll = (
+                            state.paper_bankroll or 0.0
+                        ) + trade.size
                         logger.info(
                             f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to paper bankroll"
                         )
                 elif trading_mode == "testnet":
                     if is_real_trade:
                         state.testnet_pnl = (state.testnet_pnl or 0.0) + trade.pnl
-                        state.testnet_bankroll = (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
+                        state.testnet_bankroll = (
+                            (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
+                        )
                         state.testnet_trades = (state.testnet_trades or 0) + 1
                         if trade.result == "win":
                             state.testnet_wins = (state.testnet_wins or 0) + 1
-                    elif is_expired_or_push or trade.result in ("expired_unresolved", "btc_5min_unresolved"):
-                        state.testnet_bankroll = (state.testnet_bankroll or 0.0) + trade.size
+                    elif is_expired_or_push or trade.result in (
+                        "expired_unresolved",
+                        "btc_5min_unresolved",
+                    ):
+                        state.testnet_bankroll = (
+                            state.testnet_bankroll or 0.0
+                        ) + trade.size
                         logger.info(
                             f"Expired/push trade {trade.id}: returned ${trade.size:.2f} to testnet bankroll"
                         )
@@ -771,7 +874,9 @@ async def update_bot_state_with_settlements(
         # Sync live bankroll from authoritative total equity source.
         if "live" in modes_with_settlements:
             try:
-                from backend.core.bankroll_reconciliation import reconcile_bot_state as _reconcile
+                from backend.core.bankroll_reconciliation import (
+                    reconcile_bot_state as _reconcile,
+                )
 
                 reports = await _reconcile(
                     db,
@@ -789,7 +894,9 @@ async def update_bot_state_with_settlements(
                     )
             except Exception as exc:
                 db.rollback()
-                logger.warning("Live bankroll reconciliation after settlement failed: %s", exc)
+                logger.warning(
+                    "Live bankroll reconciliation after settlement failed: %s", exc
+                )
 
         # Log stats for ALL modes that had settlements
         for m in sorted(modes_with_settlements):
@@ -824,7 +931,9 @@ async def reconcile_bot_state(db: Session) -> None:
     as the source of truth when on-chain wallet is available.
     """
     try:
-        from backend.core.bankroll_reconciliation import reconcile_bot_state as _reconcile
+        from backend.core.bankroll_reconciliation import (
+            reconcile_bot_state as _reconcile,
+        )
 
         await _reconcile(db, apply=True, commit=True, source="settlement_reconcile")
         logger.debug("Bot state reconciliation complete")

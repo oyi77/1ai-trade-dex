@@ -1,4 +1,5 @@
 """Walk-forward backtesting engine with parameter sweep support."""
+
 import itertools
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -9,9 +10,12 @@ from sqlalchemy.orm import Session
 from backend.core.backtester import BacktestConfig, BacktestEngine, BacktestResult
 
 from loguru import logger
+
+
 @dataclass
 class WalkForwardWindow:
     """A single in-sample / out-of-sample window."""
+
     window_num: int
     in_sample_start: datetime
     in_sample_end: datetime
@@ -24,6 +28,7 @@ class WalkForwardWindow:
 @dataclass
 class WalkForwardResult:
     """Results from walk-forward validation."""
+
     strategy: str
     windows: list[WalkForwardWindow]
     in_sample_sharpe: float = 0.0
@@ -37,6 +42,7 @@ class WalkForwardResult:
 @dataclass
 class SweepResult:
     """Result of a single parameter combination sweep."""
+
     params: dict
     walk_forward: WalkForwardResult
     rank_score: float = 0.0  # out-of-sample Sharpe
@@ -76,7 +82,9 @@ class WalkForwardEngine:
         window_num = 0
         current_start = start_date
 
-        while current_start + timedelta(days=in_sample_days + out_sample_days) <= end_date:
+        while (
+            current_start + timedelta(days=in_sample_days + out_sample_days) <= end_date
+        ):
             in_start = current_start
             in_end = current_start + timedelta(days=in_sample_days)
             out_start = in_end
@@ -137,22 +145,18 @@ class WalkForwardEngine:
         overfit_ratio = avg_out_sharpe / avg_in_sharpe if avg_in_sharpe != 0 else 0.0
 
         total_oos_pnl = sum(
-            w.out_sample_result.total_pnl
-            for w in windows
-            if w.out_sample_result
+            w.out_sample_result.total_pnl for w in windows if w.out_sample_result
         )
 
         total_oos_trades = sum(
-            w.out_sample_result.total_trades
-            for w in windows
-            if w.out_sample_result
+            w.out_sample_result.total_trades for w in windows if w.out_sample_result
         )
         total_oos_wins = sum(
-            w.out_sample_result.winning_trades
-            for w in windows
-            if w.out_sample_result
+            w.out_sample_result.winning_trades for w in windows if w.out_sample_result
         )
-        oos_win_rate = total_oos_wins / total_oos_trades if total_oos_trades > 0 else 0.0
+        oos_win_rate = (
+            total_oos_wins / total_oos_trades if total_oos_trades > 0 else 0.0
+        )
 
         result = WalkForwardResult(
             strategy=strategy,
@@ -215,22 +219,32 @@ class WalkForwardEngine:
 
             engine = WalkForwardEngine(
                 initial_bankroll=self.initial_bankroll,
-                kelly_fraction=config_overrides.get("kelly_fraction", self.kelly_fraction),
-                max_trade_size=config_overrides.get("max_trade_size", self.max_trade_size),
+                kelly_fraction=config_overrides.get(
+                    "kelly_fraction", self.kelly_fraction
+                ),
+                max_trade_size=config_overrides.get(
+                    "max_trade_size", self.max_trade_size
+                ),
                 slippage=config_overrides.get("slippage", self.slippage),
             )
 
             wf_result = await engine.run(
-                db, strategy, start_date, end_date,
-                in_sample_days, out_sample_days,
+                db,
+                strategy,
+                start_date,
+                end_date,
+                in_sample_days,
+                out_sample_days,
             )
             wf_result.params = params
 
-            results.append(SweepResult(
-                params=params,
-                walk_forward=wf_result,
-                rank_score=wf_result.out_sample_sharpe,
-            ))
+            results.append(
+                SweepResult(
+                    params=params,
+                    walk_forward=wf_result,
+                    rank_score=wf_result.out_sample_sharpe,
+                )
+            )
 
         # Sort by out-of-sample Sharpe (best first)
         results.sort(key=lambda r: r.rank_score, reverse=True)
@@ -312,11 +326,13 @@ class WalkForwardValidator:
         new_threshold = new_params.get("edge_threshold", 0.0)
 
         old_pnls = [
-            o.pnl for o in outcomes
+            o.pnl
+            for o in outcomes
             if o.pnl is not None and (o.edge_at_entry or 0.0) >= old_threshold
         ]
         new_pnls = [
-            o.pnl for o in outcomes
+            o.pnl
+            for o in outcomes
             if o.pnl is not None and (o.edge_at_entry or 0.0) >= new_threshold
         ]
 

@@ -1,13 +1,23 @@
 """Limitless Exchange market provider."""
+
 import os
 from decimal import Decimal
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 from loguru import logger
 
 try:
     from backend.clients.limitless_client import LimitlessClient
+
     HAS_LIMITLESS = True
 except ImportError:
     HAS_LIMITLESS = False
@@ -72,9 +82,15 @@ class LimitlessProvider(BaseMarketProvider):
                 filled_size=Decimal("0"),
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=order.size,
-                fees_paid=Decimal(str(
-                    result.get("fee") or result.get("fees") or result.get("feePaid") or result.get("fee_paid") or "0"
-                )),
+                fees_paid=Decimal(
+                    str(
+                        result.get("fee")
+                        or result.get("fees")
+                        or result.get("feePaid")
+                        or result.get("fee_paid")
+                        or "0"
+                    )
+                ),
             )
         except Exception as exc:
             logger.exception("Limitless order failed")
@@ -88,11 +104,21 @@ class LimitlessProvider(BaseMarketProvider):
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         """Get available markets from Limitless Exchange."""
         raw = await self._client.get_markets(limit=limit)
-        return [MarketInfo(market_id=str(m.get("id", "")), question=str(m.get("question", "")), yes_price=0.5, no_price=0.5) for m in raw]
+        return [
+            MarketInfo(
+                market_id=str(m.get("id", "")),
+                question=str(m.get("question", "")),
+                yes_price=0.5,
+                no_price=0.5,
+            )
+            for m in raw
+        ]
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(available=Decimal("0"), total=Decimal("0"), currency="USDC")
+        return NormalizedBalance(
+            available=Decimal("0"), total=Decimal("0"), currency="USDC"
+        )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

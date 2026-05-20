@@ -1,4 +1,5 @@
 """Tests for Enhanced Backtest Engine."""
+
 import pytest
 from datetime import datetime, timezone, timedelta
 
@@ -38,9 +39,27 @@ class TestEnhancedBacktestEngine:
         config = make_config()
         engine = EnhancedBacktestEngine(config)
         signals = [
-            {"timestamp": datetime.now(timezone.utc), "price": 0.5, "edge": 0.05, "size": 10.0, "pnl": 0.5},
-            {"timestamp": datetime.now(timezone.utc), "price": 0.5, "edge": 0.03, "size": 10.0, "pnl": -0.3},
-            {"timestamp": datetime.now(timezone.utc), "price": 0.5, "edge": 0.04, "size": 10.0, "pnl": 0.8},
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "price": 0.5,
+                "edge": 0.05,
+                "size": 10.0,
+                "pnl": 0.5,
+            },
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "price": 0.5,
+                "edge": 0.03,
+                "size": 10.0,
+                "pnl": -0.3,
+            },
+            {
+                "timestamp": datetime.now(timezone.utc),
+                "price": 0.5,
+                "edge": 0.04,
+                "size": 10.0,
+                "pnl": 0.8,
+            },
         ]
         result = engine._simulate_signals(signals, "test")
         assert result.total_trades == 3
@@ -80,7 +99,11 @@ class TestEnhancedBacktestEngine:
         engine = EnhancedBacktestEngine(config)
         # Monkey-patch _fetch_signals to return synthetic data
         engine._fetch_signals = lambda name, db=None: [
-            {"pnl": 0.5}, {"pnl": -0.3}, {"pnl": 0.8}, {"pnl": 0.1}, {"pnl": -0.2},
+            {"pnl": 0.5},
+            {"pnl": -0.3},
+            {"pnl": 0.8},
+            {"pnl": 0.1},
+            {"pnl": -0.2},
         ]
         result = await engine.monte_carlo_simulate("test")
         assert result.simulations == 50

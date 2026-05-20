@@ -18,6 +18,7 @@ from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
 from loguru import logger
+
 _execution_breaker_active = asyncio.Semaphore(1)
 _pending_arbs: dict[str, dict] = {}
 
@@ -171,9 +172,13 @@ async def _place_order_with_retry(
         return result.order_id if hasattr(result, "order_id") else None
 
     except Exception:
-        logger.exception("Probability arb order placement failed (retry %d)", retry_count)
+        logger.exception(
+            "Probability arb order placement failed (retry %d)", retry_count
+        )
         if retry_count < _cfg("ARB_MAX_RETRIES", 3):
-            wait = settings.PROB_ARB_RETRY_BACKOFF_BASE * (settings.PROB_ARB_RETRY_BACKOFF_MULTIPLIER ** retry_count)
+            wait = settings.PROB_ARB_RETRY_BACKOFF_BASE * (
+                settings.PROB_ARB_RETRY_BACKOFF_MULTIPLIER**retry_count
+            )
             await asyncio.sleep(wait)
             return await _place_order_with_retry(
                 token_id, side, price, size, clob, idempotency_key, retry_count + 1
@@ -201,10 +206,11 @@ class ProbabilityArb(BaseStrategy):
         "_force_disabled": True,
         "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
         "max_position": 100.0,
-
     }
 
-    async def detect(self, yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
+    async def detect(
+        self, yes_price: float, no_price: float
+    ) -> Optional[ArbOpportunity]:
         """Detect arbitrage in a market's YES/NO prices. <100ms target."""
         return detect_arb(yes_price, no_price)
 
@@ -265,6 +271,7 @@ def process_pending_arbs() -> int:
     Only delete after max retries exhausted.
     """
     import asyncio
+
     now = time.time()
     reattempted = 0
 

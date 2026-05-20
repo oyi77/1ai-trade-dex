@@ -6,6 +6,7 @@ seamless migration from SQLite to Redis in Phase 2 without changing application 
 
 RQ-002: Abstract interfaces for SQLite → Redis migration
 """
+
 from abc import ABC, abstractmethod
 from typing import Optional, Any, Dict
 from dataclasses import dataclass
@@ -227,9 +228,11 @@ def create_queue() -> AbstractQueue:
 
     if settings.JOB_QUEUE_URL.startswith("redis://"):
         from backend.job_queue.redis_queue import RedisQueue
+
         return RedisQueue(settings.JOB_QUEUE_URL)
 
     from backend.job_queue.sqlite_queue import AsyncSQLiteQueue
+
     return AsyncSQLiteQueue()
 
 
@@ -248,8 +251,10 @@ def create_cache() -> AbstractCache:
     if settings.CACHE_URL.startswith("redis://"):
         from backend.job_queue.sqlite_cache import SQLiteCache
         from backend.cache.redis_cache import RedisCache
+
         fallback = SQLiteCache()
         return RedisCache(redis_url=settings.CACHE_URL, fallback=fallback)
 
     from backend.job_queue.sqlite_cache import SQLiteCache
+
     return SQLiteCache()

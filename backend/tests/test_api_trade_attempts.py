@@ -12,18 +12,20 @@ class TestTradeAttemptsApi:
     def test_trade_attempts_list_returns_items_and_total(self, client, db):
         from backend.models.database import TradeAttempt
 
-        db.add(TradeAttempt(
-            attempt_id="attempt-list-1",
-            correlation_id="corr-list-1",
-            strategy="general_scanner",
-            mode="paper",
-            market_ticker="LIST-MARKET",
-            status="REJECTED",
-            phase="risk_gate",
-            reason_code="REJECTED_MAX_EXPOSURE",
-            reason="max exposure reached",
-            created_at=datetime.now(timezone.utc),
-        ))
+        db.add(
+            TradeAttempt(
+                attempt_id="attempt-list-1",
+                correlation_id="corr-list-1",
+                strategy="general_scanner",
+                mode="paper",
+                market_ticker="LIST-MARKET",
+                status="REJECTED",
+                phase="risk_gate",
+                reason_code="REJECTED_MAX_EXPOSURE",
+                reason="max exposure reached",
+                created_at=datetime.now(timezone.utc),
+            )
+        )
         db.commit()
 
         resp = client.get("/api/v1/trade-attempts?mode=paper")
@@ -37,30 +39,32 @@ class TestTradeAttemptsApi:
     def test_trade_attempts_summary_surfaces_blockers(self, client, db):
         from backend.models.database import TradeAttempt
 
-        db.add_all([
-            TradeAttempt(
-                attempt_id="attempt-summary-1",
-                correlation_id="corr-summary-1",
-                strategy="general_scanner",
-                mode="live",
-                market_ticker="DRAW-MARKET",
-                status="REJECTED",
-                phase="risk_gate",
-                reason_code="REJECTED_DRAWDOWN_BREAKER",
-                reason="drawdown breaker",
-            ),
-            TradeAttempt(
-                attempt_id="attempt-summary-2",
-                correlation_id="corr-summary-2",
-                strategy="general_scanner",
-                mode="live",
-                market_ticker="WIN-MARKET",
-                status="EXECUTED",
-                phase="completed",
-                reason_code="EXECUTED_TRADE_OPENED",
-                reason="Trade opened",
-            ),
-        ])
+        db.add_all(
+            [
+                TradeAttempt(
+                    attempt_id="attempt-summary-1",
+                    correlation_id="corr-summary-1",
+                    strategy="general_scanner",
+                    mode="live",
+                    market_ticker="DRAW-MARKET",
+                    status="REJECTED",
+                    phase="risk_gate",
+                    reason_code="REJECTED_DRAWDOWN_BREAKER",
+                    reason="drawdown breaker",
+                ),
+                TradeAttempt(
+                    attempt_id="attempt-summary-2",
+                    correlation_id="corr-summary-2",
+                    strategy="general_scanner",
+                    mode="live",
+                    market_ticker="WIN-MARKET",
+                    status="EXECUTED",
+                    phase="completed",
+                    reason_code="EXECUTED_TRADE_OPENED",
+                    reason="Trade opened",
+                ),
+            ]
+        )
         db.commit()
 
         resp = client.get("/api/v1/trade-attempts/summary?mode=live")
@@ -80,18 +84,20 @@ class TestTradeAttemptsApi:
 
         assert _iso("2026-05-13 22:00:01.648328+07") == "2026-05-13 22:00:01.648328+07"
 
-        db.add(TradeAttempt(
-            attempt_id="attempt-summary-string-date",
-            correlation_id="corr-summary-string-date",
-            strategy="cex_pm_leadlag",
-            mode="paper",
-            market_ticker="STRING-DATE-MARKET",
-            status="FAILED",
-            phase="execution",
-            reason_code="FAILED_BROKER_REJECTED",
-            reason="CLOB execution produced no order id",
-            created_at=datetime.now(timezone.utc),
-        ))
+        db.add(
+            TradeAttempt(
+                attempt_id="attempt-summary-string-date",
+                correlation_id="corr-summary-string-date",
+                strategy="cex_pm_leadlag",
+                mode="paper",
+                market_ticker="STRING-DATE-MARKET",
+                status="FAILED",
+                phase="execution",
+                reason_code="FAILED_BROKER_REJECTED",
+                reason="CLOB execution produced no order id",
+                created_at=datetime.now(timezone.utc),
+            )
+        )
         db.commit()
         db.connection().exec_driver_sql(
             "UPDATE trade_attempts SET created_at = ? WHERE attempt_id = ?",

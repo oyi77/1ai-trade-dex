@@ -1,4 +1,5 @@
 """Market provider registry for the plugin system."""
+
 import asyncio
 import logging
 import os
@@ -14,7 +15,9 @@ from backend.markets.base_provider import BaseMarketProvider, MarketProviderMani
 logger = logging.getLogger(__name__)
 
 
-class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketProvider]):
+class MarketProviderRegistry(
+    PluginRegistry[MarketProviderManifest, BaseMarketProvider]
+):
     """Singleton registry for market (trading venue) provider plugins."""
 
     _instance: Optional["MarketProviderRegistry"] = None
@@ -58,7 +61,9 @@ class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketPr
             self._manifests[name] = manifest
             self._enabled[name] = True
             self._health_status[name] = True
-            logger.info(f"Registered market provider: {name} v{manifest.version} (paper_mode={paper_mode})")
+            logger.info(
+                f"Registered market provider: {name} v{manifest.version} (paper_mode={paper_mode})"
+            )
         except Exception as e:
             logger.warning(f"Failed to instantiate market provider {name}: {e}")
 
@@ -75,7 +80,8 @@ class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketPr
     def get_live_venues(self) -> List[BaseMarketProvider]:
         """Return only live venue providers that are healthy."""
         return [
-            p for n, p in self._plugins.items()
+            p
+            for n, p in self._plugins.items()
             if self._enabled.get(n, False)
             and self._health_status.get(n, False)
             and self._manifests[n].is_live_venue
@@ -84,9 +90,9 @@ class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketPr
     def get_paper_venues(self) -> List[BaseMarketProvider]:
         """Return only paper/sandbox providers."""
         return [
-            p for n, p in self._plugins.items()
-            if self._enabled.get(n, False)
-            and not self._manifests[n].is_live_venue
+            p
+            for n, p in self._plugins.items()
+            if self._enabled.get(n, False) and not self._manifests[n].is_live_venue
         ]
 
     def get_for_capability(self, capability: str) -> List[BaseMarketProvider]:
@@ -133,7 +139,9 @@ class MarketProviderRegistry(PluginRegistry[MarketProviderManifest, BaseMarketPr
                         f"Use force=True to override."
                     )
             except Exception as exc:
-                logger.debug("Provider position check failed while disabling %s: %s", name, exc)
+                logger.debug(
+                    "Provider position check failed while disabling %s: %s", name, exc
+                )
 
         self._enabled[name] = enabled
         logger.info(f"Market provider '{name}' {'enabled' if enabled else 'disabled'}")

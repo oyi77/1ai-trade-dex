@@ -1,17 +1,27 @@
 """Kalshi market provider plugin."""
+
 import math
 import os
 from typing import List, Optional
 from decimal import Decimal
 import uuid
 
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderSide, OrderStatus, PositionSide
 from backend.markets.provider_registry import market_registry
 from loguru import logger
 
 try:
     from backend.data.kalshi_client import KalshiClient
+
     HAS_KALSHI = True
 except ImportError:
     HAS_KALSHI = False
@@ -103,9 +113,17 @@ class KalshiProvider(BaseMarketProvider):
             or payload["client_order_id"]
         )
         status = self._map_status(str(order_result.get("status", "open")))
-        filled_size = Decimal(str(order_result.get("filled_count", order_result.get("filled_count_fp", 0))))
+        filled_size = Decimal(
+            str(
+                order_result.get("filled_count", order_result.get("filled_count_fp", 0))
+            )
+        )
         fees_paid_raw = order_result.get("fees", order_result.get("fee", 0))
-        fees_paid = Decimal(str(fees_paid_raw)) if fees_paid_raw else _kalshi_fee(order.price, filled_size)
+        fees_paid = (
+            Decimal(str(fees_paid_raw))
+            if fees_paid_raw
+            else _kalshi_fee(order.price, filled_size)
+        )
         remaining_size = max(order.size - filled_size, Decimal("0"))
         return NormalizedOrderResult(
             venue_order_id=venue_order_id,
@@ -127,7 +145,11 @@ class KalshiProvider(BaseMarketProvider):
     async def get_balance(self) -> NormalizedBalance:
         if not self._paper_mode:
             raw = await self._client.get_balance()
-            available = Decimal(str(raw.get("available", raw.get("balance", raw.get("cash_balance", 0)))))
+            available = Decimal(
+                str(
+                    raw.get("available", raw.get("balance", raw.get("cash_balance", 0)))
+                )
+            )
             locked = Decimal(str(raw.get("locked", raw.get("exposure", 0))))
             return NormalizedBalance(
                 venue="kalshi",
@@ -158,11 +180,17 @@ class KalshiProvider(BaseMarketProvider):
             if market_id and ticker != market_id:
                 continue
             side_raw = p.get("side", "yes")
-            position_side = PositionSide.LONG if side_raw.lower() == "yes" else PositionSide.SHORT
+            position_side = (
+                PositionSide.LONG if side_raw.lower() == "yes" else PositionSide.SHORT
+            )
             size = Decimal(str(p.get("count", p.get("count_fp", p.get("size", 0)))))
             entry_price = Decimal(str(p.get("average_price", p.get("entry_price", 0))))
             current_price_raw = p.get("current_price", p.get("last_price"))
-            current_price = Decimal(str(current_price_raw)) if current_price_raw is not None else None
+            current_price = (
+                Decimal(str(current_price_raw))
+                if current_price_raw is not None
+                else None
+            )
             positions.append(
                 NormalizedPosition(
                     market_id=ticker,
@@ -176,7 +204,10 @@ class KalshiProvider(BaseMarketProvider):
         return positions
 
     async def search_markets(
-        self, query: Optional[str] = None, category: Optional[str] = None, limit: int = 50
+        self,
+        query: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 50,
     ) -> List[MarketInfo]:
         params: dict = {"limit": min(limit, 200), "status": "open"}
         if category:
@@ -196,7 +227,11 @@ class KalshiProvider(BaseMarketProvider):
             if category and m.get("category", "").lower() != category.lower():
                 continue
             yes_price_raw = m.get("yes_bid", m.get("last_price", 50))
-            yes_price = Decimal(str(yes_price_raw)) / Decimal("100") if float(yes_price_raw) > 1 else Decimal(str(yes_price_raw))
+            yes_price = (
+                Decimal(str(yes_price_raw)) / Decimal("100")
+                if float(yes_price_raw) > 1
+                else Decimal(str(yes_price_raw))
+            )
             no_price = Decimal("1") - yes_price
             volume_raw = m.get("volume", m.get("volume_24h", 0))
             open_interest_raw = m.get("open_interest", 0)

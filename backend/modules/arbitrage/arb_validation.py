@@ -1,4 +1,5 @@
 """Resolution source validation for cross-platform arbitrage safety."""
+
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -12,7 +13,9 @@ class ResolutionComparison:
 
 
 def compare_resolution(market_a: dict, market_b: dict) -> ResolutionComparison:
-    source_match = market_a.get("resolution_source") == market_b.get("resolution_source")
+    source_match = market_a.get("resolution_source") == market_b.get(
+        "resolution_source"
+    )
 
     try:
         time_a = datetime.fromisoformat(market_a.get("end_date", ""))

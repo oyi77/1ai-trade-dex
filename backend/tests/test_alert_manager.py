@@ -47,9 +47,7 @@ class TestAlertManager:
         manager = AlertManager(test_db)
 
         alert = manager.check_negative_balance(
-            wallet_id="0x123",
-            balance=-50.0,
-            mode="paper"
+            wallet_id="0x123", balance=-50.0, mode="paper"
         )
 
         assert alert is not None
@@ -64,9 +62,7 @@ class TestAlertManager:
         manager = AlertManager(test_db)
 
         alert = manager.check_negative_balance(
-            wallet_id="0x123",
-            balance=100.0,
-            mode="paper"
+            wallet_id="0x123", balance=100.0, mode="paper"
         )
 
         assert alert is None
@@ -78,7 +74,7 @@ class TestAlertManager:
             position_id="btc-5min-123",
             db_value=100.0,
             blockchain_value=120.0,
-            mode="live"
+            mode="live",
         )
 
         assert alert is not None
@@ -96,7 +92,7 @@ class TestAlertManager:
             position_id="btc-5min-123",
             db_value=100.0,
             blockchain_value=102.0,
-            mode="live"
+            mode="live",
         )
 
         assert alert is None
@@ -105,10 +101,7 @@ class TestAlertManager:
         manager = AlertManager(test_db)
 
         alert = manager.check_position_discrepancy(
-            position_id="btc-5min-123",
-            db_value=0.0,
-            blockchain_value=0.0,
-            mode="live"
+            position_id="btc-5min-123", db_value=0.0, blockchain_value=0.0, mode="live"
         )
 
         assert alert is None
@@ -117,9 +110,7 @@ class TestAlertManager:
         manager = AlertManager(test_db)
 
         alert = manager.check_failed_settlement(
-            trade_id=42,
-            reason="Market resolution API timeout",
-            mode="live"
+            trade_id=42, reason="Market resolution API timeout", mode="live"
         )
 
         assert alert is not None
@@ -137,7 +128,7 @@ class TestAlertManager:
             expected_price=0.50,
             actual_price=0.52,
             position_value=100.0,
-            mode="testnet"
+            mode="testnet",
         )
 
         assert alert is not None
@@ -156,7 +147,7 @@ class TestAlertManager:
             expected_price=0.50,
             actual_price=0.5005,
             position_value=100.0,
-            mode="testnet"
+            mode="testnet",
         )
 
         assert alert is None
@@ -165,9 +156,7 @@ class TestAlertManager:
         manager = AlertManager(test_db)
 
         alert = manager.check_negative_balance(
-            wallet_id="0x456",
-            balance=-10.0,
-            mode="paper"
+            wallet_id="0x456", balance=-10.0, mode="paper"
         )
 
         assert alert.resolved is False
@@ -191,16 +180,14 @@ class TestAlertManager:
     def test_disabled_alert_type_no_trigger(self, test_db):
         manager = AlertManager(test_db)
 
-        config = test_db.query(AlertConfig).filter_by(
-            alert_type="NEGATIVE_BALANCE"
-        ).first()
+        config = (
+            test_db.query(AlertConfig).filter_by(alert_type="NEGATIVE_BALANCE").first()
+        )
         config.enabled = False
         test_db.commit()
 
         alert = manager.check_negative_balance(
-            wallet_id="0x789",
-            balance=-100.0,
-            mode="paper"
+            wallet_id="0x789", balance=-100.0, mode="paper"
         )
 
         assert alert is None
@@ -208,26 +195,22 @@ class TestAlertManager:
     def test_custom_threshold_respected(self, test_db):
         manager = AlertManager(test_db)
 
-        config = test_db.query(AlertConfig).filter_by(
-            alert_type="POSITION_DISCREPANCY"
-        ).first()
+        config = (
+            test_db.query(AlertConfig)
+            .filter_by(alert_type="POSITION_DISCREPANCY")
+            .first()
+        )
         config.threshold_value = 0.10
         test_db.commit()
 
         alert = manager.check_position_discrepancy(
-            position_id="test-pos",
-            db_value=100.0,
-            blockchain_value=108.0,
-            mode="live"
+            position_id="test-pos", db_value=100.0, blockchain_value=108.0, mode="live"
         )
 
         assert alert is None
 
         alert = manager.check_position_discrepancy(
-            position_id="test-pos",
-            db_value=100.0,
-            blockchain_value=112.0,
-            mode="live"
+            position_id="test-pos", db_value=100.0, blockchain_value=112.0, mode="live"
         )
 
         assert alert is not None

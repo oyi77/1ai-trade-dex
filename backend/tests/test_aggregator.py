@@ -1,16 +1,19 @@
 """Tests for backend.data.aggregator — multi-source fallback and caching."""
+
 import time
 import pytest
 
 from backend.data.aggregator import DataAggregator, DataSource, SourceResult
 from backend.core.errors import DataQualityError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_source(name: str, return_value=None, raises=None, priority: int = 0) -> DataSource:
+
+def _make_source(
+    name: str, return_value=None, raises=None, priority: int = 0
+) -> DataSource:
     async def _fetch(**kwargs):
         if raises is not None:
             raise raises
@@ -23,11 +26,16 @@ def _make_source(name: str, return_value=None, raises=None, priority: int = 0) -
 # Tests
 # ---------------------------------------------------------------------------
 
+
 async def test_fetch_from_primary_source():
     """Primary source succeeds — result comes from it."""
     agg = DataAggregator(cache_ttl=60)
-    agg.register_source("price", _make_source("primary", return_value=100.0, priority=0))
-    agg.register_source("price", _make_source("secondary", return_value=99.0, priority=1))
+    agg.register_source(
+        "price", _make_source("primary", return_value=100.0, priority=0)
+    )
+    agg.register_source(
+        "price", _make_source("secondary", return_value=99.0, priority=1)
+    )
 
     result = await agg.fetch("price")
 
@@ -40,8 +48,12 @@ async def test_fetch_from_primary_source():
 async def test_fallback_on_primary_failure():
     """Primary raises — secondary is used instead."""
     agg = DataAggregator(cache_ttl=60)
-    agg.register_source("price", _make_source("primary", raises=RuntimeError("down"), priority=0))
-    agg.register_source("price", _make_source("secondary", return_value=99.0, priority=1))
+    agg.register_source(
+        "price", _make_source("primary", raises=RuntimeError("down"), priority=0)
+    )
+    agg.register_source(
+        "price", _make_source("secondary", return_value=99.0, priority=1)
+    )
 
     result = await agg.fetch("price")
 
@@ -60,7 +72,9 @@ async def test_cache_hit():
         return 42.0
 
     agg = DataAggregator(cache_ttl=60)
-    agg.register_source("price", DataSource(name="live", fetch_fn=_counting_fetch, priority=0))
+    agg.register_source(
+        "price", DataSource(name="live", fetch_fn=_counting_fetch, priority=0)
+    )
 
     first = await agg.fetch("price")
     second = await agg.fetch("price")
@@ -78,7 +92,9 @@ async def test_cache_stale_on_all_fail():
     # Seed cache with 5s-old data (within max_stale_age)
     agg._cache["price"] = (55.0, time.monotonic() - 5)
 
-    agg.register_source("price", _make_source("bad", raises=ConnectionError("offline"), priority=0))
+    agg.register_source(
+        "price", _make_source("bad", raises=ConnectionError("offline"), priority=0)
+    )
 
     result = await agg.fetch("price")
 
@@ -93,7 +109,9 @@ async def test_cache_too_stale_raises():
     # Seed cache with 999s-old data (exceeds max_stale_age)
     agg._cache["price"] = (55.0, time.monotonic() - 999)
 
-    agg.register_source("price", _make_source("bad", raises=ConnectionError("offline"), priority=0))
+    agg.register_source(
+        "price", _make_source("bad", raises=ConnectionError("offline"), priority=0)
+    )
 
     with pytest.raises(DataQualityError):
         await agg.fetch("price")
@@ -102,7 +120,9 @@ async def test_cache_too_stale_raises():
 async def test_no_cache_raises():
     """All sources fail and no cache exists — DataQualityError is raised."""
     agg = DataAggregator(cache_ttl=60)
-    agg.register_source("price", _make_source("bad", raises=ValueError("gone"), priority=0))
+    agg.register_source(
+        "price", _make_source("bad", raises=ValueError("gone"), priority=0)
+    )
 
     with pytest.raises(DataQualityError):
         await agg.fetch("price")

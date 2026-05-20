@@ -20,11 +20,7 @@ from datetime import datetime, timezone
 
 from loguru import logger
 
-from backend.models.database import (
-    StrategyConfig,
-    StrategyProposal,
-    AuditLog
-)
+from backend.models.database import StrategyConfig, StrategyProposal, AuditLog
 
 
 class ProposalApplier:
@@ -35,9 +31,7 @@ class ProposalApplier:
         self.logger = logger
 
     def apply_proposal_to_config(
-        self,
-        proposal_id: int,
-        db: Optional[Any] = None
+        self, proposal_id: int, db: Optional[Any] = None
     ) -> bool:
         """Apply an approved proposal to the strategy config.
 
@@ -61,17 +55,18 @@ class ProposalApplier:
                 return self._apply(db, proposal_id)
         except Exception as e:
             self.logger.error(
-                f"Failed to apply proposal {proposal_id}: {e}",
-                exc_info=True
+                f"Failed to apply proposal {proposal_id}: {e}", exc_info=True
             )
             return False
 
     def _apply(self, db, proposal_id: int) -> bool:
         try:
             # Load proposal
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == proposal_id
-            ).first()
+            proposal = (
+                db.query(StrategyProposal)
+                .filter(StrategyProposal.id == proposal_id)
+                .first()
+            )
 
             if not proposal:
                 self.logger.error(f"Proposal {proposal_id} not found")
@@ -87,9 +82,11 @@ class ProposalApplier:
             change_details = proposal.change_details
 
             # Load current config
-            config = db.query(StrategyConfig).filter(
-                StrategyConfig.strategy_name == strategy_name
-            ).first()
+            config = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.strategy_name == strategy_name)
+                .first()
+            )
 
             if not config:
                 self.logger.error(f"Strategy config not found for '{strategy_name}'")
@@ -103,7 +100,7 @@ class ProposalApplier:
                 "strategy_name": config.strategy_name,
                 "enabled": config.enabled,
                 "interval_seconds": config.interval_seconds,
-                "params": current_params.copy()
+                "params": current_params.copy(),
             }
 
             # Apply changes from proposal
@@ -125,7 +122,7 @@ class ProposalApplier:
                 "strategy_name": config.strategy_name,
                 "enabled": config.enabled,
                 "interval_seconds": config.interval_seconds,
-                "params": new_params
+                "params": new_params,
             }
 
             # Log config change to audit log
@@ -142,8 +139,8 @@ class ProposalApplier:
                 details={
                     "proposal_id": proposal_id,
                     "change_details": change_details,
-                    "expected_impact": proposal.expected_impact
-                }
+                    "expected_impact": proposal.expected_impact,
+                },
             )
             db.add(audit_entry)
 
@@ -159,15 +156,12 @@ class ProposalApplier:
         except Exception as e:
             db.rollback()
             self.logger.error(
-                f"Failed to apply proposal {proposal_id}: {e}",
-                exc_info=True
+                f"Failed to apply proposal {proposal_id}: {e}", exc_info=True
             )
             return False
 
     def get_active_config(
-        self,
-        strategy_name: str,
-        db: Optional[Any] = None
+        self, strategy_name: str, db: Optional[Any] = None
     ) -> Optional[Dict[str, Any]]:
         """Get the current active config for a strategy.
 
@@ -191,16 +185,17 @@ class ProposalApplier:
                 return self._get_config(db, strategy_name)
         except Exception as e:
             self.logger.error(
-                f"Failed to get config for '{strategy_name}': {e}",
-                exc_info=True
+                f"Failed to get config for '{strategy_name}': {e}", exc_info=True
             )
             return None
 
     def _get_config(self, db, strategy_name: str) -> Optional[Dict[str, Any]]:
         try:
-            config = db.query(StrategyConfig).filter(
-                StrategyConfig.strategy_name == strategy_name
-            ).first()
+            config = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.strategy_name == strategy_name)
+                .first()
+            )
 
             if not config:
                 return None
@@ -211,20 +206,16 @@ class ProposalApplier:
                 "strategy_name": config.strategy_name,
                 "enabled": config.enabled,
                 "interval_seconds": config.interval_seconds,
-                "params": params
+                "params": params,
             }
         except Exception as e:
             self.logger.error(
-                f"Failed to get config for '{strategy_name}': {e}",
-                exc_info=True
+                f"Failed to get config for '{strategy_name}': {e}", exc_info=True
             )
             return None
 
     def get_config_timeline(
-        self,
-        strategy_name: str,
-        limit: int = 20,
-        db: Optional[Any] = None
+        self, strategy_name: str, limit: int = 20, db: Optional[Any] = None
     ) -> list[Dict[str, Any]]:
         """Get the config change timeline for a strategy.
 
@@ -250,38 +241,49 @@ class ProposalApplier:
         except Exception as e:
             self.logger.error(
                 f"Failed to get config timeline for '{strategy_name}': {e}",
-                exc_info=True
+                exc_info=True,
             )
             return []
 
     def _get_timeline(self, db, strategy_name: str, limit: int) -> list[Dict[str, Any]]:
         try:
-            changes = db.query(AuditLog).filter(
-                AuditLog.event_type == "CONFIG_UPDATED",
-                AuditLog.entity_id == strategy_name
-            ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+            changes = (
+                db.query(AuditLog)
+                .filter(
+                    AuditLog.event_type == "CONFIG_UPDATED",
+                    AuditLog.entity_id == strategy_name,
+                )
+                .order_by(AuditLog.timestamp.desc())
+                .limit(limit)
+                .all()
+            )
 
             timeline = []
             for change in changes:
-                timeline.append({
-                    "timestamp": change.timestamp.isoformat() if change.timestamp else None,
-                    "user_id": change.user_id,
-                    "old_value": change.old_value,
-                    "new_value": change.new_value,
-                    "details": change.details
-                })
+                timeline.append(
+                    {
+                        "timestamp": (
+                            change.timestamp.isoformat() if change.timestamp else None
+                        ),
+                        "user_id": change.user_id,
+                        "old_value": change.old_value,
+                        "new_value": change.new_value,
+                        "details": change.details,
+                    }
+                )
 
             return timeline
         except Exception as e:
             self.logger.error(
                 f"Failed to get config timeline for '{strategy_name}': {e}",
-                exc_info=True
+                exc_info=True,
             )
             return []
 
 
 # Global instance for easy access
 _applier_instance = None
+
 
 def get_applier() -> ProposalApplier:
     """Get the global ProposalApplier instance."""

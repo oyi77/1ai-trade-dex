@@ -39,6 +39,7 @@ from backend.core.position_monitor import (
     sell_signal_monitor_job,
     SELL_MONITOR_INTERVAL_MINUTES,
 )
+
 # auto_sell is opt-in per strategy, not imported globally
 from backend.models.database import ScheduledJob, Trade
 from backend.core.auto_improve import auto_improve_job
@@ -99,6 +100,7 @@ def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
     global scheduler
     with _scheduler_state_lock:
         scheduler = value
+
 
 # Event log for terminal display (in-memory, last 200 events)
 event_log: List[dict] = []
@@ -215,13 +217,22 @@ def _serialize_trigger(trigger) -> dict:
     return {"type": "unknown", "repr": repr(trigger)}
 
 
-def save_scheduler_state(job_id: str, func_name: str, trigger, kwargs: dict | None,
-                         max_instances: int = 1, misfire_grace_time: int | None = None,
-                         next_run_time=None) -> None:
+def save_scheduler_state(
+    job_id: str,
+    func_name: str,
+    trigger,
+    kwargs: dict | None,
+    max_instances: int = 1,
+    misfire_grace_time: int | None = None,
+    next_run_time=None,
+) -> None:
     """Persist a single scheduled job's registration metadata to DB."""
     try:
-        from backend.models.database import SessionLocal  # noqa: F401  (kept for compatibility)
+        from backend.models.database import (
+            SessionLocal,
+        )  # noqa: F401  (kept for compatibility)
         from backend.db.utils import get_db_session
+
         state = {
             "func_name": func_name,
             "trigger": _serialize_trigger(trigger),
@@ -247,9 +258,17 @@ def save_scheduler_state(job_id: str, func_name: str, trigger, kwargs: dict | No
         logger.warning(f"Failed to persist scheduled job '{job_id}': {exc}")
 
 
-def _persist_and_add_job(sched: AsyncIOScheduler, func, trigger, *, id: str,
-                         kwargs: dict | None = None, replace_existing: bool = True,
-                         max_instances: int = 1, misfire_grace_time: int | None = None):
+def _persist_and_add_job(
+    sched: AsyncIOScheduler,
+    func,
+    trigger,
+    *,
+    id: str,
+    kwargs: dict | None = None,
+    replace_existing: bool = True,
+    max_instances: int = 1,
+    misfire_grace_time: int | None = None,
+):
     """Persist the job's registration to DB then register it with APScheduler."""
     func_name = getattr(func, "__name__", str(func))
     save_scheduler_state(
@@ -278,17 +297,25 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
     try:
         from backend.models.database import SessionLocal  # noqa: F401
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
-            rows = db.query(ScheduledJob).filter(ScheduledJob.enabled == True).all()  # noqa: E712
+            rows = (
+                db.query(ScheduledJob).filter(ScheduledJob.enabled == True).all()
+            )  # noqa: E712
             for row in rows:
                 state = row.job_state_json or {}
                 func_name = state.get("func_name")
                 func = JOB_FUNCTION_REGISTRY.get(func_name)
                 if func is None:
-                    logger.debug(f"Skipping persisted job '{row.job_name}': func '{func_name}' not registered")
+                    logger.debug(
+                        f"Skipping persisted job '{row.job_name}': func '{func_name}' not registered"
+                    )
                     continue
                 trig_state = state.get("trigger") or {}
-                if trig_state.get("type") != "interval" or trig_state.get("seconds") is None:
+                if (
+                    trig_state.get("type") != "interval"
+                    or trig_state.get("seconds") is None
+                ):
                     continue
                 trigger = IntervalTrigger(seconds=int(trig_state["seconds"]))
                 add_kwargs = {
@@ -312,7 +339,9 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
     return restored
 
 
-def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "paper") -> None:
+def schedule_strategy(
+    strategy_name: str, interval_seconds: int, mode: str = "paper"
+) -> None:
     """Add or replace a strategy's APScheduler job for a specific mode.
 
     Args:
@@ -321,6 +350,7 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
         mode: Trading mode ("paper", "testnet", or "live").
     """
     import random
+
     sched = _get_scheduler()
     if sched is None or not sched.running:
         return
@@ -347,7 +377,9 @@ def schedule_strategy(strategy_name: str, interval_seconds: int, mode: str = "pa
     )
 
 
-def unschedule_strategy(strategy_name: str, mode: str = "paper", interval_seconds: int = 60) -> None:
+def unschedule_strategy(
+    strategy_name: str, mode: str = "paper", interval_seconds: int = 60
+) -> None:
     """Remove a strategy's APScheduler job for a specific mode."""
     sched = _get_scheduler()
     if sched is None or not sched.running:
@@ -357,7 +389,9 @@ def unschedule_strategy(strategy_name: str, mode: str = "paper", interval_second
         sched.remove_job(job_id)
         logger.info(f"Unscheduled strategy {strategy_name} for mode {mode}")
     except Exception:
-        logger.exception(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
+        logger.exception(
+            f"Failed to unschedule strategy {strategy_name} for mode {mode}"
+        )
         logger.warning(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
 
 
@@ -389,7 +423,8 @@ def _load_strategy_jobs() -> None:
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
                 .filter(
-                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode.is_(None))
+                    (StrategyConfig.trading_mode == mode)
+                    | (StrategyConfig.trading_mode.is_(None))
                 )
                 .all()
             )
@@ -412,7 +447,9 @@ def _register_event_driven_strategies() -> None:
             strategy = strategy_cls()
             tokens = getattr(strategy, "subscribed_tokens", set())
             events = getattr(strategy, "subscribed_events", {"last_trade_price"})
-            logger.info(f"[DEBUG] Registering {name}: tokens={len(tokens)}, events={len(events)}")
+            logger.info(
+                f"[DEBUG] Registering {name}: tokens={len(tokens)}, events={len(events)}"
+            )
 
             if not tokens:
                 continue
@@ -425,9 +462,13 @@ def _register_event_driven_strategies() -> None:
                 handler=strategy.on_market_event,
                 fallback_handler=executor.on_ws_disconnected,
             )
-            logger.info(f"EventBus: registered '{name}' with {len(tokens)} tokens, {len(events)} event types")
+            logger.info(
+                f"EventBus: registered '{name}' with {len(tokens)} tokens, {len(events)} event types"
+            )
         except Exception as e:
-            logger.warning(f"[DEBUG] Failed to register strategy {name} for event bus: {e}")
+            logger.warning(
+                f"[DEBUG] Failed to register strategy {name} for event bus: {e}"
+            )
     logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
 
@@ -436,6 +477,7 @@ def _job_executed_listener(event):
     job_id = event.job_id
     try:
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             row = db.query(ScheduledJob).filter(ScheduledJob.job_name == job_id).first()
             if row:
@@ -461,28 +503,30 @@ def start_scheduler():
     _set_scheduler(AsyncIOScheduler())
     scheduler = _get_scheduler()
 
-# SCHED-5: Job Store Configuration
-# The scheduler uses AsyncIOScheduler with the default MemoryJobStore.
-# This means scheduled jobs are NOT persisted across restarts.
-# Critical jobs (agi_health_check_job, nightly_review_job, strategy_rehabilitation_job)
-# are re-registered from DATABASE configuration on each startup via load_persisted_jobs().
-# If you need full persistence, uncomment the SQLAlchemyJobStore configuration below:
-#
-# from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-# from apscheduler.schedulers.asyncio import AsyncIOScheduler
-# jobstores = {
-#     'default': SQLAlchemyJobStore(engine=engine)  # where engine is SQLAlchemy engine
-# }
-# executors = {
-#     'default': AsyncIOExecutor()
-# }
-# scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors)
+    # SCHED-5: Job Store Configuration
+    # The scheduler uses AsyncIOScheduler with the default MemoryJobStore.
+    # This means scheduled jobs are NOT persisted across restarts.
+    # Critical jobs (agi_health_check_job, nightly_review_job, strategy_rehabilitation_job)
+    # are re-registered from DATABASE configuration on each startup via load_persisted_jobs().
+    # If you need full persistence, uncomment the SQLAlchemyJobStore configuration below:
+    #
+    # from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+    # from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    # jobstores = {
+    #     'default': SQLAlchemyJobStore(engine=engine)  # where engine is SQLAlchemy engine
+    # }
+    # executors = {
+    #     'default': AsyncIOExecutor()
+    # }
+    # scheduler = AsyncIOScheduler(jobstores=jobstores, executors=executors)
 
     # Restore jobs from DB first
     try:
         jobs_restored = load_scheduler_state(scheduler)
         if jobs_restored:
-            logger.info(f"Restored {jobs_restored} scheduled jobs from DB crash recovery.")
+            logger.info(
+                f"Restored {jobs_restored} scheduled jobs from DB crash recovery."
+            )
     except Exception as exc:
         logger.warning(f"Scheduler state restoration failed: {exc}")
 
@@ -527,6 +571,7 @@ def start_scheduler():
         )
 
     from backend.core.mode_context import list_contexts
+
     contexts = list_contexts()
     modes = list(contexts.keys()) if contexts else ["paper", "testnet", "live"]
 
@@ -593,6 +638,7 @@ def start_scheduler():
 
     # AGI self-tuning: periodic review of all strategies every 30 minutes
     from backend.core.agi_self_tuner import get_agi_self_tuner
+
     agi_self_tune_interval = getattr(settings, "AGI_SELF_TUNE_INTERVAL_MINUTES", 30)
     scheduler.add_job(
         get_agi_self_tuner().periodic_review,
@@ -603,7 +649,9 @@ def start_scheduler():
         max_instances=1,
         misfire_grace_time=300,
     )
-    logger.info(f"Scheduled AGI self-tuning review every {agi_self_tune_interval} minutes")
+    logger.info(
+        f"Scheduled AGI self-tuning review every {agi_self_tune_interval} minutes"
+    )
 
     # Watchdog: check strategy heartbeats every 30s
     from backend.core.heartbeat import watchdog_job, wallet_sync_job, liveness_file_job
@@ -614,7 +662,8 @@ def start_scheduler():
         id="liveness_file",
         replace_existing=True,
         max_instances=1,
-        next_run_time=dt_module.datetime.now(dt_module.timezone.utc) + dt_module.timedelta(seconds=5),
+        next_run_time=dt_module.datetime.now(dt_module.timezone.utc)
+        + dt_module.timedelta(seconds=5),
     )
 
     scheduler.add_job(
@@ -623,7 +672,8 @@ def start_scheduler():
         id="watchdog",
         replace_existing=True,
         max_instances=1,
-        next_run_time=dt_module.datetime.now(dt_module.timezone.utc) + dt_module.timedelta(seconds=5),
+        next_run_time=dt_module.datetime.now(dt_module.timezone.utc)
+        + dt_module.timedelta(seconds=5),
     )
 
     # Wallet balance sync: fetch live CLOB balance every 60s
@@ -671,8 +721,14 @@ def start_scheduler():
 
     # Start OrderbookRouter as APScheduler fallback heartbeat
     if settings.POLYMARKET_WS_ENABLED:
-        from backend.infrastructure.market_stream.orderbook_router import OrderbookRouter
-        from backend.data.polymarket_websocket import PolymarketWebSocket, WebSocketConfig, ChannelType
+        from backend.infrastructure.market_stream.orderbook_router import (
+            OrderbookRouter,
+        )
+        from backend.data.polymarket_websocket import (
+            PolymarketWebSocket,
+            WebSocketConfig,
+            ChannelType,
+        )
 
         orderbook_router = OrderbookRouter()
 
@@ -681,6 +737,7 @@ def start_scheduler():
 
         # Connect to WebSocket and register router as handler
         if settings.POLYMARKET_WS_CLOB_URL:
+
             async def _start_market_ws() -> None:
                 subscribed_tokens = set()
                 try:
@@ -688,10 +745,14 @@ def start_scheduler():
 
                     subscribed_tokens.update(event_bus.get_all_subscribed_tokens())
                 except Exception:
-                    logger.exception("Failed to read strategy WS subscriptions from EventBus")
+                    logger.exception(
+                        "Failed to read strategy WS subscriptions from EventBus"
+                    )
 
                 try:
-                    from backend.core.market_scanner import fetch_short_duration_token_ids
+                    from backend.core.market_scanner import (
+                        fetch_short_duration_token_ids,
+                    )
 
                     short_tokens = await fetch_short_duration_token_ids(
                         limit=settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
@@ -702,7 +763,9 @@ def start_scheduler():
 
                 ws_config = WebSocketConfig(
                     channel=ChannelType.MARKET,
-                    asset_ids=list(subscribed_tokens)[:settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT],
+                    asset_ids=list(subscribed_tokens)[
+                        : settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
+                    ],
                 )
                 ws_client = PolymarketWebSocket(ws_config)
                 orderbook_router.register_with_websocket(ws_client)
@@ -711,14 +774,16 @@ def start_scheduler():
             asyncio.create_task(_start_market_ws())
             logger.info("OrderbookRouter WebSocket startup task scheduled")
         else:
-            logger.warning("POLYMARKET_WS_CLOB_URL not configured, OrderbookRouter running in fallback mode")
-
+            logger.warning(
+                "POLYMARKET_WS_CLOB_URL not configured, OrderbookRouter running in fallback mode"
+            )
 
     # Weekly HuggingFace dataset ingestion — refreshes local Parquet cache
     def _hf_ingest_weekly():
         """Wrapper for weekly HF dataset ingestion job."""
         try:
             from backend.scripts.ingest_hf_dataset import ingest_dataset
+
             path = ingest_dataset()
             logger.info("Weekly HF dataset ingestion complete: %s", path)
         except Exception as e:
@@ -756,37 +821,53 @@ def start_scheduler():
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-            if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle', 'crypto_oracle'):
+            if config.strategy_name in (
+                "copy_trader",
+                "weather_emos",
+                "agi_orchestrator",
+                "btc_oracle",
+                "crypto_oracle",
+            ):
                 interval = config.interval_seconds or 60
-                configs_to_schedule.append((config.strategy_name, interval, 'paper'))
-                configs_to_schedule.append((config.strategy_name, interval, 'live'))
+                configs_to_schedule.append((config.strategy_name, interval, "paper"))
+                configs_to_schedule.append((config.strategy_name, interval, "live"))
                 continue
             for mode in settings.active_modes_set:
-                trades = db.query(Trade).filter(
-                    Trade.strategy == config.strategy_name,
-                    Trade.settled,
-                    Trade.timestamp >= since,
-                    Trade.trading_mode == mode,
-                ).all()
+                trades = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.strategy == config.strategy_name,
+                        Trade.settled,
+                        Trade.timestamp >= since,
+                        Trade.trading_mode == mode,
+                    )
+                    .all()
+                )
 
                 should_disable = False
                 if len(trades) >= 3:
-                    resolved = [t for t in trades if t.result in ('win', 'loss')]
+                    resolved = [t for t in trades if t.result in ("win", "loss")]
                     if len(resolved) < 3:
                         continue
-                    wins = sum(1 for t in resolved if t.result == 'win')
+                    wins = sum(1 for t in resolved if t.result == "win")
                     win_rate = wins / len(resolved)
                     pnl = sum(t.pnl for t in trades if t.pnl)
 
                     if win_rate < 0.30 or pnl < -50.0:
                         should_disable = True
-                        disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                        logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                        disabled.append(
+                            f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                        )
+                        logger.warning(
+                            f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                        )
 
                 if not should_disable:
                     interval = config.interval_seconds or 60
                     configs_to_schedule.append((config.strategy_name, interval, mode))
-                    logger.info(f"Scheduling strategy {config.strategy_name} ({mode}) every {interval}s")
+                    logger.info(
+                        f"Scheduling strategy {config.strategy_name} ({mode}) every {interval}s"
+                    )
     # Phase 2: apply disable mutations (separate session, short-lived)
     if disabled:
         with get_db_session() as db:
@@ -797,7 +878,9 @@ def start_scheduler():
                     StrategyConfig.enabled,
                 ).update({"enabled": False})
             db.commit()
-            logger.info(f"Disabled {len(disabled)} underperforming strategies: {disabled}")
+            logger.info(
+                f"Disabled {len(disabled)} underperforming strategies: {disabled}"
+            )
     # Phase 3: register strategy jobs
     for name, interval, mode in configs_to_schedule:
         schedule_strategy(name, interval, mode=mode)
@@ -846,7 +929,9 @@ def start_scheduler():
     if getattr(settings, "AGI_BANKROLL_ALLOCATION_ENABLED", False):
         scheduler.add_job(
             bankroll_allocation_job,
-            IntervalTrigger(days=getattr(settings, "AGI_BANKROLL_ALLOCATION_INTERVAL_DAYS", 1)),
+            IntervalTrigger(
+                days=getattr(settings, "AGI_BANKROLL_ALLOCATION_INTERVAL_DAYS", 1)
+            ),
             id="bankroll_allocation",
             replace_existing=True,
             max_instances=1,
@@ -902,7 +987,9 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,
     )
-    logger.info(f"Scheduled autonomous promotion job every {promotion_interval} hour(s)")
+    logger.info(
+        f"Scheduled autonomous promotion job every {promotion_interval} hour(s)"
+    )
 
     # Shadow validation - evaluates SHADOW genomes every 5 minutes
     if getattr(settings, "SHADOW_VALIDATE_ENABLED", True):
@@ -925,7 +1012,9 @@ def start_scheduler():
             replace_existing=True,
             max_instances=1,
         )
-        logger.info("Scheduled AGI improvement cycle every %d hour(s)", agi_cycle_interval)
+        logger.info(
+            "Scheduled AGI improvement cycle every %d hour(s)", agi_cycle_interval
+        )
 
     # Strategy evolution coordinator — health scan, forensics, rehab, variant creation
     evolution_interval = getattr(settings, "AGI_IMPROVEMENT_CYCLE_INTERVAL_HOURS", 4)
@@ -936,7 +1025,9 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,
     )
-    logger.info("Scheduled strategy evolution loop every %d hour(s)", evolution_interval)
+    logger.info(
+        "Scheduled strategy evolution loop every %d hour(s)", evolution_interval
+    )
 
     if getattr(settings, "AGI_HEALTH_CHECK_ENABLED", True):
         health_interval = getattr(settings, "AGI_HEALTH_CHECK_INTERVAL_MINUTES", 15)
@@ -980,8 +1071,16 @@ def start_scheduler():
     _agi_health_enabled = getattr(settings, "AGI_HEALTH_CHECK_ENABLED", True)
     _agi_jobs_registered: list[str] = [
         f"autonomous_promotion={promotion_interval}h",
-        f"improvement_cycle={agi_cycle_interval}h" if _agi_cycle_enabled else "improvement_cycle=DISABLED",
-        f"health_check={getattr(settings, 'AGI_HEALTH_CHECK_INTERVAL_MINUTES', 15)}min" if _agi_health_enabled else "health_check=DISABLED",
+        (
+            f"improvement_cycle={agi_cycle_interval}h"
+            if _agi_cycle_enabled
+            else "improvement_cycle=DISABLED"
+        ),
+        (
+            f"health_check={getattr(settings, 'AGI_HEALTH_CHECK_INTERVAL_MINUTES', 15)}min"
+            if _agi_health_enabled
+            else "health_check=DISABLED"
+        ),
         f"self_tune={agi_self_tune_interval}min",
         "shadow_validate=5min" if _agi_shadow_enabled else "shadow_validate=DISABLED",
     ]
@@ -1010,7 +1109,9 @@ def start_scheduler():
 
     # Calibration drift check — runs every 6h; triggers retraining if Brier
     # score exceeds AGI_BRIER_DRIFT_THRESHOLD (default 0.25).
-    calibration_interval_hours = getattr(settings, "AGI_CALIBRATION_CHECK_INTERVAL_HOURS", 6)
+    calibration_interval_hours = getattr(
+        settings, "AGI_CALIBRATION_CHECK_INTERVAL_HOURS", 6
+    )
     scheduler.add_job(
         model_calibration_check_job,
         IntervalTrigger(hours=calibration_interval_hours),
@@ -1053,17 +1154,22 @@ def start_scheduler():
     _persist_and_add_job(
         scheduler,
         performance_decay_check_job,
-        IntervalTrigger(hours=getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6)),
+        IntervalTrigger(
+            hours=getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6)
+        ),
         id="performance_decay_check",
         replace_existing=True,
         max_instances=1,
         misfire_grace_time=300,
     )
-    logger.info("Scheduled performance decay check job every %d hours",
-                getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6))
+    logger.info(
+        "Scheduled performance decay check job every %d hours",
+        getattr(settings, "PERFORMANCE_DECAY_CHECK_INTERVAL_HOURS", 6),
+    )
 
     # G-04: Disk space monitoring — check every 15 minutes
     from backend.monitoring.disk_monitor import disk_space_check_job
+
     scheduler.add_job(
         disk_space_check_job,
         IntervalTrigger(minutes=15),
@@ -1085,7 +1191,7 @@ def start_scheduler():
 
     from backend.core.proposal_executor import (
         execute_approved_proposals_job,
-        measure_impact_and_rollback_job
+        measure_impact_and_rollback_job,
     )
 
     scheduler.add_job(
@@ -1108,9 +1214,10 @@ def start_scheduler():
 
     scheduler.add_job(
         run_training_pipeline,
-        'cron',
-        hour=2, minute=0,
-        id='nightly_retrain',
+        "cron",
+        hour=2,
+        minute=0,
+        id="nightly_retrain",
         replace_existing=True,
         max_instances=1,
     )
@@ -1118,9 +1225,10 @@ def start_scheduler():
 
     scheduler.add_job(
         self_review_job,
-        'cron',
-        hour=0, minute=30,
-        id='daily_self_review',
+        "cron",
+        hour=0,
+        minute=30,
+        id="daily_self_review",
         replace_existing=True,
         max_instances=1,
     )
@@ -1128,11 +1236,12 @@ def start_scheduler():
 
     try:
         from backend.ai.proposal_generator import auto_promote_eligible_proposals
+
         scheduler.add_job(
             auto_promote_eligible_proposals,
-            'cron',
+            "cron",
             minute=0,
-            id='hourly_auto_promote',
+            id="hourly_auto_promote",
             replace_existing=True,
             max_instances=1,
         )
@@ -1142,9 +1251,10 @@ def start_scheduler():
 
     scheduler.add_job(
         audit_source_performance,
-        'cron',
-        hour=3, minute=0,
-        id='source_performance_audit',
+        "cron",
+        hour=3,
+        minute=0,
+        id="source_performance_audit",
         replace_existing=True,
         max_instances=1,
     )
@@ -1161,48 +1271,66 @@ def start_scheduler():
         try:
             since = datetime.now(timezone.utc) - timedelta(hours=1)
             with get_db_session() as db:
-                for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-                    if config.strategy_name in ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle', 'crypto_oracle'):
+                for config in (
+                    db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
+                ):
+                    if config.strategy_name in (
+                        "copy_trader",
+                        "weather_emos",
+                        "agi_orchestrator",
+                        "btc_oracle",
+                        "crypto_oracle",
+                    ):
                         continue
 
                     for mode in settings.active_modes_set:
-                        trades = db.query(Trade).filter(
-                            Trade.strategy == config.strategy_name,
-                            Trade.settled,
-                            Trade.timestamp >= since,
-                            Trade.trading_mode == mode,
-                        ).all()
+                        trades = (
+                            db.query(Trade)
+                            .filter(
+                                Trade.strategy == config.strategy_name,
+                                Trade.settled,
+                                Trade.timestamp >= since,
+                                Trade.trading_mode == mode,
+                            )
+                            .all()
+                        )
 
                         if len(trades) < min_trades:
                             continue
 
                         # Only count trades with definitive outcomes for win rate
-                        resolved = [t for t in trades if t.result in ('win', 'loss')]
+                        resolved = [t for t in trades if t.result in ("win", "loss")]
                         if len(resolved) < max(3, min_trades // 2):
                             continue  # not enough resolved outcomes yet
 
-                        wins = sum(1 for t in resolved if t.result == 'win')
+                        wins = sum(1 for t in resolved if t.result == "win")
                         win_rate = wins / len(resolved)
                         pnl = sum(t.pnl for t in trades if t.pnl)
 
                         if win_rate < 0.30 or pnl < -50.0:
                             config.enabled = False
                             config.disabled_at = datetime.now(timezone.utc)
-                            disabled.append(f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
-                            logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}")
+                            disabled.append(
+                                f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                            )
+                            logger.warning(
+                                f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                            )
                             break
 
             if disabled:
-                logger.info(f"Auto-disabled {len(disabled)} losing strategies: {disabled}")
+                logger.info(
+                    f"Auto-disabled {len(disabled)} losing strategies: {disabled}"
+                )
         except Exception as e:
             logger.warning(f"Auto-disable check failed: {e}")
 
     try:
         scheduler.add_job(
             auto_disable_losing_strategies,
-            'cron',
+            "cron",
             minute=15,
-            id='auto_disable_losing',
+            id="auto_disable_losing",
             replace_existing=True,
             max_instances=1,
         )
@@ -1225,13 +1353,17 @@ def start_scheduler():
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
             with get_db_session() as db:
-                disabled_configs = db.query(StrategyConfig).filter(
-                    StrategyConfig.enabled.is_(False),
-                    StrategyConfig.disabled_at.isnot(None),
-                ).all()
+                disabled_configs = (
+                    db.query(StrategyConfig)
+                    .filter(
+                        StrategyConfig.enabled.is_(False),
+                        StrategyConfig.disabled_at.isnot(None),
+                    )
+                    .all()
+                )
 
                 for config in disabled_configs:
-                    if config.strategy_name in ('agi_orchestrator',):
+                    if config.strategy_name in ("agi_orchestrator",):
                         continue
 
                     disabled_at = config.disabled_at
@@ -1243,50 +1375,64 @@ def start_scheduler():
 
                     since_rehab = disabled_at
                     for mode in settings.active_modes_set:
-                        trades = db.query(Trade).filter(
-                            Trade.strategy == config.strategy_name,
-                            Trade.settled,
-                            Trade.timestamp >= since_rehab,
-                            Trade.trading_mode == mode,
-                        ).all()
+                        trades = (
+                            db.query(Trade)
+                            .filter(
+                                Trade.strategy == config.strategy_name,
+                                Trade.settled,
+                                Trade.timestamp >= since_rehab,
+                                Trade.trading_mode == mode,
+                            )
+                            .all()
+                        )
 
                         if len(trades) < 3:
                             continue
 
-                        wins = sum(1 for t in trades if t.result == 'win')
+                        wins = sum(1 for t in trades if t.result == "win")
                         win_rate = wins / len(trades) if trades else 0
 
                         if win_rate < wr_threshold:
-                            config.disabled_at = datetime.now(timezone.utc) + timedelta(hours=re_disable_hours - cooldown_hours)
-                            re_disabled.append(f"{config.strategy_name}: WR={win_rate:.0%} < {wr_threshold:.0%}, extended disable {re_disable_hours}h")
+                            config.disabled_at = datetime.now(timezone.utc) + timedelta(
+                                hours=re_disable_hours - cooldown_hours
+                            )
+                            re_disabled.append(
+                                f"{config.strategy_name}: WR={win_rate:.0%} < {wr_threshold:.0%}, extended disable {re_disable_hours}h"
+                            )
                             logger.warning(
                                 f"Re-disable {config.strategy_name}: WR={win_rate:.0%} below {wr_threshold:.0%}, extended for {re_disable_hours}h"
                             )
                             break
                     else:
                         config.enabled = True
-                        config.trading_mode = 'paper'
+                        config.trading_mode = "paper"
                         config.disabled_at = None
                         if config.rehab_allocation_pct is None:
-                            config.rehab_allocation_pct = getattr(settings, "AGI_REHAB_ALLOCATION_PCT", 0.25)
+                            config.rehab_allocation_pct = getattr(
+                                settings, "AGI_REHAB_ALLOCATION_PCT", 0.25
+                            )
                         rehabilitated.append(config.strategy_name)
                         logger.info(
                             f"Rehabilitated {config.strategy_name} in paper mode at {config.rehab_allocation_pct:.0%} allocation (cooldown {cooldown_hours}h elapsed)"
                         )
 
             if rehabilitated:
-                logger.info(f"Lite-rehabilitated {len(rehabilitated)} strategies: {rehabilitated}")
+                logger.info(
+                    f"Lite-rehabilitated {len(rehabilitated)} strategies: {rehabilitated}"
+                )
             if re_disabled:
-                logger.info(f"Extended disable for {len(re_disabled)} strategies: {re_disabled}")
+                logger.info(
+                    f"Extended disable for {len(re_disabled)} strategies: {re_disabled}"
+                )
         except Exception as e:
             logger.warning(f"Lite rehabilitation check failed: {e}")
 
     try:
         scheduler.add_job(
             auto_rehabilitate_strategies,
-            'cron',
+            "cron",
             minute=45,
-            id='auto_rehabilitate_lite',
+            id="auto_rehabilitate_lite",
             replace_existing=True,
             max_instances=1,
         )
@@ -1296,9 +1442,9 @@ def start_scheduler():
 
     scheduler.add_job(
         update_source_weights_from_outcomes,
-        'cron',
+        "cron",
         minute=30,
-        id='source_weight_update',
+        id="source_weight_update",
         replace_existing=True,
         max_instances=1,
     )
@@ -1306,9 +1452,10 @@ def start_scheduler():
 
     scheduler.add_job(
         generate_rejection_proposals,
-        'cron',
-        hour=4, minute=0,
-        id='rejection_learner',
+        "cron",
+        hour=4,
+        minute=0,
+        id="rejection_learner",
         replace_existing=True,
         max_instances=1,
     )
@@ -1386,7 +1533,11 @@ def start_scheduler():
         else:
             # bot process: use the module-level task_manager set during scheduler init
             # API process: task_manager is set on app.state by lifespan startup
-            worker = Worker(queue, max_concurrent=settings.MAX_CONCURRENT_JOBS, task_manager=task_manager)
+            worker = Worker(
+                queue,
+                max_concurrent=settings.MAX_CONCURRENT_JOBS,
+                task_manager=task_manager,
+            )
 
             # Keep settlement_check on APScheduler until queue mode has a
             # periodic producer for settlement_check jobs.  Removing it here
@@ -1579,6 +1730,7 @@ async def run_manual_settlement():
     log_event("info", "Manual settlement triggered")
     await settlement_job()
 
+
 # Add monitoring job
 async def monitoring_job():
     """Run production monitoring checks"""
@@ -1614,17 +1766,23 @@ def performance_decay_check_job():
 
     try:
         with get_db_session() as db:
-            configs = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
+            configs = (
+                db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
+            )
             for config in configs:
                 strategy_name = config.strategy_name
 
                 # 7-day win rate
-                week_trades = db.query(Trade).filter(
-                    Trade.strategy == strategy_name,
-                    Trade.settled.is_(True),
-                    Trade.settlement_time >= week_start,
-                    Trade.result.in_(["win", "loss"]),
-                ).all()
+                week_trades = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.strategy == strategy_name,
+                        Trade.settled.is_(True),
+                        Trade.settlement_time >= week_start,
+                        Trade.result.in_(["win", "loss"]),
+                    )
+                    .all()
+                )
 
                 if len(week_trades) < 5:
                     continue
@@ -1646,7 +1804,11 @@ def performance_decay_check_job():
                     logger.warning(
                         "[perf_decay] Strategy {} decay detected: "
                         "24h WR={:.1%} vs 7d WR={:.1%} (decay={:.1%} > threshold={:.1%})",
-                        strategy_name, day_wr, week_wr, decay, threshold,
+                        strategy_name,
+                        day_wr,
+                        week_wr,
+                        decay,
+                        threshold,
                     )
                     log_event(
                         "warning",
@@ -1656,7 +1818,10 @@ def performance_decay_check_job():
                 else:
                     logger.debug(
                         "[perf_decay] Strategy {} healthy: 24h WR={:.1%}, 7d WR={:.1%}, decay={:.1%}",
-                        strategy_name, day_wr, week_wr, decay,
+                        strategy_name,
+                        day_wr,
+                        week_wr,
+                        decay,
                     )
 
     except Exception as e:

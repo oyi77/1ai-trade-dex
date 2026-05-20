@@ -1,4 +1,5 @@
 """Full autonomy loop integration tests — async daemon + DB integration."""
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -86,7 +87,9 @@ async def test_promoter_full_lifecycle_shadow_to_live_and_kill(db):
         verify_db.commit()
 
     # Mock StrategyHealthMonitor.assess to return healthy metrics
-    with patch("backend.core.strategy_health.StrategyHealthMonitor.assess") as mock_assess:
+    with patch(
+        "backend.core.strategy_health.StrategyHealthMonitor.assess"
+    ) as mock_assess:
         mock_assess.return_value = {
             "status": "active",
             "total_trades": 60,
@@ -105,7 +108,9 @@ async def test_promoter_full_lifecycle_shadow_to_live_and_kill(db):
         verify_db.commit()
 
     # Run 5: LIVE_TRIAL → LIVE_PROMOTED
-    with patch("backend.core.strategy_health.StrategyHealthMonitor.assess") as mock_assess:
+    with patch(
+        "backend.core.strategy_health.StrategyHealthMonitor.assess"
+    ) as mock_assess:
         mock_assess.return_value = {
             "status": "active",
             "total_trades": 30,
@@ -121,16 +126,23 @@ async def test_promoter_full_lifecycle_shadow_to_live_and_kill(db):
 
     # Strategy should be auto-enabled
     with _db_mod.SessionLocal() as verify_db:
-        strategy = verify_db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+        strategy = (
+            verify_db.query(StrategyConfig)
+            .filter_by(strategy_name=strategy_name)
+            .first()
+        )
         assert strategy.enabled is True
 
     from backend.core import scheduler as sched_mod
+
     assert hasattr(sched_mod, "schedule_strategy")
     assert sched_mod.schedule_strategy.call_count >= 1
     sched_mod.schedule_strategy.assert_called_with(strategy_name, 60, mode="live")
 
     # Mock health to trigger kill
-    with patch("backend.core.strategy_health.StrategyHealthMonitor.assess") as mock_assess:
+    with patch(
+        "backend.core.strategy_health.StrategyHealthMonitor.assess"
+    ) as mock_assess:
         mock_assess.return_value = {
             "status": "killed",
             "total_trades": 110,
@@ -177,8 +189,19 @@ async def test_trade_forensics_returns_structured_report(db):
     report = await forensic.analyze_losing_trade(trade_id)
 
     assert isinstance(report, dict)
-    required_keys = {"trade_id", "strategy", "market", "side", "size", "entry_price",
-                     "pnl", "root_cause", "confidence", "contributing_factors", "suggestions"}
+    required_keys = {
+        "trade_id",
+        "strategy",
+        "market",
+        "side",
+        "size",
+        "entry_price",
+        "pnl",
+        "root_cause",
+        "confidence",
+        "contributing_factors",
+        "suggestions",
+    }
     assert required_keys.issubset(report.keys())
     assert report["trade_id"] == trade_id
     assert report["pnl"] == -50.0

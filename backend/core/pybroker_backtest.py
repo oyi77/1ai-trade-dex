@@ -140,9 +140,7 @@ class PyBrokerEngine:
     def __init__(self, config: Optional[PyBrokerConfig] = None):
         self.config = config or PyBrokerConfig()
 
-    def run_from_trades(
-        self, trades: list[TradeRecord]
-    ) -> PyBrokerResult:
+    def run_from_trades(self, trades: list[TradeRecord]) -> PyBrokerResult:
         """
         Run vectorized backtest from a list of trade records.
 
@@ -215,7 +213,9 @@ class PyBrokerEngine:
         max_drawdown = float(np.max(cummax - equity_arr))
 
         # Sharpe ratio
-        returns = pnl_arr / np.array(size_list[: len(pnl_list)]) if size_list else pnl_arr
+        returns = (
+            pnl_arr / np.array(size_list[: len(pnl_list)]) if size_list else pnl_arr
+        )
         sharpe = 0.0
         if len(returns) > 1:
             std = float(np.std(returns, ddof=1))
@@ -231,13 +231,25 @@ class PyBrokerEngine:
                 down_std = float(np.std(downside, ddof=1))
                 if down_std > 0:
                     trades_per_year = max(len(returns), 52)
-                    sortino = (float(np.mean(returns)) / down_std) * math.sqrt(trades_per_year)
+                    sortino = (float(np.mean(returns)) / down_std) * math.sqrt(
+                        trades_per_year
+                    )
 
         # Profit factor
-        gross_wins = float(np.sum(pnl_arr[pnl_arr > 0])) if len(pnl_arr[pnl_arr > 0]) > 0 else 0.0
-        gross_losses = float(np.abs(np.sum(pnl_arr[pnl_arr < 0]))) if len(pnl_arr[pnl_arr < 0]) > 0 else 0.0
-        profit_factor = gross_wins / gross_losses if gross_losses > 0 else (
-            float("inf") if gross_wins > 0 else 0.0
+        gross_wins = (
+            float(np.sum(pnl_arr[pnl_arr > 0]))
+            if len(pnl_arr[pnl_arr > 0]) > 0
+            else 0.0
+        )
+        gross_losses = (
+            float(np.abs(np.sum(pnl_arr[pnl_arr < 0])))
+            if len(pnl_arr[pnl_arr < 0]) > 0
+            else 0.0
+        )
+        profit_factor = (
+            gross_wins / gross_losses
+            if gross_losses > 0
+            else (float("inf") if gross_wins > 0 else 0.0)
         )
 
         avg_win = float(np.mean([t.pnl for t in wins])) if wins else 0.0
@@ -246,21 +258,33 @@ class PyBrokerEngine:
         avg_edge = float(np.mean(edge_list)) if edge_list else 0.0
 
         final_bankroll = bankroll
-        return_pct = ((final_bankroll - config.initial_bankroll) / config.initial_bankroll) * 100
+        return_pct = (
+            (final_bankroll - config.initial_bankroll) / config.initial_bankroll
+        ) * 100
 
         # Annualized return estimate
-        days_span = (trades[-1].timestamp - trades[0].timestamp).days if len(trades) > 1 else 1
+        days_span = (
+            (trades[-1].timestamp - trades[0].timestamp).days if len(trades) > 1 else 1
+        )
         years = max(days_span / 365.25, 1 / 365.25)
         if final_bankroll > 0 and config.initial_bankroll > 0:
-            annualized_return = ((final_bankroll / config.initial_bankroll) ** (1 / years) - 1) * 100
+            annualized_return = (
+                (final_bankroll / config.initial_bankroll) ** (1 / years) - 1
+            ) * 100
         else:
             annualized_return = 0.0
 
         # Annualized volatility
-        volatility = float(np.std(returns, ddof=1)) * math.sqrt(52) if len(returns) > 1 else 0.0
+        volatility = (
+            float(np.std(returns, ddof=1)) * math.sqrt(52) if len(returns) > 1 else 0.0
+        )
 
         # Calmar ratio
-        calmar = annualized_return / (max_drawdown_pct * 100) if max_drawdown_pct > 0 else 0.0
+        calmar = (
+            annualized_return / (max_drawdown_pct * 100)
+            if max_drawdown_pct > 0
+            else 0.0
+        )
 
         timestamps = [t.timestamp for t in trades]
 
@@ -469,12 +493,10 @@ class PyBrokerEngine:
             test_end = test_start + timedelta(days=test_days)
 
             train_trades = [
-                t for t in all_trades
-                if train_start <= t.timestamp < train_end
+                t for t in all_trades if train_start <= t.timestamp < train_end
             ]
             test_trades = [
-                t for t in all_trades
-                if test_start <= t.timestamp < test_end
+                t for t in all_trades if test_start <= t.timestamp < test_end
             ]
 
             best_params = {}
@@ -487,16 +509,18 @@ class PyBrokerEngine:
             train_result = self.run_from_trades(train_trades) if train_trades else None
             test_result = self.run_from_trades(test_trades) if test_trades else None
 
-            windows.append(WalkForwardWindow(
-                window_num=window_num,
-                train_start=train_start,
-                train_end=train_end,
-                test_start=test_start,
-                test_end=test_end,
-                train_result=train_result,
-                test_result=test_result,
-                best_params=best_params,
-            ))
+            windows.append(
+                WalkForwardWindow(
+                    window_num=window_num,
+                    train_start=train_start,
+                    train_end=train_end,
+                    test_start=test_start,
+                    test_end=test_end,
+                    train_result=train_result,
+                    test_result=test_result,
+                    best_params=best_params,
+                )
+            )
 
             window_num += 1
             current = test_end
@@ -517,20 +541,12 @@ class PyBrokerEngine:
         avg_oos = sum(oos_sharpes) / len(oos_sharpes) if oos_sharpes else 0.0
         overfit = avg_oos / avg_is if avg_is != 0 else 0.0
 
-        total_oos_pnl = sum(
-            w.test_result.total_pnl
-            for w in windows
-            if w.test_result
-        )
+        total_oos_pnl = sum(w.test_result.total_pnl for w in windows if w.test_result)
         total_oos_trades = sum(
-            w.test_result.total_trades
-            for w in windows
-            if w.test_result
+            w.test_result.total_trades for w in windows if w.test_result
         )
         total_oos_wins = sum(
-            w.test_result.winning_trades
-            for w in windows
-            if w.test_result
+            w.test_result.winning_trades for w in windows if w.test_result
         )
         oos_wr = total_oos_wins / total_oos_trades if total_oos_trades > 0 else 0.0
 
@@ -543,14 +559,22 @@ class PyBrokerEngine:
             if all_keys:
                 stability_scores = []
                 for key in all_keys:
-                    values = [w.best_params.get(key) for w in windows if key in w.best_params]
+                    values = [
+                        w.best_params.get(key) for w in windows if key in w.best_params
+                    ]
                     if len(values) > 1:
                         try:
-                            cv = np.std([float(v) for v in values]) / (abs(float(np.mean([float(v) for v in values]))) + 1e-9)
+                            cv = np.std([float(v) for v in values]) / (
+                                abs(float(np.mean([float(v) for v in values]))) + 1e-9
+                            )
                             stability_scores.append(max(0.0, 1.0 - cv))
                         except (TypeError, ValueError):
                             pass
-                param_stability = sum(stability_scores) / len(stability_scores) if stability_scores else 0.0
+                param_stability = (
+                    sum(stability_scores) / len(stability_scores)
+                    if stability_scores
+                    else 0.0
+                )
 
         result = WalkForwardResult(
             strategy_name="pybroker",

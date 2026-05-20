@@ -3,6 +3,7 @@
 Queries the Polymarket subgraph via The Graph's GraphQL API for market data,
 trade history, and settlement events. Used for on-chain validation and backtesting.
 """
+
 from __future__ import annotations
 
 import time
@@ -16,7 +17,9 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
 
-subgraph_breaker = CircuitBreaker("subgraph_api", failure_threshold=3, recovery_timeout=120.0)
+subgraph_breaker = CircuitBreaker(
+    "subgraph_api", failure_threshold=3, recovery_timeout=120.0
+)
 
 # Default Polymarket subgraph endpoint (The Graph hosted service)
 DEFAULT_SUBGRAPH_URL = (
@@ -25,8 +28,8 @@ DEFAULT_SUBGRAPH_URL = (
 )
 
 # Cache TTLs
-CACHE_TTL_SHORT = 300    # 5 minutes for live data
-CACHE_TTL_LONG = 3600    # 1 hour for historical data
+CACHE_TTL_SHORT = 300  # 5 minutes for live data
+CACHE_TTL_LONG = 3600  # 1 hour for historical data
 
 # GraphQL queries
 QUERY_MARKETS = """
@@ -90,6 +93,7 @@ query Settlements($first: Int!, $skip: Int!) {
 @dataclass
 class SubgraphCacheEntry:
     """Cached subgraph query result."""
+
     data: Any
     fetched_at: float
     ttl: float
@@ -129,9 +133,13 @@ class PolymarketSubgraphClient:
         return None
 
     def _set_cached(self, key: str, data: Any, ttl: float) -> None:
-        self._cache[key] = SubgraphCacheEntry(data=data, fetched_at=time.time(), ttl=ttl)
+        self._cache[key] = SubgraphCacheEntry(
+            data=data, fetched_at=time.time(), ttl=ttl
+        )
 
-    async def _query_graphql(self, query: str, variables: dict, ttl: float, cache_key: str) -> Any:
+    async def _query_graphql(
+        self, query: str, variables: dict, ttl: float, cache_key: str
+    ) -> Any:
         """Execute a GraphQL query against the subgraph with caching."""
         cached = self._get_cached(cache_key)
         if cached is not None:

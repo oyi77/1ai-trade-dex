@@ -1,4 +1,5 @@
 """Kalshi API client with RSA-PSS signature authentication."""
+
 import base64
 import time
 from pathlib import Path
@@ -15,7 +16,9 @@ from backend.core.external_rate_limiter import ExternalRateLimiter
 BASE_URL = settings.KALSHI_API_URL
 
 # Circuit breaker for Kalshi API
-kalshi_breaker = CircuitBreaker("kalshi_api", failure_threshold=5, recovery_timeout=60.0)
+kalshi_breaker = CircuitBreaker(
+    "kalshi_api", failure_threshold=5, recovery_timeout=60.0
+)
 
 # Rate limiter for Kalshi API (configurable requests per minute)
 _kalshi_rate_limiter = ExternalRateLimiter(
@@ -75,7 +78,9 @@ class KalshiClient:
         """Authenticated GET request to Kalshi API through rate limiter."""
         return await _kalshi_rate_limiter.call(self._execute_get, path, params)
 
-    async def _execute_get(self, path: str, params: Optional[Dict[str, Any]] = None) -> dict:
+    async def _execute_get(
+        self, path: str, params: Optional[Dict[str, Any]] = None
+    ) -> dict:
         """Execute the actual GET request (called through rate limiter)."""
         full_path = f"/trade-api/v2{path}"
         url = f"{BASE_URL}{path}"
@@ -108,7 +113,9 @@ class KalshiClient:
         positions = response.get("positions", response.get("market_positions", []))
         return positions if isinstance(positions, list) else []
 
-    async def _request(self, method: str, path: str, json: Optional[Dict[str, Any]] = None) -> dict:
+    async def _request(
+        self, method: str, path: str, json: Optional[Dict[str, Any]] = None
+    ) -> dict:
         """Authenticated request to Kalshi API through rate limiter + circuit breaker."""
         full_path = f"/trade-api/v2{path}"
         url = f"{BASE_URL}{path}"
@@ -123,12 +130,18 @@ class KalshiClient:
         return await _kalshi_rate_limiter.call(_fetch)
 
     async def batch_create_orders(self, orders: list[dict]) -> dict:
-        return await self._request("POST", "/portfolio/orders/batched", json={"orders": orders})
+        return await self._request(
+            "POST", "/portfolio/orders/batched", json={"orders": orders}
+        )
 
     async def batch_cancel_orders(self, order_ids: list[str]) -> dict:
-        return await self._request("DELETE", "/portfolio/orders/batched", json={"ids": order_ids})
+        return await self._request(
+            "DELETE", "/portfolio/orders/batched", json={"ids": order_ids}
+        )
 
-    async def place_order(self, market_id: str, side: str, size: int, price: float) -> dict:
+    async def place_order(
+        self, market_id: str, side: str, size: int, price: float
+    ) -> dict:
         """Place a single limit order using Kalshi's standard v2 order schema."""
         side_value = side.lower()
         action = "sell" if side_value == "sell" else "buy"
@@ -152,7 +165,9 @@ class KalshiClient:
         response = await self.batch_cancel_orders([order_id])
         return bool(response)
 
-    async def amend_order(self, order_id: str, new_price: float = None, new_size: int = None) -> dict:
+    async def amend_order(
+        self, order_id: str, new_price: float = None, new_size: int = None
+    ) -> dict:
         payload: Dict[str, Any] = {"order_id": order_id}
         if new_price is not None:
             payload["new_price"] = new_price

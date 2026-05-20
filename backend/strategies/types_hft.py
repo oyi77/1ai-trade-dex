@@ -16,7 +16,9 @@ class HFTSignal:
     edge: float = 0.0
     confidence: float = 0.0
     latency_ms: float = 0.0
-    timestamp: float = field(default_factory=lambda: datetime.now(timezone.utc).timestamp())
+    timestamp: float = field(
+        default_factory=lambda: datetime.now(timezone.utc).timestamp()
+    )
     metadata: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -54,7 +56,9 @@ class HFTExecution:
     execution_latency_ms: float = 0.0
     status: Literal["pending", "filled", "failed", "queued", "cancelled"] = "pending"
     error: Optional[str] = None
-    timestamp: float = field(default_factory=lambda: datetime.now(timezone.utc).timestamp())
+    timestamp: float = field(
+        default_factory=lambda: datetime.now(timezone.utc).timestamp()
+    )
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -126,7 +130,9 @@ class ArbOpportunity:
     fees: float = 0.0
     net_profit: float = 0.0
     confidence: float = 0.0
-    timestamp: float = field(default_factory=lambda: datetime.now(timezone.utc).timestamp())
+    timestamp: float = field(
+        default_factory=lambda: datetime.now(timezone.utc).timestamp()
+    )
 
     def to_dict(self) -> dict:
         return asdict(self)

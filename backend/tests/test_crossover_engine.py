@@ -2,22 +2,32 @@ import pytest
 from unittest.mock import patch
 from backend.domain.evolution.crossover_engine import crossover_genomes
 from backend.domain.genome.models import (
-    StrategyGenome, PerceptionChromosome, CognitionChromosome,
-    EntryLogic, EntryCondition, ExitLogic, MarketSelector,
-    ExecutionChromosome, RiskChromosome, MetaChromosome, FitnessMetrics
+    StrategyGenome,
+    PerceptionChromosome,
+    CognitionChromosome,
+    EntryLogic,
+    EntryCondition,
+    ExitLogic,
+    MarketSelector,
+    ExecutionChromosome,
+    RiskChromosome,
+    MetaChromosome,
+    FitnessMetrics,
 )
 
 
-def create_test_genome(name: str, archetype: str, sharpe_ratio: float = 1.5) -> StrategyGenome:
+def create_test_genome(
+    name: str, archetype: str, sharpe_ratio: float = 1.5
+) -> StrategyGenome:
     """Helper to create a test genome with fitness metrics."""
     perception = PerceptionChromosome()
     cognition = CognitionChromosome(
         entry_logic=EntryLogic(
-            trigger_type='threshold_cross',
-            conditions=[EntryCondition(indicator='rsi', operator='>', value=70.0)]
+            trigger_type="threshold_cross",
+            conditions=[EntryCondition(indicator="rsi", operator=">", value=70.0)],
         ),
-        exit_logic=ExitLogic(trigger_type='profit_target', profit_target_pct=0.1),
-        market_selector=MarketSelector()
+        exit_logic=ExitLogic(trigger_type="profit_target", profit_target_pct=0.1),
+        market_selector=MarketSelector(),
     )
     execution = ExecutionChromosome()
     risk = RiskChromosome()
@@ -30,20 +40,20 @@ def create_test_genome(name: str, archetype: str, sharpe_ratio: float = 1.5) -> 
         max_drawdown_pct=0.15,
         alpha_per_trade=0.05,
         capital_rotation_efficiency=0.7,
-        total_trades=100
+        total_trades=100,
     )
 
     return StrategyGenome(
         strategy_name=name,
         archetype=archetype,
         chromosomes={
-            'perception': perception,
-            'cognition': cognition,
-            'execution': execution,
-            'risk': risk,
-            'meta': meta
+            "perception": perception,
+            "cognition": cognition,
+            "execution": execution,
+            "risk": risk,
+            "meta": meta,
         },
-        fitness_metrics=fitness
+        fitness_metrics=fitness,
     )
 
 
@@ -69,7 +79,10 @@ def test_crossover_basic():
     assert child.lineage.creator == "crossover"
     assert parent_a.genome_id in child.lineage.parent_genome_ids
     assert parent_b.genome_id in child.lineage.parent_genome_ids
-    assert child.lineage.generation == max(parent_a.lineage.generation, parent_b.lineage.generation) + 1
+    assert (
+        child.lineage.generation
+        == max(parent_a.lineage.generation, parent_b.lineage.generation) + 1
+    )
     assert "cross_" in child.strategy_name
 
 
@@ -82,11 +95,17 @@ def test_crossover_volatile_regime():
     parent_b.fitness_metrics.max_drawdown_pct = 0.20  # Higher drawdown
 
     # Mock mutation to avoid non-deterministic field changes overriding crossover selection
-    with patch("backend.domain.evolution.crossover_engine.mutate_genome", side_effect=lambda g, *a, **kw: (g, [])):
+    with patch(
+        "backend.domain.evolution.crossover_engine.mutate_genome",
+        side_effect=lambda g, *a, **kw: (g, []),
+    ):
         child = crossover_genomes(parent_a, parent_b, "volatile")
 
     # In volatile regime, parent with lower drawdown should contribute risk chromosome
-    assert child.chromosomes["risk"].position_sizing_model == parent_a.chromosomes["risk"].position_sizing_model
+    assert (
+        child.chromosomes["risk"].position_sizing_model
+        == parent_a.chromosomes["risk"].position_sizing_model
+    )
 
 
 def test_crossover_trending_regime():
@@ -100,7 +119,10 @@ def test_crossover_trending_regime():
     child = crossover_genomes(parent_a, parent_b, "trending")
 
     # In trending regime, parent with higher alpha should contribute cognition chromosome
-    assert child.chromosomes["cognition"].entry_logic.trigger_type == parent_a.chromosomes["cognition"].entry_logic.trigger_type
+    assert (
+        child.chromosomes["cognition"].entry_logic.trigger_type
+        == parent_a.chromosomes["cognition"].entry_logic.trigger_type
+    )
 
 
 def test_crossover_mean_reverting_regime():
@@ -114,7 +136,10 @@ def test_crossover_mean_reverting_regime():
     child = crossover_genomes(parent_a, parent_b, "mean_reverting")
 
     # In mean-reverting regime, parent with higher win rate should contribute execution chromosome
-    assert child.chromosomes["execution"].order_type == parent_a.chromosomes["execution"].order_type
+    assert (
+        child.chromosomes["execution"].order_type
+        == parent_a.chromosomes["execution"].order_type
+    )
 
 
 def test_crossover_mutation_applied():

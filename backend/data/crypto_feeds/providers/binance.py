@@ -8,7 +8,11 @@ from backend.core.circuit_breaker import CircuitBreaker
 _registry = get_registry()
 logger = logging.getLogger(__name__)
 
-_binance_breaker = CircuitBreaker("binance", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+_binance_breaker = CircuitBreaker(
+    "binance",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+)
 
 
 @_registry.plugin
@@ -29,15 +33,23 @@ class BinanceFeed(BaseExchangeFeed):
     async def get_btc_price(self) -> float:
         async def _fetch():
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self.manifest().base_url}/ticker/price", params={"symbol": "BTCUSDT"})
+                resp = await client.get(
+                    f"{self.manifest().base_url}/ticker/price",
+                    params={"symbol": "BTCUSDT"},
+                )
                 resp.raise_for_status()
                 return float(resp.json()["price"])
+
         return await _binance_breaker.call(_fetch)
 
     async def get_klines(self, symbol: str, interval: str, limit: int) -> list:
         async def _fetch():
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self.manifest().base_url}/klines", params={"symbol": symbol, "interval": interval, "limit": limit})
+                resp = await client.get(
+                    f"{self.manifest().base_url}/klines",
+                    params={"symbol": symbol, "interval": interval, "limit": limit},
+                )
                 resp.raise_for_status()
                 return resp.json()
+
         return await _binance_breaker.call(_fetch)

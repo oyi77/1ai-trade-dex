@@ -8,6 +8,7 @@ without comprehensive re-validation.
 This wrapper preserves the existing logic for paper-mode research only.
 For production BTC trading, use btc_oracle strategy instead.
 """
+
 from backend.strategies.base import (
     BaseStrategy,
     StrategyContext,
@@ -17,6 +18,7 @@ from backend.strategies.base import (
 from backend.config import settings
 
 from loguru import logger
+
 EXPERIMENTAL_WARNING = (
     "EXPERIMENTAL — documented -49.5% live ROI on 4W/11L sample. "
     "Do not enable in live mode without re-validation."

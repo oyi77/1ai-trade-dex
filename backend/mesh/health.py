@@ -1,4 +1,5 @@
 """SourceHealthMonitor — per-source circuit breaker and health tracking."""
+
 from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -49,12 +50,17 @@ class SourceHealthMonitor:
         current = self._states.get(source_id, SourceState.HEALTHY)
 
         new_state = current
-        if consecutive >= CONSECUTIVE_FAILURE_THRESHOLD or rate < FAILED_SUCCESS_THRESHOLD:
+        if (
+            consecutive >= CONSECUTIVE_FAILURE_THRESHOLD
+            or rate < FAILED_SUCCESS_THRESHOLD
+        ):
             new_state = SourceState.FAILED
         elif rate < DEGRADED_SUCCESS_THRESHOLD:
             new_state = SourceState.DEGRADED
         elif current in (SourceState.FAILED, SourceState.DEGRADED):
-            self._recovery_counts[source_id] = self._recovery_counts.get(source_id, 0) + 1
+            self._recovery_counts[source_id] = (
+                self._recovery_counts.get(source_id, 0) + 1
+            )
             if self._recovery_counts[source_id] >= RECOVERY_SUCCESSES_NEEDED:
                 new_state = SourceState.HEALTHY
                 self._recovery_counts[source_id] = 0
@@ -65,8 +71,12 @@ class SourceHealthMonitor:
         if new_state != current:
             self._states[source_id] = new_state
             if new_state == SourceState.FAILED:
-                quarantine(source_id, f"auto-circuit: rate={rate:.1%}, consec={consecutive}")
-                logger.warning(f"Source '{source_id}' → FAILED (rate={rate:.1%}, consec={consecutive})")
+                quarantine(
+                    source_id, f"auto-circuit: rate={rate:.1%}, consec={consecutive}"
+                )
+                logger.warning(
+                    f"Source '{source_id}' → FAILED (rate={rate:.1%}, consec={consecutive})"
+                )
             elif new_state == SourceState.DEGRADED:
                 logger.info(f"Source '{source_id}' → DEGRADED (rate={rate:.1%})")
             elif new_state == SourceState.HEALTHY:
@@ -76,7 +86,11 @@ class SourceHealthMonitor:
         window = self._windows.get(source_id, [])
         rate = sum(window) / len(window) if window else 1.0
         lats = self._latencies.get(source_id, [0])
-        p95 = sorted(lats)[int(len(lats) * 0.95)] if len(lats) >= 20 else max(lats) if lats else 0
+        p95 = (
+            sorted(lats)[int(len(lats) * 0.95)]
+            if len(lats) >= 20
+            else max(lats) if lats else 0
+        )
         return HealthStatus(
             source_id=source_id,
             state=self._states.get(source_id, SourceState.HEALTHY),
@@ -102,7 +116,9 @@ class SourceHealthMonitor:
         if not sources:
             return 1.0
         failed = sum(1 for s in sources if self._states.get(s) == SourceState.FAILED)
-        degraded = sum(1 for s in sources if self._states.get(s) == SourceState.DEGRADED)
+        degraded = sum(
+            1 for s in sources if self._states.get(s) == SourceState.DEGRADED
+        )
         unhealthy_ratio = (failed + degraded * 0.5) / len(sources)
         if unhealthy_ratio >= 0.5:
             return 0.0

@@ -161,9 +161,9 @@ def test_audit_log_filtering(db: Session):
 
     db.commit()
 
-    strategy_logs = db.query(AuditLog).filter_by(
-        entity_id="test_strategy_filter_1"
-    ).all()
+    strategy_logs = (
+        db.query(AuditLog).filter_by(entity_id="test_strategy_filter_1").all()
+    )
     assert len(strategy_logs) == 1
 
     admin_logs = db.query(AuditLog).filter_by(user_id="test_admin").all()
@@ -201,8 +201,12 @@ def test_audit_log_ordering(db: Session):
     )
     db.commit()
 
-    logs = db.query(AuditLog).filter_by(entity_id="test_ordering").order_by(AuditLog.timestamp.desc()).all()
+    logs = (
+        db.query(AuditLog)
+        .filter_by(entity_id="test_ordering")
+        .order_by(AuditLog.timestamp.desc())
+        .all()
+    )
     assert len(logs) == 2
     assert logs[0].event_type == "EVENT_2"
     assert logs[1].event_type == "EVENT_1"
-

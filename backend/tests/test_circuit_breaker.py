@@ -49,7 +49,9 @@ async def test_half_open_after_recovery_timeout():
 
 @pytest.mark.asyncio
 async def test_closes_after_success_in_half_open():
-    cb = CircuitBreaker("test", failure_threshold=1, recovery_timeout=0.1, half_open_max=1)
+    cb = CircuitBreaker(
+        "test", failure_threshold=1, recovery_timeout=0.1, half_open_max=1
+    )
     with pytest.raises(ValueError):
         await cb.call(failing_func)
     await asyncio.sleep(0.15)

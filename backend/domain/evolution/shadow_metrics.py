@@ -26,7 +26,11 @@ def compute_shadow_metrics(settled_trades) -> dict:
     losses = [p for p in pnl_values if p <= 0]
     total_pnl = sum(pnl_values)
     avg_pnl = total_pnl / len(pnl_values)
-    variance = sum((p - avg_pnl) ** 2 for p in pnl_values) / len(pnl_values) if len(pnl_values) > 1 else 0.0
+    variance = (
+        sum((p - avg_pnl) ** 2 for p in pnl_values) / len(pnl_values)
+        if len(pnl_values) > 1
+        else 0.0
+    )
     volatility = sqrt(max(0.0, variance))
     sharpe_ratio = (avg_pnl / volatility) * sqrt(252) if volatility > 0 else 0.0
 

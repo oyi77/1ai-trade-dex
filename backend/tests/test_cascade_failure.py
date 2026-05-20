@@ -12,7 +12,9 @@ async def test_cascade_failure_trading_continues():
     reset_monitor()
 
     mock_client = Mock()
-    mock_client.fetch_signals = AsyncMock(side_effect=Exception("MiroFish Service Unavailable"))
+    mock_client.fetch_signals = AsyncMock(
+        side_effect=Exception("MiroFish Service Unavailable")
+    )
 
     monitor = get_monitor(mirofish_client=mock_client)
 
@@ -54,7 +56,9 @@ async def test_circuit_breaker_recovery_flow():
 
     for i in range(3):
         await monitor.call_with_circuit_breaker("fetch_signals")
-        print(f"After failure {i+1}: state={monitor.state.value}, failures={monitor._consecutive_failures}")
+        print(
+            f"After failure {i+1}: state={monitor.state.value}, failures={monitor._consecutive_failures}"
+        )
 
     assert monitor.state == CircuitState.OPEN
     print("✓ Transitioned to OPEN after 3 failures")
@@ -99,7 +103,9 @@ async def test_health_endpoint_during_failure():
     print(f"  Status: {failure_metrics.status}")
     print(f"  Circuit: {failure_metrics.circuit_breaker_state}")
     print(f"  Error rate: {failure_metrics.error_rate}%")
-    print(f"  Failed requests: {failure_metrics.failed_requests}/{failure_metrics.total_requests}")
+    print(
+        f"  Failed requests: {failure_metrics.failed_requests}/{failure_metrics.total_requests}"
+    )
 
 
 if __name__ == "__main__":

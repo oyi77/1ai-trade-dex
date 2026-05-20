@@ -54,6 +54,7 @@ class WsFirstExecutor:
     @property
     def ws_connected(self) -> bool:
         from backend.core.event_bus import event_bus
+
         return event_bus.ws_connected
 
     async def on_ws_disconnected(self) -> None:
@@ -64,15 +65,22 @@ class WsFirstExecutor:
         self._state.rest_call_count = 0
         self._state.consecutive_failures = 0
         self._state.backoff_seconds = min(self._rest_interval, 30.0)
-        logger.warning("Strategy '%s' switched to REST fallback (WS disconnected)", self._strategy_name)
+        logger.warning(
+            "Strategy '%s' switched to REST fallback (WS disconnected)",
+            self._strategy_name,
+        )
 
     async def on_ws_reconnected(self) -> None:
         if self._state.mode == ExecutionMode.WS:
             return
         self._state.mode = ExecutionMode.WS
         elapsed = time.time() - self._state.switched_at
-        logger.info("Strategy '%s' switched back to WS (disconnected for %.0fs, %d REST calls made)",
-                     self._strategy_name, elapsed, self._state.rest_call_count)
+        logger.info(
+            "Strategy '%s' switched back to WS (disconnected for %.0fs, %d REST calls made)",
+            self._strategy_name,
+            elapsed,
+            self._state.rest_call_count,
+        )
 
     async def execute_rest(self, rest_handler: Callable[[], Awaitable]) -> bool:
         """Call REST handler with rate-limit and circuit-breaker protection."""
@@ -80,11 +88,18 @@ class WsFirstExecutor:
 
         if self._state.consecutive_failures >= self._breaker_threshold:
             if now - self._state.rest_last_call < self._breaker_timeout:
-                logger.debug("Strategy '%s' REST circuit breaker OPEN (%d failures)", self._strategy_name, self._state.consecutive_failures)
+                logger.debug(
+                    "Strategy '%s' REST circuit breaker OPEN (%d failures)",
+                    self._strategy_name,
+                    self._state.consecutive_failures,
+                )
                 return False
             self._state.consecutive_failures = 0
             self._state.backoff_seconds = self._rest_interval
-            logger.info("Strategy '%s' REST circuit breaker reset after timeout", self._strategy_name)
+            logger.info(
+                "Strategy '%s' REST circuit breaker reset after timeout",
+                self._strategy_name,
+            )
 
         if now - self._state.rest_last_call < self._state.backoff_seconds:
             return False
@@ -100,11 +115,16 @@ class WsFirstExecutor:
             self._state.consecutive_failures += 1
             self._state.rest_call_count += 1
             self._state.backoff_seconds = min(
-                self._rest_interval * (2 ** self._state.consecutive_failures),
+                self._rest_interval * (2**self._state.consecutive_failures),
                 self._max_rest_interval,
             )
-            logger.warning("Strategy '%s' REST call failed (%d/%d): %s",
-                           self._strategy_name, self._state.consecutive_failures, self._breaker_threshold, exc)
+            logger.warning(
+                "Strategy '%s' REST call failed (%d/%d): %s",
+                self._strategy_name,
+                self._state.consecutive_failures,
+                self._breaker_threshold,
+                exc,
+            )
             return False
 
     def get_status(self) -> dict:

@@ -1,4 +1,5 @@
 """Strategy ranker — rank strategies by risk-adjusted return, auto-allocate bankroll."""
+
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -9,9 +10,12 @@ from sqlalchemy.orm import Session
 from backend.config import settings
 
 from loguru import logger
+
+
 @dataclass
 class RankedStrategy:
     """A strategy with its computed performance metrics."""
+
     name: str
     total_trades: int
     winning_trades: int
@@ -78,11 +82,7 @@ class StrategyRanker:
             win_rate = len(wins) / len(trades) if trades else 0.0
 
             # Compute returns (pnl / size)
-            returns = [
-                (t.pnl or 0) / t.size
-                for t in trades
-                if t.size and t.size > 0
-            ]
+            returns = [(t.pnl or 0) / t.size for t in trades if t.size and t.size > 0]
 
             avg_return = statistics.mean(returns) if returns else 0.0
 
@@ -104,8 +104,10 @@ class StrategyRanker:
             # Profit factor
             gross_wins = sum(t.pnl for t in wins if t.pnl)
             gross_losses = abs(sum(t.pnl for t in losses if t.pnl))
-            pf = gross_wins / gross_losses if gross_losses > 0 else (
-                float('inf') if gross_wins > 0 else 0.0
+            pf = (
+                gross_wins / gross_losses
+                if gross_losses > 0
+                else (float("inf") if gross_wins > 0 else 0.0)
             )
 
             # Max drawdown from cumulative PnL
@@ -124,19 +126,21 @@ class StrategyRanker:
             confidence_weight = min(1.0, len(trades) / 30.0)
             rank_score = sharpe * confidence_weight
 
-            ranked.append(RankedStrategy(
-                name=strategy_name,
-                total_trades=len(trades),
-                winning_trades=len(wins),
-                win_rate=round(win_rate, 4),
-                total_pnl=round(total_pnl, 2),
-                sharpe_ratio=round(sharpe, 4),
-                sortino_ratio=round(sortino, 4),
-                profit_factor=round(min(pf, 999.0), 4),
-                max_drawdown=round(max_dd, 4),
-                avg_return=round(avg_return, 4),
-                rank_score=round(rank_score, 4),
-            ))
+            ranked.append(
+                RankedStrategy(
+                    name=strategy_name,
+                    total_trades=len(trades),
+                    winning_trades=len(wins),
+                    win_rate=round(win_rate, 4),
+                    total_pnl=round(total_pnl, 2),
+                    sharpe_ratio=round(sharpe, 4),
+                    sortino_ratio=round(sortino, 4),
+                    profit_factor=round(min(pf, 999.0), 4),
+                    max_drawdown=round(max_dd, 4),
+                    avg_return=round(avg_return, 4),
+                    rank_score=round(rank_score, 4),
+                )
+            )
 
         ranked.sort(key=lambda r: r.rank_score, reverse=True)
         return ranked
@@ -193,7 +197,13 @@ class StrategyRanker:
 
         # Redistribute excess from capped strategies to uncapped ones
         if allocated < bankroll:
-            uncapped = [r for r in positive if allocations[r.name] < bankroll * self.RISK_TIER_MAX_PCT.get(tier_map.get(r.name, "moderate"), 0.20)]
+            uncapped = [
+                r
+                for r in positive
+                if allocations[r.name]
+                < bankroll
+                * self.RISK_TIER_MAX_PCT.get(tier_map.get(r.name, "moderate"), 0.20)
+            ]
             if uncapped:
                 remaining = bankroll - allocated
                 uncapped_score = sum(r.rank_score for r in uncapped)
@@ -267,7 +277,9 @@ async def strategy_ranking_job() -> None:
                 # Auto-disable underperformers with enough data
                 all_disabled = []
                 for mode in settings.active_modes_set:
-                    disabled = ranker.disable_underperformers(db, min_sharpe=0.0, min_trades=30, trading_mode=mode)
+                    disabled = ranker.disable_underperformers(
+                        db, min_sharpe=0.0, min_trades=30, trading_mode=mode
+                    )
                     if disabled:
                         all_disabled.extend(disabled)
                 if all_disabled:

@@ -1,4 +1,5 @@
 """High-probability bond scanner — buy near-certain outcomes for guaranteed-ish returns."""
+
 from datetime import datetime, timezone
 
 import httpx
@@ -12,6 +13,7 @@ from backend.strategies.base import (
 from backend.config import settings
 
 from loguru import logger
+
 GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 
 
@@ -103,9 +105,7 @@ class BondScannerStrategy(BaseStrategy):
             )
             existing_tickers = {t.market_ticker for t in open_trades if t.market_ticker}
             existing_tickers |= {t.event_slug for t in open_trades if t.event_slug}
-            bond_count = sum(
-                1 for t in open_trades if t.strategy == "bond_scanner"
-            )
+            bond_count = sum(1 for t in open_trades if t.strategy == "bond_scanner")
         except Exception as e:
             ctx.logger.warning(f"[bond_scanner] Could not query open trades: {e}")
 
@@ -208,7 +208,11 @@ class BondScannerStrategy(BaseStrategy):
 
             # We have a qualifying market
             # E-108: Default to settings bankroll, not hardcoded 100.0
-            bankroll = float(ctx.settings.INITIAL_BANKROLL) if hasattr(ctx.settings, 'INITIAL_BANKROLL') else 1000.0
+            bankroll = (
+                float(ctx.settings.INITIAL_BANKROLL)
+                if hasattr(ctx.settings, "INITIAL_BANKROLL")
+                else 1000.0
+            )
             try:
                 from backend.models.database import BotState, for_update
 
@@ -263,7 +267,11 @@ class BondScannerStrategy(BaseStrategy):
             # Size proportional to edge — don't max-bet on tiny edges
             kelly = edge / (1.0 - qualifying_price) if qualifying_price < 1.0 else 0.0
             kelly_fraction = params.get("kelly_fraction", 0.25)
-            size = min(max_position_size, bankroll * params.get("bankroll_pct", 0.08), bankroll * kelly * kelly_fraction)
+            size = min(
+                max_position_size,
+                bankroll * params.get("bankroll_pct", 0.08),
+                bankroll * kelly * kelly_fraction,
+            )
             size = max(size, params.get("min_size_usd", 5.0))
             size = min(size, max_position_size)
 

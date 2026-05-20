@@ -16,21 +16,24 @@ DEFAULT_DATASET = "SII-WANGZJ/Polymarket_data"
 @dataclass
 class ScoredArticle:
     """A news article enriched with sentiment score."""
+
     title: str
     text: str
     source: str
     url: str = ""
     published: str = ""
-    sentiment_score: float = 0.0      # -1.0 .. 1.0
-    sentiment_label: str = "neutral"   # positive | negative | neutral
+    sentiment_score: float = 0.0  # -1.0 .. 1.0
+    sentiment_label: str = "neutral"  # positive | negative | neutral
     sentiment_confidence: float = 0.0  # 0.0 .. 1.0
 
     def to_context_string(self) -> str:
         """Format as a one-line context string for debate injection."""
-        return (
-            "[%s] %s (sentiment=%.2f, conf=%.2f): %s"
-            % (self.source, self.title, self.sentiment_score,
-               self.sentiment_confidence, self.text[:300])
+        return "[%s] %s (sentiment=%.2f, conf=%.2f): %s" % (
+            self.source,
+            self.title,
+            self.sentiment_score,
+            self.sentiment_confidence,
+            self.text[:300],
         )
 
 
@@ -53,6 +56,7 @@ class NewsCollector:
     def _get_analyzer(self):
         if self._analyzer is None:
             from backend.ai.sentiment_analyzer import SentimentAnalyzer
+
             self._analyzer = SentimentAnalyzer()
         return self._analyzer
 
@@ -78,7 +82,9 @@ class NewsCollector:
                 try:
                     resp = await client.get(HF_ROWS_API, params=params)
                     if resp.status_code != 200:
-                        logger.warning("news_collector: HF API returned %d", resp.status_code)
+                        logger.warning(
+                            "news_collector: HF API returned %d", resp.status_code
+                        )
                         break
                     data = resp.json()
                     rows = data.get("rows", [])
@@ -89,21 +95,29 @@ class NewsCollector:
                         text = row.get("text", row.get("content", ""))
                         title = row.get("title", "")
                         if text:
-                            articles.append({
-                                "title": title,
-                                "text": text,
-                                "source": row.get("source", "huggingface"),
-                                "url": row.get("url", ""),
-                                "published": row.get("published", row.get("date", "")),
-                            })
+                            articles.append(
+                                {
+                                    "title": title,
+                                    "text": text,
+                                    "source": row.get("source", "huggingface"),
+                                    "url": row.get("url", ""),
+                                    "published": row.get(
+                                        "published", row.get("date", "")
+                                    ),
+                                }
+                            )
                     offset += len(rows)
                     if len(rows) < batch_size:
                         break
                 except Exception as e:
-                    logger.warning("news_collector: fetch failed at offset=%d: %s", offset, e)
+                    logger.warning(
+                        "news_collector: fetch failed at offset=%d: %s", offset, e
+                    )
                     break
 
-        logger.info("news_collector: fetched %d articles from %s", len(articles), self.dataset)
+        logger.info(
+            "news_collector: fetched %d articles from %s", len(articles), self.dataset
+        )
         return articles
 
     async def analyze_articles(self, articles: List[dict]) -> List[ScoredArticle]:
@@ -123,16 +137,18 @@ class NewsCollector:
         results = await analyzer.analyze_batch(texts)
 
         for article, result in zip(articles, results):
-            scored.append(ScoredArticle(
-                title=article["title"],
-                text=article["text"],
-                source=article["source"],
-                url=article.get("url", ""),
-                published=article.get("published", ""),
-                sentiment_score=result.score,
-                sentiment_label=result.label,
-                sentiment_confidence=result.confidence,
-            ))
+            scored.append(
+                ScoredArticle(
+                    title=article["title"],
+                    text=article["text"],
+                    source=article["source"],
+                    url=article.get("url", ""),
+                    published=article.get("published", ""),
+                    sentiment_score=result.score,
+                    sentiment_label=result.label,
+                    sentiment_confidence=result.confidence,
+                )
+            )
 
         logger.info(
             "news_collector: analyzed %d articles (pos=%d, neg=%d, neu=%d)",
@@ -161,7 +177,9 @@ class NewsCollector:
         scored.sort(key=lambda s: abs(s.sentiment_score), reverse=True)
         return scored
 
-    def scored_to_context(self, scored: List[ScoredArticle], max_chars: int = 2000) -> str:
+    def scored_to_context(
+        self, scored: List[ScoredArticle], max_chars: int = 2000
+    ) -> str:
         """Format scored articles as a context string for debate engine.
 
         Args:

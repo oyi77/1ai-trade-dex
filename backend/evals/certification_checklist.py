@@ -15,7 +15,7 @@ logger = logger.bind(task="evals", module="certification_checklist")
 
 def run_certification_check(
     reports_dir: str = "backend/evals/reports",
-    custom_scores: Optional[Dict[str, float]] = None
+    custom_scores: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Run certification check across all Phase 6 benchmarks.
 
@@ -45,7 +45,9 @@ def run_certification_check(
     reports_path.mkdir(parents=True, exist_ok=True)
 
     # Import benchmark classes
-    from backend.evals.benchmarks.cross_domain_transfer import CrossDomainTransferBenchmark
+    from backend.evals.benchmarks.cross_domain_transfer import (
+        CrossDomainTransferBenchmark,
+    )
     from backend.evals.benchmarks.few_shot_learning import FewShotLearningBenchmark
     from backend.evals.benchmarks.causal_reasoning import CausalReasoningBenchmark
     from backend.evals.benchmarks.agi_score import AGIScoreBenchmark
@@ -79,7 +81,7 @@ def run_certification_check(
             details[key_name] = {
                 "score": score,
                 "threshold": threshold,
-                "passed": passed
+                "passed": passed,
             }
     else:
         # Run each benchmark
@@ -103,10 +105,12 @@ def run_certification_check(
                     "threshold": threshold,
                     "passed": passed,
                     "benchmark_id": result.benchmark_id,
-                    "metadata": result.metadata if result.metadata else {}
+                    "metadata": result.metadata if result.metadata else {},
                 }
 
-                logger.info(f"{key_name}: {score:.2%} (threshold: {threshold:.0%}) - {'PASS' if passed else 'FAIL'}")
+                logger.info(
+                    f"{key_name}: {score:.2%} (threshold: {threshold:.0%}) - {'PASS' if passed else 'FAIL'}"
+                )
 
             except Exception as e:
                 logger.error(f"Error running {key_name} benchmark: {e}")
@@ -116,7 +120,7 @@ def run_certification_check(
                     "score": 0.0,
                     "threshold": threshold,
                     "passed": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
     # Determine certification eligibility: all benchmarks must pass
@@ -128,11 +132,14 @@ def run_certification_check(
         "passed_benchmarks": passed_benchmarks,
         "failed_benchmarks": failed_benchmarks,
         "timestamp": datetime.now().isoformat(),
-        "details": details
+        "details": details,
     }
 
     # Save certification report
-    report_path = reports_path / f"certification_checklist_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    report_path = (
+        reports_path
+        / f"certification_checklist_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     try:
         with open(report_path, "w") as f:
             json.dump(result_dict, f, indent=2)
@@ -156,10 +163,12 @@ class CertificationChecklist:
     @staticmethod
     def verify_phase_gate_6(
         reports_dir: str = "backend/evals/reports",
-        custom_scores: Optional[Dict[str, float]] = None
+        custom_scores: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
         """Verify Phase Gate 6 certification criteria.
 
         Alias for run_certification_check() for class-based access.
         """
-        return run_certification_check(reports_dir=reports_dir, custom_scores=custom_scores)
+        return run_certification_check(
+            reports_dir=reports_dir, custom_scores=custom_scores
+        )

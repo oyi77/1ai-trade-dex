@@ -1,4 +1,5 @@
 """G-23: Performance benchmark tests for trade execution latency and settlement speed."""
+
 import time
 from unittest.mock import MagicMock
 
@@ -21,8 +22,11 @@ class TestTradeExecutionLatency:
         db.query.return_value.filter.return_value.count.return_value = 0
         db.query.return_value.filter.return_value.all.return_value = []
         db.query.return_value.filter_by.return_value.first.return_value = MagicMock(
-            bankroll=100.0, mode="paper", misc_data=None,
-            paper_bankroll=100.0, testnet_bankroll=100.0,
+            bankroll=100.0,
+            mode="paper",
+            misc_data=None,
+            paper_bankroll=100.0,
+            testnet_bankroll=100.0,
         )
 
         iterations = 100
@@ -44,7 +48,9 @@ class TestTradeExecutionLatency:
         elapsed = time.perf_counter() - start
         avg_ms = (elapsed / iterations) * 1000
 
-        assert avg_ms < 15.0, f"validate_trade avg latency {avg_ms:.2f}ms > 15ms threshold"
+        assert (
+            avg_ms < 15.0
+        ), f"validate_trade avg latency {avg_ms:.2f}ms > 15ms threshold"
 
     def test_check_drawdown_latency(self):
         """Drawdown check should be fast (< 5ms per call)."""
@@ -52,7 +58,8 @@ class TestTradeExecutionLatency:
         db = MagicMock()
         db.query.return_value.filter.return_value.scalar.return_value = 0.0
         db.query.return_value.filter_by.return_value.first.return_value = MagicMock(
-            paper_initial_bankroll=100.0, testnet_initial_bankroll=100.0,
+            paper_initial_bankroll=100.0,
+            testnet_initial_bankroll=100.0,
         )
 
         iterations = 100
@@ -62,7 +69,9 @@ class TestTradeExecutionLatency:
         elapsed = time.perf_counter() - start
         avg_ms = (elapsed / iterations) * 1000
 
-        assert avg_ms < 5.0, f"check_drawdown avg latency {avg_ms:.2f}ms > 5ms threshold"
+        assert (
+            avg_ms < 5.0
+        ), f"check_drawdown avg latency {avg_ms:.2f}ms > 5ms threshold"
 
 
 class TestSettlementSpeed:

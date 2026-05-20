@@ -42,7 +42,9 @@ class LimitlessProvider(DataProvider):
     async def health_check(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base_url}/markets", params={"limit": 1})
+                resp = await client.get(
+                    f"{self._base_url}/markets", params={"limit": 1}
+                )
                 return resp.status_code == 200
         except Exception:
             logger.debug("Limitless health check failed")
@@ -149,7 +151,11 @@ class LimitlessProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26d.
         """
-        raise RuntimeError("Limitless provider does not support order placement — use markets/providers/ instead")
+        raise RuntimeError(
+            "Limitless provider does not support order placement — use markets/providers/ instead"
+        )
 
     async def cancel_order(self, order_id: str) -> bool:
-        raise RuntimeError("Limitless provider does not support order cancellation — use markets/providers/ instead")
+        raise RuntimeError(
+            "Limitless provider does not support order cancellation — use markets/providers/ instead"
+        )

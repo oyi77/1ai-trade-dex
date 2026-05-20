@@ -4,15 +4,16 @@ Pydantic v2 validation models for external API responses.
 Validates data from Polymarket Gamma API, CLOB order book, Coinbase klines,
 and OpenMeteo forecasts before downstream processing.
 """
+
 import time
 from typing import Union
 
 from pydantic import BaseModel, field_validator, model_validator
 
-
 # =============================================================================
 # Shared sub-models
 # =============================================================================
+
 
 class OrderLevel(BaseModel):
     price: str
@@ -50,7 +51,9 @@ class HourlyData(BaseModel):
     def temperatures_in_range(cls, v: list[float]) -> list[float]:
         for temp in v:
             if not (-80.0 <= temp <= 60.0):
-                raise ValueError(f"temperature {temp} is out of range [-80, 60] Celsius")
+                raise ValueError(
+                    f"temperature {temp} is out of range [-80, 60] Celsius"
+                )
         return v
 
     @model_validator(mode="after")
@@ -66,6 +69,7 @@ class HourlyData(BaseModel):
 # =============================================================================
 # API Response Models
 # =============================================================================
+
 
 class GammaMarketResponse(BaseModel):
     id: Union[int, str]
@@ -169,6 +173,7 @@ class OpenMeteoForecastResponse(BaseModel):
 # Helper
 # =============================================================================
 
+
 def validate_response(model_class, data: dict, source: str = "unknown"):
     """
     Validate *data* against *model_class*.
@@ -182,8 +187,7 @@ def validate_response(model_class, data: dict, source: str = "unknown"):
         return model_class.model_validate(data)
     except ValidationError as exc:
         field_errors = {
-            ".".join(str(loc) for loc in err["loc"]): err["msg"]
-            for err in exc.errors()
+            ".".join(str(loc) for loc in err["loc"]): err["msg"] for err in exc.errors()
         }
         details = {"source": source, "field_errors": field_errors}
         message = (
@@ -193,6 +197,7 @@ def validate_response(model_class, data: dict, source: str = "unknown"):
 
         try:
             from backend.core.errors import DataQualityError
+
             raise DataQualityError(message, details=details)
         except ImportError:
             raise ValueError(f"{message} — {field_errors}")

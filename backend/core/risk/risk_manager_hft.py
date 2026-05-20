@@ -1,8 +1,10 @@
 """HFT Risk Manager — aggressive 25% Kelly sizing with fail-open circuit breaker."""
+
 from typing import Optional
 
 from backend.strategies.types_hft import HFTSignal, HFTStrategyConfig
 from backend.config import settings
+
 
 def _cfg(key: str, default=None):
     return getattr(settings, key, default) if hasattr(settings, key) else default
@@ -176,15 +178,21 @@ class HRiskManager:
             "kelly_win_rate": self._window_stats.get_win_rate(window_key),
         }
 
-    def record_position(self, market_id: str, size: float, window_key: Optional[str] = None) -> None:
+    def record_position(
+        self, market_id: str, size: float, window_key: Optional[str] = None
+    ) -> None:
         """Record an open position for exposure tracking (market + window level)."""
         current = self._open_positions.get(market_id, 0.0)
         self._open_positions[market_id] = current + size
         self._total_exposure += size
         if window_key:
-            self._window_exposure[window_key] = self._window_exposure.get(window_key, 0.0) + size
+            self._window_exposure[window_key] = (
+                self._window_exposure.get(window_key, 0.0) + size
+            )
 
-    def close_position(self, market_id: str, size: float, window_key: Optional[str] = None) -> None:
+    def close_position(
+        self, market_id: str, size: float, window_key: Optional[str] = None
+    ) -> None:
         """Remove a closed position from exposure tracking (market + window level)."""
         current = self._open_positions.get(market_id, 0.0)
         self._open_positions[market_id] = max(0.0, current - size)

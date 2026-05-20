@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from loguru import logger
+
 DATA_DIR = Path("data/trades")
 
 
@@ -27,13 +28,17 @@ class TradeArchiver:
         start = date.replace(hour=0, minute=0, second=0, microsecond=0)
         from sqlalchemy import and_
 
-        trades = db.query(Trade).filter(
-            and_(
-                Trade.settled,
-                Trade.timestamp >= start,
-                Trade.timestamp < start + timedelta(days=1),
+        trades = (
+            db.query(Trade)
+            .filter(
+                and_(
+                    Trade.settled,
+                    Trade.timestamp >= start,
+                    Trade.timestamp < start + timedelta(days=1),
+                )
             )
-        ).all()
+            .all()
+        )
 
         if not trades:
             logger.debug(f"No settled trades to archive for {date.date()}")
@@ -41,20 +46,22 @@ class TradeArchiver:
 
         rows = []
         for t in trades:
-            rows.append({
-                "id": t.id,
-                "market_ticker": getattr(t, "market_ticker", ""),
-                "direction": getattr(t, "direction", ""),
-                "strategy": getattr(t, "strategy", ""),
-                "entry_price": getattr(t, "entry_price", 0.0),
-                "size": getattr(t, "size", 0.0),
-                "pnl": getattr(t, "pnl", 0.0),
-                "result": getattr(t, "result", ""),
-                "confidence": getattr(t, "confidence", 0.0),
-                "platform": getattr(t, "platform", ""),
-                "role": getattr(t, "role", "unknown"),
-                "timestamp": t.timestamp.isoformat() if t.timestamp else "",
-            })
+            rows.append(
+                {
+                    "id": t.id,
+                    "market_ticker": getattr(t, "market_ticker", ""),
+                    "direction": getattr(t, "direction", ""),
+                    "strategy": getattr(t, "strategy", ""),
+                    "entry_price": getattr(t, "entry_price", 0.0),
+                    "size": getattr(t, "size", 0.0),
+                    "pnl": getattr(t, "pnl", 0.0),
+                    "result": getattr(t, "result", ""),
+                    "confidence": getattr(t, "confidence", 0.0),
+                    "platform": getattr(t, "platform", ""),
+                    "role": getattr(t, "role", "unknown"),
+                    "timestamp": t.timestamp.isoformat() if t.timestamp else "",
+                }
+            )
 
         df = pd.DataFrame(rows)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -62,7 +69,9 @@ class TradeArchiver:
         logger.info(f"Archived {len(rows)} trades to {path}")
         return str(path)
 
-    def query_backtest(self, pattern: str = "2026-*", conditions: Optional[dict] = None) -> Optional[object]:
+    def query_backtest(
+        self, pattern: str = "2026-*", conditions: Optional[dict] = None
+    ) -> Optional[object]:
         try:
             import pandas as pd
         except ImportError:

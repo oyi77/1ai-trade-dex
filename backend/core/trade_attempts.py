@@ -57,12 +57,16 @@ def make_reason_code(reason: str | None, prefix: str = "REJECTED") -> str:
 class TradeAttemptRecorder:
     """Records one mutable attempt row, finalized as execution progresses."""
 
-    def __init__(self, db: Session, decision: dict[str, Any], strategy_name: str, mode: str):
+    def __init__(
+        self, db: Session, decision: dict[str, Any], strategy_name: str, mode: str
+    ):
         self.db = db
         self.started_at = time.perf_counter()
         self.attempt = TradeAttempt(
             attempt_id=str(uuid4()),
-            correlation_id=str(decision.get("correlation_id") or decision.get("attempt_id") or uuid4()),
+            correlation_id=str(
+                decision.get("correlation_id") or decision.get("attempt_id") or uuid4()
+            ),
             strategy=strategy_name,
             mode=mode,
             market_ticker=str(decision.get("market_ticker") or "unknown"),
@@ -78,25 +82,33 @@ class TradeAttemptRecorder:
             requested_size=_safe_float(decision.get("size")),
             entry_price=_safe_float(decision.get("entry_price")),
             decision_data=_json_dumps(decision),
-            signal_data=_json_dumps({
-                "reasoning": decision.get("reasoning"),
-                "model_probability": decision.get("model_probability"),
-                "market_type": decision.get("market_type"),
-                "token_id_present": bool(decision.get("token_id")),
-            }),
+            signal_data=_json_dumps(
+                {
+                    "reasoning": decision.get("reasoning"),
+                    "model_probability": decision.get("model_probability"),
+                    "market_type": decision.get("market_type"),
+                    "token_id_present": bool(decision.get("token_id")),
+                }
+            ),
         )
         self.db.add(self.attempt)
         self.db.flush()
 
     def update(self, **fields: Any) -> None:
         for key, value in fields.items():
-            if key in {"factors_json", "decision_data", "signal_data"} and not isinstance(value, (str, type(None))):
+            if key in {
+                "factors_json",
+                "decision_data",
+                "signal_data",
+            } and not isinstance(value, (str, type(None))):
                 value = _json_dumps(value)
             setattr(self.attempt, key, value)
         self.attempt.updated_at = datetime.now(timezone.utc)
         self.db.flush()
 
-    def record_blocked(self, reason: str, *, phase: str, reason_code: str | None = None, **fields: Any) -> None:
+    def record_blocked(
+        self, reason: str, *, phase: str, reason_code: str | None = None, **fields: Any
+    ) -> None:
         self.update(
             status="BLOCKED",
             phase=phase,
@@ -106,7 +118,9 @@ class TradeAttemptRecorder:
             **fields,
         )
 
-    def record_rejected(self, reason: str, *, phase: str, reason_code: str | None = None, **fields: Any) -> None:
+    def record_rejected(
+        self, reason: str, *, phase: str, reason_code: str | None = None, **fields: Any
+    ) -> None:
         self.update(
             status="REJECTED",
             phase=phase,
@@ -116,7 +130,9 @@ class TradeAttemptRecorder:
             **fields,
         )
 
-    def record_executed(self, trade_id: int, reason: str = "Trade opened", **fields: Any) -> None:
+    def record_executed(
+        self, trade_id: int, reason: str = "Trade opened", **fields: Any
+    ) -> None:
         self.update(
             status="EXECUTED",
             phase="completed",
@@ -127,7 +143,9 @@ class TradeAttemptRecorder:
             **fields,
         )
 
-    def record_failed(self, reason: str, *, phase: str = "error", **fields: Any) -> None:
+    def record_failed(
+        self, reason: str, *, phase: str = "error", **fields: Any
+    ) -> None:
         self.update(
             status="FAILED",
             phase=phase,

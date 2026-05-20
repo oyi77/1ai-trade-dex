@@ -1,9 +1,12 @@
 """Wash trade detection for Polymarket markets."""
+
 from dataclasses import dataclass
 from enum import Enum
 from collections import Counter
 
 from loguru import logger
+
+
 class WashTradeRisk(str, Enum):
     LOW = "LOW"  # score 0-25
     MEDIUM = "MEDIUM"  # score 26-50

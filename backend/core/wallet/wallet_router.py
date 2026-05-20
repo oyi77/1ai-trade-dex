@@ -44,7 +44,9 @@ class WalletRouter:
     def decrypt_key(self, encrypted: str) -> str:
         return self._fernet.decrypt(encrypted.encode()).decode()
 
-    async def get_wallets_for_strategy(self, strategy_name: str) -> list[WalletAllocation]:
+    async def get_wallets_for_strategy(
+        self, strategy_name: str
+    ) -> list[WalletAllocation]:
         rows = (
             self._db.query(WalletAllocation)
             .filter(
@@ -84,11 +86,16 @@ class WalletRouter:
 
             wallet: TradingWallet | None = (
                 self._db.query(TradingWallet)
-                .filter(TradingWallet.id == alloc.wallet_id, TradingWallet.enabled.is_(True))
+                .filter(
+                    TradingWallet.id == alloc.wallet_id, TradingWallet.enabled.is_(True)
+                )
                 .first()
             )
             if wallet is None:
-                logger.warning("wallet_id={} not found or disabled — skipping child order", alloc.wallet_id)
+                logger.warning(
+                    "wallet_id={} not found or disabled — skipping child order",
+                    alloc.wallet_id,
+                )
                 continue
 
             min_size = MIN_ORDER_SIZE.get(wallet.chain, 1.0)
@@ -112,7 +119,9 @@ class WalletRouter:
 
             breaker = self._breaker_for(wallet.id)
             if breaker.state != "CLOSED":
-                logger.warning("circuit open for wallet_id={} — skipping child order", wallet.id)
+                logger.warning(
+                    "circuit open for wallet_id={} — skipping child order", wallet.id
+                )
                 continue
 
             raw_key = ""

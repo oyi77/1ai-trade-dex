@@ -1,4 +1,5 @@
 """Tests for AGI node registry — same patterns as test_node_registry.py but via agi.node_registry."""
+
 import pytest
 from backend.agi.node_registry import NodeRegistry
 from backend.agi.base_node import BaseAGINode, NodeManifest
@@ -14,6 +15,7 @@ class TestAGINodeRegistry:
 
     def _make_node(self, name: str, is_sandbox: bool = False):
         """Helper to create a test node class."""
+
         class _Node(BaseAGINode):
             @classmethod
             def manifest(cls) -> NodeManifest:

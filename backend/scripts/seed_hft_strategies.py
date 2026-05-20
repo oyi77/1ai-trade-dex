@@ -12,7 +12,6 @@ from loguru import logger
 
 from backend.models.database import SessionLocal, StrategyConfig, init_db
 
-
 # HFT strategies to enable in paper mode
 HFT_STRATEGIES = [
     {
@@ -21,13 +20,15 @@ HFT_STRATEGIES = [
         "trading_mode": "paper",
         "risk_tier": "moderate",
         "time_horizon": "short",
-        "params": json.dumps({
-            "base_spread": 0.02,
-            "max_inventory": 500.0,
-            "quote_size": 25.0,
-            "min_spread": 0.01,
-            "max_spread": 0.05,
-        }),
+        "params": json.dumps(
+            {
+                "base_spread": 0.02,
+                "max_inventory": 500.0,
+                "quote_size": 25.0,
+                "min_spread": 0.01,
+                "max_spread": 0.05,
+            }
+        ),
     },
     {
         "strategy_name": "cross_market_arb",
@@ -35,10 +36,12 @@ HFT_STRATEGIES = [
         "trading_mode": "paper",
         "risk_tier": "moderate",
         "time_horizon": "short",
-        "params": json.dumps({
-            "min_profit": 0.005,
-            "min_spread_pct": 0.013,
-        }),
+        "params": json.dumps(
+            {
+                "min_profit": 0.005,
+                "min_spread_pct": 0.013,
+            }
+        ),
     },
     {
         "strategy_name": "crypto_oracle",
@@ -149,9 +152,11 @@ def seed_hft_strategies():
         # Verify
         all_hft = (
             db.query(StrategyConfig)
-            .filter(StrategyConfig.strategy_name.in_(
-                [s["strategy_name"] for s in HFT_STRATEGIES]
-            ))
+            .filter(
+                StrategyConfig.strategy_name.in_(
+                    [s["strategy_name"] for s in HFT_STRATEGIES]
+                )
+            )
             .all()
         )
         logger.info("[seed_hft] Verification — HFT strategy states:")

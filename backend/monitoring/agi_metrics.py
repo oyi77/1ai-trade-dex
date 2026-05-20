@@ -257,6 +257,7 @@ def trace_agi_latency(func):
     ``self.name`` on the bound instance.
     """
     if func.__code__.co_flags & 0x80:  # CO_COROUTINE
+
         @functools.wraps(func)
         async def async_wrapper(self, *args, **kwargs):
             start = time.monotonic()
@@ -266,8 +267,10 @@ def trace_agi_latency(func):
                 elapsed = time.monotonic() - start
                 sname = getattr(self, "name", self.__class__.__name__)
                 record_signal_e2e_latency(sname, elapsed)
+
         return async_wrapper
     else:
+
         @functools.wraps(func)
         def sync_wrapper(self, *args, **kwargs):
             start = time.monotonic()
@@ -277,4 +280,5 @@ def trace_agi_latency(func):
                 elapsed = time.monotonic() - start
                 sname = getattr(self, "name", self.__class__.__name__)
                 record_signal_e2e_latency(sname, elapsed)
+
         return sync_wrapper

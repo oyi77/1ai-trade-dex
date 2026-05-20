@@ -1,4 +1,5 @@
 """PolymarketBook DataSource — live order book, Gamma API markets, and whale positions."""
+
 from __future__ import annotations
 import asyncio
 import time
@@ -6,7 +7,14 @@ from datetime import datetime, timezone
 
 import httpx
 
-from backend.mesh.base import DataSource, DataQuery, RawPacket, Provenance, HealthStatus, SourceState
+from backend.mesh.base import (
+    DataSource,
+    DataQuery,
+    RawPacket,
+    Provenance,
+    HealthStatus,
+    SourceState,
+)
 from backend.config import settings
 
 from loguru import logger
@@ -33,8 +41,13 @@ class PolymarketBook(DataSource):
         t0 = time.monotonic()
         client = await self._get_client()
         try:
-            params = {"limit": query.limit or 20, "active": "true", "closed": "false",
-                       "order": "volume", "ascending": "false"}
+            params = {
+                "limit": query.limit or 20,
+                "active": "true",
+                "closed": "false",
+                "order": "volume",
+                "ascending": "false",
+            }
             if query.ticker:
                 resp = await client.get(f"{GAMMA_URL}/markets/{query.ticker}")
             else:
@@ -45,7 +58,9 @@ class PolymarketBook(DataSource):
             return RawPacket(
                 source_id=self.source_id,
                 data=resp.json(),
-                provenance=Provenance.from_raw(self.source_id, raw_text, self.schema_version, 0.95),
+                provenance=Provenance.from_raw(
+                    self.source_id, raw_text, self.schema_version, 0.95
+                ),
                 latency_ms=(time.monotonic() - t0) * 1000,
             )
         except Exception as e:
@@ -54,7 +69,9 @@ class PolymarketBook(DataSource):
             return RawPacket(
                 source_id=self.source_id,
                 data=None,
-                provenance=Provenance.from_raw(self.source_id, str(e), self.schema_version, 0.0),
+                provenance=Provenance.from_raw(
+                    self.source_id, str(e), self.schema_version, 0.0
+                ),
                 latency_ms=(time.monotonic() - t0) * 1000,
                 error=str(e),
             )
@@ -63,19 +80,25 @@ class PolymarketBook(DataSource):
         _t0 = time.monotonic()
         try:
             client = await self._get_client()
-            resp = await asyncio.wait_for(client.get(f"{GAMMA_URL}/markets?limit=1"), timeout=5.0)
+            resp = await asyncio.wait_for(
+                client.get(f"{GAMMA_URL}/markets?limit=1"), timeout=5.0
+            )
             ok = resp.status_code == 200
         except Exception:
             logger.exception("Polymarket book health check failed")
             ok = False
-            logger.exception('polymarket_book: failed to fetch orderbook snapshot')
+            logger.exception("polymarket_book: failed to fetch orderbook snapshot")
             ok = False
         total = max(self._success_count + self._fail_count, 1)
         return HealthStatus(
             source_id=self.source_id,
             state=SourceState.HEALTHY if ok else SourceState.DEGRADED,
             success_rate=self._success_count / total,
-            p95_latency_ms=sorted(self._latencies)[int(len(self._latencies) * 0.95)] if len(self._latencies) >= 20 else 200,
+            p95_latency_ms=(
+                sorted(self._latencies)[int(len(self._latencies) * 0.95)]
+                if len(self._latencies) >= 20
+                else 200
+            ),
             staleness_seconds=0.0,
             consecutive_failures=0 if ok else 1,
             last_check=datetime.now(timezone.utc),

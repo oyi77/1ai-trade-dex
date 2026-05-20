@@ -15,7 +15,9 @@ from backend.models.database import Base, BotState, Trade
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(engine)
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = Session()
@@ -27,7 +29,9 @@ def db_session():
 
 @pytest.mark.asyncio
 @patch("backend.core.wallet.bankroll_reconciliation.settings")
-async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(mock_settings, db_session):
+async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(
+    mock_settings, db_session
+):
     mock_settings.INITIAL_BANKROLL = 2000.0
     state = BotState(mode="paper", bankroll=-999.0, paper_bankroll=29.74, paper_pnl=0.0)
     win = Trade(
@@ -65,7 +69,9 @@ async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(m
     db_session.add_all([state, win, loss, open_trade])
     db_session.commit()
 
-    reports = await reconcile_bot_state(db_session, modes=("paper",), apply=True, commit=True, source="test")
+    reports = await reconcile_bot_state(
+        db_session, modes=("paper",), apply=True, commit=True, source="test"
+    )
 
     db_session.refresh(state)
     # INITIAL_BANKROLL=2000, realized_pnl=5.0, open_exposure=12.0 => 2000+5-12=1993
@@ -80,11 +86,15 @@ async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(m
 
 @pytest.mark.asyncio
 async def test_dry_run_does_not_mutate_testnet_state(db_session):
-    state = BotState(mode="testnet", bankroll=-74.49, testnet_bankroll=-74.49, testnet_pnl=0.0)
+    state = BotState(
+        mode="testnet", bankroll=-74.49, testnet_bankroll=-74.49, testnet_pnl=0.0
+    )
     db_session.add(state)
     db_session.commit()
 
-    reports = await reconcile_bot_state(db_session, modes=("testnet",), apply=False, commit=False, source="test")
+    reports = await reconcile_bot_state(
+        db_session, modes=("testnet",), apply=False, commit=False, source="test"
+    )
 
     db_session.refresh(state)
     assert reports[0].new_bankroll == pytest.approx(100.0)
@@ -94,7 +104,9 @@ async def test_dry_run_does_not_mutate_testnet_state(db_session):
 
 @pytest.mark.asyncio
 async def test_reconciliation_clamps_depleted_simulated_available_bankroll(db_session):
-    state = BotState(mode="testnet", bankroll=-74.49, testnet_bankroll=-74.49, testnet_pnl=0.0)
+    state = BotState(
+        mode="testnet", bankroll=-74.49, testnet_bankroll=-74.49, testnet_pnl=0.0
+    )
     loss = Trade(
         market_ticker="testnet-loss",
         direction="up",

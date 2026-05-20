@@ -2,6 +2,7 @@ from __future__ import annotations
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
 from backend.core.agi_orchestrator import AGIOrchestrator
 
+
 class AGIMetaStrategy(BaseStrategy):
     """
     Autonomous Meta-Strategy for AGI Orchestration.
@@ -13,9 +14,7 @@ class AGIMetaStrategy(BaseStrategy):
     name = "agi_orchestrator"
     description = "Autonomous AGI Research and Goal-Setting Cycle"
     category = "ai_meta"
-    default_params = {
-        "cycle_interval_hours": 1
-    }
+    default_params = {"cycle_interval_hours": 1}
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Execute the AGI Orchestrator cycle autonomously."""
@@ -39,12 +38,14 @@ class AGIMetaStrategy(BaseStrategy):
                 trades_attempted=0,
                 trades_placed=0,
                 errors=result.errors,
-                decisions=[{
-                    "type": "agi_cycle",
-                    "regime": result.regime.value,
-                    "goal": result.goal.value,
-                    "actions": result.actions_taken
-                }]
+                decisions=[
+                    {
+                        "type": "agi_cycle",
+                        "regime": result.regime.value,
+                        "goal": result.goal.value,
+                        "actions": result.actions_taken,
+                    }
+                ],
             )
         finally:
             # Orchestrator doesn't own the session here, so we don't close it,

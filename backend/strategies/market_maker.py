@@ -5,6 +5,7 @@ Two-sided quoting with dynamic spread adjustment based on volatility,
 inventory skew, and microstructure analysis.  Active quote management
 loop places live orders via the HFT executor path.
 """
+
 from __future__ import annotations
 
 import math
@@ -29,10 +30,10 @@ from backend.config import settings
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Quote state tracking
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Quote:
@@ -45,12 +46,13 @@ class Quote:
 @dataclass
 class ActiveQuote:
     """Tracks a live quote placed on the order book."""
+
     quote_id: str
     market_id: str
-    side: str          # "BUY" or "SELL"
+    side: str  # "BUY" or "SELL"
     price: float
     size: float
-    placed_at: float   # time.monotonic()
+    placed_at: float  # time.monotonic()
     order_id: Optional[str] = None
 
 
@@ -58,9 +60,12 @@ class ActiveQuote:
 # Strategy
 # ---------------------------------------------------------------------------
 
+
 class MarketMakerStrategy(BaseStrategy):
     name = "market_maker"
-    description = "Two-sided quoting with dynamic spread, inventory control, and live execution"
+    description = (
+        "Two-sided quoting with dynamic spread, inventory control, and live execution"
+    )
     category = "market_making"
     default_params = {
         "base_spread": settings.MARKET_MAKER_BASE_SPREAD,
@@ -101,7 +106,9 @@ class MarketMakerStrategy(BaseStrategy):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def lmsr_spread(yes_inventory: float, no_inventory: float, liquidity_param: float = None) -> dict:
+    def lmsr_spread(
+        yes_inventory: float, no_inventory: float, liquidity_param: float = None
+    ) -> dict:
         if liquidity_param is None:
             liquidity_param = settings.MARKET_MAKER_LMSR_LIQUIDITY_PARAM
         b = max(liquidity_param, 0.1)
@@ -210,9 +217,8 @@ class MarketMakerStrategy(BaseStrategy):
         reservation = mid_price - inv_normalized * gamma * vol_sq * time_remaining
 
         # Optimal spread from AS model
-        spread = (
-            gamma * vol_sq * time_remaining
-            + (2.0 / gamma) * math.log(1.0 + gamma / max(kappa, 0.01))
+        spread = gamma * vol_sq * time_remaining + (2.0 / gamma) * math.log(
+            1.0 + gamma / max(kappa, 0.01)
         )
 
         # Enforce minimum spread
@@ -270,21 +276,39 @@ class MarketMakerStrategy(BaseStrategy):
         now = time.monotonic()
         oldest = min(q.placed_at for q in active)
         if now - oldest > max_age:
-            logger.debug("[market_maker] {} quotes stale (age {:.1f}s > {:.1f}s)", market_id, now - oldest, max_age)
+            logger.debug(
+                "[market_maker] {} quotes stale (age {:.1f}s > {:.1f}s)",
+                market_id,
+                now - oldest,
+                max_age,
+            )
             return True
 
         # Spread change check
         spread_threshold = params.get("spread_change_threshold", 0.01)
         last_spread = self._last_spread.get(market_id)
-        if last_spread is not None and abs(current_spread - last_spread) > spread_threshold:
-            logger.debug("[market_maker] {} spread changed {:.4f} -> {:.4f}", market_id, last_spread, current_spread)
+        if (
+            last_spread is not None
+            and abs(current_spread - last_spread) > spread_threshold
+        ):
+            logger.debug(
+                "[market_maker] {} spread changed {:.4f} -> {:.4f}",
+                market_id,
+                last_spread,
+                current_spread,
+            )
             return True
 
         # Inventory change check
         inv_threshold = params.get("inventory_change_threshold", 10.0)
         last_inv = self._last_inventory.get(market_id)
         if last_inv is not None and abs(current_inventory - last_inv) > inv_threshold:
-            logger.debug("[market_maker] {} inventory changed {:.1f} -> {:.1f}", market_id, last_inv, current_inventory)
+            logger.debug(
+                "[market_maker] {} inventory changed {:.1f} -> {:.1f}",
+                market_id,
+                last_inv,
+                current_inventory,
+            )
             return True
 
         return False
@@ -303,11 +327,24 @@ class MarketMakerStrategy(BaseStrategy):
                     ok = await clob.cancel_order(q.order_id)
                     if ok:
                         cancelled += 1
-                        logger.info("[market_maker] Cancelled quote {} on {} ({} {} @ {})", q.quote_id, market_id, q.side, q.size, q.price)
+                        logger.info(
+                            "[market_maker] Cancelled quote {} on {} ({} {} @ {})",
+                            q.quote_id,
+                            market_id,
+                            q.side,
+                            q.size,
+                            q.price,
+                        )
                     else:
-                        logger.warning("[market_maker] Failed to cancel quote {} on {}", q.quote_id, market_id)
+                        logger.warning(
+                            "[market_maker] Failed to cancel quote {} on {}",
+                            q.quote_id,
+                            market_id,
+                        )
                 except Exception as e:
-                    logger.warning("[market_maker] Cancel error for quote {}: {}", q.quote_id, e)
+                    logger.warning(
+                        "[market_maker] Cancel error for quote {}: {}", q.quote_id, e
+                    )
         self._clear_active_quotes(market_id)
         return cancelled
 
@@ -362,13 +399,22 @@ class MarketMakerStrategy(BaseStrategy):
                     placed += 1
                     logger.info(
                         "[market_maker] Placed {} quote: {} {} @ {} on {} (order_id={})",
-                        side, side, size, price, market_id, result.order_id,
+                        side,
+                        side,
+                        size,
+                        price,
+                        market_id,
+                        result.order_id,
                     )
                 else:
                     failed += 1
                     logger.warning(
                         "[market_maker] Quote order failed: {} {} @ {} on {}: {}",
-                        side, size, price, market_id, result.error,
+                        side,
+                        size,
+                        price,
+                        market_id,
+                        result.error,
                     )
             except Exception as e:
                 failed += 1
@@ -417,7 +463,9 @@ class MarketMakerStrategy(BaseStrategy):
         if toxicity > kill_threshold:
             logger.warning(
                 "[market_maker] KILL SWITCH: toxicity {:.3f} > {:.3f}, cancelling all quotes on {}",
-                toxicity, kill_threshold, metrics.market_id,
+                toxicity,
+                kill_threshold,
+                metrics.market_id,
             )
             return Quote(
                 bid_price=quote.bid_price,
@@ -428,13 +476,17 @@ class MarketMakerStrategy(BaseStrategy):
 
         if toxicity > widen_threshold:
             # Progressive widening: scale factor from 1.0 at threshold to 2.0 at kill
-            scale = 1.0 + (toxicity - widen_threshold) / max(kill_threshold - widen_threshold, 0.01)
+            scale = 1.0 + (toxicity - widen_threshold) / max(
+                kill_threshold - widen_threshold, 0.01
+            )
             scale = min(scale, 2.0)
             mid = (quote.bid_price + quote.ask_price) / 2.0
             half_spread = (quote.ask_price - quote.bid_price) / 2.0 * scale
             logger.info(
                 "[market_maker] Toxicity {:.3f} > {:.3f}, widening spread by {:.1f}x",
-                toxicity, widen_threshold, scale,
+                toxicity,
+                widen_threshold,
+                scale,
             )
             return Quote(
                 bid_price=max(0.01, mid - half_spread),
@@ -524,7 +576,10 @@ class MarketMakerStrategy(BaseStrategy):
                     "all_markets",
                     "SKIP",
                     confidence=0.0,
-                    signal_data={"reason": "no_markets_available", "sources": ["market_maker"]},
+                    signal_data={
+                        "reason": "no_markets_available",
+                        "sources": ["market_maker"],
+                    },
                     reason="No markets returned from data source",
                 )
                 result.decisions_recorded = 1
@@ -537,7 +592,9 @@ class MarketMakerStrategy(BaseStrategy):
             from sqlalchemy import func as sa_func
 
             exposure_row = (
-                ctx.db.query(sa_func.coalesce(sa_func.sum(Trade.size * Trade.price), 0.0))
+                ctx.db.query(
+                    sa_func.coalesce(sa_func.sum(Trade.size * Trade.price), 0.0)
+                )
                 .filter(
                     Trade.settled.is_(False),
                     Trade.trading_mode == ctx.mode,
@@ -586,7 +643,9 @@ class MarketMakerStrategy(BaseStrategy):
                     if abs(current_inventory) >= max_inventory:
                         logger.info(
                             "[market_maker] {} max inventory reached ({}/{}), skipping",
-                            market.ticker, current_inventory, max_inventory,
+                            market.ticker,
+                            current_inventory,
+                            max_inventory,
                         )
                         # Cancel any outstanding quotes
                         await self._cancel_stale_quotes(market.ticker, ctx.clob)
@@ -596,7 +655,9 @@ class MarketMakerStrategy(BaseStrategy):
                     if total_exposure >= max_total_exposure:
                         logger.info(
                             "[market_maker] Max total exposure reached (${:.0f}/${}), skipping {}",
-                            total_exposure, max_total_exposure, market.ticker,
+                            total_exposure,
+                            max_total_exposure,
+                            market.ticker,
                         )
                         await self._cancel_stale_quotes(market.ticker, ctx.clob)
                         continue
@@ -617,16 +678,20 @@ class MarketMakerStrategy(BaseStrategy):
                         except Exception as analysis_err:
                             logger.debug(
                                 "[market_maker] Analyzer failed for {}: {}",
-                                market.ticker, analysis_err,
+                                market.ticker,
+                                analysis_err,
                             )
 
                     # ---------------------------------------------------------
                     # Toxicity kill switch
                     # ---------------------------------------------------------
-                    if metrics and metrics.toxicity_score > params.get("toxicity_kill_threshold", 0.8):
+                    if metrics and metrics.toxicity_score > params.get(
+                        "toxicity_kill_threshold", 0.8
+                    ):
                         logger.warning(
                             "[market_maker] KILL SWITCH on {}: toxicity={:.3f}",
-                            market.ticker, metrics.toxicity_score,
+                            market.ticker,
+                            metrics.toxicity_score,
                         )
                         await self._cancel_stale_quotes(market.ticker, ctx.clob)
                         record_decision(
@@ -652,7 +717,9 @@ class MarketMakerStrategy(BaseStrategy):
                     if current_spread < params.get("min_spread", 0.02):
                         logger.debug(
                             "[market_maker] {} spread {:.4f} < min {:.4f}, skipping",
-                            market.ticker, current_spread, params.get("min_spread", 0.02),
+                            market.ticker,
+                            current_spread,
+                            params.get("min_spread", 0.02),
                         )
                         continue
 
@@ -660,7 +727,10 @@ class MarketMakerStrategy(BaseStrategy):
                     # Check if quotes need refreshing
                     # ---------------------------------------------------------
                     if not self._should_refresh_quotes(
-                        market.ticker, current_spread, current_inventory, params,
+                        market.ticker,
+                        current_spread,
+                        current_inventory,
+                        params,
                     ):
                         continue
 
@@ -687,7 +757,10 @@ class MarketMakerStrategy(BaseStrategy):
 
                     # Skip if quotes were zeroed by toxicity kill
                     if quote.bid_size <= 0 or quote.ask_size <= 0:
-                        logger.info("[market_maker] {} quotes suppressed by toxicity filter", market.ticker)
+                        logger.info(
+                            "[market_maker] {} quotes suppressed by toxicity filter",
+                            market.ticker,
+                        )
                         continue
 
                     # ---------------------------------------------------------
@@ -736,7 +809,7 @@ class MarketMakerStrategy(BaseStrategy):
                                 "inventory_pct": inventory_pct,
                             },
                         )
-                        result.trades_attempted += (placed + failed)
+                        result.trades_attempted += placed + failed
                         result.trades_placed += placed
 
                     # Update state tracking
@@ -745,7 +818,9 @@ class MarketMakerStrategy(BaseStrategy):
 
                 except Exception as market_err:
                     logger.warning(
-                        "market_maker: error processing {}: {}", market.ticker, market_err,
+                        "market_maker: error processing {}: {}",
+                        market.ticker,
+                        market_err,
                     )
                     result.errors.append(str(market_err))
 

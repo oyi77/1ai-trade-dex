@@ -1,8 +1,11 @@
 """Whale wallet scoring formula from polyedge-production-transformation plan."""
+
 from typing import List, Dict, Any
 
 
-def calculate_whale_score(trades: List[Dict[str, Any]], days_active: float = 1.0) -> float:
+def calculate_whale_score(
+    trades: List[Dict[str, Any]], days_active: float = 1.0
+) -> float:
     """
     Score = win_rate*0.35 + clamped_roi*0.30 + clamped_size*0.20 + clamped_freq*0.15
     Each clamp normalizes its component to [0, 1].
@@ -26,9 +29,6 @@ def calculate_whale_score(trades: List[Dict[str, Any]], days_active: float = 1.0
     clamped_freq = min(max(freq / 5.0, 0.0), 1.0)
 
     score = (
-        win_rate * 0.35
-        + clamped_roi * 0.30
-        + clamped_size * 0.20
-        + clamped_freq * 0.15
+        win_rate * 0.35 + clamped_roi * 0.30 + clamped_size * 0.20 + clamped_freq * 0.15
     )
     return round(min(max(score, 0.0), 1.0), 4)

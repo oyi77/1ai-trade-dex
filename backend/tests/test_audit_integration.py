@@ -62,9 +62,9 @@ async def test_trade_creation_logs_audit_event(test_db):
 
     assert result is not None
 
-    audit_entries = test_db.query(AuditLog).filter(
-        AuditLog.event_type == "TRADE_CREATED"
-    ).all()
+    audit_entries = (
+        test_db.query(AuditLog).filter(AuditLog.event_type == "TRADE_CREATED").all()
+    )
 
     assert len(audit_entries) == 1
     entry = audit_entries[0]
@@ -111,9 +111,11 @@ async def test_settlement_logs_audit_event(test_db):
     )
     test_db.commit()
 
-    audit_entries = test_db.query(AuditLog).filter(
-        AuditLog.event_type == "SETTLEMENT_COMPLETED"
-    ).all()
+    audit_entries = (
+        test_db.query(AuditLog)
+        .filter(AuditLog.event_type == "SETTLEMENT_COMPLETED")
+        .all()
+    )
 
     assert len(audit_entries) == 1
     entry = audit_entries[0]
@@ -135,9 +137,9 @@ def test_audit_log_tracks_all_modes(test_db):
 
     test_db.commit()
 
-    entries = test_db.query(AuditLog).filter(
-        AuditLog.event_type == "TRADE_CREATED"
-    ).all()
+    entries = (
+        test_db.query(AuditLog).filter(AuditLog.event_type == "TRADE_CREATED").all()
+    )
 
     assert len(entries) == 3
     modes = [e.new_value["trading_mode"] for e in entries]

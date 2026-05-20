@@ -1,4 +1,5 @@
 """DataSource ABC, Provenance, and core types for the DataMesh layer."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -24,7 +25,9 @@ class Provenance:
     confidence: float = 1.0
 
     @classmethod
-    def from_raw(cls, source_id: str, raw_data: str, schema_version: str, confidence: float = 1.0) -> "Provenance":
+    def from_raw(
+        cls, source_id: str, raw_data: str, schema_version: str, confidence: float = 1.0
+    ) -> "Provenance":
         return cls(
             source_id=source_id,
             raw_data_hash=hashlib.sha256(raw_data.encode()).hexdigest()[:16],

@@ -7,11 +7,11 @@ Usage:
 Deletes JSON report files from backend/evals/reports/ that are older
 than the specified number of days (default: 7).
 """
+
 import argparse
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent / "evals" / "reports"
 
@@ -42,7 +42,10 @@ def cleanup(days: int = 7, dry_run: bool = False) -> int:
 
     print(f"Found {len(old_files)} report(s) older than {days} days:")
     for f in old_files:
-        age_days = (datetime.now(timezone.utc) - datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)).days
+        age_days = (
+            datetime.now(timezone.utc)
+            - datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
+        ).days
         print(f"  {f.name}  ({age_days}d old)")
 
     if dry_run:
@@ -63,8 +66,15 @@ def cleanup(days: int = 7, dry_run: bool = False) -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Cleanup old eval reports")
-    parser.add_argument("--days", type=int, default=7, help="Delete reports older than N days (default: 7)")
-    parser.add_argument("--dry-run", action="store_true", help="List files without deleting")
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Delete reports older than N days (default: 7)",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="List files without deleting"
+    )
     args = parser.parse_args()
 
     cleanup(days=args.days, dry_run=args.dry_run)

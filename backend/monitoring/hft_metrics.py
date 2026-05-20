@@ -8,60 +8,55 @@ from prometheus_client import Counter, Histogram, Gauge
 from loguru import logger
 
 hft_latency_ms = Histogram(
-    'hft_latency_ms', 'HFT execution latency',
-    buckets=[5, 10, 25, 50, 100, 250, 500]
+    "hft_latency_ms", "HFT execution latency", buckets=[5, 10, 25, 50, 100, 250, 500]
 )
 
 hft_signals_total = Counter(
-    "hft_signals_total", "Total HFT signals generated",
-    ["strategy", "signal_type"]
+    "hft_signals_total", "Total HFT signals generated", ["strategy", "signal_type"]
 )
 
 hft_execution_latency_seconds = Histogram(
-    "hft_execution_latency_seconds", "HFT execution latency",
+    "hft_execution_latency_seconds",
+    "HFT execution latency",
     ["strategy", "status"],
-    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1.0]
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1.0],
 )
 
 hft_market_scan_seconds = Histogram(
-    "hft_market_scan_seconds", "Market scan duration",
+    "hft_market_scan_seconds",
+    "Market scan duration",
     ["scanner"],
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0]
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0],
 )
 
 hft_circuit_breaker_open = Counter(
-    "hft_circuit_breaker_open_total", "Circuit breaker openings",
-    ["name", "reason"]
+    "hft_circuit_breaker_open_total", "Circuit breaker openings", ["name", "reason"]
 )
 
 hft_arb_opportunities = Counter(
-    "hft_arb_opportunities_total", "Arbitrage opportunities detected",
-    ["type", "profit_bucket"]
+    "hft_arb_opportunities_total",
+    "Arbitrage opportunities detected",
+    ["type", "profit_bucket"],
 )
 
 hft_whale_activities = Counter(
-    "hft_whale_activities_total", "Whale activities detected",
-    ["action", "size_bucket"]
+    "hft_whale_activities_total", "Whale activities detected", ["action", "size_bucket"]
 )
 
 hft_execution_total = Counter(
-    "hft_execution_total", "Total HFT executions",
-    ["strategy", "side", "status"]
+    "hft_execution_total", "Total HFT executions", ["strategy", "side", "status"]
 )
 
 hft_position_pnl = Gauge(
-    "hft_position_pnl_dollars", "Current PnL from HFT positions",
-    ["strategy"]
+    "hft_position_pnl_dollars", "Current PnL from HFT positions", ["strategy"]
 )
 
 hft_open_positions = Gauge(
-    "hft_open_positions", "Number of open HFT positions",
-    ["strategy"]
+    "hft_open_positions", "Number of open HFT positions", ["strategy"]
 )
 
 maker_fill_rate = Counter(
-    "maker_fill_rate", "Maker-first order fill outcomes",
-    ["market_id", "filled"]
+    "maker_fill_rate", "Maker-first order fill outcomes", ["market_id", "filled"]
 )
 
 # --- Track 1.1: Prometheus Metrics Instrumentation ---
@@ -126,6 +121,7 @@ def trace_latency(func):
     ``self.name`` on the bound instance.
     """
     if func.__code__.co_flags & 0x80:  # CO_COROUTINE
+
         @functools.wraps(func)
         async def async_wrapper(self, *args, **kwargs):
             start = time.monotonic()
@@ -135,8 +131,10 @@ def trace_latency(func):
                 elapsed = time.monotonic() - start
                 sname = getattr(self, "name", self.__class__.__name__)
                 signal_latency_seconds.labels(strategy_name=sname).observe(elapsed)
+
         return async_wrapper
     else:
+
         @functools.wraps(func)
         def sync_wrapper(self, *args, **kwargs):
             start = time.monotonic()
@@ -146,6 +144,7 @@ def trace_latency(func):
                 elapsed = time.monotonic() - start
                 sname = getattr(self, "name", self.__class__.__name__)
                 signal_latency_seconds.labels(strategy_name=sname).observe(elapsed)
+
         return sync_wrapper
 
 
@@ -154,7 +153,9 @@ def record_signal(strategy: str, signal_type: str):
 
 
 def record_execution(strategy: str, side: str, status: str, latency_s: float):
-    hft_execution_latency_seconds.labels(strategy=strategy, status=status).observe(latency_s)
+    hft_execution_latency_seconds.labels(strategy=strategy, status=status).observe(
+        latency_s
+    )
     hft_execution_total.labels(strategy=strategy, side=side, status=status).inc()
 
 
@@ -196,8 +197,18 @@ def get_hft_summary() -> dict:
 
     try:
         latency_samples = list(hft_execution_latency_seconds._buckets.values())
-        total_count = sum(s.get('count', 0) if isinstance(s, dict) else 0 for s in latency_samples) if latency_samples else 0
-        avg_latency_ms = (hft_execution_latency_seconds._sum.get() / max(total_count, 1)) * 1000 if total_count > 0 else 0.0
+        total_count = (
+            sum(
+                s.get("count", 0) if isinstance(s, dict) else 0 for s in latency_samples
+            )
+            if latency_samples
+            else 0
+        )
+        avg_latency_ms = (
+            (hft_execution_latency_seconds._sum.get() / max(total_count, 1)) * 1000
+            if total_count > 0
+            else 0.0
+        )
     except Exception:
         logger.exception("[HFT Metrics] Failed to compute avg_latency_ms")
         avg_latency_ms = 0.0
@@ -217,6 +228,7 @@ def get_hft_summary() -> dict:
     try:
         from backend.models.database import StrategyConfig
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             active = db.query(StrategyConfig).filter(StrategyConfig.enabled).count()
     except Exception:
@@ -224,9 +236,13 @@ def get_hft_summary() -> dict:
         active = 0
 
     return {
-        "signals_per_second": round(total_signals / 60.0, 2) if total_signals > 0 else 0.0,
+        "signals_per_second": (
+            round(total_signals / 60.0, 2) if total_signals > 0 else 0.0
+        ),
         "avg_latency_ms": round(avg_latency_ms, 2),
-        "executor_latency_ms": round(avg_latency_ms * 0.8, 2) if avg_latency_ms > 0 else 0.0,
+        "executor_latency_ms": (
+            round(avg_latency_ms * 0.8, 2) if avg_latency_ms > 0 else 0.0
+        ),
         "queue_size": 0,
         "active_strategies": active,
         "arb_opportunities": arb_count,

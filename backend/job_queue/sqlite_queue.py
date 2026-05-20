@@ -6,6 +6,7 @@ ThreadPoolExecutor to run synchronous SQLAlchemy operations in async context.
 
 RQ-003: AsyncSQLiteQueue implementation
 """
+
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -16,6 +17,8 @@ from loguru import logger
 def _now() -> datetime:
     """Naive UTC datetime — replacement for deprecated _now()."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 from typing import Optional, Dict, Any  # noqa: E402
 
 from sqlalchemy import case, func  # noqa: E402
@@ -67,16 +70,22 @@ class AsyncSQLiteQueue(AbstractQueue):
         Returns:
             Number of recovered jobs.
         """
+
         def _recover():
             session = SessionLocal()
             try:
                 cutoff = _now()
                 from datetime import timedelta
+
                 cutoff = cutoff - timedelta(seconds=stale_threshold_seconds)
-                updated = session.query(JobQueue).filter(
-                    JobQueue.status == "processing",
-                    JobQueue.started_at < cutoff,
-                ).all()
+                updated = (
+                    session.query(JobQueue)
+                    .filter(
+                        JobQueue.status == "processing",
+                        JobQueue.started_at < cutoff,
+                    )
+                    .all()
+                )
                 count = 0
                 dead = 0
                 for job in updated:
@@ -87,7 +96,8 @@ class AsyncSQLiteQueue(AbstractQueue):
                         dead += 1
                         logger.error(
                             "Job %s moved to dead_letter after %d retries",
-                            job.id, job.retry_count,
+                            job.id,
+                            job.retry_count,
                         )
                     else:
                         job.status = "pending"
@@ -148,8 +158,12 @@ class AsyncSQLiteQueue(AbstractQueue):
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dictionary")
         if priority not in self.PRIORITY_MAP:
-            raise ValueError(f"Invalid priority: {priority}. Must be one of {list(self.PRIORITY_MAP.keys())}")
-        if idempotency_key is not None and (not isinstance(idempotency_key, str) or not idempotency_key.strip()):
+            raise ValueError(
+                f"Invalid priority: {priority}. Must be one of {list(self.PRIORITY_MAP.keys())}"
+            )
+        if idempotency_key is not None and (
+            not isinstance(idempotency_key, str) or not idempotency_key.strip()
+        ):
             raise ValueError("idempotency_key must be a non-empty string")
 
         def _insert_job():
@@ -157,10 +171,14 @@ class AsyncSQLiteQueue(AbstractQueue):
             try:
                 # Check idempotency BEFORE insert to avoid NULL-key bypass
                 if idempotency_key is not None:
-                    existing = session.query(JobQueue).filter(
-                        JobQueue.job_type == job_type,
-                        JobQueue.idempotency_key == idempotency_key
-                    ).first()
+                    existing = (
+                        session.query(JobQueue)
+                        .filter(
+                            JobQueue.job_type == job_type,
+                            JobQueue.idempotency_key == idempotency_key,
+                        )
+                        .first()
+                    )
                     if existing:
                         return str(existing.id)
 
@@ -199,32 +217,37 @@ class AsyncSQLiteQueue(AbstractQueue):
             Atomically marks the job as 'processing' to prevent multiple workers
             from picking up the same job.
         """
+
         def _fetch_and_update_job():
             session = SessionLocal()
             try:
                 # Build priority ordering using CASE
                 priority_order = case(
-                    *[(JobQueue.priority == p, i) for p, i in self.PRIORITY_MAP.items()],
-                    else_=99
+                    *[
+                        (JobQueue.priority == p, i)
+                        for p, i in self.PRIORITY_MAP.items()
+                    ],
+                    else_=99,
                 )
 
                 # SQLite doesn't support SELECT FOR UPDATE — use atomic UPDATE instead
                 # Find the highest-priority pending job and atomically set it to processing
-                pending_job = session.query(JobQueue).filter(
-                    JobQueue.status == "pending"
-                ).order_by(
-                    priority_order,
-                    JobQueue.scheduled_at.asc()
-                ).first()
+                pending_job = (
+                    session.query(JobQueue)
+                    .filter(JobQueue.status == "pending")
+                    .order_by(priority_order, JobQueue.scheduled_at.asc())
+                    .first()
+                )
 
                 if not pending_job:
                     return None
 
                 # Atomically claim the job by updating status
-                updated = session.query(JobQueue).filter(
-                    JobQueue.id == pending_job.id,
-                    JobQueue.status == "pending"
-                ).update({"status": "processing", "started_at": _now()})
+                updated = (
+                    session.query(JobQueue)
+                    .filter(JobQueue.id == pending_job.id, JobQueue.status == "pending")
+                    .update({"status": "processing", "started_at": _now()})
+                )
 
                 if not updated:
                     # Another worker claimed it — return None, caller retries
@@ -267,6 +290,7 @@ class AsyncSQLiteQueue(AbstractQueue):
         Raises:
             ValueError: If job_id not found or not in 'processing' state
         """
+
         def _update_job():
             session = SessionLocal()
             try:
@@ -274,7 +298,9 @@ class AsyncSQLiteQueue(AbstractQueue):
                 if not job:
                     raise ValueError(f"Job {job_id} not found")
                 if job.status != "processing":
-                    raise ValueError(f"Job {job_id} is not in processing state (current: {job.status})")
+                    raise ValueError(
+                        f"Job {job_id} is not in processing state (current: {job.status})"
+                    )
 
                 job.status = "completed"
                 job.completed_at = _now()
@@ -301,6 +327,7 @@ class AsyncSQLiteQueue(AbstractQueue):
         Raises:
             ValueError: If job_id not found or not in 'processing' state
         """
+
         def _update_job():
             session = SessionLocal()
             try:
@@ -308,7 +335,9 @@ class AsyncSQLiteQueue(AbstractQueue):
                 if not job:
                     raise ValueError(f"Job {job_id} not found")
                 if job.status != "processing":
-                    raise ValueError(f"Job {job_id} is not in processing state (current: {job.status})")
+                    raise ValueError(
+                        f"Job {job_id} is not in processing state (current: {job.status})"
+                    )
 
                 job.retry_count += 1
                 job.error_message = error_message
@@ -336,12 +365,15 @@ class AsyncSQLiteQueue(AbstractQueue):
         Returns:
             Count of pending jobs
         """
+
         def _count_jobs():
             session = SessionLocal()
             try:
-                count = session.query(func.count(JobQueue.id)).filter(
-                    JobQueue.status == "pending"
-                ).scalar()
+                count = (
+                    session.query(func.count(JobQueue.id))
+                    .filter(JobQueue.status == "pending")
+                    .scalar()
+                )
                 return count or 0
             except SQLAlchemyError as e:
                 raise ValueError(f"Failed to get pending count: {e}")

@@ -3,6 +3,7 @@
 Polymarket has a /batch-prices-history endpoint that fetches price history
 for multiple markets in a single request, instead of N individual calls.
 """
+
 import asyncio
 from typing import Any
 
@@ -13,7 +14,9 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 from loguru import logger
 
-_batch_breaker = CircuitBreaker("gamma_batch_prices", failure_threshold=5, recovery_timeout=60.0)
+_batch_breaker = CircuitBreaker(
+    "gamma_batch_prices", failure_threshold=5, recovery_timeout=60.0
+)
 _batch_rate_limiter = ExternalRateLimiter(
     name="gamma_batch",
     max_calls_per_minute=30,
@@ -74,11 +77,15 @@ async def fetch_batch_prices_history(
         logger.warning("[batch_prices] Circuit open, skipping batch fetch")
         return {}
     except httpx.HTTPStatusError as e:
-        logger.warning("[batch_prices] HTTP %s from batch-prices-history", e.response.status_code)
+        logger.warning(
+            "[batch_prices] HTTP %s from batch-prices-history", e.response.status_code
+        )
         # Fallback: try individual fetches
         return await _fallback_individual(market_ids, interval, fidelity)
     except Exception as e:
-        logger.warning("[batch_prices] Batch fetch failed: %s — falling back to individual", e)
+        logger.warning(
+            "[batch_prices] Batch fetch failed: %s — falling back to individual", e
+        )
         return await _fallback_individual(market_ids, interval, fidelity)
 
 
@@ -95,7 +102,11 @@ async def _fallback_individual(
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(
                     f"{GAMMA_API_URL}/prices-history",
-                    params={"market_id": mid, "interval": interval, "fidelity": fidelity},
+                    params={
+                        "market_id": mid,
+                        "interval": interval,
+                        "fidelity": fidelity,
+                    },
                 )
                 resp.raise_for_status()
                 data = resp.json()

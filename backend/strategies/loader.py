@@ -16,13 +16,15 @@ from loguru import logger as log
 
 def _skip_module(module_name: str) -> bool:
     """Return True for utility modules that should not be imported as strategies."""
-    _SKIP = frozenset({
-        "backend.strategies.base",
-        "backend.strategies.registry",
-        "backend.strategies.loader",
-        "backend.strategies.types_hft",
-        "backend.strategies.wallet_sync",
-    })
+    _SKIP = frozenset(
+        {
+            "backend.strategies.base",
+            "backend.strategies.registry",
+            "backend.strategies.loader",
+            "backend.strategies.types_hft",
+            "backend.strategies.wallet_sync",
+        }
+    )
     return module_name in _SKIP
 
 

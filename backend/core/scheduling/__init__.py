@@ -1,9 +1,14 @@
 """Scheduling subpackage — APScheduler, job strategies, task management."""
+
 import importlib as _importlib
 
 _SUBMODULES = [
-    "scheduler", "scheduling_strategies", "fronttest_scheduler", "task_manager",
+    "scheduler",
+    "scheduling_strategies",
+    "fronttest_scheduler",
+    "task_manager",
 ]
+
 
 def __getattr__(name: str):
     if name in _SUBMODULES:

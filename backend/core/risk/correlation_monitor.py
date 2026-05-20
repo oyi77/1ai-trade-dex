@@ -17,11 +17,88 @@ from backend.models.database import Trade
 # ── Market category definitions ──────────────────────────────────────────────
 
 MARKET_CATEGORIES: Dict[str, list[str]] = {
-    "crypto": ["btc", "bitcoin", "eth", "ethereum", "solana", "sol", "crypto", "defi", "token", "blockchain", "nft"],
-    "politics": ["trump", "biden", "xi", "putin", "election", "president", "senate", "congress", "republican", "democrat", "political", "impeach", "vote", "governor", "party", "caucus"],
-    "sports": ["nba", "nfl", "mlb", "nhl", "soccer", "football", "basketball", "baseball", "tennis", "golf", "ufc", "boxing", "f1", "formula", "cricket", "olympic", "world cup", "championship", "playoff", "super bowl", "world series"],
-    "esports": ["esport", "league of legends", "dota", "csgo", "valorant", "overwatch", "fortnite", "pubg", "twitch", "streamer", "gaming tournament"],
-    "weather": ["weather", "temperature", "hurricane", "tornado", "flood", "rain", "snow", "heat", "cold", "storm", "climate", "celsius", "fahrenheit"],
+    "crypto": [
+        "btc",
+        "bitcoin",
+        "eth",
+        "ethereum",
+        "solana",
+        "sol",
+        "crypto",
+        "defi",
+        "token",
+        "blockchain",
+        "nft",
+    ],
+    "politics": [
+        "trump",
+        "biden",
+        "xi",
+        "putin",
+        "election",
+        "president",
+        "senate",
+        "congress",
+        "republican",
+        "democrat",
+        "political",
+        "impeach",
+        "vote",
+        "governor",
+        "party",
+        "caucus",
+    ],
+    "sports": [
+        "nba",
+        "nfl",
+        "mlb",
+        "nhl",
+        "soccer",
+        "football",
+        "basketball",
+        "baseball",
+        "tennis",
+        "golf",
+        "ufc",
+        "boxing",
+        "f1",
+        "formula",
+        "cricket",
+        "olympic",
+        "world cup",
+        "championship",
+        "playoff",
+        "super bowl",
+        "world series",
+    ],
+    "esports": [
+        "esport",
+        "league of legends",
+        "dota",
+        "csgo",
+        "valorant",
+        "overwatch",
+        "fortnite",
+        "pubg",
+        "twitch",
+        "streamer",
+        "gaming tournament",
+    ],
+    "weather": [
+        "weather",
+        "temperature",
+        "hurricane",
+        "tornado",
+        "flood",
+        "rain",
+        "snow",
+        "heat",
+        "cold",
+        "storm",
+        "climate",
+        "celsius",
+        "fahrenheit",
+    ],
 }
 
 # Prometheus gauge per category
@@ -58,7 +135,9 @@ class CorrelationMonitor:
     def __init__(self, settings_obj=None):
         self.s = settings_obj or settings
         self.correlation_multiplier = getattr(self.s, "CORRELATION_MULTIPLIER", 2.0)
-        self.max_correlated_exposure_pct = getattr(self.s, "MAX_CORRELATED_EXPOSURE_PCT", 0.30)
+        self.max_correlated_exposure_pct = getattr(
+            self.s, "MAX_CORRELATED_EXPOSURE_PCT", 0.30
+        )
 
     def check_correlation(
         self,
@@ -79,6 +158,7 @@ class CorrelationMonitor:
 
         owns_db = db is None
         from contextlib import nullcontext
+
         ctx = get_db_session() if owns_db else nullcontext(db)
         try:
             with ctx as db:
@@ -97,11 +177,15 @@ class CorrelationMonitor:
                 category_exposure: Dict[str, float] = {}
                 for t_market, t_event, t_size in open_trades:
                     cat = classify_market_broad(t_market, t_event)
-                    category_exposure[cat] = category_exposure.get(cat, 0.0) + float(t_size or 0.0)
+                    category_exposure[cat] = category_exposure.get(cat, 0.0) + float(
+                        t_size or 0.0
+                    )
 
                 # Add the proposed trade
                 new_cat = classify_market_broad(market_ticker, event_slug)
-                category_exposure[new_cat] = category_exposure.get(new_cat, 0.0) + trade_size
+                category_exposure[new_cat] = (
+                    category_exposure.get(new_cat, 0.0) + trade_size
+                )
 
                 # Compute correlation-adjusted exposure:
                 # Same-category positions count `multiplier`x
@@ -117,14 +201,27 @@ class CorrelationMonitor:
 
                 # Emit Prometheus gauges
                 for cat, exposure in category_exposure.items():
-                    cat_pct = (exposure * (self.correlation_multiplier if cat != "uncategorized" else 1.0)) / bankroll * 100
+                    cat_pct = (
+                        (
+                            exposure
+                            * (
+                                self.correlation_multiplier
+                                if cat != "uncategorized"
+                                else 1.0
+                            )
+                        )
+                        / bankroll
+                        * 100
+                    )
                     _correlation_exposure_gauge.labels(category=cat).set(cat_pct)
                     record_correlation_exposure(cat, cat_pct)
 
                 if adjusted_pct > self.max_correlated_exposure_pct:
                     record_correlation_blocked()
                     breakdown = ", ".join(
-                        f"{cat}=${exp:.2f}" for cat, exp in sorted(category_exposure.items()) if exp > 0
+                        f"{cat}=${exp:.2f}"
+                        for cat, exp in sorted(category_exposure.items())
+                        if exp > 0
                     )
                     reason = (
                         f"correlation-adjusted exposure {adjusted_pct:.1%} > "
@@ -148,7 +245,8 @@ class CorrelationMonitor:
         except Exception as e:
             logger.opt(exception=True).error(
                 "[correlation_monitor] check_correlation failed: {}: {}",
-                type(e).__name__, e,
+                type(e).__name__,
+                e,
             )
             # Fail-open: don't block trades on monitor errors
             return CorrelationCheckResult(True, f"check_error: {type(e).__name__}")

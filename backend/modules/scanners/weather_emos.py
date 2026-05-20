@@ -29,7 +29,12 @@ from typing import Any
 
 import httpx
 
-from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketEvent
+from backend.strategies.base import (
+    BaseStrategy,
+    StrategyContext,
+    CycleResult,
+    MarketEvent,
+)
 from backend.core.market_scanner import MarketInfo
 from backend.core.decisions import record_decision
 from backend.core.activity_logger import activity_logger
@@ -39,6 +44,7 @@ from backend.models.database import for_update
 
 def _cfg(name, default):
     return getattr(settings, name, default)
+
 
 from loguru import logger  # noqa: E402
 
@@ -76,9 +82,7 @@ class ForecastPoint:
 class CalibrationState:
     """Rolling EMOS calibration state for one city."""
 
-    obs_pairs: list[tuple[float, float, float]] = field(
-        default_factory=list
-    )
+    obs_pairs: list[tuple[float, float, float]] = field(default_factory=list)
     a: float = 0.0
     b: float = 1.0
     last_updated: str | None = None
@@ -106,18 +110,16 @@ class CalibrationState:
 
             db = SessionLocal()
             try:
-                row = (
-                    db.query(EMOSCalibrationState)
-                    .filter_by(city=self._city)
-                    .first()
-                )
+                row = db.query(EMOSCalibrationState).filter_by(city=self._city).first()
                 payload = json.dumps(self.obs_pairs)
                 last_updated_dt = None
                 if self.last_updated:
                     try:
                         last_updated_dt = _dt.fromisoformat(self.last_updated)
                     except Exception:
-                        logger.exception('weather_emos: failed to parse last_updated timestamp')
+                        logger.exception(
+                            "weather_emos: failed to parse last_updated timestamp"
+                        )
                         last_updated_dt = None
                 if row is None:
                     row = EMOSCalibrationState(
@@ -150,11 +152,7 @@ class CalibrationState:
 
             db = SessionLocal()
             try:
-                row = (
-                    db.query(EMOSCalibrationState)
-                    .filter_by(city=self._city)
-                    .first()
-                )
+                row = db.query(EMOSCalibrationState).filter_by(city=self._city).first()
                 if row is None:
                     return False
                 try:
@@ -184,6 +182,7 @@ class CalibrationState:
         if self._persistence_path is None:
             return
         import json
+
         data = {
             "obs_pairs": self.obs_pairs,
             "a": self.a,
@@ -202,6 +201,7 @@ class CalibrationState:
             return
         import json
         import os
+
         if not os.path.exists(self._persistence_path):
             return
         with open(self._persistence_path, "r") as f:
@@ -392,7 +392,9 @@ def save_calibration_states(
             try:
                 db.rollback()
             except Exception:
-                logger.exception("Failed to rollback DB after calibration commit failure")
+                logger.exception(
+                    "Failed to rollback DB after calibration commit failure"
+                )
             raise
     except Exception as e:
         logger.warning(f"Could not save calibration states: {e}")
@@ -422,7 +424,11 @@ class WeatherEMOSStrategy(BaseStrategy):
     }
 
     # ── Event-driven (WS-first) extensions ──
-    subscribed_events: set[str] = {"last_trade_price", "price_change", "market_resolved"}
+    subscribed_events: set[str] = {
+        "last_trade_price",
+        "price_change",
+        "market_resolved",
+    }
 
     async def on_market_event(self, event: MarketEvent) -> dict | None:
         """
@@ -447,7 +453,9 @@ class WeatherEMOSStrategy(BaseStrategy):
         """Auto-settle positions when a weather market resolves."""
         outcome = data.get("outcome") or data.get("resolution")
         if not outcome:
-            logger.debug(f"[{self.name}] market_resolved event missing outcome for {token_id[:20]}...")
+            logger.debug(
+                f"[{self.name}] market_resolved event missing outcome for {token_id[:20]}..."
+            )
             return None
 
         logger.info(
@@ -512,9 +520,13 @@ class WeatherEMOSStrategy(BaseStrategy):
         calibrated_std = max(1.0, cal.residual_std())
 
         if direction == "above":
-            calibrated_p = pr_exceeds_threshold(threshold_f, calibrated_mean, calibrated_std)
+            calibrated_p = pr_exceeds_threshold(
+                threshold_f, calibrated_mean, calibrated_std
+            )
         else:
-            calibrated_p = 1.0 - pr_exceeds_threshold(threshold_f, calibrated_mean, calibrated_std)
+            calibrated_p = 1.0 - pr_exceeds_threshold(
+                threshold_f, calibrated_mean, calibrated_std
+            )
 
         edge = calibrated_p - new_price
         min_edge = self.default_params["min_edge"]
@@ -595,7 +607,10 @@ class WeatherEMOSStrategy(BaseStrategy):
                 self.name,
                 "all_weather_markets",
                 "SKIP",
-                signal_data={"reason": "no_active_weather_markets", "sources": ["weather_emos"]},
+                signal_data={
+                    "reason": "no_active_weather_markets",
+                    "sources": ["weather_emos"],
+                },
                 reason="No active weather markets found",
             )
             result.decisions_recorded = 1
@@ -681,8 +696,9 @@ class WeatherEMOSStrategy(BaseStrategy):
                 cal = CalibrationState()
                 cal.set_city(city_name)
                 cal_states[city_name] = cal
-                logger.warning(f"CalibrationState for city '{city_name}' missing, created new.")
-
+                logger.warning(
+                    f"CalibrationState for city '{city_name}' missing, created new."
+                )
 
             # Check minimum observations
             if cal.n < min_obs:
@@ -780,7 +796,7 @@ class WeatherEMOSStrategy(BaseStrategy):
                 },
                 confidence=confidence_score,
                 mode=ctx.mode,
-                db=ctx.db
+                db=ctx.db,
             )
 
             if decision == "BUY":
@@ -800,7 +816,9 @@ class WeatherEMOSStrategy(BaseStrategy):
                         logger.debug(f"Failed to parse clobTokenIds JSON: {e}")
                         clob_token_ids = []
                 if clob_token_ids and len(clob_token_ids) >= 2:
-                    clob_token_id = str(clob_token_ids[0] if trade_side == "YES" else clob_token_ids[1])
+                    clob_token_id = str(
+                        clob_token_ids[0] if trade_side == "YES" else clob_token_ids[1]
+                    )
                 elif clob_token_ids:
                     clob_token_id = str(clob_token_ids[0])
 
@@ -895,7 +913,10 @@ class WeatherEMOSStrategy(BaseStrategy):
                                 try:
                                     ctx.db.rollback()
                                 except Exception:
-                                    logger.warning("DB rollback failed after trade record error", exc_info=True)
+                                    logger.warning(
+                                        "DB rollback failed after trade record error",
+                                        exc_info=True,
+                                    )
                                 result.errors.append(
                                     f"Trade record failed {market.ticker}: {db_err}"
                                 )

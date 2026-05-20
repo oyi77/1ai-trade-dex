@@ -19,6 +19,8 @@ from backend.models.audit_logger import log_audit_event
 from backend.models.database import BotState, Trade
 
 from loguru import logger
+
+
 @dataclass
 class BankrollReconciliationReport:
     """One-mode reconciliation result."""
@@ -151,7 +153,7 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
         tokens = {
             "USDC.e": settings.USDC_E_ADDRESS,
             "USDC Native": settings.USDC_NATIVE_ADDRESS,
-            "pUSD": settings.PUSD_ADDRESS
+            "pUSD": settings.PUSD_ADDRESS,
         }
 
         rpc_url = settings.QUICKNODE_RPC_URL
@@ -167,7 +169,9 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
                 }
                 try:
                     res = await client.post(
-                        rpc_url, json=payload, headers={"User-Agent": "polyedge-finance"}
+                        rpc_url,
+                        json=payload,
+                        headers={"User-Agent": "polyedge-finance"},
                     )
                     if res.status_code == 200 and "result" in res.json():
                         hex_val = res.json()["result"]
@@ -175,7 +179,9 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
                             hex_val = "0x0"
                         cash += int(hex_val, 16) / 1e6
                 except Exception as e:
-                    logger.warning(f"Failed to fetch {name} balance in reconciliation: {e}")
+                    logger.warning(
+                        f"Failed to fetch {name} balance in reconciliation: {e}"
+                    )
 
         logger.info("Total cash balance from RPC: %.2f", cash)
     except Exception as exc:
@@ -367,17 +373,14 @@ async def fetch_pm_profile_trade_stats(
                     if not isinstance(row, dict):
                         continue
                     market_key = (
-                        row.get("slug")
-                        or row.get("conditionId")
-                        or row.get("asset")
+                        row.get("slug") or row.get("conditionId") or row.get("asset")
                     )
                     if not market_key:
                         continue
                     realized = row.get("realizedPnl")
-                    closed_pnl_by_market[str(market_key)] = (
-                        closed_pnl_by_market.get(str(market_key), 0.0)
-                        + float(realized or 0.0)
-                    )
+                    closed_pnl_by_market[str(market_key)] = closed_pnl_by_market.get(
+                        str(market_key), 0.0
+                    ) + float(realized or 0.0)
 
                 if len(rows) < limit:
                     break
@@ -408,7 +411,9 @@ async def fetch_pm_profile_trade_stats(
                 if not position_rows:
                     break
 
-                open_positions.extend(row for row in position_rows if isinstance(row, dict))
+                open_positions.extend(
+                    row for row in position_rows if isinstance(row, dict)
+                )
                 if len(position_rows) < limit:
                     break
                 offset += limit
@@ -462,7 +467,11 @@ def _realized_trade_stats(db: Session, mode: str) -> tuple[int, float, int]:
         )
         .first()
     )
-    return int(trade_count or 0), round(float(realized_pnl or 0.0), 2), int(win_count or 0)
+    return (
+        int(trade_count or 0),
+        round(float(realized_pnl or 0.0), 2),
+        int(win_count or 0),
+    )
 
 
 def _open_exposure(db: Session, mode: str) -> float:
@@ -475,9 +484,17 @@ def _open_exposure(db: Session, mode: str) -> float:
 
 
 def _initial_bankroll_for_mode(mode: str, state: Optional[BotState] = None) -> float:
-    if mode == "paper" and state is not None and state.paper_initial_bankroll is not None:
+    if (
+        mode == "paper"
+        and state is not None
+        and state.paper_initial_bankroll is not None
+    ):
         return float(state.paper_initial_bankroll)
-    if mode == "testnet" and state is not None and state.testnet_initial_bankroll is not None:
+    if (
+        mode == "testnet"
+        and state is not None
+        and state.testnet_initial_bankroll is not None
+    ):
         return float(state.testnet_initial_bankroll)
     if mode == "live" and state is not None and state.live_initial_bankroll is not None:
         return float(state.live_initial_bankroll)
@@ -496,9 +513,17 @@ def _available_bankroll_for_mode(mode: str, bankroll: float) -> float:
 
 def _mode_bankroll(state: BotState, mode: str) -> float:
     if mode == "paper":
-        return float(state.paper_bankroll if state.paper_bankroll is not None else state.bankroll or 0.0)
+        return float(
+            state.paper_bankroll
+            if state.paper_bankroll is not None
+            else state.bankroll or 0.0
+        )
     if mode == "testnet":
-        return float(state.testnet_bankroll if state.testnet_bankroll is not None else state.bankroll or 0.0)
+        return float(
+            state.testnet_bankroll
+            if state.testnet_bankroll is not None
+            else state.bankroll or 0.0
+        )
     return float(state.bankroll if state.bankroll is not None else 0.0)
 
 
@@ -640,7 +665,9 @@ def _build_report(
         if pm_portfolio_value is None or pm_portfolio_value <= 0:
             new_bankroll = old_bankroll
             new_total_pnl = old_total_pnl
-            warnings.append("PM total equity unavailable; live bankroll cache was not changed")
+            warnings.append(
+                "PM total equity unavailable; live bankroll cache was not changed"
+            )
         else:
             new_bankroll = round(float(pm_portfolio_value), 2)
             # For live mode, total_pnl must equal bankroll - initial_bankroll
@@ -649,7 +676,12 @@ def _build_report(
             initial = _initial_bankroll_for_mode("live", state=state)
             new_total_pnl = round(new_bankroll - initial, 2)
     else:
-        derived_bankroll = round(_initial_bankroll_for_mode(mode, state=state) + realized_pnl - open_exposure, 2)
+        derived_bankroll = round(
+            _initial_bankroll_for_mode(mode, state=state)
+            + realized_pnl
+            - open_exposure,
+            2,
+        )
         new_bankroll = round(_available_bankroll_for_mode(mode, derived_bankroll), 2)
         new_total_pnl = realized_pnl
         if derived_bankroll < 0:
@@ -673,7 +705,11 @@ def _build_report(
         realized_pnl=realized_pnl,
         drift_bankroll=round(abs(old_bankroll - new_bankroll), 2),
         drift_pnl=round(abs(old_total_pnl - new_total_pnl), 2),
-        pm_portfolio_value=round(float(pm_portfolio_value), 2) if pm_portfolio_value is not None else None,
+        pm_portfolio_value=(
+            round(float(pm_portfolio_value), 2)
+            if pm_portfolio_value is not None
+            else None
+        ),
         warnings=warnings,
     )
 
@@ -729,7 +765,9 @@ async def reconcile_bot_state(
                 )
                 if mode == "live":
                     if report.pm_portfolio_value is None:
-                        update_values["last_live_sync_error"] = "PM total equity unavailable"
+                        update_values["last_live_sync_error"] = (
+                            "PM total equity unavailable"
+                        )
                     else:
                         update_values["last_live_sync_error"] = None
                 db.execute(
@@ -745,11 +783,15 @@ async def reconcile_bot_state(
                     entity_type="BOT_STATE",
                     entity_id=mode,
                     old_value=old_state,
-                    new_value={**_snapshot_state(state, mode), "report": report.to_dict()},
+                    new_value={
+                        **_snapshot_state(state, mode),
+                        "report": report.to_dict(),
+                    },
                     user_id=source,
                 )
                 try:
                     from backend.models.database import TransactionEvent
+
                     delta = report.new_bankroll - report.old_bankroll
                     event = TransactionEvent(
                         type="reconciliation_adjustment",
@@ -767,7 +809,9 @@ async def reconcile_bot_state(
                     )
                     db.add(event)
                 except Exception as e:
-                    logger.debug(f"[reconciliation] TransactionEvent recording failed: {e}")
+                    logger.debug(
+                        f"[reconciliation] TransactionEvent recording failed: {e}"
+                    )
                 logger.warning(
                     "BotState reconciled (%s): bankroll $%.2f -> $%.2f, pnl $%.2f -> $%.2f",
                     mode,

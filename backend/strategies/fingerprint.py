@@ -17,7 +17,9 @@ from backend.core.market_classifier import classify_market
 class StrategyFingerprint:
     """14-dimension strategy profile derived from position history."""
 
-    strategy_type: Literal["SCALPER", "SWING", "POSITION", "WHALE", "HEDGER", "MIXED"] = "MIXED"
+    strategy_type: Literal[
+        "SCALPER", "SWING", "POSITION", "WHALE", "HEDGER", "MIXED"
+    ] = "MIXED"
     confidence: float = 0.0
     primary_category: str = "Other"
     primary_category_share: float = 0.0
@@ -137,7 +139,9 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
         std_pnl = statistics.stdev(pnls)
         if std_pnl > 0:
             # Annualize: use daily aggregation if timestamps span >1 day, else sqrt(trades)
-            timestamps = sorted(float(p.get("timestamp", 0)) for p in positions if p.get("timestamp"))
+            timestamps = sorted(
+                float(p.get("timestamp", 0)) for p in positions if p.get("timestamp")
+            )
             if len(timestamps) >= 2:
                 days_span = max((timestamps[-1] - timestamps[0]) / 86400, 1)
                 trades_per_year = len(pnls) * (365 / days_span)
@@ -174,7 +178,9 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
             outcome_counts[o] += 1
     total_outcomes = sum(outcome_counts.values())
     if total_outcomes > 0:
-        fp.preferred_outcome = "YES" if outcome_counts["YES"] >= outcome_counts["NO"] else "NO"
+        fp.preferred_outcome = (
+            "YES" if outcome_counts["YES"] >= outcome_counts["NO"] else "NO"
+        )
     else:
         fp.preferred_outcome = "NEUTRAL"
 
@@ -188,7 +194,9 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
             side_counts[s] += 1
     total_sides = sum(side_counts.values())
     if total_sides > 0:
-        fp.preferred_side = "BUY" if side_counts["BUY"] >= side_counts["SELL"] else "SELL"
+        fp.preferred_side = (
+            "BUY" if side_counts["BUY"] >= side_counts["SELL"] else "SELL"
+        )
     else:
         fp.preferred_side = "NEUTRAL"
 
@@ -241,8 +249,12 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
     # 12. Strategy type classification
     # ------------------------------------------------------------------
     fp.strategy_type = _classify_strategy_type(
-        n, fp.avg_position_size, fp.avg_hold_time_hours,
-        fp.avg_price_entry, sizes, pnls,
+        n,
+        fp.avg_position_size,
+        fp.avg_hold_time_hours,
+        fp.avg_price_entry,
+        sizes,
+        pnls,
     )
 
     # ------------------------------------------------------------------
@@ -276,6 +288,7 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
 # ======================================================================
 # Internal helpers
 # ======================================================================
+
 
 def _estimate_hold_times(positions: list[dict]) -> list[float]:
     """Estimate hold duration (hours) from consecutive timestamp gaps."""
@@ -358,7 +371,9 @@ def _compute_confidence(n: int, win_rate: float) -> float:
     return min(1.0, base + edge_bonus)
 
 
-def _detect_red_flags(positions: list[dict], pnls: list[float], n: int, fp: StrategyFingerprint) -> list[str]:
+def _detect_red_flags(
+    positions: list[dict], pnls: list[float], n: int, fp: StrategyFingerprint
+) -> list[str]:
     """Detect warning signs in trading history."""
     flags: list[str] = []
 

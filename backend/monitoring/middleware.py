@@ -89,7 +89,9 @@ async def metrics_middleware(request: Request, call_next):
         # Track errors
         if response.status_code >= 400:
             increment_api_errors()
-            logger.warning(f"API error: {request.method} {request.url.path} -> {response.status_code}")
+            logger.warning(
+                f"API error: {request.method} {request.url.path} -> {response.status_code}"
+            )
 
         return response
 
@@ -108,5 +110,7 @@ async def metrics_middleware(request: Request, call_next):
             error_message=error_message,
         )
 
-        logger.error(f"API exception: {request.method} {request.url.path} -> {error_message}")
+        logger.error(
+            f"API exception: {request.method} {request.url.path} -> {error_message}"
+        )
         raise

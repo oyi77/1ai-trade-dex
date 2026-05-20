@@ -7,10 +7,16 @@ Based on empirical research (Becker data, 72M trades):
 This strategy systematically buys NO tokens on low-probability markets
 where the crowd overpays for YES tickets.
 """
+
 from __future__ import annotations
 
 
-from backend.strategies.base import BaseStrategy, CycleResult, MarketInfo, StrategyContext
+from backend.strategies.base import (
+    BaseStrategy,
+    CycleResult,
+    MarketInfo,
+    StrategyContext,
+)
 
 
 class LongshotBiasStrategy(BaseStrategy):
@@ -40,8 +46,12 @@ class LongshotBiasStrategy(BaseStrategy):
         """Execute one scan cycle: find longshot markets, evaluate EV, size by Kelly."""
         max_price = ctx.params.get("max_price", self.default_params["max_price"])
         min_ev = ctx.params.get("min_ev", self.default_params["min_ev"])
-        max_position = ctx.params.get("max_position_usd", self.default_params["max_position_usd"])
-        kelly_frac = ctx.params.get("kelly_fraction", self.default_params["kelly_fraction"])
+        max_position = ctx.params.get(
+            "max_position_usd", self.default_params["max_position_usd"]
+        )
+        kelly_frac = ctx.params.get(
+            "kelly_fraction", self.default_params["kelly_fraction"]
+        )
 
         decisions_recorded = 0
         trades_attempted = 0
@@ -54,20 +64,24 @@ class LongshotBiasStrategy(BaseStrategy):
             if provider is None:
                 ctx.logger.warning("[longshot_bias] No market provider available")
                 return CycleResult(
-                    decisions_recorded=0, trades_attempted=0, trades_placed=0,
+                    decisions_recorded=0,
+                    trades_attempted=0,
+                    trades_placed=0,
                     errors=["No market provider available"],
                 )
 
             # Scan for cheap markets
             raw_markets = await provider.get_markets(limit=200)
             candidates = [
-                m for m in raw_markets
+                m
+                for m in raw_markets
                 if hasattr(m, "yes_price") and 0 < m.yes_price < max_price
             ]
 
             ctx.logger.info(
                 "[longshot_bias] Found {} markets below {}c",
-                len(candidates), int(max_price * 100),
+                len(candidates),
+                int(max_price * 100),
             )
 
             for market in candidates:
@@ -120,12 +134,18 @@ class LongshotBiasStrategy(BaseStrategy):
 
                     ctx.logger.info(
                         "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
-                        market.slug, no_price * 100, ev, kelly, position_size,
+                        market.slug,
+                        no_price * 100,
+                        ev,
+                        kelly,
+                        position_size,
                     )
 
                 except Exception as exc:
                     errors.append(str(exc))
-                    ctx.logger.error("[longshot_bias] Error on {}: {}", market.slug, exc)
+                    ctx.logger.error(
+                        "[longshot_bias] Error on {}: {}", market.slug, exc
+                    )
 
         except Exception as exc:
             errors.append(str(exc))

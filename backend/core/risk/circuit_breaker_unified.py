@@ -5,11 +5,14 @@ _is_pybreaker_available = False
 
 try:
     import pybreaker
+
     _is_pybreaker_available = True
 except ImportError:
     pass
 
-_USE_PYBREAKER = getattr(settings, "CB_USE_PYBREAKER", False) and _is_pybreaker_available
+_USE_PYBREAKER = (
+    getattr(settings, "CB_USE_PYBREAKER", False) and _is_pybreaker_available
+)
 
 if _is_pybreaker_available:
     import logging
@@ -18,11 +21,15 @@ if _is_pybreaker_available:
 
     class CircuitBreakerListener(pybreaker.CircuitBreakerListener):
         def state_change(self, cb, old_state, new_state):
-            logger.warning(f"CircuitBreaker '{cb.name}': {old_state.name} -> {new_state.name}")
+            logger.warning(
+                f"CircuitBreaker '{cb.name}': {old_state.name} -> {new_state.name}"
+            )
 
 
 class UnifiedCircuitBreaker:
-    def __init__(self, name, failure_threshold=None, recovery_timeout=None, half_open_max=None):
+    def __init__(
+        self, name, failure_threshold=None, recovery_timeout=None, half_open_max=None
+    ):
         self.name = name
         if _USE_PYBREAKER and _is_pybreaker_available:
             self._backend = pybreaker.CircuitBreaker(

@@ -13,7 +13,9 @@ class AppState(Base):
     __tablename__ = "app_states"
 
     id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+    )
     total_equity = Column(Float, nullable=False, default=0.0)
     total_pnl = Column(Float, nullable=False, default=0.0)
     closed_pnl = Column(Float, nullable=False, default=0.0)

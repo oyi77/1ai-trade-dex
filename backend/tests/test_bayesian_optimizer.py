@@ -2,7 +2,6 @@
 
 from backend.ai.bayesian_optimizer import BayesianOptimizer, OptimizationResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

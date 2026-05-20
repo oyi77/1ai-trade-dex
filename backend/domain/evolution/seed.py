@@ -1,23 +1,76 @@
 import random
 from typing import List
 from backend.domain.genome.models import (
-    StrategyGenome, LineageData, PerceptionChromosome,
-    CognitionChromosome, EntryLogic, EntryCondition, ExitLogic,
-    MarketSelector, ExecutionChromosome, RiskChromosome, MetaChromosome
+    StrategyGenome,
+    LineageData,
+    PerceptionChromosome,
+    CognitionChromosome,
+    EntryLogic,
+    EntryCondition,
+    ExitLogic,
+    MarketSelector,
+    ExecutionChromosome,
+    RiskChromosome,
+    MetaChromosome,
 )
 
 # Founding archetypes with their key traits
 FOUNDING_ARCHETYPES = [
     # name                  archetype                   key traits
-    ("Arbitrage Hunter",    "arbitrage_hunter",         {"order_type": "post_only", "atomic_multi_leg": True}),
-    ("Momentum Surfer",     "momentum_surfer",          {"timeframes": ["1m","5m"], "trigger_type": "momentum_breakout"}),
-    ("Weather Oracle",      "weather_oracle",           {"data_sources": ["open_meteo"], "signal_aggregation": "bayesian_fusion"}),
-    ("News Catalyst",       "news_catalyst",            {"data_sources": ["news_feed","social_sentiment"], "trigger_type": "event_driven"}),
-    ("Whale Mirror",        "whale_mirror",             {"data_sources": ["polymarket_clob"], "feature_extractors": ["whale_position_delta"]}),
-    ("Market Maker",        "market_maker",             {"order_type": "post_only", "trigger_type": "statistical_arbitrage"}),
-    ("Statistical Arb",     "statistical_arb",          {"trigger_type": "statistical_arbitrage", "signal_aggregation": "bayesian_fusion"}),
-    ("Event Catalyst",      "event_catalyst",           {"trigger_type": "event_driven", "exit_trigger": "spread_convergence"}),
-    ("Flash Opportunity",   "flash_opportunity",        {"execution_speed_target_ms": 50, "order_type": "fok"}),
+    (
+        "Arbitrage Hunter",
+        "arbitrage_hunter",
+        {"order_type": "post_only", "atomic_multi_leg": True},
+    ),
+    (
+        "Momentum Surfer",
+        "momentum_surfer",
+        {"timeframes": ["1m", "5m"], "trigger_type": "momentum_breakout"},
+    ),
+    (
+        "Weather Oracle",
+        "weather_oracle",
+        {"data_sources": ["open_meteo"], "signal_aggregation": "bayesian_fusion"},
+    ),
+    (
+        "News Catalyst",
+        "news_catalyst",
+        {
+            "data_sources": ["news_feed", "social_sentiment"],
+            "trigger_type": "event_driven",
+        },
+    ),
+    (
+        "Whale Mirror",
+        "whale_mirror",
+        {
+            "data_sources": ["polymarket_clob"],
+            "feature_extractors": ["whale_position_delta"],
+        },
+    ),
+    (
+        "Market Maker",
+        "market_maker",
+        {"order_type": "post_only", "trigger_type": "statistical_arbitrage"},
+    ),
+    (
+        "Statistical Arb",
+        "statistical_arb",
+        {
+            "trigger_type": "statistical_arbitrage",
+            "signal_aggregation": "bayesian_fusion",
+        },
+    ),
+    (
+        "Event Catalyst",
+        "event_catalyst",
+        {"trigger_type": "event_driven", "exit_trigger": "spread_convergence"},
+    ),
+    (
+        "Flash Opportunity",
+        "flash_opportunity",
+        {"execution_speed_target_ms": 50, "order_type": "fok"},
+    ),
 ]
 
 # Diversity injection: 20% of each genome's numeric genes are randomized within safe bounds
@@ -55,29 +108,35 @@ def create_base_cognition(archetype: str, traits: dict) -> CognitionChromosome:
 
     entry_logic = EntryLogic(
         trigger_type=trigger_type,
-        conditions=[EntryCondition(
-            indicator="rsi" if archetype == "momentum_surfer" else "orderbook_imbalance",
-            operator=">" if archetype == "momentum_surfer" else "crosses_above",
-            value=70.0 if archetype == "momentum_surfer" else 0.5
-        )],
-        min_confidence=inject_diversity(0.5)
+        conditions=[
+            EntryCondition(
+                indicator=(
+                    "rsi" if archetype == "momentum_surfer" else "orderbook_imbalance"
+                ),
+                operator=">" if archetype == "momentum_surfer" else "crosses_above",
+                value=70.0 if archetype == "momentum_surfer" else 0.5,
+            )
+        ],
+        min_confidence=inject_diversity(0.5),
     )
 
     exit_logic = ExitLogic(
         trigger_type=exit_trigger,
         profit_target_pct=inject_diversity(0.15),
-        stop_loss_pct=inject_diversity(0.08)
+        stop_loss_pct=inject_diversity(0.08),
     )
 
     market_selector = MarketSelector(
-        criteria=["high_volume"] if archetype == "market_maker" else ["high_volume", "short_settlement"],
-        max_concurrent_positions=5 if archetype == "arbitrage_hunter" else 3
+        criteria=(
+            ["high_volume"]
+            if archetype == "market_maker"
+            else ["high_volume", "short_settlement"]
+        ),
+        max_concurrent_positions=5 if archetype == "arbitrage_hunter" else 3,
     )
 
     return CognitionChromosome(
-        entry_logic=entry_logic,
-        exit_logic=exit_logic,
-        market_selector=market_selector
+        entry_logic=entry_logic, exit_logic=exit_logic, market_selector=market_selector
     )
 
 
@@ -145,17 +204,15 @@ def seed_initial_population() -> List[StrategyGenome]:
             archetype=archetype,
             stage="DRAFT",
             lineage=LineageData(
-                parent_genome_ids=[],
-                generation=1,
-                creator="synthesis"
+                parent_genome_ids=[], generation=1, creator="synthesis"
             ),
             chromosomes={
                 "perception": create_base_perception(archetype, traits),
                 "cognition": create_base_cognition(archetype, traits),
                 "execution": create_base_execution(archetype, traits),
                 "risk": create_base_risk(archetype, traits),
-                "meta": create_base_meta(archetype, traits)
-            }
+                "meta": create_base_meta(archetype, traits),
+            },
         )
         genomes.append(genome)
 

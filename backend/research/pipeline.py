@@ -34,6 +34,7 @@ def _resolve_rss_feeds() -> list[str]:
         return DEFAULT_RSS_FEEDS
     try:
         from backend.config import settings
+
         raw = getattr(settings, "RESEARCH_RSS_FEEDS", "")
         if raw:
             DEFAULT_RSS_FEEDS = [u.strip() for u in raw.split(",") if u.strip()]
@@ -308,7 +309,10 @@ class ResearchPipeline:
                     score = float(result.get("score", 0.5))
                     item.relevance_score = max(0.0, min(1.0, score))
                 except Exception as e:
-                    logger.debug("LLM relevance scoring failed for item, defaulting to 0.5: %s", e)
+                    logger.debug(
+                        "LLM relevance scoring failed for item, defaulting to 0.5: %s",
+                        e,
+                    )
                     item.relevance_score = 0.5
         except Exception as exc:
             logger.warning("LLM scoring unavailable, defaulting to 0.5: %s", exc)

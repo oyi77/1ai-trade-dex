@@ -3,6 +3,7 @@
 Provides structured entry/exit/risk criteria and regime effectiveness
 maps used by FinancialKnowledgeManager and StrategySynthesizer.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
@@ -12,6 +13,7 @@ from typing import Any, Dict, List
 @dataclass
 class EntryCriteria:
     """Conditions that must be met to enter a trade."""
+
     signal: str
     confirmations: List[str] = field(default_factory=list)
     market_regime_filter: List[str] = field(default_factory=list)
@@ -28,6 +30,7 @@ class EntryCriteria:
 @dataclass
 class ExitCriteria:
     """Conditions that trigger trade exit."""
+
     take_profit_pct: float = 0.10
     stop_loss_pct: float = 0.05
     time_stop_minutes: int = 60
@@ -44,6 +47,7 @@ class ExitCriteria:
 @dataclass
 class RiskParameters:
     """Position sizing and risk constraints."""
+
     max_position_pct: float = 0.08
     max_portfolio_heat: float = 0.70
     kelly_fraction: float = 0.30
@@ -59,6 +63,7 @@ class RiskParameters:
 @dataclass
 class StrategyTemplate:
     """Complete strategy template with entry/exit/risk and regime effectiveness."""
+
     template_id: str
     strategy_class: str
     entry: EntryCriteria

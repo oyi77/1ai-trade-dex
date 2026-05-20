@@ -6,6 +6,7 @@ from backend.data.gamma import fetch_markets
 from backend.data.polymarket_clob import PolymarketCLOB
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
+
 class PolymarketProvider(DataProvider):
     @property
     def platform_name(self) -> str:
@@ -19,7 +20,9 @@ class PolymarketProvider(DataProvider):
             logger.debug("Polymarket health check failed")
             return False
 
-    async def get_markets(self, category: Optional[str] = None, limit: int = 100) -> List[MarketEntry]:
+    async def get_markets(
+        self, category: Optional[str] = None, limit: int = 100
+    ) -> List[MarketEntry]:
         market_dicts = await fetch_markets(limit=limit)
         if category:
             market_dicts = [m for m in market_dicts if m.get("category") == category]
@@ -65,7 +68,9 @@ class PolymarketProvider(DataProvider):
             usdc = float(b.get("usdc_balance", 0.0))
             return BalanceInfo(available=usdc, locked=0.0, total=usdc)
 
-    async def place_order(self, market_id: str, side: str, size: float, price: float, **kwargs) -> dict:
+    async def place_order(
+        self, market_id: str, side: str, size: float, price: float, **kwargs
+    ) -> dict:
         async with PolymarketCLOB() as clob:
             result = await clob.place_limit_order(market_id, side, price, size)
             return result.__dict__ if hasattr(result, "__dict__") else result

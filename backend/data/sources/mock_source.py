@@ -1,4 +1,5 @@
 """Mock data source for sandbox testing."""
+
 import random
 import os
 from backend.data.source_registry import source_registry
@@ -13,6 +14,7 @@ from backend.data.base_source import BaseDataSource, DataSourceManifest, DataTyp
 @dataclass
 class MockDataConfig:
     """Configuration for mock data generation."""
+
     volatility: float = 0.02
     trend: float = 0.0
     base_price: float = 0.5
@@ -23,8 +25,6 @@ class MockDataConfig:
 @dataclass
 class MockManifest(DataSourceManifest):
     pass
-
-
 
 
 @source_registry.plugin
@@ -74,13 +74,17 @@ class MockDataSource(BaseDataSource):
         spread = self._config.volatility * 0.5
         return {
             "bids": [
-                {"price": round(mid - spread * (1 + i * 0.1), 4),
-                 "size": round(self._rng.uniform(10, 100), 2)}
+                {
+                    "price": round(mid - spread * (1 + i * 0.1), 4),
+                    "size": round(self._rng.uniform(10, 100), 2),
+                }
                 for i in range(10)
             ],
             "asks": [
-                {"price": round(mid + spread * (1 + i * 0.1), 4),
-                 "size": round(self._rng.uniform(10, 100), 2)}
+                {
+                    "price": round(mid + spread * (1 + i * 0.1), 4),
+                    "size": round(self._rng.uniform(10, 100), 2),
+                }
                 for i in range(10)
             ],
         }
@@ -89,8 +93,8 @@ class MockDataSource(BaseDataSource):
         """Simulate one price tick using geometric Brownian motion."""
         dt = 1.0 / 1000.0
         drift = self._config.trend * dt
-        diffusion = self._config.volatility * (dt ** 0.5) * self._rng.gauss(0, 1)
-        self._price *= (1 + drift + diffusion)
+        diffusion = self._config.volatility * (dt**0.5) * self._rng.gauss(0, 1)
+        self._price *= 1 + drift + diffusion
         self._price = max(0.01, min(0.99, self._price))
         self._tick_count += 1
         return self._price
@@ -109,13 +113,17 @@ class MockDataSource(BaseDataSource):
             spread = self._config.volatility * 0.5
             return {
                 "bids": [
-                    {"price": round(mid - spread * (1 + i * 0.1), 4),
-                     "size": round(self._rng.uniform(10, 100), 2)}
+                    {
+                        "price": round(mid - spread * (1 + i * 0.1), 4),
+                        "size": round(self._rng.uniform(10, 100), 2),
+                    }
                     for i in range(10)
                 ],
                 "asks": [
-                    {"price": round(mid + spread * (1 + i * 0.1), 4),
-                     "size": round(self._rng.uniform(10, 100), 2)}
+                    {
+                        "price": round(mid + spread * (1 + i * 0.1), 4),
+                        "size": round(self._rng.uniform(10, 100), 2),
+                    }
                     for i in range(10)
                 ],
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -142,16 +150,18 @@ class MockDataSource(BaseDataSource):
         candles = []
         price = self._config.base_price
         for i in range(count):
-            price *= (1 + self._rng.gauss(0, self._config.volatility))
+            price *= 1 + self._rng.gauss(0, self._config.volatility)
             price = max(0.01, min(0.99, price))
-            candles.append({
-                "open": round(price, 4),
-                "high": round(price * (1 + abs(self._rng.gauss(0, 0.005))), 4),
-                "low": round(price * (1 - abs(self._rng.gauss(0, 0.005))), 4),
-                "close": round(price, 4),
-                "volume": round(self._rng.uniform(100, 10000), 2),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            candles.append(
+                {
+                    "open": round(price, 4),
+                    "high": round(price * (1 + abs(self._rng.gauss(0, 0.005))), 4),
+                    "low": round(price * (1 - abs(self._rng.gauss(0, 0.005))), 4),
+                    "close": round(price, 4),
+                    "volume": round(self._rng.uniform(100, 10000), 2),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
         return candles
 
     def _generate_market_meta(self, params: Dict) -> Dict:
@@ -215,8 +225,9 @@ class MockDataSource(BaseDataSource):
                 raise NotImplementedError(f"Streaming not supported for {data_type}")
             await asyncio.sleep(0.1)  # 100ms tick rate
 
-    async def backfill(self, data_type: DataType, params: Dict[str, Any],
-                       since_ts: int, until_ts: int) -> List[Any]:
+    async def backfill(
+        self, data_type: DataType, params: Dict[str, Any], since_ts: int, until_ts: int
+    ) -> List[Any]:
         """Generate deterministic historical data."""
         # Reset RNG for reproducibility
         self._rng = random.Random(self._seed)

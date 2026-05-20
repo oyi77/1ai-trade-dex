@@ -52,17 +52,29 @@ async def fronttest_validation_job() -> dict[str, Any]:
                 # Auto-promote if enabled
                 if getattr(settings, "AGI_AUTO_PROMOTE", False) and proposal_id:
                     try:
-                        from backend.models.database import StrategyProposal, StrategyConfig
+                        from backend.models.database import (
+                            StrategyProposal,
+                            StrategyConfig,
+                        )
                         from backend.db.utils import get_db_session
+
                         with get_db_session() as db:
-                            proposal = db.query(StrategyProposal).filter(
-                                StrategyProposal.id == proposal_id,
-                            ).first()
+                            proposal = (
+                                db.query(StrategyProposal)
+                                .filter(
+                                    StrategyProposal.id == proposal_id,
+                                )
+                                .first()
+                            )
                             if proposal and proposal.admin_decision == "executed":
                                 # Apply the change details to strategy config
-                                config = db.query(StrategyConfig).filter(
-                                    StrategyConfig.strategy_name == strategy,
-                                ).first()
+                                config = (
+                                    db.query(StrategyConfig)
+                                    .filter(
+                                        StrategyConfig.strategy_name == strategy,
+                                    )
+                                    .first()
+                                )
                                 if config:
                                     config.enabled = True
                                     proposal.admin_decision = "auto_approved"
@@ -76,7 +88,8 @@ async def fronttest_validation_job() -> dict[str, Any]:
                         stats["errors"].append(f"promote_{proposal_id}: {e}")
                         logger.error(
                             "[FronttestScheduler] Auto-promote failed for proposal %d: %s",
-                            proposal_id, e,
+                            proposal_id,
+                            e,
                         )
             else:
                 stats["rejected"] += 1

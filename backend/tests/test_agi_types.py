@@ -2,6 +2,7 @@
 
 TDD: RED phase — these tests define the expected interface before implementation.
 """
+
 from datetime import datetime, timezone
 
 import pytest
@@ -17,14 +18,21 @@ from backend.core.agi_types import (
     StrategyBlock,
 )
 
-
 # ── MarketRegime enum ──────────────────────────────────────────────────────
+
 
 class TestMarketRegime:
     """MarketRegime enum must have exactly 6 members."""
 
     def test_has_all_six_members(self):
-        expected = {"BULL", "BEAR", "SIDEWAYS", "SIDEWAYS_VOLATILE", "CRISIS", "UNKNOWN"}
+        expected = {
+            "BULL",
+            "BEAR",
+            "SIDEWAYS",
+            "SIDEWAYS_VOLATILE",
+            "CRISIS",
+            "UNKNOWN",
+        }
         actual = {m.name for m in MarketRegime}
         assert actual == expected, f"Missing regimes: {expected - actual}"
 
@@ -43,11 +51,17 @@ class TestMarketRegime:
 
 # ── AGIGoal enum ──────────────────────────────────────────────────────────
 
+
 class TestAGIGoal:
     """AGIGoal enum must have exactly 4 members."""
 
     def test_has_all_four_members(self):
-        expected = {"MAXIMIZE_PNL", "PRESERVE_CAPITAL", "GROW_ALLOCATION", "REDUCE_EXPOSURE"}
+        expected = {
+            "MAXIMIZE_PNL",
+            "PRESERVE_CAPITAL",
+            "GROW_ALLOCATION",
+            "REDUCE_EXPOSURE",
+        }
         actual = {m.name for m in AGIGoal}
         assert actual == expected, f"Missing goals: {expected - actual}"
 
@@ -58,17 +72,26 @@ class TestAGIGoal:
 
 # ── ExperimentStatus enum ─────────────────────────────────────────────────
 
+
 class TestExperimentStatus:
     """ExperimentStatus enum must have all lifecycle members."""
 
     def test_has_all_members(self):
         expected = {
-            "DRAFT", "BACKTEST", "SHADOW", "PAPER",
-            "LIVE_TRIAL", "LIVE_PROMOTED", "LIVE_FAILED",
-            "REVIEW", "RETIRED",
+            "DRAFT",
+            "BACKTEST",
+            "SHADOW",
+            "PAPER",
+            "LIVE_TRIAL",
+            "LIVE_PROMOTED",
+            "LIVE_FAILED",
+            "REVIEW",
+            "RETIRED",
         }
         actual = {m.name for m in ExperimentStatus}
-        assert actual == expected, f"Missing: {expected - actual}, Extra: {actual - expected}"
+        assert (
+            actual == expected
+        ), f"Missing: {expected - actual}, Extra: {actual - expected}"
 
     def test_string_values_are_lowercase(self):
         for member in ExperimentStatus:
@@ -76,6 +99,7 @@ class TestExperimentStatus:
 
 
 # ── StrategyBlock dataclass ───────────────────────────────────────────────
+
 
 class TestStrategyBlock:
     """StrategyBlock must have 5 required string fields."""
@@ -108,10 +132,13 @@ class TestStrategyBlock:
 
     def test_missing_required_field_raises(self):
         with pytest.raises(TypeError):
-            StrategyBlock(signal_source="test")  # missing filter, position_sizer, risk_rule, exit_rule
+            StrategyBlock(
+                signal_source="test"
+            )  # missing filter, position_sizer, risk_rule, exit_rule
 
 
 # ── DecisionAuditEntry dataclass ──────────────────────────────────────────
+
 
 class TestDecisionAuditEntry:
     """DecisionAuditEntry must capture regime, goal, strategy, reasoning."""
@@ -152,6 +179,7 @@ class TestDecisionAuditEntry:
 
 # ── KGEntity dataclass ─────────────────────────────────────────────────────
 
+
 class TestKGEntity:
     """KGEntity must have entity_type, entity_id, and properties."""
 
@@ -187,6 +215,7 @@ class TestKGEntity:
 
 
 # ── KGRelation dataclass ──────────────────────────────────────────────────
+
 
 class TestKGRelation:
     """KGRelation must have from/to entities, relation type, weight, confidence."""
@@ -226,11 +255,26 @@ class TestKGRelation:
     def test_weight_and_confidence_bounds(self):
         """Weight and confidence must be between 0 and 1."""
         # Valid values
-        KGRelation(from_entity="a", to_entity="b", relation_type="test", weight=0.0, confidence=0.0, timestamp=datetime.now(timezone.utc))
-        KGRelation(from_entity="a", to_entity="b", relation_type="test", weight=1.0, confidence=1.0, timestamp=datetime.now(timezone.utc))
+        KGRelation(
+            from_entity="a",
+            to_entity="b",
+            relation_type="test",
+            weight=0.0,
+            confidence=0.0,
+            timestamp=datetime.now(timezone.utc),
+        )
+        KGRelation(
+            from_entity="a",
+            to_entity="b",
+            relation_type="test",
+            weight=1.0,
+            confidence=1.0,
+            timestamp=datetime.now(timezone.utc),
+        )
 
 
 # ── RegimeTransition dataclass ─────────────────────────────────────────────
+
 
 class TestRegimeTransition:
     """RegimeTransition must capture from/to regime with confidence."""

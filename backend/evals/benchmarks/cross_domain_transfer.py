@@ -54,13 +54,21 @@ class CrossDomainTransferBenchmark:
             fixtures = self._generate_synthetic_fixtures()
 
         source_strategy = self._get_source_domain_strategy("crypto")
-        few_shot_prompt = self._build_few_shot_prompt(fixtures[: self.FEW_SHOT_EXAMPLES])
-        adapted_strategy = self._adapt_strategy_to_target(source_strategy, few_shot_prompt)
+        few_shot_prompt = self._build_few_shot_prompt(
+            fixtures[: self.FEW_SHOT_EXAMPLES]
+        )
+        adapted_strategy = self._adapt_strategy_to_target(
+            source_strategy, few_shot_prompt
+        )
 
-        simulated_results = self._run_simulated_trades(adapted_strategy, self.SIMULATED_TRADES)
+        simulated_results = self._run_simulated_trades(
+            adapted_strategy, self.SIMULATED_TRADES
+        )
         random_baseline = self._run_random_baseline(self.SIMULATED_TRADES)
 
-        transfer_rate = self._compute_transfer_success_rate(simulated_results, random_baseline)
+        transfer_rate = self._compute_transfer_success_rate(
+            simulated_results, random_baseline
+        )
         passed = transfer_rate > self.THRESHOLD
 
         result = BenchmarkResult(
@@ -75,8 +83,9 @@ class CrossDomainTransferBenchmark:
                 "threshold": self.THRESHOLD,
                 "adapted_strategy_id": adapted_strategy.strategy_id,
                 "baseline_win_rate": random_baseline,
-                "adapted_win_rate": sum(1 for r in simulated_results if r) / len(simulated_results)
-            }
+                "adapted_win_rate": sum(1 for r in simulated_results if r)
+                / len(simulated_results),
+            },
         )
 
         self._save_report(result)
@@ -86,11 +95,41 @@ class CrossDomainTransferBenchmark:
 
     def _generate_synthetic_fixtures(self) -> List[TradeFixture]:
         return [
-            TradeFixture(domain="crypto", market_context={"trend": "up", "volatility": 0.3}, trade_action="buy", outcome=1.05, success=True),
-            TradeFixture(domain="crypto", market_context={"trend": "down", "volatility": 0.5}, trade_action="sell", outcome=0.95, success=False),
-            TradeFixture(domain="weather", market_context={"temp_change": 5, "precipitation": 0.2}, trade_action="long", outcome=1.02, success=True),
-            TradeFixture(domain="weather", market_context={"temp_change": -3, "precipitation": 0.8}, trade_action="short", outcome=1.08, success=True),
-            TradeFixture(domain="weather", market_context={"temp_change": 0, "precipitation": 0.5}, trade_action="hold", outcome=1.0, success=True),
+            TradeFixture(
+                domain="crypto",
+                market_context={"trend": "up", "volatility": 0.3},
+                trade_action="buy",
+                outcome=1.05,
+                success=True,
+            ),
+            TradeFixture(
+                domain="crypto",
+                market_context={"trend": "down", "volatility": 0.5},
+                trade_action="sell",
+                outcome=0.95,
+                success=False,
+            ),
+            TradeFixture(
+                domain="weather",
+                market_context={"temp_change": 5, "precipitation": 0.2},
+                trade_action="long",
+                outcome=1.02,
+                success=True,
+            ),
+            TradeFixture(
+                domain="weather",
+                market_context={"temp_change": -3, "precipitation": 0.8},
+                trade_action="short",
+                outcome=1.08,
+                success=True,
+            ),
+            TradeFixture(
+                domain="weather",
+                market_context={"temp_change": 0, "precipitation": 0.5},
+                trade_action="hold",
+                outcome=1.0,
+                success=True,
+            ),
         ]
 
     def _get_source_domain_strategy(self, domain: str) -> StrategySpec:
@@ -98,24 +137,32 @@ class CrossDomainTransferBenchmark:
             strategy_id=f"strategy_{domain}_top1",
             domain=domain,
             rules=["follow_trend", "cut_losses_at_5pct", "take_profits_at_10pct"],
-            performance_history=0.85
+            performance_history=0.85,
         )
 
     def _build_few_shot_prompt(self, examples: List[TradeFixture]) -> str:
-        prompt_parts = ["Adapt this crypto strategy to weather markets using these examples:"]
+        prompt_parts = [
+            "Adapt this crypto strategy to weather markets using these examples:"
+        ]
         for ex in examples:
-            prompt_parts.append(f"- Context: {ex.market_context}, Action: {ex.trade_action}, Success: {ex.success}")
+            prompt_parts.append(
+                f"- Context: {ex.market_context}, Action: {ex.trade_action}, Success: {ex.success}"
+            )
         return "\n".join(prompt_parts)
 
-    def _adapt_strategy_to_target(self, source: StrategySpec, few_shot_prompt: str) -> StrategySpec:
+    def _adapt_strategy_to_target(
+        self, source: StrategySpec, few_shot_prompt: str
+    ) -> StrategySpec:
         return StrategySpec(
             strategy_id=f"adapted_{source.strategy_id}_to_weather",
             domain="weather",
             rules=[f"{r} (adapted)" for r in source.rules] + ["use_weather_signals"],
-            performance_history=source.performance_history * 0.85
+            performance_history=source.performance_history * 0.85,
         )
 
-    def _run_simulated_trades(self, strategy: StrategySpec, n_trades: int) -> List[bool]:
+    def _run_simulated_trades(
+        self, strategy: StrategySpec, n_trades: int
+    ) -> List[bool]:
         results = []
         base_win_rate = strategy.performance_history
         for _ in range(n_trades):
@@ -128,7 +175,9 @@ class CrossDomainTransferBenchmark:
         wins = sum(1 for _ in range(n_trades) if random.random() < 0.5)
         return wins / n_trades
 
-    def _compute_transfer_success_rate(self, adapted_results: List[bool], baseline_rate: float) -> float:
+    def _compute_transfer_success_rate(
+        self, adapted_results: List[bool], baseline_rate: float
+    ) -> float:
         adapted_win_rate = sum(1 for r in adapted_results if r) / len(adapted_results)
         improvement = adapted_win_rate - baseline_rate
         transfer_rate = 0.5 + improvement
@@ -140,9 +189,12 @@ class CrossDomainTransferBenchmark:
             "score": result.score,
             "passed": result.passed,
             "metadata": result.metadata,
-            "timestamp": result.timestamp.isoformat()
+            "timestamp": result.timestamp.isoformat(),
         }
-        report_path = self.reports_dir / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        report_path = (
+            self.reports_dir
+            / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        )
         with open(report_path, "w") as f:
             json.dump(report_data, f, indent=2)
         logger.bind(report_path=str(report_path)).info("Report saved")
@@ -152,10 +204,15 @@ def register():
     """Register this benchmark with the EvalsRunner."""
     try:
         from backend.evals.registry import BenchmarkRegistry
-        BenchmarkRegistry.register(CrossDomainTransferBenchmark.BENCHMARK_ID, CrossDomainTransferBenchmark)
+
+        BenchmarkRegistry.register(
+            CrossDomainTransferBenchmark.BENCHMARK_ID, CrossDomainTransferBenchmark
+        )
         logger.info(f"Registered {CrossDomainTransferBenchmark.BENCHMARK_ID}")
     except ImportError:
-        logger.warning("BenchmarkRegistry not available, benchmark will be self-registering")
+        logger.warning(
+            "BenchmarkRegistry not available, benchmark will be self-registering"
+        )
 
 
 if __name__ == "__main__":

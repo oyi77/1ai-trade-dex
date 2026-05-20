@@ -36,7 +36,9 @@ class CausalReasoningBenchmark:
         self.reports_dir = Path(reports_dir)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def run(self, observations: Optional[List[EventObservation]] = None) -> BenchmarkResult:
+    def run(
+        self, observations: Optional[List[EventObservation]] = None
+    ) -> BenchmarkResult:
         """Execute causal reasoning benchmark."""
         random.seed(42)
         logger.info("Starting causal reasoning benchmark")
@@ -45,7 +47,9 @@ class CausalReasoningBenchmark:
             observations = self._generate_synthetic_observations()
 
         train_obs = observations[: self.TRAIN_OBSERVATIONS]
-        test_obs = observations[self.TRAIN_OBSERVATIONS : self.TRAIN_OBSERVATIONS + self.TEST_INTERVENTIONS]
+        test_obs = observations[
+            self.TRAIN_OBSERVATIONS : self.TRAIN_OBSERVATIONS + self.TEST_INTERVENTIONS
+        ]
 
         # Infer causal graph from training observations
         graph = self._infer_causal_graph(train_obs)
@@ -76,8 +80,8 @@ class CausalReasoningBenchmark:
                 "graph_nodes": len(graph.get("nodes", [])),
                 "graph_edges": len(graph.get("edges", [])),
                 "predictions": predictions,
-                "ground_truth": ground_truth
-            }
+                "ground_truth": ground_truth,
+            },
         )
 
         self._save_report(result)
@@ -88,16 +92,66 @@ class CausalReasoningBenchmark:
     def _generate_synthetic_observations(self) -> List[EventObservation]:
         # Training set: establish causal pattern (news→market_up, earnings→market_up/down)
         train = [
-            EventObservation(cause="news", effect="market_up", confidence=0.85, context={"intervention_value": 1.0}),
-            EventObservation(cause="news", effect="market_up", confidence=0.75, context={"intervention_value": 0.8}),
-            EventObservation(cause="news", effect="no_change", confidence=0.45, context={"intervention_value": 0.3}),
-            EventObservation(cause="earnings", effect="market_up", confidence=0.90, context={"intervention_value": 1.2}),
-            EventObservation(cause="earnings", effect="market_down", confidence=0.65, context={"intervention_value": -0.5}),
-            EventObservation(cause="news", effect="market_down", confidence=0.55, context={"intervention_value": -0.7}),
-            EventObservation(cause="earnings", effect="no_change", confidence=0.50, context={"intervention_value": 0.0}),
-            EventObservation(cause="news", effect="market_up", confidence=0.80, context={"intervention_value": 0.9}),
-            EventObservation(cause="earnings", effect="market_up", confidence=0.85, context={"intervention_value": 1.1}),
-            EventObservation(cause="news", effect="no_change", confidence=0.40, context={"intervention_value": 0.2}),
+            EventObservation(
+                cause="news",
+                effect="market_up",
+                confidence=0.85,
+                context={"intervention_value": 1.0},
+            ),
+            EventObservation(
+                cause="news",
+                effect="market_up",
+                confidence=0.75,
+                context={"intervention_value": 0.8},
+            ),
+            EventObservation(
+                cause="news",
+                effect="no_change",
+                confidence=0.45,
+                context={"intervention_value": 0.3},
+            ),
+            EventObservation(
+                cause="earnings",
+                effect="market_up",
+                confidence=0.90,
+                context={"intervention_value": 1.2},
+            ),
+            EventObservation(
+                cause="earnings",
+                effect="market_down",
+                confidence=0.65,
+                context={"intervention_value": -0.5},
+            ),
+            EventObservation(
+                cause="news",
+                effect="market_down",
+                confidence=0.55,
+                context={"intervention_value": -0.7},
+            ),
+            EventObservation(
+                cause="earnings",
+                effect="no_change",
+                confidence=0.50,
+                context={"intervention_value": 0.0},
+            ),
+            EventObservation(
+                cause="news",
+                effect="market_up",
+                confidence=0.80,
+                context={"intervention_value": 0.9},
+            ),
+            EventObservation(
+                cause="earnings",
+                effect="market_up",
+                confidence=0.85,
+                context={"intervention_value": 1.1},
+            ),
+            EventObservation(
+                cause="news",
+                effect="no_change",
+                confidence=0.40,
+                context={"intervention_value": 0.2},
+            ),
         ]
 
         # Test set: use ONLY causes/effects from training pattern so fallback graph can predict
@@ -115,45 +169,87 @@ class CausalReasoningBenchmark:
                 iv = random.choice([-1.0, -0.5])
             else:
                 iv = 0.0
-            test.append(EventObservation(cause=cause, effect=effect, confidence=conf, context={"intervention_value": iv}))
+            test.append(
+                EventObservation(
+                    cause=cause,
+                    effect=effect,
+                    confidence=conf,
+                    context={"intervention_value": iv},
+                )
+            )
 
         return train + test
 
-    def _infer_causal_graph(self, observations: List[EventObservation]) -> Dict[str, Any]:
+    def _infer_causal_graph(
+        self, observations: List[EventObservation]
+    ) -> Dict[str, Any]:
         try:
             from backend.core.causal_reasoning import CausalReasoner
+
             reasoner = CausalReasoner()
-            if hasattr(reasoner, 'infer_causal_graph'):
-                return reasoner.infer_causal_graph([obs.__dict__ for obs in observations])
+            if hasattr(reasoner, "infer_causal_graph"):
+                return reasoner.infer_causal_graph(
+                    [obs.__dict__ for obs in observations]
+                )
             return self._fallback_infer_causal_graph(observations)
         except Exception:
             return self._fallback_infer_causal_graph(observations)
 
-    def _fallback_infer_causal_graph(self, observations: List[EventObservation]) -> Dict[str, Any]:
+    def _fallback_infer_causal_graph(
+        self, observations: List[EventObservation]
+    ) -> Dict[str, Any]:
         nodes = set()
         edges = []
         for obs in observations:
             nodes.add(obs.cause)
             nodes.add(obs.effect)
             if obs.confidence >= 0.7:
-                edges.append({"source": obs.cause, "target": obs.effect, "confidence": obs.confidence})
+                edges.append(
+                    {
+                        "source": obs.cause,
+                        "target": obs.effect,
+                        "confidence": obs.confidence,
+                    }
+                )
         return {"nodes": list(nodes), "edges": edges}
 
-    def _predict_intervention(self, graph: Dict[str, Any], intervention_node: str, intervention_value: float, target_node: str) -> Dict[str, Any]:
+    def _predict_intervention(
+        self,
+        graph: Dict[str, Any],
+        intervention_node: str,
+        intervention_value: float,
+        target_node: str,
+    ) -> Dict[str, Any]:
         try:
             from backend.core.causal_reasoning import CausalReasoner
-            reasoner = CausalReasoner()
-            if hasattr(reasoner, 'predict_intervention'):
-                return reasoner.predict_intervention(graph, intervention_node, intervention_value, target_node)
-            return self._fallback_predict_intervention(graph, intervention_node, intervention_value, target_node)
-        except Exception:
-            return self._fallback_predict_intervention(graph, intervention_node, intervention_value, target_node)
 
-    def _fallback_predict_intervention(self, graph: Dict[str, Any], intervention_node: str, intervention_value: float, target_node: str) -> Dict[str, Any]:
+            reasoner = CausalReasoner()
+            if hasattr(reasoner, "predict_intervention"):
+                return reasoner.predict_intervention(
+                    graph, intervention_node, intervention_value, target_node
+                )
+            return self._fallback_predict_intervention(
+                graph, intervention_node, intervention_value, target_node
+            )
+        except Exception:
+            return self._fallback_predict_intervention(
+                graph, intervention_node, intervention_value, target_node
+            )
+
+    def _fallback_predict_intervention(
+        self,
+        graph: Dict[str, Any],
+        intervention_node: str,
+        intervention_value: float,
+        target_node: str,
+    ) -> Dict[str, Any]:
         edges = graph.get("edges", [])
 
         # Check if there's a path from intervention_node to target_node
-        path_exists = any(e["source"] == intervention_node and e["target"] == target_node for e in edges)
+        path_exists = any(
+            e["source"] == intervention_node and e["target"] == target_node
+            for e in edges
+        )
 
         if path_exists:
             if target_node == "market_up":
@@ -162,8 +258,14 @@ class CausalReasoningBenchmark:
                 prediction = "negative_effect"
             else:
                 prediction = "no_effect"
-            avg_conf = sum(e["confidence"] for e in edges if e["source"] == intervention_node) / max(1, len([e for e in edges if e["source"] == intervention_node]))
-            return {"prediction": prediction, "confidence": avg_conf, "reason": f"Path {intervention_node}→{target_node}"}
+            avg_conf = sum(
+                e["confidence"] for e in edges if e["source"] == intervention_node
+            ) / max(1, len([e for e in edges if e["source"] == intervention_node]))
+            return {
+                "prediction": prediction,
+                "confidence": avg_conf,
+                "reason": f"Path {intervention_node}→{target_node}",
+            }
 
         # No direct path — infer from target_node semantics and intervention_value
         if target_node == "no_change":
@@ -174,8 +276,16 @@ class CausalReasoningBenchmark:
             prediction = "negative_effect"
         else:
             prediction = "no_effect"
-        avg_conf = sum(e["confidence"] for e in edges) / max(1, len(edges)) * 0.5 if edges else 0.3
-        return {"prediction": prediction, "confidence": avg_conf, "reason": "Inferred from target semantics and intervention sign"}
+        avg_conf = (
+            sum(e["confidence"] for e in edges) / max(1, len(edges)) * 0.5
+            if edges
+            else 0.3
+        )
+        return {
+            "prediction": prediction,
+            "confidence": avg_conf,
+            "reason": "Inferred from target semantics and intervention sign",
+        }
 
     def _determine_ground_truth(self, obs: EventObservation) -> str:
         if obs.effect == "market_up":
@@ -185,20 +295,29 @@ class CausalReasoningBenchmark:
         else:
             return "no_effect"
 
-    def _evaluate_accuracy(self, predictions: List[Dict[str, Any]], ground_truth: List[Dict[str, Any]]) -> float:
+    def _evaluate_accuracy(
+        self, predictions: List[Dict[str, Any]], ground_truth: List[Dict[str, Any]]
+    ) -> float:
         try:
             from backend.core.causal_reasoning import CausalReasoner
+
             reasoner = CausalReasoner()
-            if hasattr(reasoner, 'evaluate_accuracy'):
+            if hasattr(reasoner, "evaluate_accuracy"):
                 return reasoner.evaluate_accuracy(predictions, ground_truth)
             return self._fallback_evaluate_accuracy(predictions, ground_truth)
         except Exception:
             return self._fallback_evaluate_accuracy(predictions, ground_truth)
 
-    def _fallback_evaluate_accuracy(self, predictions: List[Dict[str, Any]], ground_truth: List[Dict[str, Any]]) -> float:
+    def _fallback_evaluate_accuracy(
+        self, predictions: List[Dict[str, Any]], ground_truth: List[Dict[str, Any]]
+    ) -> float:
         if not predictions or not ground_truth:
             return 0.0
-        correct = sum(1 for pred, truth in zip(predictions, ground_truth) if pred.get("prediction") == truth.get("actual"))
+        correct = sum(
+            1
+            for pred, truth in zip(predictions, ground_truth)
+            if pred.get("prediction") == truth.get("actual")
+        )
         return correct / len(predictions)
 
     def _save_report(self, result: BenchmarkResult) -> None:
@@ -207,9 +326,12 @@ class CausalReasoningBenchmark:
             "score": result.score,
             "passed": result.passed,
             "metadata": result.metadata,
-            "timestamp": result.timestamp.isoformat()
+            "timestamp": result.timestamp.isoformat(),
         }
-        report_path = self.reports_dir / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        report_path = (
+            self.reports_dir
+            / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        )
         with open(report_path, "w") as f:
             json.dump(report_data, f, indent=2)
         logger.bind(report_path=str(report_path)).info("Report saved")
@@ -219,10 +341,15 @@ def register():
     """Register this benchmark with the EvalsRunner."""
     try:
         from backend.evals.registry import BenchmarkRegistry
-        BenchmarkRegistry.register(CausalReasoningBenchmark.BENCHMARK_ID, CausalReasoningBenchmark)
+
+        BenchmarkRegistry.register(
+            CausalReasoningBenchmark.BENCHMARK_ID, CausalReasoningBenchmark
+        )
         logger.info(f"Registered {CausalReasoningBenchmark.BENCHMARK_ID}")
     except ImportError:
-        logger.warning("BenchmarkRegistry not available, benchmark will be self-registering")
+        logger.warning(
+            "BenchmarkRegistry not available, benchmark will be self-registering"
+        )
 
 
 if __name__ == "__main__":

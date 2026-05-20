@@ -21,12 +21,14 @@ def get_db_session():
                 try:
                     db.rollback()
                 except Exception:
-                    logger.exception("Failed to rollback session after PendingRollbackError")
+                    logger.exception(
+                        "Failed to rollback session after PendingRollbackError"
+                    )
                 return
             except Exception as commit_err:
                 db.rollback()
                 if "locked" in str(commit_err).lower() and attempt < 4:
-                    time.sleep(0.3 * (2 ** attempt))
+                    time.sleep(0.3 * (2**attempt))
                     continue
                 raise
     except Exception:

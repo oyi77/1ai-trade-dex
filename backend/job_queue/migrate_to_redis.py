@@ -4,6 +4,7 @@ Usage:
     python -m backend.job_queue.migrate_to_redis           # SQLite -> Redis
     python -m backend.job_queue.migrate_to_redis --reverse # Redis -> SQLite (rollback)
 """
+
 import argparse
 import asyncio
 from typing import Dict
@@ -23,7 +24,11 @@ async def migrate_sqlite_to_redis() -> Dict[str, int]:
         logger.error(f"RedisQueue unavailable: {e}")
         return {"migrated": 0, "failed": 0, "skipped": 0}
 
-    redis_queue = RedisQueue(settings.JOB_QUEUE_URL if settings.JOB_QUEUE_URL.startswith("redis://") else settings.REDIS_URL)
+    redis_queue = RedisQueue(
+        settings.JOB_QUEUE_URL
+        if settings.JOB_QUEUE_URL.startswith("redis://")
+        else settings.REDIS_URL
+    )
 
     migrated = 0
     failed = 0
@@ -60,7 +65,9 @@ async def rollback_redis_to_sqlite() -> Dict[str, int]:
     restored = 0
     session = SessionLocal()
     try:
-        migrated_jobs = session.query(JobQueue).filter(JobQueue.status == "migrated").all()
+        migrated_jobs = (
+            session.query(JobQueue).filter(JobQueue.status == "migrated").all()
+        )
         logger.info(f"Restoring {len(migrated_jobs)} migrated jobs to pending")
         for job in migrated_jobs:
             job.status = "pending"
@@ -75,7 +82,9 @@ async def rollback_redis_to_sqlite() -> Dict[str, int]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--reverse", action="store_true", help="Rollback Redis -> SQLite")
+    parser.add_argument(
+        "--reverse", action="store_true", help="Rollback Redis -> SQLite"
+    )
     args = parser.parse_args()
     if args.reverse:
         asyncio.run(rollback_redis_to_sqlite())

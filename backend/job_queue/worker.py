@@ -40,7 +40,12 @@ class Worker:
         _db_executor: Thread pool for cleanup operations
     """
 
-    def __init__(self, queue: AbstractQueue, max_concurrent: Optional[int] = None, task_manager: Optional[TaskManager] = None):
+    def __init__(
+        self,
+        queue: AbstractQueue,
+        max_concurrent: Optional[int] = None,
+        task_manager: Optional[TaskManager] = None,
+    ):
         """
         Initialize the worker.
 
@@ -90,8 +95,7 @@ class Worker:
                 # SCHED-6: Cleanup completed/cancelled tasks every 100 iterations
                 if _iter_count % 100 == 0:
                     completed_tasks = {
-                        task for task in self._active_tasks
-                        if task.done()
+                        task for task in self._active_tasks if task.done()
                     }
                     if completed_tasks:
                         self._active_tasks -= completed_tasks
@@ -181,9 +185,14 @@ class Worker:
                         # Permanent errors (bad data) → dead_letter, no retry
                         try:
                             from backend.models.database import JobQueue, SessionLocal
+
                             _session = SessionLocal()
                             try:
-                                _job = _session.query(JobQueue).filter(JobQueue.id == job_id).first()
+                                _job = (
+                                    _session.query(JobQueue)
+                                    .filter(JobQueue.id == job_id)
+                                    .first()
+                                )
                                 if _job:
                                     _job.status = "dead_letter"
                                     _job.error_message = error_msg
@@ -204,7 +213,11 @@ class Worker:
                 timer.status = "error"
                 error_msg = f"Permanent error: {str(e)}"
                 try:
-                    from backend.models.database import SessionLocal as _SL, JobQueue as _JQ
+                    from backend.models.database import (
+                        SessionLocal as _SL,
+                        JobQueue as _JQ,
+                    )
+
                     _session = _SL()
                     try:
                         _job = _session.query(_JQ).filter(_JQ.id == job_id).first()
@@ -240,24 +253,31 @@ class Worker:
                 if is_transient:
                     # Transient errors are retried normally via queue.fail()
                     await self._queue.fail(job_id, error_msg)
-                    logger.warning(f"Job {job_id} transient error (will retry): {error_msg}")
+                    logger.warning(
+                        f"Job {job_id} transient error (will retry): {error_msg}"
+                    )
                 else:
                     # Other exceptions are treated as permanent
                     try:
                         from backend.models.database import JobQueue, SessionLocal
+
                         _JQ = JobQueue
                         _session = SessionLocal()
                         try:
                             _job = _session.query(_JQ).filter(_JQ.id == job_id).first()
                             if _job:
-                                _job.status = "dead_letter"  # SCHED-4: Permanent failure
+                                _job.status = (
+                                    "dead_letter"  # SCHED-4: Permanent failure
+                                )
                                 _job.error_message = error_msg
                                 _session.commit()
                         finally:
                             _session.close()
                     except Exception:
                         logger.exception("Failed to mark job as dead_letter")
-                    logger.error(f"Job {job_id} error (dead_letter): {error_msg}", exc_info=True)
+                    logger.error(
+                        f"Job {job_id} error (dead_letter): {error_msg}", exc_info=True
+                    )
 
             finally:
                 # Always remove from in-flight tracking
@@ -295,7 +315,9 @@ class Worker:
         required_fields = VALID_JOB_TYPES[job.job_type]
         for field in required_fields:
             if field not in job.payload:
-                raise ValueError(f"Missing required field '{field}' in payload for {job.job_type}")
+                raise ValueError(
+                    f"Missing required field '{field}' in payload for {job.job_type}"
+                )
 
         # Dispatch based on job type
         if job.job_type == "market_scan":

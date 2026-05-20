@@ -6,6 +6,7 @@ stop loss, or max hold time. Kelly criterion sizing based on rolling win rate.
 
 Paper mode only. Uses HFT executor path.
 """
+
 from __future__ import annotations
 
 import time
@@ -24,21 +25,22 @@ from backend.core.decisions import record_decision
 
 from loguru import logger
 
-
 # ---------------------------------------------------------------------------
 # Position tracking
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ScalpPosition:
     """Tracks an open scalping position."""
+
     position_id: str
     market_id: str
     ticker: str
-    direction: str          # "BUY_YES" or "BUY_NO"
+    direction: str  # "BUY_YES" or "BUY_NO"
     entry_price: float
     size_usd: float
-    opened_at: float        # time.monotonic()
+    opened_at: float  # time.monotonic()
     exit_price: Optional[float] = None
     closed_at: Optional[float] = None
     exit_reason: Optional[str] = None
@@ -49,6 +51,7 @@ class ScalpPosition:
 # ---------------------------------------------------------------------------
 # Strategy
 # ---------------------------------------------------------------------------
+
 
 class HFTScalperStrategy(BaseStrategy):
     """Momentum scalping — ride short-term price moves, exit fast."""
@@ -63,27 +66,25 @@ class HFTScalperStrategy(BaseStrategy):
     category = "hft"
 
     default_params: dict = {
-        "entry_threshold": 0.01,       # 1% price move to trigger entry
-        "profit_target": 0.008,        # 0.8% profit target
-        "stop_loss": 0.008,            # 0.8% stop loss
-        "max_hold_seconds": 15,        # max hold time
-        "lookback_window": 30,         # seconds of price history to analyze
-        "min_volume": 500,             # minimum market volume
-        "max_spread": 0.05,            # don't trade if spread > 5%
-        "kelly_fraction": 0.20,        # 20% of Kelly
-        "max_position_usd": 50,        # max per trade
-        "cooldown_seconds": 5,         # min time between trades same market
-        "momentum_confirmation": 2,    # need N consecutive same-direction ticks
+        "entry_threshold": 0.01,  # 1% price move to trigger entry
+        "profit_target": 0.008,  # 0.8% profit target
+        "stop_loss": 0.008,  # 0.8% stop loss
+        "max_hold_seconds": 15,  # max hold time
+        "lookback_window": 30,  # seconds of price history to analyze
+        "min_volume": 500,  # minimum market volume
+        "max_spread": 0.05,  # don't trade if spread > 5%
+        "kelly_fraction": 0.20,  # 20% of Kelly
+        "max_position_usd": 50,  # max per trade
+        "cooldown_seconds": 5,  # min time between trades same market
+        "momentum_confirmation": 2,  # need N consecutive same-direction ticks
         "max_concurrent_positions": 5,
-        "max_daily_loss_pct": 0.03,    # 3% bankroll max daily loss
+        "max_daily_loss_pct": 0.03,  # 3% bankroll max daily loss
     }
 
     def __init__(self) -> None:
         super().__init__()
         # Rolling price history: market_id -> deque[(timestamp, price)]
-        self._price_history: dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=500)
-        )
+        self._price_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=500))
         # Open positions
         self._open_positions: dict[str, ScalpPosition] = {}
         # Closed positions (last 200 for win rate calc)
@@ -114,16 +115,13 @@ class HFTScalperStrategy(BaseStrategy):
 
         # Filter to lookback window
         now = time.time()
-        windowed = [
-            (ts, p) for ts, p in price_history
-            if (now - ts) <= lookback
-        ]
+        windowed = [(ts, p) for ts, p in price_history if (now - ts) <= lookback]
 
         if len(windowed) < confirmation + 1:
             return None, 0.0
 
         # Extract recent prices for confirmation check
-        recent_prices = [p for _, p in windowed[-(confirmation + 1):]]
+        recent_prices = [p for _, p in windowed[-(confirmation + 1) :]]
         deltas = [
             recent_prices[i] - recent_prices[i - 1]
             for i in range(1, len(recent_prices))
@@ -190,13 +188,12 @@ class HFTScalperStrategy(BaseStrategy):
             return min(max_position, bankroll * 0.01)
 
         win_rate = wins / total
-        avg_win = (
-            sum(p.pnl_pct for p in self._closed_positions if p.pnl_pct > 0) / max(wins, 1)
+        avg_win = sum(p.pnl_pct for p in self._closed_positions if p.pnl_pct > 0) / max(
+            wins, 1
         )
-        avg_loss = (
-            sum(abs(p.pnl_pct) for p in self._closed_positions if p.pnl_pct <= 0)
-            / max(total - wins, 1)
-        )
+        avg_loss = sum(
+            abs(p.pnl_pct) for p in self._closed_positions if p.pnl_pct <= 0
+        ) / max(total - wins, 1)
 
         # Kelly: f* = (p * b - q) / b where b = avg_win/avg_loss
         b = avg_win / max(avg_loss, 0.001)
@@ -261,6 +258,7 @@ class HFTScalperStrategy(BaseStrategy):
     def _maybe_reset_daily_pnl(self, now: float) -> None:
         """Reset daily PnL counter at midnight UTC."""
         from datetime import datetime, timezone
+
         today = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d")
         if today != self._daily_pnl_day:
             self._daily_pnl = 0.0
@@ -281,12 +279,14 @@ class HFTScalperStrategy(BaseStrategy):
         if position.direction == "BUY_YES":
             position.pnl_pct = (
                 (exit_price - position.entry_price) / position.entry_price
-                if position.entry_price > 0 else 0.0
+                if position.entry_price > 0
+                else 0.0
             )
         else:
             position.pnl_pct = (
                 (position.entry_price - exit_price) / position.entry_price
-                if position.entry_price > 0 else 0.0
+                if position.entry_price > 0
+                else 0.0
             )
 
         position.pnl_usd = position.pnl_pct * position.size_usd
@@ -299,8 +299,13 @@ class HFTScalperStrategy(BaseStrategy):
 
         logger.info(
             "[hft_scalper] CLOSED {} {} @ {} | entry={} reason={} pnl={:.4f}% ${:.4f}",
-            position.direction, position.ticker, exit_price,
-            position.entry_price, reason, position.pnl_pct * 100, position.pnl_usd,
+            position.direction,
+            position.ticker,
+            exit_price,
+            position.entry_price,
+            reason,
+            position.pnl_pct * 100,
+            position.pnl_usd,
         )
         return position
 
@@ -311,9 +316,9 @@ class HFTScalperStrategy(BaseStrategy):
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
         """Filter markets suitable for scalping: sufficient volume and liquidity."""
         return [
-            m for m in markets
-            if m.volume >= self.default_params["min_volume"]
-            and m.liquidity >= 100
+            m
+            for m in markets
+            if m.volume >= self.default_params["min_volume"] and m.liquidity >= 100
         ]
 
     # ------------------------------------------------------------------
@@ -325,9 +330,7 @@ class HFTScalperStrategy(BaseStrategy):
         if event.event_type == "last_trade_price":
             price = float(event.data.get("price", 0))
             if 0 < price < 1:
-                self._price_history[event.token_id].append(
-                    (event.timestamp, price)
-                )
+                self._price_history[event.token_id].append((event.timestamp, price))
         return None
 
     # ------------------------------------------------------------------
@@ -356,13 +359,13 @@ class HFTScalperStrategy(BaseStrategy):
                 if not history:
                     continue
                 current_price = history[-1][1]
-                exit_reason, pnl_pct = self.check_exit(
-                    position, current_price, params
-                )
+                exit_reason, pnl_pct = self.check_exit(position, current_price, params)
                 if exit_reason:
                     tickers_to_close[ticker] = (position, current_price)
                 # Also check stale positions by wall clock
-                elif (now - position.opened_at) > params.get("max_hold_seconds", 15) * 3:
+                elif (now - position.opened_at) > params.get(
+                    "max_hold_seconds", 15
+                ) * 3:
                     tickers_to_close[ticker] = (position, current_price)
 
             for ticker, (position, exit_price) in tickers_to_close.items():
@@ -420,7 +423,9 @@ class HFTScalperStrategy(BaseStrategy):
                     balance = await ctx.clob.get_usdc_balance()
                     bankroll = float(balance) if balance else 100.0
             except Exception:
-                logger.warning("Failed to fetch USDC balance from CLOB, using default bankroll")
+                logger.warning(
+                    "Failed to fetch USDC balance from CLOB, using default bankroll"
+                )
 
             for market in markets:
                 try:
@@ -433,9 +438,7 @@ class HFTScalperStrategy(BaseStrategy):
                         if best_bid > 0 and best_ask > 0:
                             mid = (best_bid + best_ask) / 2.0
                     if 0 < mid < 1:
-                        self._price_history[market.ticker].append(
-                            (now_wall, mid)
-                        )
+                        self._price_history[market.ticker].append((now_wall, mid))
 
                     # Risk gates
                     rejection = self._passes_risk_gates(
@@ -472,12 +475,13 @@ class HFTScalperStrategy(BaseStrategy):
                             "sources": ["hft_scalper"],
                         },
                         reason=f"Momentum {direction}: move={move_size:.4f} "
-                               f"threshold={params['entry_threshold']:.4f}",
+                        f"threshold={params['entry_threshold']:.4f}",
                     )
                     result.decisions_recorded += 1
 
                     # Open position
                     import uuid
+
                     position = ScalpPosition(
                         position_id=str(uuid.uuid4()),
                         market_id=market.ticker,
@@ -491,7 +495,11 @@ class HFTScalperStrategy(BaseStrategy):
 
                     logger.info(
                         "[hft_scalper] OPENED {} {} @ {} size=${:.2f} move={:.4f}",
-                        direction, market.ticker, mid, size_usd, move_size,
+                        direction,
+                        market.ticker,
+                        mid,
+                        size_usd,
+                        move_size,
                     )
 
                     # Execute via HFT path if CLOB available
@@ -502,7 +510,9 @@ class HFTScalperStrategy(BaseStrategy):
                                 ticker=market.ticker,
                                 signal_type="edge",
                                 edge=mid,
-                                confidence=min(move_size / params["entry_threshold"], 1.0),
+                                confidence=min(
+                                    move_size / params["entry_threshold"], 1.0
+                                ),
                                 metadata={
                                     "strategy": self.name,
                                     "direction": direction,
@@ -521,7 +531,8 @@ class HFTScalperStrategy(BaseStrategy):
                         except Exception as exec_err:
                             logger.warning(
                                 "[hft_scalper] Execution failed for {}: {}",
-                                market.ticker, exec_err,
+                                market.ticker,
+                                exec_err,
                             )
                             # Remove position on execution failure
                             self._open_positions.pop(market.ticker, None)
@@ -531,7 +542,8 @@ class HFTScalperStrategy(BaseStrategy):
                 except Exception as market_err:
                     logger.warning(
                         "[hft_scalper] Error processing {}: {}",
-                        market.ticker, market_err,
+                        market.ticker,
+                        market_err,
                     )
                     result.errors.append(str(market_err))
 

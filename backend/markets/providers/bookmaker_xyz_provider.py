@@ -1,13 +1,23 @@
 """bookmaker.xyz market provider — powered by Azuro Protocol."""
+
 import os
 from decimal import Decimal
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 from loguru import logger
 
 try:
     from backend.clients.azuro_client import AzuroClient
+
     HAS_AZURO = True
 except ImportError:
     HAS_AZURO = False
@@ -63,9 +73,13 @@ class BookmakerXYZProvider(BaseMarketProvider):
             )
             # Azuro protocol: fees are gas costs on-chain, not exposed via API
             # Estimate gas fee based on typical Polygon gas price (~0.01 USDC per tx)
-            gas_fee_wei = await self._client.estimate_gas_fee() if hasattr(self._client, 'estimate_gas_fee') else 10_000_000_000_000_000  # ~0.01 USDC default
+            gas_fee_wei = (
+                await self._client.estimate_gas_fee()
+                if hasattr(self._client, "estimate_gas_fee")
+                else 10_000_000_000_000_000
+            )  # ~0.01 USDC default
             fees_paid = Decimal(str(gas_fee_wei)) / Decimal("1000000000000000000")
-            
+
             return NormalizedOrderResult(
                 venue_order_id=tx_hash,
                 client_order_id=order.client_order_id,
@@ -86,11 +100,21 @@ class BookmakerXYZProvider(BaseMarketProvider):
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         """Get available markets from bookmaker.xyz."""
         raw = await self._client.get_markets(limit=limit)
-        return [MarketInfo(market_id=str(c.get("conditionId", "")), question=str(c), yes_price=0.5, no_price=0.5) for c in raw]
+        return [
+            MarketInfo(
+                market_id=str(c.get("conditionId", "")),
+                question=str(c),
+                yes_price=0.5,
+                no_price=0.5,
+            )
+            for c in raw
+        ]
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(available=Decimal("0"), total=Decimal("0"), currency="USDC")
+        return NormalizedBalance(
+            available=Decimal("0"), total=Decimal("0"), currency="USDC"
+        )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

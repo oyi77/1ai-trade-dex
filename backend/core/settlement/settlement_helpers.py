@@ -14,6 +14,7 @@ from backend.models.database import Trade, Signal, SettlementEvent, TradeContext
 from backend.config import settings
 
 from loguru import logger
+
 # Module-level: track consecutive 404s per market_id (bounded TTLCache: 1000 entries, 1 hour TTL)
 _market_404_counts: TTLCache = TTLCache(maxsize=1000, ttl=3600)
 
@@ -184,7 +185,9 @@ async def fetch_polymarket_resolution(
                         if result[0]:
                             return result
         except Exception:
-            logger.exception(f"[settlement] Gamma API resolution failed for market {market_id}")
+            logger.exception(
+                f"[settlement] Gamma API resolution failed for market {market_id}"
+            )
 
     if _looks_like_token_id(market_id):
         resolved, value = await _resolve_pm_by_token_id(market_id)
@@ -253,7 +256,7 @@ async def fetch_polymarket_resolution(
                     except Exception as e:
                         logger.debug(
                             f"[settlement_helpers.fetch_polymarket_resolution] {type(e).__name__}: Event query failed for {event_slug}: {e}",
-                            exc_info=True
+                            exc_info=True,
                         )
 
             # Fallback: try market ID directly (works for numeric IDs)
@@ -319,7 +322,7 @@ async def _check_clob_resolution(market_id: str) -> Tuple[bool, Optional[float]]
     except Exception as e:
         logger.debug(
             f"[settlement_helpers._check_clob_resolution] {type(e).__name__}: CLOB resolution check failed for {market_id}: {e}",
-            exc_info=True
+            exc_info=True,
         )
     return False, None
 
@@ -417,7 +420,9 @@ def _parse_market_resolution(market: dict) -> Tuple[bool, Optional[float]]:
                 if now > end_date:
                     hours_past_end = (now - end_date).total_seconds() / 3600.0
             except (ValueError, TypeError):
-                logger.exception("[settlement] failed to parse market end_date for early resolution check")
+                logger.exception(
+                    "[settlement] failed to parse market end_date for early resolution check"
+                )
 
         # If the game is explicitly live AND the endDate hasn't been
         # surpassed by a wide margin, don't early-resolve.
@@ -592,7 +597,9 @@ def _check_event_concluded(market: dict) -> bool:
                 ):
                     return False
         except (ValueError, TypeError):
-            logger.exception("[settlement] failed to parse market end_date for BTC updown resolution")
+            logger.exception(
+                "[settlement] failed to parse market end_date for BTC updown resolution"
+            )
 
     return False
 
@@ -676,13 +683,16 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
     # Try registered provider first
     try:
         from backend.markets.provider_registry import market_registry
+
         provider = market_registry.get(platform)
-        if provider and hasattr(provider, 'resolve_market'):
+        if provider and hasattr(provider, "resolve_market"):
             is_resolved, value = await provider.resolve_market(trade.market_ticker)
             if is_resolved:
                 return True, value
     except Exception:
-        logger.exception(f"[settlement] provider.resolve_market failed for {trade.market_ticker}")
+        logger.exception(
+            f"[settlement] provider.resolve_market failed for {trade.market_ticker}"
+        )
 
     # Legacy fallback — wrap in error handling to prevent scheduler hang on API timeout
     try:
@@ -706,7 +716,9 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
             if result is not None:
                 return True, result
         except Exception as e:
-            logger.warning(f"[settlement] BTC Binance fallback failed for {ticker}: {e}")
+            logger.warning(
+                f"[settlement] BTC Binance fallback failed for {ticker}: {e}"
+            )
 
     # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports
     return False, None
@@ -740,7 +752,11 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     size = float(_filled) if isinstance(_filled, (int, float)) else trade.size
 
     _fill_price = getattr(trade, "fill_price", None)
-    entry_price = float(_fill_price) if isinstance(_fill_price, (int, float)) else trade.entry_price
+    entry_price = (
+        float(_fill_price)
+        if isinstance(_fill_price, (int, float))
+        else trade.entry_price
+    )
 
     # Account for Polymarket taker fee
     # Exact formula: (fee_bps / 10000) * min(price, 1-price) * size
@@ -876,14 +892,21 @@ async def _resolve_markets(
                 if is_weather:
                     try:
                         from backend.data.weather import CITY_CONFIG, fetch_noaa_metar
-                        city_key = ticker if ticker in CITY_CONFIG else next(
-                            (k for k in CITY_CONFIG if k in (ticker or "").lower()),
-                            None,
+
+                        city_key = (
+                            ticker
+                            if ticker in CITY_CONFIG
+                            else next(
+                                (k for k in CITY_CONFIG if k in (ticker or "").lower()),
+                                None,
+                            )
                         )
                         if city_key and CITY_CONFIG[city_key].get("nws_station"):
                             station_id = CITY_CONFIG[city_key]["nws_station"]
                             today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                            metar_observed = await fetch_noaa_metar(station_id, today_str)
+                            metar_observed = await fetch_noaa_metar(
+                                station_id, today_str
+                            )
                     except Exception as metar_err:
                         logger.debug(
                             f"[settlement_helpers._resolve_one] METAR lookup skipped for {ticker}: {metar_err}"
@@ -951,9 +974,11 @@ async def _get_actual_temp_from_openmeteo(
                     "longitude": lon,
                     "start_date": target_date,
                     "end_date": target_date,
-                    "daily": "temperature_2m_max"
-                    if cfg.get("metric") != "low"
-                    else "temperature_2m_min",
+                    "daily": (
+                        "temperature_2m_max"
+                        if cfg.get("metric") != "low"
+                        else "temperature_2m_min"
+                    ),
                 },
             )
             if resp.status_code != 200:
@@ -966,7 +991,7 @@ async def _get_actual_temp_from_openmeteo(
     except Exception as e:
         logger.debug(
             f"[settlement_helpers._get_actual_temp_from_openmeteo] {type(e).__name__}: Failed to fetch temperature for {city_key} on {target_date}: {e}",
-            exc_info=True
+            exc_info=True,
         )
     return None
 
@@ -1046,12 +1071,12 @@ async def _record_weather_observation(trade, settlement_value: float, db) -> Non
                 except Exception as e:
                     logger.debug(
                         f"[settlement_helpers._record_weather_observation] {type(e).__name__}: JSON parse of signal_source failed: {e}",
-                        exc_info=True
+                        exc_info=True,
                     )
         except Exception as e:
             logger.debug(
                 f"[settlement_helpers._record_weather_observation] {type(e).__name__}: DB query for TradeContext failed: {e}",
-                exc_info=True
+                exc_info=True,
             )
 
     if not signal_data:
@@ -1064,7 +1089,7 @@ async def _record_weather_observation(trade, settlement_value: float, db) -> Non
         except Exception as e:
             logger.debug(
                 f"[settlement_helpers._record_weather_observation] {type(e).__name__}: Could not parse signal_data for trade {trade.id}: {e}",
-                exc_info=True
+                exc_info=True,
             )
             return
 
@@ -1157,7 +1182,7 @@ async def process_settled_trade(
     except Exception as e:
         logger.debug(
             f"[settlement_helpers.process_settled_trade] {type(e).__name__}: Broadcast event failed: {e}",
-            exc_info=True
+            exc_info=True,
         )
 
     # Create settlement event
@@ -1303,6 +1328,7 @@ async def process_settled_trade(
     if trade.result == "loss":
         try:
             from backend.core.trade_forensics import trade_forensics
+
             await trade_forensics.analyze_losing_trade(trade.id)
         except Exception as e:
             logger.opt(exception=True).debug(
@@ -1313,7 +1339,10 @@ async def process_settled_trade(
 
     if trade.strategy:
         try:
-            from backend.core.strategy_performance_registry import strategy_performance_registry
+            from backend.core.strategy_performance_registry import (
+                strategy_performance_registry,
+            )
+
             strategy_performance_registry.update_from_settlement(trade.strategy, db=db)
         except Exception as e:
             logger.opt(exception=True).debug(
@@ -1325,6 +1354,7 @@ async def process_settled_trade(
     # Record TransactionEvent for settlement P&L (ledger entry)
     try:
         from backend.models.database import TransactionEvent, BotState
+
         event_type = "settlement_win" if trade.result == "win" else "settlement_loss"
         bot = db.query(BotState).first()
         prior_balance = bot.bankroll if bot else 0.0
@@ -1352,6 +1382,7 @@ async def process_settled_trade(
     # Record outcome to strategy_outcomes table
     try:
         from backend.core.outcome_repository import record_outcome
+
         record_outcome(trade, db)
     except Exception as e:
         logger.opt(exception=True).debug(
@@ -1476,8 +1507,18 @@ async def resolve_paper_trades(db) -> List[Trade]:
     # on illiquid markets before actual resolution)
     MIN_SETTLE_AGE = timedelta(hours=1)
     pending = [
-        t for t in pending
-        if t.timestamp and (now - (t.timestamp.replace(tzinfo=timezone.utc) if t.timestamp.tzinfo is None else t.timestamp)) > MIN_SETTLE_AGE
+        t
+        for t in pending
+        if t.timestamp
+        and (
+            now
+            - (
+                t.timestamp.replace(tzinfo=timezone.utc)
+                if t.timestamp.tzinfo is None
+                else t.timestamp
+            )
+        )
+        > MIN_SETTLE_AGE
     ]
 
     if not pending:
@@ -1505,7 +1546,11 @@ async def resolve_paper_trades(db) -> List[Trade]:
                     continue
 
                 p0 = float(prices[0]) if prices[0] is not None else None
-                p1 = float(prices[1]) if len(prices) > 1 and prices[1] is not None else None
+                p1 = (
+                    float(prices[1])
+                    if len(prices) > 1 and prices[1] is not None
+                    else None
+                )
 
                 if p0 is None or p1 is None:
                     continue
@@ -1525,7 +1570,9 @@ async def resolve_paper_trades(db) -> List[Trade]:
                 for trade in pending:
                     if trade.market_ticker == ticker:
                         dir_yes = trade.direction in ("yes", "up")
-                        is_win = (dir_yes and settlement_value == 1.0) or (not dir_yes and settlement_value == 0.0)
+                        is_win = (dir_yes and settlement_value == 1.0) or (
+                            not dir_yes and settlement_value == 0.0
+                        )
 
                         trade.result = "win" if is_win else "loss"
                         trade.settlement_value = settlement_value
@@ -1557,6 +1604,7 @@ async def resolve_paper_trades(db) -> List[Trade]:
         # Record outcomes to strategy_outcomes table
         try:
             from backend.core.outcome_repository import record_outcome
+
             for trade in settled:
                 if trade.result in ("win", "loss"):
                     record_outcome(trade, db)
@@ -1569,7 +1617,11 @@ async def resolve_paper_trades(db) -> List[Trade]:
                 for trade in settled:
                     if trade.pnl is None:
                         continue
-                    state = db.query(type("BotState", (object,), {})).filter_by(mode="paper").first()
+                    state = (
+                        db.query(type("BotState", (object,), {}))
+                        .filter_by(mode="paper")
+                        .first()
+                    )
                     if state and hasattr(state, "paper_pnl"):
                         state.paper_pnl = (state.paper_pnl or 0) + trade.pnl
                         state.paper_trades = (state.paper_trades or 0) + 1

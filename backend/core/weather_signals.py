@@ -15,6 +15,8 @@ from backend.data.weather_markets import WeatherMarket, fetch_polymarket_weather
 from backend.models.database import Signal
 
 from loguru import logger
+
+
 @dataclass
 class WeatherTradingSignal:
     """A trading signal for a weather temperature market."""
@@ -128,6 +130,7 @@ async def generate_weather_signal(
         from backend.models.database import BotState, for_update
 
         from backend.db.utils import get_db_session
+
         with get_db_session() as _db:
             _state = for_update(_db, _db.query(BotState)).first()
             if _state:
@@ -294,6 +297,7 @@ def _persist_weather_signals(signals: list, mode: str = None):
     effective_mode = mode or settings.TRADING_MODE
 
     from backend.db.utils import get_db_session
+
     try:
         with get_db_session() as db:
             for signal in to_save:

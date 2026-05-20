@@ -1,4 +1,5 @@
 """Kalshi data source plugin for the plugin system."""
+
 import os
 from dataclasses import dataclass
 from backend.data.source_registry import source_registry
@@ -9,6 +10,7 @@ from backend.data.base_source import BaseDataSource, DataSourceManifest, DataTyp
 
 try:
     from backend.data.kalshi_client import KalshiClient
+
     HAS_KALSHI = True
 except ImportError:
     HAS_KALSHI = False
@@ -17,8 +19,6 @@ except ImportError:
 @dataclass
 class KalshiManifest(DataSourceManifest):
     pass
-
-
 
 
 @source_registry.plugin
@@ -64,7 +64,8 @@ class KalshiSource(BaseDataSource):
         else:
             raise DataSourceError(f"Unsupported data type: {data_type}")
 
-    async def backfill(self, data_type: DataType, params: Dict[str, Any],
-                       since_ts: int, until_ts: int) -> List[Any]:
+    async def backfill(
+        self, data_type: DataType, params: Dict[str, Any], since_ts: int, until_ts: int
+    ) -> List[Any]:
         market_id = params.get("market_id")
         return await self._client.get_historical(market_id, since_ts, until_ts)

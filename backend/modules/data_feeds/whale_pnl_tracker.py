@@ -68,13 +68,17 @@ async def _fetch_token_id(
                     try:
                         clob_token_ids = json.loads(clob_token_ids)
                     except Exception as e:
-                        logger.exception(f"[whale_pnl_tracker] Failed to parse clobTokenIds for {condition_id[:20]}...: {e}")
+                        logger.exception(
+                            f"[whale_pnl_tracker] Failed to parse clobTokenIds for {condition_id[:20]}...: {e}"
+                        )
                         clob_token_ids = []
                 if clob_token_ids:
                     return str(clob_token_ids[0])
         return None
     except Exception as e:
-        logger.exception(f"[whale_pnl_tracker] Failed to fetch token_id for {condition_id[:20]}...: {e}")
+        logger.exception(
+            f"[whale_pnl_tracker] Failed to fetch token_id for {condition_id[:20]}...: {e}"
+        )
         return None
     finally:
         if close_client:
@@ -105,10 +109,14 @@ async def _fetch_market_prob(
                         cleaned = prices.strip("[] ")
                         return float(cleaned.split(",")[0])
                     return float(prices)
-        logger.warning(f"[whale_pnl_tracker] _fetch_market_prob: no price data for {condition_id[:20]}...")
+        logger.warning(
+            f"[whale_pnl_tracker] _fetch_market_prob: no price data for {condition_id[:20]}..."
+        )
         return None
     except Exception as e:
-        logger.exception(f"[whale_pnl_tracker] Failed to fetch market prob for {condition_id[:20]}...: {e}")
+        logger.exception(
+            f"[whale_pnl_tracker] Failed to fetch market prob for {condition_id[:20]}...: {e}"
+        )
         return None
     finally:
         if close_client:
@@ -161,9 +169,9 @@ class WhalePNLTrackerStrategy(BaseStrategy):
     def __init__(self):
         super().__init__()
         self._whale_discovery = WhaleDiscovery()
-        self._tracked_positions: Dict[
-            str, WhalePosition
-        ] = {}  # condition_id -> position
+        self._tracked_positions: Dict[str, WhalePosition] = (
+            {}
+        )  # condition_id -> position
         self._last_signal_times: Dict[str, float] = {}  # ticker -> timestamp
         self._whale_pnl_cache: Dict[str, float] = {}  # token_id -> last known PnL
 
@@ -230,7 +238,9 @@ class WhalePNLTrackerStrategy(BaseStrategy):
         if datetime.now(timezone.utc).timestamp() - last_signal < cooldown_minutes * 60:
             return None
 
-        self._last_signal_times[matching_position.ticker] = datetime.now(timezone.utc).timestamp()
+        self._last_signal_times[matching_position.ticker] = datetime.now(
+            timezone.utc
+        ).timestamp()
 
         direction = "yes" if pnl_change > 0 else "no"
         confidence = min(abs(pnl_change) / pnl_threshold, 1.0)
@@ -308,7 +318,9 @@ class WhalePNLTrackerStrategy(BaseStrategy):
                         token_id_map[pos.condition_id] = None
                 for pos, price in zip(all_positions, price_results):
                     if price is None:
-                        logger.warning(f"WhalePnLTracker: failed to fetch market prob for {pos.condition_id[:20]}...")
+                        logger.warning(
+                            f"WhalePnLTracker: failed to fetch market prob for {pos.condition_id[:20]}..."
+                        )
                         market_prob_map[pos.condition_id] = 0.50
                     else:
                         market_prob_map[pos.condition_id] = price

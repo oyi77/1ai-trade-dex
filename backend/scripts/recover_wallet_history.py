@@ -31,8 +31,11 @@ from backend.data.polymarket_clob import clob_from_settings
 from backend.models.database import SessionLocal
 
 from backend.core.log import configure_logging
+
 configure_logging()
 from loguru import logger  # noqa: E402
+
+
 async def main(wallet: str, mode: str):
     """
     Recover wallet history from blockchain.

@@ -1,4 +1,5 @@
 """Weather data fetcher using Open-Meteo Ensemble API and NWS observations."""
+
 import httpx
 import re
 import unicodedata
@@ -13,15 +14,18 @@ from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.config import settings
 
 from loguru import logger
+
 # Circuit breakers for weather API calls
 openmeteo_breaker = CircuitBreaker("open_meteo")
 nws_breaker = CircuitBreaker("nws_api", failure_threshold=5, recovery_timeout=60.0)
-noaa_metar_breaker = CircuitBreaker("noaa_metar", failure_threshold=5, recovery_timeout=60.0)
+noaa_metar_breaker = CircuitBreaker(
+    "noaa_metar", failure_threshold=5, recovery_timeout=60.0
+)
 
 # Rate limiter for weather API calls (30 requests/min default)
 _weather_rate_limiter = ExternalRateLimiter(
     name="weather",
-    max_calls_per_minute=getattr(settings, 'RATE_LIMIT_WEATHER', 30),
+    max_calls_per_minute=getattr(settings, "RATE_LIMIT_WEATHER", 30),
 )
 
 # City configurations — AIRPORT coordinates matching METAR stations used by Polymarket
@@ -29,29 +33,149 @@ _weather_rate_limiter = ExternalRateLimiter(
 # These serve as a high-quality base set; new cities are added dynamically via geocoding.
 CITY_CONFIG: Dict[str, dict] = {
     # US cities — airport coordinates (NOT city centers)
-    "nyc":          {"name": "New York City",  "lat": 40.7772,  "lon": -73.8726,  "nws_station": "KLGA",  "unit": "F"},  # LaGuardia
-    "chicago":      {"name": "Chicago",        "lat": 41.9742,  "lon": -87.9073,  "nws_station": "KORD",  "unit": "F"},  # O'Hare
-    "miami":        {"name": "Miami",          "lat": 25.7959,  "lon": -80.2870,  "nws_station": "KMIA",  "unit": "F"},  # Miami Intl
-    "dallas":       {"name": "Dallas",         "lat": 32.8471,  "lon": -96.8518,  "nws_station": "KDAL",  "unit": "F"},  # Love Field (NOT DFW!)
-    "seattle":      {"name": "Seattle",        "lat": 47.4502,  "lon": -122.3088, "nws_station": "KSEA",  "unit": "F"},  # Sea-Tac
-    "atlanta":      {"name": "Atlanta",        "lat": 33.6407,  "lon": -84.4277,  "nws_station": "KATL",  "unit": "F"},  # Hartsfield
-    "los_angeles":  {"name": "Los Angeles",    "lat": 33.9425,  "lon": -118.4081, "nws_station": "KLAX",  "unit": "F"},  # LAX
-    "denver":       {"name": "Denver",         "lat": 39.8561,  "lon": -104.6737, "nws_station": "KDEN",  "unit": "F"},  # Denver Intl
+    "nyc": {
+        "name": "New York City",
+        "lat": 40.7772,
+        "lon": -73.8726,
+        "nws_station": "KLGA",
+        "unit": "F",
+    },  # LaGuardia
+    "chicago": {
+        "name": "Chicago",
+        "lat": 41.9742,
+        "lon": -87.9073,
+        "nws_station": "KORD",
+        "unit": "F",
+    },  # O'Hare
+    "miami": {
+        "name": "Miami",
+        "lat": 25.7959,
+        "lon": -80.2870,
+        "nws_station": "KMIA",
+        "unit": "F",
+    },  # Miami Intl
+    "dallas": {
+        "name": "Dallas",
+        "lat": 32.8471,
+        "lon": -96.8518,
+        "nws_station": "KDAL",
+        "unit": "F",
+    },  # Love Field (NOT DFW!)
+    "seattle": {
+        "name": "Seattle",
+        "lat": 47.4502,
+        "lon": -122.3088,
+        "nws_station": "KSEA",
+        "unit": "F",
+    },  # Sea-Tac
+    "atlanta": {
+        "name": "Atlanta",
+        "lat": 33.6407,
+        "lon": -84.4277,
+        "nws_station": "KATL",
+        "unit": "F",
+    },  # Hartsfield
+    "los_angeles": {
+        "name": "Los Angeles",
+        "lat": 33.9425,
+        "lon": -118.4081,
+        "nws_station": "KLAX",
+        "unit": "F",
+    },  # LAX
+    "denver": {
+        "name": "Denver",
+        "lat": 39.8561,
+        "lon": -104.6737,
+        "nws_station": "KDEN",
+        "unit": "F",
+    },  # Denver Intl
     # European cities — airport coordinates
-    "london":       {"name": "London",         "lat": 51.5048,  "lon": 0.0495,    "nws_station": "EGLC",  "unit": "C"},  # London City
-    "paris":        {"name": "Paris",          "lat": 48.9962,  "lon": 2.5979,    "nws_station": "LFPG",  "unit": "C"},  # CDG
-    "munich":       {"name": "Munich",         "lat": 48.3537,  "lon": 11.7750,   "nws_station": "EDDM",  "unit": "C"},  # Munich Intl
-    "ankara":       {"name": "Ankara",         "lat": 40.1281,  "lon": 32.9951,   "nws_station": "LTAC",  "unit": "C"},  # Esenboga
+    "london": {
+        "name": "London",
+        "lat": 51.5048,
+        "lon": 0.0495,
+        "nws_station": "EGLC",
+        "unit": "C",
+    },  # London City
+    "paris": {
+        "name": "Paris",
+        "lat": 48.9962,
+        "lon": 2.5979,
+        "nws_station": "LFPG",
+        "unit": "C",
+    },  # CDG
+    "munich": {
+        "name": "Munich",
+        "lat": 48.3537,
+        "lon": 11.7750,
+        "nws_station": "EDDM",
+        "unit": "C",
+    },  # Munich Intl
+    "ankara": {
+        "name": "Ankara",
+        "lat": 40.1281,
+        "lon": 32.9951,
+        "nws_station": "LTAC",
+        "unit": "C",
+    },  # Esenboga
     # Asian cities
-    "seoul":        {"name": "Seoul",          "lat": 37.4691,  "lon": 126.4505,  "nws_station": "RKSI",  "unit": "C"},  # Incheon
-    "tokyo":        {"name": "Tokyo",          "lat": 35.7647,  "lon": 140.3864,  "nws_station": "RJTT",  "unit": "C"},  # Haneda
-    "shanghai":     {"name": "Shanghai",       "lat": 31.1443,  "lon": 121.8083,  "nws_station": "ZSPD",  "unit": "C"},  # Pudong
-    "singapore":    {"name": "Singapore",      "lat": 1.3502,   "lon": 103.9940,  "nws_station": "WSSS",  "unit": "C"},  # Changi
+    "seoul": {
+        "name": "Seoul",
+        "lat": 37.4691,
+        "lon": 126.4505,
+        "nws_station": "RKSI",
+        "unit": "C",
+    },  # Incheon
+    "tokyo": {
+        "name": "Tokyo",
+        "lat": 35.7647,
+        "lon": 140.3864,
+        "nws_station": "RJTT",
+        "unit": "C",
+    },  # Haneda
+    "shanghai": {
+        "name": "Shanghai",
+        "lat": 31.1443,
+        "lon": 121.8083,
+        "nws_station": "ZSPD",
+        "unit": "C",
+    },  # Pudong
+    "singapore": {
+        "name": "Singapore",
+        "lat": 1.3502,
+        "lon": 103.9940,
+        "nws_station": "WSSS",
+        "unit": "C",
+    },  # Changi
     # Other regions
-    "toronto":      {"name": "Toronto",        "lat": 43.6772,  "lon": -79.6306,  "nws_station": "CYYZ",  "unit": "C"},  # Pearson
-    "sao_paulo":    {"name": "Sao Paulo",      "lat": -23.4356, "lon": -46.4731,  "nws_station": "SBGR",  "unit": "C"},  # Guarulhos
-    "buenos_aires": {"name": "Buenos Aires",   "lat": -34.8222, "lon": -58.5358,  "nws_station": "SAEZ",  "unit": "C"},  # Ezeiza
-    "wellington":   {"name": "Wellington",     "lat": -41.3272, "lon": 174.8052,  "nws_station": "NZWN",  "unit": "C"},  # Wellington Intl
+    "toronto": {
+        "name": "Toronto",
+        "lat": 43.6772,
+        "lon": -79.6306,
+        "nws_station": "CYYZ",
+        "unit": "C",
+    },  # Pearson
+    "sao_paulo": {
+        "name": "Sao Paulo",
+        "lat": -23.4356,
+        "lon": -46.4731,
+        "nws_station": "SBGR",
+        "unit": "C",
+    },  # Guarulhos
+    "buenos_aires": {
+        "name": "Buenos Aires",
+        "lat": -34.8222,
+        "lon": -58.5358,
+        "nws_station": "SAEZ",
+        "unit": "C",
+    },  # Ezeiza
+    "wellington": {
+        "name": "Wellington",
+        "lat": -41.3272,
+        "lon": 174.8052,
+        "nws_station": "NZWN",
+        "unit": "C",
+    },  # Wellington Intl
 }
 
 # ── Dynamic city registry ──────────────────────────────────────────────
@@ -110,7 +234,12 @@ async def geocode_city(city_name: str) -> Optional[dict]:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 settings.OPEN_METEO_GEOCODING_URL,
-                params={"name": city_name, "count": 1, "language": "en", "format": "json"},
+                params={
+                    "name": city_name,
+                    "count": 1,
+                    "language": "en",
+                    "format": "json",
+                },
             )
             resp.raise_for_status()
             data = resp.json()
@@ -160,11 +289,12 @@ async def ensure_city_registered(city_name: str) -> Optional[str]:
 @dataclass
 class EnsembleForecast:
     """Ensemble weather forecast with per-member data."""
+
     city_key: str
     city_name: str
     target_date: date
     member_highs: List[float]  # Daily max temps (F) per ensemble member
-    member_lows: List[float]   # Daily min temps (F) per ensemble member
+    member_lows: List[float]  # Daily min temps (F) per ensemble member
     mean_high: float = 0.0
     std_high: float = 0.0
     mean_low: float = 0.0
@@ -175,11 +305,17 @@ class EnsembleForecast:
     def __post_init__(self):
         if self.member_highs:
             self.mean_high = statistics.mean(self.member_highs)
-            self.std_high = statistics.stdev(self.member_highs) if len(self.member_highs) > 1 else 0.0
+            self.std_high = (
+                statistics.stdev(self.member_highs)
+                if len(self.member_highs) > 1
+                else 0.0
+            )
             self.num_members = len(self.member_highs)
         if self.member_lows:
             self.mean_low = statistics.mean(self.member_lows)
-            self.std_low = statistics.stdev(self.member_lows) if len(self.member_lows) > 1 else 0.0
+            self.std_low = (
+                statistics.stdev(self.member_lows) if len(self.member_lows) > 1 else 0.0
+            )
 
     def probability_high_above(self, threshold_f: float) -> float:
         """Fraction of ensemble members with daily high above threshold."""
@@ -224,7 +360,9 @@ def _celsius_to_fahrenheit(c: float) -> float:
 
 
 # WARNING: This function is for prediction purposes only — NOT for settlement resolution.
-async def fetch_ensemble_forecast(city_key: str, target_date: Optional[date] = None) -> Optional[EnsembleForecast]:
+async def fetch_ensemble_forecast(
+    city_key: str, target_date: Optional[date] = None
+) -> Optional[EnsembleForecast]:
     """
     Fetch ensemble forecast from Open-Meteo Ensemble API (free, 31-member GFS).
     Returns per-member daily max/min temperatures in Fahrenheit.
@@ -287,10 +425,18 @@ async def fetch_ensemble_forecast(city_key: str, target_date: Optional[date] = N
             if val is None:
                 continue
             if "temperature_2m_max" in key:
-                temp_f = float(val) if city_unit == "F" else _celsius_to_fahrenheit(float(val))
+                temp_f = (
+                    float(val)
+                    if city_unit == "F"
+                    else _celsius_to_fahrenheit(float(val))
+                )
                 member_highs.append(temp_f)
             elif "temperature_2m_min" in key:
-                temp_f = float(val) if city_unit == "F" else _celsius_to_fahrenheit(float(val))
+                temp_f = (
+                    float(val)
+                    if city_unit == "F"
+                    else _celsius_to_fahrenheit(float(val))
+                )
                 member_lows.append(temp_f)
 
         if not member_highs:
@@ -306,21 +452,27 @@ async def fetch_ensemble_forecast(city_key: str, target_date: Optional[date] = N
         )
 
         _forecast_cache[cache_key] = (now, forecast)
-        logger.info(f"Ensemble forecast for {city['name']} on {target_date}: "
-                    f"High {forecast.mean_high:.1f}F +/- {forecast.std_high:.1f}F "
-                    f"({forecast.num_members} members)")
+        logger.info(
+            f"Ensemble forecast for {city['name']} on {target_date}: "
+            f"High {forecast.mean_high:.1f}F +/- {forecast.std_high:.1f}F "
+            f"({forecast.num_members} members)"
+        )
 
         return forecast
 
     except CircuitOpenError:
-        logger.warning("Open-Meteo circuit OPEN, skipping ensemble forecast for %s", city_key)
+        logger.warning(
+            "Open-Meteo circuit OPEN, skipping ensemble forecast for %s", city_key
+        )
         return None
     except Exception as e:
         logger.warning(f"Failed to fetch ensemble forecast for {city_key}: {e}")
         return None
 
 
-async def fetch_nws_observed_temperature(city_key: str, target_date: Optional[date] = None) -> Optional[Dict[str, float]]:
+async def fetch_nws_observed_temperature(
+    city_key: str, target_date: Optional[date] = None
+) -> Optional[Dict[str, float]]:
     """
     Fetch observed temperature from NWS API for settlement.
     Returns dict with 'high' and 'low' in Fahrenheit, or None if not available.
@@ -340,9 +492,16 @@ async def fetch_nws_observed_temperature(city_key: str, target_date: Optional[da
 
             # Get observations for the target date
             start = datetime.combine(target_date, datetime.min.time()).isoformat() + "Z"
-            end = datetime.combine(target_date + timedelta(days=1), datetime.min.time()).isoformat() + "Z"
+            end = (
+                datetime.combine(
+                    target_date + timedelta(days=1), datetime.min.time()
+                ).isoformat()
+                + "Z"
+            )
 
-            response = await client.get(url, params={"start": start, "end": end}, headers=headers)
+            response = await client.get(
+                url, params={"start": start, "end": end}, headers=headers
+            )
             response.raise_for_status()
             return response.json()
 
@@ -399,6 +558,7 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
         "startTime": f"{date}T00:00Z",
         "endTime": f"{date}T23:59Z",
     }
+
     async def _fetch_metar():
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(NOAA_METAR_URL, params=params)
@@ -436,7 +596,9 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
             "weather": props.get("wx_string"),
         }
     except CircuitOpenError:
-        logger.warning("NOAA METAR circuit OPEN, skipping for %s on %s", station_id, date)
+        logger.warning(
+            "NOAA METAR circuit OPEN, skipping for %s on %s", station_id, date
+        )
         return None
     except Exception as e:
         logger.warning("Exception in fetch_noaa_metar(%s, %s): %s", station_id, date, e)

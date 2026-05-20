@@ -1,4 +1,5 @@
 """Polygon blockchain WebSocket listener for Polymarket whale trades."""
+
 import asyncio
 import json
 from typing import Optional, Callable, Awaitable
@@ -8,10 +9,16 @@ from backend.config import settings
 from backend.models.database import SessionLocal, WhaleTransaction
 
 from loguru import logger
+
+
 class PolygonListener:
-    def __init__(self, ws_url: Optional[str] = None, contract: Optional[str] = None,
-                 min_usd: Optional[float] = None,
-                 on_whale: Optional[Callable[[dict], Awaitable[None]]] = None):
+    def __init__(
+        self,
+        ws_url: Optional[str] = None,
+        contract: Optional[str] = None,
+        min_usd: Optional[float] = None,
+        on_whale: Optional[Callable[[dict], Awaitable[None]]] = None,
+    ):
         self.ws_url = ws_url or settings.POLYGON_WS_URL
         self.contract = (contract or settings.CONDITIONAL_TOKENS_ADDRESS).lower()
         self.min_usd = min_usd if min_usd is not None else settings.MIN_WHALE_TRADE_USD
@@ -21,6 +28,7 @@ class PolygonListener:
 
     async def start(self) -> None:
         import websockets
+
         self._running = True
         MAX_RETRIES = 10
         INITIAL_DELAY = 1.0
@@ -32,7 +40,9 @@ class PolygonListener:
                     async with websockets.connect(self.ws_url) as ws:
                         self._ws = ws
                         sub = {
-                            "jsonrpc": "2.0", "id": 1, "method": "eth_subscribe",
+                            "jsonrpc": "2.0",
+                            "id": 1,
+                            "method": "eth_subscribe",
                             "params": ["logs", {"address": self.contract}],
                         }
                         await ws.send(json.dumps(sub))
@@ -42,20 +52,29 @@ class PolygonListener:
                 except Exception as e:
                     if not self._running:
                         break
-                    delay = min(INITIAL_DELAY * (BACKOFF_MULTIPLIER ** (attempt-1)), MAX_DELAY)
+                    delay = min(
+                        INITIAL_DELAY * (BACKOFF_MULTIPLIER ** (attempt - 1)), MAX_DELAY
+                    )
                     logger.warning(
                         "polygon ws error (attempt %d/%d), reconnecting in %.0fs: %s",
-                        attempt, MAX_RETRIES, delay, e
+                        attempt,
+                        MAX_RETRIES,
+                        delay,
+                        e,
                     )
                     await asyncio.sleep(delay)
             else:
                 logger.critical(
                     "Polygon ws repeated failure after %d attempts; giving up until manual restart.",
-                    MAX_RETRIES
+                    MAX_RETRIES,
                 )
                 try:
                     from backend.bot.notification_router import send_alert
-                    await send_alert("Polygon listener permanently disconnected after %d retries" % MAX_RETRIES)
+
+                    await send_alert(
+                        "Polygon listener permanently disconnected after %d retries"
+                        % MAX_RETRIES
+                    )
                 except Exception:
                     logger.debug("Failed to send polygon listener alert")
                 raise
@@ -68,7 +87,11 @@ class PolygonListener:
             if not isinstance(result, dict):
                 return
             tx_hash = result.get("transactionHash")
-            block = int(result.get("blockNumber", "0x0"), 16) if result.get("blockNumber") else None
+            block = (
+                int(result.get("blockNumber", "0x0"), 16)
+                if result.get("blockNumber")
+                else None
+            )
             topics = result.get("topics", [])
             size_usd = self._estimate_usd(result.get("data", "0x0"))
             if size_usd < self.min_usd:
@@ -77,14 +100,18 @@ class PolygonListener:
             position_id = self._extract_position(topics)
             await self._persist(tx_hash, wallet, position_id, size_usd, block)
             payload = {
-                "tx_hash": tx_hash, "wallet": wallet,
-                "market_id": position_id, "size_usd": size_usd, "block": block,
+                "tx_hash": tx_hash,
+                "wallet": wallet,
+                "market_id": position_id,
+                "size_usd": size_usd,
+                "block": block,
             }
             if self.on_whale:
                 await self.on_whale(payload)
             # Broadcast to /ws/whales subscribers
             try:
                 from backend.api.ws_manager import broadcast_whale_tick
+
                 await broadcast_whale_tick(payload)
             except Exception:
                 logger.debug("Failed to broadcast whale tick")
@@ -113,19 +140,27 @@ class PolygonListener:
         def _save():
             db = SessionLocal()
             try:
-                existing = db.query(WhaleTransaction).filter(WhaleTransaction.tx_hash == tx_hash).first()
+                existing = (
+                    db.query(WhaleTransaction)
+                    .filter(WhaleTransaction.tx_hash == tx_hash)
+                    .first()
+                )
                 if existing:
                     return
                 row = WhaleTransaction(
-                    tx_hash=tx_hash or f"unknown_{datetime.now(timezone.utc).timestamp()}",
+                    tx_hash=tx_hash
+                    or f"unknown_{datetime.now(timezone.utc).timestamp()}",
                     wallet=wallet or "unknown",
-                    market_id=position_id, side="buy",
-                    size_usd=size_usd, block_number=block,
+                    market_id=position_id,
+                    side="buy",
+                    size_usd=size_usd,
+                    block_number=block,
                 )
                 db.add(row)
                 db.commit()
             finally:
                 db.close()
+
         await asyncio.get_running_loop().run_in_executor(None, _save)
 
     def stop(self) -> None:

@@ -11,6 +11,7 @@ Configuration (environment variables):
 If SIMMER_API_KEY is missing, calls return empty data structures rather than
 raising — keeping the system resilient when the integration is unconfigured.
 """
+
 from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional
@@ -18,6 +19,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from loguru import logger
+
 # Default config — read at call time so env changes during runtime are honored
 DEFAULT_SIMMER_API_URL = "https://api.simmer.io"
 DEFAULT_TIMEOUT = 15.0
@@ -93,7 +95,9 @@ async def fetch_weather_markets_via_simmer(
         markets = data.get("markets") or data.get("data") or data.get("results")
         if isinstance(markets, list):
             return markets
-        logger.debug("Simmer markets response missing markets array: %r", list(data.keys()))
+        logger.debug(
+            "Simmer markets response missing markets array: %r", list(data.keys())
+        )
         return []
     if isinstance(data, list):
         return data

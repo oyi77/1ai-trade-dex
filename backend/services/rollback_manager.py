@@ -37,38 +37,42 @@ class RollbackManager:
             True if snapshot created successfully, False otherwise
         """
         with _db_mod.SessionLocal() as db:
-            config = db.query(StrategyConfig).filter(
-                StrategyConfig.strategy_name == strategy_name
-            ).first()
+            config = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.strategy_name == strategy_name)
+                .first()
+            )
 
             if not config:
                 self.logger.error(f"Strategy config not found: {strategy_name}")
                 return False
 
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == proposal_id
-            ).first()
+            proposal = (
+                db.query(StrategyProposal)
+                .filter(StrategyProposal.id == proposal_id)
+                .first()
+            )
 
             if not proposal:
                 self.logger.error(f"Proposal not found: {proposal_id}")
                 return False
 
             snapshot_data = {
-                'strategy_name': strategy_name,
-                'config_snapshot': {
-                    'enabled': config.enabled,
-                    'interval_seconds': config.interval_seconds,
-                    'params': config.params,
-                    'mode': config.mode if hasattr(config, 'mode') else None
+                "strategy_name": strategy_name,
+                "config_snapshot": {
+                    "enabled": config.enabled,
+                    "interval_seconds": config.interval_seconds,
+                    "params": config.params,
+                    "mode": config.mode if hasattr(config, "mode") else None,
                 },
-                'snapshot_at': datetime.now(timezone.utc).isoformat(),
-                'proposal_id': proposal_id
+                "snapshot_at": datetime.now(timezone.utc).isoformat(),
+                "proposal_id": proposal_id,
             }
 
             if not proposal.change_details:
                 proposal.change_details = {}
 
-            proposal.change_details['config_snapshot'] = snapshot_data
+            proposal.change_details["config_snapshot"] = snapshot_data
             db.commit()
 
             self.logger.info(
@@ -88,70 +92,75 @@ class RollbackManager:
         """
         with _db_mod.SessionLocal() as db:
             try:
-                proposal = db.query(StrategyProposal).filter(
-                    StrategyProposal.id == proposal_id
-                ).first()
+                proposal = (
+                    db.query(StrategyProposal)
+                    .filter(StrategyProposal.id == proposal_id)
+                    .first()
+                )
 
                 if not proposal:
                     self.logger.error(f"Proposal {proposal_id} not found")
                     return False
 
-                if proposal.admin_decision != 'approved':
+                if proposal.admin_decision != "approved":
                     self.logger.error(
                         f"Cannot rollback proposal {proposal_id}: not approved "
                         f"(status: {proposal.admin_decision})"
                     )
                     return False
 
-                snapshot_data = proposal.change_details.get('config_snapshot')
+                snapshot_data = proposal.change_details.get("config_snapshot")
                 if not snapshot_data:
                     self.logger.error(
                         f"No config snapshot found for proposal {proposal_id}"
                     )
                     return False
 
-                strategy_name = snapshot_data['strategy_name']
-                config_snapshot = snapshot_data['config_snapshot']
+                strategy_name = snapshot_data["strategy_name"]
+                config_snapshot = snapshot_data["config_snapshot"]
 
-                config = db.query(StrategyConfig).filter(
-                    StrategyConfig.strategy_name == strategy_name
-                ).first()
+                config = (
+                    db.query(StrategyConfig)
+                    .filter(StrategyConfig.strategy_name == strategy_name)
+                    .first()
+                )
 
                 if not config:
                     self.logger.error(f"Strategy config not found: {strategy_name}")
                     return False
 
                 old_config = {
-                    'enabled': config.enabled,
-                    'interval_seconds': config.interval_seconds,
-                    'params': config.params,
-                    'mode': config.mode if hasattr(config, 'mode') else None
+                    "enabled": config.enabled,
+                    "interval_seconds": config.interval_seconds,
+                    "params": config.params,
+                    "mode": config.mode if hasattr(config, "mode") else None,
                 }
 
-                config.enabled = config_snapshot['enabled']
-                config.interval_seconds = config_snapshot['interval_seconds']
-                config.params = config_snapshot['params']
-                if hasattr(config, 'mode') and config_snapshot.get('mode'):
-                    config.mode = config_snapshot['mode']
+                config.enabled = config_snapshot["enabled"]
+                config.interval_seconds = config_snapshot["interval_seconds"]
+                config.params = config_snapshot["params"]
+                if hasattr(config, "mode") and config_snapshot.get("mode"):
+                    config.mode = config_snapshot["mode"]
 
                 rollback_log = {
-                    'rolled_back_at': datetime.now(timezone.utc).isoformat(),
-                    'strategy_name': strategy_name,
-                    'config_before_rollback': old_config,
-                    'config_after_rollback': config_snapshot
+                    "rolled_back_at": datetime.now(timezone.utc).isoformat(),
+                    "strategy_name": strategy_name,
+                    "config_before_rollback": old_config,
+                    "config_after_rollback": config_snapshot,
                 }
 
                 if not proposal.change_details:
                     proposal.change_details = {}
 
-                if 'rollback_history' not in proposal.change_details:
-                    proposal.change_details['rollback_history'] = []
+                if "rollback_history" not in proposal.change_details:
+                    proposal.change_details["rollback_history"] = []
 
-                proposal.change_details['rollback_history'].append(rollback_log)
-                proposal.admin_decision = 'rolled_back'
+                proposal.change_details["rollback_history"].append(rollback_log)
+                proposal.admin_decision = "rolled_back"
 
                 from sqlalchemy.orm.attributes import flag_modified
-                flag_modified(proposal, 'change_details')
+
+                flag_modified(proposal, "change_details")
 
                 db.commit()
 
@@ -174,14 +183,16 @@ class RollbackManager:
             List of rollback log entries or None if not found
         """
         with _db_mod.SessionLocal() as db:
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == proposal_id
-            ).first()
+            proposal = (
+                db.query(StrategyProposal)
+                .filter(StrategyProposal.id == proposal_id)
+                .first()
+            )
 
             if not proposal or not proposal.change_details:
                 return None
 
-            return proposal.change_details.get('rollback_history', [])
+            return proposal.change_details.get("rollback_history", [])
 
     def can_rollback(self, proposal_id: int) -> bool:
         """Check if a proposal can be rolled back.
@@ -193,20 +204,22 @@ class RollbackManager:
             True if rollback is possible, False otherwise
         """
         with _db_mod.SessionLocal() as db:
-            proposal = db.query(StrategyProposal).filter(
-                StrategyProposal.id == proposal_id
-            ).first()
+            proposal = (
+                db.query(StrategyProposal)
+                .filter(StrategyProposal.id == proposal_id)
+                .first()
+            )
 
             if not proposal:
                 return False
 
-            if proposal.admin_decision != 'approved':
+            if proposal.admin_decision != "approved":
                 return False
 
             if not proposal.change_details:
                 return False
 
-            if 'config_snapshot' not in proposal.change_details:
+            if "config_snapshot" not in proposal.change_details:
                 return False
 
             return True

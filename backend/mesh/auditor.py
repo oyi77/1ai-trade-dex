@@ -1,4 +1,5 @@
 """Source Performance Auditor — tracks PnL per source, adjusts weights."""
+
 from __future__ import annotations
 from typing import Dict, List
 from sqlalchemy.sql import func
@@ -16,18 +17,22 @@ def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
     """
     db = SessionLocal()
     try:
-        rows = db.query(
-            Trade.settlement_source,
-            func.count(Trade.id).label("cnt"),
-            func.avg(Trade.pnl).label("avg_pnl"),
-            func.sum(Trade.pnl).label("total_pnl"),
-            func.count(Trade.id).filter(Trade.result == "win").label("wins"),
-        ).filter(
-            Trade.settled,
-            Trade.settlement_source.isnot(None),
-        ).group_by(Trade.settlement_source).having(
-            func.count(Trade.id) >= min_trades
-        ).all()
+        rows = (
+            db.query(
+                Trade.settlement_source,
+                func.count(Trade.id).label("cnt"),
+                func.avg(Trade.pnl).label("avg_pnl"),
+                func.sum(Trade.pnl).label("total_pnl"),
+                func.count(Trade.id).filter(Trade.result == "win").label("wins"),
+            )
+            .filter(
+                Trade.settled,
+                Trade.settlement_source.isnot(None),
+            )
+            .group_by(Trade.settlement_source)
+            .having(func.count(Trade.id) >= min_trades)
+            .all()
+        )
 
         results = {}
         for row in rows:
@@ -43,13 +48,17 @@ def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
             elif avg_pnl > 0 and win_rate > 0.60:
                 weight = 1.25
             results[source] = {
-                "trades": cnt, "avg_pnl": round(avg_pnl, 4),
-                "total_pnl": round(total_pnl, 2), "win_rate": round(win_rate, 4),
+                "trades": cnt,
+                "avg_pnl": round(avg_pnl, 4),
+                "total_pnl": round(total_pnl, 2),
+                "win_rate": round(win_rate, 4),
                 "weight": weight,
             }
 
         if results:
-            logger.info(f"Source auditor: evaluated {len(results)} sources with >= {min_trades} trades")
+            logger.info(
+                f"Source auditor: evaluated {len(results)} sources with >= {min_trades} trades"
+            )
         return results
     except Exception as e:
         logger.warning(f"Source auditor failed: {e}")
@@ -58,11 +67,21 @@ def audit_source_performance(min_trades: int = 20) -> Dict[str, dict]:
         db.close()
 
 
-def detect_coverage_gaps(required_tags: List[str] = None, min_sources: int = 2) -> List[str]:
+def detect_coverage_gaps(
+    required_tags: List[str] = None, min_sources: int = 2
+) -> List[str]:
     """Find market tags with insufficient active DataSource coverage."""
     from backend.mesh.registry import list_active
+
     if required_tags is None:
-        required_tags = ["crypto", "weather", "politics", "sports", "finance", "commodities"]
+        required_tags = [
+            "crypto",
+            "weather",
+            "politics",
+            "sports",
+            "finance",
+            "commodities",
+        ]
     active = list_active()
     covered = set()
     for sid in active:

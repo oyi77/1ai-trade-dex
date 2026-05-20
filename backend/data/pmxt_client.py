@@ -157,9 +157,7 @@ class PmxtClient:
             return client.fetch_markets(params)
 
         try:
-            raw_markets = await breaker.call(
-                lambda: asyncio.to_thread(_fetch)
-            )
+            raw_markets = await breaker.call(lambda: asyncio.to_thread(_fetch))
         except Exception as exc:
             logger.warning(f"[pmxt_client] fetch_markets({exchange}) failed: {exc}")
             return []
@@ -193,9 +191,7 @@ class PmxtClient:
             )
         return results
 
-    async def fetch_order_book(
-        self, exchange: str, outcome_id: str
-    ) -> PmxtOrderBook:
+    async def fetch_order_book(self, exchange: str, outcome_id: str) -> PmxtOrderBook:
         """Fetch order book for an outcome via PMXT."""
         client = self._get_exchange(exchange)
         breaker = _get_breaker(exchange)
@@ -271,9 +267,7 @@ class PmxtClient:
             logger.error(f"[pmxt_client] place_order({exchange}) failed: {exc}")
             return PmxtOrderResult(success=False, error=str(exc))
 
-    async def cancel_order(
-        self, exchange: str, order_id: str
-    ) -> bool:
+    async def cancel_order(self, exchange: str, order_id: str) -> bool:
         """Cancel an order via PMXT."""
         client = self._get_exchange(exchange)
         breaker = _get_breaker(exchange)
@@ -342,18 +336,21 @@ class PmxtClient:
             return []
 
     async def fetch_multi_platform_markets(
-        self, exchanges: Optional[List[str]] = None, query: Optional[str] = None, limit: int = 100
+        self,
+        exchanges: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        limit: int = 100,
     ) -> Dict[str, List[PmxtMarket]]:
         """Fetch markets from multiple platforms concurrently."""
         targets = exchanges or list(SUPPORTED_EXCHANGES)
-        tasks = {
-            ex: self.fetch_markets(ex, query=query, limit=limit) for ex in targets
-        }
+        tasks = {ex: self.fetch_markets(ex, query=query, limit=limit) for ex in targets}
         results: Dict[str, List[PmxtMarket]] = {}
         done = await asyncio.gather(*tasks.values(), return_exceptions=True)
         for ex, result in zip(tasks.keys(), done):
             if isinstance(result, Exception):
-                logger.warning(f"[pmxt_client] fetch_multi_platform({ex}) failed: {result}")
+                logger.warning(
+                    f"[pmxt_client] fetch_multi_platform({ex}) failed: {result}"
+                )
                 results[ex] = []
             else:
                 results[ex] = result

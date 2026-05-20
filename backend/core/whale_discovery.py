@@ -1,4 +1,5 @@
 """Dynamic whale discovery — seeds candidates and computes scores."""
+
 from typing import List
 
 from backend.models.database import WalletConfig
@@ -6,6 +7,8 @@ from backend.core.whale_scoring import calculate_whale_score
 from backend.config import settings
 
 from loguru import logger
+
+
 class WhaleDiscovery:
     async def discover(self, min_trades: int = 10) -> List[dict]:
         """
@@ -16,8 +19,11 @@ class WhaleDiscovery:
         """
         results = []
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
-            wallet_addresses = [wallet.address for wallet in db.query(WalletConfig).all()]
+            wallet_addresses = [
+                wallet.address for wallet in db.query(WalletConfig).all()
+            ]
 
         score_by_wallet: dict[str, float] = {}
         for wallet_address in wallet_addresses:

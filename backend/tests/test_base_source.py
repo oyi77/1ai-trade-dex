@@ -1,4 +1,5 @@
 """Test suite for BaseDataSource abstract base class."""
+
 import pytest
 from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType
 
@@ -30,6 +31,7 @@ class TestBaseDataSource:
 
     def test_manifest_abstract(self):
         """Subclass without manifest() raises TypeError on instantiation."""
+
         class NoManifestSource(BaseDataSource):
             pass
 
@@ -38,6 +40,7 @@ class TestBaseDataSource:
 
     def test_fetch_abstract(self):
         """Subclass without fetch() raises TypeError on instantiation."""
+
         class NoFetchSource(BaseDataSource):
             @classmethod
             def manifest(cls):
@@ -61,6 +64,7 @@ class TestBaseDataSource:
     @pytest.mark.asyncio
     async def test_health_check_failure(self):
         """health_check returns False when fetch raises."""
+
         class FailingSource(BaseDataSource):
             @classmethod
             def manifest(cls):

@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
+
 """Tests for /api/v1/health, /api/v1/stats, /api/v1/dashboard endpoints."""
 
 
@@ -68,7 +69,11 @@ class TestHealth:
             create_or_derive_api_key = AsyncMock()
 
             get_wallet_balance = AsyncMock(
-                return_value={"usdc_balance": 12.34, "token_balances": {}, "error": None}
+                return_value={
+                    "usdc_balance": 12.34,
+                    "token_balances": {},
+                    "error": None,
+                }
             )
 
         monkeypatch.setattr(
@@ -96,7 +101,11 @@ class TestHealth:
             create_or_derive_api_key = AsyncMock()
 
             get_wallet_balance = AsyncMock(
-                return_value={"usdc_balance": 0.0, "token_balances": {}, "error": internal_error}
+                return_value={
+                    "usdc_balance": 0.0,
+                    "token_balances": {},
+                    "error": internal_error,
+                }
             )
 
         monkeypatch.setattr(

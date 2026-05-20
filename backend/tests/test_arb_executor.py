@@ -1,4 +1,5 @@
 """Tests for arb_executor detection functions."""
+
 from backend.strategies.arb_executor import (
     detect_intra_market_arb,
     detect_cross_platform_arb,
@@ -8,7 +9,9 @@ from backend.strategies.arb_executor import (
 
 def test_intra_market_arb_detected():
     """YES=0.45, NO=0.45 sums to 0.90 < 0.96 threshold — arb exists."""
-    opp = detect_intra_market_arb(yes_price=0.45, no_price=0.45, fee_rate=0.02, market_id="m1")
+    opp = detect_intra_market_arb(
+        yes_price=0.45, no_price=0.45, fee_rate=0.02, market_id="m1"
+    )
     assert opp is not None
     assert opp.arb_type == "intra_market"
     assert opp.market_id == "m1"
@@ -19,7 +22,9 @@ def test_intra_market_arb_detected():
 
 def test_intra_market_no_arb():
     """YES=0.50, NO=0.52 sums to 1.02 >= 0.96 threshold — no arb."""
-    opp = detect_intra_market_arb(yes_price=0.50, no_price=0.52, fee_rate=0.02, market_id="m2")
+    opp = detect_intra_market_arb(
+        yes_price=0.50, no_price=0.52, fee_rate=0.02, market_id="m2"
+    )
     assert opp is None
 
 

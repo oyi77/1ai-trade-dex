@@ -6,6 +6,7 @@ from typing import AsyncIterator
 from backend.config import settings
 
 from loguru import logger
+
 OB_WS_URL = settings.POLYMARKET_WS_ORDERBOOK_URL
 
 
@@ -32,6 +33,7 @@ class OrderbookHFTWS:
         """Connect to order book WebSocket."""
         try:
             import websockets
+
             self._ws = await websockets.connect(OB_WS_URL, ping_interval=30)
             self._running = True
             await self._subscribe()
@@ -55,10 +57,15 @@ class OrderbookHFTWS:
         """Send subscription message."""
         if self._ws:
             import json
-            await self._ws.send(json.dumps({
-                "type": "subscribe",
-                "condition_id": self.condition_id,
-            }))
+
+            await self._ws.send(
+                json.dumps(
+                    {
+                        "type": "subscribe",
+                        "condition_id": self.condition_id,
+                    }
+                )
+            )
 
     async def stream(self) -> AsyncIterator[dict]:
         """Yield order book updates with sequence validation."""
@@ -69,12 +76,15 @@ class OrderbookHFTWS:
 
             try:
                 import json
+
                 msg = await asyncio.wait_for(self._ws.recv(), timeout=10.0)
                 data = json.loads(msg)
 
                 seq = data.get("seq", 0)
                 if seq <= self._last_seq and self._last_seq > 0:
-                    logger.debug(f"[ob_hft_ws] Out-of-order seq {seq} < {self._last_seq}")
+                    logger.debug(
+                        f"[ob_hft_ws] Out-of-order seq {seq} < {self._last_seq}"
+                    )
                     continue
                 self._last_seq = seq
 
@@ -105,4 +115,9 @@ class OrderbookHFTWS:
             last = self._buffer[-1]
             if last.get("type") == "snapshot":
                 return last
-        return {"condition_id": self.condition_id, "bids": [], "asks": [], "spread": 0.0}
+        return {
+            "condition_id": self.condition_id,
+            "bids": [],
+            "asks": [],
+            "spread": 0.0,
+        }

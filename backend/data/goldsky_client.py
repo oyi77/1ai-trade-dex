@@ -1,4 +1,5 @@
 """Goldsky GraphQL client for ingesting historical Polymarket order-filled events."""
+
 import json
 from pathlib import Path
 from typing import Optional
@@ -9,7 +10,10 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
-goldsky_breaker = CircuitBreaker("goldsky_api", failure_threshold=3, recovery_timeout=120.0)
+
+goldsky_breaker = CircuitBreaker(
+    "goldsky_api", failure_threshold=3, recovery_timeout=120.0
+)
 
 GOLDSKY_URL = settings.GOLDSKY_API_URL
 _HERE = Path(__file__).resolve().parent
@@ -57,6 +61,7 @@ async def fetch_order_filled_events(
     Supports sticky-cursor pagination: when many events share the same timestamp,
     pass after_id to paginate forward within that timestamp bucket.
     """
+
     async def _fetch_goldsky() -> list[dict]:
         variables = {
             "afterTimestamp": str(after_timestamp),
@@ -75,7 +80,12 @@ async def fetch_order_filled_events(
             return []
 
         events = data.get("data", {}).get("orderFilledEvents", [])
-        logger.debug("Fetched %d orderFilledEvents (after_ts=%d, after_id=%s)", len(events), after_timestamp, after_id)
+        logger.debug(
+            "Fetched %d orderFilledEvents (after_ts=%d, after_id=%s)",
+            len(events),
+            after_timestamp,
+            after_id,
+        )
         return events
 
     try:
@@ -187,7 +197,10 @@ async def ingest_historical_trades(max_batches: int = 100) -> int:
     for batch_num in range(max_batches):
         logger.info(
             "Fetching batch %d/%d (ts=%d, id=%s)",
-            batch_num + 1, max_batches, after_timestamp, after_id,
+            batch_num + 1,
+            max_batches,
+            after_timestamp,
+            after_id,
         )
 
         events = await fetch_order_filled_events(
@@ -197,7 +210,9 @@ async def ingest_historical_trades(max_batches: int = 100) -> int:
         )
 
         if not events:
-            logger.info("No more events — ingestion complete after %d batches", batch_num + 1)
+            logger.info(
+                "No more events — ingestion complete after %d batches", batch_num + 1
+            )
             break
 
         records = _process_trade_events(events)
@@ -220,8 +235,14 @@ async def ingest_historical_trades(max_batches: int = 100) -> int:
         save_cursor(after_timestamp, after_id)
 
         if len(events) < BATCH_SIZE:
-            logger.info("Partial batch — ingestion complete (%d events)", total_processed)
+            logger.info(
+                "Partial batch — ingestion complete (%d events)", total_processed
+            )
             break
 
-    logger.info("Ingestion finished: %d total events, %d valid records", total_processed, len(all_records))
+    logger.info(
+        "Ingestion finished: %d total events, %d valid records",
+        total_processed,
+        len(all_records),
+    )
     return all_records

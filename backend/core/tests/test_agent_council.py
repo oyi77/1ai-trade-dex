@@ -6,6 +6,7 @@ Covers:
     - Agent lifecycle (can_handle, get_status)
     - AgentCouncil orchestration
 """
+
 from __future__ import annotations
 
 import pytest
@@ -26,10 +27,10 @@ from backend.core.agent_council import (
     SynthesizerAgent,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_message(
     source: str = "analyst",
@@ -50,7 +51,9 @@ def _make_message(
 class EchoAgent(BaseAgent):
     """Test agent that echoes back every message it receives."""
 
-    def __init__(self, role: str = "echo", authority: AuthorityLevel = AuthorityLevel.ADVISORY):
+    def __init__(
+        self, role: str = "echo", authority: AuthorityLevel = AuthorityLevel.ADVISORY
+    ):
         super().__init__()
         self._role = role
         self._authority = authority
@@ -90,6 +93,7 @@ class SilentAgent(BaseAgent):
 # MessageBus tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_bus_direct_dispatch():
     bus = MessageBus()
@@ -127,6 +131,7 @@ async def test_bus_expired_message_not_delivered():
     # Force expiry by setting ttl to 0 and waiting
     msg.ttl_seconds = 0
     import time
+
     time.sleep(0.01)
     responses = await bus.dispatch(msg)
     assert len(responses) == 0
@@ -181,6 +186,7 @@ async def test_bus_history():
 # Authority hierarchy tests
 # ---------------------------------------------------------------------------
 
+
 def test_authority_advisory_cannot_emit_execution_order():
     hierarchy = AuthorityHierarchy()
     agent = AnalystAgent()
@@ -219,7 +225,13 @@ def test_authority_critic_has_veto():
 
 def test_authority_non_critic_no_veto():
     hierarchy = AuthorityHierarchy()
-    for agent_cls in (AnalystAgent, SynthesizerAgent, ExecutorAgent, HistorianAgent, EvolverAgent):
+    for agent_cls in (
+        AnalystAgent,
+        SynthesizerAgent,
+        ExecutorAgent,
+        HistorianAgent,
+        EvolverAgent,
+    ):
         assert hierarchy.can_veto(agent_cls()) is False
 
 
@@ -254,6 +266,7 @@ def test_authority_validate_dispatch():
 # ---------------------------------------------------------------------------
 # Agent can_handle / get_status tests
 # ---------------------------------------------------------------------------
+
 
 def test_can_handle_broadcast():
     agent = AnalystAgent()
@@ -295,11 +308,19 @@ async def test_status_request_response():
 # AgentCouncil integration tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_council_register_and_start():
     council = AgentCouncil()
     council.register_default_agents()
-    assert set(council.bus.list_agents()) == {"analyst", "synthesizer", "critic", "executor", "historian", "evolver"}
+    assert set(council.bus.list_agents()) == {
+        "analyst",
+        "synthesizer",
+        "critic",
+        "executor",
+        "historian",
+        "evolver",
+    }
     council.start()
     assert council.is_started is True
     council.stop()
@@ -313,7 +334,9 @@ async def test_council_authority_blocks_illegal_message():
     council.start()
 
     # Analyst tries to emit EXECUTION_ORDER — should be suppressed by interceptor
-    msg = _make_message(source="analyst", target="broadcast", msg_type=MessageType.EXECUTION_ORDER)
+    msg = _make_message(
+        source="analyst", target="broadcast", msg_type=MessageType.EXECUTION_ORDER
+    )
     responses = await council.bus.dispatch(msg)
     # No agent should receive it because the interceptor suppresses it
     assert len(responses) == 0
@@ -326,7 +349,9 @@ async def test_council_allows_legal_message():
     council.start()
 
     # Analyst emits a SIGNAL — allowed
-    msg = _make_message(source="analyst", target="broadcast", msg_type=MessageType.SIGNAL)
+    msg = _make_message(
+        source="analyst", target="broadcast", msg_type=MessageType.SIGNAL
+    )
     responses = await council.bus.dispatch(msg)
     # STATUS_REQUEST handling aside, broadcast SIGNAL should reach all agents
     # (agents just log and return None for plain SIGNAL)
@@ -363,14 +388,18 @@ def test_council_get_agent_status():
 # Agent role and authority identity
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("agent_cls,expected_role,expected_authority", [
-    (AnalystAgent, "analyst", AuthorityLevel.ADVISORY),
-    (SynthesizerAgent, "synthesizer", AuthorityLevel.ADVISORY),
-    (CriticAgent, "critic", AuthorityLevel.VETO),
-    (ExecutorAgent, "executor", AuthorityLevel.EXECUTION),
-    (HistorianAgent, "historian", AuthorityLevel.ADVISORY),
-    (EvolverAgent, "evolver", AuthorityLevel.ADVISORY),
-])
+
+@pytest.mark.parametrize(
+    "agent_cls,expected_role,expected_authority",
+    [
+        (AnalystAgent, "analyst", AuthorityLevel.ADVISORY),
+        (SynthesizerAgent, "synthesizer", AuthorityLevel.ADVISORY),
+        (CriticAgent, "critic", AuthorityLevel.VETO),
+        (ExecutorAgent, "executor", AuthorityLevel.EXECUTION),
+        (HistorianAgent, "historian", AuthorityLevel.ADVISORY),
+        (EvolverAgent, "evolver", AuthorityLevel.ADVISORY),
+    ],
+)
 def test_agent_identity(agent_cls, expected_role, expected_authority):
     agent = agent_cls()
     assert agent.get_role() == expected_role
@@ -381,10 +410,12 @@ def test_agent_identity(agent_cls, expected_role, expected_authority):
 # Message protocol tests
 # ---------------------------------------------------------------------------
 
+
 def test_message_is_expired():
     msg = _make_message()
     msg.ttl_seconds = 0
     import time
+
     time.sleep(0.01)
     assert msg.is_expired() is True
 

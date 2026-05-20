@@ -4,6 +4,7 @@ Tracks per-job-type latency percentiles (p50, p95, p99), queue depth, timeout ra
 and error rate. Metrics are computed over a rolling window in memory and exposed via
 get_metrics_snapshot() for monitoring/logging.
 """
+
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
@@ -17,7 +18,9 @@ WINDOW_SIZE = 1000  # rolling window of recent samples per job type
 
 @dataclass
 class JobTypeMetrics:
-    latencies_ms: Deque[float] = field(default_factory=lambda: deque(maxlen=WINDOW_SIZE))
+    latencies_ms: Deque[float] = field(
+        default_factory=lambda: deque(maxlen=WINDOW_SIZE)
+    )
     total: int = 0
     timeouts: int = 0
     errors: int = 0
@@ -32,7 +35,9 @@ class QueueMetrics:
         self._by_type: Dict[str, JobTypeMetrics] = defaultdict(JobTypeMetrics)
         self._depth: int = 0
 
-    def record_job_completion(self, job_type: str, latency_ms: float, status: str) -> None:
+    def record_job_completion(
+        self, job_type: str, latency_ms: float, status: str
+    ) -> None:
         """Record a finished job. status in {success, timeout, error}."""
         with self._lock:
             m = self._by_type[job_type]
@@ -55,9 +60,17 @@ class QueueMetrics:
         if not samples:
             return {"p50": 0.0, "p95": 0.0, "p99": 0.0}
         samples_sorted = sorted(samples)
+
         def pct(p):
-            k = max(0, min(len(samples_sorted) - 1, int(round((p / 100) * (len(samples_sorted) - 1)))))
+            k = max(
+                0,
+                min(
+                    len(samples_sorted) - 1,
+                    int(round((p / 100) * (len(samples_sorted) - 1))),
+                ),
+            )
             return samples_sorted[k]
+
         return {"p50": pct(50), "p95": pct(95), "p99": pct(99)}
 
     def _percentiles_unlocked(self, samples: list) -> Dict[str, float]:
@@ -65,9 +78,17 @@ class QueueMetrics:
         if not samples:
             return {"p50": 0.0, "p95": 0.0, "p99": 0.0}
         samples_sorted = sorted(samples)
+
         def pct(p):
-            k = max(0, min(len(samples_sorted) - 1, int(round((p / 100) * (len(samples_sorted) - 1)))))
+            k = max(
+                0,
+                min(
+                    len(samples_sorted) - 1,
+                    int(round((p / 100) * (len(samples_sorted) - 1))),
+                ),
+            )
             return samples_sorted[k]
+
         return {"p50": pct(50), "p95": pct(95), "p99": pct(99)}
 
     def get_metrics_snapshot(self) -> Dict:
@@ -109,6 +130,7 @@ def get_queue_metrics() -> QueueMetrics:
 
 class JobTimer:
     """Context manager that records latency on exit."""
+
     def __init__(self, job_type: str):
         self.job_type = job_type
         self.start = 0.0
@@ -120,5 +142,7 @@ class JobTimer:
 
     def __exit__(self, exc_type, exc, tb):
         latency_ms = (time.perf_counter() - self.start) * 1000
-        get_queue_metrics().record_job_completion(self.job_type, latency_ms, self.status)
+        get_queue_metrics().record_job_completion(
+            self.job_type, latency_ms, self.status
+        )
         return False

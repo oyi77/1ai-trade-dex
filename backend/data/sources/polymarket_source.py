@@ -1,4 +1,5 @@
 """Polymarket data source plugin for the plugin system."""
+
 import os
 from dataclasses import dataclass
 from backend.data.source_registry import source_registry
@@ -9,6 +10,7 @@ from backend.data.base_source import BaseDataSource, DataSourceManifest, DataTyp
 
 try:
     from backend.data.polymarket_clob import PolymarketCLOB
+
     HAS_POLYMARKET = True
 except ImportError:
     HAS_POLYMARKET = False
@@ -78,8 +80,9 @@ class PolymarketSource(BaseDataSource):
         else:
             raise NotImplementedError(f"Streaming not supported for {data_type}")
 
-    async def backfill(self, data_type: DataType, params: Dict[str, Any],
-                       since_ts: int, until_ts: int) -> List[Any]:
+    async def backfill(
+        self, data_type: DataType, params: Dict[str, Any], since_ts: int, until_ts: int
+    ) -> List[Any]:
         market_id = params.get("market_id")
         resolution = params.get("resolution", "1h")
         return await self._client.get_candles(market_id, resolution, since_ts, until_ts)

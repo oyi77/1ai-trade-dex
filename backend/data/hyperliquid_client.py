@@ -3,6 +3,7 @@
 Supports fetching markets, orderbook, and trades from Hyperliquid prediction
 markets via their API. Can also integrate with PMXT aggregator.
 """
+
 from __future__ import annotations
 
 import time
@@ -16,21 +17,24 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
 
-hl_breaker = CircuitBreaker("hyperliquid_api", failure_threshold=3, recovery_timeout=120.0)
+hl_breaker = CircuitBreaker(
+    "hyperliquid_api", failure_threshold=3, recovery_timeout=120.0
+)
 
 # Hyperliquid API endpoints
 DEFAULT_HL_API_URL = "https://api.hyperliquid.xyz"
 DEFAULT_HL_WS_URL = "wss://api.hyperliquid.xyz/ws"
 
 # Cache TTLs
-CACHE_TTL_MARKETS = 60      # 1 minute for market list
-CACHE_TTL_ORDERBOOK = 5     # 5 seconds for orderbook
-CACHE_TTL_TRADES = 30       # 30 seconds for trades
+CACHE_TTL_MARKETS = 60  # 1 minute for market list
+CACHE_TTL_ORDERBOOK = 5  # 5 seconds for orderbook
+CACHE_TTL_TRADES = 30  # 30 seconds for trades
 
 
 @dataclass
 class HLOrderBookLevel:
     """Single price level in the Hyperliquid orderbook."""
+
     price: float
     size: float
 
@@ -38,6 +42,7 @@ class HLOrderBookLevel:
 @dataclass
 class HLMarket:
     """A Hyperliquid prediction market."""
+
     market_id: str
     question: str
     outcomes: list[str]
@@ -52,6 +57,7 @@ class HLMarket:
 @dataclass
 class HLTrade:
     """A Hyperliquid trade event."""
+
     trade_id: str
     market_id: str
     side: str
@@ -87,6 +93,7 @@ class HyperliquidClient:
 
     async def _post(self, endpoint: str, payload: dict) -> Optional[dict]:
         """Make a POST request to the Hyperliquid API."""
+
         async def _do_post() -> dict:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(f"{self.api_url}{endpoint}", json=payload)
@@ -104,6 +111,7 @@ class HyperliquidClient:
 
     async def _get(self, endpoint: str, params: Optional[dict] = None) -> Optional[Any]:
         """Make a GET request to the Hyperliquid API."""
+
         async def _do_get() -> Any:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(f"{self.api_url}{endpoint}", params=params)
@@ -184,10 +192,13 @@ class HyperliquidClient:
         if cached is not None:
             return cached
 
-        data = await self._post("/info", {
-            "type": "l2Book",
-            "coin": market_id,
-        })
+        data = await self._post(
+            "/info",
+            {
+                "type": "l2Book",
+                "coin": market_id,
+            },
+        )
         if data is None:
             return {"bids": [], "asks": []}
 
@@ -199,18 +210,22 @@ class HyperliquidClient:
         if isinstance(levels, list) and len(levels) >= 2:
             for entry in levels[0][:50]:  # bids
                 try:
-                    bids.append(HLOrderBookLevel(
-                        price=float(entry.get("px", entry.get("price", 0))),
-                        size=float(entry.get("sz", entry.get("size", 0))),
-                    ))
+                    bids.append(
+                        HLOrderBookLevel(
+                            price=float(entry.get("px", entry.get("price", 0))),
+                            size=float(entry.get("sz", entry.get("size", 0))),
+                        )
+                    )
                 except (TypeError, ValueError):
                     continue
             for entry in levels[1][:50]:  # asks
                 try:
-                    asks.append(HLOrderBookLevel(
-                        price=float(entry.get("px", entry.get("price", 0))),
-                        size=float(entry.get("sz", entry.get("size", 0))),
-                    ))
+                    asks.append(
+                        HLOrderBookLevel(
+                            price=float(entry.get("px", entry.get("price", 0))),
+                            size=float(entry.get("sz", entry.get("size", 0))),
+                        )
+                    )
                 except (TypeError, ValueError):
                     continue
 
@@ -218,7 +233,9 @@ class HyperliquidClient:
         self._set_cached(cache_key, book)
         return book
 
-    async def get_recent_trades(self, market_id: str, limit: int = 100) -> list[HLTrade]:
+    async def get_recent_trades(
+        self, market_id: str, limit: int = 100
+    ) -> list[HLTrade]:
         """Fetch recent trades for a Hyperliquid prediction market.
 
         Args:
@@ -233,10 +250,13 @@ class HyperliquidClient:
         if cached is not None:
             return cached
 
-        data = await self._post("/info", {
-            "type": "recentTrades",
-            "coin": market_id,
-        })
+        data = await self._post(
+            "/info",
+            {
+                "type": "recentTrades",
+                "coin": market_id,
+            },
+        )
         if data is None or not isinstance(data, list):
             return []
 

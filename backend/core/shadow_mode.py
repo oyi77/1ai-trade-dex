@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from loguru import logger
+
+
 @dataclass
 class ShadowTrade:
     market_ticker: str
@@ -70,14 +72,16 @@ class ShadowRunner:
             trade.settled = True
             # P&L: if direction=up and settlement=1.0 (up won), we win (1 - entry_price) * size
             # if direction=down and settlement=0.0 (down won), we win (1 - entry_price) * size
-            direction_won = (
-                (trade.direction == "up" and settlement_value == 1.0)
-                or (trade.direction == "down" and settlement_value == 0.0)
+            direction_won = (trade.direction == "up" and settlement_value == 1.0) or (
+                trade.direction == "down" and settlement_value == 0.0
             )
             from backend.config import settings
-            fee_rate = getattr(settings, 'TAKER_FEE_RATE', 0.02)
+
+            fee_rate = getattr(settings, "TAKER_FEE_RATE", 0.02)
             if direction_won:
-                trade.pnl = round((1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2)
+                trade.pnl = round(
+                    (1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2
+                )
             else:
                 trade.pnl = round(-trade.entry_price * trade.size * (1.0 + fee_rate), 2)
             logger.info(
@@ -97,14 +101,17 @@ class ShadowRunner:
         # avg_edge: average of (model_probability - entry_price) across all trades
         all_trades = self._trades
         avg_edge = (
-            sum(t.model_probability - t.entry_price for t in all_trades) / len(all_trades)
+            sum(t.model_probability - t.entry_price for t in all_trades)
+            / len(all_trades)
             if all_trades
             else 0.0
         )
 
         strategy_breakdown: dict[str, float] = {}
         for t in settled:
-            strategy_breakdown[t.strategy] = strategy_breakdown.get(t.strategy, 0.0) + t.pnl
+            strategy_breakdown[t.strategy] = (
+                strategy_breakdown.get(t.strategy, 0.0) + t.pnl
+            )
 
         return ShadowPerformance(
             total_trades=len(self._trades),

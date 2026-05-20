@@ -6,6 +6,7 @@ database. Thread-safe via a threading.Lock.
 
 RQ-014: Redis cache with circuit-breaker fallback to SQLite
 """
+
 import json
 import sqlite3
 import time
@@ -23,7 +24,7 @@ def _parse_sqlite_path(cache_url: str) -> str:
     Strips the 'sqlite:///' prefix. Handles both relative and absolute paths.
     """
     if cache_url.startswith("sqlite:///"):
-        return cache_url[len("sqlite:///"):]
+        return cache_url[len("sqlite:///") :]
     return cache_url
 
 
@@ -55,15 +56,13 @@ class SQLiteCache(AbstractCache):
         with self._lock:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
-                    """
+                conn.execute("""
                     CREATE TABLE IF NOT EXISTS cache_kv (
                         key TEXT PRIMARY KEY,
                         value TEXT NOT NULL,
                         expires_at REAL
                     )
-                    """
-                )
+                    """)
                 conn.commit()
             finally:
                 conn.close()

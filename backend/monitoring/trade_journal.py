@@ -78,6 +78,7 @@ class TradeJournal:
         if self._db:
             return self._db
         from backend.models.database import SessionLocal
+
         return SessionLocal()
 
     def _owns_session(self) -> bool:
@@ -147,7 +148,9 @@ class TradeJournal:
             summary.total_trades = len(trades)
             pnls = [t.pnl for t in trades if t.pnl is not None]
             summary.total_pnl = sum(pnls)
-            summary.volume = sum(abs(t.size) * (t.entry_price or 0.5) for t in trades if t.size)
+            summary.volume = sum(
+                abs(t.size) * (t.entry_price or 0.5) for t in trades if t.size
+            )
 
             settled = [t for t in trades if t.pnl is not None]
             summary.wins = sum(1 for t in settled if t.pnl > 0)
@@ -157,8 +160,12 @@ class TradeJournal:
                 summary.win_rate = summary.wins / total_settled
 
             if pnls:
-                best = max(trades, key=lambda t: t.pnl if t.pnl is not None else float("-inf"))
-                worst = min(trades, key=lambda t: t.pnl if t.pnl is not None else float("inf"))
+                best = max(
+                    trades, key=lambda t: t.pnl if t.pnl is not None else float("-inf")
+                )
+                worst = min(
+                    trades, key=lambda t: t.pnl if t.pnl is not None else float("inf")
+                )
                 summary.best_trade = _trade_to_dict(best)
                 summary.worst_trade = _trade_to_dict(worst)
 
@@ -171,11 +178,7 @@ class TradeJournal:
         """Get performance stats for a strategy."""
         session = self._get_session()
         try:
-            trades = (
-                session.query(Trade)
-                .filter(Trade.strategy == strategy_name)
-                .all()
-            )
+            trades = session.query(Trade).filter(Trade.strategy == strategy_name).all()
 
             perf = StrategyPerformance(strategy=strategy_name)
             if not trades:
@@ -194,8 +197,12 @@ class TradeJournal:
 
             if pnls:
                 perf.avg_pnl = perf.total_pnl / len(pnls)
-                best = max(trades, key=lambda t: t.pnl if t.pnl is not None else float("-inf"))
-                worst = min(trades, key=lambda t: t.pnl if t.pnl is not None else float("inf"))
+                best = max(
+                    trades, key=lambda t: t.pnl if t.pnl is not None else float("-inf")
+                )
+                worst = min(
+                    trades, key=lambda t: t.pnl if t.pnl is not None else float("inf")
+                )
                 perf.best_trade = _trade_to_dict(best)
                 perf.worst_trade = _trade_to_dict(worst)
 
@@ -218,12 +225,38 @@ class TradeJournal:
         if not trades:
             # Write empty file with header
             with open(output_path, "w", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=list(_trade_to_dict.__code__.co_varnames[:_trade_to_dict.__code__.co_argcount]) if False else [
-                    "id", "market_ticker", "platform", "strategy", "trading_mode",
-                    "direction", "entry_price", "size", "timestamp", "settled",
-                    "result", "pnl", "settlement_value", "confidence",
-                    "model_probability", "edge_at_entry", "fee", "slippage", "source",
-                ])
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=(
+                        list(
+                            _trade_to_dict.__code__.co_varnames[
+                                : _trade_to_dict.__code__.co_argcount
+                            ]
+                        )
+                        if False
+                        else [
+                            "id",
+                            "market_ticker",
+                            "platform",
+                            "strategy",
+                            "trading_mode",
+                            "direction",
+                            "entry_price",
+                            "size",
+                            "timestamp",
+                            "settled",
+                            "result",
+                            "pnl",
+                            "settlement_value",
+                            "confidence",
+                            "model_probability",
+                            "edge_at_entry",
+                            "fee",
+                            "slippage",
+                            "source",
+                        ]
+                    ),
+                )
                 writer.writeheader()
             return output_path
 

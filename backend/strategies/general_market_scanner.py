@@ -1,4 +1,5 @@
 """General market scanner — finds edge across all Polymarket markets using AI analysis."""
+
 import math
 from datetime import datetime, timezone
 from typing import Optional
@@ -10,6 +11,8 @@ from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
 from loguru import logger
+
+
 async def _fetch_web_context(question: str) -> str:
     try:
         from backend.clients.websearch import get_websearch
@@ -71,6 +74,7 @@ async def _run_debate_gate(
                 "[general_scanner._run_debate_gate] No database session provided, falling back to local debate"
             )
             from backend.ai.debate_engine import run_debate
+
             return await run_debate(
                 question=question,
                 market_price=market_price,
@@ -223,8 +227,17 @@ class GeneralMarketScanner(BaseStrategy):
         "market_agree_low": settings.GENERAL_MARKET_SCANNER_MARKET_AGREE_LOW,
         "market_agree_high": settings.GENERAL_MARKET_SCANNER_MARKET_AGREE_HIGH,
         "min_expected_profit": settings.GENERAL_MARKET_SCANNER_MIN_EXPECTED_PROFIT,
-        "dynamic_max_tiers": [(0.90, 0.20, 16.0), (0.85, 0.15, 12.0), (0.75, 0.10, 8.0), (0.65, 0.06, 5.0)],
-        "category_caps": {"sports": settings.GM_SCANNER_CATEGORY_CAP_SPORTS, "politics": settings.GM_SCANNER_CATEGORY_CAP_POLITICS, "crypto": settings.GM_SCANNER_CATEGORY_CAP_CRYPTO},
+        "dynamic_max_tiers": [
+            (0.90, 0.20, 16.0),
+            (0.85, 0.15, 12.0),
+            (0.75, 0.10, 8.0),
+            (0.65, 0.06, 5.0),
+        ],
+        "category_caps": {
+            "sports": settings.GM_SCANNER_CATEGORY_CAP_SPORTS,
+            "politics": settings.GM_SCANNER_CATEGORY_CAP_POLITICS,
+            "crypto": settings.GM_SCANNER_CATEGORY_CAP_CRYPTO,
+        },
         "low_prob_yes_cap": settings.GENERAL_MARKET_SCANNER_LOW_PROB_YES_CAP,
     }
 
@@ -232,7 +245,7 @@ class GeneralMarketScanner(BaseStrategy):
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
 
         # AI is required for this strategy to have any edge — check first to skip early
-        if not getattr(ctx.settings, 'AI_ENABLED', False):
+        if not getattr(ctx.settings, "AI_ENABLED", False):
             ctx.logger.info(
                 "[general_scanner] AI disabled — skipping cycle (AI required for edge)"
             )
@@ -470,7 +483,9 @@ class GeneralMarketScanner(BaseStrategy):
                     bb = float(best_bid)
                     ba = float(best_ask)
                     if ba > bb > 0:
-                        spread = float(gamma_spread) if gamma_spread is not None else ba - bb
+                        spread = (
+                            float(gamma_spread) if gamma_spread is not None else ba - bb
+                        )
                         ob_imbalance = (
                             bb / ba - 1.0
                         ) * 10  # rough imbalance [-1,1] scale
@@ -491,7 +506,9 @@ class GeneralMarketScanner(BaseStrategy):
                 try:
                     clob_token_ids = _json.loads(clob_token_ids)
                 except Exception:
-                    logger.exception('general_market_scanner: failed to process market batch')
+                    logger.exception(
+                        "general_market_scanner: failed to process market batch"
+                    )
                     clob_token_ids = []
             if clob_token_ids:
                 clob_token_id = str(clob_token_ids[0])
@@ -897,9 +914,9 @@ class GeneralMarketScanner(BaseStrategy):
                 "volume": volume,
                 "reasoning": reasoning,
                 "market_end_date": end_date_str,
-                "debate_transcript": debate_result.to_transcript_dict()
-                if debate_result
-                else None,
+                "debate_transcript": (
+                    debate_result.to_transcript_dict() if debate_result else None
+                ),
             }
 
             result.decisions.append(decision)

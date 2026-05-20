@@ -33,7 +33,10 @@ def ingest_dataset(
         from huggingface_hub import hf_hub_download
         import pyarrow.parquet as pq
     except ImportError as e:
-        logger.error("Missing dependency: {}. Install with: pip install huggingface_hub pyarrow", e)
+        logger.error(
+            "Missing dependency: {}. Install with: pip install huggingface_hub pyarrow",
+            e,
+        )
         raise
 
     output_path = Path(output_dir)
@@ -57,7 +60,9 @@ def ingest_dataset(
         # Read and consolidate
         table = pq.read_table(downloaded)
         pq.write_table(table, str(parquet_path))
-        logger.info("Saved consolidated Parquet: {} ({} rows)", parquet_path, table.num_rows)
+        logger.info(
+            "Saved consolidated Parquet: {} ({} rows)", parquet_path, table.num_rows
+        )
 
     except Exception:
         # Fallback: use datasets library to load and convert
@@ -68,7 +73,9 @@ def ingest_dataset(
             ds = load_dataset(dataset_id, split=split)
             table = ds.to_arrow()
             pq.write_table(table, str(parquet_path))
-            logger.info("Saved via datasets lib: {} ({} rows)", parquet_path, table.num_rows)
+            logger.info(
+                "Saved via datasets lib: {} ({} rows)", parquet_path, table.num_rows
+            )
         except Exception as e:
             logger.error("Dataset ingestion failed: {}", e)
             raise
@@ -77,8 +84,12 @@ def ingest_dataset(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest HuggingFace dataset as Parquet")
-    parser.add_argument("--dataset", default="SII-WANGZJ/Polymarket_data", help="HF dataset ID")
+    parser = argparse.ArgumentParser(
+        description="Ingest HuggingFace dataset as Parquet"
+    )
+    parser.add_argument(
+        "--dataset", default="SII-WANGZJ/Polymarket_data", help="HF dataset ID"
+    )
     parser.add_argument("--output", default="data/hf", help="Output directory")
     parser.add_argument("--split", default="train", help="Dataset split")
     args = parser.parse_args()

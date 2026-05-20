@@ -1,4 +1,5 @@
 """bk-brain integration — cross-ecosystem memory sharing. Async, non-blocking."""
+
 import httpx
 
 from backend.config import settings

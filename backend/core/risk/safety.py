@@ -46,11 +46,15 @@ class RiskMonitor:
 
         # Fallback to environment variables
         self._thresholds = {
-            "max_position_size": float(os.environ.get("SAFETY_MAX_POSITION_SIZE", "0.1")),
+            "max_position_size": float(
+                os.environ.get("SAFETY_MAX_POSITION_SIZE", "0.1")
+            ),
             "max_daily_loss": float(os.environ.get("SAFETY_MAX_DAILY_LOSS", "0.05")),
             "min_confidence": float(os.environ.get("SAFETY_MIN_CONFIDENCE", "0.6")),
         }
-        logger.bind(task="safety").info("Using fallback safety thresholds from env vars")
+        logger.bind(task="safety").info(
+            "Using fallback safety thresholds from env vars"
+        )
 
     def get_global_limits(self) -> Dict[str, float]:
         """Return current global safety limits."""
@@ -65,10 +69,16 @@ class RiskMonitor:
         confidence = signal.get("confidence", 0.0)
 
         if suggested_size > self._thresholds.get("max_position_size", 0.1):
-            return False, f"Position size {suggested_size} exceeds max {self._thresholds['max_position_size']}"
+            return (
+                False,
+                f"Position size {suggested_size} exceeds max {self._thresholds['max_position_size']}",
+            )
 
         if confidence < self._thresholds.get("min_confidence", 0.6):
-            return False, f"Confidence {confidence} below min {self._thresholds['min_confidence']}"
+            return (
+                False,
+                f"Confidence {confidence} below min {self._thresholds['min_confidence']}",
+            )
 
         return True, "Trade approved by safety monitor"
 
@@ -76,9 +86,11 @@ class RiskMonitor:
         """Get risk tier from StrategyConfig, or compute from strategy metrics."""
         try:
             with SessionLocal() as db:
-                config = db.query(StrategyConfig).filter(
-                    StrategyConfig.strategy_name == strategy_key
-                ).first()
+                config = (
+                    db.query(StrategyConfig)
+                    .filter(StrategyConfig.strategy_name == strategy_key)
+                    .first()
+                )
                 if config and config.risk_tier:
                     return config.risk_tier
         except Exception as e:
@@ -154,7 +166,11 @@ class RiskMonitor:
                 score += 10
 
             # Drawdown contribution (0-30 points, inverse - lower DD is better)
-            avg_size = sum(float(t.size or 0) for t in settled_trades) / len(settled_trades) if settled_trades else 1.0
+            avg_size = (
+                sum(float(t.size or 0) for t in settled_trades) / len(settled_trades)
+                if settled_trades
+                else 1.0
+            )
             dd_ratio = max_dd / (avg_size * len(pnls)) if avg_size > 0 and pnls else 0.0
             if dd_ratio <= 0.05:
                 score += 30
@@ -191,13 +207,17 @@ class RiskMonitor:
             return
         try:
             with SessionLocal() as db:
-                config = db.query(StrategyConfig).filter(
-                    StrategyConfig.strategy_name == strategy_key
-                ).first()
+                config = (
+                    db.query(StrategyConfig)
+                    .filter(StrategyConfig.strategy_name == strategy_key)
+                    .first()
+                )
                 if config:
                     config.risk_tier = tier
                 else:
-                    config = StrategyConfig(strategy_name=strategy_key, risk_tier=tier, enabled=False)
+                    config = StrategyConfig(
+                        strategy_name=strategy_key, risk_tier=tier, enabled=False
+                    )
                     db.add(config)
                 db.commit()
                 logger.bind(task="safety", strategy=strategy_key).info(
@@ -208,7 +228,9 @@ class RiskMonitor:
                 "Failed to persist risk tier: {}", e
             )
 
-    def record_alert(self, severity: str, message: str, strategy_key: Optional[str] = None) -> None:
+    def record_alert(
+        self, severity: str, message: str, strategy_key: Optional[str] = None
+    ) -> None:
         alert = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "severity": severity,
@@ -228,7 +250,9 @@ class RiskMonitor:
                     misc = json.loads(bot_state.misc_data)
                     alerts = misc.get("safety_alerts", [])
                 except json.JSONDecodeError:
-                    logger.exception("safety: failed to parse bot_state.misc_data as JSON")
+                    logger.exception(
+                        "safety: failed to parse bot_state.misc_data as JSON"
+                    )
 
             alerts.append(alert)
             misc = {"safety_alerts": alerts}
@@ -255,7 +279,9 @@ class SafetyMonitor:
     def get_global_limits(self) -> Dict[str, float]:
         return self._risk_monitor.get_global_limits()
 
-    def record_alert(self, severity: str, message: str, strategy_key: Optional[str] = None) -> None:
+    def record_alert(
+        self, severity: str, message: str, strategy_key: Optional[str] = None
+    ) -> None:
         self._risk_monitor.record_alert(severity, message, strategy_key)
 
     def get_risk_tier(self, strategy_key: str) -> str:

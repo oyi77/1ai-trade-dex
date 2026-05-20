@@ -41,8 +41,18 @@ class TestFailureInjection:
 
     def test_regime_oscillation_hysteresis(self):
         detector = RegimeDetector()
-        bull_data = {"btc_price": 50000.0, "btc_change_24h": 0.05, "volume_ratio": 1.3, "volatility": 0.02}
-        bear_data = {"btc_price": 40000.0, "btc_change_24h": -0.05, "volume_ratio": 0.7, "volatility": 0.04}
+        bull_data = {
+            "btc_price": 50000.0,
+            "btc_change_24h": 0.05,
+            "volume_ratio": 1.3,
+            "volatility": 0.02,
+        }
+        bear_data = {
+            "btc_price": 40000.0,
+            "btc_change_24h": -0.05,
+            "volume_ratio": 0.7,
+            "volatility": 0.04,
+        }
         results = []
         for _ in range(10):
             results.append(detector.detect_regime(bull_data).regime)
@@ -81,4 +91,7 @@ class TestFailureInjection:
         kg = KnowledgeGraph()
         for i in range(500):
             kg.add_entity("pressure_test", f"entity_{i}", {"data": f"value_{i}" * 10})
-        assert kg.get_entity("entity_250") is not None or kg.get_entity("entity_0") is not None
+        assert (
+            kg.get_entity("entity_250") is not None
+            or kg.get_entity("entity_0") is not None
+        )

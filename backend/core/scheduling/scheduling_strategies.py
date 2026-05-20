@@ -110,9 +110,11 @@ async def _process_signal_with_approval(
         "market_id": signal.market.market_id,
         "market_title": f"BTC {signal.market.window_start.strftime('%H:%M')} - {signal.market.window_end.strftime('%H:%M')} UTC",
         "side": signal.direction.upper(),
-        "price": signal.market.up_price
-        if signal.direction == "up"
-        else signal.market.down_price,
+        "price": (
+            signal.market.up_price
+            if signal.direction == "up"
+            else signal.market.down_price
+        ),
         "size": trade_size,
         "confidence": signal.confidence,
         "model_probability": signal.model_probability,
@@ -219,7 +221,9 @@ async def _execute_trade(
 
         notify_btc_signal(signal, None)
     except Exception:
-        logger.exception(f"[scheduling_strategies] BTC signal notification failed for {getattr(signal, 'market', None)}")
+        logger.exception(
+            f"[scheduling_strategies] BTC signal notification failed for {getattr(signal, 'market', None)}"
+        )
 
     mode_label = f"[{mode.upper()}] " if mode != "paper" else ""
     log_event(
@@ -293,15 +297,19 @@ async def _queue_for_approval(
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "category": "trading",
                 "btc_price": getattr(signal, "btc_price", None),
-                "window_end": signal.market.window_end.isoformat()
-                if signal.market.window_end
-                else None,
+                "window_end": (
+                    signal.market.window_end.isoformat()
+                    if signal.market.window_end
+                    else None
+                ),
                 "actionable": True,
                 "event_slug": signal.market.slug,
             },
         )
     except Exception:
-        logger.exception(f"[scheduling_strategies] Event broadcast 'signal_found' failed for {getattr(signal, 'market', None)}")
+        logger.exception(
+            f"[scheduling_strategies] Event broadcast 'signal_found' failed for {getattr(signal, 'market', None)}"
+        )
 
     log_event(
         "info",
@@ -329,6 +337,7 @@ async def scan_and_trade_job(mode: str):
     def _read_scan_config():
         import json as _json
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state:
@@ -339,7 +348,8 @@ async def scan_and_trade_job(mode: str):
                 db.query(StrategyConfig)
                 .filter(StrategyConfig.enabled.is_(True))
                 .filter(
-                    (StrategyConfig.trading_mode == mode) | (StrategyConfig.trading_mode.is_(None))
+                    (StrategyConfig.trading_mode == mode)
+                    | (StrategyConfig.trading_mode.is_(None))
                 )
                 .all()
             )
@@ -351,7 +361,9 @@ async def scan_and_trade_job(mode: str):
                         params = _json.loads(cfg.params)
                     except Exception:
                         pass
-                config_data.append({"strategy_name": cfg.strategy_name, "params": params})
+                config_data.append(
+                    {"strategy_name": cfg.strategy_name, "params": params}
+                )
             return {"configs": config_data}
 
     try:
@@ -371,6 +383,7 @@ async def scan_and_trade_job(mode: str):
         total_trades = 0
 
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             for cfg in configs:
                 strategy_cls = STRATEGY_REGISTRY.get(cfg["strategy_name"])
@@ -409,7 +422,9 @@ async def scan_and_trade_job(mode: str):
                     copied.setdefault("market_ticker", copied.get("token_id"))
                     copied["trading_mode"] = mode
                     decisions_copy.append(copied)
-                executed = await execute_decisions(decisions_copy, cfg["strategy_name"], mode=mode)
+                executed = await execute_decisions(
+                    decisions_copy, cfg["strategy_name"], mode=mode
+                )
                 total_trades += len(executed)
                 log_event(
                     "success",
@@ -423,6 +438,7 @@ async def scan_and_trade_job(mode: str):
 
         def _update_last_run():
             from backend.db.utils import get_db_session
+
             try:
                 with get_db_session() as db:
                     state = db.query(BotState).filter_by(mode=mode).first()
@@ -474,6 +490,7 @@ async def weather_scan_and_trade_job(mode: str):
 
         def _read_weather_state():
             from backend.db.utils import get_db_session
+
             with get_db_session() as db:
                 state = db.query(BotState).filter_by(mode=mode).first()
                 if not state:
@@ -511,7 +528,9 @@ async def weather_scan_and_trade_job(mode: str):
             log_event("error", f"[{mode.upper()}] Bot state not initialized")
             return
         if ws.get("error") == "paused":
-            log_event("info", f"[{mode.upper()}] Bot is paused, skipping weather trades")
+            log_event(
+                "info", f"[{mode.upper()}] Bot is paused, skipping weather trades"
+            )
             return
         bankroll = ws["bankroll"]
         weather_pending = ws["weather_pending"]
@@ -533,7 +552,9 @@ async def weather_scan_and_trade_job(mode: str):
             trade_size = max(trade_size, MIN_TRADE_SIZE)
 
             if bankroll < MIN_TRADE_SIZE:
-                log_event("warning", f"[{mode.upper()}] Bankroll too low: ${bankroll:.2f}")
+                log_event(
+                    "warning", f"[{mode.upper()}] Bankroll too low: ${bankroll:.2f}"
+                )
                 break
 
             if trades_executed >= MAX_TRADES_PER_SCAN:
@@ -591,6 +612,7 @@ async def weather_scan_and_trade_job(mode: str):
 
         def _update_weather_last_run():
             from backend.db.utils import get_db_session
+
             try:
                 with get_db_session() as db:
                     state = db.query(BotState).filter_by(mode=mode).first()
@@ -603,12 +625,14 @@ async def weather_scan_and_trade_job(mode: str):
         await asyncio.to_thread(_update_weather_last_run)
 
         if trades_executed > 0:
-            log_event("success", f"[{mode.upper()}] Executed {trades_executed} weather trade(s)")
+            log_event(
+                "success",
+                f"[{mode.upper()}] Executed {trades_executed} weather trade(s)",
+            )
         else:
             log_event("info", f"[{mode.upper()}] No new weather trades executed")
 
         await asyncio.to_thread(update_heartbeat, "weather_emos")
-
 
     except Exception as e:
         log_event("error", f"[{mode.upper()}] Weather scan error: {str(e)}")
@@ -624,6 +648,7 @@ async def settlement_job():
 
     def _read_pending_count():
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             return db.query(Trade).filter(Trade.settled.is_(False)).count()
 
@@ -643,6 +668,7 @@ async def settlement_job():
         log_event("data", f"Processing {pending_count} pending trades")
 
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             settled = await settle_pending_trades(db)
 
@@ -740,6 +766,7 @@ async def auto_trader_job(mode: str):
 
     def _read_auto_trader_signals():
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             state = db.query(BotState).filter_by(mode=mode).first()
             if not state or not state.is_running:
@@ -756,7 +783,11 @@ async def auto_trader_job(mode: str):
                 .all()
             )
             if not signals:
-                return {"bankroll": bankroll, "signal_rows": [], "current_exposure": 0.0}
+                return {
+                    "bankroll": bankroll,
+                    "signal_rows": [],
+                    "current_exposure": 0.0,
+                }
             current_exposure = float(
                 db.query(func.coalesce(func.sum(Trade.size), 0.0))
                 .filter(
@@ -779,7 +810,11 @@ async def auto_trader_job(mode: str):
                 }
                 for sig in signals
             ]
-            return {"bankroll": bankroll, "signal_rows": signal_rows, "current_exposure": current_exposure}
+            return {
+                "bankroll": bankroll,
+                "signal_rows": signal_rows,
+                "current_exposure": current_exposure,
+            }
 
     try:
         from backend.core.auto_trader import AutoTrader
@@ -803,71 +838,91 @@ async def auto_trader_job(mode: str):
         skipped = 0
         processed_signal_ids = []
         for sig in signal_rows:
-                token_id = sig["token_id"]
-                market_ticker = sig["market_ticker"]
-                if mode in ("testnet", "live") and not token_id and not market_ticker.startswith("KX"):
-                    processed_signal_ids.append(sig["id"])
-                    skipped += 1
-                    continue
+            token_id = sig["token_id"]
+            market_ticker = sig["market_ticker"]
+            if (
+                mode in ("testnet", "live")
+                and not token_id
+                and not market_ticker.startswith("KX")
+            ):
+                processed_signal_ids.append(sig["id"])
+                skipped += 1
+                continue
 
-                signal_dict = {
-                    "market_id": market_ticker,
-                    "market_ticker": market_ticker,
-                    "side": "BUY" if (sig["direction"] or "yes") == "yes" else "SELL",
-                    "confidence": sig["confidence"] or 0.0,
-                    "size": min(settings.MAX_TRADE_SIZE, bankroll * settings.KELLY_FRACTION),
-                    "price": sig["model_probability"] or 0.5,
-                    "token_id": token_id,
-                    "strategy": sig["track_name"] or "unknown",
-                }
-                result = await trader.execute_signal(
-                    signal_dict,
-                    bankroll=bankroll,
-                    current_exposure=current_exposure,
-                    mode=mode,
+            signal_dict = {
+                "market_id": market_ticker,
+                "market_ticker": market_ticker,
+                "side": "BUY" if (sig["direction"] or "yes") == "yes" else "SELL",
+                "confidence": sig["confidence"] or 0.0,
+                "size": min(
+                    settings.MAX_TRADE_SIZE, bankroll * settings.KELLY_FRACTION
+                ),
+                "price": sig["model_probability"] or 0.5,
+                "token_id": token_id,
+                "strategy": sig["track_name"] or "unknown",
+            }
+            result = await trader.execute_signal(
+                signal_dict,
+                bankroll=bankroll,
+                current_exposure=current_exposure,
+                mode=mode,
+            )
+            if result.executed:
+                from backend.core.strategy_executor import execute_decision
+
+                trade_size = min(
+                    settings.MAX_TRADE_SIZE,
+                    (bankroll or 100.0) * settings.KELLY_FRACTION,
                 )
-                if result.executed:
-                    from backend.core.strategy_executor import execute_decision
-
-                    trade_size = min(settings.MAX_TRADE_SIZE, (bankroll or 100.0) * settings.KELLY_FRACTION)
-                    decision = {
-                        "market_ticker": market_ticker,
-                        "direction": sig["direction"] or "yes",
-                        "size": trade_size,
-                        "entry_price": sig["model_probability"] or 0.5,
-                        "edge": sig["edge"] or 0.0,
-                        "confidence": sig["confidence"] or 0.0,
-                        "model_probability": sig["model_probability"],
-                        "token_id": token_id,
-                        "platform": "kalshi" if market_ticker.startswith("KX") else settings.DEFAULT_VENUE,
-                    }
-                    source_strategy = sig["track_name"]
-                    if not source_strategy:
-                        logger.warning(f"Signal {sig['id']} has no track_name — skipping auto-trader")
-                        skipped += 1
-                        processed_signal_ids.append(sig["id"])
-                        continue
-                    exec_result = await execute_decision(decision, source_strategy, mode=mode)
-                    if exec_result is not None:
-                        processed_signal_ids.append(sig["id"])
-                        executed += 1
-                        current_exposure += trade_size
-                elif result.pending_approval:
-                    queued += 1
-                else:
-                    # Mark as processed even when skipped/rejected so we don't
-                    # re-attempt the same stale signal every cycle.
-                    processed_signal_ids.append(sig["id"])
+                decision = {
+                    "market_ticker": market_ticker,
+                    "direction": sig["direction"] or "yes",
+                    "size": trade_size,
+                    "entry_price": sig["model_probability"] or 0.5,
+                    "edge": sig["edge"] or 0.0,
+                    "confidence": sig["confidence"] or 0.0,
+                    "model_probability": sig["model_probability"],
+                    "token_id": token_id,
+                    "platform": (
+                        "kalshi"
+                        if market_ticker.startswith("KX")
+                        else settings.DEFAULT_VENUE
+                    ),
+                }
+                source_strategy = sig["track_name"]
+                if not source_strategy:
+                    logger.warning(
+                        f"Signal {sig['id']} has no track_name — skipping auto-trader"
+                    )
                     skipped += 1
+                    processed_signal_ids.append(sig["id"])
+                    continue
+                exec_result = await execute_decision(
+                    decision, source_strategy, mode=mode
+                )
+                if exec_result is not None:
+                    processed_signal_ids.append(sig["id"])
+                    executed += 1
+                    current_exposure += trade_size
+            elif result.pending_approval:
+                queued += 1
+            else:
+                # Mark as processed even when skipped/rejected so we don't
+                # re-attempt the same stale signal every cycle.
+                processed_signal_ids.append(sig["id"])
+                skipped += 1
 
         if processed_signal_ids:
+
             def _mark_signals_executed():
                 from backend.db.utils import get_db_session
+
                 with get_db_session() as db:
                     db.query(Signal).filter(Signal.id.in_(processed_signal_ids)).update(
                         {Signal.executed: True}, synchronize_session=False
                     )
                     db.commit()
+
             await asyncio.to_thread(_mark_signals_executed)
 
         log_event(
@@ -922,7 +977,9 @@ async def auto_redeem_job() -> None:
                 private_key=private_key,
                 builder_api_key=getattr(settings, "POLYMARKET_BUILDER_API_KEY", None),
                 builder_secret=getattr(settings, "POLYMARKET_BUILDER_SECRET", None),
-                builder_passphrase=getattr(settings, "POLYMARKET_BUILDER_PASSPHRASE", None),
+                builder_passphrase=getattr(
+                    settings, "POLYMARKET_BUILDER_PASSPHRASE", None
+                ),
                 dry_run=dry_run,
                 db_scan=db_scan,
             ),
@@ -954,6 +1011,7 @@ async def heartbeat_job():
 
     def _read_heartbeat_state():
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             state = db.query(BotState).first()
             pending = db.query(Trade).filter(Trade.settled.is_(False)).count()
@@ -1013,7 +1071,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 try:
                     params = json.loads(config.params)
                 except Exception:
-                    logger.exception(f"[scheduling_strategies] Failed to parse StrategyConfig params JSON for {strategy_name}")
+                    logger.exception(
+                        f"[scheduling_strategies] Failed to parse StrategyConfig params JSON for {strategy_name}"
+                    )
                     return None
             effective_mode = mode or config.trading_mode or settings.TRADING_MODE
             return {"params": params, "effective_mode": effective_mode}
@@ -1048,6 +1108,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         # so open the session in a thread to avoid blocking the event loop.
         def _open_db_session():
             from backend.db.utils import get_db_session
+
             return get_db_session()
 
         db = await asyncio.to_thread(_open_db_session)
@@ -1065,7 +1126,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             strategy = strategy_cls()
             result = await strategy.run(ctx)
 
-            from backend.core.strategy_executor import execute_decisions as _exec_decisions
+            from backend.core.strategy_executor import (
+                execute_decisions as _exec_decisions,
+            )
 
             buy_decisions = [
                 d
@@ -1077,7 +1140,10 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
             execution_modes = []
             if effective_mode == "live":
-                execution_modes = ["live", "paper"]  # live first so duplicate guard doesn't block real trades
+                execution_modes = [
+                    "live",
+                    "paper",
+                ]  # live first so duplicate guard doesn't block real trades
                 logger.info(
                     f"[{strategy_name}] effective_mode=live, will execute in BOTH live+paper modes"
                 )
@@ -1115,7 +1181,6 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 else:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
 
-
             _update_heartbeat(strategy_name)
 
             log_event(
@@ -1136,7 +1201,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     try:
         _update_heartbeat(strategy_name)
     except Exception:
-        logger.exception(f"[scheduling_strategies] Heartbeat update failed for {strategy_name} after cycle")
+        logger.exception(
+            f"[scheduling_strategies] Heartbeat update failed for {strategy_name} after cycle"
+        )
 
     gc.collect()
 
@@ -1149,6 +1216,7 @@ async def sync_testnet_wallet():
 async def sync_live_wallet():
     """Reconcile live wallet every 30 seconds."""
     from backend.db.utils import get_db_session
+
     try:
         from backend.core.wallet_reconciliation import WalletReconciler
         from backend.data.polymarket_clob import clob_from_settings
@@ -1162,10 +1230,13 @@ async def sync_live_wallet():
                 reconciler = WalletReconciler(clob, db, "live")
                 result = await reconciler.full_reconciliation()
 
-        logger.info("[sync_live_wallet] Reconciliation done, updating BotState timestamp...")
+        logger.info(
+            "[sync_live_wallet] Reconciliation done, updating BotState timestamp..."
+        )
 
         def _update_bot_state_sync():
             from backend.db.utils import get_db_session
+
             with get_db_session() as db:
                 state = db.query(BotState).filter_by(mode="live").first()
                 if state and result.last_sync_at:
@@ -1190,7 +1261,9 @@ async def sync_live_wallet():
                 )
             logger.info("[sync_live_wallet] reconcile_bot_state done")
         except Exception as recon_err:
-            logger.exception(f"[sync_live_wallet] reconcile_bot_state failed: {recon_err}")
+            logger.exception(
+                f"[sync_live_wallet] reconcile_bot_state failed: {recon_err}"
+            )
 
         logger.info(
             f"Live wallet sync: imported={result.imported_count}, "
@@ -1211,6 +1284,7 @@ async def verify_settlement_blockchain():
 
     def _read_unsettled_trades():
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             unsettled = db.query(Trade).filter(Trade.settled.is_(False)).all()
             if not unsettled:
@@ -1221,12 +1295,19 @@ async def verify_settlement_blockchain():
                 return []
             return [
                 {
-                    "id": t.id, "market_ticker": t.market_ticker,
-                    "settled": t.settled, "settlement_value": t.settlement_value,
-                    "pnl": t.pnl, "result": t.result, "direction": t.direction,
-                    "size": t.size, "entry_price": t.entry_price,
-                    "event_slug": t.event_slug, "token_id": t.token_id,
-                    "trading_mode": t.trading_mode, "market_type": t.market_type,
+                    "id": t.id,
+                    "market_ticker": t.market_ticker,
+                    "settled": t.settled,
+                    "settlement_value": t.settlement_value,
+                    "pnl": t.pnl,
+                    "result": t.result,
+                    "direction": t.direction,
+                    "size": t.size,
+                    "entry_price": t.entry_price,
+                    "event_slug": t.event_slug,
+                    "token_id": t.token_id,
+                    "trading_mode": t.trading_mode,
+                    "market_type": t.market_type,
                     "outcome": t.outcome,
                 }
                 for t in unsettled
@@ -1243,6 +1324,7 @@ async def verify_settlement_blockchain():
         settlements = []
 
         from backend.db.utils import get_db_session
+
         with get_db_session() as db:
             unsettled_trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
             trade_map = {t.id: t for t in unsettled_trades}
@@ -1252,7 +1334,9 @@ async def verify_settlement_blockchain():
                 if not trade:
                     continue
                 try:
-                    is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
+                    is_resolved, settlement_value = await fetch_resolution_for_trade(
+                        trade
+                    )
 
                     if is_resolved and settlement_value is not None:
                         pnl = calculate_pnl(trade, settlement_value)
@@ -1271,7 +1355,14 @@ async def verify_settlement_blockchain():
                             trade.result = "push"
 
                         settled_count += 1
-                        settlements.append({"id": trade.id, "market": trade.market_ticker, "result": trade.result, "pnl": pnl})
+                        settlements.append(
+                            {
+                                "id": trade.id,
+                                "market": trade.market_ticker,
+                                "result": trade.result,
+                                "pnl": pnl,
+                            }
+                        )
 
                 except Exception as e:
                     error_count += 1
@@ -1315,10 +1406,9 @@ async def market_universe_scan_job() -> None:
     strategies. Runs every MARKET_UNIVERSE_CACHE_TTL_SECONDS (default 300s).
     """
     from backend.core.scheduling.scheduler import log_event
+
     try:
-        markets = await scan_universe_markets(
-            limit=settings.AUTO_TRADER_BATCH_SIZE
-        )
+        markets = await scan_universe_markets(limit=settings.AUTO_TRADER_BATCH_SIZE)
         log_event(
             "info",
             f"Universe scan: {len(markets)} markets cached",

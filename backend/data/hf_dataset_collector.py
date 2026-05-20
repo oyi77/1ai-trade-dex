@@ -21,6 +21,7 @@ CACHE_DIR = Path("data/hf_cache")
 @dataclass
 class DatasetMeta:
     """Metadata for a cached dataset."""
+
     repo_id: str
     filename: str
     local_path: Path
@@ -106,18 +107,21 @@ class HFDatasetCollector:
             else:
                 try:
                     import pyarrow.parquet as pq
+
                     rows = pq.read_metadata(p).num_rows
                 except Exception:
                     rows = 0
-                metas.append(DatasetMeta(
-                    repo_id="unknown",
-                    filename=p.name,
-                    local_path=p,
-                    downloaded_at=p.stat().st_mtime,
-                    size_bytes=p.stat().st_size,
-                    rows=rows,
-                    checksum=self._checksum(p),
-                ))
+                metas.append(
+                    DatasetMeta(
+                        repo_id="unknown",
+                        filename=p.name,
+                        local_path=p,
+                        downloaded_at=p.stat().st_mtime,
+                        size_bytes=p.stat().st_size,
+                        rows=rows,
+                        checksum=self._checksum(p),
+                    )
+                )
         return metas
 
     def clear_cache(self, older_than_hours: float | None = None) -> int:
@@ -136,9 +140,7 @@ class HFDatasetCollector:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _download(
-        self, repo_id: str, filename: str, split: str
-    ) -> Optional[Any]:
+    def _download(self, repo_id: str, filename: str, split: str) -> Optional[Any]:
         """Download dataset from HuggingFace Hub."""
         try:
             from huggingface_hub import hf_hub_download
@@ -159,7 +161,9 @@ class HFDatasetCollector:
                 logger.warning(f"Unsupported file format: {filename}")
                 return pd.read_parquet(path)
         except ImportError:
-            logger.error("huggingface_hub not installed — run: pip install huggingface_hub")
+            logger.error(
+                "huggingface_hub not installed — run: pip install huggingface_hub"
+            )
             return None
         except Exception:
             logger.exception(f"Failed to download {repo_id}/{filename}")
@@ -220,6 +224,8 @@ async def hf_dataset_collection_job() -> None:
             continue
         try:
             df = collector.fetch(repo_id, filename)
-            logger.info(f"HF collected {repo_id}: {len(df) if df is not None else 0} rows")
+            logger.info(
+                f"HF collected {repo_id}: {len(df) if df is not None else 0} rows"
+            )
         except Exception:
             logger.exception(f"HF collection failed for {repo_id}")

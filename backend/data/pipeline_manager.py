@@ -4,6 +4,7 @@ Coordinates HF dataset refresh, Dune queries, subgraph sync, and Hyperliquid
 market data into a unified pipeline with scheduling, freshness monitoring,
 and health reporting.
 """
+
 from __future__ import annotations
 
 import time
@@ -24,6 +25,7 @@ class PipelineStatus(str, Enum):
 @dataclass
 class PipelineStageResult:
     """Result of a single pipeline stage execution."""
+
     name: str
     status: PipelineStatus
     records_processed: int = 0
@@ -35,6 +37,7 @@ class PipelineStageResult:
 @dataclass
 class PipelineHealth:
     """Overall pipeline health report."""
+
     stages: dict[str, PipelineStageResult]
     total_records: int = 0
     stale_stages: list[str] = field(default_factory=list)
@@ -65,9 +68,15 @@ class DataPipelineManager:
     def __post_init__(self):
         self._stages = {
             "dune": PipelineStageResult(name="dune", status=PipelineStatus.IDLE),
-            "subgraph": PipelineStageResult(name="subgraph", status=PipelineStatus.IDLE),
-            "hyperliquid": PipelineStageResult(name="hyperliquid", status=PipelineStatus.IDLE),
-            "hf_dataset": PipelineStageResult(name="hf_dataset", status=PipelineStatus.IDLE),
+            "subgraph": PipelineStageResult(
+                name="subgraph", status=PipelineStatus.IDLE
+            ),
+            "hyperliquid": PipelineStageResult(
+                name="hyperliquid", status=PipelineStatus.IDLE
+            ),
+            "hf_dataset": PipelineStageResult(
+                name="hf_dataset", status=PipelineStatus.IDLE
+            ),
         }
 
     def register_dune_client(self, client: Any) -> None:
@@ -120,7 +129,9 @@ class DataPipelineManager:
             stage.records_processed = records
             stage.status = PipelineStatus.COMPLETED
             stage.error = None
-            logger.info("[pipeline] Stage '%s' completed: %d records", stage_name, records)
+            logger.info(
+                "[pipeline] Stage '%s' completed: %d records", stage_name, records
+            )
 
         except Exception as e:
             stage.status = PipelineStatus.FAILED
@@ -201,7 +212,11 @@ class DataPipelineManager:
         trading history data. Skipped if not configured.
         """
         try:
-            hf_token = getattr(__import__("backend.config", fromlist=["settings"]).settings, "HF_DATASET_TOKEN", "")
+            hf_token = getattr(
+                __import__("backend.config", fromlist=["settings"]).settings,
+                "HF_DATASET_TOKEN",
+                "",
+            )
             if not hf_token:
                 logger.debug("[pipeline] HF dataset not configured, skipping")
                 return 0
@@ -257,7 +272,10 @@ class DataPipelineManager:
         now = time.time()
 
         for name, stage in self._stages.items():
-            if stage.last_run > 0 and (now - stage.last_run) > self._freshness_threshold_seconds:
+            if (
+                stage.last_run > 0
+                and (now - stage.last_run) > self._freshness_threshold_seconds
+            ):
                 stale.append(name)
 
         overall = PipelineStatus.COMPLETED
@@ -267,7 +285,9 @@ class DataPipelineManager:
                 break
             elif stage.status == PipelineStatus.RUNNING:
                 overall = PipelineStatus.RUNNING
-            elif stage.status == PipelineStatus.IDLE and overall != PipelineStatus.FAILED:
+            elif (
+                stage.status == PipelineStatus.IDLE and overall != PipelineStatus.FAILED
+            ):
                 overall = PipelineStatus.IDLE
 
         return PipelineHealth(

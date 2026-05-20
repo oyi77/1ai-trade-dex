@@ -4,6 +4,7 @@ Implements a reinforcement learning environment that wraps historical market
 data into a standard gymnasium interface for training trading policies.
 See docs/architecture/adr-011-rl-environment.md for design decisions.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,8 +13,6 @@ from typing import Any
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-
-
 
 # --- Action constants ---
 ACTION_BUY = 0
@@ -150,9 +149,7 @@ class PredictionMarketEnv(gym.Env):
             {
                 "market_features": spaces.Box(
                     low=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float32),
-                    high=np.array(
-                        [1.0, np.inf, 1.0, 1.0, 1.0, 1.0], dtype=np.float32
-                    ),
+                    high=np.array([1.0, np.inf, 1.0, 1.0, 1.0, 1.0], dtype=np.float32),
                     dtype=np.float32,
                 ),
                 "portfolio": spaces.Box(
@@ -249,13 +246,14 @@ class PredictionMarketEnv(gym.Env):
         if action_type == ACTION_BUY and position_size_frac > 0:
             trade_size = bankroll_before * position_size_frac
             cost = trade_size * opp.probability
-            if cost <= bankroll_before and len(self._portfolio.positions) < self._max_positions:
+            if (
+                cost <= bankroll_before
+                and len(self._portfolio.positions) < self._max_positions
+            ):
                 # Buy YES tokens: payout is 1.0 per token if outcome=1
                 shares = trade_size / max(opp.probability, 1e-8)
                 self._portfolio.bankroll -= cost
-                self._portfolio.positions = np.append(
-                    self._portfolio.positions, shares
-                )
+                self._portfolio.positions = np.append(self._portfolio.positions, shares)
                 # Settlement: outcome determines payout
                 payout = shares * opp.outcome
                 pnl_change = payout - cost

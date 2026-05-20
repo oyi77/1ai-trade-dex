@@ -14,6 +14,7 @@ Function: redeemPositions(collateralToken, parentCollectionId, conditionId, inde
 
 For standard binary markets: indexSets = [1, 2], parentCollectionId = bytes32(0)
 """
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -25,17 +26,24 @@ from backend.config_extensions import settings
 from backend.config import settings as _main_settings
 
 from loguru import logger
+
 POLYGON_RPC = settings.POLYGON_RPC_URL
 RELAYER_URL = _main_settings.POLYMARKET_RELAYER_URL
 CTF_ADDRESS = Web3.to_checksum_address("0x4D97DCd97eC945f40cF65F87097ACe5EA0476045")
 USDC_POLYGON = Web3.to_checksum_address("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174")
-NEG_RISK_ADAPTER = Web3.to_checksum_address("0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296")
+NEG_RISK_ADAPTER = Web3.to_checksum_address(
+    "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
+)
 
 CTF_ABI = [
     {
         "inputs": [
             {"internalType": "address", "name": "collateralToken", "type": "address"},
-            {"internalType": "bytes32", "name": "parentCollectionId", "type": "bytes32"},
+            {
+                "internalType": "bytes32",
+                "name": "parentCollectionId",
+                "type": "bytes32",
+            },
             {"internalType": "bytes32", "name": "conditionId", "type": "bytes32"},
             {"internalType": "uint256[]", "name": "indexSets", "type": "uint256[]"},
         ],
@@ -93,6 +101,7 @@ class BatchRedeemResult:
 # Wallet type detection
 # ---------------------------------------------------------------------------
 
+
 def _is_proxy_wallet(address: str) -> bool:
     """Check if address is a smart contract (proxy) on Polygon."""
     w3 = Web3(Web3.HTTPProvider(POLYGON_RPC))
@@ -103,6 +112,7 @@ def _is_proxy_wallet(address: str) -> bool:
 # ---------------------------------------------------------------------------
 # Encode redeemPositions calldata
 # ---------------------------------------------------------------------------
+
 
 def _encode_redeem_call(
     condition_id_hex: str,
@@ -142,9 +152,7 @@ def _encode_redeem_call(
                 ).call()
                 amounts = [bal_yes, bal_no]
             except Exception as exc:
-                logger.warning(
-                    f"Failed to fetch neg-risk balances, using [0,0]: {exc}"
-                )
+                logger.warning(f"Failed to fetch neg-risk balances, using [0,0]: {exc}")
 
         adapter = w3.eth.contract(address=NEG_RISK_ADAPTER, abi=NEG_RISK_ABI)
         calldata = adapter.encode_abi(
@@ -164,6 +172,7 @@ def _encode_redeem_call(
 # ---------------------------------------------------------------------------
 # Redeem via Relayer (proxy wallets)
 # ---------------------------------------------------------------------------
+
 
 def _redeem_via_relayer(
     condition_id_hex: str,
@@ -261,6 +270,7 @@ def _redeem_via_relayer(
 # Redeem directly on-chain (EOA wallets)
 # ---------------------------------------------------------------------------
 
+
 def _redeem_direct(
     condition_id_hex: str,
     private_key: str,
@@ -296,7 +306,8 @@ def _redeem_direct(
 
             try:
                 gas_est = adapter.functions.redeemPositions(
-                    condition_bytes, [bal_yes, bal_no],
+                    condition_bytes,
+                    [bal_yes, bal_no],
                 ).estimate_gas({"from": acct.address})
                 gas_limit = int(min(gas_est * 1.3 + 50_000, 1_000_000))
             except Exception as exc:
@@ -307,21 +318,27 @@ def _redeem_direct(
                 )
 
             tx = adapter.functions.redeemPositions(
-                condition_bytes, [bal_yes, bal_no],
-            ).build_transaction({
-                "from": acct.address,
-                "nonce": w3.eth.get_transaction_count(acct.address),
-                "gas": gas_limit,
-                "gasPrice": w3.eth.gas_price,
-                "chainId": 137,
-            })
+                condition_bytes,
+                [bal_yes, bal_no],
+            ).build_transaction(
+                {
+                    "from": acct.address,
+                    "nonce": w3.eth.get_transaction_count(acct.address),
+                    "gas": gas_limit,
+                    "gasPrice": w3.eth.gas_price,
+                    "chainId": 137,
+                }
+            )
         else:
             ctf = w3.eth.contract(address=CTF_ADDRESS, abi=CTF_ABI)
             condition_bytes = Web3.to_bytes(hexstr=condition_id_hex)
 
             try:
                 gas_est = ctf.functions.redeemPositions(
-                    USDC_POLYGON, bytes(32), condition_bytes, [1, 2],
+                    USDC_POLYGON,
+                    bytes(32),
+                    condition_bytes,
+                    [1, 2],
                 ).estimate_gas({"from": acct.address})
                 gas_limit = int(min(gas_est * 1.3 + 50_000, 1_000_000))
             except Exception as exc:
@@ -332,22 +349,31 @@ def _redeem_direct(
                 )
 
             tx = ctf.functions.redeemPositions(
-                USDC_POLYGON, bytes(32), condition_bytes, [1, 2],
-            ).build_transaction({
-                "from": acct.address,
-                "nonce": w3.eth.get_transaction_count(acct.address),
-                "gas": gas_limit,
-                "gasPrice": w3.eth.gas_price,
-                "chainId": 137,
-            })
+                USDC_POLYGON,
+                bytes(32),
+                condition_bytes,
+                [1, 2],
+            ).build_transaction(
+                {
+                    "from": acct.address,
+                    "nonce": w3.eth.get_transaction_count(acct.address),
+                    "gas": gas_limit,
+                    "gasPrice": w3.eth.gas_price,
+                    "chainId": 137,
+                }
+            )
 
         signed = acct.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
         if receipt["status"] == 1:
-            logger.info(f"Direct redeem confirmed {condition_id_hex[:20]}... tx={tx_hash.hex()}")
-            return RedeemResult(success=True, tx_hash=tx_hash.hex(), condition_id=condition_id_hex)
+            logger.info(
+                f"Direct redeem confirmed {condition_id_hex[:20]}... tx={tx_hash.hex()}"
+            )
+            return RedeemResult(
+                success=True, tx_hash=tx_hash.hex(), condition_id=condition_id_hex
+            )
         else:
             return RedeemResult(
                 success=False,
@@ -365,6 +391,7 @@ def _redeem_direct(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def get_redeemable_positions(wallet: str) -> list[dict]:
     """Fetch redeemable positions from Polymarket Data API.
 
@@ -372,6 +399,7 @@ def get_redeemable_positions(wallet: str) -> list[dict]:
     Falls back to sync if no event loop is running.
     """
     import asyncio
+
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
@@ -380,6 +408,7 @@ def get_redeemable_positions(wallet: str) -> list[dict]:
     if loop and loop.is_running():
         # We're in an async context — use a thread to avoid blocking the event loop
         import concurrent.futures
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(_fetch_redeemable_positions_sync, wallet)
             positions = future.result(timeout=15)
@@ -433,22 +462,26 @@ def get_db_resolved_positions() -> list[dict]:
             )
 
             for trade in winning_trades:
-                condition_id = getattr(trade, "condition_id", None) or getattr(trade, "market_ticker", None)
+                condition_id = getattr(trade, "condition_id", None) or getattr(
+                    trade, "market_ticker", None
+                )
                 if not condition_id:
                     continue
                 # Skip if already has a settlement_source indicating redemption
                 source = getattr(trade, "settlement_source", "") or ""
                 if "redeem" in source.lower():
                     continue
-                resolved.append({
-                    "conditionId": condition_id,
-                    "title": getattr(trade, "market_ticker", "unknown"),
-                    "curPrice": 1.0,
-                    "initialValue": float(trade.entry_price or 0),
-                    "negativeRisk": False,
-                    "_source": "db_scan",
-                    "_trade_id": trade.id,
-                })
+                resolved.append(
+                    {
+                        "conditionId": condition_id,
+                        "title": getattr(trade, "market_ticker", "unknown"),
+                        "curPrice": 1.0,
+                        "initialValue": float(trade.entry_price or 0),
+                        "negativeRisk": False,
+                        "_source": "db_scan",
+                        "_trade_id": trade.id,
+                    }
+                )
 
             if resolved:
                 logger.info(

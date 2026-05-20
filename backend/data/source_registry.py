@@ -1,4 +1,5 @@
 """Data source registry for the plugin system."""
+
 import asyncio
 import json
 import logging
@@ -81,9 +82,7 @@ class DataSourceRegistry(PluginRegistry[DataSourceManifest, BaseDataSource]):
             raise PluginNotFound(f"Data source '{name}' is unhealthy")
         return self._plugins[name]
 
-    def get_for_type(
-        self, data_type: DataType
-    ) -> List[BaseDataSource]:
+    def get_for_type(self, data_type: DataType) -> List[BaseDataSource]:
         """Return all healthy sources that provide this data type, sorted by priority."""
         results = []
         for name, plugin in self._plugins.items():
@@ -95,9 +94,12 @@ class DataSourceRegistry(PluginRegistry[DataSourceManifest, BaseDataSource]):
             if data_type in manifest.data_types:
                 results.append(plugin)
         # Sort by whether "primary" tag exists (sources with "primary" first)
-        results.sort(key=lambda p: "primary" not in self._manifests[
-            list(self._plugins.keys())[list(self._plugins.values()).index(p)]
-        ].tags)
+        results.sort(
+            key=lambda p: "primary"
+            not in self._manifests[
+                list(self._plugins.keys())[list(self._plugins.values()).index(p)]
+            ].tags
+        )
         return results
 
     def list_all(self) -> List[DataSourceManifest]:

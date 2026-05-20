@@ -53,7 +53,7 @@ class PercentileTracker:
             "count": count,
             "min": min(sorted_values),
             "max": max(sorted_values),
-            "avg": sum(sorted_values) / count
+            "avg": sum(sorted_values) / count,
         }
 
 
@@ -100,60 +100,63 @@ class PerformanceTracker:
         status_code: int,
         db: Optional[Session] = None,
         user_agent: Optional[str] = None,
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
     ):
         """Track HTTP request performance."""
         self.request_tracker.add(duration_ms)
 
         if db:
             try:
-                _best_effort_write(db, PerformanceMetric(
-                    metric_type="request",
-                    endpoint=endpoint,
-                    method=method,
-                    status_code=status_code,
-                    duration_ms=duration_ms,
-                    user_agent=user_agent,
-                    error_message=error_message
-                ))
+                _best_effort_write(
+                    db,
+                    PerformanceMetric(
+                        metric_type="request",
+                        endpoint=endpoint,
+                        method=method,
+                        status_code=status_code,
+                        duration_ms=duration_ms,
+                        user_agent=user_agent,
+                        error_message=error_message,
+                    ),
+                )
             except Exception as e:
                 logger.debug("Failed to store request metric: %s", e)
 
     def track_db_query(
-        self,
-        duration_ms: float,
-        query_type: str,
-        db: Optional[Session] = None
+        self, duration_ms: float, query_type: str, db: Optional[Session] = None
     ):
         """Track database query performance."""
         self.db_query_tracker.add(duration_ms)
 
         if db:
             try:
-                _best_effort_write(db, PerformanceMetric(
-                    metric_type="db_query",
-                    query_type=query_type,
-                    query_duration_ms=duration_ms
-                ))
+                _best_effort_write(
+                    db,
+                    PerformanceMetric(
+                        metric_type="db_query",
+                        query_type=query_type,
+                        query_duration_ms=duration_ms,
+                    ),
+                )
             except Exception as e:
                 logger.debug("Failed to store DB query metric: %s", e)
 
     def track_websocket(
-        self,
-        latency_ms: float,
-        message_type: str,
-        db: Optional[Session] = None
+        self, latency_ms: float, message_type: str, db: Optional[Session] = None
     ):
         """Track WebSocket message latency."""
         self.ws_tracker.add(latency_ms)
 
         if db:
             try:
-                _best_effort_write(db, PerformanceMetric(
-                    metric_type="websocket",
-                    ws_message_type=message_type,
-                    ws_latency_ms=latency_ms
-                ))
+                _best_effort_write(
+                    db,
+                    PerformanceMetric(
+                        metric_type="websocket",
+                        ws_message_type=message_type,
+                        ws_latency_ms=latency_ms,
+                    ),
+                )
             except Exception as e:
                 logger.debug("Failed to store WebSocket metric: %s", e)
 
@@ -167,19 +170,22 @@ class PerformanceTracker:
 
             if db:
                 try:
-                    _best_effort_write(db, PerformanceMetric(
-                        metric_type="system",
-                        memory_usage_mb=memory_mb,
-                        memory_percent=memory_percent,
-                        cpu_percent=cpu_percent
-                    ))
+                    _best_effort_write(
+                        db,
+                        PerformanceMetric(
+                            metric_type="system",
+                            memory_usage_mb=memory_mb,
+                            memory_percent=memory_percent,
+                            cpu_percent=cpu_percent,
+                        ),
+                    )
                 except Exception as e:
                     logger.debug("Failed to store system metric: %s", e)
 
             return {
                 "memory_mb": memory_mb,
                 "memory_percent": memory_percent,
-                "cpu_percent": cpu_percent
+                "cpu_percent": cpu_percent,
             }
         except Exception as e:
             logger.debug("Failed to track system resources: %s", e)
@@ -197,39 +203,42 @@ class PerformanceTracker:
                 "p50_ms": round(request_stats["p50"], 2),
                 "p95_ms": round(request_stats["p95"], 2),
                 "p99_ms": round(request_stats["p99"], 2),
-                "avg_ms": round(request_stats["avg"], 2) if request_stats["count"] > 0 else 0,
-                "count": request_stats["count"]
+                "avg_ms": (
+                    round(request_stats["avg"], 2) if request_stats["count"] > 0 else 0
+                ),
+                "count": request_stats["count"],
             },
             "db_query_time": {
                 "p50_ms": round(db_stats["p50"], 2),
                 "p95_ms": round(db_stats["p95"], 2),
                 "p99_ms": round(db_stats["p99"], 2),
                 "avg_ms": round(db_stats["avg"], 2) if db_stats["count"] > 0 else 0,
-                "count": db_stats["count"]
+                "count": db_stats["count"],
             },
             "websocket_latency": {
                 "p50_ms": round(ws_stats["p50"], 2),
                 "p95_ms": round(ws_stats["p95"], 2),
                 "p99_ms": round(ws_stats["p99"], 2),
                 "avg_ms": round(ws_stats["avg"], 2) if ws_stats["count"] > 0 else 0,
-                "count": ws_stats["count"]
+                "count": ws_stats["count"],
             },
-            "system": system_stats or {
-                "memory_mb": 0,
-                "memory_percent": 0,
-                "cpu_percent": 0
-            }
+            "system": system_stats
+            or {"memory_mb": 0, "memory_percent": 0, "cpu_percent": 0},
         }
 
     def cleanup_old_metrics(self, db: Session, days: int = 30):
         """Remove metrics older than specified days."""
         try:
             cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-            deleted = db.query(PerformanceMetric).filter(
-                PerformanceMetric.timestamp < cutoff
-            ).delete()
+            deleted = (
+                db.query(PerformanceMetric)
+                .filter(PerformanceMetric.timestamp < cutoff)
+                .delete()
+            )
             db.commit()
-            logger.info(f"Cleaned up {deleted} old performance metrics (older than {days} days)")
+            logger.info(
+                f"Cleaned up {deleted} old performance metrics (older than {days} days)"
+            )
             return deleted
         except Exception as e:
             logger.exception("[PerformanceTracker] Failed to cleanup old metrics")

@@ -1,8 +1,10 @@
 """Tests for /api/v1/settings/test-mirofish API endpoint."""
+
 import asyncio
 from unittest.mock import patch, AsyncMock
 
 _TEST_ADMIN_KEY = "test-admin-key"
+
 
 def _auth():
     return {"Authorization": f"Bearer {_TEST_ADMIN_KEY}"}
@@ -14,6 +16,7 @@ class TestMiroFishEndpointAuth:
     def test_missing_admin_token_returns_401(self, client):
         """POST /api/v1/settings/test-mirofish without admin token returns 401."""
         from backend.config import settings
+
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "test-secret"
         try:
@@ -28,6 +31,7 @@ class TestMiroFishEndpointAuth:
     def test_invalid_admin_token_returns_401(self, client):
         """POST with wrong bearer token returns 401."""
         from backend.config import settings
+
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "correct-secret"
         try:
@@ -43,10 +47,13 @@ class TestMiroFishEndpointAuth:
     def test_valid_admin_token_passes_auth(self, client):
         """POST with valid bearer token passes authentication."""
         from backend.config import settings
+
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = "test-secret"
         try:
-            with patch("backend.ai.mirofish_client.MiroFishClient") as mock_client_class:
+            with patch(
+                "backend.ai.mirofish_client.MiroFishClient"
+            ) as mock_client_class:
                 mock_instance = AsyncMock()
                 mock_instance.fetch_signals = AsyncMock(return_value=[])
                 mock_client_class.return_value = mock_instance
@@ -63,6 +70,7 @@ class TestMiroFishEndpointAuth:
     def test_rejected_when_admin_key_not_set(self, client):
         """POST returns 403 when ADMIN_API_KEY is not configured (security fix E-01)."""
         from backend.config import settings
+
         original = settings.ADMIN_API_KEY
         settings.ADMIN_API_KEY = None
         try:
@@ -80,6 +88,7 @@ class TestMiroFishEndpointValidation:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_missing_api_url_returns_422(self, client):
@@ -136,6 +145,7 @@ class TestMiroFishEndpointSuccess:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_valid_credentials_returns_success(self, client):
@@ -205,6 +215,7 @@ class TestMiroFishEndpointAuthenticationError:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_401_error_returns_authentication_error(self, client):
@@ -253,6 +264,7 @@ class TestMiroFishEndpointNotFoundError:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_404_error_returns_not_found_error(self, client):
@@ -300,6 +312,7 @@ class TestMiroFishEndpointTimeoutError:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_timeout_error_returns_timeout_error(self, client):
@@ -345,6 +358,7 @@ class TestMiroFishEndpointConnectionError:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_connection_error_returns_connection_error(self, client):
@@ -392,6 +406,7 @@ class TestMiroFishEndpointUnknownError:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_unknown_error_returns_unknown_error(self, client):
@@ -435,6 +450,7 @@ class TestMiroFishEndpointClientInstantiation:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_client_instantiated_with_correct_url(self, client):
@@ -479,6 +495,7 @@ class TestMiroFishEndpointFetchSignalsCall:
 
     def setup_method(self):
         from backend.config import settings
+
         settings.ADMIN_API_KEY = _TEST_ADMIN_KEY
 
     def test_fetch_signals_called_with_polymarket_market(self, client):

@@ -2,6 +2,7 @@
 
 Handles leaderboard scoring, trader selection, and order mirroring logic.
 """
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -15,7 +16,10 @@ from backend.monitoring.hft_metrics import record_execution, order_placement_lat
 from backend.utils.redaction import redact_sensitive
 
 from loguru import logger
-data_api_breaker = CircuitBreaker("data_api", failure_threshold=5, recovery_timeout=60.0)
+
+data_api_breaker = CircuitBreaker(
+    "data_api", failure_threshold=5, recovery_timeout=60.0
+)
 
 DATA_HOST = settings.DATA_API_URL
 GAMMA_HOST = settings.GAMMA_API_URL
@@ -91,11 +95,16 @@ class LeaderboardScorer:
             trades = resp.json()
             if not trades:
                 return None
-            settled = [t for t in trades if t.get("settled") or t.get("outcome") or t.get("result")]
+            settled = [
+                t
+                for t in trades
+                if t.get("settled") or t.get("outcome") or t.get("result")
+            ]
             if len(settled) < 5:
                 return None
             wins = sum(
-                1 for t in settled
+                1
+                for t in settled
                 if t.get("outcome") in ("win", "YES")
                 or t.get("result") in ("win", "YES")
                 or (t.get("pnl") is not None and float(t.get("pnl", 0)) > 0)
@@ -146,7 +155,9 @@ class LeaderboardScorer:
         try:
             return await data_api_breaker.call(_fetch_positions)
         except CircuitOpenError:
-            logger.warning("[order_executor] Data API circuit open, cannot fetch bankroll")
+            logger.warning(
+                "[order_executor] Data API circuit open, cannot fetch bankroll"
+            )
             return None
         except Exception as e:
             logger.debug(f"Bankroll fetch failed for {redact_sensitive(wallet)}: {e}")
@@ -157,24 +168,31 @@ class LeaderboardScorer:
         try:
             resp = await self._http.get(
                 f"{DATA_HOST}/{settings.DATA_API_VERSION}/leaderboard",
-                params={"timePeriod": "MONTH", "limit": top_n, "category": "OVERALL", "orderBy": "PNL"},
+                params={
+                    "timePeriod": "MONTH",
+                    "limit": top_n,
+                    "category": "OVERALL",
+                    "orderBy": "PNL",
+                },
             )
             resp.raise_for_status()
             raw_entries = resp.json()
             # Normalize v1 API fields (pnl→profit, vol→volume) to match downstream expectations
             entries = []
             for e in raw_entries:
-                entries.append({
-                    "id": e.get("id", ""),
-                    "user": e.get("user", ""),
-                    "proxyWallet": e.get("proxyWallet", e.get("address", "")),
-                    "name": e.get("userName", e.get("name", "")),
-                    "profit": float(e.get("pnl", e.get("profit", 0))),
-                    "pnlPercentage": float(e.get("pnlPercentage", 0)),
-                    "tradesCount": int(e.get("tradesCount", e.get("vol", 0))),
-                    "marketsTraded": int(e.get("marketsTraded", 0)),
-                    "volume": float(e.get("vol", e.get("volume", 0))),
-                })
+                entries.append(
+                    {
+                        "id": e.get("id", ""),
+                        "user": e.get("user", ""),
+                        "proxyWallet": e.get("proxyWallet", e.get("address", "")),
+                        "name": e.get("userName", e.get("name", "")),
+                        "profit": float(e.get("pnl", e.get("profit", 0))),
+                        "pnlPercentage": float(e.get("pnlPercentage", 0)),
+                        "tradesCount": int(e.get("tradesCount", e.get("vol", 0))),
+                        "marketsTraded": int(e.get("marketsTraded", 0)),
+                        "volume": float(e.get("vol", e.get("volume", 0))),
+                    }
+                )
         except (httpx.HTTPError, Exception) as e:
             logger.debug(
                 f"[order_executor.fetch_and_score] Leaderboard data-api unavailable ({type(e).__name__}: {e}), trying scraper fallback"
@@ -225,7 +243,7 @@ class LeaderboardScorer:
             profit = float(e.get("profit", 0))
             trades = int(e.get("tradesCount", 0))
 
-            user = e.get("id", e.get("user", ""))          # user ID for /trades API
+            user = e.get("id", e.get("user", ""))  # user ID for /trades API
             proxy = e.get("proxyWallet", e.get("address", ""))  # 0x... wallet address
 
             # For scraped entries, use proxyWallet as user if no id
@@ -244,9 +262,7 @@ class LeaderboardScorer:
                 est_bankroll = actual_bankroll
             else:
                 # E-109: Use settings bankroll instead of profit heuristic
-                est_bankroll = float(
-                    getattr(settings, 'INITIAL_BANKROLL', 1000.0)
-                )
+                est_bankroll = float(getattr(settings, "INITIAL_BANKROLL", 1000.0))
 
             trader = ScoredTrader(
                 user=user,
@@ -284,7 +300,9 @@ class LeaderboardScorer:
             return []
 
         traders.sort(key=lambda t: t.score, reverse=True)
-        logger.info(f"Scored {len(traders)} traders. Top: {traders[0].pseudonym} score={traders[0].score:.1f}")
+        logger.info(
+            f"Scored {len(traders)} traders. Top: {traders[0].pseudonym} score={traders[0].score:.1f}"
+        )
         return traders
 
 
@@ -330,7 +348,7 @@ class OrderExecutor:
         except (httpx.HTTPError, Exception) as e:
             logger.debug(
                 f"[order_executor._fetch_market_meta] {type(e).__name__}: Market meta fetch failed for {condition_id[:12]}: {e}",
-                exc_info=True
+                exc_info=True,
             )
             self._market_cache[condition_id] = None
             return None
@@ -356,7 +374,9 @@ class OrderExecutor:
                 try:
                     end_dt = datetime.fromisoformat(end_date_iso.replace("Z", "+00:00"))
                     days_remaining = (end_dt - datetime.now(timezone.utc)).days
-                    if days_remaining < _cfg("ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION", 7):
+                    if days_remaining < _cfg(
+                        "ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION", 7
+                    ):
                         logger.debug(
                             f"Skipping copy: only {days_remaining}d to resolution (need {_cfg('ORDER_EXECUTOR_MIN_DAYS_TO_RESOLUTION', 7)}d) | {trade.title[:40]}"
                         )
@@ -413,11 +433,15 @@ class OrderExecutor:
             f"= {their_pct:.1%} -> our size: ${our_size:.2f}"
         )
 
-        record_execution(strategy="copy_trader", side="BUY", status="placed", latency_s=0.0)
+        record_execution(
+            strategy="copy_trader", side="BUY", status="placed", latency_s=0.0
+        )
         order_placement_latency.labels(strategy="copy_trader", side="BUY").observe(0.0)
         # Convert trade outcome to valid direction for CLOB
         # trade.outcome comes from Polymarket API and should be "YES" or "NO"
-        our_side = trade.outcome.upper() if trade.outcome.upper() in ("YES", "NO") else "YES"
+        our_side = (
+            trade.outcome.upper() if trade.outcome.upper() in ("YES", "NO") else "YES"
+        )
 
         return CopySignal(
             source_wallet=trader.user,
@@ -443,7 +467,9 @@ class OrderExecutor:
             f"Closing our mirrored position"
         )
 
-        record_execution(strategy="copy_trader", side="SELL", status="placed", latency_s=0.0)
+        record_execution(
+            strategy="copy_trader", side="SELL", status="placed", latency_s=0.0
+        )
         order_placement_latency.labels(strategy="copy_trader", side="SELL").observe(0.0)
         return CopySignal(
             source_wallet=trader.user,

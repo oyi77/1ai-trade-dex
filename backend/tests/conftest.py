@@ -1,4 +1,5 @@
 """Shared pytest fixtures for PolyEdge backend integration tests."""
+
 # ruff: noqa: E402,F401,F811
 
 import sys
@@ -39,6 +40,7 @@ sys.modules["backend.core.scheduling.scheduler"] = _sched_stub
 # ---------------------------------------------------------------------------
 import logging as _stdlib_logging
 
+
 @pytest.fixture(autouse=True)
 def _loguru_to_caplog(caplog):
     from loguru import logger as _loguru_logger
@@ -49,13 +51,12 @@ def _loguru_to_caplog(caplog):
 
     _LoguruHandler()
     handler_id = _loguru_logger.add(
-        lambda msg: _stdlib_logging.log(
-            msg.record["level"].no, msg.record["message"]
-        ),
+        lambda msg: _stdlib_logging.log(msg.record["level"].no, msg.record["message"]),
         level="DEBUG",
     )
     yield
     _loguru_logger.remove(handler_id)
+
 
 # ---------------------------------------------------------------------------
 # Build in-memory SQLite engine and redirect the database module to use it
@@ -78,25 +79,59 @@ from backend.models.database import Base
 # Import all models so Base.metadata.create_all() creates every table.
 # Without these imports, tables like strategy_proposal are missing in test DB.
 from backend.models.database import (
-    Signal, Trade, BotState, StrategyConfig, DecisionLog, TradeAttempt,
-    MarketWatch, WalletConfig, TradeContext, JobQueue, PendingApproval,
-    AILog, ActivityLog, MiroFishSignal, StrategyProposal,
-    PerformanceMetric, AuditLog, WhaleTransaction, BtcPriceSnapshot,
-    ScanLog, CopyTraderEntry, SettlementEvent, EquitySnapshot,
-    CalibrationRecord, ResearchItemDB, Alert, AlertConfig,
-    Setting, SystemSettings, ErrorLog, Experiment, ShadowTrade,
+    Signal,
+    Trade,
+    BotState,
+    StrategyConfig,
+    DecisionLog,
+    TradeAttempt,
+    MarketWatch,
+    WalletConfig,
+    TradeContext,
+    JobQueue,
+    PendingApproval,
+    AILog,
+    ActivityLog,
+    MiroFishSignal,
+    StrategyProposal,
+    PerformanceMetric,
+    AuditLog,
+    WhaleTransaction,
+    BtcPriceSnapshot,
+    ScanLog,
+    CopyTraderEntry,
+    SettlementEvent,
+    EquitySnapshot,
+    CalibrationRecord,
+    ResearchItemDB,
+    Alert,
+    AlertConfig,
+    Setting,
+    SystemSettings,
+    ErrorLog,
+    Experiment,
+    ShadowTrade,
 )  # noqa: F401
 from backend.models.backtest import BacktestRun, BacktestTrade  # noqa: F401
 from backend.models.kg_models import LLMCostRecord  # noqa: F401
 import backend.models.genome_registry  # noqa: F401  # registers GenomePerformance/GenomeShadowTrade tables
 from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot
 from backend.models.database import TransactionEvent
-from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord, ParamChange, TradingCalibrationRecord  # noqa: F401
+from backend.models.outcome_tables import (
+    StrategyOutcome,
+    StrategyHealthRecord,
+    ParamChange,
+    TradingCalibrationRecord,
+)  # noqa: F401
 from backend.models.signal_log import SignalLog  # noqa: F401
 from backend.models.signal_log import SignalLog  # noqa: F401
 from backend.models.signal_log import SignalLog  # noqa: F401
 from backend.models.kg_models import ExperimentRecord, DecisionAuditLog  # noqa: F401
-from backend.models.historical_data import HistoricalCandle, MarketOutcome, WeatherSnapshot  # noqa: F401
+from backend.models.historical_data import (
+    HistoricalCandle,
+    MarketOutcome,
+    WeatherSnapshot,
+)  # noqa: F401
 from backend.core.risk_profiles import RiskProfileRow  # noqa: F401
 
 _db_mod.engine = test_engine
@@ -112,6 +147,7 @@ except Exception:
 # Patch heartbeat module's SessionLocal reference
 try:
     from backend.core import heartbeat as _hb
+
     _hb.SessionLocal = TestSessionLocal
 except Exception:
     pass
@@ -236,7 +272,9 @@ def db():
     connection.begin()
     nested = connection.begin_nested()
 
-    _conn_session_factory = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+    _conn_session_factory = sessionmaker(
+        autocommit=False, autoflush=False, bind=connection
+    )
 
     _original_sl = _db_mod.SessionLocal
     _db_mod.SessionLocal = _conn_session_factory
@@ -282,9 +320,19 @@ def db():
 @pytest.fixture(autouse=True)
 def cleanup_proposals_between_tests(db):
     from backend.models.database import (
-        BotState, Trade, Signal, StrategyProposal, StrategyConfig, ActivityLog, DecisionLog, TradeAttempt, MiroFishSignal, ShadowTrade
+        BotState,
+        Trade,
+        Signal,
+        StrategyProposal,
+        StrategyConfig,
+        ActivityLog,
+        DecisionLog,
+        TradeAttempt,
+        MiroFishSignal,
+        ShadowTrade,
     )
     from backend.models.kg_models import ExperimentRecord
+
     db.query(Trade).delete()
     db.query(Signal).delete()
     db.query(StrategyProposal).delete()
@@ -300,14 +348,16 @@ def cleanup_proposals_between_tests(db):
     for mode in ["paper", "testnet", "live"]:
         state = db.query(BotState).filter_by(mode=mode).first()
         if not state:
-            db.add(BotState(
-                mode=mode,
-                bankroll=10000.0 if mode != "testnet" else 100.0,
-                total_trades=0,
-                winning_trades=0,
-                total_pnl=0.0,
-                is_running=True,
-            ))
+            db.add(
+                BotState(
+                    mode=mode,
+                    bankroll=10000.0 if mode != "testnet" else 100.0,
+                    total_trades=0,
+                    winning_trades=0,
+                    total_pnl=0.0,
+                    is_running=True,
+                )
+            )
         else:
             state.bankroll = 10000.0 if mode != "testnet" else 100.0
             state.total_trades = 0

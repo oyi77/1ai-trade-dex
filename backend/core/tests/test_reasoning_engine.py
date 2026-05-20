@@ -14,7 +14,7 @@ class TestReasoningContext:
             domain="finance",
             query="What is the cause of inflation?",
             evidence=["price_index_up", "supply_chain_constraints"],
-            constraints=["must_be_evidence_based"]
+            constraints=["must_be_evidence_based"],
         )
         assert ctx.domain == "finance"
         assert ctx.query == "What is the cause of inflation?"
@@ -38,7 +38,7 @@ class TestReasoningResult:
             conclusion="Inflation is caused by supply constraints",
             confidence=0.85,
             trace=["step1", "step2"],
-            supporting_evidence=["evidence1"]
+            supporting_evidence=["evidence1"],
         )
         assert res.conclusion == "Inflation is caused by supply constraints"
         assert res.confidence == 0.85
@@ -66,7 +66,7 @@ class TestReasoningEngine:
         ctx = ReasoningContext(
             domain="finance",
             query="What causes market volatility?",
-            evidence=["uncertainty", "policy_changes"]
+            evidence=["uncertainty", "policy_changes"],
         )
         result = engine.reason(ctx)
 
@@ -122,7 +122,7 @@ class TestReasoningEngine:
         engine = ReasoningEngine()
         score = engine.evaluate_hypothesis(
             "Inflation is rising",
-            ["price_index_up", "supply_constraints", "wage_increases"]
+            ["price_index_up", "supply_constraints", "wage_increases"],
         )
         assert score == pytest.approx(0.6)  # min(1.0, 3 * 0.2)
 
@@ -134,9 +134,7 @@ class TestReasoningEngine:
     def test_cross_domain_generalization(self):
         engine = ReasoningEngine()
         result = engine.generalize(
-            from_domain="physics",
-            to_domain="economics",
-            knowledge="gravity"
+            from_domain="physics", to_domain="economics", knowledge="gravity"
         )
 
         assert isinstance(result, str)

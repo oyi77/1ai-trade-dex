@@ -8,7 +8,11 @@ from backend.core.circuit_breaker import CircuitBreaker
 _registry = get_registry()
 logger = logging.getLogger(__name__)
 
-_coinbase_breaker = CircuitBreaker("coinbase", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+_coinbase_breaker = CircuitBreaker(
+    "coinbase",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+)
 
 
 @_registry.plugin
@@ -29,13 +33,17 @@ class CoinbaseFeed(BaseExchangeFeed):
     async def get_btc_price(self) -> float:
         async def _fetch():
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self.manifest().base_url}/products/BTC-USD/ticker")
+                resp = await client.get(
+                    f"{self.manifest().base_url}/products/BTC-USD/ticker"
+                )
                 resp.raise_for_status()
                 return float(resp.json()["price"])
+
         return await _coinbase_breaker.call(_fetch)
 
     async def get_klines(self, symbol: str, interval: str, limit: int) -> list:
         import datetime as _dt
+
         async def _fetch():
             async with httpx.AsyncClient(timeout=10.0) as client:
                 end = _dt.datetime.now(_dt.timezone.utc)
@@ -52,7 +60,15 @@ class CoinbaseFeed(BaseExchangeFeed):
                 rows = resp.json()
                 rows = list(reversed(rows))
                 return [
-                    [int(r[0]) * 1000, str(r[3]), str(r[2]), str(r[1]), str(r[4]), str(r[5])]
+                    [
+                        int(r[0]) * 1000,
+                        str(r[3]),
+                        str(r[2]),
+                        str(r[1]),
+                        str(r[4]),
+                        str(r[5]),
+                    ]
                     for r in rows
                 ]
+
         return await _coinbase_breaker.call(_fetch)

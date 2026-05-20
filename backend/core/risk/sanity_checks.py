@@ -4,6 +4,7 @@ Sanity Checks — Pre-trade market and source validation.
 quick_sanity_check: ~100ms, market health
 deep_sanity_check: source wallet quality
 """
+
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 import time
@@ -12,6 +13,7 @@ import time
 @dataclass
 class MarketHealth:
     """Market data for sanity checking."""
+
     market_id: str
     end_date: Optional[float] = None  # Unix timestamp
     book_depth_usd: float = 0.0  # Total order book depth
@@ -24,6 +26,7 @@ class MarketHealth:
 @dataclass
 class SourceWallet:
     """Source wallet for deep checking."""
+
     wallet_address: str
     last_trade_ts: Optional[float] = None
     total_trades: int = 0
@@ -93,8 +96,10 @@ def deep_sanity_check(wallet: SourceWallet) -> Tuple[bool, List[str]]:
         issues.append(f"Historical WR too low: {wallet.historical_win_rate:.1%} < 30%")
 
     # Performance degradation
-    if (wallet.recent_win_rate < wallet.historical_win_rate * 0.7 and
-        wallet.total_trades > 50):
+    if (
+        wallet.recent_win_rate < wallet.historical_win_rate * 0.7
+        and wallet.total_trades > 50
+    ):
         issues.append(
             f"Recent WR degraded: {wallet.recent_win_rate:.1%} vs "
             f"historical {wallet.historical_win_rate:.1%}"

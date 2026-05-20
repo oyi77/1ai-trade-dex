@@ -4,6 +4,7 @@ Slippage calculator for Polymarket CLOB order books.
 Walks the order book to estimate execution price (VWAP) and slippage
 for a given order side and size.
 """
+
 from dataclasses import dataclass
 
 from backend.data.orderbook_ws import LiveOrderBook
@@ -12,8 +13,8 @@ from backend.data.orderbook_ws import LiveOrderBook
 @dataclass
 class SlippageEstimate:
     execution_price: float  # VWAP across filled levels
-    slippage: float         # execution_price - mid_price (as fraction of mid)
-    filled_amount: float    # total size actually filled
+    slippage: float  # execution_price - mid_price (as fraction of mid)
+    filled_amount: float  # total size actually filled
     fully_filled: bool
     levels_consumed: int
 

@@ -1,5 +1,3 @@
-
-
 from backend.backtesting.base import (
     BacktestDataSourceManifest,
     BaseBacktestDataSource,

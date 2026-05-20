@@ -1,4 +1,5 @@
 """Abstract base class and manifest for market provider plugins."""
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -43,8 +44,7 @@ class BaseMarketProvider(ABC):
 
     @classmethod
     @abstractmethod
-    def manifest(cls) -> MarketProviderManifest:
-        ...
+    def manifest(cls) -> MarketProviderManifest: ...
 
     @abstractmethod
     async def place_order(self, order: NormalizedOrder) -> NormalizedOrderResult:
@@ -65,12 +65,10 @@ class BaseMarketProvider(ABC):
         return None
 
     @abstractmethod
-    async def get_balance(self) -> NormalizedBalance:
-        ...
+    async def get_balance(self) -> NormalizedBalance: ...
 
     @abstractmethod
-    async def get_positions(self, market_id=None) -> list[NormalizedPosition]:
-        ...
+    async def get_positions(self, market_id=None) -> list[NormalizedPosition]: ...
 
     async def get_market(self, market_id) -> MarketInfo:
         logger.debug(f"{type(self).__name__} does not implement get_market")

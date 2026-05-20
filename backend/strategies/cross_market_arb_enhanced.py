@@ -6,6 +6,7 @@ Extends the existing cross_market_arb.py with:
 - Profit calculation after fees with execution risk assessment
 - Borrow/slippage cost modeling
 """
+
 from __future__ import annotations
 
 import time
@@ -14,9 +15,11 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
+
 @dataclass
 class ArbOpportunityEnhanced:
     """An enhanced arbitrage opportunity with full cost modeling."""
+
     event_id: str
     kind: str  # "cross_platform" | "complementary" | "yes_no_sum" | "multi_outcome"
     platform_a: str
@@ -38,6 +41,7 @@ class ArbOpportunityEnhanced:
 @dataclass
 class ScanResult:
     """Result of an arbitrage scan."""
+
     opportunities: List[ArbOpportunityEnhanced]
     markets_scanned: int
     scan_duration_ms: float
@@ -92,7 +96,9 @@ class CrossMarketArbEnhanced:
         opportunities.sort(key=lambda o: o.net_profit, reverse=True)
         return opportunities
 
-    def detect_yes_no_sum(self, market: Dict[str, Any]) -> Optional[ArbOpportunityEnhanced]:
+    def detect_yes_no_sum(
+        self, market: Dict[str, Any]
+    ) -> Optional[ArbOpportunityEnhanced]:
         """Detect when YES + NO < 1.0 after fees."""
         yes_price = _extract_yes_price(market)
         no_price = market.get("no_price")
@@ -218,7 +224,8 @@ class CrossMarketArbEnhanced:
         elapsed = (time.monotonic() - start) * 1000
         return ScanResult(
             opportunities=all_opps,
-            markets_scanned=len(poly_markets) + (len(kalshi_markets) if kalshi_markets else 0),
+            markets_scanned=len(poly_markets)
+            + (len(kalshi_markets) if kalshi_markets else 0),
             scan_duration_ms=elapsed,
         )
 
@@ -280,6 +287,7 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
     if op:
         try:
             import json as _json
+
             if isinstance(op, str):
                 op = _json.loads(op)
             if isinstance(op, list) and len(op) >= 1:
@@ -291,12 +299,46 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
     return None
 
 
-_STOP_WORDS = frozenset({
-    "will", "the", "be", "in", "a", "an", "on", "at", "to", "for",
-    "of", "and", "or", "is", "it", "by", "as", "do", "does", "did",
-    "has", "have", "had", "was", "were", "are", "this", "that",
-    "with", "from", "but", "not", "no", "if", "so", "than",
-})
+_STOP_WORDS = frozenset(
+    {
+        "will",
+        "the",
+        "be",
+        "in",
+        "a",
+        "an",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "and",
+        "or",
+        "is",
+        "it",
+        "by",
+        "as",
+        "do",
+        "does",
+        "did",
+        "has",
+        "have",
+        "had",
+        "was",
+        "were",
+        "are",
+        "this",
+        "that",
+        "with",
+        "from",
+        "but",
+        "not",
+        "no",
+        "if",
+        "so",
+        "than",
+    }
+)
 
 
 def _questions_match(q1: str, q2: str) -> bool:
@@ -322,7 +364,9 @@ def _questions_match(q1: str, q2: str) -> bool:
     def _entities(text: str) -> set[str]:
         tokens = set()
         for tok in re.findall(r"[A-Za-z0-9]+", text):
-            if tok[0].isdigit() or (len(tok) > 1 and tok[0].isupper() and tok.lower() not in _STOP_WORDS):
+            if tok[0].isdigit() or (
+                len(tok) > 1 and tok[0].isupper() and tok.lower() not in _STOP_WORDS
+            ):
                 tokens.add(tok.lower())
         return tokens
 

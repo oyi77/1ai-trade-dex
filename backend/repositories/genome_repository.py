@@ -10,7 +10,6 @@ from backend.models.database import GenomeRegistry
 from backend.models.genome_registry import GenomeShadowTrade
 
 
-
 class GenomeRepository:
     """CRUD operations for StrategyGenome persistence."""
 
@@ -21,6 +20,7 @@ class GenomeRepository:
     def _get_db(self) -> Session:
         if self.db is None:
             from backend.models.database import SessionLocal
+
             self.db = SessionLocal()
             self._owns_db = True
         return self.db
@@ -35,14 +35,28 @@ class GenomeRepository:
         """Save a StrategyGenome (domain model) to the registry."""
         db = self._get_db()
         try:
-            existing = db.query(GenomeRegistry).filter(
-                GenomeRegistry.genome_id == genome.genome_id
-            ).first()
+            existing = (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.genome_id == genome.genome_id)
+                .first()
+            )
 
             if existing:
-                existing.chromosomes = genome.chromosomes.model_dump() if hasattr(genome.chromosomes, 'model_dump') else genome.chromosomes
-                existing.lineage = genome.lineage.model_dump() if hasattr(genome.lineage, 'model_dump') else genome.lineage
-                existing.fitness_metrics = genome.fitness_metrics.model_dump() if hasattr(genome.fitness_metrics, 'model_dump') else genome.fitness_metrics
+                existing.chromosomes = (
+                    genome.chromosomes.model_dump()
+                    if hasattr(genome.chromosomes, "model_dump")
+                    else genome.chromosomes
+                )
+                existing.lineage = (
+                    genome.lineage.model_dump()
+                    if hasattr(genome.lineage, "model_dump")
+                    else genome.lineage
+                )
+                existing.fitness_metrics = (
+                    genome.fitness_metrics.model_dump()
+                    if hasattr(genome.fitness_metrics, "model_dump")
+                    else genome.fitness_metrics
+                )
                 existing.stage = stage
                 existing.updated_at = datetime.now(timezone.utc)
                 existing.archetype = genome.archetype
@@ -53,9 +67,21 @@ class GenomeRepository:
                     strategy_name=genome.strategy_name,
                     archetype=genome.archetype,
                     stage=stage,
-                    chromosomes=genome.chromosomes.model_dump() if hasattr(genome.chromosomes, 'model_dump') else genome.chromosomes,
-                    lineage=genome.lineage.model_dump() if hasattr(genome.lineage, 'model_dump') else genome.lineage,
-                    fitness_metrics=genome.fitness_metrics.model_dump() if hasattr(genome.fitness_metrics, 'model_dump') else genome.fitness_metrics,
+                    chromosomes=(
+                        genome.chromosomes.model_dump()
+                        if hasattr(genome.chromosomes, "model_dump")
+                        else genome.chromosomes
+                    ),
+                    lineage=(
+                        genome.lineage.model_dump()
+                        if hasattr(genome.lineage, "model_dump")
+                        else genome.lineage
+                    ),
+                    fitness_metrics=(
+                        genome.fitness_metrics.model_dump()
+                        if hasattr(genome.fitness_metrics, "model_dump")
+                        else genome.fitness_metrics
+                    ),
                 )
                 db.add(registry)
                 existing = registry
@@ -70,9 +96,11 @@ class GenomeRepository:
         """Get a genome by its ID."""
         db = self._get_db()
         try:
-            return db.query(GenomeRegistry).filter(
-                GenomeRegistry.genome_id == genome_id
-            ).first()
+            return (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.genome_id == genome_id)
+                .first()
+            )
         finally:
             self.close()
 
@@ -80,9 +108,13 @@ class GenomeRepository:
         """Get all genomes at a specific stage, sorted by fitness_score."""
         db = self._get_db()
         try:
-            return db.query(GenomeRegistry).filter(
-                GenomeRegistry.stage == stage
-            ).order_by(desc(GenomeRegistry.fitness_score)).limit(limit).all()
+            return (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.stage == stage)
+                .order_by(desc(GenomeRegistry.fitness_score))
+                .limit(limit)
+                .all()
+            )
         finally:
             self.close()
 
@@ -93,13 +125,19 @@ class GenomeRepository:
         """
         db = self._get_db()
         try:
-            return db.query(GenomeRegistry).filter(
-                and_(
-                    GenomeRegistry.stage.in_(["LIVE", "BREEDING", "PAPER"]),
-                    GenomeRegistry.win_rate >= 0.50,
-                    GenomeRegistry.sharpe_ratio >= 0.5
+            return (
+                db.query(GenomeRegistry)
+                .filter(
+                    and_(
+                        GenomeRegistry.stage.in_(["LIVE", "BREEDING", "PAPER"]),
+                        GenomeRegistry.win_rate >= 0.50,
+                        GenomeRegistry.sharpe_ratio >= 0.5,
+                    )
                 )
-            ).order_by(desc(GenomeRegistry.sharpe_ratio)).limit(limit).all()
+                .order_by(desc(GenomeRegistry.sharpe_ratio))
+                .limit(limit)
+                .all()
+            )
         finally:
             self.close()
 
@@ -107,9 +145,13 @@ class GenomeRepository:
         """Get genomes in DRAFT stage for evolution, sorted by fitness_score."""
         db = self._get_db()
         try:
-            return db.query(GenomeRegistry).filter(
-                GenomeRegistry.stage == "DRAFT"
-            ).order_by(desc(GenomeRegistry.fitness_score)).limit(limit).all()
+            return (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.stage == "DRAFT")
+                .order_by(desc(GenomeRegistry.fitness_score))
+                .limit(limit)
+                .all()
+            )
         finally:
             self.close()
 
@@ -117,9 +159,11 @@ class GenomeRepository:
         """Move genome to a new stage."""
         db = self._get_db()
         try:
-            genome = db.query(GenomeRegistry).filter(
-                GenomeRegistry.genome_id == genome_id
-            ).first()
+            genome = (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.genome_id == genome_id)
+                .first()
+            )
             if genome:
                 genome.stage = new_stage
                 genome.updated_at = datetime.now(timezone.utc)
@@ -137,9 +181,11 @@ class GenomeRepository:
         """
         db = self._get_db()
         try:
-            genome = db.query(GenomeRegistry).filter(
-                GenomeRegistry.genome_id == genome_id
-            ).first()
+            genome = (
+                db.query(GenomeRegistry)
+                .filter(GenomeRegistry.genome_id == genome_id)
+                .first()
+            )
             if genome:
                 genome.fitness_metrics = metrics
                 genome.trade_count = metrics.get("total_trades", 0)
@@ -167,7 +213,9 @@ class GenomeRepository:
         finally:
             self.close()
 
-    def get_shadow_trades(self, genome_id: str, settled_only: bool = False) -> List[GenomeShadowTrade]:
+    def get_shadow_trades(
+        self, genome_id: str, settled_only: bool = False
+    ) -> List[GenomeShadowTrade]:
         """Get shadow trades for a genome."""
         db = self._get_db()
         try:
@@ -180,39 +228,56 @@ class GenomeRepository:
         finally:
             self.close()
 
-    def settle_shadow_trade(self, trade_id: int, settlement_price: float, actual_outcome: float) -> Optional[GenomeShadowTrade]:
+    def settle_shadow_trade(
+        self, trade_id: int, settlement_price: float, actual_outcome: float
+    ) -> Optional[GenomeShadowTrade]:
         """Settle a shadow trade and calculate P&L."""
         db = self._get_db()
         try:
-            trade = db.query(GenomeShadowTrade).filter(
-                GenomeShadowTrade.id == trade_id
-            ).first()
+            trade = (
+                db.query(GenomeShadowTrade)
+                .filter(GenomeShadowTrade.id == trade_id)
+                .first()
+            )
             if trade:
                 trade.settled = True
                 trade.settlement_price = settlement_price
                 trade.actual_outcome = actual_outcome
 
                 from backend.config import settings
-                fee_rate = getattr(settings, 'TAKER_FEE_RATE', 0.02)
+
+                fee_rate = getattr(settings, "TAKER_FEE_RATE", 0.02)
 
                 if trade.direction == "up":
                     trade.exit_price = settlement_price
                     if settlement_price > 0.5:
-                        trade.pnl = round((1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2)
+                        trade.pnl = round(
+                            (1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2
+                        )
                         trade.result = "win"
                     else:
-                        trade.pnl = round(-trade.entry_price * trade.size * (1.0 + fee_rate), 2)
+                        trade.pnl = round(
+                            -trade.entry_price * trade.size * (1.0 + fee_rate), 2
+                        )
                         trade.result = "loss"
                 else:
                     trade.exit_price = 1 - settlement_price
                     if settlement_price < 0.5:
-                        trade.pnl = round((1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2)
+                        trade.pnl = round(
+                            (1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2
+                        )
                         trade.result = "win"
                     else:
-                        trade.pnl = round(-trade.entry_price * trade.size * (1.0 + fee_rate), 2)
+                        trade.pnl = round(
+                            -trade.entry_price * trade.size * (1.0 + fee_rate), 2
+                        )
                         trade.result = "loss"
 
-                trade.accuracy_score = abs(trade.predicted_outcome - actual_outcome) if trade.predicted_outcome else None
+                trade.accuracy_score = (
+                    abs(trade.predicted_outcome - actual_outcome)
+                    if trade.predicted_outcome
+                    else None
+                )
                 trade.settled_at = datetime.now(timezone.utc)
                 db.commit()
                 db.refresh(trade)
@@ -224,15 +289,25 @@ class GenomeRepository:
         """Calculate fitness metrics from shadow trades."""
         db = self._get_db()
         try:
-            trades = db.query(GenomeShadowTrade).filter(
-                and_(
-                    GenomeShadowTrade.genome_id == genome_id,
-                    GenomeShadowTrade.settled
+            trades = (
+                db.query(GenomeShadowTrade)
+                .filter(
+                    and_(
+                        GenomeShadowTrade.genome_id == genome_id,
+                        GenomeShadowTrade.settled,
+                    )
                 )
-            ).all()
+                .all()
+            )
 
             if not trades:
-                return {"sharpe_ratio": 0.0, "win_rate": 0.0, "profit_factor": 0.0, "max_drawdown_pct": 0.0, "total_trades": 0}
+                return {
+                    "sharpe_ratio": 0.0,
+                    "win_rate": 0.0,
+                    "profit_factor": 0.0,
+                    "max_drawdown_pct": 0.0,
+                    "total_trades": 0,
+                }
 
             wins = [t for t in trades if (t.pnl or 0) > 0]
             losses = [t for t in trades if (t.pnl or 0) < 0]
@@ -256,8 +331,12 @@ class GenomeRepository:
                     max_drawdown = drawdown
 
             avg_pnl = total_pnl / len(trades) if trades else 0
-            std_dev = (sum((p - avg_pnl) ** 2 for p in pnl_values) / len(pnl_values)) ** 0.5 if len(pnl_values) > 1 else 0
-            sharpe_ratio = (avg_pnl / std_dev * (252 ** 0.5)) if std_dev > 0 else 0.0
+            std_dev = (
+                (sum((p - avg_pnl) ** 2 for p in pnl_values) / len(pnl_values)) ** 0.5
+                if len(pnl_values) > 1
+                else 0
+            )
+            sharpe_ratio = (avg_pnl / std_dev * (252**0.5)) if std_dev > 0 else 0.0
 
             return {
                 "sharpe_ratio": sharpe_ratio,
@@ -265,7 +344,7 @@ class GenomeRepository:
                 "profit_factor": profit_factor,
                 "max_drawdown_pct": max_drawdown,
                 "total_trades": len(trades),
-                "total_pnl": total_pnl
+                "total_pnl": total_pnl,
             }
         finally:
             self.close()
@@ -274,10 +353,11 @@ class GenomeRepository:
         """Count genomes by stage."""
         db = self._get_db()
         try:
-            result = db.query(
-                GenomeRegistry.stage,
-                func.count(GenomeRegistry.id)
-            ).group_by(GenomeRegistry.stage).all()
+            result = (
+                db.query(GenomeRegistry.stage, func.count(GenomeRegistry.id))
+                .group_by(GenomeRegistry.stage)
+                .all()
+            )
             return {stage: count for stage, count in result}
         finally:
             self.close()

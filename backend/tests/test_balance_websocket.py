@@ -172,14 +172,16 @@ def test_stats_endpoint_handles_missing_botstate(client, db):
     # Restore BotState for subsequent tests
     for mode in ["paper", "testnet", "live"]:
         if not db.query(BotState).filter_by(mode=mode).first():
-            db.add(BotState(
-                mode=mode,
-                bankroll=10000.0 if mode != "testnet" else 100.0,
-                total_trades=0,
-                winning_trades=0,
-                total_pnl=0.0,
-                is_running=True,
-            ))
+            db.add(
+                BotState(
+                    mode=mode,
+                    bankroll=10000.0 if mode != "testnet" else 100.0,
+                    total_trades=0,
+                    winning_trades=0,
+                    total_pnl=0.0,
+                    is_running=True,
+                )
+            )
     db.commit()
     db.expire_all()
 

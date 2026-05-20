@@ -24,9 +24,7 @@ from backend.data.wallet_history import get_all_closed_positions
 logger = logging.getLogger(__name__)
 
 PROFILE_URL = f"{settings.POLYMARKET_BASE_URL}/@{{username}}"
-_NEXT_DATA_RE = re.compile(
-    r'<script id="__NEXT_DATA__".*?>(.*?)</script>', re.DOTALL
-)
+_NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__".*?>(.*?)</script>', re.DOTALL)
 
 
 @dataclass
@@ -81,9 +79,7 @@ async def _resolve_hex(address: str) -> WalletInfo:
     try:
         positions = await get_all_closed_positions(address)
         if positions:
-            logger.debug(
-                "Address %s has closed positions; treating as proxy", address
-            )
+            logger.debug("Address %s has closed positions; treating as proxy", address)
             return WalletInfo(
                 proxy=address,
                 method="closed_positions",
@@ -146,17 +142,13 @@ def _parse_profile_html(html: str, username: str) -> WalletInfo:
     match = _NEXT_DATA_RE.search(html)
     if not match:
         logger.warning("No __NEXT_DATA__ found for @%s", username)
-        return WalletInfo(
-            username=username, method="no_next_data", has_traded=False
-        )
+        return WalletInfo(username=username, method="no_next_data", has_traded=False)
 
     try:
         data = json.loads(match.group(1))
     except json.JSONDecodeError:
         logger.warning("Invalid JSON in __NEXT_DATA__ for @%s", username)
-        return WalletInfo(
-            username=username, method="invalid_json", has_traded=False
-        )
+        return WalletInfo(username=username, method="invalid_json", has_traded=False)
 
     eoa: Optional[str] = None
     proxy: Optional[str] = None
@@ -182,9 +174,7 @@ def _parse_profile_html(html: str, username: str) -> WalletInfo:
             proxy = proxy or state_data.get("address")
 
     if not eoa and not proxy:
-        logger.warning(
-            "Parsed __NEXT_DATA__ but found no wallet for @%s", username
-        )
+        logger.warning("Parsed __NEXT_DATA__ but found no wallet for @%s", username)
         return WalletInfo(
             username=username, method="no_wallet_in_data", has_traded=False
         )

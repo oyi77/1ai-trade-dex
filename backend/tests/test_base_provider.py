@@ -1,4 +1,5 @@
 """Test suite for BaseAIProvider abstract base class."""
+
 import asyncio
 import pytest
 
@@ -72,6 +73,7 @@ class TestBaseAIProvider:
     @pytest.mark.asyncio
     async def test_health_check_failure(self):
         """health_check returns False when complete raises."""
+
         class FailingProvider(BaseAIProvider):
             @classmethod
             def manifest(cls):

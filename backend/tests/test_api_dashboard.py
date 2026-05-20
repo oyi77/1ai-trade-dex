@@ -15,7 +15,6 @@ from backend.api import dashboard as dashboard_api
 from backend.core.bankroll_reconciliation import PolymarketProfileTradeStats
 from backend.models.database import BotState, Trade
 
-
 # ---------------------------------------------------------------------------
 # Mock helpers
 # ---------------------------------------------------------------------------
@@ -43,6 +42,7 @@ def _mock_btc_price():
     price.market_cap = 1_200_000_000_000.0
     price.volume_24h = 40_000_000_000.0
     from datetime import datetime
+
     price.last_updated = datetime.now(timezone.utc)
     return price
 
@@ -118,7 +118,9 @@ class TestStatsEndpoint:
         assert "realized_pnl" in data["live"]
         assert "account_pnl" in data["live"]
 
-    def test_stats_live_separates_profile_account_pnl_from_realized_ledger_pnl(self, client, db):
+    def test_stats_live_separates_profile_account_pnl_from_realized_ledger_pnl(
+        self, client, db
+    ):
         live_state = db.query(BotState).filter_by(mode="live").first()
         db.info["allow_live_financial_update"] = True
         live_state.bankroll = 130.0
@@ -154,7 +156,9 @@ class TestStatsEndpoint:
         assert data["live"]["account_pnl"] == 25.740828
         assert data["live"]["realized_pnl"] == 5.0
 
-    def test_stats_live_exposes_profile_traded_count_separately_from_ledger_rows(self, client, db):
+    def test_stats_live_exposes_profile_traded_count_separately_from_ledger_rows(
+        self, client, db
+    ):
         live_state = db.query(BotState).filter_by(mode="live").first()
         db.info["allow_live_financial_update"] = True
         live_state.bankroll = 130.0
@@ -180,23 +184,26 @@ class TestStatsEndpoint:
         )
         db.commit()
 
-        with patch(
-            "backend.api.system.fetch_pm_profile_pnl",
-            AsyncMock(return_value=25.740828),
-        ), patch(
-            "backend.api.system.fetch_pm_profile_trade_stats",
-            AsyncMock(
-                return_value=PolymarketProfileTradeStats(
-                    traded_count=287,
-                    closed_count=188,
-                    winning_count=147,
-                    losing_count=41,
-                    open_position_count=103,
-                    stale_open_position_count=91,
-                    redeemable_position_count=96,
-                    open_position_value=402.16,
-                    open_position_initial_value=2549.56,
-                )
+        with (
+            patch(
+                "backend.api.system.fetch_pm_profile_pnl",
+                AsyncMock(return_value=25.740828),
+            ),
+            patch(
+                "backend.api.system.fetch_pm_profile_trade_stats",
+                AsyncMock(
+                    return_value=PolymarketProfileTradeStats(
+                        traded_count=287,
+                        closed_count=188,
+                        winning_count=147,
+                        losing_count=41,
+                        open_position_count=103,
+                        stale_open_position_count=91,
+                        redeemable_position_count=96,
+                        open_position_value=402.16,
+                        open_position_initial_value=2549.56,
+                    )
+                ),
             ),
         ):
             resp = client.get("/api/v1/stats?mode=live")
@@ -223,7 +230,9 @@ class TestStatsEndpoint:
         assert data["live"]["profile_stale_open_count"] == 91
         assert data["live"]["profile_redeemable_count"] == 96
 
-    def test_stats_floors_simulated_bankroll_without_hiding_negative_pnl(self, client, db):
+    def test_stats_floors_simulated_bankroll_without_hiding_negative_pnl(
+        self, client, db
+    ):
         paper_state = db.query(BotState).filter_by(mode="paper").first()
         testnet_state = db.query(BotState).filter_by(mode="testnet").first()
         paper_state.bankroll = -12.34
@@ -287,21 +296,27 @@ class TestDashboardEndpoint:
         """Call dashboard with mocked external services."""
         dashboard_api._dashboard_cache_value = None
         dashboard_api._dashboard_cache_expires_at = 0.0
-        with patch(
-            "backend.api.dashboard.compute_btc_microstructure",
-            AsyncMock(return_value=_mock_micro()),
-        ), patch(
-            "backend.api.dashboard.fetch_crypto_price",
-            AsyncMock(return_value=_mock_btc_price()),
-        ), patch(
-            "backend.api.dashboard.fetch_active_btc_markets",
-            AsyncMock(return_value=[]),
-        ), patch(
-            "backend.api.dashboard.scan_for_signals",
-            AsyncMock(return_value=[]),
-        ), patch(
-            "backend.api.dashboard.settings.WEATHER_ENABLED",
-            False,
+        with (
+            patch(
+                "backend.api.dashboard.compute_btc_microstructure",
+                AsyncMock(return_value=_mock_micro()),
+            ),
+            patch(
+                "backend.api.dashboard.fetch_crypto_price",
+                AsyncMock(return_value=_mock_btc_price()),
+            ),
+            patch(
+                "backend.api.dashboard.fetch_active_btc_markets",
+                AsyncMock(return_value=[]),
+            ),
+            patch(
+                "backend.api.dashboard.scan_for_signals",
+                AsyncMock(return_value=[]),
+            ),
+            patch(
+                "backend.api.dashboard.settings.WEATHER_ENABLED",
+                False,
+            ),
         ):
             return client.get("/api/v1/dashboard")
 
@@ -366,7 +381,9 @@ class TestDashboardEndpoint:
         data = resp.json()
         assert isinstance(data.get("weather_signals", []), list)
 
-    def test_dashboard_exposes_top_winning_trades_outside_recent_slice(self, client, db):
+    def test_dashboard_exposes_top_winning_trades_outside_recent_slice(
+        self, client, db
+    ):
         now = datetime.now(timezone.utc)
         winning_trade = Trade(
             market_ticker="LIVE-WINNER-OLD",
@@ -401,7 +418,9 @@ class TestDashboardEndpoint:
         resp = self._get_dashboard(client)
         data = resp.json()
 
-        assert all(t["market_ticker"] != "LIVE-WINNER-OLD" for t in data["recent_trades"])
+        assert all(
+            t["market_ticker"] != "LIVE-WINNER-OLD" for t in data["recent_trades"]
+        )
         assert data["top_winning_trades"][0]["market_ticker"] == "LIVE-WINNER-OLD"
         assert data["top_winning_trades"][0]["pnl"] == 25.0
 
@@ -496,8 +515,13 @@ class TestDashboardEndpoint:
         dashboard_api._dashboard_cache_value = None
         dashboard_api._dashboard_cache_expires_at = 0.0
 
-        with patch.object(dashboard_api, "_build_dashboard_data", side_effect=fake_build), patch.object(
-            dashboard_api, "_dashboard_cache_ttl_seconds", return_value=2.0
+        with (
+            patch.object(
+                dashboard_api, "_build_dashboard_data", side_effect=fake_build
+            ),
+            patch.object(
+                dashboard_api, "_dashboard_cache_ttl_seconds", return_value=2.0
+            ),
         ):
             payloads = await asyncio.gather(
                 *(dashboard_api._get_cached_dashboard_data(db) for _ in range(5))
@@ -539,8 +563,13 @@ class TestDashboardEndpoint:
         dashboard_api._dashboard_cache_value = None
         dashboard_api._dashboard_cache_expires_at = 0.0
 
-        with patch.object(dashboard_api, "_build_dashboard_data", side_effect=fake_build), patch.object(
-            dashboard_api, "_dashboard_cache_ttl_seconds", return_value=0.01
+        with (
+            patch.object(
+                dashboard_api, "_build_dashboard_data", side_effect=fake_build
+            ),
+            patch.object(
+                dashboard_api, "_dashboard_cache_ttl_seconds", return_value=0.01
+            ),
         ):
             first = await dashboard_api._get_cached_dashboard_data(db)
             second = await dashboard_api._get_cached_dashboard_data(db)
@@ -562,23 +591,29 @@ class TestDashboardEndpoint:
 
 class TestSignalsEndpoint:
     def test_signals_endpoint_returns_200(self, client):
-        with patch(
-            "backend.core.signals.compute_btc_microstructure",
-            AsyncMock(return_value=_mock_micro()),
-        ), patch(
-            "backend.core.signals.fetch_active_btc_markets",
-            AsyncMock(return_value=[]),
+        with (
+            patch(
+                "backend.core.signals.compute_btc_microstructure",
+                AsyncMock(return_value=_mock_micro()),
+            ),
+            patch(
+                "backend.core.signals.fetch_active_btc_markets",
+                AsyncMock(return_value=[]),
+            ),
         ):
             resp = client.get("/api/v1/signals")
         assert resp.status_code == 200
 
     def test_signals_returns_list(self, client):
-        with patch(
-            "backend.core.signals.compute_btc_microstructure",
-            AsyncMock(return_value=_mock_micro()),
-        ), patch(
-            "backend.core.signals.fetch_active_btc_markets",
-            AsyncMock(return_value=[]),
+        with (
+            patch(
+                "backend.core.signals.compute_btc_microstructure",
+                AsyncMock(return_value=_mock_micro()),
+            ),
+            patch(
+                "backend.core.signals.fetch_active_btc_markets",
+                AsyncMock(return_value=[]),
+            ),
         ):
             resp = client.get("/api/v1/signals")
         data = resp.json()
@@ -586,12 +621,15 @@ class TestSignalsEndpoint:
 
     def test_signals_empty_when_no_markets(self, client):
         """With no BTC markets available, signals list is empty."""
-        with patch(
-            "backend.core.signals.fetch_active_btc_markets",
-            AsyncMock(return_value=[]),
-        ), patch(
-            "backend.core.signals.compute_btc_microstructure",
-            AsyncMock(return_value=_mock_micro()),
+        with (
+            patch(
+                "backend.core.signals.fetch_active_btc_markets",
+                AsyncMock(return_value=[]),
+            ),
+            patch(
+                "backend.core.signals.compute_btc_microstructure",
+                AsyncMock(return_value=_mock_micro()),
+            ),
         ):
             resp = client.get("/api/v1/signals")
         assert resp.status_code == 200

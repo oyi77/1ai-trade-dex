@@ -5,10 +5,18 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from backend.models.database import (
-    Base, Trade, StrategyConfig, StrategyProposal, BotState,
+    Base,
+    Trade,
+    StrategyConfig,
+    StrategyProposal,
+    BotState,
 )
 from backend.models.outcome_tables import StrategyOutcome
-from backend.models.historical_data import HistoricalCandle, MarketOutcome, WeatherSnapshot
+from backend.models.historical_data import (
+    HistoricalCandle,
+    MarketOutcome,
+    WeatherSnapshot,
+)
 
 
 @pytest.fixture
@@ -44,31 +52,35 @@ def _seed_botstate(db):
 def _seed_outcomes(db, strategy, n_wins, n_losses):
     now = datetime.now(timezone.utc)
     for i in range(n_wins):
-        db.add(StrategyOutcome(
-            strategy=strategy,
-            market_ticker=f"TEST_{i}",
-            market_type="test",
-            trading_mode="paper",
-            direction="up",
-            result="win",
-            pnl=5.0,
-            reward=5.0,
-            settled_at=now - timedelta(minutes=i),
-            trade_id=1000 + i,
-        ))
+        db.add(
+            StrategyOutcome(
+                strategy=strategy,
+                market_ticker=f"TEST_{i}",
+                market_type="test",
+                trading_mode="paper",
+                direction="up",
+                result="win",
+                pnl=5.0,
+                reward=5.0,
+                settled_at=now - timedelta(minutes=i),
+                trade_id=1000 + i,
+            )
+        )
     for i in range(n_losses):
-        db.add(StrategyOutcome(
-            strategy=strategy,
-            market_ticker=f"TEST_L_{i}",
-            market_type="test",
-            trading_mode="paper",
-            direction="up",
-            result="loss",
-            pnl=-3.0,
-            reward=-3.0,
-            settled_at=now - timedelta(minutes=i + n_wins),
-            trade_id=2000 + i,
-        ))
+        db.add(
+            StrategyOutcome(
+                strategy=strategy,
+                market_ticker=f"TEST_L_{i}",
+                market_type="test",
+                trading_mode="paper",
+                direction="up",
+                result="loss",
+                pnl=-3.0,
+                reward=-3.0,
+                settled_at=now - timedelta(minutes=i + n_wins),
+                trade_id=2000 + i,
+            )
+        )
     db.commit()
 
 
@@ -106,18 +118,20 @@ class TestFronttestValidator:
 
         executed = proposal.executed_at
         for i in range(12):
-            db.add(Trade(
-                strategy="btc_oracle",
-                trading_mode="paper",
-                market_ticker=f"T{i}",
-                direction="up",
-                entry_price=0.5,
-                size=10.0,
-                result="win" if i < 7 else "loss",
-                pnl=5.0 if i < 7 else -5.0,
-                settled=True,
-                timestamp=executed + timedelta(days=1, hours=i),
-            ))
+            db.add(
+                Trade(
+                    strategy="btc_oracle",
+                    trading_mode="paper",
+                    market_ticker=f"T{i}",
+                    direction="up",
+                    entry_price=0.5,
+                    size=10.0,
+                    result="win" if i < 7 else "loss",
+                    pnl=5.0 if i < 7 else -5.0,
+                    settled=True,
+                    timestamp=executed + timedelta(days=1, hours=i),
+                )
+            )
         db.commit()
 
         v = FronttestValidator(trial_days=14, min_trades=10)
@@ -139,18 +153,20 @@ class TestFronttestValidator:
         db.commit()
 
         for i in range(12):
-            db.add(Trade(
-                strategy="bad_strat",
-                trading_mode="paper",
-                market_ticker=f"T{i}",
-                direction="up",
-                entry_price=0.5,
-                size=10.0,
-                result="win" if i < 3 else "loss",
-                pnl=5.0 if i < 3 else -5.0,
-                settled=True,
-                timestamp=proposal.executed_at + timedelta(days=1, hours=i),
-            ))
+            db.add(
+                Trade(
+                    strategy="bad_strat",
+                    trading_mode="paper",
+                    market_ticker=f"T{i}",
+                    direction="up",
+                    entry_price=0.5,
+                    size=10.0,
+                    result="win" if i < 3 else "loss",
+                    pnl=5.0 if i < 3 else -5.0,
+                    settled=True,
+                    timestamp=proposal.executed_at + timedelta(days=1, hours=i),
+                )
+            )
         db.commit()
 
         v = FronttestValidator(trial_days=14, min_trades=10)
@@ -165,7 +181,13 @@ class TestAGIHealthChecker:
 
         bot = db.query(BotState).filter(BotState.mode == "paper").first()
         if not bot:
-            bot = BotState(mode="paper", bankroll=1000.0, total_pnl=50.0, total_trades=10, winning_trades=6)
+            bot = BotState(
+                mode="paper",
+                bankroll=1000.0,
+                total_pnl=50.0,
+                total_trades=10,
+                winning_trades=6,
+            )
             db.add(bot)
             db.commit()
         else:
@@ -173,16 +195,18 @@ class TestAGIHealthChecker:
             bot.total_pnl = 50.0
             db.commit()
 
-        db.add(Trade(
-            strategy="test",
-            trading_mode="paper",
-            market_ticker="TEST",
-            direction="up",
-            entry_price=0.5,
-            size=10.0,
-            settled=True,
-            timestamp=datetime.now(timezone.utc),
-        ))
+        db.add(
+            Trade(
+                strategy="test",
+                trading_mode="paper",
+                market_ticker="TEST",
+                direction="up",
+                entry_price=0.5,
+                size=10.0,
+                settled=True,
+                timestamp=datetime.now(timezone.utc),
+            )
+        )
         db.commit()
 
         checker = AGIHealthChecker()
@@ -194,7 +218,9 @@ class TestAGIHealthChecker:
 
         bot = db.query(BotState).filter(BotState.mode == "paper").first()
         if not bot:
-            bot = BotState(mode="paper", bankroll=0.0, total_pnl=-1000.0, total_trades=50)
+            bot = BotState(
+                mode="paper", bankroll=0.0, total_pnl=-1000.0, total_trades=50
+            )
             db.add(bot)
             db.commit()
         else:
@@ -203,7 +229,9 @@ class TestAGIHealthChecker:
             db.commit()
 
         checker = AGIHealthChecker()
-        with patch.object(checker, "_check_scheduler", return_value={"healthy": True, "job_count": 5}):
+        with patch.object(
+            checker, "_check_scheduler", return_value={"healthy": True, "job_count": 5}
+        ):
             budget = checker._check_budget(db)
 
         assert budget["healthy"] is False
@@ -223,32 +251,36 @@ class TestStrategyRehabilitator:
         old_ts = datetime.now(timezone.utc) - timedelta(days=14)
 
         # StrategyRehabilitator needs a recent live trade to identify when it was disabled
-        db.add(Trade(
-            strategy="old_strat",
-            trading_mode="live",
-            market_ticker="TLIVE",
-            direction="up",
-            entry_price=0.5,
-            size=10.0,
-            result="loss",
-            pnl=-5.0,
-            settled=True,
-            timestamp=old_ts,
-        ))
-
-        for i in range(15):
-            db.add(Trade(
+        db.add(
+            Trade(
                 strategy="old_strat",
                 trading_mode="live",
-                market_ticker=f"T{i}",
+                market_ticker="TLIVE",
                 direction="up",
                 entry_price=0.5,
                 size=10.0,
-                result="win" if i < 10 else "loss",
-                pnl=5.0 if i < 10 else -3.0,
+                result="loss",
+                pnl=-5.0,
                 settled=True,
-                timestamp=old_ts + timedelta(days=1, hours=i),
-            ))
+                timestamp=old_ts,
+            )
+        )
+
+        for i in range(15):
+            db.add(
+                Trade(
+                    strategy="old_strat",
+                    trading_mode="live",
+                    market_ticker=f"T{i}",
+                    direction="up",
+                    entry_price=0.5,
+                    size=10.0,
+                    result="win" if i < 10 else "loss",
+                    pnl=5.0 if i < 10 else -3.0,
+                    settled=True,
+                    timestamp=old_ts + timedelta(days=1, hours=i),
+                )
+            )
         db.commit()
 
         rehab = StrategyRehabilitator()
@@ -265,16 +297,18 @@ class TestStrategyRehabilitator:
         )
         db.add(cfg)
 
-        db.add(Trade(
-            strategy="recent_strat",
-            trading_mode="paper",
-            market_ticker="T",
-            direction="up",
-            entry_price=0.5,
-            size=10.0,
-            settled=True,
-            timestamp=datetime.now(timezone.utc) - timedelta(hours=1),
-        ))
+        db.add(
+            Trade(
+                strategy="recent_strat",
+                trading_mode="paper",
+                market_ticker="T",
+                direction="up",
+                entry_price=0.5,
+                size=10.0,
+                settled=True,
+                timestamp=datetime.now(timezone.utc) - timedelta(hours=1),
+            )
+        )
         db.commit()
 
         rehab = StrategyRehabilitator()
@@ -291,7 +325,9 @@ class TestForensicsIntegration:
         ids = generate_forensics_proposals(lookback_hours=168, min_losses=5, db=db)
         assert len(ids) >= 1
 
-        proposal = db.query(StrategyProposal).filter(StrategyProposal.id == ids[0]).first()
+        proposal = (
+            db.query(StrategyProposal).filter(StrategyProposal.id == ids[0]).first()
+        )
         assert proposal.strategy_name == "bleeding_strat"
         assert proposal.status == "pending"
 

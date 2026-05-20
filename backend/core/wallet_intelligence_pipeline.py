@@ -97,9 +97,7 @@ async def run_pipeline(
     # Steps 2-5: Analyze each candidate
     for trader in traders[:max_wallets]:
         try:
-            candidate = await _analyze_candidate(
-                trader, our_capital, min_copy_rating
-            )
+            candidate = await _analyze_candidate(trader, our_capital, min_copy_rating)
             if candidate is not None:
                 result.top_wallets.append(candidate)
                 if candidate.is_viable:
@@ -190,9 +188,7 @@ def format_report(result: PipelineResult) -> str:
             f"{'Sharpe':>7} {'Type':<10} {'Rating':>6} {'Viable':>6}"
         )
         lines.append("-" * 75)
-        for w in sorted(result.top_wallets, key=lambda x: x.pnl, reverse=True)[
-            :10
-        ]:
+        for w in sorted(result.top_wallets, key=lambda x: x.pnl, reverse=True)[:10]:
             lines.append(
                 f"{w.wallet[:13]:<15} ${w.pnl:>6.0f} {w.win_rate * 100:>5.1f}% "
                 f"{w.total_trades:>5} {w.sharpe:>6.2f} {w.strategy_type:<10} "

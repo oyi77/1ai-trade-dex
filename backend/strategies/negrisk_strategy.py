@@ -22,8 +22,6 @@ from backend.strategies.base import (
 )
 from backend.config import settings
 
-
-
 # ---------------------------------------------------------------------------
 # Config helpers
 # ---------------------------------------------------------------------------
@@ -440,7 +438,9 @@ class NegRiskStrategy(BaseStrategy):
                 bal = await ctx.clob.get_wallet_balance()
                 return float(bal.get("usdc_balance", 100.0))
         except Exception:
-            logger.warning("Failed to fetch wallet balance for Kelly sizing, using default")
+            logger.warning(
+                "Failed to fetch wallet balance for Kelly sizing, using default"
+            )
         return float(_cfg("NEGRISK_DEFAULT_BANKROLL", 100.0))
 
     async def _execute_order(

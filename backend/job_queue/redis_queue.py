@@ -3,6 +3,7 @@ arq-based Redis queue implementation.
 
 RQ-015: arq-based Redis queue
 """
+
 from typing import Optional, Dict, Any
 
 from backend.job_queue.abstract import AbstractQueue, Job
@@ -43,6 +44,7 @@ class RedisQueue(AbstractQueue):
     def _get_redis_settings(self):
         """Return arq RedisSettings for the configured URL."""
         from arq.connections import RedisSettings
+
         return RedisSettings.from_dsn(self._redis_url)
 
     async def enqueue(
@@ -110,7 +112,10 @@ class RedisQueue(AbstractQueue):
         arq workers store results in Redis upon successful task completion.
         Calling this method is safe but has no effect.
         """
-        logger.debug("RedisQueue.complete() called for job %s — no-op (arq manages lifecycle)", job_id)
+        logger.debug(
+            "RedisQueue.complete() called for job %s — no-op (arq manages lifecycle)",
+            job_id,
+        )
 
     async def fail(self, job_id: str, error_message: str) -> None:
         """

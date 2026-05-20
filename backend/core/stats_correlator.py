@@ -24,6 +24,7 @@ from backend.models.database import ActivityLog, Trade, Signal, StrategyProposal
 @dataclass
 class FeatureImpact:
     """Impact metrics for a specific feature."""
+
     feature_id: str
     feature_name: str
     event_count: int
@@ -50,6 +51,7 @@ class FeatureImpact:
 @dataclass
 class TimelineCorrelation:
     """Correlation between activity timeline and performance metrics."""
+
     activity_id: int
     activity_timestamp: datetime
     activity_type: str
@@ -82,7 +84,7 @@ class StatsCorrelator:
         db: Session,
         feature_id: Optional[str] = None,
         date_range: Optional[tuple[datetime, datetime]] = None,
-        metric_type: Optional[str] = None
+        metric_type: Optional[str] = None,
     ) -> List[FeatureImpact]:
         """
         Calculate impact of Feature 2/3/4 changes on strategy performance.
@@ -122,7 +124,7 @@ class StatsCorrelator:
         self,
         db: Session,
         date_range: Optional[tuple[datetime, datetime]],
-        metric_type: Optional[str]
+        metric_type: Optional[str],
     ) -> Optional[FeatureImpact]:
         """Calculate Feature 2 (Activity Timeline) impact on trade performance."""
         try:
@@ -134,7 +136,7 @@ class StatsCorrelator:
                 query = query.filter(
                     and_(
                         ActivityLog.timestamp >= start_date,
-                        ActivityLog.timestamp <= end_date
+                        ActivityLog.timestamp <= end_date,
                     )
                 )
 
@@ -146,10 +148,11 @@ class StatsCorrelator:
 
             # Calculate performance before first activity
             first_activity_time = min(a.timestamp for a in activities)
-            before_trades = db.query(Trade).filter(
-                Trade.timestamp < first_activity_time,
-                Trade.settled
-            ).all()
+            before_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp < first_activity_time, Trade.settled)
+                .all()
+            )
 
             wins_before = sum(1 for t in before_trades if t.result == "win")
             win_rate_before = wins_before / len(before_trades) if before_trades else 0.0
@@ -157,10 +160,11 @@ class StatsCorrelator:
 
             # Calculate performance after activities
             last_activity_time = max(a.timestamp for a in activities)
-            after_trades = db.query(Trade).filter(
-                Trade.timestamp > last_activity_time,
-                Trade.settled
-            ).all()
+            after_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp > last_activity_time, Trade.settled)
+                .all()
+            )
 
             wins_after = sum(1 for t in after_trades if t.result == "win")
             win_rate_after = wins_after / len(after_trades) if after_trades else 0.0
@@ -179,13 +183,19 @@ class StatsCorrelator:
                 win_rate_delta=win_rate_after - win_rate_before,
                 sharpe_ratio_before=sharpe_before,
                 sharpe_ratio_after=sharpe_after,
-                sharpe_ratio_delta=sharpe_after - sharpe_before if sharpe_before and sharpe_after else None,
+                sharpe_ratio_delta=(
+                    sharpe_after - sharpe_before
+                    if sharpe_before and sharpe_after
+                    else None
+                ),
                 pnl_before=pnl_before,
                 pnl_after=pnl_after,
                 pnl_delta=pnl_after - pnl_before,
                 sample_size_before=len(before_trades),
                 sample_size_after=len(after_trades),
-                confidence_level=self._calculate_confidence(len(before_trades), len(after_trades))
+                confidence_level=self._calculate_confidence(
+                    len(before_trades), len(after_trades)
+                ),
             )
         except Exception as e:
             logger.error(f"Failed to calculate Feature 2 impact: {e}", exc_info=True)
@@ -195,14 +205,14 @@ class StatsCorrelator:
         self,
         db: Session,
         date_range: Optional[tuple[datetime, datetime]],
-        metric_type: Optional[str]
+        metric_type: Optional[str],
     ) -> Optional[FeatureImpact]:
         """Calculate Feature 3 (Debate Engine) impact on signal accuracy."""
         try:
             # Get debate-related activities (signals with high confidence from debate)
             query = db.query(ActivityLog).filter(
                 ActivityLog.decision_type == "entry",
-                ActivityLog.confidence_score >= 0.7  # High confidence from debate
+                ActivityLog.confidence_score >= 0.7,  # High confidence from debate
             )
 
             if date_range:
@@ -210,7 +220,7 @@ class StatsCorrelator:
                 query = query.filter(
                     and_(
                         ActivityLog.timestamp >= start_date,
-                        ActivityLog.timestamp <= end_date
+                        ActivityLog.timestamp <= end_date,
                     )
                 )
 
@@ -222,36 +232,50 @@ class StatsCorrelator:
 
             # Get signals before debate feature
             first_debate_time = min(a.timestamp for a in debate_activities)
-            before_signals = db.query(Signal).filter(
-                Signal.timestamp < first_debate_time,
-                Signal.executed,
-                Signal.outcome_correct.isnot(None)
-            ).all()
+            before_signals = (
+                db.query(Signal)
+                .filter(
+                    Signal.timestamp < first_debate_time,
+                    Signal.executed,
+                    Signal.outcome_correct.isnot(None),
+                )
+                .all()
+            )
 
             correct_before = sum(1 for s in before_signals if s.outcome_correct)
-            win_rate_before = correct_before / len(before_signals) if before_signals else 0.0
+            win_rate_before = (
+                correct_before / len(before_signals) if before_signals else 0.0
+            )
 
             # Get signals after debate feature
             last_debate_time = max(a.timestamp for a in debate_activities)
-            after_signals = db.query(Signal).filter(
-                Signal.timestamp > last_debate_time,
-                Signal.executed,
-                Signal.outcome_correct.isnot(None)
-            ).all()
+            after_signals = (
+                db.query(Signal)
+                .filter(
+                    Signal.timestamp > last_debate_time,
+                    Signal.executed,
+                    Signal.outcome_correct.isnot(None),
+                )
+                .all()
+            )
 
             correct_after = sum(1 for s in after_signals if s.outcome_correct)
-            win_rate_after = correct_after / len(after_signals) if after_signals else 0.0
+            win_rate_after = (
+                correct_after / len(after_signals) if after_signals else 0.0
+            )
 
             # Get corresponding trades for PnL
-            before_trades = db.query(Trade).filter(
-                Trade.timestamp < first_debate_time,
-                Trade.settled
-            ).all()
+            before_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp < first_debate_time, Trade.settled)
+                .all()
+            )
 
-            after_trades = db.query(Trade).filter(
-                Trade.timestamp > last_debate_time,
-                Trade.settled
-            ).all()
+            after_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp > last_debate_time, Trade.settled)
+                .all()
+            )
 
             pnl_before = sum(t.pnl or 0.0 for t in before_trades)
             pnl_after = sum(t.pnl or 0.0 for t in after_trades)
@@ -268,13 +292,19 @@ class StatsCorrelator:
                 win_rate_delta=win_rate_after - win_rate_before,
                 sharpe_ratio_before=sharpe_before,
                 sharpe_ratio_after=sharpe_after,
-                sharpe_ratio_delta=sharpe_after - sharpe_before if sharpe_before and sharpe_after else None,
+                sharpe_ratio_delta=(
+                    sharpe_after - sharpe_before
+                    if sharpe_before and sharpe_after
+                    else None
+                ),
                 pnl_before=pnl_before,
                 pnl_after=pnl_after,
                 pnl_delta=pnl_after - pnl_before,
                 sample_size_before=len(before_signals),
                 sample_size_after=len(after_signals),
-                confidence_level=self._calculate_confidence(len(before_signals), len(after_signals))
+                confidence_level=self._calculate_confidence(
+                    len(before_signals), len(after_signals)
+                ),
             )
         except Exception as e:
             logger.error(f"Failed to calculate Feature 3 impact: {e}", exc_info=True)
@@ -284,14 +314,14 @@ class StatsCorrelator:
         self,
         db: Session,
         date_range: Optional[tuple[datetime, datetime]],
-        metric_type: Optional[str]
+        metric_type: Optional[str],
     ) -> Optional[FeatureImpact]:
         """Calculate Feature 4 (Proposal System) impact on strategy P&L."""
         try:
             # Get approved and executed proposals
             query = db.query(StrategyProposal).filter(
                 StrategyProposal.admin_decision == "approved",
-                StrategyProposal.executed_at.isnot(None)
+                StrategyProposal.executed_at.isnot(None),
             )
 
             if date_range:
@@ -299,7 +329,7 @@ class StatsCorrelator:
                 query = query.filter(
                     and_(
                         StrategyProposal.executed_at >= start_date,
-                        StrategyProposal.executed_at <= end_date
+                        StrategyProposal.executed_at <= end_date,
                     )
                 )
 
@@ -311,10 +341,11 @@ class StatsCorrelator:
 
             # Calculate performance before first proposal
             first_proposal_time = min(p.executed_at for p in proposals if p.executed_at)
-            before_trades = db.query(Trade).filter(
-                Trade.timestamp < first_proposal_time,
-                Trade.settled
-            ).all()
+            before_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp < first_proposal_time, Trade.settled)
+                .all()
+            )
 
             wins_before = sum(1 for t in before_trades if t.result == "win")
             win_rate_before = wins_before / len(before_trades) if before_trades else 0.0
@@ -322,10 +353,11 @@ class StatsCorrelator:
 
             # Calculate performance after proposals
             last_proposal_time = max(p.executed_at for p in proposals if p.executed_at)
-            after_trades = db.query(Trade).filter(
-                Trade.timestamp > last_proposal_time,
-                Trade.settled
-            ).all()
+            after_trades = (
+                db.query(Trade)
+                .filter(Trade.timestamp > last_proposal_time, Trade.settled)
+                .all()
+            )
 
             wins_after = sum(1 for t in after_trades if t.result == "win")
             win_rate_after = wins_after / len(after_trades) if after_trades else 0.0
@@ -343,23 +375,26 @@ class StatsCorrelator:
                 win_rate_delta=win_rate_after - win_rate_before,
                 sharpe_ratio_before=sharpe_before,
                 sharpe_ratio_after=sharpe_after,
-                sharpe_ratio_delta=sharpe_after - sharpe_before if sharpe_before and sharpe_after else None,
+                sharpe_ratio_delta=(
+                    sharpe_after - sharpe_before
+                    if sharpe_before and sharpe_after
+                    else None
+                ),
                 pnl_before=pnl_before,
                 pnl_after=pnl_after,
                 pnl_delta=pnl_after - pnl_before,
                 sample_size_before=len(before_trades),
                 sample_size_after=len(after_trades),
-                confidence_level=self._calculate_confidence(len(before_trades), len(after_trades))
+                confidence_level=self._calculate_confidence(
+                    len(before_trades), len(after_trades)
+                ),
             )
         except Exception as e:
             logger.error(f"Failed to calculate Feature 4 impact: {e}", exc_info=True)
             return None
 
     def get_activity_correlations(
-        self,
-        db: Session,
-        strategy_name: Optional[str] = None,
-        limit: int = 100
+        self, db: Session, strategy_name: Optional[str] = None, limit: int = 100
     ) -> List[TimelineCorrelation]:
         """
         Get correlations between activity events and subsequent performance.
@@ -385,15 +420,21 @@ class StatsCorrelator:
 
             for activity in activities:
                 # Get trades within correlation window after this activity
-                window_end = activity.timestamp + timedelta(hours=self.correlation_window_hours)
+                window_end = activity.timestamp + timedelta(
+                    hours=self.correlation_window_hours
+                )
 
-                trades_after = db.query(Trade).filter(
-                    and_(
-                        Trade.timestamp > activity.timestamp,
-                        Trade.timestamp <= window_end,
-                        Trade.settled
+                trades_after = (
+                    db.query(Trade)
+                    .filter(
+                        and_(
+                            Trade.timestamp > activity.timestamp,
+                            Trade.timestamp <= window_end,
+                            Trade.settled,
+                        )
                     )
-                ).all()
+                    .all()
+                )
 
                 if not trades_after:
                     continue
@@ -404,22 +445,22 @@ class StatsCorrelator:
 
                 # Calculate correlation score based on confidence and performance
                 correlation_score = self._calculate_correlation_score(
-                    activity.confidence_score,
-                    win_rate_after,
-                    len(trades_after)
+                    activity.confidence_score, win_rate_after, len(trades_after)
                 )
 
-                correlations.append(TimelineCorrelation(
-                    activity_id=activity.id,
-                    activity_timestamp=activity.timestamp,
-                    activity_type=activity.decision_type,
-                    strategy_name=activity.strategy_name,
-                    trades_after=len(trades_after),
-                    wins_after=wins_after,
-                    win_rate_after=win_rate_after,
-                    pnl_after=pnl_after,
-                    correlation_score=correlation_score
-                ))
+                correlations.append(
+                    TimelineCorrelation(
+                        activity_id=activity.id,
+                        activity_timestamp=activity.timestamp,
+                        activity_type=activity.decision_type,
+                        strategy_name=activity.strategy_name,
+                        trades_after=len(trades_after),
+                        wins_after=wins_after,
+                        win_rate_after=win_rate_after,
+                        pnl_after=pnl_after,
+                        correlation_score=correlation_score,
+                    )
+                )
 
             return correlations
         except Exception as e:
@@ -435,13 +476,13 @@ class StatsCorrelator:
         mean_return = sum(returns) / len(returns)
 
         variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         if std_dev == 0:
             return None
 
         # Annualized Sharpe (assuming daily trades)
-        sharpe = (mean_return / std_dev) * (252 ** 0.5)
+        sharpe = (mean_return / std_dev) * (252**0.5)
         return sharpe
 
     def _calculate_confidence(self, sample_before: int, sample_after: int) -> float:
@@ -458,10 +499,7 @@ class StatsCorrelator:
             return 0.9
 
     def _calculate_correlation_score(
-        self,
-        confidence: float,
-        win_rate: float,
-        sample_size: int
+        self, confidence: float, win_rate: float, sample_size: int
     ) -> float:
         """Calculate correlation score between activity confidence and performance."""
         # Weight by confidence, win rate, and sample size
@@ -469,7 +507,7 @@ class StatsCorrelator:
         performance_weight = win_rate
         sample_weight = min(sample_size / 10.0, 1.0)
 
-        score = (confidence_weight * 0.4 + performance_weight * 0.4 + sample_weight * 0.2)
+        score = confidence_weight * 0.4 + performance_weight * 0.4 + sample_weight * 0.2
         return min(max(score, 0.0), 1.0)
 
 

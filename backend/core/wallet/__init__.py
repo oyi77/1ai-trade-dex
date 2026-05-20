@@ -3,6 +3,7 @@
 Supports both submodule imports (``from backend.core.wallet import bankroll_allocator``)
 and symbol imports (``from backend.core.wallet import WalletReconciler``).
 """
+
 import importlib as _importlib
 
 

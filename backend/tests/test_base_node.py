@@ -42,6 +42,7 @@ class TestBaseAGINode:
 
             class NoManifestNode(BaseAGINode):
                 pass
+
         except TypeError:
 
             pass
@@ -84,6 +85,7 @@ class TestBaseAGINode:
 
                 async def execute(self, state):
                     return state
+
         except TypeError:
 
             pass

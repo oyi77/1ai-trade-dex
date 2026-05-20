@@ -5,6 +5,7 @@ Prior: Beta(1, 1) = uniform.
 Updates: alpha += 1 on win, beta += 1 on loss.
 No new dependencies — uses stdlib random.betavariate().
 """
+
 import json
 import random
 from pathlib import Path
@@ -12,6 +13,8 @@ from typing import Dict, List, Tuple
 from collections import defaultdict
 
 from loguru import logger
+
+
 class ThompsonSampler:
     """
     Per-strategy Thompson sampling allocator.
@@ -25,7 +28,9 @@ class ThompsonSampler:
         """
         self.min_capital = min_capital
         # strategy -> (alpha, beta)
-        self._posteriors: Dict[str, Tuple[float, float]] = defaultdict(lambda: (1.0, 1.0))
+        self._posteriors: Dict[str, Tuple[float, float]] = defaultdict(
+            lambda: (1.0, 1.0)
+        )
 
     def update(self, strategy: str, won: bool) -> None:
         """Update posterior after a trade outcome."""
@@ -74,7 +79,11 @@ class ThompsonSampler:
             if remaining > 0:
                 above_total = sum(raw[s] for s in above_min)
                 for s in above_min:
-                    raw[s] = (raw[s] / above_total) * remaining if above_total > 0 else remaining / len(above_min)
+                    raw[s] = (
+                        (raw[s] / above_total) * remaining
+                        if above_total > 0
+                        else remaining / len(above_min)
+                    )
             for s in below_min:
                 raw[s] = self.min_capital
 
@@ -96,10 +105,10 @@ class ThompsonSampler:
     def summary(self) -> Dict[str, Dict]:
         return {
             s: {
-                'alpha': a,
-                'beta': b,
-                'win_prob': a / (a + b),
-                'n': max(0, int(a + b - 2)),
+                "alpha": a,
+                "beta": b,
+                "win_prob": a / (a + b),
+                "n": max(0, int(a + b - 2)),
             }
             for s, (a, b) in self._posteriors.items()
         }

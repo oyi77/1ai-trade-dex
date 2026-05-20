@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from loguru import logger
+
+
 @dataclass
 class CachedOrderbook:
     token_id: str

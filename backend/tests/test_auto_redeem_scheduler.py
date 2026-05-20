@@ -29,16 +29,30 @@ async def test_auto_redeem_job_skips_without_wallet_or_key(monkeypatch):
     def fake_log_event(event_type: str, message: str, data: dict | None = None):
         events.append((event_type, message))
 
-    monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_ADDRESS", None, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_WALLET_ADDRESS", None, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_PRIVATE_KEY", None, raising=False)
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_BUILDER_ADDRESS",
+        None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "POLYMARKET_WALLET_ADDRESS", None, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "POLYMARKET_PRIVATE_KEY", None, raising=False
+    )
     monkeypatch.setattr(scheduler_module, "log_event", fake_log_event)
 
     await scheduling_strategies.auto_redeem_job()
 
     assert "backend.core.auto_redeem" not in sys.modules
-    assert any(event_type == "warning" and "skipped" in message for event_type, message in events)
+    assert any(
+        event_type == "warning" and "skipped" in message
+        for event_type, message in events
+    )
 
 
 @pytest.mark.asyncio
@@ -62,17 +76,52 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
     fake_auto_redeem_module = types.ModuleType("backend.core.auto_redeem")
     fake_auto_redeem_module.redeem_all_redeemable = fake_redeem_all_redeemable
 
-    monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_DRY_RUN", True, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 5, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_ADDRESS", "0xWallet", raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_WALLET_ADDRESS", None, raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_PRIVATE_KEY", "0xPrivateKey", raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_API_KEY", "builder-key", raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_SECRET", "builder-secret", raising=False)
-    monkeypatch.setattr(scheduling_strategies.settings, "POLYMARKET_BUILDER_PASSPHRASE", "builder-passphrase", raising=False)
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "AUTO_REDEEM_ENABLED", True, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "AUTO_REDEEM_DRY_RUN", True, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 5, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_BUILDER_ADDRESS",
+        "0xWallet",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings, "POLYMARKET_WALLET_ADDRESS", None, raising=False
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_PRIVATE_KEY",
+        "0xPrivateKey",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_BUILDER_API_KEY",
+        "builder-key",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_BUILDER_SECRET",
+        "builder-secret",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        scheduling_strategies.settings,
+        "POLYMARKET_BUILDER_PASSPHRASE",
+        "builder-passphrase",
+        raising=False,
+    )
     monkeypatch.setattr(scheduler_module, "log_event", fake_log_event)
-    monkeypatch.setitem(sys.modules, "backend.core.auto_redeem", fake_auto_redeem_module)
+    monkeypatch.setitem(
+        sys.modules, "backend.core.auto_redeem", fake_auto_redeem_module
+    )
 
     await scheduling_strategies.auto_redeem_job()
 

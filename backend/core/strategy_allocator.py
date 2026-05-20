@@ -13,7 +13,9 @@ class RegimeAwareAllocator:
         self._current_regime = MarketRegime.UNKNOWN
         self._current_allocations: dict[str, float] = {}
 
-    def allocate(self, strategies: list[str], regime: MarketRegime, capital: float) -> dict[str, float]:
+    def allocate(
+        self, strategies: list[str], regime: MarketRegime, capital: float
+    ) -> dict[str, float]:
         if not strategies or capital <= 0:
             return {s: 0.0 for s in strategies}
 
@@ -46,9 +48,17 @@ class RegimeAwareAllocator:
         return self._kg.get_strategies_for_regime(regime)
 
     def rebalance(self, transition: Any) -> dict[str, float]:
-        new_regime = transition.to_regime if hasattr(transition, 'to_regime') else MarketRegime.UNKNOWN
-        strategies = list(self._current_allocations.keys()) if self._current_allocations else []
-        capital = sum(self._current_allocations.values()) if self._current_allocations else 0
+        new_regime = (
+            transition.to_regime
+            if hasattr(transition, "to_regime")
+            else MarketRegime.UNKNOWN
+        )
+        strategies = (
+            list(self._current_allocations.keys()) if self._current_allocations else []
+        )
+        capital = (
+            sum(self._current_allocations.values()) if self._current_allocations else 0
+        )
         if not strategies or capital <= 0:
             return {}
         return self.allocate(strategies, new_regime, capital)
@@ -57,7 +67,9 @@ class RegimeAwareAllocator:
         per = capital / len(strategies)
         return {s: per for s in strategies}
 
-    def _regime_weighted(self, strategies: list[str], regime: MarketRegime, capital: float) -> dict[str, float]:
+    def _regime_weighted(
+        self, strategies: list[str], regime: MarketRegime, capital: float
+    ) -> dict[str, float]:
         preferred = self._kg.get_strategies_for_regime(regime)
         preferred_ids = {s.entity_id for s in preferred}
 

@@ -1,4 +1,5 @@
 """Base classes for crypto exchange feed plugins."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -19,16 +20,15 @@ class ExchangeFeedManifest:
 class BaseExchangeFeed(ABC):
     @classmethod
     @abstractmethod
-    def manifest(cls) -> ExchangeFeedManifest:
-        ...
+    def manifest(cls) -> ExchangeFeedManifest: ...
 
     @abstractmethod
-    async def get_btc_price(self) -> float:
-        ...
+    async def get_btc_price(self) -> float: ...
 
     @abstractmethod
-    async def get_klines(self, symbol: str, interval: str, limit: int) -> Optional[List]:
-        ...
+    async def get_klines(
+        self, symbol: str, interval: str, limit: int
+    ) -> Optional[List]: ...
 
     async def health_check(self) -> bool:
         try:

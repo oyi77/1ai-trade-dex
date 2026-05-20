@@ -1,4 +1,5 @@
 """Source-weight updater — adjusts weights from provenance-attributed trade outcomes."""
+
 from __future__ import annotations
 from typing import Dict
 
@@ -19,15 +20,20 @@ def update_source_weights_from_outcomes() -> Dict[str, float]:
     global _source_weights
     db = SessionLocal()
     try:
-        rows = db.query(
-            Trade.settlement_source,
-            func.count(Trade.id).label("cnt"),
-            func.count(Trade.id).filter(Trade.result == "win").label("wins"),
-        ).filter(
-            Trade.settled,
-            Trade.settlement_source.isnot(None),
-            Trade.settlement_source != "",
-        ).group_by(Trade.settlement_source).all()
+        rows = (
+            db.query(
+                Trade.settlement_source,
+                func.count(Trade.id).label("cnt"),
+                func.count(Trade.id).filter(Trade.result == "win").label("wins"),
+            )
+            .filter(
+                Trade.settled,
+                Trade.settlement_source.isnot(None),
+                Trade.settlement_source != "",
+            )
+            .group_by(Trade.settlement_source)
+            .all()
+        )
 
         for row in rows:
             source = row.settlement_source or "unknown"

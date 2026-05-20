@@ -64,7 +64,9 @@ class TestApplyLongshotFeedback:
         allocations = {"btc_oracle": 500.0}
 
         with patch(_DETECTOR_PATH) as MockDetector:
-            MockDetector.return_value.get_category_bias.side_effect = RuntimeError("db down")
+            MockDetector.return_value.get_category_bias.side_effect = RuntimeError(
+                "db down"
+            )
             result = allocator.apply_longshot_feedback(allocations)
 
         assert result == allocations

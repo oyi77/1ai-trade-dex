@@ -1,4 +1,5 @@
 """Tests for BondScannerStrategy."""
+
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,6 +15,7 @@ def _near_future_date(days=3) -> str:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_market(
     slug="test-market",
     volume=20000,
@@ -26,7 +28,9 @@ def _make_market(
         "slug": slug,
         "question": question,
         "volume": volume,
-        "outcomePrices": outcome_prices if outcome_prices is not None else ["0.95", "0.05"],
+        "outcomePrices": (
+            outcome_prices if outcome_prices is not None else ["0.95", "0.05"]
+        ),
         "outcomes": outcomes if outcomes is not None else ["Yes", "No"],
         "endDate": end_date if end_date is not None else _near_future_date(3),
     }
@@ -54,6 +58,7 @@ def _make_ctx(params=None, bankroll=100.0):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestBondScannerFilters:
     def test_filters_by_price_range(self):
@@ -108,9 +113,9 @@ class TestBondScannerFilters:
         ]
         for price, expected_edge in test_cases:
             edge = round(1.0 - price, 4)
-            assert abs(edge - expected_edge) < 1e-9, (
-                f"edge for price {price} should be {expected_edge}, got {edge}"
-            )
+            assert (
+                abs(edge - expected_edge) < 1e-9
+            ), f"edge for price {price} should be {expected_edge}, got {edge}"
 
     @pytest.mark.asyncio
     async def test_run_cycle_returns_cycle_result(self):

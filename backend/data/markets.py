@@ -1,4 +1,5 @@
 """Market data types and generic market fetching."""
+
 from datetime import datetime
 from typing import Optional, List
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ from backend.core.market_scanner import fetch_all_active_markets
 @dataclass
 class MarketData:
     """Structured market data."""
+
     platform: str
     ticker: str
     title: str
@@ -17,7 +19,7 @@ class MarketData:
     subcategory: Optional[str]
 
     yes_price: float  # 0-1 (Up price for BTC markets)
-    no_price: float   # (Down price for BTC markets)
+    no_price: float  # (Down price for BTC markets)
     volume: float
     settlement_time: Optional[datetime]
 
@@ -62,7 +64,9 @@ async def fetch_all_markets(**kwargs) -> List[MarketData]:
             settlement_time = None
             if market.end_date:
                 try:
-                    settlement_time = datetime.fromisoformat(market.end_date.replace("Z", "+00:00"))
+                    settlement_time = datetime.fromisoformat(
+                        market.end_date.replace("Z", "+00:00")
+                    )
                 except ValueError:
                     settlement_time = None
             results.append(
@@ -84,6 +88,8 @@ async def fetch_all_markets(**kwargs) -> List[MarketData]:
     except Exception:
         from loguru import logger
 
-        logger.exception("fetch_all_markets broad scan failed; falling back to BTC markets")
+        logger.exception(
+            "fetch_all_markets broad scan failed; falling back to BTC markets"
+        )
         btc_markets = await fetch_active_btc_markets()
         return [btc_market_to_market_data(m) for m in btc_markets]

@@ -14,7 +14,6 @@ from loguru import logger
 from backend.data.wallet_history import get_all_closed_positions
 from backend.strategies.fingerprint import StrategyFingerprint, strategy_fingerprint
 
-
 # ---------------------------------------------------------------------------
 # Data models
 # ---------------------------------------------------------------------------
@@ -88,12 +87,8 @@ async def replicate_strategy(
     result.config = generate_strategy_config(fp, our_capital)
 
     # 6. Confidence & readiness
-    result.confidence_score = _compute_replication_confidence(
-        fp, paper, len(positions)
-    )
-    result.is_ready_for_live = (
-        result.confidence_score > 0.7 and paper.get("pnl", 0) > 0
-    )
+    result.confidence_score = _compute_replication_confidence(fp, paper, len(positions))
+    result.is_ready_for_live = result.confidence_score > 0.7 and paper.get("pnl", 0) > 0
 
     logger.info(
         "Replication complete for %s: confidence=%.2f ready=%s trades=%d pnl=%.2f",
@@ -155,9 +150,7 @@ def generate_strategy_config(
 # ---------------------------------------------------------------------------
 
 
-def _decompose_rules(
-    fp: StrategyFingerprint, positions: list[dict]
-) -> list[Rule]:
+def _decompose_rules(fp: StrategyFingerprint, positions: list[dict]) -> list[Rule]:
     """Decompose fingerprint patterns into concrete trading rules."""
     rules: list[Rule] = []
 
@@ -167,7 +160,9 @@ def _decompose_rules(
             Rule(
                 condition=f"category == '{fp.primary_category}'",
                 action="BUY" if fp.preferred_side == "BUY" else "SELL",
-                outcome=fp.preferred_outcome if fp.preferred_outcome != "NEUTRAL" else "YES",
+                outcome=(
+                    fp.preferred_outcome if fp.preferred_outcome != "NEUTRAL" else "YES"
+                ),
                 size_pct=5.0,
                 entry_price_target=fp.avg_price_entry,
                 exit_profit_pct=15.0,
@@ -273,9 +268,14 @@ def _simulate_paper(
     # Extract rule categories for matching
     rule_categories = set()
     for rule in rules:
-        cond = rule.get("condition", "") if isinstance(rule, dict) else getattr(rule, "condition", "")
+        cond = (
+            rule.get("condition", "")
+            if isinstance(rule, dict)
+            else getattr(rule, "condition", "")
+        )
         if "category" in cond:
             import re
+
             m = re.search(r"category\s*==\s*['\"]([\w_]+)['\"]", cond)
             if m:
                 cat = m.group(1)
@@ -286,9 +286,7 @@ def _simulate_paper(
                     rule_categories.add(base)
 
     # Sort by timestamp for chronological replay
-    sorted_positions = sorted(
-        positions, key=lambda p: float(p.get("timestamp", 0))
-    )
+    sorted_positions = sorted(positions, key=lambda p: float(p.get("timestamp", 0)))
 
     wins = 0
     losses = 0
@@ -301,6 +299,7 @@ def _simulate_paper(
     for pos in sorted_positions:
         title = pos.get("title", "")
         from backend.core.market_classifier import classify_market
+
         category = classify_market(title)
 
         # Skip positions that don't match any rule category

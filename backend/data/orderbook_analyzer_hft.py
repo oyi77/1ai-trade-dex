@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class OrderBookLevel:
     price: float
@@ -51,11 +52,13 @@ class OrderbookAnalyzerHFT:
         """Update order book with new bid/ask data."""
         self._bids = [
             OrderBookLevel(price=float(b["price"]), size=float(b["size"]))
-            for b in bids if self._validate_level(b)
+            for b in bids
+            if self._validate_level(b)
         ]
         self._asks = [
             OrderBookLevel(price=float(a["price"]), size=float(a["size"]))
-            for a in asks if self._validate_level(a)
+            for a in asks
+            if self._validate_level(a)
         ]
         self._last_update = asyncio.get_event_loop().time()
 
@@ -95,8 +98,12 @@ class OrderbookAnalyzerHFT:
         mid_price = (best_bid + best_ask) / 2.0
         spread_pct = (spread / mid_price) * 100.0 if mid_price > 0 else 0.0
 
-        depth_10 = sum(lvl.size for lvl in self._bids[:10]) + sum(lvl.size for lvl in self._asks[:10])
-        depth_50 = sum(lvl.size for lvl in self._bids[:50]) + sum(lvl.size for lvl in self._asks[:50])
+        depth_10 = sum(lvl.size for lvl in self._bids[:10]) + sum(
+            lvl.size for lvl in self._asks[:10]
+        )
+        depth_50 = sum(lvl.size for lvl in self._bids[:50]) + sum(
+            lvl.size for lvl in self._asks[:50]
+        )
 
         bid_depth = sum(lvl.size for lvl in self._bids[:10])
         ask_depth = sum(lvl.size for lvl in self._asks[:10])
@@ -121,6 +128,7 @@ class OrderbookAnalyzerHFT:
     def is_stale(self) -> bool:
         """Check if order book data is stale."""
         import time
+
         return (time.time() - self._last_update) > self._stale_threshold
 
     def detect_arb(self) -> Optional[dict]:

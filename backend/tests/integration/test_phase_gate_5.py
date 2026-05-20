@@ -18,13 +18,17 @@ class TestCoreValuesAlignment:
 
     def test_alignment_approves_safe_action(self):
         cv = CoreValues()
-        result = cv.check_alignment({"risk_tier": "moderate", "single_trade_risk": 0.03})
+        result = cv.check_alignment(
+            {"risk_tier": "moderate", "single_trade_risk": 0.03}
+        )
         assert result.is_aligned
         assert len(result.concerns) == 0
 
     def test_alignment_rejects_aggressive_without_override(self):
         cv = CoreValues({"allow_aggressive_tier": False})
-        result = cv.check_alignment({"risk_tier": "aggressive", "single_trade_risk": 0.04})
+        result = cv.check_alignment(
+            {"risk_tier": "aggressive", "single_trade_risk": 0.04}
+        )
         assert not result.is_aligned
         assert any("aggressive" in c.lower() for c in result.concerns)
 
@@ -53,7 +57,14 @@ class TestLongTermPlanner:
 
     def test_produces_90_day_plan(self):
         planner = LongTermPlanner()
-        goals = [{"goal_id": "test", "start_week": 1, "duration_weeks": 4, "resource_needs": {"gpu_hours": 50}}]
+        goals = [
+            {
+                "goal_id": "test",
+                "start_week": 1,
+                "duration_weeks": 4,
+                "resource_needs": {"gpu_hours": 50},
+            }
+        ]
         plan = planner.plan_horizon(goals)
         assert isinstance(plan, LongTermPlan)
         assert plan.horizon_days == 90
@@ -61,7 +72,12 @@ class TestLongTermPlanner:
     def test_detects_conflicts(self):
         planner = LongTermPlanner(gpu_monthly_budget=180)
         goals = [
-            {"goal_id": f"g{i}", "start_week": 1, "duration_weeks": 4, "resource_needs": {"gpu_hours": 40}}
+            {
+                "goal_id": f"g{i}",
+                "start_week": 1,
+                "duration_weeks": 4,
+                "resource_needs": {"gpu_hours": 40},
+            }
             for i in range(2)
         ]
         plan = planner.plan_horizon(goals)

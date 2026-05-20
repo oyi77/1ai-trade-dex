@@ -1,6 +1,7 @@
 """
 Tests for the LearningSystem component.
 """
+
 import pytest
 from unittest.mock import MagicMock
 from datetime import datetime
@@ -8,8 +9,9 @@ from datetime import datetime
 from backend.core.learning_system import (
     LearningSystem,
     LearningExample,
-    CalibrationReport
+    CalibrationReport,
 )
+
 
 # Mock SQLAlchemy session
 class MockSession:
@@ -49,6 +51,7 @@ class MockSession:
     def rollback(self):
         pass
 
+
 class MockExampleModel:
     def __init__(self, strategy, market, prediction, actual, pnl, confidence, domain):
         self.strategy_key = strategy
@@ -69,13 +72,15 @@ class MockExampleModel:
             actual=self.actual,
             pnl=self.pnl,
             timestamp=self.timestamp,
-            confidence=self.confidence
+            confidence=self.confidence,
         )
+
 
 @pytest.fixture
 def learning_system():
     mock_session = MockSession()
     return LearningSystem(session=mock_session)
+
 
 def test_record_outcome(learning_system):
     """Test recording learning outcomes."""
@@ -86,7 +91,7 @@ def test_record_outcome(learning_system):
         prediction=0.7,
         actual=1.0,
         pnl=0.01,
-        confidence=0.8
+        confidence=0.8,
     )
     assert len(learning_system.session.examples) == 1
 
@@ -98,14 +103,16 @@ def test_record_outcome(learning_system):
             prediction=0.7,
             actual=1.0,
             pnl=0.01,
-            confidence=1.5
+            confidence=1.5,
         )
+
 
 def test_get_learning_examples(learning_system):
     """Test retrieving learning examples."""
     examples = learning_system.get_learning_examples("domain1")
     assert len(examples) == 2
     assert isinstance(examples[0], LearningExample)
+
 
 def test_compute_calibration(learning_system):
     """Test calibration computation."""
@@ -120,14 +127,17 @@ def test_compute_calibration(learning_system):
 
     assert isinstance(report, CalibrationReport)
     assert 0 <= report.brier_score <= 1
-    assert report.accuracy == 1.0 # All 3都是对的 (0.7->1, 0.4->0, 0.9->1)
+    assert report.accuracy == 1.0  # All 3都是对的 (0.7->1, 0.4->0, 0.9->1)
     assert len(report.bins) > 0
+
 
 def test_get_learning_stats(learning_system):
     """Test statistics generation."""
     # Mock the a litte more for stats
     learning_system.session.query = MagicMock()
-    learning_system.session.query.return_value.group_by.return_value.all.return_value = [("domain1", 10)]
+    learning_system.session.query.return_value.group_by.return_value.all.return_value = [
+        ("domain1", 10)
+    ]
 
     stats = learning_system.get_learning_stats()
     assert stats["total_examples"] == 10

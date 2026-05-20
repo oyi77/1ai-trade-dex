@@ -12,6 +12,7 @@ Reuses `compute_btc_microstructure()` (multi-exchange aggregation cached 30s).
 Markets discovered via `fetch_active_btc_markets()` which returns structured
 `BtcMarket` objects with 5-min UP/DOWN windows and direct CLOB token IDs.
 """
+
 import httpx
 
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
@@ -22,13 +23,16 @@ from backend.data.btc_markets import BtcMarket, fetch_active_btc_markets
 from backend.config import settings
 
 from loguru import logger
+
 PM_MIDPOINT_URL = f"{settings.CLOB_API_URL}/midpoint"
 
 
 async def _fetch_pm_mid(client: httpx.AsyncClient, token_id: str) -> float | None:
     """Fetch the CLOB midpoint price for a given token ID."""
     try:
-        r = await client.get(PM_MIDPOINT_URL, params={"token_id": token_id}, timeout=4.0)
+        r = await client.get(
+            PM_MIDPOINT_URL, params={"token_id": token_id}, timeout=4.0
+        )
         if r.status_code != 200:
             return None
         data = r.json()
@@ -57,7 +61,8 @@ class CexPmLeadLagStrategy(BaseStrategy):
     async def market_filter(self, markets: list[BtcMarket]) -> list[BtcMarket]:
         """Filter to active BTC 5-min markets with valid token IDs."""
         return [
-            m for m in markets
+            m
+            for m in markets
             if m.is_active and m.up_token_id and m.down_token_id and not m.closed
         ]
 
@@ -118,7 +123,9 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 edge = (implied_prob - target_mid) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"
-                confidence = min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                confidence = (
+                    min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                )
                 projected_price = micro.price * (1.0 + micro.momentum_1m)
 
                 signal_data = {
@@ -132,7 +139,12 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     "edge": edge,
                     "minutes_remaining": round(minutes_remaining, 2),
                     "source": micro.source,  # legacy field (exchange list)
-                    "sources": ["cex_pm_leadlag"] + (micro.source if isinstance(micro.source, list) else [micro.source]),  # AGI learning
+                    "sources": ["cex_pm_leadlag"]
+                    + (
+                        micro.source
+                        if isinstance(micro.source, list)
+                        else [micro.source]
+                    ),  # AGI learning
                     "slug": market.slug,
                     "up_price": market.up_price,
                     "down_price": market.down_price,
@@ -170,7 +182,11 @@ class CexPmLeadLagStrategy(BaseStrategy):
 
                 if decision == "BUY":
                     result.trades_attempted += 1
-                    chosen_token = market.up_token_id if direction == "up" else market.down_token_id
+                    chosen_token = (
+                        market.up_token_id
+                        if direction == "up"
+                        else market.down_token_id
+                    )
                     entry_price = target_mid
                     result.decisions.append(
                         {

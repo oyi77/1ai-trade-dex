@@ -39,7 +39,9 @@ class CloudWatchBackend(BaseMetricsBackend):
             self._client = boto3.client("cloudwatch")
         return self._client
 
-    async def increment_counter(self, name: str, value: int = 1, tags: dict = None) -> None:
+    async def increment_counter(
+        self, name: str, value: int = 1, tags: dict = None
+    ) -> None:
         if not self._boto3_available:
             return
         await self._send_metric("Count", name, float(value), tags or {})
@@ -49,12 +51,16 @@ class CloudWatchBackend(BaseMetricsBackend):
             return
         await self._send_metric("Gauge", name, value, tags or {})
 
-    async def record_histogram(self, name: str, value: float, tags: dict = None) -> None:
+    async def record_histogram(
+        self, name: str, value: float, tags: dict = None
+    ) -> None:
         if not self._boto3_available:
             return
         await self._send_metric("Summary", name, value, tags or {})
 
-    async def _send_metric(self, metric_type: str, name: str, value: float, tags: Dict[str, str]) -> None:
+    async def _send_metric(
+        self, metric_type: str, name: str, value: float, tags: Dict[str, str]
+    ) -> None:
         client = self._get_client()
         if client is None:
             return

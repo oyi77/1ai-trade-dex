@@ -20,7 +20,9 @@ from backend.models.database import SessionLocal
 
 async def _main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="Apply BotState cache changes")
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply BotState cache changes"
+    )
     parser.add_argument(
         "--mode",
         choices=("paper", "testnet", "live", "all"),
@@ -39,9 +41,15 @@ async def _main() -> int:
             commit=args.apply,
             source="manual_reconcile_script",
         )
-        print(json.dumps([report.to_dict() for report in reports], indent=2, sort_keys=True))
+        print(
+            json.dumps(
+                [report.to_dict() for report in reports], indent=2, sort_keys=True
+            )
+        )
         if not args.apply:
-            print("DRY RUN — no BotState changes committed. Re-run with --apply to update caches.")
+            print(
+                "DRY RUN — no BotState changes committed. Re-run with --apply to update caches."
+            )
         return 0
     finally:
         db.close()

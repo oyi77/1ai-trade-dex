@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from backend.config import settings
 
 from loguru import logger
+
 _MARKET_CACHE: List[Dict[str, Any]] = []
 _CACHE_TIMESTAMP: float = 0.0
 
@@ -35,7 +36,9 @@ class PolymarketProvider(DataProvider):
     """Polymarket Gamma API data provider."""
 
     def __init__(self) -> None:
-        self._base_url = getattr(settings, "GAMMA_API_URL", "https://gamma-api.polymarket.com")
+        self._base_url = getattr(
+            settings, "GAMMA_API_URL", "https://gamma-api.polymarket.com"
+        )
         self._page_size = getattr(settings, "SCANNER_PAGE_SIZE", 500)
 
     async def fetch_markets(
@@ -70,7 +73,11 @@ class PolymarketProvider(DataProvider):
                             params=params,
                         )
                         if resp.status_code == 429:
-                            logger.warning("[PolymarketProvider] 429 Rate Limit hit at offset=%d. Retrying in %ss...", page_offset, retry_delay)
+                            logger.warning(
+                                "[PolymarketProvider] 429 Rate Limit hit at offset=%d. Retrying in %ss...",
+                                page_offset,
+                                retry_delay,
+                            )
                             await asyncio.sleep(retry_delay)
                             retry_delay *= 2
                             continue
@@ -85,7 +92,10 @@ class PolymarketProvider(DataProvider):
                         )
                         break
                 else:
-                    logger.error("[PolymarketProvider] Max retries exceeded at offset=%d", page_offset)
+                    logger.error(
+                        "[PolymarketProvider] Max retries exceeded at offset=%d",
+                        page_offset,
+                    )
                     break
 
                 if not batch:
@@ -99,8 +109,16 @@ class PolymarketProvider(DataProvider):
                         "category": raw.get("category", ""),
                         "volume_24h": float(raw.get("volume24hr", 0) or 0),
                         "status": raw.get("active", "unknown"),
-                        "yes_price": float(json.loads(raw["outcomePrices"])[0]) if "outcomePrices" in raw else 0.5,
-                        "no_price": float(json.loads(raw["outcomePrices"])[1]) if "outcomePrices" in raw else 0.5,
+                        "yes_price": (
+                            float(json.loads(raw["outcomePrices"])[0])
+                            if "outcomePrices" in raw
+                            else 0.5
+                        ),
+                        "no_price": (
+                            float(json.loads(raw["outcomePrices"])[1])
+                            if "outcomePrices" in raw
+                            else 0.5
+                        ),
                         "slug": raw.get("slug", ""),
                         "platform": "polymarket",
                     }
@@ -113,7 +131,6 @@ class PolymarketProvider(DataProvider):
                     break
                 await asyncio.sleep(0.5)  # respect rate limits
 
-
         logger.info("[PolymarketProvider] fetched %d markets", len(markets))
         return markets
 
@@ -122,7 +139,9 @@ class KalshiProvider(DataProvider):
     """Kalshi API data provider."""
 
     def __init__(self) -> None:
-        self._base_url = getattr(settings, "KALSHI_API_URL", "https://api.elections.kalshi.com/trade-api/v2")
+        self._base_url = getattr(
+            settings, "KALSHI_API_URL", "https://api.elections.kalshi.com/trade-api/v2"
+        )
 
     async def fetch_markets(
         self,
@@ -159,7 +178,10 @@ class KalshiProvider(DataProvider):
                             params=params,
                         )
                         if resp.status_code == 429:
-                            logger.warning("[KalshiProvider] 429 Rate Limit hit. Retrying in %ss...", retry_delay)
+                            logger.warning(
+                                "[KalshiProvider] 429 Rate Limit hit. Retrying in %ss...",
+                                retry_delay,
+                            )
                             await asyncio.sleep(retry_delay)
                             retry_delay *= 2
                             continue
@@ -199,8 +221,6 @@ class KalshiProvider(DataProvider):
         return markets
 
 
-
-
 class PMXTProvider(DataProvider):
     """PMXT multi-platform data provider — secondary provider via pmxt_client."""
 
@@ -237,7 +257,11 @@ class PMXTProvider(DataProvider):
                 }
                 markets.append(market)
 
-        logger.info("[PMXTProvider] fetched %d markets across %d exchanges", len(markets), len(results))
+        logger.info(
+            "[PMXTProvider] fetched %d markets across %d exchanges",
+            len(markets),
+            len(results),
+        )
         return markets
 
 
@@ -256,7 +280,10 @@ class MarketUniverseScanner:
         # Add ±30s jitter to prevent cache-stampede when 14+ strategies refresh simultaneously
         ttl_with_jitter = self._cache_ttl + random.randint(-30, 30)
         if _MARKET_CACHE and (now - _CACHE_TIMESTAMP) < ttl_with_jitter:
-            logger.debug("[MarketUniverseScanner] returning %d cached markets", len(_MARKET_CACHE))
+            logger.debug(
+                "[MarketUniverseScanner] returning %d cached markets",
+                len(_MARKET_CACHE),
+            )
             return _MARKET_CACHE[:limit]
 
         from datetime import datetime, timezone
@@ -264,7 +291,9 @@ class MarketUniverseScanner:
         markets = await self._provider.fetch_markets(limit=limit, active_only=True)
 
         # Merge PMXT secondary provider markets when enabled
-        if getattr(settings, "PMXT_ENABLED", False) and not isinstance(self._provider, PMXTProvider):
+        if getattr(settings, "PMXT_ENABLED", False) and not isinstance(
+            self._provider, PMXTProvider
+        ):
             try:
                 pmxt = PMXTProvider()
                 pmxt_markets = await pmxt.fetch_markets(limit=limit, active_only=True)
@@ -274,17 +303,21 @@ class MarketUniverseScanner:
                         markets.append(m)
                         seen_ids.add(m["market_id"])
             except Exception as exc:
-                logger.warning("[MarketUniverseScanner] PMXT secondary fetch failed: %s", exc)
+                logger.warning(
+                    "[MarketUniverseScanner] PMXT secondary fetch failed: %s", exc
+                )
         _now_dt = datetime.now(timezone.utc)
         filtered = [
-            m for m in markets
-            if m.get("volume_24h", 0) > 0
-            and m.get("status") != "closed"
+            m
+            for m in markets
+            if m.get("volume_24h", 0) > 0 and m.get("status") != "closed"
         ]
 
         _MARKET_CACHE = filtered
         _CACHE_TIMESTAMP = now
-        logger.info("[MarketUniverseScanner] refreshed cache with %d markets", len(filtered))
+        logger.info(
+            "[MarketUniverseScanner] refreshed cache with %d markets", len(filtered)
+        )
         return filtered[:limit]
 
     async def get_markets_by_category(
@@ -292,7 +325,9 @@ class MarketUniverseScanner:
     ) -> List[Dict[str, Any]]:
         """Return markets filtered by category."""
         all_markets = await self.get_active_markets(limit=5000)
-        return [m for m in all_markets if m.get("category", "").lower() == category.lower()][:limit]
+        return [
+            m for m in all_markets if m.get("category", "").lower() == category.lower()
+        ][:limit]
 
     def invalidate_cache(self) -> None:
         """Force cache refresh on next call."""

@@ -9,22 +9,32 @@ from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal, StrategyConfig, Trade
 
 from loguru import logger
+
+
 class StrategyRehabilitator:
     """Re-enables disabled strategies if they pass paper-mode validation."""
 
     @property
     def _s(self):
         from backend.config import settings as _s
+
         return _s
 
     @property
-    def REHAB_COOLDOWN_DAYS(self): return self._s.AGI_REHAB_COOLDOWN_DAYS
+    def REHAB_COOLDOWN_DAYS(self):
+        return self._s.AGI_REHAB_COOLDOWN_DAYS
+
     @property
-    def REHAB_PAPER_TRADES(self): return self._s.AGI_REHAB_MIN_TRADES
+    def REHAB_PAPER_TRADES(self):
+        return self._s.AGI_REHAB_MIN_TRADES
+
     @property
-    def REHAB_WIN_RATE_THRESHOLD(self): return self._s.AGI_REHAB_WIN_RATE_THRESHOLD
+    def REHAB_WIN_RATE_THRESHOLD(self):
+        return self._s.AGI_REHAB_WIN_RATE_THRESHOLD
+
     @property
-    def REHAB_ALLOCATION_PCT(self): return self._s.AGI_REHAB_ALLOCATION_PCT
+    def REHAB_ALLOCATION_PCT(self):
+        return self._s.AGI_REHAB_ALLOCATION_PCT
 
     ALLOCATION_STEPS = [0.25, 0.50, 0.75, 1.0]
 
@@ -42,17 +52,22 @@ class StrategyRehabilitator:
         db = db or SessionLocal()
         rehabilitated = []
         try:
-            disabled = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(False)).all()
+            disabled = (
+                db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(False)).all()
+            )
             for cfg in disabled:
                 if self._is_candidate(cfg, db):
                     if self._passes_validation(cfg, db):
                         cfg.enabled = True
                         cfg.disabled_at = None
-                        cfg.rehab_allocation_pct = self._next_allocation(cfg.rehab_allocation_pct)
+                        cfg.rehab_allocation_pct = self._next_allocation(
+                            cfg.rehab_allocation_pct
+                        )
                         rehabilitated.append(cfg.strategy_name)
                         logger.info(
                             "[Rehabilitation] Re-enabled strategy '%s' at %.0f%% allocation",
-                            cfg.strategy_name, cfg.rehab_allocation_pct * 100,
+                            cfg.strategy_name,
+                            cfg.rehab_allocation_pct * 100,
                         )
 
             if rehabilitated:
@@ -64,7 +79,9 @@ class StrategyRehabilitator:
                 try:
                     db.rollback()
                 except Exception:
-                    logger.exception("[Rehabilitation] Rollback failed after rehabilitation error")
+                    logger.exception(
+                        "[Rehabilitation] Rollback failed after rehabilitation error"
+                    )
             return rehabilitated
         finally:
             if _owned:
@@ -99,15 +116,22 @@ class StrategyRehabilitator:
 
     def _is_catastrophic(self, strategy: str, db: Session) -> bool:
         from backend.models.outcome_tables import StrategyHealthRecord
-        hr = db.query(StrategyHealthRecord).filter(
-            StrategyHealthRecord.strategy == strategy,
-            StrategyHealthRecord.status == "killed",
-        ).first()
+
+        hr = (
+            db.query(StrategyHealthRecord)
+            .filter(
+                StrategyHealthRecord.strategy == strategy,
+                StrategyHealthRecord.status == "killed",
+            )
+            .first()
+        )
         if hr and hr.total_trades >= self.CATASTROPHIC_MIN_TRADES:
             if hr.win_rate < self.CATASTROPHIC_WR_FLOOR:
                 logger.warning(
                     "[Rehabilitation] Blocked re-enable of '%s': catastrophic WR %.1f%% over %d trades",
-                    strategy, hr.win_rate * 100, hr.total_trades,
+                    strategy,
+                    hr.win_rate * 100,
+                    hr.total_trades,
                 )
                 return True
         return False
@@ -129,7 +153,7 @@ class StrategyRehabilitator:
         if len(trades) < self.REHAB_PAPER_TRADES:
             return False
 
-        recent = trades[:self.REHAB_PAPER_TRADES]
+        recent = trades[: self.REHAB_PAPER_TRADES]
         wins = sum(1 for t in recent if t.result == "win")
         win_rate = wins / len(recent)
 

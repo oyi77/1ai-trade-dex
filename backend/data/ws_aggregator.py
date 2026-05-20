@@ -4,6 +4,7 @@ import asyncio
 from typing import Optional
 from collections import defaultdict
 
+
 class WSMessage:
     def __init__(self, source: str, data: dict, seq: int):
         self.source = source
@@ -47,7 +48,7 @@ class StreamAggregator:
 
         self._buffers[source].append(msg)
         if len(self._buffers[source]) > self.max_buffer:
-            self._buffers[source] = self._buffers[source][-self.max_buffer:]
+            self._buffers[source] = self._buffers[source][-self.max_buffer :]
 
         for q in self._subscribers:
             if q.full():

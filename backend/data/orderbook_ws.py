@@ -5,6 +5,7 @@ Connects to wss://ws-live-data.polymarket.com and maintains live L2 order books
 for subscribed token IDs. Supports snapshot (book) and delta (price_change) updates.
 Auto-reconnects with exponential backoff on disconnection.
 """
+
 import asyncio
 import json
 import time
@@ -14,6 +15,7 @@ from typing import Optional
 from backend.config import settings
 
 from loguru import logger
+
 WS_URL = settings.POLYMARKET_WS_RTDS_URL
 MAX_BACKOFF_S = 30.0
 PING_INTERVAL_S = 30.0
@@ -170,7 +172,9 @@ class OrderBookManager:
                 self._connected = False
                 if not self._running:
                     break
-                logger.warning(f"OrderBook WS disconnected: {e}. Reconnecting in {backoff:.0f}s")
+                logger.warning(
+                    f"OrderBook WS disconnected: {e}. Reconnecting in {backoff:.0f}s"
+                )
                 try:
                     await asyncio.wait_for(self._stop_event.wait(), timeout=backoff)
                 except asyncio.TimeoutError:
@@ -202,6 +206,7 @@ class OrderBookManager:
         logger.info(f"Connecting to Polymarket order book WS: {WS_URL}")
 
         import ssl as _ssl
+
         _ssl_ctx = _ssl.create_default_context()
 
         async with websockets.connect(
@@ -260,7 +265,10 @@ class OrderBookManager:
                     if token_id not in self._subscriptions:
                         continue
                     if len(self.books) >= 500:
-                        logger.warning("OrderBookManager: max tracked books reached, ignoring %s", token_id)
+                        logger.warning(
+                            "OrderBookManager: max tracked books reached, ignoring %s",
+                            token_id,
+                        )
                         continue
                     book = LiveOrderBook(token_id=token_id)
                     self.books[token_id] = book
@@ -272,7 +280,9 @@ class OrderBookManager:
                 bids = [[float(b["price"]), float(b["size"])] for b in raw_bids]
                 asks = [[float(a["price"]), float(a["size"])] for a in raw_asks]
                 book.apply_snapshot(bids, asks)
-                logger.debug(f"Order book snapshot: {token_id} bids={len(bids)} asks={len(asks)}")
+                logger.debug(
+                    f"Order book snapshot: {token_id} bids={len(bids)} asks={len(asks)}"
+                )
 
             elif msg_type == "price_change":
                 # Delta update — event may contain lists of changes

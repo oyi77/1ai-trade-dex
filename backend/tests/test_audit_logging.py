@@ -132,9 +132,9 @@ def test_audit_log_query_by_event_type(test_db):
 
     test_db.commit()
 
-    trade_events = test_db.query(AuditLog).filter(
-        AuditLog.event_type == "TRADE_CREATED"
-    ).all()
+    trade_events = (
+        test_db.query(AuditLog).filter(AuditLog.event_type == "TRADE_CREATED").all()
+    )
 
     assert len(trade_events) == 2
     assert all(e.event_type == "TRADE_CREATED" for e in trade_events)
@@ -147,9 +147,7 @@ def test_audit_log_query_by_entity_id(test_db):
 
     test_db.commit()
 
-    trade_42_events = test_db.query(AuditLog).filter(
-        AuditLog.entity_id == "42"
-    ).all()
+    trade_42_events = test_db.query(AuditLog).filter(AuditLog.entity_id == "42").all()
 
     assert len(trade_42_events) == 2
     assert all(e.entity_id == "42" for e in trade_42_events)

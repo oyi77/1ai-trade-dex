@@ -5,6 +5,7 @@ Usage:
     python -m backend.core.trade_forensics_backfill --dry-run   # preview changes
     python -m backend.core.trade_forensics_backfill             # apply changes
 """
+
 import argparse
 import sys
 from backend.models.database import SessionLocal, Trade
@@ -23,9 +24,11 @@ def backfill_trade_roles(dry_run: bool = True) -> int:
     db = SessionLocal()
     updated = 0
     try:
-        trades = db.query(Trade).filter(
-            (Trade.role == None) | (Trade.role == "unknown")  # noqa: E711
-        ).all()
+        trades = (
+            db.query(Trade)
+            .filter((Trade.role == None) | (Trade.role == "unknown"))  # noqa: E711
+            .all()
+        )
 
         if not trades:
             print("No trades require role backfill.")
@@ -60,8 +63,12 @@ def backfill_trade_roles(dry_run: bool = True) -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Backfill trade role column")
-    parser.add_argument("--dry-run", action="store_true", help="Preview without applying")
-    parser.add_argument("--apply", action="store_true", help="Apply changes to the database")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without applying"
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply changes to the database"
+    )
     args = parser.parse_args()
 
     # Default to dry-run unless --apply is explicitly passed.

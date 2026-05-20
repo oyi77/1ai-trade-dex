@@ -76,43 +76,53 @@ ENUM_DOMAINS = {
     "trades.trading_mode": ["paper", "testnet", "live"],
     "trades.market_type": ["btc", "weather"],
     "trades.source": ["bot", "manual", "import"],
-
     # Signal enums
     "signals.side": ["YES", "NO", "up", "down"],
     "signals.status": ["pending", "filled", "cancelled", "expired"],
-
     # BotState enums
     "bot_state.mode": ["paper", "testnet", "live"],
-
     # TradeAttempt enums
     "trade_attempts.status": ["STARTED", "COMPLETED", "FAILED", "REJECTED"],
     "trade_attempts.phase": ["created", "validated", "executed", "settled", "failed"],
     "trade_attempts.mode": ["paper", "testnet", "live"],
     "trade_attempts.direction": ["up", "down", "YES", "NO"],
     "trade_attempts.decision": ["BUY", "SELL", "HOLD", "SKIP"],
-
     # DecisionLog enums
     "decision_log.decision": ["BUY", "SKIP", "SELL", "HOLD", "ERROR"],
     "decision_log.outcome": ["WIN", "LOSS", "PUSH"],
-
     # StrategyOutcome enums
     "strategy_outcomes.result": ["win", "loss", "push", "pending"],
     "strategy_outcomes.market_type": ["btc", "weather"],
     "strategy_outcomes.trading_mode": ["paper", "testnet", "live"],
     "strategy_outcomes.direction": ["up", "down", "YES", "NO"],
-
     # StrategyHealthRecord enums
     "strategy_health.status": ["active", "degraded", "paused", "retired"],
-
     # ExperimentRecord enums
-    "experiment_records.status": ["draft", "shadow", "backtest", "promoted", "retired", "failed"],
-
+    "experiment_records.status": [
+        "draft",
+        "shadow",
+        "backtest",
+        "promoted",
+        "retired",
+        "failed",
+    ],
     # EvolutionLineage enums
-    "evolution_lineage.mutation_type": ["perturbation", "crossover", "random", "gradient"],
-
+    "evolution_lineage.mutation_type": [
+        "perturbation",
+        "crossover",
+        "random",
+        "gradient",
+    ],
     # StrategyConfig enums
     "strategy_config.mode": ["paper", "testnet", "live"],
-    "strategy_config.risk_tier": ["safe", "conservative", "moderate", "aggressive", "extreme", "crazy"],
+    "strategy_config.risk_tier": [
+        "safe",
+        "conservative",
+        "moderate",
+        "aggressive",
+        "extreme",
+        "crazy",
+    ],
 }
 
 # Strategy name column mappings: (Model, column_name)
@@ -144,22 +154,28 @@ class ValidationReport:
 
     def add_fk_violation(self, table: str, column: str, invalid_value: str, count: int):
         """Record a foreign key violation."""
-        self.fk_violations.append({
-            "table": table,
-            "column": column,
-            "invalid_value": invalid_value,
-            "row_count": count,
-        })
+        self.fk_violations.append(
+            {
+                "table": table,
+                "column": column,
+                "invalid_value": invalid_value,
+                "row_count": count,
+            }
+        )
         self.total_fk_violations += count
 
-    def add_enum_violation(self, table: str, column: str, invalid_value: str, count: int):
+    def add_enum_violation(
+        self, table: str, column: str, invalid_value: str, count: int
+    ):
         """Record an enum domain violation."""
-        self.enum_violations.append({
-            "table": table,
-            "column": column,
-            "invalid_value": invalid_value,
-            "row_count": count,
-        })
+        self.enum_violations.append(
+            {
+                "table": table,
+                "column": column,
+                "invalid_value": invalid_value,
+                "row_count": count,
+            }
+        )
         self.total_enum_violations += count
 
     def has_violations(self) -> bool:
@@ -179,17 +195,31 @@ class ValidationReport:
         lines.append("FOREIGN KEY VIOLATIONS (strategy_name columns)")
         lines.append("-" * 80)
         if self.fk_violations:
-            lines.append(f"Total violations: {self.total_fk_violations} rows across {len(self.fk_violations)} distinct values")
+            lines.append(
+                f"Total violations: {self.total_fk_violations} rows across {len(self.fk_violations)} distinct values"
+            )
             lines.append("")
-            lines.append(f"{'Table':<30} {'Column':<20} {'Invalid Value':<20} {'Count':>10}")
+            lines.append(
+                f"{'Table':<30} {'Column':<20} {'Invalid Value':<20} {'Count':>10}"
+            )
             lines.append("-" * 80)
-            for v in sorted(self.fk_violations, key=lambda x: (-x["row_count"], x["table"])):
-                lines.append(f"{v['table']:<30} {v['column']:<20} {v['invalid_value']:<20} {v['row_count']:>10}")
+            for v in sorted(
+                self.fk_violations, key=lambda x: (-x["row_count"], x["table"])
+            ):
+                lines.append(
+                    f"{v['table']:<30} {v['column']:<20} {v['invalid_value']:<20} {v['row_count']:>10}"
+                )
             lines.append("")
             lines.append("CLEANUP STRATEGY:")
-            lines.append("  Option 1: SET NULL - Set invalid strategy_name values to NULL")
-            lines.append("  Option 2: REPLACE - Replace with 'unknown' or closest valid strategy")
-            lines.append("  Option 3: DELETE - Delete rows with invalid strategy_name (DANGEROUS)")
+            lines.append(
+                "  Option 1: SET NULL - Set invalid strategy_name values to NULL"
+            )
+            lines.append(
+                "  Option 2: REPLACE - Replace with 'unknown' or closest valid strategy"
+            )
+            lines.append(
+                "  Option 3: DELETE - Delete rows with invalid strategy_name (DANGEROUS)"
+            )
             lines.append("")
         else:
             lines.append("✓ No foreign key violations found")
@@ -199,17 +229,31 @@ class ValidationReport:
         lines.append("ENUM DOMAIN VIOLATIONS")
         lines.append("-" * 80)
         if self.enum_violations:
-            lines.append(f"Total violations: {self.total_enum_violations} rows across {len(self.enum_violations)} distinct values")
+            lines.append(
+                f"Total violations: {self.total_enum_violations} rows across {len(self.enum_violations)} distinct values"
+            )
             lines.append("")
-            lines.append(f"{'Table':<30} {'Column':<20} {'Invalid Value':<20} {'Count':>10}")
+            lines.append(
+                f"{'Table':<30} {'Column':<20} {'Invalid Value':<20} {'Count':>10}"
+            )
             lines.append("-" * 80)
-            for v in sorted(self.enum_violations, key=lambda x: (-x["row_count"], x["table"])):
-                lines.append(f"{v['table']:<30} {v['column']:<20} {v['invalid_value']:<20} {v['row_count']:>10}")
+            for v in sorted(
+                self.enum_violations, key=lambda x: (-x["row_count"], x["table"])
+            ):
+                lines.append(
+                    f"{v['table']:<30} {v['column']:<20} {v['invalid_value']:<20} {v['row_count']:>10}"
+                )
             lines.append("")
             lines.append("CLEANUP STRATEGY:")
-            lines.append("  Option 1: NORMALIZE - Map invalid values to valid enum values")
-            lines.append("  Option 2: SET NULL - Set invalid values to NULL (if column allows)")
-            lines.append("  Option 3: DELETE - Delete rows with invalid enum values (DANGEROUS)")
+            lines.append(
+                "  Option 1: NORMALIZE - Map invalid values to valid enum values"
+            )
+            lines.append(
+                "  Option 2: SET NULL - Set invalid values to NULL (if column allows)"
+            )
+            lines.append(
+                "  Option 3: DELETE - Delete rows with invalid enum values (DANGEROUS)"
+            )
             lines.append("")
         else:
             lines.append("✓ No enum domain violations found")
@@ -221,20 +265,28 @@ class ValidationReport:
         lines.append("-" * 80)
         lines.append(f"Total FK violations: {self.total_fk_violations}")
         lines.append(f"Total enum violations: {self.total_enum_violations}")
-        lines.append(f"Total violations: {self.total_fk_violations + self.total_enum_violations}")
+        lines.append(
+            f"Total violations: {self.total_fk_violations + self.total_enum_violations}"
+        )
         lines.append("")
 
         if self.has_violations():
-            lines.append("⚠️  VIOLATIONS FOUND - Cleanup required before adding constraints")
+            lines.append(
+                "⚠️  VIOLATIONS FOUND - Cleanup required before adding constraints"
+            )
             lines.append("")
             lines.append("NEXT STEPS:")
             lines.append("1. Review violations above")
             lines.append("2. Create cleanup migration in alembic/versions/")
             lines.append("3. Run cleanup migration")
             lines.append("4. Re-run this validation script")
-            lines.append("5. Once clean, proceed with constraint migrations (Tasks 2-3)")
+            lines.append(
+                "5. Once clean, proceed with constraint migrations (Tasks 2-3)"
+            )
         else:
-            lines.append("✅ NO VIOLATIONS - Safe to proceed with constraint migrations")
+            lines.append(
+                "✅ NO VIOLATIONS - Safe to proceed with constraint migrations"
+            )
 
         lines.append("=" * 80)
         return "\n".join(lines)
@@ -366,6 +418,7 @@ def main():
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(2)
 

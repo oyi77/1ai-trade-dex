@@ -16,11 +16,9 @@ _metrics: Dict[str, Any] = {
     "trades_losing": 0,
     "signals_total": 0,
     "signals_executed": 0,
-
     # Financial metrics (in cents)
     "pnl_total_cents": 0,
     "bankroll_cents": 1000000,  # Default $10,000
-
     # System metrics
     "api_requests_total": 0,
     "api_errors_total": 0,
@@ -29,15 +27,12 @@ _metrics: Dict[str, Any] = {
     "external_api_timeouts_total": 0,
     "scans_total": 0,
     "settlements_total": 0,
-
     # Timing metrics (in milliseconds)
     "avg_api_latency_ms": 0,
     "last_scan_timestamp": 0,
-
     # Strategy status
     "strategies_active": 0,
     "strategies_paused": 0,
-
     # Trade execution pipeline metrics
     "trade_execution_total": 0,
     "risk_rejection_total": 0,
@@ -146,9 +141,12 @@ def increment_risk_rejection(strategy: str = "", reason: str = "") -> None:
     _increment_metric("risk_rejection_total")
     try:
         from backend.monitoring.hft_metrics import risk_rejection_total
+
         risk_rejection_total.labels(strategy=strategy, reason=reason).inc()
     except Exception:
-        logger.warning("Failed to emit prometheus risk_rejection_total metric", exc_info=True)
+        logger.warning(
+            "Failed to emit prometheus risk_rejection_total metric", exc_info=True
+        )
 
 
 def observe_order_latency(latency_ms: float) -> None:
@@ -166,9 +164,12 @@ def increment_settlement_by_status(status: str) -> None:
         _metrics["settlement_by_status"] = by_status
     try:
         from backend.monitoring.hft_metrics import settlement_outcome_total
+
         settlement_outcome_total.labels(outcome=status).inc()
     except Exception:
-        logger.warning("Failed to emit prometheus settlement_outcome_total metric", exc_info=True)
+        logger.warning(
+            "Failed to emit prometheus settlement_outcome_total metric", exc_info=True
+        )
 
 
 def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
@@ -178,9 +179,13 @@ def set_circuit_breaker_state(breaker_name: str, state: int) -> None:
         _metrics["circuit_breaker_states"] = states
     try:
         from backend.monitoring.hft_metrics import circuit_breaker_state_gauge
+
         circuit_breaker_state_gauge.labels(breaker_name=breaker_name).set(state)
     except Exception:
-        logger.warning("Failed to emit prometheus circuit_breaker_state_gauge metric", exc_info=True)
+        logger.warning(
+            "Failed to emit prometheus circuit_breaker_state_gauge metric",
+            exc_info=True,
+        )
 
 
 def set_strategy_health(strategy: str, metric_name: str, value: float) -> None:
@@ -210,131 +215,151 @@ def get_metrics() -> str:
         lines = []
 
         # HELP and TYPE for each metric
-        lines.extend([
-            "# HELP polyedge_trades_total Total number of trades executed",
-            "# TYPE polyedge_trades_total counter",
-            f"polyedge_trades_total {_metrics['trades_total']}",
-            "",
-            "# HELP polyedge_trades_winning Total number of winning trades",
-            "# TYPE polyedge_trades_winning counter",
-            f"polyedge_trades_winning {_metrics['trades_winning']}",
-            "",
-            "# HELP polyedge_trades_losing Total number of losing trades",
-            "# TYPE polyedge_trades_losing counter",
-            f"polyedge_trades_losing {_metrics['trades_losing']}",
-            "",
-            "# HELP polyedge_signals_total Total number of signals generated",
-            "# TYPE polyedge_signals_total counter",
-            f"polyedge_signals_total {_metrics['signals_total']}",
-            "",
-            "# HELP polyedge_signals_executed Total number of signals executed as trades",
-            "# TYPE polyedge_signals_executed counter",
-            f"polyedge_signals_executed {_metrics['signals_executed']}",
-            "",
-            "# HELP polyedge_pnl_total_cents Total PNL in cents",
-            "# TYPE polyedge_pnl_total_cents gauge",
-            f"polyedge_pnl_total_cents {_metrics['pnl_total_cents']}",
-            "",
-            "# HELP polyedge_bankroll_cents Current bankroll in cents",
-            "# TYPE polyedge_bankroll_cents gauge",
-            f"polyedge_bankroll_cents {_metrics['bankroll_cents']}",
-            "",
-            "# HELP polyedge_api_requests_total Total API requests",
-            "# TYPE polyedge_api_requests_total counter",
-            f"polyedge_api_requests_total {_metrics['api_requests_total']}",
-            "",
-            "# HELP polyedge_api_errors_total Total API errors",
-            "# TYPE polyedge_api_errors_total counter",
-            f"polyedge_api_errors_total {_metrics['api_errors_total']}",
-            "",
-            "# HELP polyedge_api_timeouts_total Total API request timeouts",
-            "# TYPE polyedge_api_timeouts_total counter",
-            f"polyedge_api_timeouts_total {_metrics['api_timeouts_total']}",
-            "",
-            "# HELP polyedge_db_timeouts_total Total database query timeouts",
-            "# TYPE polyedge_db_timeouts_total counter",
-            f"polyedge_db_timeouts_total {_metrics['db_timeouts_total']}",
-            "",
-            "# HELP polyedge_external_api_timeouts_total Total external API call timeouts",
-            "# TYPE polyedge_external_api_timeouts_total counter",
-            f"polyedge_external_api_timeouts_total {_metrics['external_api_timeouts_total']}",
-            "",
-            "# HELP polyedge_scans_total Total market scans",
-            "# TYPE polyedge_scans_total counter",
-            f"polyedge_scans_total {_metrics['scans_total']}",
-            "",
-            "# HELP polyedge_settlements_total Total trade settlements",
-            "# TYPE polyedge_settlements_total counter",
-            f"polyedge_settlements_total {_metrics['settlements_total']}",
-            "",
-            "# HELP polyedge_avg_api_latency_ms Average API latency in milliseconds",
-            "# TYPE polyedge_avg_api_latency_ms gauge",
-            f"polyedge_avg_api_latency_ms {_metrics['avg_api_latency_ms']:.2f}",
-            "",
-            "# HELP polyedge_last_scan_timestamp Unix timestamp of last market scan",
-            "# TYPE polyedge_last_scan_timestamp gauge",
-            f"polyedge_last_scan_timestamp {_metrics['last_scan_timestamp']}",
-            "",
-            "# HELP polyedge_strategies_active Number of active strategies",
-            "# TYPE polyedge_strategies_active gauge",
-            f"polyedge_strategies_active {_metrics['strategies_active']}",
-            "",
-            "# HELP polyedge_strategies_paused Number of paused strategies",
-            "# TYPE polyedge_strategies_paused gauge",
-            f"polyedge_strategies_paused {_metrics['strategies_paused']}",
-            "",
-            "# HELP polyedge_trade_execution_total Total trade executions",
-            "# TYPE polyedge_trade_execution_total counter",
-            f"polyedge_trade_execution_total {_metrics['trade_execution_total']}",
-            "",
-            "# HELP polyedge_risk_rejection_total Total risk manager rejections",
-            "# TYPE polyedge_risk_rejection_total counter",
-            f"polyedge_risk_rejection_total {_metrics['risk_rejection_total']}",
-            "",
-            "# HELP polyedge_order_latency_seconds_avg Average order placement latency in seconds",
-            "# TYPE polyedge_order_latency_seconds_avg gauge",
-            f"polyedge_order_latency_seconds_avg {_metrics['order_latency_ms_total'] / _metrics['order_latency_count'] / 1000:.6f}" if _metrics['order_latency_count'] > 0 else "polyedge_order_latency_seconds_avg 0",
-            "",
-            "# HELP polyedge_settlement_by_status_total Settlements by status",
-            "# TYPE polyedge_settlement_by_status_total counter",
-        ])
+        lines.extend(
+            [
+                "# HELP polyedge_trades_total Total number of trades executed",
+                "# TYPE polyedge_trades_total counter",
+                f"polyedge_trades_total {_metrics['trades_total']}",
+                "",
+                "# HELP polyedge_trades_winning Total number of winning trades",
+                "# TYPE polyedge_trades_winning counter",
+                f"polyedge_trades_winning {_metrics['trades_winning']}",
+                "",
+                "# HELP polyedge_trades_losing Total number of losing trades",
+                "# TYPE polyedge_trades_losing counter",
+                f"polyedge_trades_losing {_metrics['trades_losing']}",
+                "",
+                "# HELP polyedge_signals_total Total number of signals generated",
+                "# TYPE polyedge_signals_total counter",
+                f"polyedge_signals_total {_metrics['signals_total']}",
+                "",
+                "# HELP polyedge_signals_executed Total number of signals executed as trades",
+                "# TYPE polyedge_signals_executed counter",
+                f"polyedge_signals_executed {_metrics['signals_executed']}",
+                "",
+                "# HELP polyedge_pnl_total_cents Total PNL in cents",
+                "# TYPE polyedge_pnl_total_cents gauge",
+                f"polyedge_pnl_total_cents {_metrics['pnl_total_cents']}",
+                "",
+                "# HELP polyedge_bankroll_cents Current bankroll in cents",
+                "# TYPE polyedge_bankroll_cents gauge",
+                f"polyedge_bankroll_cents {_metrics['bankroll_cents']}",
+                "",
+                "# HELP polyedge_api_requests_total Total API requests",
+                "# TYPE polyedge_api_requests_total counter",
+                f"polyedge_api_requests_total {_metrics['api_requests_total']}",
+                "",
+                "# HELP polyedge_api_errors_total Total API errors",
+                "# TYPE polyedge_api_errors_total counter",
+                f"polyedge_api_errors_total {_metrics['api_errors_total']}",
+                "",
+                "# HELP polyedge_api_timeouts_total Total API request timeouts",
+                "# TYPE polyedge_api_timeouts_total counter",
+                f"polyedge_api_timeouts_total {_metrics['api_timeouts_total']}",
+                "",
+                "# HELP polyedge_db_timeouts_total Total database query timeouts",
+                "# TYPE polyedge_db_timeouts_total counter",
+                f"polyedge_db_timeouts_total {_metrics['db_timeouts_total']}",
+                "",
+                "# HELP polyedge_external_api_timeouts_total Total external API call timeouts",
+                "# TYPE polyedge_external_api_timeouts_total counter",
+                f"polyedge_external_api_timeouts_total {_metrics['external_api_timeouts_total']}",
+                "",
+                "# HELP polyedge_scans_total Total market scans",
+                "# TYPE polyedge_scans_total counter",
+                f"polyedge_scans_total {_metrics['scans_total']}",
+                "",
+                "# HELP polyedge_settlements_total Total trade settlements",
+                "# TYPE polyedge_settlements_total counter",
+                f"polyedge_settlements_total {_metrics['settlements_total']}",
+                "",
+                "# HELP polyedge_avg_api_latency_ms Average API latency in milliseconds",
+                "# TYPE polyedge_avg_api_latency_ms gauge",
+                f"polyedge_avg_api_latency_ms {_metrics['avg_api_latency_ms']:.2f}",
+                "",
+                "# HELP polyedge_last_scan_timestamp Unix timestamp of last market scan",
+                "# TYPE polyedge_last_scan_timestamp gauge",
+                f"polyedge_last_scan_timestamp {_metrics['last_scan_timestamp']}",
+                "",
+                "# HELP polyedge_strategies_active Number of active strategies",
+                "# TYPE polyedge_strategies_active gauge",
+                f"polyedge_strategies_active {_metrics['strategies_active']}",
+                "",
+                "# HELP polyedge_strategies_paused Number of paused strategies",
+                "# TYPE polyedge_strategies_paused gauge",
+                f"polyedge_strategies_paused {_metrics['strategies_paused']}",
+                "",
+                "# HELP polyedge_trade_execution_total Total trade executions",
+                "# TYPE polyedge_trade_execution_total counter",
+                f"polyedge_trade_execution_total {_metrics['trade_execution_total']}",
+                "",
+                "# HELP polyedge_risk_rejection_total Total risk manager rejections",
+                "# TYPE polyedge_risk_rejection_total counter",
+                f"polyedge_risk_rejection_total {_metrics['risk_rejection_total']}",
+                "",
+                "# HELP polyedge_order_latency_seconds_avg Average order placement latency in seconds",
+                "# TYPE polyedge_order_latency_seconds_avg gauge",
+                (
+                    f"polyedge_order_latency_seconds_avg {_metrics['order_latency_ms_total'] / _metrics['order_latency_count'] / 1000:.6f}"
+                    if _metrics["order_latency_count"] > 0
+                    else "polyedge_order_latency_seconds_avg 0"
+                ),
+                "",
+                "# HELP polyedge_settlement_by_status_total Settlements by status",
+                "# TYPE polyedge_settlement_by_status_total counter",
+            ]
+        )
 
         for status, count in _metrics.get("settlement_by_status", {}).items():
-            lines.append(f'polyedge_settlement_by_status_total{{status="{status}"}} {count}')
+            lines.append(
+                f'polyedge_settlement_by_status_total{{status="{status}"}} {count}'
+            )
 
-        lines.extend([
-            "",
-            "# HELP polyedge_circuit_breaker_state Circuit breaker state (0=open 1=half-open 2=closed)",
-            "# TYPE polyedge_circuit_breaker_state gauge",
-        ])
+        lines.extend(
+            [
+                "",
+                "# HELP polyedge_circuit_breaker_state Circuit breaker state (0=open 1=half-open 2=closed)",
+                "# TYPE polyedge_circuit_breaker_state gauge",
+            ]
+        )
         for name, state in _metrics.get("circuit_breaker_states", {}).items():
-            lines.append(f'polyedge_circuit_breaker_state{{breaker_name="{name}"}} {state}')
+            lines.append(
+                f'polyedge_circuit_breaker_state{{breaker_name="{name}"}} {state}'
+            )
 
-        lines.extend([
-            "",
-            "# HELP polyedge_strategy_health_gauge Strategy health metric value",
-            "# TYPE polyedge_strategy_health_gauge gauge",
-        ])
+        lines.extend(
+            [
+                "",
+                "# HELP polyedge_strategy_health_gauge Strategy health metric value",
+                "# TYPE polyedge_strategy_health_gauge gauge",
+            ]
+        )
         for key, value in _metrics.get("strategy_health_metrics", {}).items():
             parts = key.split("_", 1)
             strategy = parts[0] if len(parts) > 0 else "unknown"
             metric = parts[1] if len(parts) > 1 else "value"
-            lines.append(f'polyedge_strategy_health_gauge{{strategy="{strategy}",metric="{metric}"}} {value:.4f}')
+            lines.append(
+                f'polyedge_strategy_health_gauge{{strategy="{strategy}",metric="{metric}"}} {value:.4f}'
+            )
 
-        lines.extend([
-            "",
-            "# HELP polyedge_bot_state_gauge Bot state field value",
-            "# TYPE polyedge_bot_state_gauge gauge",
-        ])
+        lines.extend(
+            [
+                "",
+                "# HELP polyedge_bot_state_gauge Bot state field value",
+                "# TYPE polyedge_bot_state_gauge gauge",
+            ]
+        )
         for field, value in _metrics.get("bot_state_fields", {}).items():
             lines.append(f'polyedge_bot_state_gauge{{field="{field}"}} {value:.4f}')
 
-        lines.extend([
-            "",
-            "# HELP polyedge_ai_provider_health_check_failures_total AI provider health check failures",
-            "# TYPE polyedge_ai_provider_health_check_failures_total counter",
-            f"polyedge_ai_provider_health_check_failures_total {_metrics['ai_provider_health_check_failures_total']}",
-        ])
+        lines.extend(
+            [
+                "",
+                "# HELP polyedge_ai_provider_health_check_failures_total AI provider health check failures",
+                "# TYPE polyedge_ai_provider_health_check_failures_total counter",
+                f"polyedge_ai_provider_health_check_failures_total {_metrics['ai_provider_health_check_failures_total']}",
+            ]
+        )
 
         lines.append("")
 

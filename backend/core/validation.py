@@ -21,7 +21,7 @@ class TradeValidator:
             raise ValidationError(
                 f"Trade {field_name} must be positive, got {size}",
                 field=field_name,
-                value=size
+                value=size,
             )
 
         max_size = settings.MAX_TRADE_SIZE
@@ -29,11 +29,13 @@ class TradeValidator:
             raise ValidationError(
                 f"Trade {field_name} {size} exceeds max position size {max_size}",
                 field=field_name,
-                value=size
+                value=size,
             )
 
     @staticmethod
-    def validate_confidence(confidence: Optional[float], field_name: str = "confidence") -> None:
+    def validate_confidence(
+        confidence: Optional[float], field_name: str = "confidence"
+    ) -> None:
         if confidence is None:
             return
 
@@ -41,7 +43,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be in range [0, 1], got {confidence}",
                 field=field_name,
-                value=confidence
+                value=confidence,
             )
 
     @staticmethod
@@ -50,7 +52,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be in range [0.01, 0.99], got {price}",
                 field=field_name,
-                value=price
+                value=price,
             )
 
     @staticmethod
@@ -59,7 +61,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be in range [0, 1], got {prob}",
                 field=field_name,
-                value=prob
+                value=prob,
             )
 
     @staticmethod
@@ -68,7 +70,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be in range [-1, 1], got {edge}",
                 field=field_name,
-                value=edge
+                value=edge,
             )
 
     @staticmethod
@@ -78,7 +80,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be one of {valid_directions}, got '{direction}'",
                 field=field_name,
-                value=direction
+                value=direction,
             )
 
     @staticmethod
@@ -88,7 +90,7 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be one of {valid_modes}, got '{mode}'",
                 field=field_name,
-                value=mode
+                value=mode,
             )
 
     @staticmethod
@@ -98,16 +100,18 @@ class TradeValidator:
             raise ValidationError(
                 f"{field_name} must be one of {valid_results}, got '{result}'",
                 field=field_name,
-                value=result
+                value=result,
             )
 
     @staticmethod
-    def validate_kelly_fraction(kelly: float, field_name: str = "kelly_fraction") -> None:
+    def validate_kelly_fraction(
+        kelly: float, field_name: str = "kelly_fraction"
+    ) -> None:
         if not (0 <= kelly <= 1):
             raise ValidationError(
                 f"{field_name} must be in range [0, 1], got {kelly}",
                 field=field_name,
-                value=kelly
+                value=kelly,
             )
 
     @classmethod
@@ -148,7 +152,9 @@ class SignalValidator:
             TradeValidator.validate_confidence(data["confidence"], "confidence")
 
         if "model_probability" in data:
-            TradeValidator.validate_probability(data["model_probability"], "model_probability")
+            TradeValidator.validate_probability(
+                data["model_probability"], "model_probability"
+            )
 
         if "market_price" in data:
             TradeValidator.validate_price(data["market_price"], "market_price")
@@ -157,14 +163,16 @@ class SignalValidator:
             TradeValidator.validate_edge(data["edge"], "edge")
 
         if "kelly_fraction" in data:
-            TradeValidator.validate_kelly_fraction(data["kelly_fraction"], "kelly_fraction")
+            TradeValidator.validate_kelly_fraction(
+                data["kelly_fraction"], "kelly_fraction"
+            )
 
         if "suggested_size" in data:
             if data["suggested_size"] <= 0:
                 raise ValidationError(
                     f"suggested_size must be positive, got {data['suggested_size']}",
                     field="suggested_size",
-                    value=data["suggested_size"]
+                    value=data["suggested_size"],
                 )
 
         if "direction" in data:
@@ -187,7 +195,7 @@ class ApprovalValidator:
                 raise ValidationError(
                     f"status must be one of {valid_statuses}, got '{data['status']}'",
                     field="status",
-                    value=data["status"]
+                    value=data["status"],
                 )
 
 

@@ -11,6 +11,7 @@ Usage:
     python backend/scripts/run_benchmarks.py --iterations 100
     python backend/scripts/run_benchmarks.py --benchmark latency
 """
+
 import asyncio
 import argparse
 import statistics
@@ -83,15 +84,18 @@ def print_results(results: dict) -> None:
 
 # --- Benchmark functions ---
 
+
 def bench_config_load():
     """Benchmark config loading."""
     from backend.config import Settings
+
     Settings()
 
 
 def bench_circuit_breaker_check():
     """Benchmark circuit breaker state check."""
     from backend.core.circuit_breaker import CircuitBreaker
+
     cb = CircuitBreaker("bench_test")
     cb.state  # Just read state
 
@@ -100,6 +104,7 @@ def bench_strategy_gate_check():
     """Benchmark strategy gate stage check (mocked DB)."""
     from unittest.mock import MagicMock
     from backend.core.strategy_gate import StrategyGate
+
     db = MagicMock()
     db.query.return_value.filter_by.return_value.first.return_value = None
     StrategyGate.get_stage("bench_strategy", db)
@@ -109,6 +114,7 @@ def bench_risk_calculation():
     """Benchmark risk limit calculation (mocked)."""
     from unittest.mock import MagicMock
     from backend.core.strategy_gate import check_risk_and_disable
+
     db = MagicMock()
     db.execute.return_value.fetchall.return_value = []
     db.execute.return_value.scalar.return_value = 0
@@ -118,18 +124,21 @@ def bench_risk_calculation():
 def bench_slug_validation():
     """Benchmark crypto slug validation."""
     from backend.data.btc_markets import is_valid_crypto_slug
+
     is_valid_crypto_slug("btc-updown-5m-1716000000", "btc")
 
 
 def bench_slug_generation():
     """Benchmark window slug computation."""
     from backend.data.btc_markets import _compute_window_slugs
+
     _compute_window_slugs("btc", count=6)
 
 
 def bench_unified_market_view():
     """Benchmark UnifiedMarketView creation."""
     from backend.data.market_types import UnifiedMarketView
+
     UnifiedMarketView(
         slug="test-market",
         platform="polymarket",
@@ -144,6 +153,7 @@ def bench_unified_market_view():
 async def bench_gamma_single_page():
     """Benchmark Gamma API single page fetch (mocked)."""
     from unittest.mock import AsyncMock, patch
+
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = AsyncMock(
             status_code=200,
@@ -151,23 +161,27 @@ async def bench_gamma_single_page():
             raise_for_status=lambda: None,
         )
         from backend.data.gamma import fetch_markets
+
         await fetch_markets(limit=100)
 
 
 def bench_market_scanner_parse():
     """Benchmark market event parsing."""
     from backend.data.btc_markets import _parse_event_to_crypto_market
+
     event = {
         "slug": "btc-updown-5m-1716000000",
         "startDate": "2026-05-18T00:00:00Z",
         "endDate": "2026-05-18T00:05:00Z",
-        "markets": [{
-            "id": "test-market-id",
-            "outcomePrices": '["0.55","0.45"]',
-            "clobTokenIds": '["token-up","token-down"]',
-            "volume": 50000,
-            "closed": False,
-        }],
+        "markets": [
+            {
+                "id": "test-market-id",
+                "outcomePrices": '["0.55","0.45"]',
+                "clobTokenIds": '["token-up","token-down"]',
+                "volume": 50000,
+                "closed": False,
+            }
+        ],
     }
     _parse_event_to_crypto_market(event, "btc")
 
@@ -193,15 +207,21 @@ BENCHMARKS = {
 
 async def main():
     parser = argparse.ArgumentParser(description="PolyEdge performance benchmarks")
-    parser.add_argument("--iterations", type=int, default=100, help="Iterations per benchmark")
-    parser.add_argument("--benchmark", choices=["latency", "throughput", "all"], default="all")
+    parser.add_argument(
+        "--iterations", type=int, default=100, help="Iterations per benchmark"
+    )
+    parser.add_argument(
+        "--benchmark", choices=["latency", "throughput", "all"], default="all"
+    )
     args = parser.parse_args()
 
     print("PolyEdge Performance Benchmarks")
     print(f"Date: {datetime.now(timezone.utc).isoformat()}")
     print(f"Iterations: {args.iterations}")
 
-    categories = [args.benchmark] if args.benchmark != "all" else list(BENCHMARKS.keys())
+    categories = (
+        [args.benchmark] if args.benchmark != "all" else list(BENCHMARKS.keys())
+    )
 
     for category in categories:
         benchmarks = BENCHMARKS.get(category, [])

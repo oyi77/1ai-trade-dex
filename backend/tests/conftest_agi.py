@@ -1,4 +1,5 @@
 """AGI test fixtures — shared fixtures for AGI module tests."""
+
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -23,7 +24,15 @@ from backend.models.database import Base
 def agi_db():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
-    from backend.models.kg_models import KGEntity as KGEntityModel, KGRelation as KGRelationModel, MarketRegimeSnapshot, ExperimentRecord, DecisionAuditLog, LLMCostRecord
+    from backend.models.kg_models import (
+        KGEntity as KGEntityModel,
+        KGRelation as KGRelationModel,
+        MarketRegimeSnapshot,
+        ExperimentRecord,
+        DecisionAuditLog,
+        LLMCostRecord,
+    )
+
     KGEntityModel.__table__.create(engine, checkfirst=True)
     KGRelationModel.__table__.create(engine, checkfirst=True)
     MarketRegimeSnapshot.__table__.create(engine, checkfirst=True)

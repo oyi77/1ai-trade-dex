@@ -1,4 +1,5 @@
 """SourceRegistry — runtime discovery and management of DataSource plugins."""
+
 from __future__ import annotations
 from typing import Dict, Optional
 from backend.mesh.base import DataSource
@@ -48,6 +49,7 @@ def discover() -> int:
     import importlib
     import pkgutil
     import os
+
     sources_dir = os.path.join(os.path.dirname(__file__), "..", "sources")
     count = 0
     if os.path.isdir(sources_dir):

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import List
 
+
 @dataclass
 class MarketEntry:
     ticker: str
@@ -18,6 +19,7 @@ class MarketEntry:
     liquidity: float
     created_at: str
 
+
 @dataclass
 class PositionEntry:
     market_id: str
@@ -27,11 +29,13 @@ class PositionEntry:
     current_price: float
     unrealized_pnl: float
 
+
 @dataclass
 class BalanceInfo:
     available: float
     locked: float
     total: float
+
 
 class DataProvider(ABC):
     """Abstract data provider interface.
@@ -52,7 +56,9 @@ class DataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_markets(self, category: str = None, limit: int = 100) -> 'List[MarketEntry]':
+    async def get_markets(
+        self, category: str = None, limit: int = 100
+    ) -> "List[MarketEntry]":
         pass
 
     @abstractmethod
@@ -60,7 +66,7 @@ class DataProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_positions(self) -> 'List[PositionEntry]':
+    async def get_positions(self) -> "List[PositionEntry]":
         pass
 
     @abstractmethod
@@ -68,7 +74,9 @@ class DataProvider(ABC):
         pass
 
     @abstractmethod
-    async def place_order(self, market_id: str, side: str, size: float, price: float, **kwargs) -> dict:
+    async def place_order(
+        self, market_id: str, side: str, size: float, price: float, **kwargs
+    ) -> dict:
         pass
 
     @abstractmethod

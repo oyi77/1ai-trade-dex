@@ -1,4 +1,5 @@
 """Tests for /api/v1/strategies CRUD endpoints (admin-protected)."""
+
 from backend.config import settings
 
 _TEST_ADMIN_KEY = "test-admin-key"

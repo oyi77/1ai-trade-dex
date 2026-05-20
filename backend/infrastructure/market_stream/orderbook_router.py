@@ -12,6 +12,7 @@ from loguru import logger
 @dataclass
 class OrderbookUpdate:
     """Real-time orderbook update from WebSocket"""
+
     market_id: str
     bids_yes: List[Dict[str, str]]
     asks_yes: List[Dict[str, str]]
@@ -19,22 +20,25 @@ class OrderbookUpdate:
     asks_no: List[Dict[str, str]]
     timestamp: int
 
-    def to_snapshot(self) -> 'OrderbookSnapshot':
+    def to_snapshot(self) -> "OrderbookSnapshot":
         """Convert update to snapshot format"""
-        timestamp = self.timestamp / 1000 if self.timestamp > 10_000_000_000 else self.timestamp
+        timestamp = (
+            self.timestamp / 1000 if self.timestamp > 10_000_000_000 else self.timestamp
+        )
         return OrderbookSnapshot(
             market_id=self.market_id,
-            best_bid_yes=float(self.bids_yes[0]['price']) if self.bids_yes else 0.0,
-            best_ask_yes=float(self.asks_yes[0]['price']) if self.asks_yes else 0.0,
-            best_bid_no=float(self.bids_no[0]['price']) if self.bids_no else 0.0,
-            best_ask_no=float(self.asks_no[0]['price']) if self.asks_no else 0.0,
-            timestamp=datetime.fromtimestamp(timestamp)
+            best_bid_yes=float(self.bids_yes[0]["price"]) if self.bids_yes else 0.0,
+            best_ask_yes=float(self.asks_yes[0]["price"]) if self.asks_yes else 0.0,
+            best_bid_no=float(self.bids_no[0]["price"]) if self.bids_no else 0.0,
+            best_ask_no=float(self.asks_no[0]["price"]) if self.asks_no else 0.0,
+            timestamp=datetime.fromtimestamp(timestamp),
         )
 
 
 @dataclass
 class OrderbookSnapshot:
     """Orderbook snapshot for strategy analysis"""
+
     market_id: str
     best_bid_yes: float
     best_ask_yes: float
@@ -47,16 +51,16 @@ class OrderbookRouter:
     """Bridges WebSocket ticks to strategy handlers with queue-based dispatch."""
 
     def __init__(self):
-        self._handlers: Dict[str, List[Callable[[OrderbookUpdate], Awaitable[None]]]] = {}
+        self._handlers: Dict[
+            str, List[Callable[[OrderbookUpdate], Awaitable[None]]]
+        ] = {}
         self._snapshots: Dict[str, OrderbookSnapshot] = {}
         self._queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
         self._dispatch_task: Optional[asyncio.Task] = None
         self._running = False
 
         self._circuit_breaker = CircuitBreaker(
-            name="polymarket_ws",
-            failure_threshold=5,
-            recovery_timeout=60
+            name="polymarket_ws", failure_threshold=5, recovery_timeout=60
         )
 
     async def start(self) -> None:
@@ -85,9 +89,7 @@ class OrderbookRouter:
         logger.info("OrderbookRouter dispatch loop stopped")
 
     async def subscribe(
-        self,
-        market_id: str,
-        handler: Callable[[OrderbookUpdate], Awaitable[None]]
+        self, market_id: str, handler: Callable[[OrderbookUpdate], Awaitable[None]]
     ) -> None:
         """Register handler for market updates"""
         # Count total handlers across all markets
@@ -114,13 +116,13 @@ class OrderbookRouter:
                     try:
                         await asyncio.wait_for(
                             handler(update),
-                            timeout=settings.WS_HANDLER_TIMEOUT_MS / 1000.0
+                            timeout=settings.WS_HANDLER_TIMEOUT_MS / 1000.0,
                         )
                     except asyncio.TimeoutError:
                         logger.warning(
                             "ws_handler_timeout",
                             market_id=update.market_id,
-                            timeout_ms=settings.WS_HANDLER_TIMEOUT_MS
+                            timeout_ms=settings.WS_HANDLER_TIMEOUT_MS,
                         )
                     except Exception as e:
                         logger.error(
@@ -152,7 +154,9 @@ class OrderbookRouter:
         """Adapt backend.data.polymarket_websocket.OrderbookSnapshot to router format."""
 
         return OrderbookUpdate(
-            market_id=str(getattr(snapshot, "asset_id", "") or getattr(snapshot, "market", "")),
+            market_id=str(
+                getattr(snapshot, "asset_id", "") or getattr(snapshot, "market", "")
+            ),
             bids_yes=list(getattr(snapshot, "bids", []) or []),
             asks_yes=list(getattr(snapshot, "asks", []) or []),
             bids_no=[],

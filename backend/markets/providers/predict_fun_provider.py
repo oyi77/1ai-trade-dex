@@ -1,13 +1,23 @@
 """predict.fun market provider — powered by Azuro Protocol."""
+
 import os
 from decimal import Decimal
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 from loguru import logger
 
 try:
     from backend.clients.azuro_client import AzuroClient
+
     HAS_AZURO = True
 except ImportError:
     HAS_AZURO = False
@@ -84,11 +94,21 @@ class PredictFunProvider(BaseMarketProvider):
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         """Get available markets from predict.fun."""
         raw = await self._client.get_markets(limit=limit)
-        return [MarketInfo(market_id=str(c.get("conditionId", "")), question=str(c), yes_price=0.5, no_price=0.5) for c in raw]
+        return [
+            MarketInfo(
+                market_id=str(c.get("conditionId", "")),
+                question=str(c),
+                yes_price=0.5,
+                no_price=0.5,
+            )
+            for c in raw
+        ]
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(available=Decimal("0"), total=Decimal("0"), currency="USDC")
+        return NormalizedBalance(
+            available=Decimal("0"), total=Decimal("0"), currency="USDC"
+        )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

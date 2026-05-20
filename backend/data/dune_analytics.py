@@ -3,6 +3,7 @@
 Queries Dune Analytics API for Polymarket volume, top markets, whale activity,
 and settlement history. Results cached with TTL (1h live, 24h historical).
 """
+
 from __future__ import annotations
 
 import time
@@ -21,7 +22,7 @@ dune_breaker = CircuitBreaker("dune_api", failure_threshold=3, recovery_timeout=
 DUNE_API_URL = "https://api.dune.com/api/v1"
 
 # Cache TTLs
-CACHE_TTL_LIVE = 3600       # 1 hour for live queries
+CACHE_TTL_LIVE = 3600  # 1 hour for live queries
 CACHE_TTL_HISTORICAL = 86400  # 24 hours for historical queries
 
 # Pre-built Dune query IDs for Polymarket analytics
@@ -37,6 +38,7 @@ DEFAULT_QUERY_IDS = {
 @dataclass
 class DuneCacheEntry:
     """A cached Dune query result with TTL."""
+
     data: Any
     fetched_at: float
     ttl: float
@@ -85,7 +87,9 @@ class DuneAnalyticsClient:
     def _set_cached(self, key: str, data: Any, ttl: float) -> None:
         self._cache[key] = DuneCacheEntry(data=data, fetched_at=time.time(), ttl=ttl)
 
-    async def execute_query(self, query_id: int, ttl: float = CACHE_TTL_LIVE) -> list[dict]:
+    async def execute_query(
+        self, query_id: int, ttl: float = CACHE_TTL_LIVE
+    ) -> list[dict]:
         """Execute a Dune query and return result rows.
 
         Uses the execute-then-poll pattern:
@@ -114,7 +118,9 @@ class DuneAnalyticsClient:
                 exec_resp.raise_for_status()
                 execution_id = exec_resp.json().get("execution_id")
                 if not execution_id:
-                    logger.error("Dune execute returned no execution_id for query %d", query_id)
+                    logger.error(
+                        "Dune execute returned no execution_id for query %d", query_id
+                    )
                     return []
 
                 # Step 2: Poll for results (max 60s)
@@ -128,13 +134,18 @@ class DuneAnalyticsClient:
                     state = result_data.get("state", "")
                     if state == "QUERY_STATE_COMPLETED":
                         rows = result_data.get("result", {}).get("rows", [])
-                        logger.info("Dune query %d returned %d rows", query_id, len(rows))
+                        logger.info(
+                            "Dune query %d returned %d rows", query_id, len(rows)
+                        )
                         return rows
                     elif state in ("QUERY_STATE_FAILED", "QUERY_STATE_CANCELLED"):
-                        logger.error("Dune query %d failed with state: %s", query_id, state)
+                        logger.error(
+                            "Dune query %d failed with state: %s", query_id, state
+                        )
                         return []
                     # Still running — wait and retry
                     import asyncio
+
                     await asyncio.sleep(2)
 
                 logger.warning("Dune query %d timed out waiting for results", query_id)
@@ -178,7 +189,9 @@ class DuneAnalyticsClient:
         Returns:
             List of rows with wallet, market_id, side, amount, timestamp columns.
         """
-        query_id = self.query_ids.get("whale_activity", DEFAULT_QUERY_IDS["whale_activity"])
+        query_id = self.query_ids.get(
+            "whale_activity", DEFAULT_QUERY_IDS["whale_activity"]
+        )
         return await self.execute_query(query_id, ttl=CACHE_TTL_LIVE)
 
     async def get_settlement_history(self, days: int = 90) -> list[dict]:
@@ -187,7 +200,9 @@ class DuneAnalyticsClient:
         Returns:
             List of rows with market_id, outcome, settlement_price, resolved_at columns.
         """
-        query_id = self.query_ids.get("settlement_history", DEFAULT_QUERY_IDS["settlement_history"])
+        query_id = self.query_ids.get(
+            "settlement_history", DEFAULT_QUERY_IDS["settlement_history"]
+        )
         return await self.execute_query(query_id, ttl=CACHE_TTL_HISTORICAL)
 
     def clear_cache(self) -> int:

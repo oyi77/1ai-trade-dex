@@ -11,7 +11,14 @@ from backend.models.app_state import AppState
 class EquityPoint:
     __slots__ = ("timestamp", "total_equity", "total_pnl", "closed_pnl", "open_pnl")
 
-    def __init__(self, timestamp: datetime, total_equity: float, total_pnl: float, closed_pnl: float, open_pnl: float):
+    def __init__(
+        self,
+        timestamp: datetime,
+        total_equity: float,
+        total_pnl: float,
+        closed_pnl: float,
+        open_pnl: float,
+    ):
         self.timestamp = timestamp
         self.total_equity = total_equity
         self.total_pnl = total_pnl

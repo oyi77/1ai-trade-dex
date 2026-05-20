@@ -6,6 +6,7 @@ to retrieve active markets from the Polymarket Gamma API.
 
 Rate limiting: Uses ExternalRateLimiter with RATE_LIMIT_GAMMA config.
 """
+
 import asyncio
 from typing import Any, Optional
 
@@ -17,6 +18,7 @@ from backend.core.errors import ExternalAPIError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
 from loguru import logger
+
 # Circuit breaker for transient failures
 gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
 
@@ -54,6 +56,7 @@ async def fetch_markets(
     Returns:
         List of market dicts from the Gamma API, or empty list on failure.
     """
+
     async def _fetch_single_page() -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
@@ -73,6 +76,7 @@ async def fetch_markets(
             return []
 
     if limit <= 100:
+
         async def _fetch_single_page_limited() -> list[dict[str, Any]]:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(
@@ -122,7 +126,9 @@ async def fetch_markets(
                 is_transient=True,
             )
 
-    async def _fetch_page(client: httpx.AsyncClient, cursor: Optional[str]) -> Optional[list]:
+    async def _fetch_page(
+        client: httpx.AsyncClient, cursor: Optional[str]
+    ) -> Optional[list]:
         for attempt in range(_RATE_LIMIT_MAX_RETRIES):
             params = {
                 "active": str(active).lower(),
@@ -151,7 +157,10 @@ async def fetch_markets(
                 try:
                     page = await _gamma_rate_limiter.call(_fetch_page, client, cursor)
                 except CircuitOpenError:
-                    logger.warning("[gamma] Gamma API circuit open during pagination at cursor %s", cursor)
+                    logger.warning(
+                        "[gamma] Gamma API circuit open during pagination at cursor %s",
+                        cursor,
+                    )
                     break
                 if page is None or not isinstance(page, list) or not page:
                     break
@@ -160,7 +169,9 @@ async def fetch_markets(
                     break
                 # Extract cursor from last item for next page
                 last_item = page[-1] if page else None
-                cursor = last_item.get("cursor") if isinstance(last_item, dict) else None
+                cursor = (
+                    last_item.get("cursor") if isinstance(last_item, dict) else None
+                )
                 if not cursor:
                     break
         return all_markets[:limit]
@@ -178,12 +189,19 @@ async def fetch_resolved_markets(
     Returns markets with their final outcome prices, suitable for
     historical backtesting. Paginates through all available results.
     """
-    async def _fetch_resolved_page(client: httpx.AsyncClient, params: dict) -> Optional[list]:
+
+    async def _fetch_resolved_page(
+        client: httpx.AsyncClient, params: dict
+    ) -> Optional[list]:
         for attempt in range(_RATE_LIMIT_MAX_RETRIES):
             resp = await client.get(GAMMA_API_URL, params=params)
             if resp.status_code == 429:
                 delay = _RATE_LIMIT_RETRY_DELAY * (attempt + 1)
-                logger.debug("[gamma] Rate limited, retrying in %.1fs (attempt %d)", delay, attempt + 1)
+                logger.debug(
+                    "[gamma] Rate limited, retrying in %.1fs (attempt %d)",
+                    delay,
+                    attempt + 1,
+                )
                 await asyncio.sleep(delay)
                 continue
             resp.raise_for_status()
@@ -210,13 +228,22 @@ async def fetch_resolved_markets(
                     params["after_cursor"] = cursor
 
                 try:
-                    page = await _gamma_rate_limiter.call(_fetch_resolved_page, client, params)
+                    page = await _gamma_rate_limiter.call(
+                        _fetch_resolved_page, client, params
+                    )
                 except CircuitOpenError:
-                    logger.warning("[gamma] Gamma API circuit open during resolved markets fetch at cursor %s", cursor)
+                    logger.warning(
+                        "[gamma] Gamma API circuit open during resolved markets fetch at cursor %s",
+                        cursor,
+                    )
                     break
 
                 if page is None:
-                    logger.warning("[gamma] Rate limited after %d retries at cursor %s", _RATE_LIMIT_MAX_RETRIES, cursor)
+                    logger.warning(
+                        "[gamma] Rate limited after %d retries at cursor %s",
+                        _RATE_LIMIT_MAX_RETRIES,
+                        cursor,
+                    )
                     break
 
                 if not isinstance(page, list) or not page:
@@ -230,13 +257,17 @@ async def fetch_resolved_markets(
                 if len(page) < page_size:
                     break
                 last_item = page[-1] if page else None
-                cursor = last_item.get("cursor") if isinstance(last_item, dict) else None
+                cursor = (
+                    last_item.get("cursor") if isinstance(last_item, dict) else None
+                )
                 if not cursor:
                     break
 
         logger.info(
             "[gamma] Fetched %d resolved markets (limit=%d, tag=%s)",
-            len(all_markets), limit, tag,
+            len(all_markets),
+            limit,
+            tag,
         )
         return all_markets[:limit]
 

@@ -1,10 +1,16 @@
 """Settlement subpackage — trade settlement, reconciliation, dispute tracking."""
+
 import importlib as _importlib
 
 _SUBMODULES = [
-    "settlement", "settlement_helpers", "settlement_ws",
-    "settlement_capture", "auto_redeem", "dispute_tracker",
+    "settlement",
+    "settlement_helpers",
+    "settlement_ws",
+    "settlement_capture",
+    "auto_redeem",
+    "dispute_tracker",
 ]
+
 
 def __getattr__(name: str):
     if name in _SUBMODULES:

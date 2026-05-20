@@ -1,4 +1,5 @@
 """Normalized order types for the market provider plugin system."""
+
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
@@ -47,6 +48,7 @@ class VenueCapability(str, Enum):
 @dataclass
 class NormalizedOrder:
     """Venue-agnostic order request. Strategies create these."""
+
     market_id: str
     side: OrderSide
     order_type: OrderType
@@ -60,6 +62,7 @@ class NormalizedOrder:
 @dataclass
 class NormalizedOrderResult:
     """Venue-agnostic result returned after order submission."""
+
     venue_order_id: str
     client_order_id: str | None
     status: OrderStatus
@@ -73,6 +76,7 @@ class NormalizedOrderResult:
 @dataclass
 class NormalizedPosition:
     """Current open position in a market."""
+
     market_id: str
     side: PositionSide
     size: Decimal
@@ -85,6 +89,7 @@ class NormalizedPosition:
 @dataclass
 class NormalizedBalance:
     """Account balance snapshot from a venue."""
+
     venue: str
     available_cash: Decimal
     total_equity: Decimal
@@ -96,6 +101,7 @@ class NormalizedBalance:
 @dataclass
 class NormalizedFillEvent:
     """Streamed fill event from a venue WebSocket."""
+
     venue: str
     venue_order_id: str
     market_id: str
@@ -110,6 +116,7 @@ class NormalizedFillEvent:
 @dataclass
 class MarketInfo:
     """Normalized market metadata from a venue."""
+
     venue: str
     market_id: str
     title: str

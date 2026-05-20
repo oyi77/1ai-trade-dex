@@ -1,4 +1,5 @@
 """Tests for AGI Promotion Pipeline — manual approval gate, promotion, retirement."""
+
 from backend.core.agi_promotion_pipeline import AGIPromotionPipeline
 from backend.core.experiment_runner import ExperimentRunner
 
@@ -28,7 +29,9 @@ class TestAGIPromotionPipeline:
         runner = ExperimentRunner()
         experiment = runner.run_shadow_experiment("test_strategy", duration_days=1)
         pipeline = AGIPromotionPipeline(runner)
-        result = pipeline.promote_to_live(str(experiment.experiment_id), manual_approval=True)
+        result = pipeline.promote_to_live(
+            str(experiment.experiment_id), manual_approval=True
+        )
         assert result.from_status == "paper"
         assert result.to_status == "live"
 

@@ -8,6 +8,7 @@ from typing import Any, Dict
 @dataclass
 class BenchmarkResult:
     """Standard result container for all AGI benchmarks."""
+
     benchmark_id: str
     score: float
     passed: bool

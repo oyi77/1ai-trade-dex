@@ -1,4 +1,5 @@
 """Data source abstract base class and manifest for the plugin system."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -19,6 +20,7 @@ class DataType(str, Enum):
 @dataclass
 class DataSourceManifest:
     """Declarative metadata for a data source plugin."""
+
     name: str
     display_name: str
     version: str
@@ -36,8 +38,7 @@ class BaseDataSource(ABC):
 
     @classmethod
     @abstractmethod
-    def manifest(cls) -> DataSourceManifest:
-        ...
+    def manifest(cls) -> DataSourceManifest: ...
 
     @abstractmethod
     async def fetch(self, data_type: DataType, params: dict[str, Any]) -> Any:
@@ -48,7 +49,9 @@ class BaseDataSource(ABC):
         self, data_type: DataType, params: dict[str, Any]
     ) -> AsyncGenerator[Any, None]:
         """Optional: yield live updates."""
-        raise NotImplementedError(f"{self.__class__.__name__} does not support streaming")
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support streaming"
+        )
 
     async def backfill(
         self, data_type: DataType, params: dict[str, Any], since_ts: int, until_ts: int

@@ -64,17 +64,27 @@ class RegimeDetector:
         }
 
         if drawdown > 0.15 and atr_percentile > 0.9:
-            regime, confidence = MarketRegime.CRISIS, min(0.5 + drawdown + atr_percentile / 2, 1.0)
+            regime, confidence = MarketRegime.CRISIS, min(
+                0.5 + drawdown + atr_percentile / 2, 1.0
+            )
         elif sma_50 is not None and sma_200 is not None:
             sma_diff = (sma_50 - sma_200) / sma_200 if sma_200 != 0 else 0
             if sma_diff > 0.02 and atr_percentile < 0.5 and volume_trend > 0:
-                regime, confidence = MarketRegime.BULL, min(0.6 + abs(sma_diff) * 5, 0.95)
+                regime, confidence = MarketRegime.BULL, min(
+                    0.6 + abs(sma_diff) * 5, 0.95
+                )
             elif sma_diff < -0.02 and atr_percentile > 0.5 and volume_trend < 0:
-                regime, confidence = MarketRegime.BEAR, min(0.6 + abs(sma_diff) * 5, 0.95)
+                regime, confidence = MarketRegime.BEAR, min(
+                    0.6 + abs(sma_diff) * 5, 0.95
+                )
             elif abs(sma_diff) <= 0.02 and atr_percentile > 0.7:
-                regime, confidence = MarketRegime.SIDEWAYS_VOLATILE, min(0.5 + atr_percentile / 2, 0.9)
+                regime, confidence = MarketRegime.SIDEWAYS_VOLATILE, min(
+                    0.5 + atr_percentile / 2, 0.9
+                )
             elif abs(sma_diff) <= 0.02 and atr_percentile <= 0.5:
-                regime, confidence = MarketRegime.SIDEWAYS, min(0.5 + (1 - atr_percentile) / 2, 0.85)
+                regime, confidence = MarketRegime.SIDEWAYS, min(
+                    0.5 + (1 - atr_percentile) / 2, 0.85
+                )
             else:
                 if sma_diff > 0:
                     regime, confidence = MarketRegime.BULL, 0.4
@@ -85,12 +95,18 @@ class RegimeDetector:
 
         # E-121: Hysteresis logic — require NEW regime confidence to exceed current
         # by the hysteresis threshold, not just be "close to" current confidence
-        if self._current_regime != MarketRegime.UNKNOWN and regime != self._current_regime:
+        if (
+            self._current_regime != MarketRegime.UNKNOWN
+            and regime != self._current_regime
+        ):
             if confidence < self._current_confidence + self._hysteresis:
                 regime = self._current_regime
                 confidence = self._current_confidence
 
-        if regime != self._current_regime and self._current_regime != MarketRegime.UNKNOWN:
+        if (
+            regime != self._current_regime
+            and self._current_regime != MarketRegime.UNKNOWN
+        ):
             transition = RegimeTransition(
                 from_regime=self._current_regime,
                 to_regime=regime,
@@ -121,11 +137,15 @@ class RegimeDetector:
     def _emit_regime_change(self, transition: RegimeTransition) -> None:
         try:
             from backend.core import event_bus
-            event_bus.publish_event("regime_changed", {
-                "from_regime": transition.from_regime.value,
-                "to_regime": transition.to_regime.value,
-                "confidence": transition.confidence,
-                "timestamp": transition.timestamp.isoformat(),
-            })
+
+            event_bus.publish_event(
+                "regime_changed",
+                {
+                    "from_regime": transition.from_regime.value,
+                    "to_regime": transition.to_regime.value,
+                    "confidence": transition.confidence,
+                    "timestamp": transition.timestamp.isoformat(),
+                },
+            )
         except Exception:
             logger.exception("[RegimeDetector] Failed to emit regime change event")

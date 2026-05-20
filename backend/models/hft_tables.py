@@ -67,9 +67,7 @@ class HFTPerformance(Base):
     max_drawdown = Column(Float, default=0.0)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __table_args__ = (
-        Index("ix_hft_perf_strategy_period", "strategy_name", "period"),
-    )
+    __table_args__ = (Index("ix_hft_perf_strategy_period", "strategy_name", "period"),)
 
 
 def create_hft_tables(engine):

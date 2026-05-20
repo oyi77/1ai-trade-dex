@@ -60,7 +60,14 @@ class ValidationResult:
 
 
 class BacktestResult:
-    def __init__(self, strategy_name: str, regime: str, trades: int = 0, win_rate: float = 0.0, pnl: float = 0.0):
+    def __init__(
+        self,
+        strategy_name: str,
+        regime: str,
+        trades: int = 0,
+        win_rate: float = 0.0,
+        pnl: float = 0.0,
+    ):
         self.strategy_name = strategy_name
         self.regime = regime
         self.trades = trades
@@ -69,16 +76,28 @@ class BacktestResult:
 
 
 BLOCK_CATALOG = {
-    "signal_source": ["whale_tracker_signal", "btc_momentum_signal", "weather_signal", "oracle_signal"],
+    "signal_source": [
+        "whale_tracker_signal",
+        "btc_momentum_signal",
+        "weather_signal",
+        "oracle_signal",
+    ],
     "filter": ["min_edge_005", "min_confidence_07", "volume_filter"],
     "position_sizer": ["kelly_sizer", "fixed_01", "fixed_005", "half_kelly"],
     "risk_rule": ["max_1pct", "max_2pct", "daily_loss_5pct", "max_drawdown_10pct"],
-    "exit_rule": ["take_profit_10pct", "take_profit_20pct", "stop_loss_5pct", "trailing_stop_3pct"],
+    "exit_rule": [
+        "take_profit_10pct",
+        "take_profit_20pct",
+        "stop_loss_5pct",
+        "trailing_stop_3pct",
+    ],
 }
 
 
 class StrategyComposer:
-    def __init__(self, session: Optional[Session] = None, db_url: str = "sqlite:///:memory:"):
+    def __init__(
+        self, session: Optional[Session] = None, db_url: str = "sqlite:///:memory:"
+    ):
         if session is not None:
             self._session = session
             self._owns_session = False
@@ -92,7 +111,9 @@ class StrategyComposer:
         if self._owns_session:
             self._session.close()
 
-    def compose(self, blocks: list[StrategyBlock], name: str, kg_context: dict | None = None) -> ComposedStrategy:
+    def compose(
+        self, blocks: list[StrategyBlock], name: str, kg_context: dict | None = None
+    ) -> ComposedStrategy:
         """Compose a strategy from blocks.
 
         ``kg_context`` carries regime history and strategy performance data read
@@ -125,11 +146,17 @@ class StrategyComposer:
             errors.append("missing_position_sizer: position sizer is required")
 
         for b in composed.blocks:
-            if b.signal_source and b.signal_source not in BLOCK_CATALOG["signal_source"]:
+            if (
+                b.signal_source
+                and b.signal_source not in BLOCK_CATALOG["signal_source"]
+            ):
                 errors.append(f"invalid_signal_source: {b.signal_source}")
             if b.risk_rule and b.risk_rule not in BLOCK_CATALOG["risk_rule"]:
                 errors.append(f"invalid_risk_rule: {b.risk_rule}")
-            if b.position_sizer and b.position_sizer not in BLOCK_CATALOG["position_sizer"]:
+            if (
+                b.position_sizer
+                and b.position_sizer not in BLOCK_CATALOG["position_sizer"]
+            ):
                 errors.append(f"invalid_position_sizer: {b.position_sizer}")
 
         if len(block_types) != len(set(block_types)):
@@ -137,7 +164,9 @@ class StrategyComposer:
 
         return ValidationResult(len(errors) == 0, errors)
 
-    def backtest_composed(self, composed: ComposedStrategy, regime: MarketRegime) -> BacktestResult:
+    def backtest_composed(
+        self, composed: ComposedStrategy, regime: MarketRegime
+    ) -> BacktestResult:
         from datetime import datetime, timezone, timedelta
         from backend.core.backtester import BacktestEngine, BacktestConfig
 
@@ -153,7 +182,10 @@ class StrategyComposer:
         engine = BacktestEngine(bt_config)
         try:
             import asyncio
-            result = asyncio.get_event_loop().run_until_complete(engine.run(db=self._session))
+
+            result = asyncio.get_event_loop().run_until_complete(
+                engine.run(db=self._session)
+            )
             return BacktestResult(
                 strategy_name=composed.name,
                 regime=regime.value,
@@ -162,7 +194,9 @@ class StrategyComposer:
                 pnl=result.total_pnl,
             )
         except Exception:
-            logger.exception("[StrategyComposer] Backtest failed for '%s'", composed.name)
+            logger.exception(
+                "[StrategyComposer] Backtest failed for '%s'", composed.name
+            )
             return BacktestResult(
                 strategy_name=composed.name,
                 regime=regime.value,
@@ -174,9 +208,13 @@ class StrategyComposer:
     def register_composed(self, composed: ComposedStrategy) -> str:
         validation = self.validate_composition(composed)
         if not validation:
-            raise ValueError(f"Cannot register invalid composition: {validation.errors}")
+            raise ValueError(
+                f"Cannot register invalid composition: {validation.errors}"
+            )
 
-        existing = self._session.query(ExperimentRecord).filter_by(name=composed.name).first()
+        existing = (
+            self._session.query(ExperimentRecord).filter_by(name=composed.name).first()
+        )
         if existing:
             return existing.name
 

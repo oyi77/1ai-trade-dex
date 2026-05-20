@@ -23,7 +23,9 @@ class AGIScoreBenchmark:
         self.reports_dir = Path(reports_dir)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def run(self, internal_scores: Optional[Dict[str, float]] = None) -> BenchmarkResult:
+    def run(
+        self, internal_scores: Optional[Dict[str, float]] = None
+    ) -> BenchmarkResult:
         """Execute composite AGI-Score benchmark."""
         random.seed(42)
         logger.info("Starting AGI-Score composite benchmark")
@@ -31,9 +33,9 @@ class AGIScoreBenchmark:
         scores = internal_scores or self._simulate_benchmark_scores()
 
         weighted_sum = (
-            scores.get("cross_domain_transfer", 0.6) * 0.3 +
-            scores.get("few_shot_learning", 0.6) * 0.3 +
-            scores.get("causal_reasoning", 0.6) * 0.3
+            scores.get("cross_domain_transfer", 0.6) * 0.3
+            + scores.get("few_shot_learning", 0.6) * 0.3
+            + scores.get("causal_reasoning", 0.6) * 0.3
         )
 
         consistency_score = self._run_consistency_check()
@@ -50,8 +52,8 @@ class AGIScoreBenchmark:
                 "breakdown": scores,
                 "consistency_score": consistency_score,
                 "threshold": self.THRESHOLD,
-                "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
-            }
+                "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS",
+            },
         )
 
         self._save_report(result)
@@ -78,9 +80,12 @@ class AGIScoreBenchmark:
             "score": result.score,
             "passed": result.passed,
             "metadata": result.metadata,
-            "timestamp": result.timestamp.isoformat()
+            "timestamp": result.timestamp.isoformat(),
         }
-        report_path = self.reports_dir / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        report_path = (
+            self.reports_dir
+            / f"{result.benchmark_id}_{result.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+        )
         with open(report_path, "w") as f:
             json.dump(report_data, f, indent=2)
         logger.bind(report_path=str(report_path)).info("Report saved")
@@ -89,6 +94,7 @@ class AGIScoreBenchmark:
 def register():
     try:
         from backend.evals.registry import BenchmarkRegistry
+
         BenchmarkRegistry.register(AGIScoreBenchmark.BENCHMARK_ID, AGIScoreBenchmark)
     except ImportError:
         logger.warning("BenchmarkRegistry not available")

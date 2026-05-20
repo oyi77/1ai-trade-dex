@@ -8,7 +8,6 @@ from typing import List, Dict, Any
 from datetime import datetime, timezone
 
 
-
 async def scan_leaderboard_for_profitable_wallets(
     min_trades: int = 50,
     min_win_rate: float = 0.55,

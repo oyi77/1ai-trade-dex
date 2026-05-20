@@ -15,6 +15,7 @@ from loguru import logger
 @dataclass
 class AccuracyResult:
     """Result of a trading accuracy evaluation."""
+
     strategy: str
     total_predictions: int = 0
     correct_predictions: int = 0
@@ -85,7 +86,9 @@ class TradingAccuracySuite:
                 if result.total_predictions < self.min_trades:
                     return result
 
-                result.correct_predictions = sum(1 for o in outcomes if o.result == "win")
+                result.correct_predictions = sum(
+                    1 for o in outcomes if o.result == "win"
+                )
                 result.accuracy = result.correct_predictions / result.total_predictions
 
                 # Brier score
@@ -95,7 +98,9 @@ class TradingAccuracySuite:
                     if o.model_probability is not None
                 ]
                 if pairs:
-                    result.brier_score = sum((p - a) ** 2 for p, a in pairs) / len(pairs)
+                    result.brier_score = sum((p - a) ** 2 for p, a in pairs) / len(
+                        pairs
+                    )
 
                 # Expected Calibration Error (ECE)
                 result.calibration_error = self._ece(outcomes)
@@ -113,16 +118,25 @@ class TradingAccuracySuite:
 
         return result
 
-    def evaluate_all(self, lookback_days: int = 30, trading_mode: str = "live") -> list[AccuracyResult]:
+    def evaluate_all(
+        self, lookback_days: int = 30, trading_mode: str = "live"
+    ) -> list[AccuracyResult]:
         """Evaluate all active strategies."""
         results = []
         try:
             from backend.models.database import SessionLocal, StrategyConfig
+
             db = SessionLocal()
             try:
-                active = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
+                active = (
+                    db.query(StrategyConfig)
+                    .filter(StrategyConfig.enabled.is_(True))
+                    .all()
+                )
                 for cfg in active:
-                    results.append(self.evaluate(cfg.strategy_name, lookback_days, trading_mode))
+                    results.append(
+                        self.evaluate(cfg.strategy_name, lookback_days, trading_mode)
+                    )
             finally:
                 db.close()
         except Exception as e:

@@ -13,6 +13,8 @@ from backend.models.database import SessionLocal, Trade
 from backend.core.task_manager import TaskManager
 
 from loguru import logger
+
+
 class SettlementWebSocketHandler:
     """
     Listens to Polymarket WebSocket for market_resolved events and settles
@@ -40,7 +42,9 @@ class SettlementWebSocketHandler:
             on_settlement=self._handle_settlement,
         )
         if self._task_manager:
-            task = await self._task_manager.create_task(self._ws.run(), name="settlement_ws_run")
+            task = await self._task_manager.create_task(
+                self._ws.run(), name="settlement_ws_run"
+            )
         else:
             task = asyncio.create_task(self._ws.run())
         self._background_tasks.add(task)
@@ -98,7 +102,9 @@ class SettlementWebSocketHandler:
         ticker = self._token_id_to_ticker.get(event.token_id, event.token_id)
 
         if self._task_manager:
-            asyncio.create_task(self._create_settle_task(event.token_id, ticker, event.outcome))
+            asyncio.create_task(
+                self._create_settle_task(event.token_id, ticker, event.outcome)
+            )
         else:
             task = asyncio.create_task(
                 self._settle_trade(event.token_id, ticker, event.outcome)
@@ -106,10 +112,12 @@ class SettlementWebSocketHandler:
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
-    async def _create_settle_task(self, token_id: str, ticker: str, outcome: str) -> None:
+    async def _create_settle_task(
+        self, token_id: str, ticker: str, outcome: str
+    ) -> None:
         task = await self._task_manager.create_task(
             self._settle_trade(token_id, ticker, outcome),
-            name=f"settlement_ws_settle_{token_id}"
+            name=f"settlement_ws_settle_{token_id}",
         )
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)

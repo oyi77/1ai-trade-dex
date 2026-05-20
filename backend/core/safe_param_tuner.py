@@ -47,17 +47,25 @@ class SafeParamTuner:
         if len(pnls) < MIN_TRADES_FOR_TUNING:
             return {}
 
-        config = db.query(StrategyConfig).filter(
-            StrategyConfig.strategy_name == strategy
-        ).first()
+        config = (
+            db.query(StrategyConfig)
+            .filter(StrategyConfig.strategy_name == strategy)
+            .first()
+        )
         if not config or not config.params:
             return {}
 
         try:
-            params = json.loads(config.params) if isinstance(config.params, str) else config.params
+            params = (
+                json.loads(config.params)
+                if isinstance(config.params, str)
+                else config.params
+            )
         except Exception as e:
             logger.error("[SafeParamTuner] error: {}", e)
-            logger.exception(f"[SafeParamTuner] {strategy}: failed to parse strategy config params")
+            logger.exception(
+                f"[SafeParamTuner] {strategy}: failed to parse strategy config params"
+            )
             return {}
 
         if not isinstance(params, dict):
@@ -79,7 +87,9 @@ class SafeParamTuner:
         validator = WalkForwardValidator()
         result = validator.validate_param_change(strategy, params, new_params, db)
         if not result.approved:
-            logger.info(f"[SafeParamTuner] {strategy}: walk-forward rejected changes — {result.reason}")
+            logger.info(
+                f"[SafeParamTuner] {strategy}: walk-forward rejected changes — {result.reason}"
+            )
             return {}
 
         for key, val in params.items():
@@ -89,7 +99,9 @@ class SafeParamTuner:
             params[key] = new_val
             record_param_change(strategy, key, float(val), float(new_val), db)
             changes[key] = {"old": val, "new": new_val}
-            logger.info(f"[SafeParamTuner] {strategy}.{key}: {val:.4f} -> {new_val:.4f}")
+            logger.info(
+                f"[SafeParamTuner] {strategy}.{key}: {val:.4f} -> {new_val:.4f}"
+            )
 
         if changes:
             try:
@@ -97,7 +109,9 @@ class SafeParamTuner:
                 db.commit()
             except Exception as e:
                 logger.error("[SafeParamTuner] error: {}", e)
-                logger.error(f"[SafeParamTuner] Failed to save params for {strategy}: {e}")
+                logger.error(
+                    f"[SafeParamTuner] Failed to save params for {strategy}: {e}"
+                )
                 db.rollback()
 
         return changes
@@ -129,12 +143,18 @@ class SafeParamTuner:
         sigma = abs(pre_sharpe) * 0.1 or 1e-9
 
         if degradation > REVERT_SIGMA_THRESHOLD * sigma:
-            config = db.query(StrategyConfig).filter(
-                StrategyConfig.strategy_name == strategy
-            ).first()
+            config = (
+                db.query(StrategyConfig)
+                .filter(StrategyConfig.strategy_name == strategy)
+                .first()
+            )
             if config and config.params:
                 try:
-                    params = json.loads(config.params) if isinstance(config.params, str) else config.params
+                    params = (
+                        json.loads(config.params)
+                        if isinstance(config.params, str)
+                        else config.params
+                    )
                     if isinstance(params, dict) and last_change.param_name in params:
                         params[last_change.param_name] = last_change.old_value
                         config.params = json.dumps(params)

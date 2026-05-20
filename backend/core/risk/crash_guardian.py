@@ -93,7 +93,10 @@ class CrashGuardian:
                 logger.warning(
                     "[CrashGuardian] %s restarted %d time(s) since last check "
                     "(total: %d, status: %s)",
-                    proc_name, delta, health.restart_count, health.status,
+                    proc_name,
+                    delta,
+                    health.restart_count,
+                    health.status,
                 )
 
             is_unhealthy = False
@@ -103,8 +106,11 @@ class CrashGuardian:
                 health.unhealthy_streak += 1
                 logger.warning(
                     "[CrashGuardian] %s memory %.0f MB > %d MB (streak: %d/%d)",
-                    proc_name, health.memory_mb, self.memory_restart_mb,
-                    health.unhealthy_streak, self.max_unhealthy_checks,
+                    proc_name,
+                    health.memory_mb,
+                    self.memory_restart_mb,
+                    health.unhealthy_streak,
+                    self.max_unhealthy_checks,
                 )
                 if health.unhealthy_streak >= self.max_unhealthy_checks:
                     await self._restart_process(proc_name, reason="memory_leak")
@@ -114,7 +120,8 @@ class CrashGuardian:
             elif health.memory_mb > self.memory_warn_mb:
                 logger.warning(
                     "[CrashGuardian] %s memory %.0f MB approaching limit",
-                    proc_name, health.memory_mb,
+                    proc_name,
+                    health.memory_mb,
                 )
 
             if health.status in ("stopped", "errored"):
@@ -122,11 +129,15 @@ class CrashGuardian:
                 health.unhealthy_streak += 1
                 logger.warning(
                     "[CrashGuardian] %s status=%s (streak: %d/%d)",
-                    proc_name, health.status,
-                    health.unhealthy_streak, self.max_unhealthy_checks,
+                    proc_name,
+                    health.status,
+                    health.unhealthy_streak,
+                    self.max_unhealthy_checks,
                 )
                 if health.unhealthy_streak >= self.max_unhealthy_checks:
-                    await self._restart_process(proc_name, reason="status_" + health.status)
+                    await self._restart_process(
+                        proc_name, reason="status_" + health.status
+                    )
                     health.unhealthy_streak = 0
                     health.last_restart_at = now
 
@@ -163,10 +174,14 @@ class CrashGuardian:
         try:
             result = subprocess.run(
                 ["pm2", "jlist"],
-                capture_output=True, text=True, timeout=_PM2_TIMEOUT,
+                capture_output=True,
+                text=True,
+                timeout=_PM2_TIMEOUT,
             )
             if result.returncode != 0:
-                logger.warning("[CrashGuardian] pm2 jlist failed: %s", result.stderr.strip())
+                logger.warning(
+                    "[CrashGuardian] pm2 jlist failed: %s", result.stderr.strip()
+                )
                 return None
             return json.loads(result.stdout)
         except subprocess.TimeoutExpired:
@@ -182,14 +197,19 @@ class CrashGuardian:
             proc = await asyncio.to_thread(
                 lambda: subprocess.run(
                     ["pm2", "restart", proc_name, "--update-env"],
-                    capture_output=True, text=True, timeout=_PM2_TIMEOUT,
+                    capture_output=True,
+                    text=True,
+                    timeout=_PM2_TIMEOUT,
                 )
             )
             if proc.returncode == 0:
                 logger.info("[CrashGuardian] Successfully restarted %s", proc_name)
             else:
-                logger.error("[CrashGuardian] pm2 restart failed for %s: %s",
-                             proc_name, proc.stderr.strip())
+                logger.error(
+                    "[CrashGuardian] pm2 restart failed for %s: %s",
+                    proc_name,
+                    proc.stderr.strip(),
+                )
         except Exception:
             logger.exception("[CrashGuardian] Failed to restart %s", proc_name)
 
@@ -197,7 +217,8 @@ class CrashGuardian:
     def status(self) -> Dict:
         return {
             name: {
-                "pid": h.pid, "status": h.status,
+                "pid": h.pid,
+                "status": h.status,
                 "restart_count": h.restart_count,
                 "memory_mb": round(h.memory_mb, 1),
                 "cpu_percent": round(h.cpu_percent, 1),

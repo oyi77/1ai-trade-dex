@@ -1,4 +1,5 @@
 """Paper trading provider for sandbox and testing."""
+
 import logging
 import uuid
 from dataclasses import dataclass
@@ -6,11 +7,19 @@ from typing import Dict, List, Optional
 from decimal import Decimal
 
 from backend.markets.base_provider import (
-    BaseMarketProvider, MarketProviderManifest, NormalizedOrder,
-    NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability,
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
 )
 from backend.markets.order_types import (
-    MarketInfo, OrderSide, OrderType, OrderStatus,
+    MarketInfo,
+    OrderSide,
+    OrderType,
+    OrderStatus,
     PositionSide,
 )
 from backend.markets.provider_registry import market_registry
@@ -24,6 +33,7 @@ _POLYMARKET_TAKER_FEE_BPS = 100
 @dataclass(frozen=True)
 class OrderbookLevel:
     """Single price level in an orderbook."""
+
     price: Decimal
     size: Decimal  # shares available at this level
 
@@ -31,6 +41,7 @@ class OrderbookLevel:
 @dataclass(frozen=True)
 class FillResult:
     """Result of orderbook-level fill simulation."""
+
     avg_price: Decimal
     total_cost: Decimal
     fee: Decimal
@@ -39,7 +50,9 @@ class FillResult:
     levels_consumed: int
 
 
-def _polymarket_fee(price: Decimal, size: Decimal, fee_bps: int = _POLYMARKET_TAKER_FEE_BPS) -> Decimal:
+def _polymarket_fee(
+    price: Decimal, size: Decimal, fee_bps: int = _POLYMARKET_TAKER_FEE_BPS
+) -> Decimal:
     """Exact Polymarket fee formula.
 
     fee = (fee_bps / 10000) * min(price, 1 - price) * size
@@ -199,13 +212,17 @@ class PaperProvider(BaseMarketProvider):
             fees_paid=Decimal("0"),
         )
 
-    def _fill_market_order(self, venue_id: str, order: NormalizedOrder) -> NormalizedOrderResult:
+    def _fill_market_order(
+        self, venue_id: str, order: NormalizedOrder
+    ) -> NormalizedOrderResult:
         """Fill a market order using orderbook simulation when available, single-price fallback otherwise."""
         levels = self._orderbooks.get(order.market_id)
         if levels:
             try:
                 result = simulate_orderbook_fill(order.side, order.size, levels)
-                self._update_position(order.market_id, order.side, result.filled_size, result.avg_price)
+                self._update_position(
+                    order.market_id, order.side, result.filled_size, result.avg_price
+                )
                 return NormalizedOrderResult(
                     venue_order_id=venue_id,
                     client_order_id=order.client_order_id,
@@ -217,7 +234,10 @@ class PaperProvider(BaseMarketProvider):
                 )
             except ValueError:
                 # Insufficient orderbook liquidity -- fall through to single-price
-                logger.debug("Orderbook fill failed for %s, falling back to single-price", order.market_id)
+                logger.debug(
+                    "Orderbook fill failed for %s, falling back to single-price",
+                    order.market_id,
+                )
 
         # Fallback: single-price fill
         fill_price = order.price or Decimal("0.5")
@@ -233,7 +253,9 @@ class PaperProvider(BaseMarketProvider):
             fees_paid=fee,
         )
 
-    async def try_fill_limit_orders(self, market_id: str, best_bid: Decimal, best_ask: Decimal) -> List[NormalizedOrderResult]:
+    async def try_fill_limit_orders(
+        self, market_id: str, best_bid: Decimal, best_ask: Decimal
+    ) -> List[NormalizedOrderResult]:
         """Check open limit orders against current market and fill those whose price has crossed.
 
         BUY limit fills at limit price when ask <= limit price.
@@ -325,11 +347,16 @@ class PaperProvider(BaseMarketProvider):
         return positions
 
     async def search_markets(
-        self, query: Optional[str] = None, category: Optional[str] = None, limit: int = 50
+        self,
+        query: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 50,
     ) -> List[MarketInfo]:
         return []
 
-    def _update_position(self, market_id: str, side: OrderSide, size: Decimal, price: Decimal):
+    def _update_position(
+        self, market_id: str, side: OrderSide, size: Decimal, price: Decimal
+    ):
         key = market_id
         if key in self._positions:
             pos = self._positions[key]

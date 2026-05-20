@@ -10,6 +10,7 @@ F. Causal Reasoning traces complete trade flow
 G. AGI Orchestrator coordinates all modules
 H. Concurrent operations don't interfere
 """
+
 import time
 
 from backend.core.regime_detector import RegimeDetector
@@ -96,7 +97,9 @@ class TestKnowledgeGraphPersistence:
         kg = KnowledgeGraph()
 
         # Add entities
-        assert kg.add_entity("strategy", "s1", {"name": "BTC Momentum", "regime": "bull"})
+        assert kg.add_entity(
+            "strategy", "s1", {"name": "BTC Momentum", "regime": "bull"}
+        )
         assert kg.add_entity("market", "m1", {"token": "BTC", "price": 50000.0})
         assert kg.add_entity("regime", "r1", {"type": "bull", "confidence": 0.85})
 
@@ -131,7 +134,9 @@ class TestSelfDebuggingRecovery:
     def test_debugger_503_recovery(self):
         debugger = SelfDebugger()
         error = Exception("API returned 503 Service Unavailable")
-        diagnosis = debugger.diagnose_error(error, {"endpoint": "/v1/markets", "method": "GET"})
+        diagnosis = debugger.diagnose_error(
+            error, {"endpoint": "/v1/markets", "method": "GET"}
+        )
         assert diagnosis is not None
         recovery = debugger.attempt_recovery(diagnosis)
         assert recovery is not None
@@ -139,13 +144,17 @@ class TestSelfDebuggingRecovery:
     def test_debugger_timeout_recovery(self):
         debugger = SelfDebugger()
         error = TimeoutError("Request timed out after 30s")
-        diagnosis = debugger.diagnose_error(error, {"endpoint": "/v1/orders", "timeout": 30})
+        diagnosis = debugger.diagnose_error(
+            error, {"endpoint": "/v1/orders", "timeout": 30}
+        )
         assert diagnosis is not None
 
     def test_debugger_invalid_data_rejection(self):
         debugger = SelfDebugger()
         error = ValueError("Invalid response: missing required field 'price'")
-        diagnosis = debugger.diagnose_error(error, {"endpoint": "/v1/markets", "response": {}})
+        diagnosis = debugger.diagnose_error(
+            error, {"endpoint": "/v1/markets", "response": {}}
+        )
         assert diagnosis is not None
 
 
@@ -155,8 +164,8 @@ class TestPromotionPipelineEndToEnd:
     def test_promotion_pipeline_exists(self):
         pipeline = AGIPromotionPipeline()
         # Verify pipeline has promote methods
-        assert hasattr(pipeline, 'promote_to_paper')
-        assert hasattr(pipeline, 'promote_to_live')
+        assert hasattr(pipeline, "promote_to_paper")
+        assert hasattr(pipeline, "promote_to_live")
 
     def test_promotion_submit_experiment(self):
         pipeline = AGIPromotionPipeline()
@@ -250,7 +259,12 @@ class TestPerformanceAfterHardening:
 
     def test_regime_detection_still_fast(self):
         detector = RegimeDetector()
-        market_data = {"btc_price": 50000.0, "btc_change_24h": 0.05, "volume_ratio": 1.3, "volatility": 0.02}
+        market_data = {
+            "btc_price": 50000.0,
+            "btc_change_24h": 0.05,
+            "volume_ratio": 1.3,
+            "volatility": 0.02,
+        }
 
         start = time.perf_counter()
         for _ in range(1000):

@@ -15,7 +15,9 @@ class PrometheusBackend(BaseMetricsBackend):
             tags=["metrics", "open-source"],
         )
 
-    async def increment_counter(self, name: str, value: int = 1, tags: dict = None) -> None:
+    async def increment_counter(
+        self, name: str, value: int = 1, tags: dict = None
+    ) -> None:
         with _metrics_lock:
             _metrics[name] = _metrics.get(name, 0) + value
 
@@ -23,7 +25,9 @@ class PrometheusBackend(BaseMetricsBackend):
         with _metrics_lock:
             _metrics[name] = value
 
-    async def record_histogram(self, name: str, value: float, tags: dict = None) -> None:
+    async def record_histogram(
+        self, name: str, value: float, tags: dict = None
+    ) -> None:
         with _metrics_lock:
             if "histograms" not in _metrics:
                 _metrics["histograms"] = {}

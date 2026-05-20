@@ -3,12 +3,14 @@ Per-strategy Brier score tracker with online beta calibration.
 Extends calibration_tracker.py pattern for trading predictions.
 No new dependencies — uses stdlib math only.
 """
+
 from typing import Optional, Dict, List, Tuple
 from collections import defaultdict
 
 
 class BetaDistribution:
     """Online beta distribution for probability calibration. No scipy needed."""
+
     def __init__(self, alpha: float = 1.0, beta: float = 1.0):
         self.alpha = alpha
         self.beta = beta
@@ -91,9 +93,11 @@ class TradingCalibration:
     def summary(self, strategy: str) -> Dict:
         """Return a summary dict for a strategy."""
         return {
-            'strategy': strategy,
-            'n': self.sample_count(strategy),
-            'brier_score': self.brier_score(strategy),
-            'win_rate': self.win_rate(strategy),
-            'beta_mean': self._betas[strategy].mean() if strategy in self._betas else None,
+            "strategy": strategy,
+            "n": self.sample_count(strategy),
+            "brier_score": self.brier_score(strategy),
+            "win_rate": self.win_rate(strategy),
+            "beta_mean": (
+                self._betas[strategy].mean() if strategy in self._betas else None
+            ),
         }

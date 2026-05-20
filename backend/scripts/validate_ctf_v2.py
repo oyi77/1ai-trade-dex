@@ -63,6 +63,7 @@ def check(name: str, passed: bool, detail: str) -> None:
 # 1. Package version
 # ---------------------------------------------------------------------------
 
+
 def validate_version() -> None:
     print("\n=== 1. Package Version ===")
     try:
@@ -86,6 +87,7 @@ def validate_version() -> None:
 # ---------------------------------------------------------------------------
 # 2. Contract addresses
 # ---------------------------------------------------------------------------
+
 
 def validate_contract_addresses() -> None:
     print("\n=== 2. Contract Addresses (Polygon / chain_id=137) ===")
@@ -115,6 +117,7 @@ def validate_contract_addresses() -> None:
 # 3. auto_redeem.py addresses
 # ---------------------------------------------------------------------------
 
+
 def validate_auto_redeem_addresses() -> None:
     print("\n=== 3. auto_redeem.py Contract Addresses ===")
     try:
@@ -127,15 +130,11 @@ def validate_auto_redeem_addresses() -> None:
         check("import", False, f"cannot import auto_redeem: {exc}")
         return
 
-    ctf_match = (
-        CTF_ADDRESS.lower()
-        == EXPECTED_ADDRESSES["conditional_tokens"].lower()
-    )
+    ctf_match = CTF_ADDRESS.lower() == EXPECTED_ADDRESSES["conditional_tokens"].lower()
     check("CTF_address", ctf_match, f"auto_redeem={CTF_ADDRESS}")
 
     nra_match = (
-        NEG_RISK_ADAPTER.lower()
-        == EXPECTED_ADDRESSES["neg_risk_adapter"].lower()
+        NEG_RISK_ADAPTER.lower() == EXPECTED_ADDRESSES["neg_risk_adapter"].lower()
     )
     check("neg_risk_adapter", nra_match, f"auto_redeem={NEG_RISK_ADAPTER}")
 
@@ -149,6 +148,7 @@ def validate_auto_redeem_addresses() -> None:
 # ---------------------------------------------------------------------------
 # 4. ClobClient V2 order path
 # ---------------------------------------------------------------------------
+
 
 def validate_order_builder_v2() -> None:
     print("\n=== 4. OrderBuilder V2 Path ===")
@@ -194,6 +194,7 @@ def validate_order_builder_v2() -> None:
 # 5. OrderArgsV2 compatibility with polymarket_clob.py
 # ---------------------------------------------------------------------------
 
+
 def validate_clob_imports() -> None:
     print("\n=== 5. polymarket_clob.py V2 Compatibility ===")
     try:
@@ -214,6 +215,7 @@ def validate_clob_imports() -> None:
 
     try:
         from py_clob_client_v2.clob_types import OrderArgsV2
+
         is_v2 = OrderArgs is OrderArgsV2
         check(
             "OrderArgs_is_V2",
@@ -253,6 +255,7 @@ def validate_clob_imports() -> None:
 # 6. SignatureTypeV2 support (proxy wallets)
 # ---------------------------------------------------------------------------
 
+
 def validate_signature_types() -> None:
     print("\n=== 6. SignatureTypeV2 (Proxy Wallet Support) ===")
     try:
@@ -280,6 +283,7 @@ def validate_signature_types() -> None:
 # ---------------------------------------------------------------------------
 # 7. Dry-run order creation (no network, no signing key needed)
 # ---------------------------------------------------------------------------
+
 
 def validate_dry_run_order() -> None:
     print("\n=== 7. Dry-Run Order Construction ===")
@@ -351,6 +355,7 @@ def validate_dry_run_order() -> None:
 # Summary
 # ---------------------------------------------------------------------------
 
+
 def print_summary() -> bool:
     total = len(results)
     passed = sum(1 for r in results if r.passed)
@@ -388,10 +393,15 @@ def to_json() -> str:
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate CTF Exchange V2 compatibility")
+    parser = argparse.ArgumentParser(
+        description="Validate CTF Exchange V2 compatibility"
+    )
     parser.add_argument("--json", action="store_true", help="JSON output")
-    parser.add_argument("--dry-run", action="store_true", help="Skip network-dependent checks")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Skip network-dependent checks"
+    )
     args = parser.parse_args()
 
     print("CTF Exchange V2 Compatibility Validator")

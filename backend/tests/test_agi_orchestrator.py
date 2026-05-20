@@ -1,4 +1,3 @@
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -31,7 +30,11 @@ class TestAGIOrchestratorEmergencyStop:
     def test_emergency_stop_creates_audit(self):
         orchestrator, session, _ = make_orchestrator_session()
         orchestrator.emergency_stop()
-        audit = session.query(DecisionAuditLog).filter_by(decision_type="agi_emergency_stop").first()
+        audit = (
+            session.query(DecisionAuditLog)
+            .filter_by(decision_type="agi_emergency_stop")
+            .first()
+        )
         assert audit is not None
         assert "stop" in str(audit.output_data).lower()
 

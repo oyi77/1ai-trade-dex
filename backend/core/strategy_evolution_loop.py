@@ -44,9 +44,7 @@ async def strategy_evolution_loop() -> dict[str, Any]:
         monitor = StrategyHealthMonitor()
         with get_db_session() as db:
             active_configs = (
-                db.query(StrategyConfig)
-                .filter(StrategyConfig.enabled.is_(True))
-                .all()
+                db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
             )
             for cfg in active_configs:
                 stats["strategies_scanned"] += 1
@@ -92,7 +90,8 @@ async def strategy_evolution_loop() -> dict[str, Any]:
         stats["strategies_rehabilitated"] = len(rehabilitated)
         if rehabilitated:
             logger.info(
-                "[EvolutionLoop] Rehabilitated: %s", rehabilitated,
+                "[EvolutionLoop] Rehabilitated: %s",
+                rehabilitated,
             )
     except Exception as e:
         logger.error("[EvolutionLoop] Rehabilitation failed: %s", e, exc_info=True)
@@ -106,9 +105,7 @@ async def strategy_evolution_loop() -> dict[str, Any]:
 
         with get_db_session() as db:
             active = (
-                db.query(StrategyConfig)
-                .filter(StrategyConfig.enabled.is_(True))
-                .all()
+                db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True)).all()
             )
             for cfg in active:
                 outcomes = (
@@ -146,12 +143,14 @@ async def strategy_evolution_loop() -> dict[str, Any]:
                         stats["winners_evolved"] += 1
                         logger.info(
                             "[EvolutionLoop] Created variant experiment for '%s' (wr=%.1f%%)",
-                            cfg.strategy_name, win_rate * 100,
+                            cfg.strategy_name,
+                            win_rate * 100,
                         )
                     except Exception as exp_err:
                         logger.warning(
                             "[EvolutionLoop] Variant creation failed for '%s': %s",
-                            cfg.strategy_name, exp_err,
+                            cfg.strategy_name,
+                            exp_err,
                         )
             if stats["winners_evolved"] > 0:
                 db.commit()

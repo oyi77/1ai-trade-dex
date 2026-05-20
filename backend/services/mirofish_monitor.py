@@ -58,9 +58,7 @@ class MiroFishMonitor:
     """
 
     def __init__(
-        self,
-        mirofish_client=None,
-        config: Optional[CircuitBreakerConfig] = None
+        self, mirofish_client=None, config: Optional[CircuitBreakerConfig] = None
     ):
         self.client = mirofish_client
         self.config = config or CircuitBreakerConfig()
@@ -76,10 +74,7 @@ class MiroFishMonitor:
         self._failed_requests = 0
         self._latencies: deque = deque(maxlen=100)
 
-        self._alert_thresholds = {
-            "latency_warn_ms": 10000,
-            "error_rate_warn_pct": 10.0
-        }
+        self._alert_thresholds = {"latency_warn_ms": 10000, "error_rate_warn_pct": 10.0}
 
         logger.info(
             f"MiroFish monitor initialized: "
@@ -107,10 +102,7 @@ class MiroFishMonitor:
         return True
 
     async def call_with_circuit_breaker(
-        self,
-        operation: str,
-        *args,
-        **kwargs
+        self, operation: str, *args, **kwargs
     ) -> Optional[Any]:
         """Execute operation with circuit breaker protection.
 
@@ -123,13 +115,13 @@ class MiroFishMonitor:
             Operation result or None if circuit is OPEN
         """
         if not self.is_mirofish_healthy():
-            logger.warning(
-                f"Circuit breaker OPEN - blocking {operation} call"
-            )
+            logger.warning(f"Circuit breaker OPEN - blocking {operation} call")
             return None
 
         if self._state == CircuitState.HALF_OPEN:
-            logger.info(f"Circuit breaker HALF_OPEN - testing recovery with {operation}")
+            logger.info(
+                f"Circuit breaker HALF_OPEN - testing recovery with {operation}"
+            )
 
         start_time = time.time()
         self._total_requests += 1
@@ -141,8 +133,7 @@ class MiroFishMonitor:
             method = getattr(self.client, operation)
 
             result = await asyncio.wait_for(
-                method(*args, **kwargs),
-                timeout=self.config.request_timeout
+                method(*args, **kwargs), timeout=self.config.request_timeout
             )
 
             latency_ms = (time.time() - start_time) * 1000
@@ -238,7 +229,9 @@ class MiroFishMonitor:
 
     def get_health_metrics(self) -> HealthMetrics:
         """Get current health metrics for monitoring endpoint."""
-        avg_latency = sum(self._latencies) / len(self._latencies) if self._latencies else 0.0
+        avg_latency = (
+            sum(self._latencies) / len(self._latencies) if self._latencies else 0.0
+        )
         error_rate = self.get_error_rate()
 
         last_success = None
@@ -264,7 +257,7 @@ class MiroFishMonitor:
             failed_requests=self._failed_requests,
             last_success_time=last_success,
             last_failure_time=last_failure,
-            consecutive_failures=self._consecutive_failures
+            consecutive_failures=self._consecutive_failures,
         )
 
     def get_error_rate(self) -> float:
@@ -296,8 +289,8 @@ class MiroFishMonitor:
                 "failure_threshold": self.config.failure_threshold,
                 "recovery_timeout": self.config.recovery_timeout,
                 "success_threshold": self.config.success_threshold,
-                "request_timeout": self.config.request_timeout
-            }
+                "request_timeout": self.config.request_timeout,
+            },
         }
 
 

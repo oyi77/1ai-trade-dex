@@ -18,6 +18,7 @@ MODELS_DIR = Path(__file__).parent / "models"
 def _flatten_obs(obs: dict):
     """Flatten Dict observation into a single array for SB3."""
     import numpy as np
+
     parts = []
     for key in sorted(obs.keys()):
         parts.append(np.asarray(obs[key]).flatten())
@@ -31,11 +32,15 @@ class DictObsWrapper:
         self.env = env
         import numpy as np
         from gymnasium import spaces
+
         # Compute flat observation dimension
         sample_obs, _ = env.reset()
         flat = _flatten_obs(sample_obs)
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=flat.shape, dtype=np.float32,
+            low=-np.inf,
+            high=np.inf,
+            shape=flat.shape,
+            dtype=np.float32,
         )
         self.action_space = spaces.Box(
             low=np.array([0.0, 0.0]),
@@ -50,6 +55,7 @@ class DictObsWrapper:
 
     def step(self, action):
         import numpy as np
+
         # Convert flat action back to dict
         action_type = int(np.clip(action[0], 0, 2))
         pos_size = float(np.clip(action[1], 0, 1))
@@ -128,7 +134,8 @@ class RLTrainer:
 
             logger.info(
                 "[RLTrainer] Starting PPO training: %d timesteps, %d opportunities/ep",
-                self.total_timesteps, self.n_opportunities,
+                self.total_timesteps,
+                self.n_opportunities,
             )
 
             # Train
@@ -149,7 +156,8 @@ class RLTrainer:
 
             logger.info(
                 "[RLTrainer] Training complete: mean_reward=%.3f, saved to %s",
-                eval_reward, save_path,
+                eval_reward,
+                save_path,
             )
 
             wrapped.close()
@@ -167,6 +175,7 @@ class RLTrainer:
         """Load a pre-trained model."""
         try:
             from stable_baselines3 import PPO
+
             self._model = PPO.load(path)
             logger.info("[RLTrainer] Loaded model from %s", path)
             return True
@@ -184,6 +193,7 @@ class RLTrainer:
     def _evaluate(self, env, n_episodes: int = 10) -> float:
         """Evaluate the trained policy over n episodes."""
         import numpy as np
+
         total_rewards = []
 
         for _ in range(n_episodes):

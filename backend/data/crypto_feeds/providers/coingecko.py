@@ -1,4 +1,5 @@
 """CoinGecko data feed provider."""
+
 import httpx
 import logging
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
@@ -27,17 +28,30 @@ class CoinGeckoFeed(BaseExchangeFeed):
     async def get_btc_price(self) -> float:
         async def _fetch():
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self.manifest().base_url}/simple/price", params={"ids": "bitcoin", "vs_currencies": "usd"})
+                resp = await client.get(
+                    f"{self.manifest().base_url}/simple/price",
+                    params={"ids": "bitcoin", "vs_currencies": "usd"},
+                )
                 resp.raise_for_status()
                 return float(resp.json()["bitcoin"]["usd"])
+
         return await _fetch()
 
     async def get_klines(self, symbol: str, interval: str, limit: int) -> list:
         async def _fetch():
-            interval_map = {"1m": "1", "5m": "5", "15m": "15", "30m": "30", "1h": "60", "4h": "240", "1d": "1440"}
+            interval_map = {
+                "1m": "1",
+                "5m": "5",
+                "15m": "15",
+                "30m": "30",
+                "1h": "60",
+                "4h": "240",
+                "1d": "1440",
+            }
             granularity = interval_map.get(interval, "60")
             async with httpx.AsyncClient(timeout=10.0) as client:
                 from datetime import datetime, timezone
+
                 end = int(datetime.now(timezone.utc).timestamp())
                 start = end - (limit * int(granularity) * 60)
                 resp = await client.get(
@@ -51,4 +65,5 @@ class CoinGeckoFeed(BaseExchangeFeed):
                     [int(p[0]) // 1000, p[1], p[1], p[1], p[1], 0]
                     for p in prices[-limit:]
                 ]
+
         return await _fetch()

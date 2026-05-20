@@ -1,4 +1,5 @@
 """Comprehensive tests for the AGI self-improvement system."""
+
 import ast
 import tempfile
 from pathlib import Path
@@ -21,15 +22,21 @@ from backend.agi.self_healing import (
     RecoveryAction,
 )
 
-
 # ============================================================================
 # ModuleGraph tests
 # ============================================================================
 
+
 class TestModuleGraph:
     def test_add_and_get_module(self):
         g = ModuleGraph()
-        g.add_module("backend/core/foo.py", "backend.core.foo", ["backend.config"], ["FooClass"], 100)
+        g.add_module(
+            "backend/core/foo.py",
+            "backend.core.foo",
+            ["backend.config"],
+            ["FooClass"],
+            100,
+        )
         info = g.get("backend.core.foo")
         assert info is not None
         assert info.path == "backend/core/foo.py"
@@ -61,6 +68,7 @@ class TestModuleGraph:
 # ============================================================================
 # CodebaseScanner tests
 # ============================================================================
+
 
 class TestCodebaseScanner:
     def test_extract_imports_detects_project_imports(self):
@@ -118,6 +126,7 @@ x = 5
 # ImprovementAnalyzer tests
 # ============================================================================
 
+
 class TestImprovementAnalyzer:
     def test_detect_high_complexity(self):
         scanner = CodebaseScanner()
@@ -141,12 +150,18 @@ def very_long_function(param1, param2, param3):
 """
         tree = ast.parse(high_complexity_code)
         scanner.graph.add_module(
-            "backend/test_complex.py", "backend.test_complex",
-            [], ["very_long_function"], 20, tree,
+            "backend/test_complex.py",
+            "backend.test_complex",
+            [],
+            ["very_long_function"],
+            20,
+            tree,
         )
         analyzer = ImprovementAnalyzer(scanner)
         candidates = analyzer._detect_high_complexity()
-        complex_candidates = [c for c in candidates if "very_long_function" in c.description]
+        complex_candidates = [
+            c for c in candidates if "very_long_function" in c.description
+        ]
         assert len(complex_candidates) >= 0
 
     def test_detect_bare_except(self):
@@ -160,8 +175,12 @@ def test_func():
 """
         tree = ast.parse(code)
         scanner.graph.add_module(
-            "backend/test_bare.py", "backend.test_bare",
-            [], ["test_func"], 10, tree,
+            "backend/test_bare.py",
+            "backend.test_bare",
+            [],
+            ["test_func"],
+            10,
+            tree,
         )
         analyzer = ImprovementAnalyzer(scanner)
         candidates = analyzer._detect_bare_except()
@@ -171,8 +190,12 @@ def test_func():
     def test_detect_missing_tests(self):
         scanner = CodebaseScanner()
         scanner.graph.add_module(
-            "backend/core/novel_module.py", "backend.core.novel_module",
-            [], ["NovelClass"], 200, None,
+            "backend/core/novel_module.py",
+            "backend.core.novel_module",
+            [],
+            ["NovelClass"],
+            200,
+            None,
         )
         analyzer = ImprovementAnalyzer(scanner)
         candidates = analyzer._detect_missing_tests()
@@ -182,8 +205,12 @@ def test_func():
     def test_detect_dead_code(self):
         scanner = CodebaseScanner()
         scanner.graph.add_module(
-            "backend/somemod.py", "backend.somemod",
-            [], ["Something"], 50, None,
+            "backend/somemod.py",
+            "backend.somemod",
+            [],
+            ["Something"],
+            50,
+            None,
         )
         analyzer = ImprovementAnalyzer(scanner)
         candidates = analyzer._detect_dead_code()
@@ -207,6 +234,7 @@ def test_func():
 # ============================================================================
 # CodebaseHealthMetrics tests
 # ============================================================================
+
 
 class TestCodebaseHealthMetrics:
     def test_record_scan_creates_snapshot(self):
@@ -239,6 +267,7 @@ class TestCodebaseHealthMetrics:
 # ============================================================================
 # ExtendedSandbox tests
 # ============================================================================
+
 
 class TestExtendedSandbox:
     def test_validate_valid_code(self):
@@ -287,6 +316,7 @@ class TestExtendedSandbox:
 # SelfHealingWatchdog tests
 # ============================================================================
 
+
 class TestSelfHealingWatchdog:
     def test_record_error(self):
         watchdog = SelfHealingWatchdog()
@@ -302,7 +332,9 @@ class TestSelfHealingWatchdog:
 
     def test_record_recovery(self):
         watchdog = SelfHealingWatchdog()
-        action = watchdog.record_recovery("rollback", "strategy_x", "test failure", True)
+        action = watchdog.record_recovery(
+            "rollback", "strategy_x", "test failure", True
+        )
         assert action.action_type == "rollback"
         assert action.success is True
 
@@ -342,15 +374,21 @@ class TestSelfHealingWatchdog:
 
     def test_health_event_dataclass(self):
         e = HealthEvent(
-            event_id="evt1", event_type="error", module="m",
-            severity="high", message="test"
+            event_id="evt1",
+            event_type="error",
+            module="m",
+            severity="high",
+            message="test",
         )
         assert e.event_id == "evt1"
 
     def test_recovery_action_dataclass(self):
         a = RecoveryAction(
-            action_id="act1", action_type="rollback", target="t",
-            reason="r", success=True
+            action_id="act1",
+            action_type="rollback",
+            target="t",
+            reason="r",
+            success=True,
         )
         assert a.action_id == "act1"
         assert a.success is True

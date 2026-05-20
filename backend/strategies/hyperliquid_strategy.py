@@ -4,11 +4,16 @@ Trades prediction markets on Hyperliquid by comparing on-chain oracle prices
 with Hyperliquid market prices. Looks for mispricings similar to crypto_oracle
 but adapted for the Hyperliquid venue.
 """
+
 from __future__ import annotations
 
 
-from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult, MarketInfo
-
+from backend.strategies.base import (
+    BaseStrategy,
+    StrategyContext,
+    CycleResult,
+    MarketInfo,
+)
 
 
 class HyperliquidStrategy(BaseStrategy):
@@ -21,7 +26,9 @@ class HyperliquidStrategy(BaseStrategy):
     """
 
     name = "hyperliquid"
-    description = "Trades Hyperliquid prediction markets via oracle mispricing detection"
+    description = (
+        "Trades Hyperliquid prediction markets via oracle mispricing detection"
+    )
     category = "hyperliquid"
     default_params = {
         "min_edge": 0.04,
@@ -48,7 +55,9 @@ class HyperliquidStrategy(BaseStrategy):
 
         params = ctx.params or {}
         min_edge = params.get("min_edge", self.default_params["min_edge"])
-        max_entry = params.get("max_entry_price", self.default_params["max_entry_price"])
+        max_entry = params.get(
+            "max_entry_price", self.default_params["max_entry_price"]
+        )
         params.get("max_trade_usd", self.default_params["max_trade_usd"])
 
         try:
@@ -65,11 +74,13 @@ class HyperliquidStrategy(BaseStrategy):
 
             # Fetch markets
             from backend.data.hyperliquid_client import HyperliquidClient
+
             client = hl_provider if isinstance(hl_provider, HyperliquidClient) else None
             if client is None:
                 # Try to get from data pipeline
                 from backend.data.pipeline_manager import pipeline_manager
-                client = getattr(pipeline_manager, '_hl_client', None)
+
+                client = getattr(pipeline_manager, "_hl_client", None)
 
             if client is None:
                 return CycleResult(
@@ -114,13 +125,21 @@ class HyperliquidStrategy(BaseStrategy):
                                     # Live trade would go here
                                     ctx.logger.info(
                                         "[hyperliquid] Signal: %s %s at %.4f (edge=%.4f) on %s",
-                                        direction, "YES", target_price, edge, market.market_id,
+                                        direction,
+                                        "YES",
+                                        target_price,
+                                        edge,
+                                        market.market_id,
                                     )
                                     trades_placed += 1
                                 else:
                                     ctx.logger.info(
                                         "[hyperliquid] Paper signal: %s %s at %.4f (edge=%.4f) on %s",
-                                        direction, "YES", target_price, edge, market.market_id,
+                                        direction,
+                                        "YES",
+                                        target_price,
+                                        edge,
+                                        market.market_id,
                                     )
                                     trades_placed += 1
 

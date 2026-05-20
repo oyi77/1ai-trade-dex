@@ -15,7 +15,9 @@ class _MockSettings:
     INITIAL_BANKROLL: float = 1000.0
     DAILY_LOSS_LIMIT: float = 300.0
     MAX_POSITION_FRACTION: float = 0.05
-    MAX_TRADE_SIZE: float = 50.0  # Added - global max position cap enforced by RiskManager
+    MAX_TRADE_SIZE: float = (
+        50.0  # Added - global max position cap enforced by RiskManager
+    )
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.50
     PAPER_MIN_ORDER_USDC: float = 5.0
     MIN_ORDER_USDC: float = 5.0
@@ -25,15 +27,25 @@ class _MockSettings:
     TRADING_MODE: str = "paper"
     AUTO_APPROVE_MIN_CONFIDENCE: float = 0.6
     REGIME_ROUTING_ENABLED: bool = False
-    DRAWDOWN_BREAKER_ENABLED_PER_MODE: dict = {"paper": True, "testnet": True, "live": True}
-    DAILY_LOSS_LIMIT_ENABLED_PER_MODE: dict = {"paper": True, "testnet": True, "live": True}
+    DRAWDOWN_BREAKER_ENABLED_PER_MODE: dict = {
+        "paper": True,
+        "testnet": True,
+        "live": True,
+    }
+    DAILY_LOSS_LIMIT_ENABLED_PER_MODE: dict = {
+        "paper": True,
+        "testnet": True,
+        "live": True,
+    }
     AGI_BANKROLL_ALLOCATION_ENABLED: bool = True
     MAX_TOTAL_PENDING_TRADES: int = 10
 
 
 @pytest.fixture()
 def alloc_db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(engine)
     Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = Session()
@@ -52,7 +64,10 @@ def _make_rm():
 
 class TestAllocationEnforcement:
     @patch("backend.db.utils.SessionLocal")
-    @patch("backend.core.risk_manager.RiskManager._count_enabled_strategies", return_value=1)
+    @patch(
+        "backend.core.risk_manager.RiskManager._count_enabled_strategies",
+        return_value=1,
+    )
     def test_no_allocation_allows_trade(self, mock_count, mock_session_cls):
         mock_db = MagicMock()
         mock_session_cls.return_value = mock_db

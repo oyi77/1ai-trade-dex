@@ -84,7 +84,7 @@ class MarketEvent:
 
     token_id: str
     event_type: str  # "last_trade_price", "book", "price_change", "market_resolved"
-    data: dict      # raw WS event payload
+    data: dict  # raw WS event payload
     timestamp: float
 
 
@@ -160,9 +160,7 @@ class BaseStrategy(ABC):
                 db.close()
         except Exception as e:
             # If DB fails, don't crash the strategy — return all markets
-            logger.warning(
-                f"market_filter DB lookup failed: {e}"
-            )
+            logger.warning(f"market_filter DB lookup failed: {e}")
             return markets
 
     @abstractmethod
@@ -200,6 +198,7 @@ class BaseStrategy(ABC):
     async def register_with_event_bus(self) -> None:
         """Register this strategy's tokens with the event bus after discovery."""
         from backend.core.event_bus import event_bus
+
         if not self.subscribed_tokens:
             return
         event_bus.subscribe_strategy(
@@ -245,7 +244,9 @@ class BaseStrategy(ABC):
         try:
             signal_latency_seconds.labels(strategy_name=self.name).observe(elapsed_s)
         except Exception:
-            logger.debug("Failed to record Prometheus latency for strategy '%s'", self.name)
+            logger.debug(
+                "Failed to record Prometheus latency for strategy '%s'", self.name
+            )
 
         # Heartbeat: update strategy last-seen timestamp in DB (best effort)
         try:

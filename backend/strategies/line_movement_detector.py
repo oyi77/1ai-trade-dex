@@ -32,8 +32,11 @@ from backend.ai.probability_utils import clamp_probability
 from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
+
+
 def _cfg(name, default):
     return getattr(settings, name, default)
+
 
 GAMMA_EVENTS_URL = f"{settings.GAMMA_API_URL}/events"
 
@@ -87,7 +90,9 @@ class LineMovementDetectorStrategy(BaseStrategy):
         try:
             # ── Pre-settlement auto-sell: check existing open positions ──
             try:
-                from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+                from backend.core.auto_sell import (
+                    check_strategy_positions_for_auto_sell,
+                )
 
                 sell_results = await check_strategy_positions_for_auto_sell(
                     strategy_name=self.name,
@@ -96,7 +101,8 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 if sell_results:
                     logger.info(
                         "[{}] Auto-sell: {} positions sold",
-                        self.name, len(sell_results),
+                        self.name,
+                        len(sell_results),
                     )
             except Exception as exc:
                 logger.debug("[{}] Auto-sell check skipped: {}", self.name, exc)
@@ -300,7 +306,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
         if debate_enabled:
             try:
                 debate_result = await run_debate_with_routing(
-                    db=getattr(ctx, 'db', None),
+                    db=getattr(ctx, "db", None),
                     question=movement.question or movement.ticker,
                     market_price=movement.current_price,
                     context=f"{movement.price_change_pct:+.1f}% move, vol=${movement.volume_24h:,.0f}, news={bool(news_context)}",
@@ -308,11 +314,20 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 )
                 if debate_result and debate_result.confidence > 0:
                     if debate_result.confidence < 0.55:
-                        logger.info("[%s] debate rejected BUY for %s (confidence=%.2f)", self.name, movement.ticker, debate_result.confidence)
+                        logger.info(
+                            "[%s] debate rejected BUY for %s (confidence=%.2f)",
+                            self.name,
+                            movement.ticker,
+                            debate_result.confidence,
+                        )
                         return None
                     confidence = max(confidence, debate_result.confidence)
             except Exception:
-                logger.warning("[%s] debate validation failed for %s, allowing trade", self.name, movement.ticker)
+                logger.warning(
+                    "[%s] debate validation failed for %s, allowing trade",
+                    self.name,
+                    movement.ticker,
+                )
 
         action = "BUY"
         side = "yes" if direction == "up" else "no"
@@ -358,17 +373,25 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 confidence=confidence,
                 edge=abs(movement.price_change_pct) / 100,
                 reasoning=f"Sharp {direction} move: {movement.price_change_pct:+.1f}% in 1h. Vol: ${movement.volume_24h:,.0f}",
-                market_url=f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker}"
-                if movement.ticker
-                else "",
+                market_url=(
+                    f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker}"
+                    if movement.ticker
+                    else ""
+                ),
             )
 
         # Size: scale with edge (price_change_pct) and volume confidence.
         # Stronger moves + higher volume → larger position.
         move_magnitude = abs(movement.price_change_pct)
-        base_size = min(move_magnitude * _cfg("LINE_MOVE_SIZE_PER_PCT", 5.0), _cfg("LINE_MOVE_MAX_SIGNAL_SIZE", 100.0))
+        base_size = min(
+            move_magnitude * _cfg("LINE_MOVE_SIZE_PER_PCT", 5.0),
+            _cfg("LINE_MOVE_MAX_SIGNAL_SIZE", 100.0),
+        )
         # Volume boost: scale up to 2x for high-volume moves
-        vol_factor = min(2.0, max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)))
+        vol_factor = min(
+            2.0,
+            max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)),
+        )
         size = round(base_size * vol_factor * confidence, 2)
 
         return {

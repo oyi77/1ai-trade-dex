@@ -8,6 +8,7 @@ Benchmarks:
 - Full AGI cycle < 10 seconds
 - LLM cost tracking < 1ms overhead per call
 """
+
 import time
 
 import pytest
@@ -34,7 +35,9 @@ class TestPerformanceBenchmarks:
         for _ in range(1000):
             detector.detect_regime(market_data)
         elapsed = time.perf_counter() - start
-        assert elapsed < 1.0, f"Regime detection for 1000 points took {elapsed:.3f}s (limit: 1s)"
+        assert (
+            elapsed < 1.0
+        ), f"Regime detection for 1000 points took {elapsed:.3f}s (limit: 1s)"
 
     @pytest.mark.skip(reason="Fails due to CPU bottleneck on Github Actions")
     def test_kg_query_under_100ms(self):
@@ -47,7 +50,9 @@ class TestPerformanceBenchmarks:
             entity = kg.get_entity(f"entity_{i}")
             assert entity is not None
         elapsed = time.perf_counter() - start
-        assert elapsed < 0.1, f"KG query for 100 lookups took {elapsed:.3f}s (limit: 100ms)"
+        assert (
+            elapsed < 0.1
+        ), f"KG query for 100 lookups took {elapsed:.3f}s (limit: 100ms)"
 
     def test_strategy_composition_under_500ms(self):
         composer = StrategyComposer()
@@ -99,7 +104,9 @@ class TestPerformanceBenchmarks:
         for _ in range(10):
             _explanation = reasoner.trace_causation("trade_001")
         elapsed = time.perf_counter() - start
-        assert elapsed < 2.0, f"Causal reasoning for 10 traces took {elapsed:.3f}s (limit: 2s)"
+        assert (
+            elapsed < 2.0
+        ), f"Causal reasoning for 10 traces took {elapsed:.3f}s (limit: 2s)"
 
     def test_full_agi_cycle_under_10s(self):
         orchestrator = AGIOrchestrator()
@@ -116,4 +123,6 @@ class TestPerformanceBenchmarks:
             tracker.record_call("claude-3-opus", 100, 0.003, "signal_analysis")
         elapsed = time.perf_counter() - start
         per_call = elapsed / 100
-        assert per_call < 0.001, f"LLM cost tracking overhead {per_call*1000:.3f}ms per call (limit: 1ms)"
+        assert (
+            per_call < 0.001
+        ), f"LLM cost tracking overhead {per_call*1000:.3f}ms per call (limit: 1ms)"

@@ -21,9 +21,9 @@ def calculate_fitness(metrics: FitnessMetrics) -> float:
         # Allows them to enter the evolution pool; they won't pass promotion gates
         # without settled trades but they can be bred/mutated.
         provisional = (
-            normalize(metrics.profit_factor, 0, 5) * 0.40 +
-            metrics.win_rate * 0.30 +
-            (1.0 - metrics.max_drawdown_pct) * 0.30
+            normalize(metrics.profit_factor, 0, 5) * 0.40
+            + metrics.win_rate * 0.30
+            + (1.0 - metrics.max_drawdown_pct) * 0.30
         )
         return max(0.0, min(1.0, provisional))
 
@@ -31,11 +31,11 @@ def calculate_fitness(metrics: FitnessMetrics) -> float:
         return 0.0
 
     score = (
-        (normalize(metrics.sharpe_ratio, -3, 3) * 0.30) +
-        (metrics.win_rate * 0.20) +
-        (normalize(metrics.profit_factor, 0, 5) * 0.15) +
-        ((1.0 - metrics.max_drawdown_pct) * 0.15) +
-        (normalize(metrics.alpha_per_trade, -1, 1) * 0.10) +
-        (metrics.capital_rotation_efficiency * 0.10)
+        (normalize(metrics.sharpe_ratio, -3, 3) * 0.30)
+        + (metrics.win_rate * 0.20)
+        + (normalize(metrics.profit_factor, 0, 5) * 0.15)
+        + ((1.0 - metrics.max_drawdown_pct) * 0.15)
+        + (normalize(metrics.alpha_per_trade, -1, 1) * 0.10)
+        + (metrics.capital_rotation_efficiency * 0.10)
     )
     return max(0.0, min(1.0, score))

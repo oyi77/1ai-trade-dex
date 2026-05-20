@@ -1,10 +1,13 @@
 """Shadow genome validation job for promotion eligibility."""
+
 from datetime import datetime, timezone
 
 from backend.models.database import SessionLocal, GenomeRegistry, EvolutionLog
 from backend.application.strategy.shadow_runner import DBSessionShadowRunner
 
 from loguru import logger
+
+
 def shadow_validation_job():
     """Validate all SHADOW stage genomes for promotion eligibility.
 
@@ -25,9 +28,9 @@ def shadow_validation_job():
         shadow_runner = DBSessionShadowRunner()
 
         # Get all genomes in SHADOW stage
-        shadow_genomes = db.query(GenomeRegistry).filter(
-            GenomeRegistry.stage == "SHADOW"
-        ).all()
+        shadow_genomes = (
+            db.query(GenomeRegistry).filter(GenomeRegistry.stage == "SHADOW").all()
+        )
 
         logger.info(f"Found {len(shadow_genomes)} genomes in SHADOW stage")
 
@@ -51,17 +54,18 @@ def shadow_validation_job():
             )
 
             # Check if eligible for promotion
-            if eligibility['eligible']:
+            if eligibility["eligible"]:
                 # Publish event for eligible genomes
                 from backend.core.event_bus import publish_event as publish_event
+
                 event_data = {
                     "genome_id": genome_id,
                     "stage": "SHADOW",
                     "target_stage": "PAPER",
-                    "total_trades": eligibility['total_trades'],
-                    "accuracy": eligibility['accuracy'],
-                    "days_active": eligibility['days_active'],
-                    "reason": eligibility['reason']
+                    "total_trades": eligibility["total_trades"],
+                    "accuracy": eligibility["accuracy"],
+                    "days_active": eligibility["days_active"],
+                    "reason": eligibility["reason"],
                 }
                 publish_event("genome_ready_for_paper", event_data)
 
@@ -72,11 +76,11 @@ def shadow_validation_job():
                     from_stage="SHADOW",
                     to_stage="PAPER",
                     data={
-                        "accuracy": eligibility['accuracy'],
-                        "days_active": eligibility['days_active'],
-                        "total_trades": eligibility['total_trades']
+                        "accuracy": eligibility["accuracy"],
+                        "days_active": eligibility["days_active"],
+                        "total_trades": eligibility["total_trades"],
                     },
-                    timestamp=datetime.now(timezone.utc)
+                    timestamp=datetime.now(timezone.utc),
                 )
                 db.add(log_entry)
                 db.commit()
@@ -87,9 +91,11 @@ def shadow_validation_job():
             if stage_entered_at.tzinfo is None:
                 stage_entered_at = stage_entered_at.replace(tzinfo=timezone.utc)
             days_in_shadow = (datetime.now(timezone.utc) - stage_entered_at).days
-            if (days_in_shadow >= 7 and
-                eligibility['accuracy'] < 0.40 and
-                eligibility['total_trades'] >= 10):
+            if (
+                days_in_shadow >= 7
+                and eligibility["accuracy"] < 0.40
+                and eligibility["total_trades"] >= 10
+            ):
 
                 # Auto-kill to GRAVEYARD
                 genome.stage = "GRAVEYARD"
@@ -102,16 +108,18 @@ def shadow_validation_job():
                     from_stage="SHADOW",
                     to_stage="GRAVEYARD",
                     data={
-                        "accuracy": eligibility['accuracy'],
-                        "days_active": eligibility['days_active'],
-                        "total_trades": eligibility['total_trades'],
-                        "reason": "Stale low-accuracy genome (>7 days, accuracy < 0.40)"
+                        "accuracy": eligibility["accuracy"],
+                        "days_active": eligibility["days_active"],
+                        "total_trades": eligibility["total_trades"],
+                        "reason": "Stale low-accuracy genome (>7 days, accuracy < 0.40)",
                     },
-                    timestamp=datetime.now(timezone.utc)
+                    timestamp=datetime.now(timezone.utc),
                 )
                 db.add(log_entry)
                 db.commit()
 
-                logger.warning(f"Auto-killed genome {genome_id} to GRAVEYARD due to poor performance")
+                logger.warning(
+                    f"Auto-killed genome {genome_id} to GRAVEYARD due to poor performance"
+                )
 
     logger.info("Shadow validation job completed")

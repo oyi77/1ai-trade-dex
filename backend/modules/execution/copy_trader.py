@@ -112,7 +112,11 @@ async def _fetch_token_id(
             resp = await http.get(f"{GAMMA_HOST}/markets/{condition_id}")
             if resp.status_code == 200:
                 data = resp.json()
-                market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+                market = (
+                    data
+                    if isinstance(data, dict)
+                    else (data[0] if isinstance(data, list) and data else None)
+                )
                 if market:
                     token_id = _extract_clob_token_id(market)
 
@@ -123,7 +127,11 @@ async def _fetch_token_id(
             resp = await http.get(f"{CLOB_HOST}/markets/{condition_id}")
             if resp.status_code == 200:
                 data = resp.json()
-                market = data if isinstance(data, dict) else (data[0] if isinstance(data, list) and data else None)
+                market = (
+                    data
+                    if isinstance(data, dict)
+                    else (data[0] if isinstance(data, list) and data else None)
+                )
                 if market:
                     token_id = _extract_clob_token_id(market)
 
@@ -148,7 +156,10 @@ async def _fetch_token_id(
 
 
 # Import from extracted modules
-from backend.strategies.wallet_sync import WalletWatcher, WalletTrade  # noqa: E402, F401
+from backend.strategies.wallet_sync import (
+    WalletWatcher,
+    WalletTrade,
+)  # noqa: E402, F401
 from backend.strategies.order_executor import (  # noqa: E402
     LeaderboardScorer,
     ScoredTrader,
@@ -400,7 +411,9 @@ class CopyTraderStrategy(BaseStrategy):
             traders = await self._engine._scorer.fetch_and_score(top_n=50)
             scored = [t for t in traders if t.score >= min_score]
             scored.sort(key=lambda t: t.score, reverse=True)
-            ctx.logger.info(f"CopyTrader: min_score={min_score}, total traders={len(traders)}, scored (>=min_score)={len(scored)}, top5_scores={[round(t.score,1) for t in scored[:5]]}")
+            ctx.logger.info(
+                f"CopyTrader: min_score={min_score}, total traders={len(traders)}, scored (>=min_score)={len(scored)}, top5_scores={[round(t.score,1) for t in scored[:5]]}"
+            )
             leaderboard_wallets = [t.user for t in scored[:max_wallets]]
         except Exception as e:
             ctx.logger.warning(f"CopyTrader: leaderboard fetch failed: {e}")
@@ -418,6 +431,7 @@ class CopyTraderStrategy(BaseStrategy):
     async def on_market_event(self, event):
         """Handle CLOB WS events for leaderboard traders' tokens."""
         from backend.strategies.base import MarketEvent
+
         if not isinstance(event, MarketEvent):
             return None
         if event.event_type != "last_trade_price":
@@ -507,7 +521,11 @@ class CopyTraderStrategy(BaseStrategy):
                     reason = wallet_signals[0].reasoning
                 else:
                     signal_data = json.dumps(
-                        {"min_score": min_score, "max_wallets": max_wallets, "sources": ["copy_trader"]}
+                        {
+                            "min_score": min_score,
+                            "max_wallets": max_wallets,
+                            "sources": ["copy_trader"],
+                        }
                     )
                     reason = f"No new trades detected for wallet {wallet[:10]}..."
 
@@ -516,11 +534,21 @@ class CopyTraderStrategy(BaseStrategy):
                     market_ticker=wallet[:42],  # wallet address as identifier
                     decision=decision,
                     # E-102: None check on trader_score before division
-                    confidence=(wallet_signals[0].trader_score / 100.0)
-                    if wallet_signals and wallet_signals[0].trader_score is not None
-                    else None,
-                    signal_data=signal_data if wallet_signals else json.dumps(
-                        {"min_score": min_score, "max_wallets": max_wallets, "sources": ["copy_trader"]}
+                    confidence=(
+                        (wallet_signals[0].trader_score / 100.0)
+                        if wallet_signals and wallet_signals[0].trader_score is not None
+                        else None
+                    ),
+                    signal_data=(
+                        signal_data
+                        if wallet_signals
+                        else json.dumps(
+                            {
+                                "min_score": min_score,
+                                "max_wallets": max_wallets,
+                                "sources": ["copy_trader"],
+                            }
+                        )
                     ),
                     reason=reason,
                 )
@@ -536,8 +564,7 @@ class CopyTraderStrategy(BaseStrategy):
                 active_ids = await self._fetch_active_condition_ids()
                 before_count = len(signals)
                 signals = [
-                    s for s in signals
-                    if s.source_trade.condition_id in active_ids
+                    s for s in signals if s.source_trade.condition_id in active_ids
                 ]
                 filtered = before_count - len(signals)
                 if filtered:
@@ -589,7 +616,7 @@ class CopyTraderStrategy(BaseStrategy):
                     },
                     confidence=confidence,
                     mode=ctx.mode,
-                    db=ctx.db
+                    db=ctx.db,
                 )
 
                 result.decisions.append(

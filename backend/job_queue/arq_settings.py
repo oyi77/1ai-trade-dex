@@ -6,6 +6,7 @@ Start the worker with:
 
 RQ-015: arq-based Redis queue
 """
+
 from arq.connections import RedisSettings
 
 from backend.config import settings

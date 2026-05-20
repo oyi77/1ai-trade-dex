@@ -1,17 +1,19 @@
 """Auto-research — fetches live market context with strict timeouts."""
+
 import asyncio
 import httpx
 
 from backend.config import settings
 
 from loguru import logger
+
+
 async def gather_market_context(market_id: str, query: str) -> str:
     """Fetch live market research context. Returns summary or 'LIVE_DATA_UNAVAILABLE' on failure."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await asyncio.wait_for(
-                client.get(f"{settings.GAMMA_API_URL}/markets/{market_id}"),
-                timeout=5.0
+                client.get(f"{settings.GAMMA_API_URL}/markets/{market_id}"), timeout=5.0
             )
             if resp.status_code == 200:
                 data = resp.json()

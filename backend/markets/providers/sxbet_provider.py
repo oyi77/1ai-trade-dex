@@ -1,13 +1,23 @@
 """SX.bet market provider."""
+
 import os
 from decimal import Decimal
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderStatus
 from backend.markets.provider_registry import market_registry
 from loguru import logger
 
 try:
     from backend.clients.sxbet_client import SXBetClient
+
     HAS_SXBET = True
 except ImportError:
     HAS_SXBET = False
@@ -65,9 +75,15 @@ class SXBetProvider(BaseMarketProvider):
                 stake_wei=int(order.size * 10**18),
                 private_key=private_key,
             )
-            fees_paid = Decimal(str(
-                result.get("fee") or result.get("fees") or result.get("gasUsed") or result.get("txFee") or "0"
-            ))
+            fees_paid = Decimal(
+                str(
+                    result.get("fee")
+                    or result.get("fees")
+                    or result.get("gasUsed")
+                    or result.get("txFee")
+                    or "0"
+                )
+            )
             return NormalizedOrderResult(
                 venue_order_id=result.get("orderId", "unknown"),
                 client_order_id=order.client_order_id,
@@ -90,11 +106,21 @@ class SXBetProvider(BaseMarketProvider):
         raw = await self._client.get_markets(limit=limit)
         if isinstance(raw, dict):
             raw = raw.get("data", raw.get("markets", []))
-        return [MarketInfo(market_id=str(m.get("marketHash", "")), question=str(m.get("title", "")), yes_price=0.5, no_price=0.5) for m in raw]
+        return [
+            MarketInfo(
+                market_id=str(m.get("marketHash", "")),
+                question=str(m.get("title", "")),
+                yes_price=0.5,
+                no_price=0.5,
+            )
+            for m in raw
+        ]
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(available=Decimal("0"), total=Decimal("0"), currency="USDC")
+        return NormalizedBalance(
+            available=Decimal("0"), total=Decimal("0"), currency="USDC"
+        )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

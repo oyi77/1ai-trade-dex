@@ -8,10 +8,10 @@ import pytest
 
 from backend.cli import build_parser
 
-
 # ---------------------------------------------------------------------------
 # Helpers -- use SimpleNamespace so __dict__ is JSON-serializable
 # ---------------------------------------------------------------------------
+
 
 def _make_analysis(**overrides):
     """Create a JSON-safe WalletAnalysis-like object."""
@@ -107,9 +107,7 @@ class TestAnalyzeCommand:
     @patch("backend.cli.analyze_wallet_rapid", new_callable=AsyncMock)
     @patch("backend.cli.analyze_wallet", new_callable=AsyncMock)
     @patch("backend.cli.resolve_wallet", new_callable=AsyncMock)
-    async def test_analyze_full(
-        self, mock_resolve, mock_analyze, mock_rapid, capsys
-    ):
+    async def test_analyze_full(self, mock_resolve, mock_analyze, mock_rapid, capsys):
         mock_resolve.return_value = _make_wallet_info(proxy="0xproxy")
         mock_analyze.return_value = _make_analysis()
 
@@ -119,6 +117,7 @@ class TestAnalyzeCommand:
         args.json = False
 
         from backend.cli import cmd_analyze
+
         await cmd_analyze(args)
 
         mock_resolve.assert_awaited_once_with("0xabc")
@@ -141,6 +140,7 @@ class TestAnalyzeCommand:
         args.json = False
 
         from backend.cli import cmd_analyze
+
         await cmd_analyze(args)
 
         mock_rapid.assert_awaited_once_with("0xproxy")
@@ -159,6 +159,7 @@ class TestResolveCommand:
         args.json = False
 
         from backend.cli import cmd_resolve
+
         await cmd_resolve(args)
 
         mock_resolve.assert_awaited_once_with("testuser")
@@ -181,6 +182,7 @@ class TestProxyCommand:
         args.json = False
 
         from backend.cli import cmd_proxy
+
         await cmd_proxy(args)
 
         mock_find.assert_awaited_once_with("0xeoa")
@@ -197,6 +199,7 @@ class TestProxyCommand:
         args.json = False
 
         from backend.cli import cmd_proxy
+
         await cmd_proxy(args)
 
         captured = capsys.readouterr()
@@ -218,6 +221,7 @@ class TestScanCommand:
         args.json = False
 
         from backend.cli import cmd_scan
+
         await cmd_scan(args)
 
         mock_scan.assert_awaited_once_with(
@@ -241,6 +245,7 @@ class TestJsonFlag:
         args.json = True
 
         from backend.cli import cmd_resolve
+
         await cmd_resolve(args)
 
         captured = capsys.readouterr()
@@ -260,6 +265,7 @@ class TestJsonFlag:
         args.json = True
 
         from backend.cli import cmd_analyze
+
         await cmd_analyze(args)
 
         captured = capsys.readouterr()

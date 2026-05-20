@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 from backend.models.database import StrategyConfig
 from loguru import logger
 
-
 # Minimum thresholds for each pipeline stage
 STAGE_REQUIREMENTS = {
     "paper": {
@@ -137,7 +136,9 @@ class StrategyGate:
                 # Check if enough paper trades to enter fronttest
                 paper_count = _count_paper_trades(name, db)
                 if paper_count >= STAGE_REQUIREMENTS["fronttest"]["min_trades"]:
-                    logger.info(f"[GATE] {name}: paper→fronttest ({paper_count} trades)")
+                    logger.info(
+                        f"[GATE] {name}: paper→fronttest ({paper_count} trades)"
+                    )
                     promoted = True
 
             elif stage == "fronttest":
@@ -147,12 +148,18 @@ class StrategyGate:
                         # Skip shadow, go directly to live
                         cfg.mode = "live"
                         db.commit()
-                        results.append({"strategy": name, "from": "fronttest", "to": "live"})
-                        logger.info(f"[GATE] {name}: fronttest→live (exempt from shadow)")
+                        results.append(
+                            {"strategy": name, "from": "fronttest", "to": "live"}
+                        )
+                        logger.info(
+                            f"[GATE] {name}: fronttest→live (exempt from shadow)"
+                        )
                     else:
                         cfg.mode = "shadow"
                         db.commit()
-                        results.append({"strategy": name, "from": "fronttest", "to": "shadow"})
+                        results.append(
+                            {"strategy": name, "from": "fronttest", "to": "shadow"}
+                        )
                         logger.info(f"[GATE] {name}: fronttest→shadow")
                     promoted = True
 
@@ -174,12 +181,19 @@ class StrategyGate:
 def _count_paper_trades(strategy_name: str, db: Session) -> int:
     """Count paper trades with real settlement (not simulated)."""
     from sqlalchemy import text
-    return db.execute(text("""
+
+    return (
+        db.execute(
+            text("""
         SELECT COUNT(*) FROM trades
         WHERE strategy = :s AND trading_mode = 'paper'
           AND result IN ('win', 'loss')
           AND condition_id IS NOT NULL
-    """), {"s": strategy_name}).scalar() or 0
+    """),
+            {"s": strategy_name},
+        ).scalar()
+        or 0
+    )
 
 
 def _check_fronttest(strategy_name: str, db: Session) -> dict:
@@ -292,7 +306,7 @@ def _check_shadow(strategy_name: str, db: Session) -> dict:
 # =========================================================================
 
 MAX_DAILY_LOSS_PER_STRATEGY = 50.0  # USD
-MAX_TOTAL_DRAWDOWN_PCT = 10.0       # % of total balance
+MAX_TOTAL_DRAWDOWN_PCT = 10.0  # % of total balance
 
 
 def check_risk_and_disable(db) -> list[str]:
@@ -313,20 +327,33 @@ def check_risk_and_disable(db) -> list[str]:
     """)).fetchall()
 
     for (sname,) in strats:
-        daily_loss = db.execute(text("""
+        daily_loss = (
+            db.execute(
+                text("""
             SELECT COALESCE(SUM(pnl), 0) FROM trades
             WHERE strategy = :s AND trading_mode = 'live'
               AND DATE(timestamp) = :today
               AND result = 'loss'
-        """), {"s": sname, "today": today}).scalar() or 0
+        """),
+                {"s": sname, "today": today},
+            ).scalar()
+            or 0
+        )
 
         if abs(daily_loss) > MAX_DAILY_LOSS_PER_STRATEGY:
-            db.execute(text("""
+            db.execute(
+                text("""
                 UPDATE strategy_config SET enabled = false
                 WHERE strategy_name = :s
-            """), {"s": sname})
-            disabled.append(f"{sname}: daily loss ${abs(daily_loss):.2f} > ${MAX_DAILY_LOSS_PER_STRATEGY}")
-            logger.warning(f"[RISK] Auto-disabled {sname}: daily loss ${abs(daily_loss):.2f}")
+            """),
+                {"s": sname},
+            )
+            disabled.append(
+                f"{sname}: daily loss ${abs(daily_loss):.2f} > ${MAX_DAILY_LOSS_PER_STRATEGY}"
+            )
+            logger.warning(
+                f"[RISK] Auto-disabled {sname}: daily loss ${abs(daily_loss):.2f}"
+            )
 
     # 2. Total drawdown check
     total_pnl = db.execute(text("""
@@ -341,8 +368,12 @@ def check_risk_and_disable(db) -> list[str]:
             UPDATE strategy_config SET enabled = false
             WHERE mode = 'live' AND enabled = true
         """))
-        disabled.append(f"ALL LIVE: drawdown {drawdown_pct:.1f}% > {MAX_TOTAL_DRAWDOWN_PCT}%")
-        logger.warning(f"[RISK] EMERGENCY: All live strats disabled ({drawdown_pct:.1f}% drawdown)")
+        disabled.append(
+            f"ALL LIVE: drawdown {drawdown_pct:.1f}% > {MAX_TOTAL_DRAWDOWN_PCT}%"
+        )
+        logger.warning(
+            f"[RISK] EMERGENCY: All live strats disabled ({drawdown_pct:.1f}% drawdown)"
+        )
 
     if disabled:
         db.commit()

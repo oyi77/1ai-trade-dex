@@ -14,6 +14,7 @@ from backend.data.market_types import UnifiedMarketView
 from backend.config import settings
 
 from loguru import logger
+
 GAMMA_API = settings.GAMMA_API_URL
 
 gamma_breaker = CircuitBreaker("gamma_api")
@@ -143,7 +144,9 @@ def _compute_window_slugs(asset: str = "btc", count: int = 5) -> List[str]:
     return slugs
 
 
-def _parse_event_to_crypto_market(event: dict, asset: str = "btc") -> Optional[CryptoMarket]:
+def _parse_event_to_crypto_market(
+    event: dict, asset: str = "btc"
+) -> Optional[CryptoMarket]:
     """Parse a Polymarket event into a CryptoMarket."""
     markets = event.get("markets", [])
     if not markets:
@@ -224,7 +227,9 @@ def _parse_event_to_crypto_market(event: dict, asset: str = "btc") -> Optional[C
 _parse_event_to_btc_market = _parse_event_to_crypto_market
 
 
-async def fetch_crypto_market_by_slug(slug: str, asset: str = "btc") -> Optional[CryptoMarket]:
+async def fetch_crypto_market_by_slug(
+    slug: str, asset: str = "btc"
+) -> Optional[CryptoMarket]:
     """Fetch a single crypto 5-min market by its event slug."""
     if not is_valid_crypto_slug(slug, asset):
         logger.debug(f"Rejected invalid {asset} slug: {slug}")
@@ -329,7 +334,9 @@ async def fetch_active_btc_markets(
     return await fetch_active_crypto_markets(asset="btc", keywords=keywords)
 
 
-async def fetch_crypto_market_for_settlement(slug: str, asset: str = "btc") -> Optional[CryptoMarket]:
+async def fetch_crypto_market_for_settlement(
+    slug: str, asset: str = "btc"
+) -> Optional[CryptoMarket]:
     """
     Fetch a crypto market for settlement purposes (includes closed markets).
     """

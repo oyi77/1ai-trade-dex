@@ -7,6 +7,7 @@ B) Blockscout whale tracking (large PUSD transfers)
 C) Polymarket leaderboard
 D) Known profitable wallets (seeded)
 """
+
 import json
 import time
 import logging
@@ -84,14 +85,16 @@ async def find_profitable_traders(
             if total_volume < min_volume or len(positions) < min_trades:
                 continue
 
-            scored.append(TraderScore(
-                wallet=wallet,
-                pnl=total_pnl,
-                win_rate=win_rate,
-                total_trades=len(positions),
-                volume=total_volume,
-                source_method="scan",
-            ))
+            scored.append(
+                TraderScore(
+                    wallet=wallet,
+                    pnl=total_pnl,
+                    win_rate=win_rate,
+                    total_trades=len(positions),
+                    volume=total_volume,
+                    source_method="scan",
+                )
+            )
         except Exception as e:
             logger.debug("Failed to score %s: %s", wallet, e)
             continue
@@ -108,7 +111,8 @@ async def _discover_from_gamma() -> set:
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
-                f"{settings.GAMMA_API_URL}/markets", params={"limit": 20, "active": True}
+                f"{settings.GAMMA_API_URL}/markets",
+                params={"limit": 20, "active": True},
             )
             if resp.status_code == 200:
                 markets = resp.json()
@@ -133,7 +137,9 @@ async def _discover_from_gamma() -> set:
                                     if addr:
                                         wallets.add(addr)
                         except Exception as e:
-                            logger.debug("Gamma orderbook parse failed for %s: %s", cid, e)
+                            logger.debug(
+                                "Gamma orderbook parse failed for %s: %s", cid, e
+                            )
     except Exception as e:
         logger.warning("Gamma discovery failed: %s", e)
     return wallets

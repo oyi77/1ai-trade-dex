@@ -12,6 +12,7 @@ Usage:
         fetch_sol_market_by_slug,
     )
 """
+
 from typing import List, Optional
 
 from backend.data.btc_markets import (
@@ -22,8 +23,8 @@ from backend.data.btc_markets import (
     is_valid_crypto_slug,
 )
 
-
 # --- ETH ---
+
 
 async def fetch_active_eth_markets(keywords: List[str] = None) -> List[CryptoMarket]:
     """Fetch current and upcoming ETH 5-min markets from Polymarket."""
@@ -46,6 +47,7 @@ def is_valid_eth_slug(slug: str) -> bool:
 
 
 # --- SOL ---
+
 
 async def fetch_active_sol_markets(keywords: List[str] = None) -> List[CryptoMarket]:
     """Fetch current and upcoming SOL 5-min markets from Polymarket."""

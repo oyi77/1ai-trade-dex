@@ -64,13 +64,19 @@ def wr_monitor_job() -> None:
                         disabled.append(label)
                         logger.warning(
                             "[wr_monitor] Auto-disabled %s (WR=%.0f%% < %.0f%%, pnl=$%.2f)",
-                            cfg.strategy_name, wr * 100, WR_THRESHOLD * 100, pnl,
+                            cfg.strategy_name,
+                            wr * 100,
+                            WR_THRESHOLD * 100,
+                            pnl,
                         )
                     else:
                         # Profitable but WR below threshold -> warning only
                         logger.warning(
                             "[wr_monitor] Low WR warning %s: WR=%.0f%% < %.0f%% but pnl=$%.2f (profitable)",
-                            cfg.strategy_name, wr * 100, WR_THRESHOLD * 100, pnl,
+                            cfg.strategy_name,
+                            wr * 100,
+                            WR_THRESHOLD * 100,
+                            pnl,
                         )
 
         # Publish disable events after session closes
@@ -82,7 +88,9 @@ def wr_monitor_job() -> None:
                     "strategy_wr_disabled",
                     {"detail": label, "timestamp": now.isoformat()},
                 )
-            logger.info("[wr_monitor] Disabled %d strategies: %s", len(disabled), disabled)
+            logger.info(
+                "[wr_monitor] Disabled %d strategies: %s", len(disabled), disabled
+            )
 
     except Exception as exc:
         logger.exception("[wr_monitor] WR monitor check failed: %s", exc)

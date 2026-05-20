@@ -77,7 +77,9 @@ async def on_signal_found(event_type: str, data: Dict[str, Any]) -> None:
                 market_ticker,
             )
     except Exception as exc:
-        logger.warning("EVENT-RESEARCH: signal trigger failed for '%s': %s", market_ticker, exc)
+        logger.warning(
+            "EVENT-RESEARCH: signal trigger failed for '%s': %s", market_ticker, exc
+        )
 
 
 async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
@@ -139,7 +141,9 @@ async def on_regime_changed(event_type: str, data: Dict[str, Any]) -> None:
             storage = ResearchStorage()
             stored = await storage.store_items(items)
             logger.info(
-                "EVENT-RESEARCH: stored %d/%d items for regime change", stored, len(items)
+                "EVENT-RESEARCH: stored %d/%d items for regime change",
+                stored,
+                len(items),
             )
     except Exception as exc:
         logger.warning("EVENT-RESEARCH: regime trigger failed: %s", exc)

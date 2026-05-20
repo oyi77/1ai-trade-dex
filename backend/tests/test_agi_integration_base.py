@@ -13,6 +13,8 @@ class AGIIntegrationBase:
     def assert_kg_data_not_corrupted(self, kg, entity_id):
         entity = kg.get_entity(entity_id)
         if entity is not None:
-            assert isinstance(entity.properties, dict), "KG entity properties must be dict"
+            assert isinstance(
+                entity.properties, dict
+            ), "KG entity properties must be dict"
             assert entity.entity_type, "KG entity must have entity_type"
             assert entity.entity_id, "KG entity must have entity_id"

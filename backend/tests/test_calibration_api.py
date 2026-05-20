@@ -22,7 +22,6 @@ from fastapi.testclient import TestClient
 
 from backend.api.main import app
 
-
 CALIBRATION_URL = "/api/v1/calibration"
 
 
@@ -36,9 +35,9 @@ def test_calibration_endpoint_returns_200(client):
     response = client.get(CALIBRATION_URL)
     if response.status_code == 404:
         pytest.skip("Calibration endpoint not yet implemented (T24)")
-    assert response.status_code == 200, (
-        f"Expected 200, got {response.status_code}: {response.text}"
-    )
+    assert (
+        response.status_code == 200
+    ), f"Expected 200, got {response.status_code}: {response.text}"
 
 
 def test_calibration_response_has_buckets_key(client):

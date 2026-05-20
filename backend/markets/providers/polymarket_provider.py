@@ -1,9 +1,18 @@
 """Polymarket market provider plugin."""
+
 from typing import List, Optional
 from decimal import Decimal
 import uuid
 
-from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest, NormalizedOrder, NormalizedOrderResult, NormalizedBalance, NormalizedPosition, VenueCapability
+from backend.markets.base_provider import (
+    BaseMarketProvider,
+    MarketProviderManifest,
+    NormalizedOrder,
+    NormalizedOrderResult,
+    NormalizedBalance,
+    NormalizedPosition,
+    VenueCapability,
+)
 from backend.markets.order_types import MarketInfo, OrderSide, OrderStatus, PositionSide
 from backend.markets.provider_registry import market_registry
 from backend.config import settings
@@ -11,6 +20,7 @@ from loguru import logger
 
 try:
     from backend.data.polymarket_clob import clob_from_settings
+
     HAS_POLYMARKET = True
 except ImportError:
     HAS_POLYMARKET = False
@@ -63,11 +73,15 @@ class PolymarketProvider(BaseMarketProvider):
 
         price = order.price
         if price is None:
-            return self._rejected(order, "Polymarket live provider requires a limit price")
+            return self._rejected(
+                order, "Polymarket live provider requires a limit price"
+            )
 
         token_id = self._resolve_token_id(order)
         if not token_id:
-            return self._rejected(order, "Polymarket live provider requires a CLOB token_id")
+            return self._rejected(
+                order, "Polymarket live provider requires a CLOB token_id"
+            )
 
         clob_side = "SELL" if order.side == OrderSide.SELL else "BUY"
         try:
@@ -86,10 +100,12 @@ class PolymarketProvider(BaseMarketProvider):
             return self._rejected(order, result.error or "Polymarket rejected order")
 
         filled_size = Decimal(str(result.fill_size or 0))
-        fill_price = Decimal(str(result.fill_price)) if result.fill_price is not None else price
+        fill_price = (
+            Decimal(str(result.fill_price)) if result.fill_price is not None else price
+        )
         remaining = Decimal("0") if filled_size else order.size
         status = OrderStatus.FILLED if filled_size else OrderStatus.OPEN
-        fees_paid = Decimal(str(getattr(result, 'fee', 0) or 0))
+        fees_paid = Decimal(str(getattr(result, "fee", 0) or 0))
         return NormalizedOrderResult(
             venue_order_id=result.order_id or f"polymarket_{uuid.uuid4().hex}",
             client_order_id=order.client_order_id,
@@ -145,13 +161,23 @@ class PolymarketProvider(BaseMarketProvider):
             if market_id and mid != market_id:
                 continue
             outcome = p.get("outcome", "YES")
-            position_side = PositionSide.LONG if outcome.upper() == "YES" else PositionSide.SHORT
+            position_side = (
+                PositionSide.LONG if outcome.upper() == "YES" else PositionSide.SHORT
+            )
             size = Decimal(str(p.get("size", p.get("shares", 0))))
             entry_price = Decimal(str(p.get("avg_price", p.get("entry_price", 0))))
             current_price_raw = p.get("current_price")
-            current_price = Decimal(str(current_price_raw)) if current_price_raw is not None else None
+            current_price = (
+                Decimal(str(current_price_raw))
+                if current_price_raw is not None
+                else None
+            )
             unrealized_pnl_raw = p.get("unrealized_pnl")
-            unrealized_pnl = Decimal(str(unrealized_pnl_raw)) if unrealized_pnl_raw is not None else None
+            unrealized_pnl = (
+                Decimal(str(unrealized_pnl_raw))
+                if unrealized_pnl_raw is not None
+                else None
+            )
             positions.append(
                 NormalizedPosition(
                     market_id=mid,
@@ -166,7 +192,10 @@ class PolymarketProvider(BaseMarketProvider):
         return positions
 
     async def search_markets(
-        self, query: Optional[str] = None, category: Optional[str] = None, limit: int = 50
+        self,
+        query: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: int = 50,
     ) -> List[MarketInfo]:
         from backend.data.gamma import fetch_markets as gamma_fetch_markets
 
@@ -186,7 +215,7 @@ class PolymarketProvider(BaseMarketProvider):
             yes_price_raw = m.get("outcomePrices", m.get("current_price", "0.5"))
             if isinstance(yes_price_raw, str):
                 try:
-                    yes_price_raw = yes_price_raw.strip("[]\"").split(",")[0]
+                    yes_price_raw = yes_price_raw.strip('[]"').split(",")[0]
                 except (AttributeError, IndexError):
                     yes_price_raw = "0.5"
             yes_price = Decimal(str(yes_price_raw or "0.5"))
@@ -198,7 +227,10 @@ class PolymarketProvider(BaseMarketProvider):
             if end_date:
                 try:
                     from datetime import datetime
-                    closes_at = datetime.fromisoformat(end_date.replace("Z", "+00:00")).timestamp()
+
+                    closes_at = datetime.fromisoformat(
+                        end_date.replace("Z", "+00:00")
+                    ).timestamp()
                 except (ValueError, TypeError):
                     closes_at = None
             results.append(
@@ -226,8 +258,17 @@ class PolymarketProvider(BaseMarketProvider):
     def _resolve_token_id(self, order: NormalizedOrder) -> str:
         metadata = order.metadata or {}
         if order.side == OrderSide.NO:
-            return str(metadata.get("no_token_id") or metadata.get("token_id") or order.market_id)
-        return str(metadata.get("yes_token_id") or metadata.get("clob_token_id") or metadata.get("token_id") or order.market_id)
+            return str(
+                metadata.get("no_token_id")
+                or metadata.get("token_id")
+                or order.market_id
+            )
+        return str(
+            metadata.get("yes_token_id")
+            or metadata.get("clob_token_id")
+            or metadata.get("token_id")
+            or order.market_id
+        )
 
     @staticmethod
     def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:

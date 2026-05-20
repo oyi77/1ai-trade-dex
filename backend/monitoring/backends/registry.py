@@ -7,7 +7,9 @@ from backend.core.plugin_registry import PluginRegistry
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
 
 
-class MetricsBackendRegistry(PluginRegistry[MetricsBackendManifest, BaseMetricsBackend]):
+class MetricsBackendRegistry(
+    PluginRegistry[MetricsBackendManifest, BaseMetricsBackend]
+):
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -36,7 +38,9 @@ class MetricsBackendRegistry(PluginRegistry[MetricsBackendManifest, BaseMetricsB
 
         missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
         if missing:
-            raise PluginEnvVarMissing(f"Metrics backend '{name}' requires env vars: {missing}")
+            raise PluginEnvVarMissing(
+                f"Metrics backend '{name}' requires env vars: {missing}"
+            )
 
         try:
             instance = backend_class()
@@ -62,9 +66,13 @@ class MetricsBackendRegistry(PluginRegistry[MetricsBackendManifest, BaseMetricsB
     def list_enabled(self) -> List[str]:
         return [name for name, enabled in self._enabled.items() if enabled]
 
-    def record_metric(self, metric_type: str, name: str, value: float, tags: dict = None) -> None:
+    def record_metric(
+        self, metric_type: str, name: str, value: float, tags: dict = None
+    ) -> None:
         import asyncio
+
         loop = asyncio.new_event_loop()
+
         async def execute():
             for name, enabled in self._enabled.items():
                 if enabled and name in self._plugins:
@@ -75,6 +83,7 @@ class MetricsBackendRegistry(PluginRegistry[MetricsBackendManifest, BaseMetricsB
                         await backend.record_gauge(name, value, tags or {})
                     elif metric_type == "histogram":
                         await backend.record_histogram(name, value, tags or {})
+
         loop.run_until_complete(execute())
         loop.close()
 

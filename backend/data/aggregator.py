@@ -5,6 +5,7 @@ Sources are registered per category (e.g. "btc_price") and tried in
 priority order. A local TTL-based cache avoids redundant fetches and
 provides stale data when all sources are unavailable.
 """
+
 import time
 from dataclasses import dataclass
 from typing import Optional, Any, Callable, Awaitable
@@ -12,6 +13,8 @@ from typing import Optional, Any, Callable, Awaitable
 from backend.core.errors import DataQualityError
 
 from loguru import logger
+
+
 @dataclass
 class SourceResult:
     data: Any
@@ -40,7 +43,9 @@ class DataAggregator:
         result = await agg.fetch("btc_price")
     """
 
-    def __init__(self, cache_ttl: float = 60.0, max_stale_age: Optional[float] = 300.0) -> None:
+    def __init__(
+        self, cache_ttl: float = 60.0, max_stale_age: Optional[float] = 300.0
+    ) -> None:
         self.cache_ttl = cache_ttl
         # Maximum age in seconds for stale cache to be returned (None = unlimited).
         # If all sources fail and cached data is older than this, raise DataQualityError.
@@ -92,7 +97,12 @@ class DataAggregator:
                 data = await source.fetch_fn(**kwargs)
                 fetch_time = time.monotonic() - t0
                 self._cache[category] = (data, time.monotonic())
-                logger.debug("Fetched '%s' from source '%s' in %.3fs", category, source.name, fetch_time)
+                logger.debug(
+                    "Fetched '%s' from source '%s' in %.3fs",
+                    category,
+                    source.name,
+                    fetch_time,
+                )
                 return SourceResult(
                     data=data,
                     source=source.name,

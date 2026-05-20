@@ -67,7 +67,9 @@ class SXBetProvider(DataProvider):
             # SX.bet markets have marketHash as the unique ID
             market_hash = m.get("marketHash") or m.get("gameId") or ""
             outcome_names: list = m.get("outcomeNames", [])
-            question = " vs ".join(outcome_names) if outcome_names else m.get("label", "")
+            question = (
+                " vs ".join(outcome_names) if outcome_names else m.get("label", "")
+            )
 
             # SX.bet uses decimal odds in the moneyline format
             odds = m.get("homeOdds", m.get("impliedOdds", 2.0))
@@ -140,7 +142,9 @@ class SXBetProvider(DataProvider):
         ]
 
     async def get_balance(self) -> BalanceInfo:
-        raise RuntimeError("SX.bet provider does not support balance queries — use markets/providers/ instead")
+        raise RuntimeError(
+            "SX.bet provider does not support balance queries — use markets/providers/ instead"
+        )
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, **kwargs
@@ -150,7 +154,9 @@ class SXBetProvider(DataProvider):
         private_key is read from kwargs → DB (is_secret=True) → ENV fallback.
         Full EIP-712 signing is planned in plugin-system task 26e.
         """
-        raise RuntimeError("SX.bet provider does not support order placement — use markets/providers/ instead")
+        raise RuntimeError(
+            "SX.bet provider does not support order placement — use markets/providers/ instead"
+        )
 
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an open maker order.
@@ -158,4 +164,6 @@ class SXBetProvider(DataProvider):
         SX.bet allows makers to cancel unfilled orders.
         Full implementation planned in plugin-system task 26e.
         """
-        raise RuntimeError("SX.bet provider does not support order cancellation — use markets/providers/ instead")
+        raise RuntimeError(
+            "SX.bet provider does not support order cancellation — use markets/providers/ instead"
+        )

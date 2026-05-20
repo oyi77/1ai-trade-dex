@@ -10,6 +10,7 @@ type remains independent with its own domain-specific fields. The
 to_unified() method is a simple adapter that converts to a shared API
 response format.
 """
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict
@@ -34,6 +35,7 @@ class UnifiedMarketView:
         closes_at: When the market closes/resolves (datetime)
         extra: Type-specific data (city, threshold, window, etc.)
     """
+
     slug: str
     platform: str
     title: str

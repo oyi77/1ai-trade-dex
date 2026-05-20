@@ -62,8 +62,10 @@ async def backfill(apply_changes: bool, limit: int | None, platform_filter: str 
 
     candidates = q.all()
 
-    print(f"Found {len(candidates)} live trades with pnl IS NULL"
-          + (f" (filter: platform={platform_filter})" if platform_filter else ""))
+    print(
+        f"Found {len(candidates)} live trades with pnl IS NULL"
+        + (f" (filter: platform={platform_filter})" if platform_filter else "")
+    )
 
     if not candidates:
         print("Nothing to backfill.")
@@ -80,12 +82,16 @@ async def backfill(apply_changes: bool, limit: int | None, platform_filter: str 
         try:
             is_resolved, settlement_value = await fetch_resolution_for_trade(trade)
         except Exception as exc:  # noqa: BLE001
-            print(f"  Trade {trade.id} [{platform}/{trade.market_ticker}]: API error — {exc}")
+            print(
+                f"  Trade {trade.id} [{platform}/{trade.market_ticker}]: API error — {exc}"
+            )
             api_errors += 1
             continue
 
         if not is_resolved or settlement_value is None:
-            print(f"  Trade {trade.id} [{platform}/{trade.market_ticker}]: unresolvable")
+            print(
+                f"  Trade {trade.id} [{platform}/{trade.market_ticker}]: unresolvable"
+            )
             unresolvable_count += 1
             if apply_changes:
                 trade.settlement_source = "unresolvable"
@@ -136,11 +142,26 @@ async def backfill(apply_changes: bool, limit: int | None, platform_filter: str 
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Backfill PnL for live trades closed without resolution.")
-    parser.add_argument("--apply", action="store_true", help="Commit changes (default: dry-run)")
-    parser.add_argument("--limit", type=int, default=None, help="Cap number of trades processed")
-    parser.add_argument("--platform", type=str, default=None, choices=["polymarket", "kalshi"],
-                        help="Restrict to a single platform")
+    parser = argparse.ArgumentParser(
+        description="Backfill PnL for live trades closed without resolution."
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Commit changes (default: dry-run)"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Cap number of trades processed"
+    )
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default=None,
+        choices=["polymarket", "kalshi"],
+        help="Restrict to a single platform",
+    )
     args = parser.parse_args()
 
-    asyncio.run(backfill(apply_changes=args.apply, limit=args.limit, platform_filter=args.platform))
+    asyncio.run(
+        backfill(
+            apply_changes=args.apply, limit=args.limit, platform_filter=args.platform
+        )
+    )

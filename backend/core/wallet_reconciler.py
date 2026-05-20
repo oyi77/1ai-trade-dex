@@ -28,21 +28,13 @@ class WalletReconciler:
             #    wallet_pnl becomes equity - equity = 0.
             #    wallet_pnl = actual wallet equity - initial bankroll (real P&L)
             with get_db_session() as db:
-                bot_state = (
-                    db.query(BotState)
-                    .filter(BotState.mode == mode)
-                    .first()
-                )
+                bot_state = db.query(BotState).filter(BotState.mode == mode).first()
                 if bot_state and equity is not None:
                     bot_state.last_wallet_sync_at = datetime.now(timezone.utc)
                     initial = (
-                        bot_state.live_initial_bankroll
-                        or bot_state.bankroll
-                        or 100.0
+                        bot_state.live_initial_bankroll or bot_state.bankroll or 100.0
                     )
-                    bot_state.wallet_pnl = round(
-                        equity - float(initial), 2
-                    )
+                    bot_state.wallet_pnl = round(equity - float(initial), 2)
                     db.commit()
 
             # 3. Reconcile bot state (overwrites bankroll with actual equity)
@@ -51,11 +43,7 @@ class WalletReconciler:
 
             # 3b. Compare wallet_pnl vs total_pnl for P&L drift detection
             with get_db_session() as db:
-                bot_state = (
-                    db.query(BotState)
-                    .filter(BotState.mode == mode)
-                    .first()
-                )
+                bot_state = db.query(BotState).filter(BotState.mode == mode).first()
                 if bot_state:
                     wpnl = float(bot_state.wallet_pnl or 0.0)
                     tpnl = float(bot_state.total_pnl or 0.0)
@@ -64,7 +52,9 @@ class WalletReconciler:
                     if pnl_drift_pct > 5.0:
                         logger.warning(
                             "[WalletReconciler] PnL drift %.1f%%: wallet_pnl=$%.2f vs total_pnl=$%.2f",
-                            pnl_drift_pct, wpnl, tpnl,
+                            pnl_drift_pct,
+                            wpnl,
+                            tpnl,
                         )
 
             # 4. Compare wallet_pnl vs stale total_pnl, alert if >5% drift
@@ -75,9 +65,7 @@ class WalletReconciler:
                         result.bankroll_drift_pct,
                     )
 
-            logger.info(
-                "[WalletReconciler] Reconciliation complete for %s", mode
-            )
+            logger.info("[WalletReconciler] Reconciliation complete for %s", mode)
         except Exception as e:
             logger.error(
                 "[WalletReconciler] Reconciliation failed: %s", e, exc_info=True

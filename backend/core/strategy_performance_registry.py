@@ -21,9 +21,11 @@ from sqlalchemy import Column, Integer, Float, String, DateTime, UniqueConstrain
 from backend.models.database import Base, SessionLocal
 
 from loguru import logger
+
 # ============================================================
 # Database schema — StrategyPerformanceSnapshot
 # ============================================================
+
 
 class StrategyPerformanceSnapshot(Base):
     """Historical snapshot of a strategy's performance at a point in time.
@@ -32,11 +34,18 @@ class StrategyPerformanceSnapshot(Base):
     avoid write amplification). The latest row for each strategy is the
     current StrategyReport.
     """
+
     __tablename__ = "strategy_performance_snapshots"
 
     id = Column(Integer, primary_key=True, index=True)
-    strategy = Column(String, index=True, nullable=False)  # strategy name (from registry)
-    recorded_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    strategy = Column(
+        String, index=True, nullable=False
+    )  # strategy name (from registry)
+    recorded_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     # Trade count and win/loss
     total_trades = Column(Integer, default=0, nullable=False)
@@ -46,26 +55,40 @@ class StrategyPerformanceSnapshot(Base):
 
     # P&L
     total_pnl = Column(Float, default=0.0, nullable=False)
-    gross_profit = Column(Float, default=0.0, nullable=False)  # sum of winning trade P&L
-    gross_loss = Column(Float, default=0.0, nullable=False)    # sum of losing trade P&L (negative)
-    profit_factor = Column(Float, default=0.0)  # gross_profit / abs(gross_loss), 0 if no losses
+    gross_profit = Column(
+        Float, default=0.0, nullable=False
+    )  # sum of winning trade P&L
+    gross_loss = Column(
+        Float, default=0.0, nullable=False
+    )  # sum of losing trade P&L (negative)
+    profit_factor = Column(
+        Float, default=0.0
+    )  # gross_profit / abs(gross_loss), 0 if no losses
 
     # Risk-adjusted
     sharpe_ratio = Column(Float, default=0.0)
-    max_drawdown = Column(Float, default=0.0)  # max peak-to-trough equity curve drawdown (0–1)
-    consecutive_losses = Column(Integer, default=0)   # current losing streak
+    max_drawdown = Column(
+        Float, default=0.0
+    )  # max peak-to-trough equity curve drawdown (0–1)
+    consecutive_losses = Column(Integer, default=0)  # current losing streak
     max_consecutive_losses = Column(Integer, default=0)  # worst streak ever
 
     # Calibration
     brier_score = Column(Float, default=1.0)  # probability calibration (lower = better)
-    psi_score = Column(Float, default=0.0)    # population stability index (drift detection)
+    psi_score = Column(
+        Float, default=0.0
+    )  # population stability index (drift detection)
 
     # Edge quality
-    avg_edge_at_entry = Column(Float, default=0.0)   # mean(edge) over trades
-    avg_edge_realized = Column(Float, default=0.0)   # mean(edge * outcome) — realized vs predicted
+    avg_edge_at_entry = Column(Float, default=0.0)  # mean(edge) over trades
+    avg_edge_realized = Column(
+        Float, default=0.0
+    )  # mean(edge * outcome) — realized vs predicted
 
     # Status
-    is_profitable = Column(Integer, default=0)  # 1 if meets promotion thresholds, 0 otherwise
+    is_profitable = Column(
+        Integer, default=0
+    )  # 1 if meets promotion thresholds, 0 otherwise
     promotion_blocked_reason = Column(String, nullable=True)  # if not profitable, why
 
     __table_args__ = (
@@ -94,7 +117,11 @@ class StrategyPerformanceSnapshot(Base):
             avg_edge_realized=self.avg_edge_realized,
             is_profitable=bool(self.is_profitable),
             promotion_blocked_reason=self.promotion_blocked_reason,
-            report_generated_at=self.recorded_at.replace(tzinfo=timezone.utc) if self.recorded_at.tzinfo is None else self.recorded_at,
+            report_generated_at=(
+                self.recorded_at.replace(tzinfo=timezone.utc)
+                if self.recorded_at.tzinfo is None
+                else self.recorded_at
+            ),
             report_covers_days=0,  # derived — not stored
             promoted_at=None,
             demoted_at=None,
@@ -106,6 +133,7 @@ class StrategyPerformanceSnapshot(Base):
 # Domain dataclass — in-memory representation
 # ============================================================
 
+
 @dataclass
 class StrategyReport:
     """Snapshot of a strategy's current performance.
@@ -113,6 +141,7 @@ class StrategyReport:
     Updated after every settled trade by the registry. Used by promoters,
     allocators, dashboard, and AGI improvement engine.
     """
+
     strategy_name: str
 
     # Trade count and win/loss
@@ -135,11 +164,11 @@ class StrategyReport:
 
     # Calibration
     brier_score: float  # 0–1, lower is better
-    psi_score: float    # distribution drift (0–1 typical)
+    psi_score: float  # distribution drift (0–1 typical)
 
     # Edge quality
-    avg_edge_at_entry: float     # mean predicted edge
-    avg_edge_realized: float     # mean outcome-weighted edge
+    avg_edge_at_entry: float  # mean predicted edge
+    avg_edge_realized: float  # mean outcome-weighted edge
 
     # Verdict
     is_profitable: bool
@@ -147,7 +176,7 @@ class StrategyReport:
 
     # Metadata
     report_generated_at: datetime = None
-    report_covers_days: int = 0      # time window span of underlying data
+    report_covers_days: int = 0  # time window span of underlying data
     promoted_at: Optional[datetime] = None
     demoted_at: Optional[datetime] = None
     demotion_reason: Optional[str] = None
@@ -166,6 +195,7 @@ class StrategyReport:
 # ============================================================
 # Registry — singleton accessor to latest reports
 # ============================================================
+
 
 class StrategyPerformanceRegistry:
     """Global registry caching the latest StrategyReport per strategy.
@@ -224,15 +254,21 @@ class StrategyPerformanceRegistry:
             total_pnl = sum(pnls)
             gross_profit = sum(p for p in pnls if p > 0)
             gross_loss = sum(p for p in pnls if p < 0)
-            profit_factor = gross_profit / abs(gross_loss) if gross_loss < 0 else (gross_profit if gross_profit > 0 else 0.0)
+            profit_factor = (
+                gross_profit / abs(gross_loss)
+                if gross_loss < 0
+                else (gross_profit if gross_profit > 0 else 0.0)
+            )
 
             # E-123: Sharpe from outcomes — use len(pnls) not total for denominator
             if len(pnls) >= 2:
                 n = len(pnls)
                 mean = total_pnl / n
-                variance = sum((p - mean) ** 2 for p in pnls) / (n - 1)  # sample variance
-                std = (variance ** 0.5) if variance > 0 else 1e-9
-                sharpe = (mean / std) * (n ** 0.5)
+                variance = sum((p - mean) ** 2 for p in pnls) / (
+                    n - 1
+                )  # sample variance
+                std = (variance**0.5) if variance > 0 else 1e-9
+                sharpe = (mean / std) * (n**0.5)
             else:
                 sharpe = 0.0
 
@@ -260,19 +296,25 @@ class StrategyPerformanceRegistry:
                     consec = 0
 
             from backend.core.strategy_health import StrategyHealthMonitor
+
             health_mon = StrategyHealthMonitor()
             outcomes = [
-                type('Outcome', (), {
-                    'model_probability': getattr(t, 'model_probability', None),
-                    'result': t.result
-                })()
+                type(
+                    "Outcome",
+                    (),
+                    {
+                        "model_probability": getattr(t, "model_probability", None),
+                        "result": t.result,
+                    },
+                )()
                 for t in trades
-                if getattr(t, 'model_probability', None) is not None
+                if getattr(t, "model_probability", None) is not None
             ]
             brier = health_mon._brier_from_outcomes(outcomes) if outcomes else 1.0
 
             if len(trades) >= 60:
                 import math
+
                 recent = trades[-30:]
                 previous = trades[-60:-30]
                 r_wins = sum(1 for t in recent if t.result == "win")
@@ -283,20 +325,22 @@ class StrategyPerformanceRegistry:
                 r_wr = max(eps, min(1 - eps, r_wr))
                 p_wr = max(eps, min(1 - eps, p_wr))
                 psi = abs(
-                    (r_wr - p_wr) * math.log(r_wr / p_wr) +
-                    ((1 - r_wr) - (1 - p_wr)) * math.log((1 - r_wr) / (1 - p_wr))
+                    (r_wr - p_wr) * math.log(r_wr / p_wr)
+                    + ((1 - r_wr) - (1 - p_wr)) * math.log((1 - r_wr) / (1 - p_wr))
                 )
             else:
                 psi = 0.0
 
             # Edge quality
-            edges_entry = [getattr(t, 'edge_at_entry', 0.0) or 0.0 for t in trades]
+            edges_entry = [getattr(t, "edge_at_entry", 0.0) or 0.0 for t in trades]
             avg_edge_entry = sum(edges_entry) / len(edges_entry) if edges_entry else 0.0
             edges_realized = [
-                getattr(t, 'edge_at_entry', 0.0) * (1.0 if t.result == "win" else -1.0)
+                getattr(t, "edge_at_entry", 0.0) * (1.0 if t.result == "win" else -1.0)
                 for t in trades
             ]
-            avg_edge_realized = sum(edges_realized) / len(edges_realized) if edges_realized else 0.0
+            avg_edge_realized = (
+                sum(edges_realized) / len(edges_realized) if edges_realized else 0.0
+            )
 
             # Promote verdict — use same thresholds as AutonomousPromoter
             PROMOTION_THRESHOLDS = {
@@ -307,10 +351,10 @@ class StrategyPerformanceRegistry:
                 "min_brier_improvement": 0.0,
             }
             meets = (
-                total >= PROMOTION_THRESHOLDS["min_paper_trades"] and
-                win_rate >= PROMOTION_THRESHOLDS["min_win_rate"] and
-                profit_factor >= PROMOTION_THRESHOLDS["min_profit_factor"] and
-                max_dd <= PROMOTION_THRESHOLDS["max_drawdown"]
+                total >= PROMOTION_THRESHOLDS["min_paper_trades"]
+                and win_rate >= PROMOTION_THRESHOLDS["min_win_rate"]
+                and profit_factor >= PROMOTION_THRESHOLDS["min_profit_factor"]
+                and max_dd <= PROMOTION_THRESHOLDS["max_drawdown"]
             )
             reason = None if meets else "below_promotion_thresholds"
 
@@ -379,16 +423,25 @@ class StrategyPerformanceRegistry:
 
         session = db or SessionLocal()
         try:
-            first_trade = session.query(Trade.timestamp).filter(
-                Trade.strategy == strategy
-            ).order_by(Trade.timestamp.asc()).first()
-            last_trade = session.query(Trade.timestamp).filter(
-                Trade.strategy == strategy
-            ).order_by(Trade.timestamp.desc()).first()
+            first_trade = (
+                session.query(Trade.timestamp)
+                .filter(Trade.strategy == strategy)
+                .order_by(Trade.timestamp.asc())
+                .first()
+            )
+            last_trade = (
+                session.query(Trade.timestamp)
+                .filter(Trade.strategy == strategy)
+                .order_by(Trade.timestamp.desc())
+                .first()
+            )
             if first_trade and last_trade and first_trade[0] and last_trade[0]:
                 return max(1, (last_trade[0] - first_trade[0]).days)
         except Exception:
-            logger.exception("[StrategyPerformanceRegistry] Failed to compute coverage days for '%s'", strategy)
+            logger.exception(
+                "[StrategyPerformanceRegistry] Failed to compute coverage days for '%s'",
+                strategy,
+            )
             return 0
         finally:
             if db is None:

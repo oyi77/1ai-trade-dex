@@ -37,15 +37,15 @@ from backend.strategies.base import (
 from backend.core.decisions import record_decision
 
 from loguru import logger
+
+
 @dataclass
 class PriceHistory:
     """Tracks price history for a single token_id."""
 
     token_id: str
     ticker: str
-    prices: deque = field(
-        default_factory=lambda: deque(maxlen=100)
-    )
+    prices: deque = field(default_factory=lambda: deque(maxlen=100))
     last_signal_time: float = 0.0
     last_signal_direction: Optional[str] = None
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
@@ -233,11 +233,13 @@ class RealtimeScannerStrategy(BaseStrategy):
                                 "confidence": confidence,
                                 "edge": slow_velocity,
                                 "size": ctx.params.get(
-                                    "max_position_usd", self.default_params["max_position_usd"]
+                                    "max_position_usd",
+                                    self.default_params["max_position_usd"],
                                 ),
                                 "entry_price": rt_entry_price,
                                 "suggested_size": ctx.params.get(
-                                    "max_position_usd", self.default_params["max_position_usd"]
+                                    "max_position_usd",
+                                    self.default_params["max_position_usd"],
                                 ),
                                 "model_probability": confidence,
                                 "market_probability": current_price,
@@ -284,7 +286,8 @@ class RealtimeScannerStrategy(BaseStrategy):
         self._running = True
 
         from backend.api.main import app
-        if hasattr(app.state, 'task_manager'):
+
+        if hasattr(app.state, "task_manager"):
             self._ws_task = await app.state.task_manager.create_task(
                 self._ws_client.run(), name="realtime_scanner_ws"
             )

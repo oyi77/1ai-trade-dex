@@ -21,14 +21,20 @@ from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
 
 from loguru import logger
+
+
 def _cfg(name, default):
     return getattr(settings, name, default)
 
 
 _CB_THRESHOLD = _cfg("CIRCUIT_BREAKER_THRESHOLD", 5)
 _CB_TIMEOUT = _cfg("CIRCUIT_BREAKER_TIMEOUT", 60.0)
-_poly_breaker = CircuitBreaker("polymarket", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT)
-_kalshi_breaker = CircuitBreaker("kalshi", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT)
+_poly_breaker = CircuitBreaker(
+    "polymarket", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT
+)
+_kalshi_breaker = CircuitBreaker(
+    "kalshi", failure_threshold=_CB_THRESHOLD, recovery_timeout=_CB_TIMEOUT
+)
 _consecutive_failures = 0
 _FAILURE_THRESHOLD = _CB_THRESHOLD
 
@@ -46,7 +52,9 @@ class CrossMarketOpportunity:
     confidence: float
 
 
-def detect_cross_arb(poly_yes: float, kalshi_yes: float) -> Optional[CrossMarketOpportunity]:
+def detect_cross_arb(
+    poly_yes: float, kalshi_yes: float
+) -> Optional[CrossMarketOpportunity]:
     """
     Detect cross-market arbitrage between Polymarket and Kalshi.
 
@@ -113,8 +121,13 @@ async def execute_cross_arb(
     try:
         if opportunity.cheaper_platform == "polymarket" and clob:
             order_buy = await _place_order_retry(
-                clob, event_id, "BUY", opportunity.poly_price, 10.0,
-                f"{idempotency_key}-buy-poly", _poly_breaker
+                clob,
+                event_id,
+                "BUY",
+                opportunity.poly_price,
+                10.0,
+                f"{idempotency_key}-buy-poly",
+                _poly_breaker,
             )
             order_sell = None
         else:
@@ -138,27 +151,47 @@ async def execute_cross_arb(
         }
 
 
-async def _place_order_retry(clob, token_id: str, side: str, price: float,
-                              size: float, idempotency_key: str,
-                              breaker: CircuitBreaker, retry_count: int = 0) -> Optional[str]:
+async def _place_order_retry(
+    clob,
+    token_id: str,
+    side: str,
+    price: float,
+    size: float,
+    idempotency_key: str,
+    breaker: CircuitBreaker,
+    retry_count: int = 0,
+) -> Optional[str]:
     """Place order with circuit breaker + retry."""
     try:
+
         async def _do_order():
             result = await clob.place_limit_order(
-                token_id=token_id, side=side, price=price, size=size,
-                idempotency_key=idempotency_key
+                token_id=token_id,
+                side=side,
+                price=price,
+                size=size,
+                idempotency_key=idempotency_key,
             )
             return result.order_id if hasattr(result, "order_id") else None
 
         return await breaker.call(_do_order)
 
     except Exception:
-        logger.exception("Cross-market arb order placement failed (retry %d)", retry_count)
+        logger.exception(
+            "Cross-market arb order placement failed (retry %d)", retry_count
+        )
         if retry_count < settings.ARB_MAX_RETRIES:
-            wait = settings.CROSS_MARKET_ARB_RETRY_WAIT_BASE * (2 ** retry_count)
+            wait = settings.CROSS_MARKET_ARB_RETRY_WAIT_BASE * (2**retry_count)
             await asyncio.sleep(wait)
             return await _place_order_retry(
-                clob, token_id, side, price, size, idempotency_key, breaker, retry_count + 1
+                clob,
+                token_id,
+                side,
+                price,
+                size,
+                idempotency_key,
+                breaker,
+                retry_count + 1,
             )
         raise
 
@@ -182,7 +215,9 @@ class CrossMarketArb(BaseStrategy):
         "enabled": True,
     }
 
-    async def detect(self, poly_yes: float, kalshi_yes: float) -> Optional[CrossMarketOpportunity]:
+    async def detect(
+        self, poly_yes: float, kalshi_yes: float
+    ) -> Optional[CrossMarketOpportunity]:
         """Detect cross-market arbitrage. <200ms target."""
         return detect_cross_arb(poly_yes, kalshi_yes)
 
@@ -266,12 +301,20 @@ class CrossMarketArb(BaseStrategy):
         """Fetch markets from the registered market provider. Falls back to legacy clients."""
         try:
             from backend.markets.provider_registry import market_registry
+
             provider = market_registry.get(venue)
-            markets = await provider.search_markets("", limit=500) if hasattr(provider, "search_markets") else None
+            markets = (
+                await provider.search_markets("", limit=500)
+                if hasattr(provider, "search_markets")
+                else None
+            )
             if markets:
                 return markets
         except Exception:
-            logger.exception("Failed to fetch markets from registry for venue '%s', falling back to legacy", venue)
+            logger.exception(
+                "Failed to fetch markets from registry for venue '%s', falling back to legacy",
+                venue,
+            )
 
         # Legacy fallback
         if venue == "polymarket":
@@ -280,7 +323,9 @@ class CrossMarketArb(BaseStrategy):
             return await self._fetch_kalshi_markets()
         return []
 
-    def _find_kalshi_match(self, poly_market: dict, kalshi_markets: list[dict]) -> Optional[dict]:
+    def _find_kalshi_match(
+        self, poly_market: dict, kalshi_markets: list[dict]
+    ) -> Optional[dict]:
         """Match a Polymarket market to its Kalshi equivalent."""
         poly_question = poly_market.get("question", "").lower()
         poly_slug = poly_market.get("slug", "").lower()
@@ -289,8 +334,11 @@ class CrossMarketArb(BaseStrategy):
             k_question = k_m.get("question", "").lower()
             k_slug = k_m.get("slug", "").lower()
 
-            if (poly_question and k_question and
-                (poly_question in k_question or k_question in poly_question)):
+            if (
+                poly_question
+                and k_question
+                and (poly_question in k_question or k_question in poly_question)
+            ):
                 return k_m
 
             if poly_slug and k_slug and poly_slug == k_slug:

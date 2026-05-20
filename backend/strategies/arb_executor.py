@@ -6,10 +6,12 @@ Detects three classes of arbitrage opportunities:
   - cross_platform:  price discrepancy between Polymarket and Kalshi
   - negrisk:         sum of YES prices across mutually exclusive outcomes != 1
 """
+
 from dataclasses import dataclass, field
 from typing import Optional
 
 from backend.config import settings
+
 
 def _cfg(name, default):
     return getattr(settings, name, default)
@@ -17,9 +19,9 @@ def _cfg(name, default):
 
 @dataclass
 class ArbOpportunity:
-    arb_type: str    # "intra_market", "cross_platform", "negrisk"
+    arb_type: str  # "intra_market", "cross_platform", "negrisk"
     market_id: str
-    spread: float    # profit spread after fees
+    spread: float  # profit spread after fees
     max_size: float  # max profitable trade size in USD
     details: dict = field(default_factory=dict)
 

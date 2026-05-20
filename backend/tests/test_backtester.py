@@ -3,6 +3,7 @@
 Uses an in-memory SQLite database seeded with Trade/Signal records.
 No external APIs are mocked — all data comes from the in-memory DB.
 """
+
 import pytest
 from datetime import datetime, timedelta
 from sqlalchemy import create_engine
@@ -11,7 +12,6 @@ from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade
 from backend.core.backtester import BacktestConfig, BacktestEngine, BacktestResult
-
 
 # ---------------------------------------------------------------------------
 # In-memory DB fixture shared across the module
@@ -173,7 +173,7 @@ async def test_risk_limits_respected(db):
     # Tight limits
     config = _make_config(
         initial_bankroll=100.0,
-        max_trade_size=2.0,       # hard cap at $2
+        max_trade_size=2.0,  # hard cap at $2
         max_position_fraction=0.05,  # at most 5% of bankroll
     )
     engine = _make_engine_with_db(config, db)
@@ -181,9 +181,9 @@ async def test_risk_limits_respected(db):
 
     # Every simulated trade size must not exceed the cap
     for bt in result.trades:
-        assert bt.size <= config.max_trade_size + 1e-9, (
-            f"Trade size {bt.size} exceeds max_trade_size {config.max_trade_size}"
-        )
+        assert (
+            bt.size <= config.max_trade_size + 1e-9
+        ), f"Trade size {bt.size} exceeds max_trade_size {config.max_trade_size}"
 
 
 @pytest.mark.asyncio
@@ -213,10 +213,22 @@ async def test_equity_curve_tracked(db):
 async def test_metrics_calculation(db):
     """win_rate, max_drawdown, and return_pct are computed correctly."""
     # 2 wins, 1 loss
-    _add_settled_trade(db, ticker="BTC-M1", pnl=5.0, settlement_value=1.0, ts=datetime(2024, 1, 10))
-    _add_settled_trade(db, ticker="BTC-M2", pnl=5.0, settlement_value=1.0, ts=datetime(2024, 1, 11))
-    _add_settled_trade(db, ticker="BTC-M3", direction="up", entry_price=0.5, size=5.0,
-                       pnl=-5.0, settlement_value=0.0, ts=datetime(2024, 1, 12))
+    _add_settled_trade(
+        db, ticker="BTC-M1", pnl=5.0, settlement_value=1.0, ts=datetime(2024, 1, 10)
+    )
+    _add_settled_trade(
+        db, ticker="BTC-M2", pnl=5.0, settlement_value=1.0, ts=datetime(2024, 1, 11)
+    )
+    _add_settled_trade(
+        db,
+        ticker="BTC-M3",
+        direction="up",
+        entry_price=0.5,
+        size=5.0,
+        pnl=-5.0,
+        settlement_value=0.0,
+        ts=datetime(2024, 1, 12),
+    )
 
     config = _make_config(initial_bankroll=100.0)
     engine = _make_engine_with_db(config, db)
@@ -280,7 +292,7 @@ async def test_daily_loss_stops_trading(db):
     result: BacktestResult = await engine.run_from_trades(db)
 
     tickers = [t.market_ticker for t in result.trades]
-    assert "BTC-DL3" not in tickers, (
-        f"Third same-day trade should be blocked by daily loss limit; got tickers={tickers}"
-    )
+    assert (
+        "BTC-DL3" not in tickers
+    ), f"Third same-day trade should be blocked by daily loss limit; got tickers={tickers}"
     assert "BTC-DL4" in tickers, "Next-day trade should proceed"
