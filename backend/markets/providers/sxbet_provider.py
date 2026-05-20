@@ -65,6 +65,7 @@ class SXBetProvider(BaseMarketProvider):
                 stake_wei=int(order.size * 10**18),
                 private_key=private_key,
             )
+            # TODO: Parse fees from SX.bet API response when available
             return NormalizedOrderResult(
                 venue_order_id=result.get("orderId", "unknown"),
                 client_order_id=order.client_order_id,

@@ -1530,9 +1530,9 @@ async def resolve_paper_trades(db) -> List[Trade]:
                         trade.settlement_source = "gamma_outcome"
 
                         if is_win:
-                            trade.pnl = round((1.0 - trade.entry_price) * trade.size, 2)
+                            trade.pnl = calculate_pnl(trade, settlement_value)
                         else:
-                            trade.pnl = round(-(trade.entry_price * trade.size), 2)
+                            trade.pnl = calculate_pnl(trade, settlement_value)
 
                         if condition_id:
                             trade.condition_id = condition_id

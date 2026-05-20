@@ -129,11 +129,11 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
                 if won:
                     trade.result = "win"
-                    trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
+                    trade.pnl = calculate_pnl(trade, 1.0)
                     trade.settlement_value = 1.0
                 else:
                     trade.result = "loss"
-                    trade.pnl = -(size * entry_price) if entry_price > 0 else -size
+                    trade.pnl = calculate_pnl(trade, 0.0)
                     trade.settlement_value = 0.0
 
                 trade.settled = True
@@ -158,11 +158,11 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                     won = (direction == "up" and went_up) or (direction == "down" and not went_up)
                     if won:
                         trade.result = "win"
-                        trade.pnl = (1.0 - entry_price) * size if entry_price > 0 else 0.0
+                        trade.pnl = calculate_pnl(trade, 1.0)
                         trade.settlement_value = 1.0
                     else:
                         trade.result = "loss"
-                        trade.pnl = -(size * entry_price) if entry_price > 0 else -size
+                        trade.pnl = calculate_pnl(trade, 0.0)
                         trade.settlement_value = 0.0
                     trade.settled = True
                     trade.settlement_time = now
@@ -184,7 +184,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
     trade.settled = True
     trade.result = "expired_unresolved"
-    trade.pnl = -(size * entry_price) if entry_price > 0 else -size
+    trade.pnl = calculate_pnl(trade, 0.0)
     trade.settlement_time = now
     trade.settlement_source = "btc_5min_unresolved"
     trade.settlement_value = 0.0
@@ -272,7 +272,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             trade.settlement_time = now
                             trade.settlement_source = "closed_unresolved"
                             if trade.pnl is None:
-                                trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 0.5))
+                                trade.pnl = calculate_pnl(trade, 0.0)
                             if trade.settlement_value is None:
                                 trade.settlement_value = 0.0
                             logger.warning(
@@ -470,7 +470,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     trade.settled = True
                     trade.result = "loss"
                     trade.settlement_time = now
-                    trade.pnl = -(float(trade.size or 0) * float(trade.entry_price or 0.5))
+                    trade.pnl = calculate_pnl(trade, 0.0)
                     trade.settlement_value = 0.0
                     trade.settlement_source = "expired_unresolved"
                     settled_trades.append(trade)
@@ -537,7 +537,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 trade.settled = True
                 trade.result = "loss"
                 trade.settlement_time = now
-                trade.pnl = -float(trade.size or 0) * float(trade.entry_price or 0.5)
+                trade.pnl = calculate_pnl(trade, 0.0)
                 trade.settlement_value = 0.0
                 trade.settlement_source = "stale_expired"
                 settled_trades.append(trade)
@@ -733,9 +733,7 @@ async def update_bot_state_with_settlements(
                     if is_real_trade:
                         state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
                         fee = trade.fee or 0.0
-                        state.paper_bankroll = max(
-                            0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee
-                        )
+                        state.paper_bankroll = (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee
                         state.paper_trades = (state.paper_trades or 0) + 1
                         if trade.result == "win":
                             state.paper_wins = (state.paper_wins or 0) + 1
@@ -747,9 +745,7 @@ async def update_bot_state_with_settlements(
                 elif trading_mode == "testnet":
                     if is_real_trade:
                         state.testnet_pnl = (state.testnet_pnl or 0.0) + trade.pnl
-                        state.testnet_bankroll = max(
-                            0.0, (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
-                        )
+                        state.testnet_bankroll = (state.testnet_bankroll or 0.0) + trade.size + trade.pnl
                         state.testnet_trades = (state.testnet_trades or 0) + 1
                         if trade.result == "win":
                             state.testnet_wins = (state.testnet_wins or 0) + 1

@@ -130,12 +130,11 @@ class EnhancedPaperTrader:
                 rejection_reason="Could not fill order at acceptable price",
             )
 
-        # Calculate fee
-        fee = fill.price * fill.size * self.platform_fee_pct
-        total_cost = fill.price * fill.size + fee
+        # Cost basis is raw fill price * size; fees are charged at settlement only
+        total_cost = fill.price * fill.size
 
         if total_cost > self.bankroll:
-            affordable_size = (self.bankroll / (fill.price * (1 + self.platform_fee_pct)))
+            affordable_size = self.bankroll / fill.price
             if affordable_size < 1.0:
                 return PaperTradeResult(
                     success=False,
@@ -149,8 +148,7 @@ class EnhancedPaperTrader:
                 partial=True,
                 timestamp=time.time(),
             )
-            fee = fill.price * fill.size * self.platform_fee_pct
-            total_cost = fill.price * fill.size + fee
+            total_cost = fill.price * fill.size
 
         # Deduct from bankroll
         self.bankroll -= total_cost
@@ -180,7 +178,7 @@ class EnhancedPaperTrader:
             position=pos,
             fill=fill,
             order_value=fill.price * fill.size,
-            fee=fee,
+            fee=0.0,  # fees charged at settlement only
         )
         self.trade_history.append(result)
 

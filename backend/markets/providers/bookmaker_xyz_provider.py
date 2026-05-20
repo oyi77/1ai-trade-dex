@@ -61,6 +61,10 @@ class BookmakerXYZProvider(BaseMarketProvider):
                 outcome_index=0,
                 amount_wei=int(order.size * 10**18),
             )
+            # TODO: Add fee tracking once the API provides fee information
+            # Currently, the Azuro GraphQL subscription and Web3 contract don't expose fee data
+            fees_paid = Decimal("0")  # Placeholder for future implementation
+            
             return NormalizedOrderResult(
                 venue_order_id=tx_hash,
                 client_order_id=order.client_order_id,
@@ -68,7 +72,7 @@ class BookmakerXYZProvider(BaseMarketProvider):
                 filled_size=order.size,
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=Decimal("0"),
-                fees_paid=Decimal("0"),
+                fees_paid=fees_paid,
             )
         except Exception as exc:
             logger.exception("bookmaker.xyz order failed")

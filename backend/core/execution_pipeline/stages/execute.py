@@ -114,7 +114,7 @@ class LiveExecuteStage(BaseExecutionStage):
         adjusted_size = float(decision.get("size", 0.0))
 
         if state and mode == "live":
-            state.bankroll = max(0.0, (state.bankroll or 0.0) - adjusted_size)
+            state.bankroll = (state.bankroll or 0.0) - adjusted_size
             state.total_trades = (state.total_trades or 0) + 1
 
     def health_check(self):

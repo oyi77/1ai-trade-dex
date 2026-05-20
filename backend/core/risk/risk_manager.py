@@ -536,7 +536,7 @@ class RiskManager:
                 week_start = now - timedelta(days=7)
 
                 daily_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= day_start,
@@ -548,7 +548,7 @@ class RiskManager:
                 )
 
                 weekly_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= week_start,
@@ -619,7 +619,7 @@ class RiskManager:
                 now = datetime.now(timezone.utc)
                 today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
                 daily_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= today_start,
@@ -842,7 +842,7 @@ class RiskManager:
 
                 # Calculate daily and weekly PnL
                 daily_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= day_start,
@@ -854,7 +854,7 @@ class RiskManager:
                 )
 
                 weekly_pnl = (
-                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                    db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                     .filter(
                         Trade.settled.is_(True),
                         Trade.settlement_time >= week_start,
@@ -967,7 +967,7 @@ class RiskManager:
             now = datetime.now(timezone.utc)
             day_start = now - timedelta(hours=24)
             pnl = (
-                db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size * Trade.entry_price)), 0.0))
+                db.query(func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0))
                 .filter(
                     Trade.strategy == strategy_name,
                     Trade.settled.is_(True),

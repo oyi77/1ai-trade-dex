@@ -475,8 +475,8 @@ class ProposalExecutor:
         if std_pnl == 0:
             return 0.0
 
-        # Annualize: assume ~250 trading days per year
-        sharpe = (mean_pnl / std_pnl) * np.sqrt(250)
+        # Annualize: assume ~252 trading days per year
+        sharpe = (mean_pnl / std_pnl) * np.sqrt(252)
 
         return float(sharpe)
 
@@ -509,8 +509,10 @@ class ProposalExecutor:
         if not trades:
             return 0.0
 
-        total_pnl = sum(t.pnl for t in trades if t.pnl is not None)
-        return total_pnl / len(trades)
+        settled_pnls = [t.pnl for t in trades if t.pnl is not None]
+        if not settled_pnls:
+            return 0.0
+        return sum(settled_pnls) / len(settled_pnls)
 
 
 # Scheduled job functions for APScheduler integration
