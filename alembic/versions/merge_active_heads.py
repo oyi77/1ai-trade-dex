@@ -5,8 +5,6 @@ Revises: 3512621b937d, fix_shadow_trade_schema
 Create Date: 2026-05-14 22:00:00
 """
 from typing import Sequence, Union
-from alembic import op
-import sqlalchemy as sa
 
 revision: str = 'merge_active_heads'
 down_revision: Union[str, Sequence[str], None] = ('3512621b937d', 'fix_shadow_trade_schema')
