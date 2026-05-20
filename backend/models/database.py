@@ -2464,7 +2464,7 @@ def get_db():
 
 # Re-import to ensure table registration without failing on circular import orderings.
 try:
-    from backend.core.strategy_performance_registry import (  # noqa: E402, F401
+    from backend.core.strategy_performance_registry import (  # noqa: E402
         StrategyPerformanceSnapshot as StrategyPerformanceSnapshot,
     )
 except ImportError as exc:

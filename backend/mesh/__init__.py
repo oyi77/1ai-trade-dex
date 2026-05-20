@@ -1,6 +1,6 @@
 """DataMesh — venue-agnostic data ingestion with provenance and self-healing sources."""
 
-from backend.mesh.base import (  # noqa: F401
+from backend.mesh.base import (
     DataSource as DataSource,
     DataQuery as DataQuery,
     RawPacket as RawPacket,
@@ -8,7 +8,7 @@ from backend.mesh.base import (  # noqa: F401
     Provenance as Provenance,
     SourceState as SourceState,
 )
-from backend.mesh.registry import (  # noqa: F401
+from backend.mesh.registry import (
     register as register,
     unregister as unregister,
     get as get,
@@ -17,5 +17,5 @@ from backend.mesh.registry import (  # noqa: F401
     release as release,
     discover as discover,
 )
-from backend.mesh.mesh import DataMesh  # noqa: F401
-from backend.mesh.health import SourceHealthMonitor  # noqa: F401
+from backend.mesh.mesh import DataMesh as DataMesh
+from backend.mesh.health import SourceHealthMonitor as SourceHealthMonitor

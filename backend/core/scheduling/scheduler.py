@@ -228,9 +228,6 @@ def save_scheduler_state(
 ) -> None:
     """Persist a single scheduled job's registration metadata to DB."""
     try:
-        from backend.models.database import (  # noqa: F401
-            SessionLocal,
-        )
         from backend.db.utils import get_db_session
 
         state = {
@@ -300,7 +297,7 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
 
         with get_db_session() as db:
             rows = (
-                db.query(ScheduledJob).filter(ScheduledJob.enabled == True).all()
+                db.query(ScheduledJob).filter(ScheduledJob.enabled.is_(True)).all()
             )  # noqa: E712
             for row in rows:
                 state = row.job_state_json or {}
