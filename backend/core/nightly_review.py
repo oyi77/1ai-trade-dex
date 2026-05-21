@@ -181,7 +181,9 @@ class NightlyReviewWriter:
                 lines.append("- No pending proposals")
 
             disabled = (
-                db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(False)).all()
+                db.query(StrategyConfig).filter(
+                    StrategyConfig.disabled_at.isnot(None)
+                ).all()
             )
             if disabled:
                 lines.append(f"\n### Disabled Strategies ({len(disabled)})\n")

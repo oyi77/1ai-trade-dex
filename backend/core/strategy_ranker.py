@@ -243,7 +243,8 @@ class StrategyRanker:
                     .first()
                 )
                 if config and config.enabled:
-                    config.enabled = False
+                    from backend.core.strategy_health import disable_for_rehab
+                    disable_for_rehab(config)
                     disabled.append(r.name)
                     logger.warning(
                         f"Auto-disabled {r.name}: Sharpe={r.sharpe_ratio:.2f} < {min_sharpe} "

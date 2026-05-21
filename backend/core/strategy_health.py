@@ -19,6 +19,23 @@ def _now_utc():
     return datetime.now(timezone.utc)
 
 
+def disable_for_rehab(config) -> None:
+    """Disable strategy for rehabilitation: keep enabled in paper mode.
+
+    Instead of setting enabled=False (which prevents scheduler from running),
+    keeps enabled=True but sets disabled_at for cooldown tracking and
+    trading_mode="paper" so the strategy generates validation data.
+    """
+    config.disabled_at = datetime.now(timezone.utc)
+    config.trading_mode = "paper"
+    # Don't set enabled=False — scheduler needs enabled=True to run paper trades
+
+
+def is_in_rehab(config) -> bool:
+    """Check if strategy is in rehab (disabled_at set, still enabled in paper mode)."""
+    return config.enabled is True and config.disabled_at is not None
+
+
 class StrategyHealthMonitor:
     MIN_WARMUP_TRADES = 30
     KILL_WIN_RATE = 0.05
@@ -313,10 +330,9 @@ class StrategyHealthMonitor:
         return sum((p - a) ** 2 for p, a in pairs) / len(pairs)
 
     def _disable_strategy(self, strategy: str, db: Session) -> None:
-        """Set strategy_config.enabled = False for the given strategy."""
+        """Disable strategy for rehab: keep enabled in paper mode."""
         try:
             from backend.models.database import StrategyConfig
-            from datetime import datetime, timezone
 
             config = (
                 db.query(StrategyConfig)
@@ -324,10 +340,9 @@ class StrategyHealthMonitor:
                 .first()
             )
             if config:
-                config.enabled = False
-                config.disabled_at = datetime.now(timezone.utc)
+                disable_for_rehab(config)
                 db.commit()
-                logger.info(f"[HealthMonitor] Disabled strategy '{strategy}' in config")
+                logger.info(f"[HealthMonitor] Strategy '{strategy}' entered rehab (paper mode)")
                 self._run_postmortem(strategy, db)
             else:
                 logger.warning(

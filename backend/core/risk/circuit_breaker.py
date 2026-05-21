@@ -102,8 +102,8 @@ class CircuitBreaker:
                     .first()
                 )
                 if config and config.enabled:
-                    config.enabled = False
-                    config.disabled_at = datetime.now(timezone.utc)
+                    from backend.core.strategy_health import disable_for_rehab
+                    disable_for_rehab(config)
                     session.commit()
                     logger.warning(
                         f"Strategy {strategy_name} auto-paused by circuit breaker (win_rate={win_rate:.2%}, pnl_ratio={pnl_ratio:.2%})"

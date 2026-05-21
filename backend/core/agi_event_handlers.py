@@ -197,6 +197,46 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
     except Exception as exc:
         logger.error(f"Handler strategy_killed lifecycle failed: {exc}", exc_info=True)
 
+    # Create DRAFT experiment so AutonomousPromoter tracks rehab pipeline
+    def _create_draft():
+        from backend.models.database import ExperimentRecord
+        from backend.db.utils import get_db_session
+        from backend.agi_types import ExperimentStatus
+
+        with get_db_session() as db:
+            existing = (
+                db.query(ExperimentRecord)
+                .filter_by(
+                    strategy_name=strategy_name,
+                    status=ExperimentStatus.DRAFT.value
+                    if hasattr(ExperimentStatus.DRAFT, "value")
+                    else "DRAFT",
+                )
+                .first()
+            )
+            if existing:
+                return None
+            draft = ExperimentRecord(
+                strategy_name=strategy_name,
+                status="DRAFT",
+                created_at=datetime.now(timezone.utc),
+                notes=f"Auto-created after kill: {reason}",
+            )
+            db.add(draft)
+            db.commit()
+            return draft
+
+    try:
+        draft = await asyncio.to_thread(_create_draft)
+        if draft:
+            logger.info(
+                f"Created DRAFT experiment for killed strategy '{strategy_name}'"
+            )
+    except Exception as exc:
+        logger.error(
+            f"Handler strategy_killed draft creation failed: {exc}", exc_info=True
+        )
+
 
 async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
     await asyncio.sleep(0)  # noqa: F823 — yield control to event loop

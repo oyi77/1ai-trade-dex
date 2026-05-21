@@ -240,21 +240,24 @@ class TestAGIHealthChecker:
 class TestStrategyRehabilitator:
     def test_rehabilitates_eligible_strategy(self, db):
         from backend.core.strategy_rehabilitator import StrategyRehabilitator
+        from unittest.mock import patch, MagicMock
 
         cfg = StrategyConfig(
             strategy_name="old_strat",
-            enabled=False,
+            enabled=True,
+            trading_mode="paper",
+            disabled_at=datetime.now(timezone.utc) - timedelta(days=2),
             interval_seconds=300,
         )
         db.add(cfg)
 
-        old_ts = datetime.now(timezone.utc) - timedelta(days=14)
+        old_ts = datetime.now(timezone.utc) - timedelta(days=2)
 
-        # StrategyRehabilitator needs a recent live trade to identify when it was disabled
+        # Add paper trades for cooldown (1-day check)
         db.add(
             Trade(
                 strategy="old_strat",
-                trading_mode="live",
+                trading_mode="paper",
                 market_ticker="TLIVE",
                 direction="up",
                 entry_price=0.5,
@@ -266,11 +269,12 @@ class TestStrategyRehabilitator:
             )
         )
 
+        # Add recent paper trades for validation
         for i in range(15):
             db.add(
                 Trade(
                     strategy="old_strat",
-                    trading_mode="live",
+                    trading_mode="paper",
                     market_ticker=f"T{i}",
                     direction="up",
                     entry_price=0.5,
@@ -278,13 +282,21 @@ class TestStrategyRehabilitator:
                     result="win" if i < 10 else "loss",
                     pnl=5.0 if i < 10 else -3.0,
                     settled=True,
-                    timestamp=old_ts + timedelta(days=1, hours=i),
+                    timestamp=old_ts + timedelta(hours=i),
                 )
             )
         db.commit()
 
+        # Mock backtest to pass validation
+        mock_result = MagicMock()
+        mock_result.total_trades = 20
+        mock_result.sharpe_ratio = 1.2
+        mock_result.win_rate = 0.65
+        mock_result.total_pnl = 15.0
+
         rehab = StrategyRehabilitator()
-        result = rehab.run(db=db)
+        with patch.object(rehab, "_run_backtest_validation", return_value=True):
+            result = rehab.run(db=db)
         assert "old_strat" in result
 
     def test_skips_recently_disabled(self, db):
@@ -292,7 +304,9 @@ class TestStrategyRehabilitator:
 
         cfg = StrategyConfig(
             strategy_name="recent_strat",
-            enabled=False,
+            enabled=True,
+            trading_mode="paper",
+            disabled_at=datetime.now(timezone.utc) - timedelta(hours=1),
             interval_seconds=300,
         )
         db.add(cfg)

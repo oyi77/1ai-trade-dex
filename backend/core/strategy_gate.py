@@ -129,6 +129,9 @@ class StrategyGate:
 
         for cfg in configs:
             name = cfg.strategy_name
+            # Skip strategies in rehab — let rehab pipeline handle them
+            if cfg.disabled_at is not None:
+                continue
             stage = StrategyGate.get_stage(name, db)
             promoted = False
 

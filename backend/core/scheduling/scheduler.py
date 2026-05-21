@@ -1305,8 +1305,8 @@ def start_scheduler():
                         pnl = sum(t.pnl for t in trades if t.pnl)
 
                         if win_rate < 0.30 or pnl < -50.0:
-                            config.enabled = False
-                            config.disabled_at = datetime.now(timezone.utc)
+                            from backend.core.strategy_health import disable_for_rehab
+                            disable_for_rehab(config)
                             disabled.append(
                                 f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
                             )
@@ -1353,7 +1353,7 @@ def start_scheduler():
                 disabled_configs = (
                     db.query(StrategyConfig)
                     .filter(
-                        StrategyConfig.enabled.is_(False),
+                        StrategyConfig.enabled.is_(True),
                         StrategyConfig.disabled_at.isnot(None),
                     )
                     .all()

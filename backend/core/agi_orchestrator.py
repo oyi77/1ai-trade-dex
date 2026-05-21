@@ -684,7 +684,8 @@ async def agi_improvement_cycle_job() -> None:
                     .first()
                 )
                 if config and config.enabled:
-                    config.enabled = False
+                    from backend.core.strategy_health import disable_for_rehab
+                    disable_for_rehab(config)
                     stats["strategies_replaced"] += 1
             if killed:
                 db.commit()

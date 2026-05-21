@@ -57,9 +57,9 @@ def wr_monitor_job() -> None:
 
                 if wr < WR_THRESHOLD:
                     if pnl < 0:
-                        # Losing money + low WR -> disable
-                        cfg.enabled = False
-                        cfg.disabled_at = now
+                        # Losing money + low WR -> disable for rehab
+                        from backend.core.strategy_health import disable_for_rehab
+                        disable_for_rehab(cfg)
                         label = f"{cfg.strategy_name}: WR={wr:.0%}, pnl=${pnl:.2f}"
                         disabled.append(label)
                         logger.warning(
