@@ -352,20 +352,18 @@ def check_risk_and_disable(db) -> list[str]:
         )
 
         if abs(daily_loss) > MAX_DAILY_LOSS_PER_STRATEGY:
-            db.execute(
-                text(
-                    """
-                UPDATE strategy_config SET enabled = false
-                WHERE strategy_name = :s
-            """
-                ),
-                {"s": sname},
-            )
+            from backend.models.database import StrategyConfig
+            from backend.core.strategy_health import disable_for_rehab
+
+            cfg = db.query(StrategyConfig).filter_by(strategy_name=sname).first()
+            if cfg and cfg.enabled:
+                disable_for_rehab(cfg)
+                db.flush()
             disabled.append(
                 f"{sname}: daily loss ${abs(daily_loss):.2f} > ${MAX_DAILY_LOSS_PER_STRATEGY}"
             )
             logger.warning(
-                f"[RISK] Auto-disabled {sname}: daily loss ${abs(daily_loss):.2f}"
+                f"[RISK] Rehab {sname}: daily loss ${abs(daily_loss):.2f}"
             )
 
     # 2. Total drawdown check
@@ -384,19 +382,22 @@ def check_risk_and_disable(db) -> list[str]:
     drawdown_pct = abs(min(0, total_pnl)) / initial * 100
 
     if drawdown_pct > MAX_TOTAL_DRAWDOWN_PCT and total_pnl < 0:
-        db.execute(
-            text(
-                """
-            UPDATE strategy_config SET enabled = false
-            WHERE mode = 'live' AND enabled = true
-        """
-            )
-        )
+        from backend.models.database import StrategyConfig
+        from backend.core.strategy_health import disable_for_rehab
+
+        live_strats = db.query(StrategyConfig).filter(
+            StrategyConfig.mode == "live",
+            StrategyConfig.enabled.is_(True),
+        ).all()
+        for cfg in live_strats:
+            disable_for_rehab(cfg)
+        if live_strats:
+            db.flush()
         disabled.append(
             f"ALL LIVE: drawdown {drawdown_pct:.1f}% > {MAX_TOTAL_DRAWDOWN_PCT}%"
         )
         logger.warning(
-            f"[RISK] EMERGENCY: All live strats disabled ({drawdown_pct:.1f}% drawdown)"
+            f"[RISK] EMERGENCY: All live strats enter rehab ({drawdown_pct:.1f}% drawdown)"
         )
 
     if disabled:

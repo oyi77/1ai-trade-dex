@@ -1108,10 +1108,10 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         # so open the session in a thread to avoid blocking the event loop.
         def _open_db_session():
             from backend.db.utils import get_db_session
+            ctx = get_db_session()
+            return ctx, ctx.__enter__()
 
-            return get_db_session()
-
-        db = await asyncio.to_thread(_open_db_session)
+        _db_ctx, db = await asyncio.to_thread(_open_db_session)
         try:
             ctx = StrategyContext(
                 db=db,
@@ -1188,7 +1188,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 f"Strategy {strategy_name} cycle done: decisions={result.decisions_recorded} trades={result.trades_placed} errors={len(result.errors)}",
             )
         finally:
-            db.close()
+            _db_ctx.__exit__(None, None, None)
 
     except asyncio.CancelledError:
         logger.info(f"strategy_cycle_job({strategy_name}) cancelled during shutdown")
