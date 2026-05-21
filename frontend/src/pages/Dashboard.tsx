@@ -23,6 +23,11 @@ const HFTTab = lazy(() => import('../components/hft').then(m => ({ default: m.de
 const ControlRoomTab = lazy(() => import('../components/dashboard/ControlRoomTab').then(m => ({ default: m.ControlRoomTab })))
 const KanbanTab = lazy(() => import('../components/dashboard/KanbanTab').then(m => ({ default: m.KanbanTab })))
 const GlobeView = lazy(() => import('../components/GlobeView').then(m => ({ default: m.GlobeView })))
+const VenueMonitor = lazy(() => import('../components/VenueMonitor').then(m => ({ default: m.VenueMonitor })))
+const PluginStatusPanel = lazy(() => import('../components/PluginStatusPanel').then(m => ({ default: m.PluginStatusPanel })))
+const SandboxMonitor = lazy(() => import('../components/SandboxMonitor').then(m => ({ default: m.SandboxMonitor })))
+const AGIGraphRunner = lazy(() => import('../components/AGIGraphRunner').then(m => ({ default: m.AGIGraphRunner })))
+const EdgeDistribution = lazy(() => import('../components/EdgeDistribution').then(m => ({ default: m.EdgeDistribution })))
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
@@ -58,7 +63,7 @@ function RefreshBar({ interval }: { interval: number }) {
 
 // ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 
-const DASHBOARD_TABS = ['Overview', 'Control Room', 'AGI Pipeline', 'Performance', 'Brain', 'Trades', 'Markets', 'Globe', 'HFT'] as const
+const DASHBOARD_TABS = ['Overview', 'Control Room', 'AGI Pipeline', 'Performance', 'Brain', 'Trades', 'Markets', 'Globe', 'HFT', 'Analytics', 'Infra', 'Sandbox'] as const
 type DashboardTab = typeof DASHBOARD_TABS[number]
 
 export default function Dashboard() {
@@ -278,6 +283,38 @@ export default function Dashboard() {
               </Suspense>
             )}
             {activeTab === 'HFT' && <HFTTab />}
+            {activeTab === 'Analytics' && (
+              <div className="p-4 h-full" style={{ minHeight: 400 }}>
+                <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Edge Distribution</div>
+                <div className="h-[calc(100%-24px)]">
+                  <EdgeDistribution btcSignals={activeSignals ?? []} weatherSignals={weatherSignals ?? []} />
+                </div>
+              </div>
+            )}
+            {activeTab === 'Infra' && (
+              <div className="p-4 overflow-y-auto h-full space-y-4">
+                <div className="border border-neutral-800 bg-neutral-900/50 p-4" style={{ minHeight: 250 }}>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Venue Monitor</div>
+                  <div style={{ minHeight: 200 }}><VenueMonitor /></div>
+                </div>
+                <div className="border border-neutral-800 bg-neutral-900/50 p-4" style={{ minHeight: 250 }}>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Plugin Status</div>
+                  <div style={{ minHeight: 200 }}><PluginStatusPanel /></div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'Sandbox' && (
+              <div className="p-4 overflow-y-auto h-full space-y-4">
+                <div className="border border-neutral-800 bg-neutral-900/50 p-4" style={{ minHeight: 300 }}>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Strategy Sandbox</div>
+                  <div style={{ minHeight: 250 }}><SandboxMonitor /></div>
+                </div>
+                <div className="border border-neutral-800 bg-neutral-900/50 p-4" style={{ minHeight: 300 }}>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">AGI Graph Runner</div>
+                  <div style={{ minHeight: 250 }}><AGIGraphRunner /></div>
+                </div>
+              </div>
+            )}
           </Suspense>
         </div>
 

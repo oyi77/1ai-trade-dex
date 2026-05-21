@@ -1,11 +1,18 @@
-"""Learning Pipeline — post-settlement feedback loop (ADR-013).
+"""DEPRECATED: Use backend.core.learning_pipeline instead.
+
+Learning Pipeline — post-settlement feedback loop (ADR-013).
 
 Flows trade settlement events through forensics analysis, lesson extraction,
 brain storage, genome fitness adjustment, and knowledge graph updates.
 
 Each stage is isolated with try/except — no stage failure crashes the system
 or blocks trade execution.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 

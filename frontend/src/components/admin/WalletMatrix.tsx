@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   fetchTradingWallets,
@@ -8,8 +9,20 @@ import {
 
 export function WalletMatrix() {
   const queryClient = useQueryClient()
+  const [strategies, setStrategies] = useState<string[]>([])
+  const [strategiesLoaded, setStrategiesLoaded] = useState(false)
   const { data: walletsData, isLoading: walletsLoading } = useQuery({ queryKey: ['trading-wallets'], queryFn: fetchTradingWallets })
   const { data: allocationsData, isLoading: allocationsLoading } = useQuery({ queryKey: ['wallet-allocations'], queryFn: fetchWalletAllocations })
+
+  useEffect(() => {
+    fetch('/api/v1/strategy-config')
+      .then(r => r.json())
+      .then(data => {
+        setStrategies(data.map((s: any) => s.strategy_name))
+        setStrategiesLoaded(true)
+      })
+      .catch(() => setStrategiesLoaded(true))
+  }, [])
   const wallets = walletsData?.items ?? []
   const allocations = allocationsData?.items ?? []
 
@@ -23,7 +36,7 @@ export function WalletMatrix() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wallet-allocations'] })
   })
 
-  if (walletsLoading || allocationsLoading) return <div>Loading Wallets...</div>
+  if (walletsLoading || allocationsLoading || !strategiesLoaded) return <div>Loading Wallets...</div>
 
   return (
     <div className="bg-neutral-900 rounded-lg shadow-sm border border-neutral-800 overflow-hidden mb-6">
@@ -36,7 +49,7 @@ export function WalletMatrix() {
             <tr>
               <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Wallet / Strategy</th>
               <th className="px-3 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Status</th>
-              {['btc_oracle', 'market_maker', 'line_movement_detector'].map(strategy => (
+              {strategies.map(strategy => (
                 <th key={strategy} className="px-3 py-2 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">{strategy}</th>
               ))}
             </tr>
@@ -56,7 +69,7 @@ export function WalletMatrix() {
                     <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${wallet.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                 </td>
-                {['btc_oracle', 'market_maker', 'line_movement_detector'].map(strategy => {
+                {strategies.map(strategy => {
                   const alloc = allocations.find(a => a.wallet_id === wallet.id && a.strategy_name === strategy)
                   return (
                     <td key={strategy} className="px-3 py-2 whitespace-nowrap text-sm text-neutral-500">

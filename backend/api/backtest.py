@@ -298,6 +298,8 @@ async def run_backtest_engine(
 ) -> Dict[str, Any]:
     """
     Core backtesting engine (legacy helper used by other routes).
+
+    .. deprecated:: Use ``backend.backtesting.registry.BacktestEngineRegistry.run_backtest`` instead.
     """
     # Get historical signals for the date range
     historical_signals = get_historical_signals(db, strategy.name, start_date, end_date)
@@ -617,3 +619,54 @@ async def get_collection_status(
     if not info:
         raise HTTPException(404, "Task not found")
     return info
+
+
+class RegistryBacktestRequest(BaseModel):
+    strategy_name: str
+    market_ticker: str
+    start_date: str
+    end_date: str
+    params: Dict[str, Any] = {}
+    data_source: str = "polymarket"
+    strategy_runner: str = "default"
+    metrics: str = "sharpe"
+
+
+@router.post("/run-registry")
+async def run_registry_backtest(
+    body: RegistryBacktestRequest,
+    _: None = Depends(require_admin),
+):
+    """Run a backtest using the BacktestEngineRegistry framework.
+
+    Uses registered data sources, strategy runners, and metrics calculators
+    for a modular, pluggable backtesting pipeline.
+    """
+    from backend.backtesting import setup_registry
+
+    registry = setup_registry()
+
+    try:
+        result = registry.run_backtest(
+            strategy_name=body.strategy_name,
+            market_ticker=body.market_ticker,
+            start_date=body.start_date,
+            end_date=body.end_date,
+            params=body.params,
+            data_source_key=body.data_source,
+            strategy_runner_key=body.strategy_runner,
+            metrics_key=body.metrics,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Registry component not found: {exc}")
+    except Exception as exc:
+        logger.error(f"Registry backtest failed: {exc}")
+        raise HTTPException(status_code=500, detail="Registry backtest failed — check server logs")
+
+    return {
+        "strategy_name": body.strategy_name,
+        "market_ticker": body.market_ticker,
+        "start_date": body.start_date,
+        "end_date": body.end_date,
+        "results": result,
+    }

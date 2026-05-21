@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.self_debugger instead.
+
+DEPRECATED: Use backend.core.self_debugger instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone

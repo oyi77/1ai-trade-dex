@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.circuit_breaker instead.
+
+DEPRECATED: Use backend.core.circuit_breaker instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 import asyncio
 import functools
 import time

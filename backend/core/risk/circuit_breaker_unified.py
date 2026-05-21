@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.circuit_breaker_unified instead.
+
+DEPRECATED: Use backend.core.circuit_breaker_unified instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 from backend.config import settings
 from backend.core.risk.circuit_breaker import CircuitBreaker as CustomCircuitBreaker
 

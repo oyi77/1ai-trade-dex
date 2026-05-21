@@ -1,9 +1,16 @@
-"""Dynamic risk profiles per ADR-005.
+"""DEPRECATED: Use backend.core.risk_profiles instead.
+
+Dynamic risk profiles per ADR-005.
 
 Profiles are stored in DB (risk_profiles table). Four operator-selectable
 presets (safe, normal, aggressive, extreme) are seeded on first boot.
 Profiles are fully editable at runtime via REST API — no code changes needed.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 import os

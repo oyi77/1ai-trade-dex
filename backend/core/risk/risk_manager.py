@@ -1,4 +1,11 @@
-"""Risk manager — validates trades against position size, exposure, drawdown, and confidence rules."""
+"""DEPRECATED: Use backend.core.risk_manager instead.
+
+Risk manager — validates trades against position size, exposure, drawdown, and confidence rules.
+
+This module will be removed in a future release.
+"""
+
+
 
 import json
 from dataclasses import dataclass

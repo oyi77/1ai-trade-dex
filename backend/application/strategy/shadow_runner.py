@@ -124,14 +124,10 @@ class DBSessionShadowRunner:
                 direction_won = (
                     trade.direction == "up" and settlement_value == 1.0
                 ) or (trade.direction == "down" and settlement_value == 0.0)
-                # Polymarket fee formula: (100/10000) * min(price, 1-price) * size
-                fee = 0.01 * min(trade.entry_price, 1.0 - trade.entry_price) * trade.size
-                dollar_cost = trade.size + fee
-                if direction_won:
-                    shares = dollar_cost / trade.entry_price
-                    trade.pnl = round(shares - dollar_cost, 2)
-                else:
-                    trade.pnl = round(-dollar_cost, 2)
+                from backend.core.settlement.settlement_helpers import calculate_pnl
+
+                pnl = calculate_pnl(trade, settlement_value)
+                trade.pnl = pnl
 
                 # Calculate accuracy score if we have predicted and actual outcomes
                 if trade.predicted_outcome is not None and actual_outcome is not None:

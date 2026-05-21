@@ -1,4 +1,7 @@
 """
+DEPRECATED: Use backend.core.circuit_breaker_pybreaker instead.
+This module will be removed in a future release.
+
 Circuit breaker implementation using pybreaker library.
 
 Provides circuit breakers for:
@@ -12,6 +15,8 @@ Circuit breaker states:
 - OPEN: Too many failures, requests fail fast without calling the protected function
 - HALF_OPEN: Testing recovery, limited requests allowed to check if service recovered
 """
+
+
 
 from typing import Any, Callable
 from functools import wraps

@@ -50,7 +50,7 @@ class PolymarketProvider(BaseMarketProvider):
                 VenueCapability.STREAMING_FILLS,
             ],
             supported_currencies=["USDC"],
-            required_env_vars=["POLYMARKET_API_KEY", "POLYMARKET_API_SECRET"],
+            required_env_vars=["POLYMARKET_BUILDER_API_KEY", "POLYMARKET_BUILDER_SECRET"],
             supports_paper_mode=True,
             is_live_venue=True,
             min_order_size_usd=1.0,

@@ -1,5 +1,12 @@
-"""Auto-improvement job for PolyEdge — learns from trade outcomes and
-auto-applies optimizer suggestions with guardrails and rollback."""
+"""DEPRECATED: Use backend.core.auto_improve instead.
+
+Auto-improvement job for PolyEdge — learns from trade outcomes and
+auto-applies optimizer suggestions with guardrails and rollback.
+
+This module will be removed in a future release.
+"""
+
+
 
 from __future__ import annotations
 

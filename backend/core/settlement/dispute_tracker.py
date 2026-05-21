@@ -1,9 +1,14 @@
 """
+DEPRECATED: Use backend.core.dispute_tracker instead.
+This module will be removed in a future release.
+
 Dispute risk tracker for PolyEdge.
 
 Assesses the likelihood of market resolution disputes based on category,
 resolution criteria clarity, volume at stake, and time pressure.
 """
+
+
 
 from dataclasses import dataclass
 from enum import Enum

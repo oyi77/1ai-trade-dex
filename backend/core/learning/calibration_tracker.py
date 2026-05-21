@@ -1,4 +1,11 @@
-"""Calibration tracker — validates that model predicted probabilities match actual outcomes."""
+"""DEPRECATED: Use backend.core.calibration_tracker instead.
+
+Calibration tracker — validates that model predicted probabilities match actual outcomes.
+
+This module will be removed in a future release.
+"""
+
+
 
 from datetime import datetime, timezone
 from typing import Optional

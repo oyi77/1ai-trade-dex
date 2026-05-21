@@ -1,4 +1,7 @@
 """
+DEPRECATED: Use backend.core.wallet_reconciliation instead.
+This module will be removed in a future release.
+
 Wallet reconciliation module for blockchain sync.
 
 Orchestrates wallet reconciliation strategy, position comparison, trade imports,
@@ -10,6 +13,8 @@ Key responsibilities:
 - Detect orphaned positions (on-chain but missing from DB)
 - Close orphaned positions with metadata tracking
 """
+
+
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone

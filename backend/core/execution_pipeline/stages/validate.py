@@ -51,7 +51,12 @@ class ValidationStage(BaseExecutionStage):
         return {"validation_passed": True}
 
     def record(self, decision, result, ctx):
-        logger.debug("[ValidationStage] record() not implemented")
+        market_ticker = decision.get("market_ticker", "unknown")
+        passed = result.get("validation_passed", False)
+        logger.info(
+            "[ValidationStage] recorded: market={} passed={}",
+            market_ticker, passed,
+        )
 
 
 registry.plugin(ValidationStage)

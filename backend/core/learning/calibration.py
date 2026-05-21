@@ -1,10 +1,15 @@
 """
+DEPRECATED: Use backend.core.calibration instead.
+This module will be removed in a future release.
+
 Forecast sigma (uncertainty) calibration per city and source.
 
 Tracks resolved weather markets and adaptively recalibrates forecast
 uncertainty (sigma) per city/source. Calibrated sigma improves the
 Gaussian probability model's accuracy over time.
 """
+
+
 
 import json
 import math

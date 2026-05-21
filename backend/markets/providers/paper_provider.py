@@ -26,8 +26,7 @@ from backend.markets.provider_registry import market_registry
 
 logger = logging.getLogger(__name__)
 
-# Polymarket taker fee: 100 bps (1%)
-_POLYMARKET_TAKER_FEE_BPS = 100
+from backend.fee_config import TAKER_FEE_BPS as _POLYMARKET_TAKER_FEE_BPS
 
 
 @dataclass(frozen=True)

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from loguru import logger
 
-DEFAULT_FEE_RATE = 0.02
+from backend.fee_config import TAKER_FEE_RATE as DEFAULT_FEE_RATE
 DEFAULT_MIN_DEVIATION = 0.02  # minimum net deviation to flag as opportunity
 DEFAULT_MIN_OUTCOMES = 3  # require at least this many outcomes per event
 

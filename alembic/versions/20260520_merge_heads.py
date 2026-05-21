@@ -9,13 +9,13 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "merge_heads_001"
-down_revision = None
-branch_labels = ("merge_heads_001",)
-depends_on = (
+down_revision = (
     "20260519_merge_and_add_journal",
     "wallet_recon_001",
     "a1b2c3d4misc0",
 )
+branch_labels = None
+depends_on = None
 
 
 def upgrade():

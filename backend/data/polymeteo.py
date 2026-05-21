@@ -1,3 +1,9 @@
+"""Polymeteo weather resolution and candle data client.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
+"""
+
 from dataclasses import dataclass
 from typing import List, Optional
 import httpx

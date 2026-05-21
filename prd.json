@@ -1,0 +1,116 @@
+{
+  "project": "PolyEdge Zero-Debt Master Plan",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Phase 1: Foundation \u2014 Config & Constants",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "backend/constants.py exists with CTF_ADDRESS, USDC_E_ADDRESS, USDC_NATIVE_ADDRESS, PUSD_ADDRESS, CHAIN_IDS, ZERO_ADDRESS",
+        "backend/fee_config.py exists with TAKER_FEE_RATE=0.01, KALSHI_TAKER_FEE_RATE=0.07, FEE_USE_STORED=True",
+        "backend/risk_config.py exists with DEFAULT_KELLY_FRACTION=0.25, INITIAL_BANKROLL=1000.0",
+        "config.py TAKER_FEE_RATE = 0.01 (not 0.02)",
+        "config.py has no duplicate fields (AUTO_REDEEM_INTERVAL_SECONDS appears once)",
+        "Settings class deleted from config.py",
+        "57 missing env vars added to ConfigRegistry",
+        "python -c 'import backend' succeeds",
+        "pytest tests/ passes with 0 new failures"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Phase 2: PnL Unification",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "calculate_pnl() uses fee_config values, no hardcoded fee_bps",
+        "BTC 5-min settlement calls calculate_pnl() (no inline formula in settlement.py:84-108)",
+        "Bankroll update has no '- fee' term (settlement.py:825)",
+        "genome_repository.py calls calculate_pnl() (no inline formula at lines 249-274)",
+        "shadow_runner.py calls calculate_pnl() (no inline formula at lines 118-134)",
+        "grep -rn 'fee_bps' backend/core/settlement/ returns 0 matches",
+        "pytest tests/ passes with 0 new failures"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Phase 3: Wire Wallet System",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "WALLET_ENCRYPTION_KEY, WALLET_ROUTER_ENABLED, COPY_POLICY_ENABLED in ConfigRegistry",
+        "WalletRouter instantiated in backend/api/lifespan.py at startup",
+        "AutoTrader receives non-None wallet_router",
+        "CopyPolicyEngine wired to signal flow",
+        "WalletMatrix.tsx fetches strategies from API (not hardcoded list)",
+        "test_wallet_router.py passes",
+        "test_wallet_api.py passes"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Phase 4: Wire AGI System",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "node_registry.auto_discover('backend.agi.nodes') called in lifespan",
+        "3 graphs registered with GraphEngine",
+        "4 research modules imported in agi_jobs.py",
+        "RL trainer has scheduled job",
+        "backend.data.providers imported in pipeline",
+        "python -c 'import backend' succeeds after changes"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Phase 5: Wire Strategies",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Scheduler iterates StrategyConfig from DB (no hardcoded strategy names)",
+        "All enabled strategies execute in each cycle",
+        "backend/api/backtest.py uses backend.backtesting.registry",
+        "pytest tests/ passes with 0 new failures"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Phase 6: Consolidate Duplicates",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "0 duplicate module pairs remain (29 pairs consolidated)",
+        "All imports use canonical paths (subdirectory versions)",
+        "python -c 'import backend' succeeds",
+        "pytest tests/ passes with 0 new failures"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Phase 7: Frontend Wiring",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "8 orphaned components imported in Dashboard/Admin tabs",
+        "16 dead pages either routed in App.tsx or removed",
+        "No orphaned .tsx files in pages/",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Phase 8: Verification",
+      "priority": 8,
+      "passes": true,
+      "acceptanceCriteria": [
+        "pytest tests/ \u2014 0 failures, 0 errors",
+        "grep -rn '0.02' backend/config.py returns 0 fee rate matches",
+        "grep -rn 'fee_bps' backend/ returns 0 matches",
+        "All providers register (7: aster, hyperliquid, kalshi, lighter, ostium, paper, polymarket)",
+        "All strategies execute from DB",
+        "python -c 'import backend' succeeds"
+      ]
+    }
+  ]
+}

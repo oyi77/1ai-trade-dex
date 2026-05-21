@@ -198,11 +198,11 @@ def is_strategy_enabled(name: str, db=None) -> bool:
         return bool(config.enabled)
     except Exception as e:
         logger.warning(
-            "Error checking strategy '%s' enabled state, defaulting to enabled: %s",
+            "Error checking strategy '%s' enabled state, defaulting to disabled: %s",
             name,
             e,
         )
-        return True  # on error, default to enabled
+        return False  # on error, fail-safe: do not run strategy
 
 
 def get_strategy_class(strategy_name: str) -> type:

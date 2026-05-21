@@ -1,8 +1,15 @@
-"""Fronttest Scheduler — periodic validation of pending proposals for live promotion.
+"""DEPRECATED: Use backend.core.fronttest_scheduler instead.
+
+Fronttest Scheduler — periodic validation of pending proposals for live promotion.
 
 Runs FronttestValidator.validate_all_pending() on a schedule and promotes
 approved proposals to live.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 

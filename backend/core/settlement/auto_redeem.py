@@ -1,4 +1,7 @@
 """
+DEPRECATED: Use backend.core.auto_redeem instead.
+This module will be removed in a future release.
+
 Auto-redeem resolved Polymarket positions.
 
 Supports two wallet types:
@@ -15,6 +18,8 @@ Function: redeemPositions(collateralToken, parentCollectionId, conditionId, inde
 For standard binary markets: indexSets = [1, 2], parentCollectionId = bytes32(0)
 """
 
+
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -29,8 +34,9 @@ from loguru import logger
 
 POLYGON_RPC = settings.POLYGON_RPC_URL
 RELAYER_URL = _main_settings.POLYMARKET_RELAYER_URL
-CTF_ADDRESS = Web3.to_checksum_address("0x4D97DCd97eC945f40cF65F87097ACe5EA0476045")
-USDC_POLYGON = Web3.to_checksum_address("0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174")
+from backend.constants import CONDITIONAL_TOKENS_ADDRESS as _CTF, USDC_E_ADDRESS as _USDC
+CTF_ADDRESS = Web3.to_checksum_address(_CTF)
+USDC_POLYGON = Web3.to_checksum_address(_USDC)
 NEG_RISK_ADAPTER = Web3.to_checksum_address(
     "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296"
 )

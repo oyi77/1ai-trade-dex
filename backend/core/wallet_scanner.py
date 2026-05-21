@@ -22,7 +22,7 @@ from backend.config import settings
 logger = logging.getLogger(__name__)
 
 BLOCKSCOUT_API = "https://polygon.blockscout.com/api/v2"
-PUSD = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
+from backend.constants import PUSD_ADDRESS as PUSD
 CACHE_DIR = Path("data/scanner_cache")
 SCAN_CACHE_TTL = 3600  # 1 hour
 

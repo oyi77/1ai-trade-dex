@@ -1704,6 +1704,37 @@
       "message": "critical error",
       "details": {},
       "timestamp": 1779321486.6715903
+    },
+    {
+      "event_id": "e8e7c2cf-4c5",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779384766.7926402
+    },
+    {
+      "event_id": "cf4202de-bed",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779384766.8032758
+    },
+    {
+      "event_id": "e5e6a8fd-f49",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779384766.832694
     }
   ],
   "actions": [
@@ -2201,6 +2232,15 @@
       "success": true,
       "duration_ms": 0.0,
       "timestamp": 1779321486.6508808
+    },
+    {
+      "action_id": "9876af1d-c3a",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779384766.8136067
     }
   ]
 }

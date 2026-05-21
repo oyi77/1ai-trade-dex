@@ -13,6 +13,7 @@ const ErrorTest = React.lazy(() => import('./pages/ErrorTest'))
 const MiroFish = React.lazy(() => import('./pages/MiroFish'))
 const LiveStream = React.lazy(() => import('./pages/LiveStream'))
 const TradingJournal = React.lazy(() => import('./pages/TradingJournal'))
+const Backtest = React.lazy(() => import('./pages/Backtest').then(m => ({ default: m.Backtest })))
 
 /**
  * Redirect component for /docs* paths.
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/mirofish" element={<MiroFish />} />
             <Route path="/livestream" element={<LiveStream />} />
             <Route path="/journal" element={<TradingJournal />} />
+            <Route path="/backtest" element={<Backtest />} />
             <Route path="/agi/*" element={<Navigate to="/admin" replace />} />
             {/* Legacy standalone routes → redirect to Dashboard tabs */}
             <Route path="/whale-tracker" element={<Navigate to="/dashboard" replace />} />

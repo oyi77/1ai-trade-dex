@@ -863,6 +863,9 @@ class StrategyConfig(Base):
     risk_tier = Column(
         String, nullable=True, default="moderate"
     )  # "safe", "conservative", "moderate", "aggressive", "extreme", "crazy"
+    protected = Column(
+        Boolean, default=False
+    )  # if True, strategy is exempt from auto-disable and scheduled for all modes
     disabled_at = Column(DateTime, nullable=True, default=None)
     rehab_allocation_pct = Column(
         Float, nullable=True, default=None

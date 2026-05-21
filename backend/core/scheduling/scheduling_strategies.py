@@ -1,4 +1,11 @@
-"""Background job functions scheduled by APScheduler."""
+"""DEPRECATED: Use backend.core.scheduling_strategies instead.
+
+Background job functions scheduled by APScheduler.
+
+This module will be removed in a future release.
+"""
+
+
 
 import asyncio
 import gc
@@ -821,7 +828,11 @@ async def auto_trader_job(mode: str):
         from backend.core.risk_manager import RiskManager
         from backend.data.polymarket_clob import clob_from_settings
 
-        trader = AutoTrader(RiskManager(), clob_factory=clob_from_settings)
+        from backend.core.wallet.registry import get_wallet_router
+
+        trader = AutoTrader(
+            RiskManager(), clob_factory=clob_from_settings, wallet_router=get_wallet_router()
+        )
         data = await asyncio.to_thread(_read_auto_trader_signals)
         if data is None:
             return

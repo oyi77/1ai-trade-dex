@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.market_risk instead.
+
+DEPRECATED: Use backend.core.market_risk instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 

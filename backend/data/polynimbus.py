@@ -2,6 +2,9 @@
 Polynimbus city registry and market fetcher
 
 CITY_REGISTRY holds 36+ global cities with lat/lon/country/tz.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
 """
 
 import os

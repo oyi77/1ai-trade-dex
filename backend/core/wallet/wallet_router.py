@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.wallet_router instead.
+
+DEPRECATED: Use backend.core.wallet_router instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 from __future__ import annotations
 
 import os

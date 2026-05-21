@@ -90,6 +90,56 @@ class AGIOrchestrator:
         if self._owns_session:
             self._session.close()
 
+    async def _fetch_dune_context(self) -> dict[str, Any]:
+        """Fetch Polymarket on-chain analytics from Dune Analytics.
+
+        Returns a dict with volume, top markets, and whale activity data.
+        Returns empty dict if Dune is unavailable or unconfigured.
+        """
+        try:
+            from backend.data.dune_analytics import DuneAnalyticsClient
+
+            client = DuneAnalyticsClient()
+            if not client.api_key:
+                logger.debug("Dune API key not configured, skipping on-chain context")
+                return {}
+
+            volume, markets, whales = [], [], []
+            try:
+                volume = await client.get_total_volume()
+            except Exception as e:
+                logger.debug("Dune total_volume fetch failed: %s", e)
+            try:
+                markets = await client.get_top_markets()
+            except Exception as e:
+                logger.debug("Dune top_markets fetch failed: %s", e)
+            try:
+                whales = await client.get_whale_activity()
+            except Exception as e:
+                logger.debug("Dune whale_activity fetch failed: %s", e)
+
+            ctx: dict[str, Any] = {}
+            if volume:
+                ctx["dune_volume"] = volume
+            if markets:
+                ctx["dune_top_markets"] = markets
+            if whales:
+                ctx["dune_whale_activity"] = whales
+            if ctx:
+                logger.info(
+                    "Dune context loaded: %d volume rows, %d markets, %d whale trades",
+                    len(volume),
+                    len(markets),
+                    len(whales),
+                )
+            return ctx
+        except ImportError:
+            logger.debug("dune_analytics module not available")
+            return {}
+        except Exception as e:
+            logger.debug("Dune context fetch failed: %s", e)
+            return {}
+
     async def run_cycle(self) -> AGICycleResult:
         if self._emergency_stop:
             return AGICycleResult(
@@ -100,6 +150,15 @@ class AGIOrchestrator:
 
         errors = []
         actions = 0
+
+        # Fetch Dune Analytics on-chain context (non-blocking, best-effort)
+        dune_context: dict[str, Any] = {}
+        try:
+            dune_context = await self._fetch_dune_context()
+            if dune_context:
+                actions += 1
+        except Exception as e:
+            logger.debug("Dune context fetch skipped: %s", e)
 
         try:
             from backend.mesh.health import SourceHealthMonitor
@@ -278,6 +337,10 @@ class AGIOrchestrator:
                 actions += 1
             except Exception as e:
                 errors.append(f"KG read-back failed: {e}")
+
+        # Merge Dune on-chain analytics into KG context
+        if dune_context:
+            kg_context.update(dune_context)
 
         # --- Auto-compose strategies for the current regime ---
         try:

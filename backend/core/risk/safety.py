@@ -1,4 +1,11 @@
-"""Safety monitoring and risk management for AGI components."""
+"""DEPRECATED: Use backend.core.safety instead.
+
+Safety monitoring and risk management for AGI components.
+
+This module will be removed in a future release.
+"""
+
+
 
 from datetime import datetime, timezone
 import json

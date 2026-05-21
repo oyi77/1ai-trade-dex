@@ -10,6 +10,9 @@ Configuration (environment variables):
 
 If SIMMER_API_KEY is missing, calls return empty data structures rather than
 raising — keeping the system resilient when the integration is unconfigured.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
 """
 
 from __future__ import annotations

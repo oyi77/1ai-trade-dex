@@ -1,9 +1,14 @@
 """
+DEPRECATED: Use backend.core.settlement_ws instead.
+This module will be removed in a future release.
+
 Real-time settlement handler using Polymarket WebSocket market_resolved events.
 
 When Polymarket resolves a market, we receive the event via WebSocket and can
 settle trades immediately instead of waiting for the next settlement cycle.
 """
+
+
 
 import asyncio
 from typing import Optional, Set

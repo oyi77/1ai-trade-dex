@@ -1,4 +1,11 @@
-"""Equity curve calculation from AppState snapshots."""
+"""DEPRECATED: Use backend.core.equity_calculator instead.
+
+Equity curve calculation from AppState snapshots.
+
+This module will be removed in a future release.
+"""
+
+
 
 from datetime import datetime, timedelta, timezone
 from typing import List

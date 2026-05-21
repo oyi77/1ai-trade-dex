@@ -27,7 +27,7 @@ class TradingWallet(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     label = Column(String, unique=True, nullable=False, index=True)
-    chain = Column(String, nullable=False)  # "polymarket" | "kalshi"
+    chain = Column(String, nullable=False)  # "polymarket" | "kalshi" | "sxbet" | "limitless" | "ostium" | "aster" | "lighter" | "hyperliquid"
     address = Column(String, unique=True, nullable=False, index=True)
     encrypted_private_key = Column(Text, nullable=True)  # Fernet-encrypted
     api_key = Column(String, nullable=True)  # Kalshi REST API key

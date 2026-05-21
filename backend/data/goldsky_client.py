@@ -1,4 +1,8 @@
-"""Goldsky GraphQL client for ingesting historical Polymarket order-filled events."""
+"""Goldsky GraphQL client for ingesting historical Polymarket order-filled events.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
+"""
 
 import json
 from pathlib import Path

@@ -1,4 +1,11 @@
-"""Cross-market correlation monitor — prevents clustered exposure across related market categories."""
+"""DEPRECATED: Use backend.core.correlation_monitor instead.
+
+Cross-market correlation monitor — prevents clustered exposure across related market categories.
+
+This module will be removed in a future release.
+"""
+
+
 
 from dataclasses import dataclass, field
 from typing import Dict, Optional

@@ -1,8 +1,13 @@
 """
+DEPRECATED: Use backend.core.wallet_auto_discovery instead.
+This module will be removed in a future release.
+
 Auto-discover profitable Polymarket wallets from leaderboard.
 
 Scans leaderboard, ranks by P&L, and suggests wallets to copy.
 """
+
+
 
 from typing import List, Dict, Any
 from datetime import datetime, timezone

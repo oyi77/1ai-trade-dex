@@ -1,9 +1,16 @@
-"""Bankroll Allocator — daily auto-allocation of capital across ranked strategies.
+"""DEPRECATED: Use backend.core.bankroll_allocator instead.
+
+Bankroll Allocator — daily auto-allocation of capital across ranked strategies.
 
 Reads strategy performance rankings from StrategyRanker and distributes
 bankroll proportionally to risk-adjusted returns. Caps allocation at 50%
 per strategy. Writes allocations into BotState for observability.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 

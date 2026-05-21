@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from backend.core.risk.circuit_breaker_unified import UnifiedCircuitBreaker
+from backend.core.circuit_breaker_unified import UnifiedCircuitBreaker
 
 
 class TestUnifiedCircuitBreaker:

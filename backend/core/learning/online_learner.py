@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.online_learner instead.
+
+DEPRECATED: Use backend.core.online_learner instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 import json
 from datetime import datetime, timezone
 
@@ -196,7 +205,16 @@ class OnlineLearner:
                     .all()
                 ]
             if not names:
-                names = ["btc_oracle", "weather_emos", "copy_trader"]
+                # Fallback: query protected strategies from DB
+                with get_db_session() as db:
+                    names = [
+                        r[0]
+                        for r in db.query(StrategyConfig.strategy_name)
+                        .filter(StrategyConfig.protected.is_(True))
+                        .all()
+                    ]
+                if not names:
+                    names = ["btc_oracle", "weather_emos", "copy_trader"]
             return self.get_allocation(names, total_capital=1.0)
         except Exception:
             logger.exception("[OnlineLearner] Failed to get strategy rankings")

@@ -1,4 +1,11 @@
-"""Auto-retraining trigger — fires after sufficient settled trades or Brier degradation."""
+"""DEPRECATED: Use backend.core.retrain_trigger instead.
+
+Auto-retraining trigger — fires after sufficient settled trades or Brier degradation.
+
+This module will be removed in a future release.
+"""
+
+
 
 import threading
 from backend.models.database import Trade

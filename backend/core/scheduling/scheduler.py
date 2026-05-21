@@ -1,8 +1,15 @@
-"""Background scheduler for multi-strategy autonomous trading.
+"""DEPRECATED: Use backend.core.scheduler instead.
+
+Background scheduler for multi-strategy autonomous trading.
 
 This module manages the APScheduler instance and scheduling configuration.
 The actual job functions are in scheduling_strategies.py.
+
+
+This module will be removed in a future release.
 """
+
+
 
 import asyncio
 import datetime as dt_module
@@ -818,13 +825,7 @@ def start_scheduler():
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-            if config.strategy_name in (
-                "copy_trader",
-                "weather_emos",
-                "agi_orchestrator",
-                "btc_oracle",
-                "crypto_oracle",
-            ):
+            if config.protected:
                 interval = config.interval_seconds or 60
                 configs_to_schedule.append((config.strategy_name, interval, "paper"))
                 configs_to_schedule.append((config.strategy_name, interval, "live"))
@@ -1271,13 +1272,7 @@ def start_scheduler():
                 for config in (
                     db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
                 ):
-                    if config.strategy_name in (
-                        "copy_trader",
-                        "weather_emos",
-                        "agi_orchestrator",
-                        "btc_oracle",
-                        "crypto_oracle",
-                    ):
+                    if config.protected:
                         continue
 
                     for mode in settings.active_modes_set:

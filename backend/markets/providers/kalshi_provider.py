@@ -26,8 +26,7 @@ try:
 except ImportError:
     HAS_KALSHI = False
 
-KALSHI_TAKER_FEE_RATE = 0.07
-KALSHI_MAKER_FEE_RATE = 0.0175
+from backend.fee_config import KALSHI_TAKER_FEE_RATE, KALSHI_MAKER_FEE_RATE
 
 
 def _kalshi_fee(price: Decimal, size: Decimal, is_maker: bool = False) -> Decimal:

@@ -1,10 +1,17 @@
-"""BotState bankroll reconciliation utilities.
+"""DEPRECATED: Use backend.core.bankroll_reconciliation instead.
+
+BotState bankroll reconciliation utilities.
 
 The Trade table is the durable ledger. BotState bankroll fields are derived
 caches used for sizing, dashboards, and fast risk checks; when old accounting
 bugs corrupt those caches, recompute them from source-of-truth data instead of
 mutating or deleting historical trades.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 from dataclasses import asdict, dataclass, field

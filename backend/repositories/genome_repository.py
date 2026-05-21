@@ -244,34 +244,17 @@ class GenomeRepository:
                 trade.settlement_price = settlement_price
                 trade.actual_outcome = actual_outcome
 
-                from backend.config import settings
+                from backend.core.settlement.settlement_helpers import calculate_pnl
 
-                fee_rate = getattr(settings, "TAKER_FEE_RATE", 0.02)
+                settlement_value = settlement_price
+                pnl = calculate_pnl(trade, settlement_value)
 
-                if trade.direction == "up":
-                    trade.exit_price = settlement_price
-                    if settlement_price > 0.5:
-                        trade.pnl = round(
-                            (1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2
-                        )
-                        trade.result = "win"
-                    else:
-                        trade.pnl = round(
-                            -trade.entry_price * trade.size * (1.0 + fee_rate), 2
-                        )
-                        trade.result = "loss"
+                trade.exit_price = settlement_price if trade.direction == "up" else 1 - settlement_price
+                trade.pnl = pnl
+                if pnl >= 0:
+                    trade.result = "win"
                 else:
-                    trade.exit_price = 1 - settlement_price
-                    if settlement_price < 0.5:
-                        trade.pnl = round(
-                            (1.0 - trade.entry_price) * trade.size * (1.0 - fee_rate), 2
-                        )
-                        trade.result = "win"
-                    else:
-                        trade.pnl = round(
-                            -trade.entry_price * trade.size * (1.0 + fee_rate), 2
-                        )
-                        trade.result = "loss"
+                    trade.result = "loss"
 
                 trade.accuracy_score = (
                     abs(trade.predicted_outcome - actual_outcome)

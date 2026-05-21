@@ -1,7 +1,12 @@
 """
+DEPRECATED: Use backend.core.learning_system instead.
+This module will be removed in a future release.
+
 Learning System - Tracks model predictions and outcomes for calibration and analysis.
 Supports both online (real-time) and offline (batch) learning modes.
 """
+
+
 
 from __future__ import annotations
 import logging

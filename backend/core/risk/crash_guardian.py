@@ -1,11 +1,18 @@
-"""Crash guardian -- monitors PM2-managed processes and triggers restarts.
+"""DEPRECATED: Use backend.core.crash_guardian instead.
+
+Crash guardian -- monitors PM2-managed processes and triggers restarts.
 
 Detects segfaults, memory leaks, and abnormal exits that PM2's built-in
 autorestart may miss (e.g. max_restarts exhausted, zombie processes).
 Runs as a lightweight async loop inside the bot process.
 
 Complements scripts/bot-guardian.sh which monitors from outside.
+
+
+This module will be removed in a future release.
 """
+
+
 
 from __future__ import annotations
 

@@ -76,14 +76,17 @@ async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.agi_goal_engine import AGIGoalEngine
 
-        engine = AGIGoalEngine()
-        engine.handle_regime_change(
-            {
-                "strategy_name": strategy_name,
-                "result": result,
-                "pnl": pnl,
-            }
-        )
+        def _goal_engine():
+            engine = AGIGoalEngine()
+            engine.handle_regime_change(
+                {
+                    "strategy_name": strategy_name,
+                    "result": result,
+                    "pnl": pnl,
+                }
+            )
+
+        await asyncio.to_thread(_goal_engine)
     except Exception as exc:
         logger.error(f"Handler trade_settled goal_engine failed: {exc}", exc_info=True)
     if result == "loss":
@@ -111,8 +114,7 @@ async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
             logger.error(f"Handler trade_settled promoter failed: {exc}", exc_info=True)
 
 
-async def on_trade_rejected(event_type: str, data: Dict[str, Any]) -> None:
-    await asyncio.sleep(0)  # yield control to event loop
+def on_trade_rejected(event_type: str, data: Dict[str, Any]) -> None:
     if not _handler_flag("trade_rejected"):
         return
     strategy_name = data.get("strategy_name")
@@ -361,18 +363,21 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
         from backend.core.agi_goal_engine import AGIGoalEngine
         from backend.core.agi_types import MarketRegime
 
-        engine = AGIGoalEngine()
-        try:
-            to_regime = (
-                MarketRegime(new_regime) if isinstance(new_regime, str) else new_regime
-            )
-        except ValueError:
-            to_regime = MarketRegime.UNKNOWN
-        transition = {
-            "from_regime": old_regime,
-            "to_regime": to_regime,
-        }
-        engine.handle_regime_change(transition)
+        def _goal_transition():
+            engine = AGIGoalEngine()
+            try:
+                to_r = (
+                    MarketRegime(new_regime) if isinstance(new_regime, str) else new_regime
+                )
+            except ValueError:
+                to_r = MarketRegime.UNKNOWN
+            transition = {
+                "from_regime": old_regime,
+                "to_regime": to_r,
+            }
+            engine.handle_regime_change(transition)
+
+        await asyncio.to_thread(_goal_transition)
     except Exception as exc:
         logger.error(f"Handler regime_shift goal_engine failed: {exc}", exc_info=True)
 
@@ -393,18 +398,21 @@ async def on_signal_found(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        kg.add_entity(
-            "signal",
-            f"signal:{market_ticker}",
-            {
-                "market_ticker": market_ticker,
-                "direction": direction,
-                "confidence": confidence,
-                "strategy_name": strategy_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
-        )
+        def _kg_signal():
+            kg = KnowledgeGraph()
+            kg.add_entity(
+                "signal",
+                f"signal:{market_ticker}",
+                {
+                    "market_ticker": market_ticker,
+                    "direction": direction,
+                    "confidence": confidence,
+                    "strategy_name": strategy_name,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+
+        await asyncio.to_thread(_kg_signal)
     except Exception as exc:
         logger.error(f"Handler signal_found KG failed: {exc}", exc_info=True)
 
@@ -436,8 +444,11 @@ async def on_evolution_action(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        kg.add_entity("evolution", f"evolution:{data.get('genome_id')}", data)
+        def _kg_evolution():
+            kg = KnowledgeGraph()
+            kg.add_entity("evolution", f"evolution:{data.get('genome_id')}", data)
+
+        await asyncio.to_thread(_kg_evolution)
     except Exception as exc:
         logger.error(f"Handler evolution_action KG failed: {exc}", exc_info=True)
 
@@ -452,15 +463,17 @@ async def on_synthesis_priors_updated(event_type: str, data: Dict[str, Any]) -> 
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        kg.add_entity("synthesis", "priors:latest", data)
+        def _kg_priors():
+            kg = KnowledgeGraph()
+            kg.add_entity("synthesis", "priors:latest", data)
+
+        await asyncio.to_thread(_kg_priors)
     except Exception as exc:
         logger.error(f"Handler synthesis_priors_updated failed: {exc}", exc_info=True)
 
 
-async def on_risk_manager_updated(event_type: str, data: Dict[str, Any]) -> None:
+def on_risk_manager_updated(event_type: str, data: Dict[str, Any]) -> None:
     """Log-only handler: no downstream action needed for risk_manager_updated events yet."""
-    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("risk_manager_updated"):
         return
     logger.info(f"EVENT [risk_manager_updated] rules={len(data.get('new_rules', []))}")
@@ -474,8 +487,11 @@ async def on_necromancy_report(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        kg.add_entity("necromancy", "report:latest", data)
+        def _kg_necro():
+            kg = KnowledgeGraph()
+            kg.add_entity("necromancy", "report:latest", data)
+
+        await asyncio.to_thread(_kg_necro)
     except Exception as exc:
         logger.error(f"Handler necromancy_report failed: {exc}", exc_info=True)
 
@@ -488,26 +504,28 @@ async def on_nightly_review_complete(event_type: str, data: Dict[str, Any]) -> N
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        date_str = data.get("date")
-        review_id = f"review:{date_str}"
-        properties = {
-            "file_path": data.get("file_path"),
-            "date": date_str,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }
-        kg.add_entity("nightly_review", review_id, properties)
-        kg.add_entity("system", "system", {"name": "Polyedge Core"})
-        kg.add_relation("system", review_id, "HAS_REVIEW", 1.0, 1.0)
+        def _kg_review():
+            kg = KnowledgeGraph()
+            date_str = data.get("date")
+            review_id = f"review:{date_str}"
+            properties = {
+                "file_path": data.get("file_path"),
+                "date": date_str,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            kg.add_entity("nightly_review", review_id, properties)
+            kg.add_entity("system", "system", {"name": "Polyedge Core"})
+            kg.add_relation("system", review_id, "HAS_REVIEW", 1.0, 1.0)
+
+        await asyncio.to_thread(_kg_review)
     except Exception as exc:
         logger.error(f"Handler nightly_review_complete failed: {exc}", exc_info=True)
 
 
-async def on_archetype_allocation_changed(
+def on_archetype_allocation_changed(
     event_type: str, data: Dict[str, Any]
 ) -> None:
     """Log-only handler: no downstream action needed for archetype_allocation_changed events yet."""
-    await asyncio.sleep(0)  # yield control to event loop
     if not _handler_flag("archetype_allocation_changed"):
         return
     logger.info(
@@ -553,20 +571,23 @@ async def on_strategy_demoted(event_type: str, data: Dict[str, Any]) -> None:
     try:
         from backend.core.knowledge_graph import KnowledgeGraph
 
-        kg = KnowledgeGraph()
-        kg.add_entity(
-            "demotion",
-            f"demotion:{strategy_name}:{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}",
-            {
-                "strategy_name": strategy_name,
-                "from_stage": from_stage,
-                "to_stage": to_stage,
-                "reason": reason,
-                "win_rate": data.get("win_rate"),
-                "sharpe": data.get("sharpe"),
-                "timestamp": data.get("timestamp"),
-            },
-        )
+        def _kg_demotion():
+            kg = KnowledgeGraph()
+            kg.add_entity(
+                "demotion",
+                f"demotion:{strategy_name}:{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}",
+                {
+                    "strategy_name": strategy_name,
+                    "from_stage": from_stage,
+                    "to_stage": to_stage,
+                    "reason": reason,
+                    "win_rate": data.get("win_rate"),
+                    "sharpe": data.get("sharpe"),
+                    "timestamp": data.get("timestamp"),
+                },
+            )
+
+        await asyncio.to_thread(_kg_demotion)
     except Exception as exc:
         logger.error(f"Handler strategy_demoted KG failed: {exc}", exc_info=True)
 

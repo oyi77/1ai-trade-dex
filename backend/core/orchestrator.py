@@ -328,6 +328,41 @@ class Orchestrator:
         return result
 
     async def _handle_copy_signals(self, signals: list) -> None:
+        # Apply CopyPolicyEngine filtering if available
+        from backend.core.wallet.registry import get_copy_engine
+
+        copy_engine = get_copy_engine()
+        if copy_engine is not None:
+            try:
+                from backend.core.copy_source import CopySignalData
+                from datetime import datetime, timezone
+
+                policy_signals = [
+                    CopySignalData(
+                        source_name=getattr(sig, "source_name", "orchestrator"),
+                        leader_address=getattr(sig, "leader_address", ""),
+                        condition_id=getattr(sig.source_trade, "condition_id", ""),
+                        side=getattr(sig, "our_side", "BUY"),
+                        raw_size=getattr(sig, "our_size", 0.0),
+                        confidence=getattr(sig, "confidence", 0.5),
+                        captured_at=datetime.now(timezone.utc),
+                    )
+                    for sig in signals
+                ]
+                source_name = getattr(signals[0], "source_name", "orchestrator") if signals else "orchestrator"
+                accepted = await copy_engine.process(policy_signals, source_name)
+                if not accepted:
+                    logger.info("[orchestrator] CopyPolicyEngine filtered all signals")
+                    return
+                # Map back: keep only signals whose (condition_id, side) survived policy
+                accepted_keys = {(s.condition_id, s.side) for s in accepted}
+                signals = [
+                    sig for sig in signals
+                    if (getattr(getattr(sig, "source_trade", None), "condition_id", ""), getattr(sig, "our_side", "")) in accepted_keys
+                ]
+            except Exception as e:
+                logger.warning(f"CopyPolicyEngine filtering failed (non-fatal): {e}")
+
         for sig in signals:
             try:
                 result = await self._execute_copy_signal(sig)
@@ -553,7 +588,11 @@ def init_phase2_modules() -> dict:
             from backend.core.auto_trader import AutoTrader
             from backend.core.risk_manager import RiskManager
 
-            active["auto_trader"] = AutoTrader(RiskManager())
+            from backend.core.wallet.registry import get_wallet_router
+
+            active["auto_trader"] = AutoTrader(
+                RiskManager(), wallet_router=get_wallet_router()
+            )
         except Exception as e:
             logger.warning(
                 f"[orchestrator.init_phase2_modules] {type(e).__name__}: AutoTrader init failed: {e}",

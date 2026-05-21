@@ -1,4 +1,8 @@
-"""CLOB Event Indexer — indexes OrderFilled events from Polymarket CLOB contract on Polygon."""
+"""CLOB Event Indexer — indexes OrderFilled events from Polymarket CLOB contract on Polygon.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
+"""
 
 from __future__ import annotations
 

@@ -49,9 +49,8 @@ class MarketProviderRegistry(
 
         missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
         if missing:
-            raise PluginEnvVarMissing(
-                f"Market provider '{name}' requires env vars: {missing}"
-            )
+            logger.info(f"Skipping market provider '{name}' — missing env vars: {missing}")
+            return
 
         try:
             # Inject paper_mode based on TRADING_MODE env var

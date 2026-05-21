@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-PUSD_ADDRESS = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
+from backend.constants import PUSD_ADDRESS
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 BLOCKSCOUT_BASE = "https://polygon.blockscout.com/api/v2"
 CACHE_DIR = Path("data/proxy_cache")

@@ -542,9 +542,118 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 f"[LIFESPAN] Registered mode context for {_mode} (clob={'SET' if _clob else 'NONE'}, strategies={len(_configs)})"
             )
 
+    # --- Wire WalletRouter (multi-wallet N:N fan-out) ---
+    if settings.WALLET_ENCRYPTION_KEY and settings.WALLET_ROUTER_ENABLED:
+        try:
+            from backend.core.wallet_router import WalletRouter
+
+            with get_db_session() as db:
+                wallet_router = WalletRouter(
+                    db, fernet_key=settings.WALLET_ENCRYPTION_KEY.encode()
+                )
+            app.state.wallet_router = wallet_router
+            from backend.core.wallet.registry import set_wallet_router
+
+            set_wallet_router(wallet_router)
+            logger.info("[LIFESPAN] WalletRouter initialized")
+        except Exception as e:
+            logger.warning(f"WalletRouter init failed: {e}")
+            app.state.wallet_router = None
+    else:
+        app.state.wallet_router = None
+
+    # --- Wire CopyPolicyEngine ---
+    if settings.COPY_POLICY_ENABLED:
+        try:
+            from backend.core.copy_engine import CopyPolicyEngine
+
+            with get_db_session() as db:
+                copy_engine = CopyPolicyEngine(db)
+            app.state.copy_engine = copy_engine
+            from backend.core.wallet.registry import set_copy_engine
+
+            set_copy_engine(copy_engine)
+            logger.info("[LIFESPAN] CopyPolicyEngine initialized")
+        except Exception as e:
+            logger.warning(f"CopyPolicyEngine init failed: {e}")
+            app.state.copy_engine = None
+    else:
+        app.state.copy_engine = None
+
     # Start Redis log bridge
     if settings.REDIS_ENABLED:
         asyncio.create_task(_redis_log_bridge())
+
+    # --- AGI Node Discovery ---
+    try:
+        from backend.agi.node_registry import node_registry
+
+        node_registry.auto_discover("backend.agi.nodes")
+        logger.info(f"[LIFESPAN] AGI nodes discovered: {len(node_registry._plugins)}")
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] AGI node discovery failed: {e}")
+
+    # --- AGI Graph Registration ---
+    try:
+        from backend.agi.graph_engine import GraphEngine
+        from backend.agi.graphs import register_default_graphs
+
+        graph_engine = GraphEngine()
+        register_default_graphs(graph_engine)
+        app.state.graph_engine = graph_engine
+        logger.info(
+            f"[LIFESPAN] AGI graphs registered: {list(graph_engine.graphs.keys())}"
+        )
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] AGI graph registration failed: {e}")
+
+    # --- AGI Research Module Loading ---
+    try:
+        from backend.agi.research.github_scanner import GitHubScanner
+        from backend.agi.research.paper_scanner import PaperScanner
+        from backend.agi.research.competitor_monitor import CompetitorMonitor
+        from backend.agi.research.whale_tracker import WhaleTracker
+
+        app.state.agi_research_modules = {
+            "github_scanner": GitHubScanner(),
+            "paper_scanner": PaperScanner(),
+            "competitor_monitor": CompetitorMonitor(),
+            "whale_tracker": WhaleTracker(),
+        }
+        logger.info(
+            f"[LIFESPAN] AGI research modules loaded: {list(app.state.agi_research_modules.keys())}"
+        )
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] AGI research module loading failed: {e}")
+
+    # --- Data Feed Discovery ---
+    try:
+        import backend.data.providers  # triggers provider auto-registration
+        import backend.data.crypto_feeds  # triggers crypto feed auto-registration
+        logger.info("[LIFESPAN] Data providers and crypto feeds loaded")
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] Data feed discovery failed: {e}")
+
+    # --- Notification Provider Registration ---
+    try:
+        import os as _os
+
+        _notify_providers = []
+        if _os.environ.get("SLACK_WEBHOOK_URL"):
+            from backend.bot.notification.providers.slack import SlackProvider  # noqa: F401
+            _notify_providers.append("slack")
+        if _os.environ.get("DISCORD_WEBHOOK_URL"):
+            from backend.bot.notification.providers.discord import DiscordProvider  # noqa: F401
+            _notify_providers.append("discord")
+        if _os.environ.get("WEBHOOK_URL"):
+            from backend.bot.notification.providers.webhook import GenericWebhookProvider  # noqa: F401
+            _notify_providers.append("webhook")
+        if _notify_providers:
+            logger.info(f"[LIFESPAN] Notification providers registered: {_notify_providers}")
+        else:
+            logger.info("[LIFESPAN] No notification providers configured (set SLACK_WEBHOOK_URL / DISCORD_WEBHOOK_URL / WEBHOOK_URL)")
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] Notification provider registration failed: {e}")
 
     yield
 

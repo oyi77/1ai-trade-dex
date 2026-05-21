@@ -83,10 +83,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
             if won:
                 trade.result = "win"
-                fee_rate = settings.TAKER_FEE_RATE
-                cost = size * (1.0 + fee_rate) if entry_price > 0 else size
-                shares = cost / entry_price if entry_price > 0 else 0.0
-                trade.pnl = round(shares - cost, 2)
+                trade.pnl = calculate_pnl(trade, 1.0)
                 trade.settlement_value = 1.0
                 record_execution(
                     strategy=trade.strategy or "btc_5min",
@@ -96,9 +93,7 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 )
             else:
                 trade.result = "loss"
-                fee_rate = settings.TAKER_FEE_RATE
-                cost = size * (1.0 + fee_rate) if entry_price > 0 else size
-                trade.pnl = round(-cost, 2)
+                trade.pnl = calculate_pnl(trade, 0.0)
                 trade.settlement_value = 0.0
                 record_execution(
                     strategy=trade.strategy or "btc_5min",
@@ -821,8 +816,7 @@ async def update_bot_state_with_settlements(
                 if trading_mode == "paper":
                     if is_real_trade:
                         state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
-                        fee = trade.fee or 0.0
-                        state.paper_bankroll = max(0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee)
+                        state.paper_bankroll = max(0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl)
                         state.paper_trades = (state.paper_trades or 0) + 1
                         if trade.result == "win":
                             state.paper_wins = (state.paper_wins or 0) + 1

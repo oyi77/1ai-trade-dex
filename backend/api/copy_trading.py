@@ -174,7 +174,7 @@ async def get_copy_signals(limit: int = 20):
             ]
     except Exception as e:
         logger.warning(f"Copy signals fetch failed: {e}")
-        return []
+        raise HTTPException(status_code=503, detail=f"Copy signals unavailable: {e}")
 
 
 @router.get("/positions")

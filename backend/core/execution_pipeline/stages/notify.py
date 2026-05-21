@@ -56,7 +56,12 @@ class NotifyStage(BaseExecutionStage):
         }
 
     def record(self, decision, result, ctx):
-        logger.debug("[NotifyStage] record() not implemented")
+        market_ticker = decision.get("market_ticker", "unknown")
+        providers = result.get("providers_notified", 0)
+        logger.info(
+            "[NotifyStage] recorded: market={} providers_notified={}",
+            market_ticker, providers,
+        )
 
     def validate(self, decision, ctx):
         return True

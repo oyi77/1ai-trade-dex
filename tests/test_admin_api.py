@@ -160,6 +160,15 @@ class TestAdminSettings:
         import re
 
         env_path = ".env"
+        # Save original value
+        original_cities = None
+        if os.path.exists(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    if line.startswith("WEATHER_CITIES="):
+                        original_cities = line.strip()
+                        break
+
         # Attempt newline injection: embed INJECTED_KEY=evil after a \n
         admin_client.post(
             "/api/v1/admin/settings",
@@ -171,6 +180,17 @@ class TestAdminSettings:
             # The server strips \n/\r so no line break can separate the injected key.
             # Assert INJECTED_KEY is never the start of a line (i.e., not a standalone key).
             assert not re.search(r"^INJECTED_KEY=", content, re.MULTILINE)
+
+        # Restore original value
+        if original_cities and os.path.exists(env_path):
+            with open(env_path) as f:
+                lines = f.readlines()
+            with open(env_path, "w") as f:
+                for line in lines:
+                    if line.startswith("WEATHER_CITIES="):
+                        f.write(original_cities + "\n")
+                    else:
+                        f.write(line)
 
 
 class TestSystemStatus:

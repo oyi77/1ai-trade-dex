@@ -299,28 +299,112 @@
   },
   "hotPaths": [
     {
-      "path": "tests/test_providers_integration.py",
-      "accessCount": 13,
-      "lastAccessed": 1779319451712,
-      "type": "file"
-    },
-    {
-      "path": ".env",
-      "accessCount": 11,
-      "lastAccessed": 1779206582470,
+      "path": "backend",
+      "accessCount": 75,
+      "lastAccessed": 1779395463760,
       "type": "directory"
     },
     {
-      "path": "backend/core/strategy_executor.py",
-      "accessCount": 10,
-      "lastAccessed": 1779206176506,
+      "path": "",
+      "accessCount": 66,
+      "lastAccessed": 1779395471707,
       "type": "directory"
     },
     {
       "path": "backend/config.py",
-      "accessCount": 7,
-      "lastAccessed": 1779206717010,
+      "accessCount": 24,
+      "lastAccessed": 1779395015433,
       "type": "directory"
+    },
+    {
+      "path": ".env",
+      "accessCount": 19,
+      "lastAccessed": 1779394990220,
+      "type": "directory"
+    },
+    {
+      "path": "tests/test_providers_integration.py",
+      "accessCount": 14,
+      "lastAccessed": 1779386033537,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/strategy_executor.py",
+      "accessCount": 11,
+      "lastAccessed": 1779393539804,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/settlement/settlement.py",
+      "accessCount": 8,
+      "lastAccessed": 1779394795415,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 8,
+      "lastAccessed": 1779395382470,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/scheduling/scheduler.py",
+      "accessCount": 8,
+      "lastAccessed": 1779395534530,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/provider_registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779390791705,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/settlement/settlement_helpers.py",
+      "accessCount": 6,
+      "lastAccessed": 1779394795272,
+      "type": "file"
+    },
+    {
+      "path": "backend/markets/providers/sxbet_provider.py",
+      "accessCount": 5,
+      "lastAccessed": 1779387550358,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/providers/bookmaker_xyz_provider.py",
+      "accessCount": 5,
+      "lastAccessed": 1779387550729,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/providers/predict_fun_provider.py",
+      "accessCount": 5,
+      "lastAccessed": 1779387550870,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/providers/myriad_provider.py",
+      "accessCount": 5,
+      "lastAccessed": 1779387553810,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/providers/limitless_provider.py",
+      "accessCount": 5,
+      "lastAccessed": 1779390791820,
+      "type": "directory"
+    },
+    {
+      "path": "backend/application/strategy/shadow_runner.py",
+      "accessCount": 5,
+      "lastAccessed": 1779394795440,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_manager.py",
+      "accessCount": 5,
+      "lastAccessed": 1779395534438,
+      "type": "file"
     },
     {
       "path": "backend/strategies/cex_pm_leadlag.py",
@@ -329,15 +413,45 @@
       "type": "directory"
     },
     {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 3,
-      "lastAccessed": 1779205541692,
+      "path": "backend/markets/providers/polymarket_provider.py",
+      "accessCount": 4,
+      "lastAccessed": 1779387003702,
       "type": "file"
     },
     {
-      "path": "backend/core/risk/risk_manager.py",
-      "accessCount": 3,
-      "lastAccessed": 1779206444964,
+      "path": "backend/data/providers/limitless.py",
+      "accessCount": 4,
+      "lastAccessed": 1779390811161,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/providers/sxbet.py",
+      "accessCount": 4,
+      "lastAccessed": 1779390811261,
+      "type": "file"
+    },
+    {
+      "path": "backend/data",
+      "accessCount": 4,
+      "lastAccessed": 1779391028362,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/providers",
+      "accessCount": 4,
+      "lastAccessed": 1779392569311,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/wallet/bankroll_reconciliation.py",
+      "accessCount": 4,
+      "lastAccessed": 1779393539579,
+      "type": "file"
+    },
+    {
+      "path": "backend/markets/providers/paper_provider.py",
+      "accessCount": 4,
+      "lastAccessed": 1779394764518,
       "type": "file"
     },
     {
@@ -347,57 +461,27 @@
       "type": "directory"
     },
     {
-      "path": "",
-      "accessCount": 3,
-      "lastAccessed": 1779318974989,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/providers/sxbet_provider.py",
-      "accessCount": 3,
-      "lastAccessed": 1779319232476,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/providers/predict_fun_provider.py",
-      "accessCount": 3,
-      "lastAccessed": 1779319269666,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/providers/bookmaker_xyz_provider.py",
-      "accessCount": 3,
-      "lastAccessed": 1779319272473,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/providers/myriad_provider.py",
-      "accessCount": 3,
-      "lastAccessed": 1779319328929,
-      "type": "directory"
-    },
-    {
       "path": "backend/tests/test_settlement.py",
       "accessCount": 3,
       "lastAccessed": 1779321178867,
       "type": "file"
     },
     {
-      "path": "backend/markets/providers/limitless_provider.py",
-      "accessCount": 2,
-      "lastAccessed": 1779319235337,
+      "path": "backend/markets/providers/__init__.py",
+      "accessCount": 3,
+      "lastAccessed": 1779387003963,
       "type": "directory"
     },
     {
-      "path": "backend",
-      "accessCount": 2,
-      "lastAccessed": 1779320119480,
+      "path": "backend/markets/base_provider.py",
+      "accessCount": 3,
+      "lastAccessed": 1779390799910,
       "type": "directory"
     },
     {
-      "path": "backend/core/settlement/settlement_helpers.py",
-      "accessCount": 2,
-      "lastAccessed": 1779320427715,
+      "path": "backend/markets/providers/kalshi_provider.py",
+      "accessCount": 3,
+      "lastAccessed": 1779394763533,
       "type": "file"
     },
     {
@@ -407,9 +491,27 @@
       "type": "file"
     },
     {
-      "path": "backend/core/settlement/settlement.py",
+      "path": "backend/data/providers",
       "accessCount": 2,
-      "lastAccessed": 1779321096604,
+      "lastAccessed": 1779387060434,
+      "type": "directory"
+    },
+    {
+      "path": "backend/markets/order_types.py",
+      "accessCount": 2,
+      "lastAccessed": 1779390791450,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/risk",
+      "accessCount": 2,
+      "lastAccessed": 1779394030755,
+      "type": "directory"
+    },
+    {
+      "path": "backend/data/providers/__init__.py",
+      "accessCount": 2,
+      "lastAccessed": 1779395019197,
       "type": "file"
     },
     {
@@ -437,12 +539,6 @@
       "type": "file"
     },
     {
-      "path": "backend/core/risk",
-      "accessCount": 1,
-      "lastAccessed": 1779205892534,
-      "type": "directory"
-    },
-    {
       "path": "backend/core/strategy_gate.py",
       "accessCount": 1,
       "lastAccessed": 1779206821783,
@@ -467,27 +563,9 @@
       "type": "file"
     },
     {
-      "path": "backend/markets/base_provider.py",
-      "accessCount": 1,
-      "lastAccessed": 1779319205947,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/order_types.py",
-      "accessCount": 1,
-      "lastAccessed": 1779319215791,
-      "type": "directory"
-    },
-    {
       "path": "backend/tests/test_bankroll_reconciliation.py",
       "accessCount": 1,
       "lastAccessed": 1779320412214,
-      "type": "file"
-    },
-    {
-      "path": "backend/markets/providers/paper_provider.py",
-      "accessCount": 1,
-      "lastAccessed": 1779320412364,
       "type": "file"
     },
     {
@@ -515,21 +593,9 @@
       "type": "file"
     },
     {
-      "path": "backend/application/strategy/shadow_runner.py",
-      "accessCount": 1,
-      "lastAccessed": 1779320689896,
-      "type": "file"
-    },
-    {
       "path": "backend/tests/test_integration_settlement_fills.py",
       "accessCount": 1,
       "lastAccessed": 1779320736751,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/wallet/bankroll_reconciliation.py",
-      "accessCount": 1,
-      "lastAccessed": 1779321133863,
       "type": "file"
     }
   ],

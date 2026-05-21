@@ -9,6 +9,9 @@ import { SelfImprovementMetrics } from './SelfImprovementMetrics'
 import { SystemEfficiencyPanel } from './SystemEfficiencyPanel'
 import { WinningTradesPreview } from './WinningTradesPreview'
 import { LiveStreamPanel } from '../../pages/LiveStream'
+import { WeatherPanel } from '../WeatherPanel'
+import { CalibrationPanel } from '../CalibrationPanel'
+import { MicrostructurePanel } from '../MicrostructurePanel'
 import { adminApi, api } from '../../api'
 import type { BotStats, PnlModeStats, Trade } from '../../types'
 
@@ -47,6 +50,10 @@ export function OverviewTab({
   recentTrades,
   topWinningTrades = [],
   activeSignals,
+  weatherSignals,
+  weatherForecasts,
+  calibration,
+  micro,
 }: OverviewTabProps) {
   const stats = useStats()
   const { selectedMode } = useModeFilter()
@@ -418,6 +425,45 @@ export function OverviewTab({
         </div>
         <SystemEfficiencyPanel {...efficiencyData} />
       </motion.div>
+
+      {/* Weather / Calibration / Microstructure panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.95 }}
+          className="border border-neutral-800 bg-neutral-900/50 p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-neutral-400 uppercase tracking-wider">Weather Signals</span>
+          </div>
+          <div style={{ minHeight: 160 }}><WeatherPanel forecasts={weatherForecasts} signals={weatherSignals} /></div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0 }}
+          className="border border-neutral-800 bg-neutral-900/50 p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-neutral-400 uppercase tracking-wider">Calibration</span>
+          </div>
+          {calibration ? <CalibrationPanel calibration={calibration} /> : <div className="text-[10px] text-neutral-600">No calibration data</div>}
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.05 }}
+          className="border border-neutral-800 bg-neutral-900/50 p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-neutral-400 uppercase tracking-wider">Microstructure</span>
+          </div>
+          {micro ? <MicrostructurePanel micro={micro} /> : <div className="text-[10px] text-neutral-600">No microstructure data</div>}
+        </motion.div>
+      </div>
     </div>
   )
 }

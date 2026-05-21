@@ -1,3 +1,12 @@
+"""DEPRECATED: Use backend.core.task_manager instead.
+
+DEPRECATED: Use backend.core.task_manager instead.
+This module will be removed in a future release.
+
+
+This module will be removed in a future release.
+"""
+
 import asyncio
 from typing import Any, Coroutine, Set
 

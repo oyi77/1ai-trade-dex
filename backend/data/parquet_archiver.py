@@ -1,4 +1,8 @@
-"""Trade Archiver — archives settled trades to Parquet for fast analytical queries."""
+"""Trade Archiver — archives settled trades to Parquet for fast analytical queries.
+
+DEPRECATED: This module is not wired into any strategy or pipeline.
+Consider removing or integrating before use.
+"""
 
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone

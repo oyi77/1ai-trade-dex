@@ -1,4 +1,11 @@
-"""HFT Risk Manager — aggressive 25% Kelly sizing with fail-open circuit breaker."""
+"""DEPRECATED: Use backend.core.risk_manager_hft instead.
+
+HFT Risk Manager — aggressive 25% Kelly sizing with fail-open circuit breaker.
+
+This module will be removed in a future release.
+"""
+
+
 
 from typing import Optional
 
