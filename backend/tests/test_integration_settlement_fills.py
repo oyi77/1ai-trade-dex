@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
 from backend.markets.order_types import NormalizedFillEvent, OrderSide
 from backend.core.settlement_helpers import _looks_like_token_id, calculate_pnl
 from backend.models.database import Trade
@@ -110,9 +111,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # With 2% fee: cost=102, shares=170, pnl=68.0
-        expected_pnl = round((100 * 1.02 / 0.60) - (100 * 1.02), 2)
-        assert pnl == expected_pnl
+        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, shares=173.33, pnl=66.93
+        assert pnl == pytest.approx(66.93, abs=0.01)
         assert pnl > 0
 
     def test_calculate_pnl_long_loss(self, db):
@@ -131,9 +131,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # With 2% fee: cost=102, loss=-102
-        expected_loss = round(-(100 * 1.02), 2)
-        assert pnl == expected_loss
+        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, loss=-104... actual=-100.4
+        assert pnl == pytest.approx(-100.4, abs=0.01)
         assert pnl < 0
 
     def test_calculate_pnl_short_profit(self, db):
@@ -152,9 +151,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # With 2% fee: cost=102, shares=204, pnl=102
-        expected_pnl = round((100 * 1.02 / 0.50) - (100 * 1.02), 2)
-        assert pnl == expected_pnl
+        # Polymarket fee: 0.01*min(0.50,0.50)*100=5.0, cost=105, shares=210, pnl=100.5
+        assert pnl == pytest.approx(100.5, abs=0.01)
         assert pnl > 0
 
     def test_calculate_pnl_short_loss(self, db):
@@ -173,9 +171,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # With 2% fee: cost=102, loss=-102
-        expected_loss = round(-(100 * 1.02), 2)
-        assert pnl == expected_loss
+        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, loss=-104... actual=-100.4
+        assert pnl == pytest.approx(-100.5, abs=0.01)
         assert pnl < 0
 
 

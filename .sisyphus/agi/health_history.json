@@ -1518,6 +1518,192 @@
       "message": "critical error",
       "details": {},
       "timestamp": 1779191068.0678482
+    },
+    {
+      "event_id": "e103c265-60c",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779320165.5937712
+    },
+    {
+      "event_id": "0883a879-768",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779320165.6106486
+    },
+    {
+      "event_id": "d6987437-26d",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779320165.6752126
+    },
+    {
+      "event_id": "088e39b9-576",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779320257.7154603
+    },
+    {
+      "event_id": "c04855a9-51c",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779320257.7257671
+    },
+    {
+      "event_id": "e6fb9533-750",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779320257.756015
+    },
+    {
+      "event_id": "2de9ac99-0b2",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779320447.250404
+    },
+    {
+      "event_id": "e43cbbe9-d46",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779320447.2616394
+    },
+    {
+      "event_id": "a3256b1f-3ac",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779320447.2919607
+    },
+    {
+      "event_id": "77f229be-e25",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779320477.280007
+    },
+    {
+      "event_id": "572de0e3-943",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779320477.2913857
+    },
+    {
+      "event_id": "a180a1a5-28a",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779320477.4016187
+    },
+    {
+      "event_id": "e690ae1a-cbe",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779321216.8569727
+    },
+    {
+      "event_id": "5181beb7-c68",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779321216.8678463
+    },
+    {
+      "event_id": "a007dadd-30c",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779321216.9006698
+    },
+    {
+      "event_id": "648a9b8a-4ca",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1779321486.6293864
+    },
+    {
+      "event_id": "5fa5c713-9fc",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1779321486.6401145
+    },
+    {
+      "event_id": "300a0564-3f7",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1779321486.6715903
     }
   ],
   "actions": [
@@ -1961,6 +2147,60 @@
       "success": true,
       "duration_ms": 0.0,
       "timestamp": 1779191068.0428395
+    },
+    {
+      "action_id": "23d1bd18-c1a",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779320165.6381636
+    },
+    {
+      "action_id": "414bde13-cfb",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779320257.735985
+    },
+    {
+      "action_id": "7c15e4cd-ade",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779320447.2718809
+    },
+    {
+      "action_id": "02f11448-eff",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779320477.3029814
+    },
+    {
+      "action_id": "8daeb483-0bb",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779321216.8788948
+    },
+    {
+      "action_id": "6e653dd7-d17",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1779321486.6508808
     }
   ]
 }

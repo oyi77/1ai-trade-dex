@@ -142,7 +142,7 @@ async def test_reconciliation_clamps_depleted_simulated_available_bankroll(db_se
 async def test_live_reconciliation_uses_total_equity_not_position_value_only(
     db_session, monkeypatch
 ):
-    state = BotState(mode="live", bankroll=4.23, total_pnl=-95.77)
+    state = BotState(mode="live", bankroll=4.23, total_pnl=-95.77, live_initial_bankroll=163.56)
     db_session.add(state)
     db_session.commit()
 
@@ -175,7 +175,7 @@ async def test_live_reconciliation_uses_total_equity_not_position_value_only(
 async def test_live_reconciliation_keeps_realized_ledger_pnl_even_if_profile_pnl_differs(
     db_session, monkeypatch
 ):
-    state = BotState(mode="live", bankroll=125.0, total_pnl=11.0)
+    state = BotState(mode="live", bankroll=125.0, total_pnl=11.0, live_initial_bankroll=158.56)
     settled_win = Trade(
         market_ticker="live-win",
         direction="up",

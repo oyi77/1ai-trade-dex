@@ -98,14 +98,13 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        # With 2% fee: cost=10.20, shares=25.5, pnl=25.5-10.20=15.30
-        expected = (10.0 * 1.02 / 0.40) - (10.0 * 1.02)  # 15.30
-        assert pnl == pytest.approx(expected)
+        # Polymarket fee: 0.01*min(0.40,0.60)*10=0.04, cost=10.04, shares=25.1, pnl=15.06
+        assert pnl == pytest.approx(15.06)
         assert pnl > 0.0
 
     def test_down_position_wins_at_settlement_0(self):
         """Bought DOWN at 0.40, market settled DOWN (0.0) → profit.
-        With 2% fee: cost=10.20, shares=25.5, pnl=25.5-10.20=15.30."""
+        Polymarket fee: 0.01*min(0.40,0.60)*10=0.04, cost=10.04, shares=25.1, pnl=15.06."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
@@ -113,15 +112,14 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = (10.0 * 1.02 / 0.40) - (10.0 * 1.02)  # 15.30
-        assert pnl == pytest.approx(expected)
+        assert pnl == pytest.approx(15.06)
         assert pnl > 0.0
 
 
 class TestPnlLoss:
     def test_up_position_loses_at_settlement_0(self):
         """Bought UP at 0.40, market settled DOWN (0.0) → loss.
-        size is dollars ($10). With 2% fee, cost = $10.20. Loss = -cost."""
+        New fee: 0.01*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
@@ -129,13 +127,13 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        expected = -(10.0 * 1.02)  # -10.20 (includes 2% fee)
-        assert pnl == pytest.approx(expected)
+        # -10.04 (Polymarket fee: 0.01*min(0.40,0.60)*10=0.04)
+        assert pnl == pytest.approx(-10.04)
         assert pnl < 0.0
 
     def test_down_position_loses_at_settlement_1(self):
         """Bought DOWN at 0.40, market settled UP (1.0) → loss.
-        size is dollars ($10). With 2% fee, cost = $10.20. Loss = -cost."""
+        New fee: 0.01*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
@@ -143,19 +141,19 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        expected = -(10.0 * 1.02)  # -10.20 (includes 2% fee)
-        assert pnl == pytest.approx(expected)
+        # -10.04 (Polymarket fee: 0.01*min(0.40,0.60)*10=0.04)
+        assert pnl == pytest.approx(-10.04)
         assert pnl < 0.0
 
     def test_loss_magnitude(self):
-        """Loss includes fee. size=$20, cost=$20.40 (2% fee). Loss = -cost."""
+        """Loss includes fee. size=$20, fee=0.01*min(0.55,0.45)*20=0.09, cost=$20.09. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.55
         trade.size = 20.0  # dollars
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
-        assert pnl == pytest.approx(-20.40)  # includes 2% fee
+        assert pnl == pytest.approx(-20.09)  # Polymarket fee: 0.01*min(0.55,0.45)*20=0.09
 
 
 class TestPnlPush:
@@ -334,6 +332,7 @@ class TestBankrollUpdate:
         db.info["allow_live_financial_update"] = True
         state.bankroll = -2645.42
         state.total_pnl = -2745.42
+        state.live_initial_bankroll = 200.73
         state.total_trades = 0
         state.winning_trades = 0
         state.is_running = True
@@ -360,8 +359,7 @@ class TestBankrollUpdate:
 
         db.refresh(state)
         assert state.bankroll == pytest.approx(160.73)
-        # total_pnl uses realized trade PnL, not (equity - initial_bankroll)
-        # See ADR-002 and bankroll_reconciliation.py line 433-436
+        # total_pnl = bankroll - initial_bankroll (160.73 - 200.73 = -40.0)
         assert state.total_pnl == pytest.approx(-40.0)
         assert state.total_trades == 1
         assert state.winning_trades == 0

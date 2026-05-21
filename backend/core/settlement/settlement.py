@@ -822,9 +822,7 @@ async def update_bot_state_with_settlements(
                     if is_real_trade:
                         state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
                         fee = trade.fee or 0.0
-                        state.paper_bankroll = (
-                            (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee
-                        )
+                        state.paper_bankroll = max(0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl - fee)
                         state.paper_trades = (state.paper_trades or 0) + 1
                         if trade.result == "win":
                             state.paper_wins = (state.paper_wins or 0) + 1

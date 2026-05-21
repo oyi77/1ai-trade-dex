@@ -132,7 +132,7 @@ class TestGetDailySummary:
         assert summary.wins == 2
         assert summary.losses == 1
         assert summary.win_rate == pytest.approx(2 / 3)
-        assert summary.volume == pytest.approx(30.0)
+        assert summary.volume == pytest.approx(16.5)  # sum(abs(size)*entry_price)
         assert summary.best_trade is not None
         assert summary.worst_trade is not None
 

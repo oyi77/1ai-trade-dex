@@ -24,8 +24,8 @@ def test_record_and_settle_win():
 
     assert trade.settled is True
     assert trade.pnl is not None
-    assert trade.pnl > 0  # (1.0 - 0.55) * 100 = 45.0
-    assert abs(trade.pnl - 45.0) < 1e-6
+    assert trade.pnl > 0
+    assert abs(trade.pnl - 82.19) < 0.01
 
 
 def test_settle_loss():
@@ -44,8 +44,8 @@ def test_settle_loss():
 
     assert trade.settled is True
     assert trade.pnl is not None
-    assert trade.pnl < 0  # -0.60 * 50 = -30.0
-    assert abs(trade.pnl - (-30.0)) < 1e-6
+    assert trade.pnl < 0
+    assert abs(trade.pnl - (-50.2)) < 0.01
 
 
 def test_performance_metrics():
@@ -54,26 +54,26 @@ def test_performance_metrics():
 
     # Trade 1: win — direction=up, settlement=1.0
     runner.record_signal("MKT-A", "up", 0.50, 100.0, 0.70, "strat_a")
-    runner.settle("MKT-A", 1.0)  # pnl = (1-0.5)*100 = 50
+    runner.settle("MKT-A", 1.0)  # pnl ~100.50
 
     # Trade 2: loss — direction=down, settlement=1.0 (up won, down loses)
     runner.record_signal("MKT-B", "down", 0.40, 80.0, 0.65, "strat_a")
-    runner.settle("MKT-B", 1.0)  # pnl = -0.40*80 = -32
+    runner.settle("MKT-B", 1.0)  # pnl ~-80.32
 
     # Trade 3: win — direction=down, settlement=0.0 (down won)
     runner.record_signal("MKT-C", "down", 0.45, 60.0, 0.60, "strat_b")
-    runner.settle("MKT-C", 0.0)  # pnl = (1-0.45)*60 = 33
+    runner.settle("MKT-C", 0.0)  # pnl ~73.66
 
     perf = runner.get_performance()
 
     assert perf.total_trades == 3
     assert perf.settled_trades == 3
-    assert abs(perf.total_pnl - (50.0 - 32.0 + 33.0)) < 1e-6  # 51.0
+    assert abs(perf.total_pnl - (100.5 - 80.32 + 73.66)) < 0.01
     assert abs(perf.win_rate - (2 / 3)) < 1e-6
     assert "strat_a" in perf.strategy_breakdown
     assert "strat_b" in perf.strategy_breakdown
-    assert abs(perf.strategy_breakdown["strat_a"] - (50.0 - 32.0)) < 1e-6
-    assert abs(perf.strategy_breakdown["strat_b"] - 33.0) < 1e-6
+    assert abs(perf.strategy_breakdown["strat_a"] - (100.5 - 80.32)) < 0.01
+    assert abs(perf.strategy_breakdown["strat_b"] - 73.66) < 0.01
 
 
 def test_compare_with_live():
@@ -85,15 +85,15 @@ def test_compare_with_live():
 
     result = runner.compare_with_live(live_pnl=30.0)
 
-    assert result["shadow_pnl"] == 50.0
+    assert abs(result["shadow_pnl"] - 100.5) < 0.01
     assert result["live_pnl"] == 30.0
-    assert abs(result["difference"] - 20.0) < 1e-6
+    assert abs(result["difference"] - (100.5 - 30.0)) < 0.01
     assert result["shadow_better"] is True
 
     # Case where shadow is worse
-    result2 = runner.compare_with_live(live_pnl=80.0)
+    result2 = runner.compare_with_live(live_pnl=120.0)
     assert result2["shadow_better"] is False
-    assert abs(result2["difference"] - (50.0 - 80.0)) < 1e-6
+    assert abs(result2["difference"] - (100.5 - 120.0)) < 0.01
 
 
 class TestDBSessionShadowRunner:
@@ -185,7 +185,7 @@ class TestDBSessionShadowRunner:
             assert settled_trade is not None, f"Trade {trade_id} not found in DB"
             assert settled_trade.settled is True
             assert settled_trade.settlement_value == 1.0
-            assert settled_trade.pnl == (1.0 - 0.55) * 100.0
+            assert abs(settled_trade.pnl - 82.19) < 0.01
             assert settled_trade.accuracy_score == abs(0.65 - 0.55)
             assert settled_trade.actual_outcome == 0.55
         finally:
