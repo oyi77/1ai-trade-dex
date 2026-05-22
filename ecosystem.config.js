@@ -14,6 +14,8 @@ module.exports = {
         LLM_OPENAI_BASE_URL: 'http://localhost:20128/v1',
         LLM_OPENAI_MODEL: 'auto/best-fast',
         MIROFISH_API_URL: 'http://localhost:5001',
+        LIGHTER_ACCOUNT_INDEX: '0',
+        LIGHTER_API_KEY_INDEX: '2',
       },
       autorestart: true,
       max_restarts: 10,
