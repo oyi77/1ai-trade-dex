@@ -58,6 +58,20 @@ class Orchestrator:
             logger.warning(f"BalanceAggregator failed to start: {e}")
             self._balance_aggregator = None
 
+        # Start ActivityTracker (real-time blockchain activity: fills, transfers)
+        try:
+            from backend.core.activity.tracker import ActivityTracker
+            from backend.core.activity import set_tracker
+            self._activity_tracker = ActivityTracker()
+            set_tracker(self._activity_tracker)
+            # Register platform sources
+            await self._register_activity_sources()
+            asyncio.create_task(self._activity_tracker.start_all())
+            logger.info("ActivityTracker started")
+        except Exception as e:
+            logger.warning(f"ActivityTracker failed to start: {e}")
+            self._activity_tracker = None
+
         # Reset CLOB circuit breaker to ensure we start in CLOSED state
         clob_breaker.reset()
 
@@ -248,7 +262,61 @@ class Orchestrator:
 
             await stop_settlement_handler()
 
+        if hasattr(self, "_activity_tracker") and self._activity_tracker:
+            await self._activity_tracker.stop_all()
+
         logger.info("Orchestrator stopped.")
+
+    async def _register_activity_sources(self):
+        """Register platform activity sources with ActivityTracker."""
+        from backend.core.wallet.bankroll_reconciliation import get_wallet
+
+        wallet = get_wallet()
+        addr = wallet.address if hasattr(wallet, "address") else str(wallet)
+        tracker = self._activity_tracker
+
+        # Aster — WebSocket fills + balance + positions
+        try:
+            from backend.markets.providers.aster_provider import AsterProvider
+            from backend.core.activity.sources.aster_source import AsterActivitySource
+
+            aster = AsterProvider()
+            await aster.connect()
+            tracker.register_source("aster", AsterActivitySource(addr, aster))
+        except Exception as e:
+            logger.warning(f"Aster activity source skipped: {e}")
+
+        # Hyperliquid — WebSocket user_fills
+        try:
+            from backend.markets.providers.hyperliquid_provider import HyperliquidProvider
+            from backend.core.activity.sources.hyperliquid_source import HyperliquidActivitySource
+
+            hl = HyperliquidProvider()
+            await hl.connect()
+            tracker.register_source("hyperliquid", HyperliquidActivitySource(addr, hl))
+        except Exception as e:
+            logger.warning(f"Hyperliquid activity source skipped: {e}")
+
+        # Lighter — WebSocket balance + fills
+        try:
+            from backend.markets.providers.lighter_provider import LighterProvider
+            from backend.core.activity.sources.lighter_source import LighterActivitySource
+
+            lighter = LighterProvider()
+            await lighter.connect()
+            tracker.register_source("lighter", LighterActivitySource(addr, lighter))
+        except Exception as e:
+            logger.warning(f"Lighter activity source skipped: {e}")
+
+        # Polymarket — CLOB fills (REST) + Polygon on-chain
+        try:
+            from backend.data.polymarket_clob import PolymarketCLOBClient
+            from backend.core.activity.sources.polymarket_source import PolymarketActivitySource
+
+            clob = PolymarketCLOBClient()
+            tracker.register_source("polymarket", PolymarketActivitySource(addr, clob))
+        except Exception as e:
+            logger.warning(f"Polymarket activity source skipped: {e}")
 
     def _patch_weather_job(self) -> None:
         """Replace weather_scan_and_trade_job with a version that dispatches Telegram alerts."""
