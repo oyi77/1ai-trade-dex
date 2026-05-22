@@ -345,8 +345,8 @@ async def wallet_sync_job() -> None:
                     # For live mode, also fetch PM portfolio value (includes positions)
                     if sync_mode == "live":
                         try:
-                            from backend.core.wallet.bankroll_reconciliation import fetch_pm_portfolio_value
-                            portfolio = await fetch_pm_portfolio_value()
+                            from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
+                            portfolio = await fetch_pm_total_equity()
                             if portfolio is not None and portfolio > 0:
                                 usdc_balance = float(portfolio)
                                 logger.info(f"wallet_sync: live PM portfolio = ${usdc_balance:.2f}")
