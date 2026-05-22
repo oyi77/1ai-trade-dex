@@ -934,7 +934,7 @@ async def get_mirofish_signals(
     try:
         markets = await fetch_markets(limit=5)
         signals = []
-        for m in markets[:3]:
+        for m in markets[:1]:
             question = m.get("question", "Unknown market")
             prices_str = m.get("outcomePrices", "[]")
             try:
