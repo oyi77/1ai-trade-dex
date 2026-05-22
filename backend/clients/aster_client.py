@@ -13,30 +13,27 @@ class AsterClient:
     def __init__(self, private_key: str = None):
         self._private_key = private_key or os.getenv("ASTER_PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY", "")
 
-        # Derive wallet address from private key for Aster v3 API
+        # Derive address from private key — Aster AGENT must be registered at asterdex.com/en/api-wallet
         from eth_account import Account as EthAccount
         _account = EthAccount.from_key(self._private_key) if self._private_key else None
         _address = _account.address if _account else ""
 
-        self._exchange = ccxt.aster(
-            {
-                "privateKey": self._private_key,
-                "options": {
-                    "defaultType": "swap",
-                    "signerAddress": _address,
-                },
-            }
-        )
+        _opts = {
+            "defaultType": "swap",
+            "signerAddress": _address,
+        }
 
-        self._ws_exchange = ccxtpro.aster(
-            {
-                "privateKey": self._private_key,
-                "options": {
-                    "defaultType": "swap",
-                    "signerAddress": _address,
-                },
-            }
-        )
+        self._exchange = ccxt.aster({
+            "privateKey": self._private_key,
+            "walletAddress": _address,
+            "options": _opts,
+        })
+
+        self._ws_exchange = ccxtpro.aster({
+            "privateKey": self._private_key,
+            "walletAddress": _address,
+            "options": _opts,
+        })
 
     async def get_markets(self) -> list:
         """Get all available markets."""
