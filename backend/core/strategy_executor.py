@@ -1402,8 +1402,8 @@ async def _execute_decision_live_clob(
                     Trade.timestamp >= _cutoff,
                 )
             )
-            if trading_mode:
-                _dup_query = _dup_query.filter(Trade.trading_mode == trading_mode)
+            if mode:
+                _dup_query = _dup_query.filter(Trade.trading_mode == mode)
             _recent_dup = _dup_query.first()
             if _recent_dup is not None:
                 logger.warning(
