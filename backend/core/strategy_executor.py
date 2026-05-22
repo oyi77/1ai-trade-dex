@@ -495,17 +495,19 @@ def _execute_decision_paper_or_kalshi(
                     db.commit()
                     return None
 
-            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (ANY direction) ---
+            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (same mode only) ---
             _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
-            _recent_dup = (
+            _dup_query = (
                 db.query(Trade)
                 .filter(
                     Trade.strategy == strategy_name,
                     Trade.market_ticker == market_ticker,
                     Trade.timestamp >= _cutoff,
                 )
-                .first()
             )
+            if trading_mode:
+                _dup_query = _dup_query.filter(Trade.trading_mode == trading_mode)
+            _recent_dup = _dup_query.first()
             if _recent_dup is not None:
                 logger.warning(
                     f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
@@ -1390,17 +1392,19 @@ async def _execute_decision_live_clob(
                     db.commit()
                     return None
 
-            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (ANY direction) ---
+            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (same mode only) ---
             _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
-            _recent_dup = (
+            _dup_query = (
                 db.query(Trade)
                 .filter(
                     Trade.strategy == strategy_name,
                     Trade.market_ticker == market_ticker,
                     Trade.timestamp >= _cutoff,
                 )
-                .first()
             )
+            if trading_mode:
+                _dup_query = _dup_query.filter(Trade.trading_mode == trading_mode)
+            _recent_dup = _dup_query.first()
             if _recent_dup is not None:
                 logger.warning(
                     f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "

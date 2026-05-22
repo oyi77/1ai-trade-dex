@@ -242,13 +242,13 @@ class ConfigRegistry:
 
     # Position sizing
     KELLY_FRACTION: float = 0.30  # Kelly fraction (0.30 = 30% Kelly)
-    MAX_POSITION_FRACTION: float = 0.08  # max position as % of bankroll
+    MAX_POSITION_FRACTION: float = 0.30  # max position as % of bankroll
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  # max total exposure
     CORRELATION_MULTIPLIER: float = (
         1.0  # same-category exposure multiplier (1.0=no inflation)
     )
     MAX_CORRELATED_EXPOSURE_PCT: float = (
-        0.50  # max correlation-adjusted exposure % of bankroll
+        0.80  # max correlation-adjusted exposure % of bankroll
     )
     MAX_TRADE_SIZE: float = 100.0  # max single trade size in USD
     MIN_ORDER_USDC: float = 5.0  # minimum order size (live)
@@ -292,7 +292,7 @@ class ConfigRegistry:
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
     WEEKLY_LOSS_FLOOR_PCT: float = -0.20  # weekly loss floor (revert to paper)
     MAX_STRATEGY_DRAWDOWN_PCT: float = (
-        0.15  # per-strategy max drawdown (% of allocation)
+        0.80  # per-strategy max drawdown (% of allocation)
     )
     VOLATILITY_SIZE_SCALE: bool = True  # reduce size in high volatility
     COOLDOWN_CONSECUTIVE_LOSSES: int = 3  # losses before cooldown
