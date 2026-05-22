@@ -182,12 +182,15 @@ class LLMRouter:
 
         base = config.get("base_url") or None
         client = AsyncOpenAI(api_key=config["api_key"], base_url=base)
-        response = await client.chat.completions.create(
+        create_kwargs = dict(
             model=kwargs.get("model", config["model"]),
             messages=messages,
             max_tokens=kwargs.get("max_tokens", config["max_tokens"]),
             temperature=kwargs.get("temperature", config["temperature"]),
         )
+        if "response_format" in kwargs:
+            create_kwargs["response_format"] = kwargs["response_format"]
+        response = await client.chat.completions.create(**create_kwargs)
         text = response.choices[0].message.content or ""
         tokens = response.usage.total_tokens if response.usage else 0
         return text.strip(), tokens

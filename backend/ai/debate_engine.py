@@ -154,10 +154,7 @@ def _build_bull_system() -> str:
         "the true probability should be HIGHER than the current market price. "
         "Be specific, cite evidence, and quantify your reasoning. "
         "You may be wrong, but argue your best case.\n\n"
-        "Always respond with EXACTLY these three lines:\n"
-        "PROBABILITY: <your estimate, 0.01 to 0.99>\n"
-        "CONFIDENCE: <how sure you are, 0.0 to 1.0>\n"
-        "REASONING: <your argument in 2-3 sentences>"
+        'Respond ONLY with JSON: {"probability": 0.XX, "confidence": 0.XX, "reasoning": "your argument"}'
     )
 
 
@@ -168,10 +165,7 @@ def _build_bear_system() -> str:
         "the true probability should be LOWER than the current market price. "
         "Be specific, cite evidence, and quantify your reasoning. "
         "You may be wrong, but argue your best case.\n\n"
-        "Always respond with EXACTLY these three lines:\n"
-        "PROBABILITY: <your estimate, 0.01 to 0.99>\n"
-        "CONFIDENCE: <how sure you are, 0.0 to 1.0>\n"
-        "REASONING: <your argument in 2-3 sentences>"
+        'Respond ONLY with JSON: {"probability": 0.XX, "confidence": 0.XX, "reasoning": "your argument"}'
     )
 
 
@@ -182,10 +176,7 @@ def _build_judge_system() -> str:
         "Your job is to synthesize both perspectives into a single, well-calibrated "
         "probability estimate. Weigh the strength of evidence on each side. "
         "Do NOT simply average — give more weight to stronger arguments.\n\n"
-        "Always respond with EXACTLY these three lines:\n"
-        "PROBABILITY: <your final estimate, 0.01 to 0.99>\n"
-        "CONFIDENCE: <how confident you are in this consensus, 0.0 to 1.0>\n"
-        "REASONING: <synthesis of both sides in 2-3 sentences>"
+        'Respond ONLY with JSON: {"probability": 0.XX, "confidence": 0.XX, "reasoning": "synthesis"}'
     )
 
 
@@ -378,7 +369,19 @@ async def _call_agent(
     try:
         router = _get_router()
         result = await router.complete(prompt, role=role, system=system)
-        return result or None
+        if not result:
+            return None
+        # If response doesn't contain structured data, extract via second call
+        if _parse_agent_response(result) is None:
+            extract_prompt = (
+                f"Extract the probability estimate from this analysis and respond ONLY with JSON:\n"
+                f'{{"probability": 0.XX, "confidence": 0.XX, "reasoning": "1 sentence summary"}}\n\n'
+                f"Analysis:\n{result[:1000]}"
+            )
+            extracted = await router.complete(extract_prompt, role=role, max_tokens=150)
+            if extracted and _parse_agent_response(extracted) is not None:
+                return extracted
+        return result
     except Exception as e:
         logger.error(
             f"[debate_engine._call_agent] {type(e).__name__}: "

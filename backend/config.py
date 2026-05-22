@@ -827,6 +827,9 @@ class ConfigRegistry:
     ANTHROPIC_API_KEY: Optional[str] = None
     GROQ_API_KEY: Optional[str] = None
     GEMINI_API_KEY: str = ""
+    LLM_OPENAI_API_KEY: Optional[str] = None
+    LLM_OPENAI_BASE_URL: Optional[str] = None
+    LLM_OPENAI_MODEL: str = "auto/best-chat"
 
     # LLM models
     GROQ_MODEL: str = "llama-3.1-8b-instant"
