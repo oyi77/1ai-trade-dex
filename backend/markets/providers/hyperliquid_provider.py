@@ -150,3 +150,11 @@ class HyperliquidProvider(BaseMarketProvider):
     async def health_check(self) -> bool:
         """Check if Hyperliquid is accessible."""
         return await self._client.health_check()
+
+    def subscribe_user_fills(self, callback):
+        """Subscribe to real-time fill notifications via client."""
+        return self._client.subscribe_user_fills(callback)
+
+    def subscribe_order_updates(self, callback):
+        """Subscribe to real-time order updates via client."""
+        return self._client.subscribe_order_updates(callback)

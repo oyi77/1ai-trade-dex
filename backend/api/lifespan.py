@@ -655,6 +655,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning(f"[LIFESPAN] Notification provider registration failed: {e}")
 
+    # --- Balance Aggregator (real-time multi-venue balance tracking) ---
+    try:
+        from backend.core.balance_aggregator import BalanceAggregator
+        balance_agg = BalanceAggregator()
+        app.state.balance_aggregator = balance_agg
+        asyncio.create_task(balance_agg.start())
+        logger.info("[LIFESPAN] BalanceAggregator started (WS + polling)")
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] BalanceAggregator failed to start: {e}")
+        app.state.balance_aggregator = None
+
     yield
 
     # --- Shutdown ---

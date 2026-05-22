@@ -155,3 +155,45 @@ class AsterProvider(BaseMarketProvider):
     async def health_check(self) -> bool:
         """Check if Aster is accessible."""
         return await self._client.health_check()
+
+    async def watch_balance(self) -> NormalizedBalance:
+        """Real-time balance via WebSocket, normalized."""
+        bal = await self._client.watch_balance()
+        usdc = bal.get("USDC", bal.get("total", {}))
+        if isinstance(usdc, dict):
+            free = Decimal(str(usdc.get("free", usdc.get("available", "0"))))
+            total = Decimal(str(usdc.get("total", usdc.get("equity", "0"))))
+            used = Decimal(str(usdc.get("used", usdc.get("margin", "0"))))
+        else:
+            free = total = used = Decimal("0")
+        return NormalizedBalance(
+            venue="aster",
+            available_cash=free,
+            total_equity=total,
+            reserved_margin=used,
+            currency="USDC",
+            raw=bal,
+        )
+
+    async def watch_positions(self, market_id=None) -> list[NormalizedPosition]:
+        """Real-time positions via WebSocket, normalized."""
+        raw_positions = await self._client.watch_positions()
+        result = []
+        for pos in raw_positions:
+            contracts = abs(float(pos.get("contracts", pos.get("size", "0"))))
+            if contracts == 0:
+                continue
+            side_str = pos.get("side", "long")
+            side = PositionSide.LONG if side_str == "long" else PositionSide.SHORT
+            result.append(
+                NormalizedPosition(
+                    market_id=pos.get("symbol", "unknown"),
+                    side=side,
+                    size=Decimal(str(contracts)),
+                    avg_entry_price=Decimal(str(pos.get("entryPrice", "0"))),
+                    venue="aster",
+                    current_price=Decimal(str(pos.get("markPrice", "0"))),
+                    unrealized_pnl=Decimal(str(pos.get("unrealizedPnl", "0"))),
+                )
+            )
+        return result

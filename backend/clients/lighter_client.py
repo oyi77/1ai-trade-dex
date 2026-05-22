@@ -2,7 +2,7 @@
 
 import os
 
-from lighter import AccountApi, ApiClient, Configuration, SignerClient, TransactionApi
+from lighter import AccountApi, ApiClient, Configuration, SignerClient, TransactionApi, WsClient
 from loguru import logger
 
 _LIGHTER_HOST = "https://mainnet.zklighter.elliot.ai/api/v1"
@@ -29,6 +29,7 @@ class LighterClient:
         self._account_api = None
         self._tx_api = None
         self._signer = None
+        self._ws_client = None
 
     def _ensure_initialized(self):
         """Lazy-init all SDK objects (requires event loop)."""
@@ -117,3 +118,24 @@ class LighterClient:
             return True
         except Exception:
             return False
+
+    async def watch_account(self, on_update=None):
+        """Subscribe to real-time account updates (balance + positions + orders).
+
+        Uses WsClient with account_all channel which pushes full account state on every change.
+        """
+        if not self._ws_client:
+            self._ws_client = WsClient(
+                account_ids=[self._account_index],
+                on_account_update=on_update or self._default_account_handler,
+            )
+        await self._ws_client.run_async()
+
+    def _default_account_handler(self, account_id, data):
+        """Default handler for account updates."""
+        logger.info(f"Lighter account {account_id} updated: {data}")
+
+    async def close_ws(self):
+        """Close WebSocket connection."""
+        if self._ws_client:
+            self._ws_client = None

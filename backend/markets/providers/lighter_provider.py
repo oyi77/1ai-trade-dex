@@ -158,3 +158,11 @@ class LighterProvider(BaseMarketProvider):
     async def health_check(self) -> bool:
         """Check if Lighter is accessible."""
         return await self._client.health_check()
+
+    async def watch_account(self, on_update=None):
+        """Subscribe to real-time account updates via WebSocket.
+
+        Delegates to LighterClient.watch_account(). Pass a custom handler
+        ``on_update(account_id, data)`` or use the client's default logger.
+        """
+        return await self._client.watch_account(on_update=on_update)

@@ -3,6 +3,7 @@
 import os
 
 import ccxt
+import ccxt.pro as ccxtpro
 from loguru import logger
 
 
@@ -13,6 +14,15 @@ class AsterClient:
         self._private_key = private_key or os.getenv("ASTER_PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY", "")
 
         self._exchange = ccxt.aster(
+            {
+                "privateKey": self._private_key,
+                "options": {
+                    "defaultType": "swap",
+                },
+            }
+        )
+
+        self._ws_exchange = ccxtpro.aster(
             {
                 "privateKey": self._private_key,
                 "options": {
@@ -59,3 +69,19 @@ class AsterClient:
             return True
         except Exception:
             return False
+
+    async def watch_balance(self) -> dict:
+        """Real-time balance updates via WebSocket."""
+        return await self._ws_exchange.watch_balance({"type": "swap"})
+
+    async def watch_positions(self, symbols=None) -> list:
+        """Real-time position updates via WebSocket."""
+        return await self._ws_exchange.watch_positions(symbols)
+
+    async def watch_orders(self, symbol=None) -> list:
+        """Real-time order updates via WebSocket."""
+        return await self._ws_exchange.watch_orders(symbol)
+
+    async def close_ws(self):
+        """Close WebSocket connection."""
+        await self._ws_exchange.close()

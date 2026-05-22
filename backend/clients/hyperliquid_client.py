@@ -23,7 +23,8 @@ class HyperliquidClient:
             self._account = None
             self._exchange = None
 
-        self._info = Info(constants.MAINNET_API_URL, skip_ws=True)
+        self._info = Info(constants.MAINNET_API_URL, skip_ws=False)
+        self._subscriptions = {}
 
     async def get_markets(self) -> list:
         """Get all available markets."""
@@ -77,3 +78,42 @@ class HyperliquidClient:
             return True
         except Exception:
             return False
+
+    def subscribe_user_fills(self, callback):
+        """Subscribe to real-time fill notifications.
+
+        callback receives ws_msg with data.fills array containing:
+        - coin, px, sz, side, closedPnl, fee, oid
+        """
+        subscription = {"type": "userFills", "user": self._wallet_address}
+        sub_id = self._info.subscribe(subscription, callback)
+        self._subscriptions[("userFills", sub_id)] = subscription
+        return sub_id
+
+    def subscribe_order_updates(self, callback):
+        """Subscribe to real-time order status changes."""
+        subscription = {"type": "orderUpdates", "user": self._wallet_address}
+        sub_id = self._info.subscribe(subscription, callback)
+        self._subscriptions[("orderUpdates", sub_id)] = subscription
+        return sub_id
+
+    def subscribe_user_events(self, callback):
+        """Subscribe to aggregated user events (fills + more).
+        Only 1 per connection."""
+        subscription = {"type": "userEvents", "user": self._wallet_address}
+        sub_id = self._info.subscribe(subscription, callback)
+        self._subscriptions[("userEvents", sub_id)] = subscription
+        return sub_id
+
+    def unsubscribe(self, subscription, sub_id):
+        """Unsubscribe from a channel."""
+        self._info.unsubscribe(subscription, sub_id)
+        # Clean up tracked subscription
+        keys_to_remove = [k for k, v in self._subscriptions.items() if v == subscription]
+        for k in keys_to_remove:
+            del self._subscriptions[k]
+
+    def disconnect_ws(self):
+        """Disconnect WebSocket."""
+        self._subscriptions.clear()
+        self._info.disconnect_websocket()

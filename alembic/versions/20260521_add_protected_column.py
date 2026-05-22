@@ -17,11 +17,11 @@ depends_on = None
 def upgrade():
     op.add_column(
         "strategy_config",
-        sa.Column("protected", sa.Boolean(), nullable=True, server_default="0"),
+        sa.Column("protected", sa.Boolean(), nullable=True, server_default="false"),
     )
     # Seed protected strategies
     op.execute(
-        "UPDATE strategy_config SET protected = 1 "
+        "UPDATE strategy_config SET protected = true "
         "WHERE strategy_name IN ('copy_trader', 'weather_emos', 'agi_orchestrator', 'btc_oracle', 'crypto_oracle')"
     )
 
