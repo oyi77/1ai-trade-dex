@@ -48,6 +48,16 @@ class Orchestrator:
         except Exception as exc:
             logger.debug(f"Startup heartbeat touch failed (non-fatal): {exc}")
 
+        # Start BalanceAggregator (real-time multi-venue balance tracking)
+        try:
+            from backend.core.balance_aggregator import BalanceAggregator
+            self._balance_aggregator = BalanceAggregator()
+            asyncio.create_task(self._balance_aggregator.start())
+            logger.info("BalanceAggregator started (WS + polling)")
+        except Exception as e:
+            logger.warning(f"BalanceAggregator failed to start: {e}")
+            self._balance_aggregator = None
+
         # Reset CLOB circuit breaker to ensure we start in CLOSED state
         clob_breaker.reset()
 
