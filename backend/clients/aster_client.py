@@ -13,11 +13,17 @@ class AsterClient:
     def __init__(self, private_key: str = None):
         self._private_key = private_key or os.getenv("ASTER_PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY", "")
 
+        # Derive wallet address from private key for Aster v3 API
+        from eth_account import Account as EthAccount
+        _account = EthAccount.from_key(self._private_key) if self._private_key else None
+        _address = _account.address if _account else ""
+
         self._exchange = ccxt.aster(
             {
                 "privateKey": self._private_key,
                 "options": {
                     "defaultType": "swap",
+                    "signerAddress": _address,
                 },
             }
         )
@@ -27,6 +33,7 @@ class AsterClient:
                 "privateKey": self._private_key,
                 "options": {
                     "defaultType": "swap",
+                    "signerAddress": _address,
                 },
             }
         )
