@@ -1,0 +1,7 @@
+<<<<<<< SEARCH
+            if trading_mode:
+                _dup_query = _dup_query.filter(Trade.trading_mode == trading_mode)
+=======
+            if mode:
+                _dup_query = _dup_query.filter(Trade.trading_mode == mode)
+>>>>>>> REPLACE

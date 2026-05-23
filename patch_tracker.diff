@@ -1,0 +1,20 @@
+<<<<<<< SEARCH
+    def __init__(self):
+        self._sources: dict[str, 'BaseActivitySource'] = {}
+        self._handlers: list[Callable] = []
+        self._events: list[ActivityEvent] = []
+        self._max_events = 1000
+
+    def register_source(self, name: str, source: 'BaseActivitySource'):
+        """Register a platform activity source."""
+=======
+    def __init__(self):
+        from backend.core.activity.sources.base import BaseActivitySource  # type: ignore
+        self._sources: dict[str, 'BaseActivitySource'] = {}
+        self._handlers: list[Callable] = []
+        self._events: list[ActivityEvent] = []
+        self._max_events = 1000
+
+    def register_source(self, name: str, source: 'BaseActivitySource'):
+        """Register a platform activity source."""
+>>>>>>> REPLACE

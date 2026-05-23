@@ -1,0 +1,17 @@
+<<<<<<< SEARCH
+    if now < window_end:
+        return None
+
+    entry_price = float(trade.entry_price or 0)
+    size = float(trade.size or 0)
+    direction = (trade.direction or "up").lower()
+
+    try:
+=======
+    if now < window_end:
+        return None
+
+    direction = (trade.direction or "up").lower()
+
+    try:
+>>>>>>> REPLACE

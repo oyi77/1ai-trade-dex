@@ -930,30 +930,37 @@ def _query_best_genes_volatile_regime(
         .all()
     )
 
-    result = []
-    for strategy in volatile_strategies:
-        genes = (
-            db.query(KgNode)
-            .join(KgEdge, KgEdge.to_node_id == KgNode.node_id)
-            .filter(
-                and_(
-                    KgEdge.from_node_id == strategy.node_id,
-                    KgEdge.relationship == "HAS_GENE",
-                    KgNode.node_type == "gene",
-                )
-            )
-            .all()
-        )
+    if not volatile_strategies:
+        return []
 
-        for gene in genes:
-            props = json.loads(gene.properties_json) if gene.properties_json else {}
-            result.append(
-                {
-                    "strategy": strategy.label,
-                    "gene": gene.label,
-                    "gene_type": props.get("gene_type", "unknown"),
-                }
+    strategy_map = {s.node_id: s.label for s in volatile_strategies}
+    strategy_ids = list(strategy_map.keys())
+
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    genes_and_edges = (
+        db.query(KgNode, KgEdge)
+        .join(KgEdge, KgEdge.to_node_id == KgNode.node_id)
+        .filter(
+            and_(
+                KgEdge.from_node_id.in_(strategy_ids),
+                KgEdge.relationship == "HAS_GENE",
+                KgNode.node_type == "gene",
             )
+        )
+        .all()
+    )
+
+    result = []
+    for gene, edge in genes_and_edges:
+        props = json.loads(gene.properties_json) if gene.properties_json else {}
+        strategy_label = strategy_map.get(edge.from_node_id, "unknown")
+        result.append(
+            {
+                "strategy": strategy_label,
+                "gene": gene.label,
+                "gene_type": props.get("gene_type", "unknown"),
+            }
+        )
     return result
 
 
@@ -1030,23 +1037,31 @@ def _query_highest_alpha_by_category(
         .all()
     )
 
-    result = []
-    for strategy in stat_arb_strategies:
-        markets = (
-            db.query(KgNode)
-            .join(KgEdge, KgEdge.to_node_id == KgNode.node_id)
-            .filter(
-                and_(
-                    KgEdge.from_node_id == strategy.node_id,
-                    KgEdge.relationship == "TRADED_ON",
-                    KgNode.node_type == "market",
-                )
-            )
-            .all()
-        )
+    if not stat_arb_strategies:
+        return []
 
-        props = json.loads(strategy.properties_json) if strategy.properties_json else {}
-        for market in markets:
+    strategy_map = {s.node_id: s for s in stat_arb_strategies}
+    strategy_ids = list(strategy_map.keys())
+
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    markets_and_edges = (
+        db.query(KgNode, KgEdge)
+        .join(KgEdge, KgEdge.to_node_id == KgNode.node_id)
+        .filter(
+            and_(
+                KgEdge.from_node_id.in_(strategy_ids),
+                KgEdge.relationship == "TRADED_ON",
+                KgNode.node_type == "market",
+            )
+        )
+        .all()
+    )
+
+    result = []
+    for market, edge in markets_and_edges:
+        strategy = strategy_map.get(edge.from_node_id)
+        if strategy:
+            props = json.loads(strategy.properties_json) if strategy.properties_json else {}
             result.append(
                 {
                     "strategy": strategy.label,
@@ -1074,31 +1089,43 @@ def _query_legend_mutation_path(
         .all()
     )
 
-    result = []
-    for strategy in legend_strategies:
-        mutations = (
-            db.query(KgEdge)
-            .filter(
-                and_(
-                    KgEdge.to_node_id == strategy.node_id,
-                    KgEdge.relationship == "MUTATED_FROM",
-                )
-            )
-            .all()
-        )
+    if not legend_strategies:
+        return []
 
-        for mutation in mutations:
-            parent = (
-                db.query(KgNode).filter(KgNode.node_id == mutation.from_node_id).first()
+    strategy_map = {s.node_id: s.label for s in legend_strategies}
+    strategy_ids = list(strategy_map.keys())
+
+    # ⚡ Bolt Optimization: Replace N+1 queries with bulk fetch
+    mutations = (
+        db.query(KgEdge)
+        .filter(
+            and_(
+                KgEdge.to_node_id.in_(strategy_ids),
+                KgEdge.relationship == "MUTATED_FROM",
             )
-            if parent:
-                result.append(
-                    {
-                        "legend_strategy": strategy.label,
-                        "mutated_from": parent.label,
-                        "mutation_weight": mutation.weight,
-                    }
-                )
+        )
+        .all()
+    )
+
+    if not mutations:
+        return []
+
+    parent_ids = [m.from_node_id for m in mutations]
+    parents = db.query(KgNode).filter(KgNode.node_id.in_(parent_ids)).all()
+    parent_map = {p.node_id: p.label for p in parents}
+
+    result = []
+    for mutation in mutations:
+        parent_label = parent_map.get(mutation.from_node_id)
+        if parent_label:
+            strategy_label = strategy_map.get(mutation.to_node_id, "unknown")
+            result.append(
+                {
+                    "legend_strategy": strategy_label,
+                    "mutated_from": parent_label,
+                    "mutation_weight": mutation.weight,
+                }
+            )
 
     result.sort(key=lambda x: x["mutation_weight"], reverse=True)
     return result

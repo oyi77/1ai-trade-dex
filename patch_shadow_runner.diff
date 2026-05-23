@@ -1,0 +1,14 @@
+<<<<<<< SEARCH
+                # Calculate P&L
+                direction_won = (
+                    trade.direction == "up" and settlement_value == 1.0
+                ) or (trade.direction == "down" and settlement_value == 0.0)
+                from backend.core.settlement.settlement_helpers import calculate_pnl
+
+                pnl = calculate_pnl(trade, settlement_value)
+=======
+                # Calculate P&L
+                from backend.core.settlement.settlement_helpers import calculate_pnl
+
+                pnl = calculate_pnl(trade, settlement_value)
+>>>>>>> REPLACE
