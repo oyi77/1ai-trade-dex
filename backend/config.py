@@ -44,7 +44,7 @@ class ConfigRegistry:
     back to the hardcoded class defaults when not set.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         import dataclasses
         from dataclasses import Field, MISSING
 
@@ -75,7 +75,11 @@ class ConfigRegistry:
 
         for name, default in all_fields.items():
             env_val = os.environ.get(name)
-            if env_val is not None:
+            kwarg_val = kwargs.get(name)
+
+            if kwarg_val is not None:
+                setattr(self, name, kwarg_val)
+            elif env_val is not None:
                 if isinstance(default, bool):
                     setattr(self, name, env_val.lower() in ("true", "1", "yes"))
                 elif isinstance(default, int):
@@ -585,7 +589,6 @@ class ConfigRegistry:
 
     # Trading modes
     ACTIVE_MODES: str = "paper"
-    TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
 
     # Logging
@@ -1300,6 +1303,20 @@ class ConfigRegistry:
     def is_mode_active(self, mode: str) -> bool:
         return mode in self.active_modes_set
 
+    @property
+    def TRADING_MODE(self) -> str:
+        modes = self.active_modes_set
+        if "live" in modes:
+            return "live"
+        if "testnet" in modes:
+            return "testnet"
+        return "paper"
+
+    @property
+    def SIMULATION_MODE(self) -> bool:
+        """Returns True if the system is running in paper mode only."""
+        return self.TRADING_MODE == "paper"
+
     WALLET_FERNET_KEY: Optional[str] = None
 
     # --------------------------------------------------------------------------
@@ -1346,6 +1363,7 @@ for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
 # Backwards compatibility: Settings still exists for existing code
 # This provides a bridge during migration to the new registry system
 # New code should use the ConfigRegistry directly or through settings
+Settings = ConfigRegistry
 
 
 if __name__ == "__main__":
