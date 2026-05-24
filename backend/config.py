@@ -1346,6 +1346,7 @@ for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
 # Backwards compatibility: Settings still exists for existing code
 # This provides a bridge during migration to the new registry system
 # New code should use the ConfigRegistry directly or through settings
+Settings = ConfigRegistry
 
 
 if __name__ == "__main__":
