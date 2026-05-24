@@ -44,7 +44,7 @@ class ConfigRegistry:
     back to the hardcoded class defaults when not set.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         import dataclasses
         from dataclasses import Field, MISSING
 
@@ -74,6 +74,10 @@ class ConfigRegistry:
                 all_fields[name] = value
 
         for name, default in all_fields.items():
+            if name in kwargs:
+                setattr(self, name, kwargs[name])
+                continue
+
             env_val = os.environ.get(name)
             if env_val is not None:
                 if isinstance(default, bool):
@@ -93,6 +97,11 @@ class ConfigRegistry:
                     setattr(self, name, env_val)
             else:
                 setattr(self, name, default)
+
+        # Add any kwargs that are not in all_fields
+        for k, v in kwargs.items():
+            if k not in all_fields:
+                setattr(self, k, v)
 
     # --------------------------------------------------------------------------
     # API_ENDPOINTS - External API URLs
@@ -585,8 +594,20 @@ class ConfigRegistry:
 
     # Trading modes
     ACTIVE_MODES: str = "paper"
-    TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
+
+    @property
+    def TRADING_MODE(self) -> str:
+        modes = self.active_modes_set
+        if "live" in modes:
+            return "live"
+        elif "testnet" in modes:
+            return "testnet"
+        return "paper"
+
+    @property
+    def SIMULATION_MODE(self) -> bool:
+        return "live" not in self.active_modes_set
 
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -1346,6 +1367,7 @@ for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
 # Backwards compatibility: Settings still exists for existing code
 # This provides a bridge during migration to the new registry system
 # New code should use the ConfigRegistry directly or through settings
+Settings = ConfigRegistry
 
 
 if __name__ == "__main__":

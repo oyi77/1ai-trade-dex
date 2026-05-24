@@ -4,8 +4,12 @@ from __future__ import annotations
 import asyncio
 from typing import Callable, Optional
 
+from typing import TYPE_CHECKING
 from backend.core.activity.models import ActivityEvent
 from loguru import logger
+
+if TYPE_CHECKING:
+    from backend.core.activity.sources.base import BaseActivitySource
 
 
 class ActivityTracker:

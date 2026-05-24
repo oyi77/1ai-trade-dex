@@ -289,7 +289,9 @@ class TestStrategyRanker:
             .filter(StrategyConfig.strategy_name == "loser")
             .first()
         )
-        assert cfg.enabled is False
+        assert cfg.enabled is True
+        assert cfg.trading_mode == "paper"
+        assert cfg.disabled_at is not None
 
 
 # ─── Backtester Metrics Tests ───
