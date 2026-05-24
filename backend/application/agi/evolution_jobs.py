@@ -972,19 +972,31 @@ def shadow_validation_job() -> None:
             .all()
         )
 
+        if not candidate_genomes:
+            return
+
+        # Fetch all relevant settled shadow trades in a single query
+        genome_ids = [g.genome_id for g in candidate_genomes]
+        all_trades = (
+            db.query(ShadowTrade)
+            .filter(
+                ShadowTrade.genome_id.in_(genome_ids),
+                ShadowTrade.settled.is_(True),
+                ShadowTrade.pnl.isnot(None),
+            )
+            .order_by(ShadowTrade.timestamp.asc())
+            .all()
+        )
+
+        # Group trades by genome_id for O(1) lookup during evaluation loop
+        trades_by_genome = {gid: [] for gid in genome_ids}
+        for trade in all_trades:
+            trades_by_genome[trade.genome_id].append(trade)
+
         promoted = 0
         killed = 0
         for genome in candidate_genomes:
-            trades = (
-                db.query(ShadowTrade)
-                .filter(
-                    ShadowTrade.genome_id == genome.genome_id,
-                    ShadowTrade.settled.is_(True),
-                    ShadowTrade.pnl.isnot(None),
-                )
-                .order_by(ShadowTrade.timestamp.asc())
-                .all()
-            )
+            trades = trades_by_genome.get(genome.genome_id, [])
 
             metrics = _sync_genome_fitness_from_shadow_trades(genome, trades, db)
 
