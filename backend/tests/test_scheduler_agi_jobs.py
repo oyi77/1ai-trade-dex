@@ -108,7 +108,7 @@ class TestResearchPipelineJob:
 
 class TestAGIJobConfigDefaults:
     def test_self_review_settings_exist(self):
-        from backend.config import Settings
+        from backend.config import ConfigRegistry as Settings
 
         s = Settings()
         assert hasattr(s, "SELF_REVIEW_ENABLED")
@@ -117,7 +117,7 @@ class TestAGIJobConfigDefaults:
         assert s.SELF_REVIEW_INTERVAL_DAYS >= 1
 
     def test_research_pipeline_settings_exist(self):
-        from backend.config import Settings
+        from backend.config import ConfigRegistry as Settings
 
         s = Settings()
         assert hasattr(s, "RESEARCH_PIPELINE_ENABLED")
@@ -126,7 +126,7 @@ class TestAGIJobConfigDefaults:
         assert s.RESEARCH_PIPELINE_INTERVAL_HOURS >= 1
 
     def test_evolution_scheduler_settings_exist(self):
-        from backend.config import Settings
+        from backend.config import ConfigRegistry as Settings
 
         s = Settings()
         assert s.AGI_MUTATION_INTERVAL_HOURS == 6

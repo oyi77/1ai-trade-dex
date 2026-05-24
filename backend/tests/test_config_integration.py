@@ -9,8 +9,8 @@ import os
 import pytest
 from unittest.mock import patch
 
-from backend.config import Settings
 from backend.config_extensions import ExtendedSettings, UnifiedSettings
+from backend.config import ConfigRegistry as Settings
 
 
 class TestSettingsPriority:

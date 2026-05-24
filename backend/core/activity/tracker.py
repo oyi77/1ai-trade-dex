@@ -5,6 +5,7 @@ import asyncio
 from typing import Callable, Optional
 
 from backend.core.activity.models import ActivityEvent
+from backend.core.activity.sources.base import BaseActivitySource
 from loguru import logger
 
 
