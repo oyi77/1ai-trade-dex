@@ -4,7 +4,6 @@ import os
 
 import ccxt
 import ccxt.pro as ccxtpro
-from loguru import logger
 
 
 class AsterClient:

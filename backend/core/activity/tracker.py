@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import asyncio
-from typing import Callable, Optional
+from typing import Callable, Any
 
 from backend.core.activity.models import ActivityEvent
 from loguru import logger
@@ -12,12 +12,12 @@ class ActivityTracker:
     """Central dispatcher for all platform activity events."""
 
     def __init__(self):
-        self._sources: dict[str, 'BaseActivitySource'] = {}
+        self._sources: dict[str, 'Any'] = {}
         self._handlers: list[Callable] = []
         self._events: list[ActivityEvent] = []
         self._max_events = 1000
 
-    def register_source(self, name: str, source: 'BaseActivitySource'):
+    def register_source(self, name: str, source: 'Any'):
         """Register a platform activity source."""
         self._sources[name] = source
         source.on_activity(self._on_event)

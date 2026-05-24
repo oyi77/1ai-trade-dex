@@ -29,12 +29,12 @@ from eth_account import Account
 
 from backend.config_extensions import settings
 from backend.config import settings as _main_settings
+from backend.constants import CONDITIONAL_TOKENS_ADDRESS as _CTF, USDC_E_ADDRESS as _USDC
 
 from loguru import logger
 
 POLYGON_RPC = settings.POLYGON_RPC_URL
 RELAYER_URL = _main_settings.POLYMARKET_RELAYER_URL
-from backend.constants import CONDITIONAL_TOKENS_ADDRESS as _CTF, USDC_E_ADDRESS as _USDC
 CTF_ADDRESS = Web3.to_checksum_address(_CTF)
 USDC_POLYGON = Web3.to_checksum_address(_USDC)
 NEG_RISK_ADAPTER = Web3.to_checksum_address(

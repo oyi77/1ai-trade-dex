@@ -7,7 +7,6 @@ from typing import List, Optional
 
 from backend.core.plugin_errors import (
     MarketProviderNotFound,
-    PluginEnvVarMissing,
 )
 from backend.core.plugin_registry import PluginRegistry
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest

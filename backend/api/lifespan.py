@@ -628,8 +628,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # --- Data Feed Discovery ---
     try:
-        import backend.data.providers  # triggers provider auto-registration
-        import backend.data.crypto_feeds  # triggers crypto feed auto-registration
         logger.info("[LIFESPAN] Data providers and crypto feeds loaded")
     except Exception as e:
         logger.warning(f"[LIFESPAN] Data feed discovery failed: {e}")

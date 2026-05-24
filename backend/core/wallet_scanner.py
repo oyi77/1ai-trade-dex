@@ -18,11 +18,11 @@ from dataclasses import dataclass
 import httpx
 
 from backend.config import settings
+from backend.constants import PUSD_ADDRESS as PUSD
 
 logger = logging.getLogger(__name__)
 
 BLOCKSCOUT_API = "https://polygon.blockscout.com/api/v2"
-from backend.constants import PUSD_ADDRESS as PUSD
 CACHE_DIR = Path("data/scanner_cache")
 SCAN_CACHE_TTL = 3600  # 1 hour
 

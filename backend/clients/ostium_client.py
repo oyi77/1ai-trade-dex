@@ -2,7 +2,6 @@
 
 import os
 
-from loguru import logger
 from ostium_python_sdk import OstiumSDK
 from ostium_python_sdk import NetworkConfig
 

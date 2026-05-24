@@ -23,10 +23,9 @@ from backend.markets.order_types import (
     PositionSide,
 )
 from backend.markets.provider_registry import market_registry
+from backend.fee_config import TAKER_FEE_BPS as _POLYMARKET_TAKER_FEE_BPS
 
 logger = logging.getLogger(__name__)
-
-from backend.fee_config import TAKER_FEE_BPS as _POLYMARKET_TAKER_FEE_BPS
 
 
 @dataclass(frozen=True)
