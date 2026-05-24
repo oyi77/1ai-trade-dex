@@ -14,8 +14,10 @@ This script:
 5. Reconciles bot_state bankroll
 """
 
-import sys, asyncio, json, httpx
-from datetime import datetime, timezone
+import sys
+import asyncio
+import json
+import httpx
 from typing import Optional, Tuple
 
 sys.path.insert(0, "/home/openclaw/projects/polyedge")
@@ -201,7 +203,7 @@ async def backfill(dry_run: bool = True):
             resolved_count += 1
         elif gamma_cond_id and not resolved:
             # Market still open / not yet resolved — store condition_id
-            print(f" → ⏳ still open, storing condition_id", end="")
+            print(" → ⏳ still open, storing condition_id", end="")
             still_open += 1
             if not dry_run:
                 db.execute(
@@ -209,7 +211,7 @@ async def backfill(dry_run: bool = True):
                     {"cid": gamma_cond_id, "tid": tid},
                 )
         else:
-            print(f" → ❌ no data", end="")
+            print(" → ❌ no data", end="")
             no_data += 1
 
         print()
@@ -222,7 +224,7 @@ async def backfill(dry_run: bool = True):
         db.commit()
 
     print(f"\n{'='*60}")
-    print(f"BACKFILL V2 SUMMARY:")
+    print("BACKFILL V2 SUMMARY:")
     print(f"  Total processed: {len(unresolved)}")
     print(f"  Resolved: {resolved_count}")
     print(f"    Wins: {win_count}")
@@ -235,7 +237,7 @@ async def backfill(dry_run: bool = True):
 
     # After updating trades, reconcile bot_state
     if not dry_run and resolved_count > 0:
-        print(f"\n🔄 Re-calculating bot_state live bankroll...")
+        print("\n🔄 Re-calculating bot_state live bankroll...")
         new_pnl = (
             db.execute(
                 text(

@@ -199,7 +199,7 @@ def test_list_all():
 async def test_polymarket_provider_rejects_live_order_without_price():
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider
@@ -412,7 +412,7 @@ async def test_polymarket_search_markets():
     """PolymarketProvider.search_markets fetches from Gamma API."""
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider
@@ -458,7 +458,7 @@ async def test_polymarket_search_markets_with_category():
     """PolymarketProvider.search_markets filters by category."""
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider
@@ -496,7 +496,7 @@ async def test_polymarket_get_positions_no_wallet():
     """PolymarketProvider.get_positions returns [] when no wallet configured."""
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider
@@ -521,7 +521,7 @@ async def test_polymarket_get_positions_with_wallet():
     """PolymarketProvider.get_positions fetches positions via CLOB."""
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider
@@ -565,7 +565,7 @@ async def test_polymarket_get_positions_filter_by_market():
     """PolymarketProvider.get_positions filters by market_id."""
     with patch.dict(
         os.environ,
-        {"POLYMARKET_API_KEY": "test-key", "POLYMARKET_API_SECRET": "test-secret"},
+        {"POLYMARKET_BUILDER_API_KEY": "test-key", "POLYMARKET_BUILDER_SECRET": "test-secret"},
         clear=False,
     ):
         from backend.markets.providers.polymarket_provider import PolymarketProvider

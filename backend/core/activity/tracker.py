@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 import asyncio
-from typing import Callable, Optional
+from typing import Callable, Optional, TYPE_CHECKING
 
 from backend.core.activity.models import ActivityEvent
+
+if TYPE_CHECKING:
+    from backend.core.activity.sources.base import BaseActivitySource
 from loguru import logger
 
 

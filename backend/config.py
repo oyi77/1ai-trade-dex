@@ -44,7 +44,7 @@ class ConfigRegistry:
     back to the hardcoded class defaults when not set.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         import dataclasses
         from dataclasses import Field, MISSING
 
@@ -91,6 +91,8 @@ class ConfigRegistry:
                         setattr(self, name, default)
                 else:
                     setattr(self, name, env_val)
+            elif name in kwargs:
+                setattr(self, name, kwargs[name])
             else:
                 setattr(self, name, default)
 
@@ -585,7 +587,6 @@ class ConfigRegistry:
 
     # Trading modes
     ACTIVE_MODES: str = "paper"
-    TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
 
     # Logging
@@ -1300,6 +1301,32 @@ class ConfigRegistry:
     def is_mode_active(self, mode: str) -> bool:
         return mode in self.active_modes_set
 
+    @property
+    def SIMULATION_MODE(self) -> bool:
+        """True if running in pure paper trading mode with no real capital risk."""
+        return self.TRADING_MODE == "paper"
+
+    @property
+    def TRADING_MODE(self) -> str:
+        """Returns the primary active trading mode.
+        Precedence: live > testnet > paper
+        """
+        if getattr(self, "_override_trading_mode", None) is not None:
+            return self._override_trading_mode
+        if "live" in self.active_modes_set and self.POLYMARKET_PRIVATE_KEY:
+            return "live"
+        elif "testnet" in self.active_modes_set and self.POLYMARKET_PRIVATE_KEY:
+            return "testnet"
+        return "paper"
+
+    @TRADING_MODE.setter
+    def TRADING_MODE(self, value: str):
+        self._override_trading_mode = value
+
+    @TRADING_MODE.deleter
+    def TRADING_MODE(self):
+        self._override_trading_mode = None
+
     WALLET_FERNET_KEY: Optional[str] = None
 
     # --------------------------------------------------------------------------
@@ -1346,6 +1373,7 @@ for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
 # Backwards compatibility: Settings still exists for existing code
 # This provides a bridge during migration to the new registry system
 # New code should use the ConfigRegistry directly or through settings
+Settings = ConfigRegistry
 
 
 if __name__ == "__main__":
