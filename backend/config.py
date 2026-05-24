@@ -1311,11 +1311,21 @@ class ConfigRegistry:
         """Returns the primary active trading mode.
         Precedence: live > testnet > paper
         """
+        if getattr(self, "_override_trading_mode", None) is not None:
+            return self._override_trading_mode
         if "live" in self.active_modes_set and self.POLYMARKET_PRIVATE_KEY:
             return "live"
         elif "testnet" in self.active_modes_set and self.POLYMARKET_PRIVATE_KEY:
             return "testnet"
         return "paper"
+
+    @TRADING_MODE.setter
+    def TRADING_MODE(self, value: str):
+        self._override_trading_mode = value
+
+    @TRADING_MODE.deleter
+    def TRADING_MODE(self):
+        self._override_trading_mode = None
 
     WALLET_FERNET_KEY: Optional[str] = None
 
