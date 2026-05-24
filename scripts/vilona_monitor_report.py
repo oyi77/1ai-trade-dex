@@ -10,7 +10,7 @@ sys.path.insert(0, "/home/openclaw/projects/polyedge")
 
 from sqlalchemy import create_engine, text
 from backend.config import settings
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
