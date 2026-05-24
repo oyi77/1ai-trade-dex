@@ -118,8 +118,11 @@ def test_register_provider():
 def test_register_missing_env_var():
     """Register provider with missing env var raises PluginEnvVarMissing."""
     registry = MarketProviderRegistry("test_registry")
-    with pytest.raises(PluginEnvVarMissing):
-        registry.register(EnvMarketProvider)
+    with patch.dict(os.environ, clear=True): # Ensure env is clean
+        if "TEST_VENUE_KEY" in os.environ:
+            del os.environ["TEST_VENUE_KEY"]
+        with pytest.raises(PluginEnvVarMissing):
+            registry.register(EnvMarketProvider)
 
 
 def test_get_provider():
