@@ -120,10 +120,6 @@ class DBSessionShadowRunner:
                 trade.settlement_value = settlement_value
                 trade.settled = True
 
-                # Calculate P&L
-                direction_won = (
-                    trade.direction == "up" and settlement_value == 1.0
-                ) or (trade.direction == "down" and settlement_value == 0.0)
                 from backend.core.settlement.settlement_helpers import calculate_pnl
 
                 pnl = calculate_pnl(trade, settlement_value)

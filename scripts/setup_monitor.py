@@ -14,8 +14,6 @@ This will:
 """
 
 import asyncio
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
