@@ -9,19 +9,19 @@ import os
 import pytest
 from unittest.mock import patch
 
-from backend.config import Settings
+from backend.config import ConfigRegistry as Settings
 from backend.config_extensions import ExtendedSettings, UnifiedSettings
 
 
 class TestSettingsPriority:
     def test_default_values(self):
         with patch.dict(os.environ, {"ACTIVE_MODES": "paper"}, clear=False):
-            settings = Settings(
-                DATABASE_URL="sqlite:///./test.db",
-                INITIAL_BANKROLL=100.0,
-                KELLY_FRACTION=0.05,
-                MIN_EDGE_THRESHOLD=0.05,
-            )
+            settings = Settings()
+            settings.DATABASE_URL = "sqlite:///./test.db"
+            settings.INITIAL_BANKROLL = 100.0
+            settings.KELLY_FRACTION = 0.05
+            settings.MIN_EDGE_THRESHOLD = 0.05
+
             assert settings.INITIAL_BANKROLL == 100.0
             assert settings.KELLY_FRACTION == 0.05
             assert settings.MIN_EDGE_THRESHOLD == 0.05
