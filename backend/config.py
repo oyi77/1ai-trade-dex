@@ -44,7 +44,7 @@ class ConfigRegistry:
     back to the hardcoded class defaults when not set.
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         import dataclasses
         from dataclasses import Field, MISSING
 
@@ -93,6 +93,9 @@ class ConfigRegistry:
                     setattr(self, name, env_val)
             else:
                 setattr(self, name, default)
+
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
     # --------------------------------------------------------------------------
     # API_ENDPOINTS - External API URLs
@@ -585,7 +588,6 @@ class ConfigRegistry:
 
     # Trading modes
     ACTIVE_MODES: str = "paper"
-    TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
 
     # Logging
@@ -1299,6 +1301,19 @@ class ConfigRegistry:
 
     def is_mode_active(self, mode: str) -> bool:
         return mode in self.active_modes_set
+
+    @property
+    def SIMULATION_MODE(self) -> bool:
+        return "live" not in self.active_modes_set and "testnet" not in self.active_modes_set
+
+    @property
+    def TRADING_MODE(self) -> str:
+        modes = self.active_modes_set
+        if "live" in modes:
+            return "live"
+        if "testnet" in modes:
+            return "testnet"
+        return "paper"
 
     WALLET_FERNET_KEY: Optional[str] = None
 
