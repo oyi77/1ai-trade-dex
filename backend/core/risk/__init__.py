@@ -9,7 +9,6 @@ _SUBMODULES = [
     "market_risk",
     "circuit_breaker",
     "circuit_breaker_pybreaker",
-    "circuit_breaker_unified",
     "correlation_monitor",
     "crash_guardian",
     "safety",
