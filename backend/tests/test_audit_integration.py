@@ -27,7 +27,7 @@ async def test_trade_creation_logs_audit_event(test_db):
     from backend.core.mode_context import register_context, ModeExecutionContext
     from backend.core.risk_manager import RiskManager
     from backend.core.strategy_executor import execute_decision
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock, patch, MagicMock
 
     # Register execution context for paper mode
     register_context(
@@ -53,12 +53,15 @@ async def test_trade_creation_logs_audit_event(test_db):
         "market_type": "btc",
     }
 
-    result = await execute_decision(
-        decision=decision,
-        strategy_name="test_strategy",
-        mode="paper",
-        db=test_db,
-    )
+    mock_limiter = MagicMock()
+    mock_limiter.acquire = MagicMock()
+    with patch("backend.core.strategy_executor._get_rate_limiter", return_value=mock_limiter):
+        result = await execute_decision(
+            decision=decision,
+            strategy_name="test_strategy",
+            mode="paper",
+            db=test_db,
+        )
 
     assert result is not None
 

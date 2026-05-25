@@ -1,0 +1,16 @@
+{
+  "benchmark_id": "cross_domain_transfer",
+  "score": 0.71,
+  "passed": true,
+  "metadata": {
+    "simulated_trades": 200,
+    "few_shot_examples": 5,
+    "source_domain": "crypto",
+    "target_domain": "weather",
+    "threshold": 0.6,
+    "adapted_strategy_id": "adapted_strategy_crypto_top1_to_weather",
+    "baseline_win_rate": 0.495,
+    "adapted_win_rate": 0.705
+  },
+  "timestamp": "2026-05-24T04:26:14.057587"
+}

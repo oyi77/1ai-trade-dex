@@ -23,6 +23,12 @@ CHAIN_ID_ASTER = 1666
 CHAIN_ID_POLYGON_AMOY = 80002
 CHAIN_ID_HYPERLIQUID = 1  # Hyperliquid L1
 
+# ERC-20 Transfer event topic (keccak256 of Transfer(address,address,uint256))
+ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952cb7f3a755fcd14e56f2e2f31e32f"
+
+# Activity tracking thresholds
+BALANCE_DELTA_THRESHOLD = 0.01  # Minimum balance change (USDC) to emit deposit/withdrawal
+
 # DEX API URLs
 LIGHTER_API_URL = "https://mainnet.zklighter.elliot.ai/api/v1"
 OSTIUM_API_URL = "https://builder.ostium.io"

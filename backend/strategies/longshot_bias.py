@@ -10,13 +10,16 @@ where the crowd overpays for YES tickets.
 
 from __future__ import annotations
 
-
 from backend.strategies.base import (
     BaseStrategy,
     CycleResult,
     MarketInfo,
     StrategyContext,
+    MarketEvent,
 )
+
+# Polymarket platform fee (per trade, both entry and settlement)
+PLATFORM_FEE_PCT = 0.02
 
 
 class LongshotBiasStrategy(BaseStrategy):
@@ -87,27 +90,40 @@ class LongshotBiasStrategy(BaseStrategy):
             for market in candidates:
                 try:
                     yes_price = market.yes_price
-                    no_price = 1.0 - yes_price
+                    # Use actual NO price from market/orderbook, not 1-complement.
+                    # The 1-complement assumes perfectly efficient binary pricing,
+                    # which fails during CLOB dislocations or illiquidity.
+                    no_price = getattr(market, "no_price", None)
+                    if no_price is None:
+                        no_price = 1.0 - yes_price
 
                     # EV calculation for NO token:
-                    # If true probability ~0.5 for longshots, buying NO at no_price
-                    # gives EV = true_prob * 1.0 - no_price
-                    # Empirical: NO at <30c has +23% EV
-                    # E-106: Compute EV dynamically instead of hardcoding 0.23
-                    # E-286: Bias factor scales with longshot-ness.
-                    # Lower yes_price (= more extreme longshot) -> higher bias.
-                    # Range: yes_price=0 -> bias=0.35, yes_price=0.30 -> bias=0.17
-                    bias_factor = 0.15 + 0.20 * (1.0 - yes_price / max_price)
-                    ev = max(0.0, bias_factor * no_price)
+                    # Per Becker data: NO at <30c has +23% expected value.
+                    # Use hardcoded empirical EV (bias_factor = 0.23).
+                    # At lower prices the empirical advantage is stronger,
+                    # but the 0.23 figure is the conservative anchor.
+                    # Net after Polymarket platform fees (entry + settlement):
+                    #   gross_payout = 1.0
+                    #   fee_per_dollar = 2 * PLATFORM_FEE_PCT = 0.04
+                    #   net_payout = 0.96
+                    #   EV = 0.23 * no_price * net_payout - (1 - 0.23) * no_price  [if fully efficient]
+                    # Simplified: use empirical EV directly, scale by no_price.
+                    # Empirical EV already factors in the crowd overpricing of YES.
+                    ev = max(0.0, 0.23 * no_price)
+                    # Subtract platform fees (both entry and settlement)
+                    ev = max(0.0, ev - 2 * PLATFORM_FEE_PCT * no_price)
 
                     if ev < min_ev:
                         continue
 
-                    # E-107: Kelly sizing — use corrected win_prob, not market price directly
-                    # true probability = implied_prob + EV / payout
-                    true_win_prob = min(0.95, (1.0 - yes_price) + ev / 1.0)
+                    # E-107: Kelly sizing — use market price directly as win prob.
+                    # EV was already computed above and accounted for separately.
+                    # Do NOT add EV to probability — that double-counts the edge.
+                    true_win_prob = min(0.95, 1.0 - yes_price)
                     odds = (1.0 / no_price) - 1.0  # net odds
-                    if odds <= 0:
+                    if odds <= 0.001:  # guard: no_price >= 0.999 → effectively zero odds
+                        continue
+                    if true_win_prob <= 0 or true_win_prob >= 1.0:
                         continue
                     kelly = (true_win_prob * odds - (1.0 - true_win_prob)) / odds
                     kelly = max(0, kelly * kelly_frac)  # fractional Kelly
@@ -120,9 +136,17 @@ class LongshotBiasStrategy(BaseStrategy):
                     trades_attempted += 1
 
                     # Place order via CLOB
+                    no_token_id = market.metadata.get("no_token_id")
+                    if not no_token_id:
+                        ctx.logger.warning(
+                            "[longshot_bias] Skipping {} — no no_token_id in metadata",
+                            market.slug,
+                        )
+                        continue
+
                     if ctx.mode != "paper":
                         order = await ctx.clob.place_order(
-                            token_id=market.metadata.get("no_token_id", ""),
+                            token_id=no_token_id,
                             side="BUY",
                             price=no_price,
                             size=position_size,

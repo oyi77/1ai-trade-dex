@@ -14,7 +14,7 @@ _SXBET_DOMAIN = {
     "name": "SX Bet",
     "version": "2",
     "chainId": 137,
-    "verifyingContract": "0xTODO_SXBET_CONTRACT_ADDRESS",  # TODO: fill from SX.bet docs
+    "verifyingContract": os.getenv("SXBET_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"),  # Set SXBET_CONTRACT_ADDRESS env var with real SX.bet exchange contract
 }
 
 _SXBET_ORDER_TYPES = {
@@ -155,6 +155,85 @@ class SXBetClient:
             )
             resp.raise_for_status()
             return resp.json()
+
+    async def get_balance(self, wallet_address: str = None) -> dict:
+        """Get wallet balance from SX.bet.
+
+        Args:
+            wallet_address: Wallet address to check balance for.
+
+        Returns:
+            Dict with balance info (USDC available, etc.).
+        """
+        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        if not addr:
+            return {}
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/wallet/balance",
+                    params={"address": addr},
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except Exception as e:
+            logger.warning(f"[sxbet] get_balance error: {e}")
+            return {}
+
+    async def get_positions(self, wallet_address: str = None) -> list:
+        """Get open positions for a wallet.
+
+        Args:
+            wallet_address: Wallet address (uses env default if None).
+
+        Returns:
+            List of position dicts.
+        """
+        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        if not addr:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/positions",
+                    params={"maker": addr, "status": "live"},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+                return data.get("data", data.get("positions", []))
+        except Exception as e:
+            logger.warning(f"[sxbet] get_positions error: {e}")
+            return []
+
+    async def get_fills(self, wallet_address: str = None, limit: int = 100) -> list:
+        """Get recent trade fills for a wallet.
+
+        Args:
+            wallet_address: Wallet address (uses env default if None).
+            limit: Maximum fills to return.
+
+        Returns:
+            List of fill dicts with id, side, size, price, fee, status, etc.
+        """
+        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        if not addr:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/trades",
+                    params={"maker": addr, "limit": limit},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+                return data.get("data", data.get("trades", []))
+        except Exception as e:
+            logger.warning(f"[sxbet] get_fills error: {e}")
+            return []
 
     async def health_check(self) -> bool:
         """Check if SX.bet API is available."""

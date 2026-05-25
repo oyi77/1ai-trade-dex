@@ -244,9 +244,17 @@ class RiskManager:
 
         params = None
         if strategy_name in STRATEGY_REGISTRY:
-            params = dict(
-                getattr(STRATEGY_REGISTRY[strategy_name], "default_params", {})
-            )
+            _dp = getattr(STRATEGY_REGISTRY[strategy_name], "default_params", {})
+            # default_params may be a dataclass Field sentinel — be strict: only accept real dicts
+            if isinstance(_dp, dict):
+                params = dict(_dp)
+            elif hasattr(_dp, "items") and callable(getattr(_dp, "items", None)):
+                try:
+                    params = dict(_dp.items())
+                except Exception:
+                    params = None
+            else:
+                params = None
         if params and params.get("_force_disabled", False):
             return RiskDecision(False, "strategy explicitly disabled", 0.0)
 

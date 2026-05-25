@@ -1,12 +1,16 @@
 """
 Negative-Risk Multi-Outcome Portfolio Strategy for PolyEdge.
 
-Discovers neg-risk events where mutually exclusive outcomes sum > 1.0,
+Discovers neg-risk events where mutually exclusive outcomes have mispriced YES prices,
 calculates fair probabilities via normalization, detects mispricings,
-and places multi-leg orders with Kelly sizing.
+and places all-or-nothing multi-leg orders with Kelly sizing.
 
 Neg-risk markets (e.g. "Who will win?") have N outcomes that must sum to 1.0.
-When market prices deviate, a portfolio of all outcomes guarantees profit.
+When market prices deviate, a portfolio of all eligible outcomes guarantees profit.
+If any leg fails, the entire batch is aborted (no partial fill = no unbalanced book).
+
+Grouping: markets are grouped by shared slug when available; when slugs are
+per-outcome, we fall back to grouping by condition_id prefix (parent event hash).
 """
 
 import time
@@ -20,7 +24,12 @@ from backend.strategies.base import (
     CycleResult,
     StrategyContext,
 )
+from backend.core.strategy_gate import StrategyGate
+from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.config import settings
+
+# Circuit breaker for negrisk orders — trips on 3 consecutive failures, resets after 120s
+_negrisk_breaker = CircuitBreaker("negrisk_strategy", failure_threshold=3, recovery_timeout=120.0)
 
 # ---------------------------------------------------------------------------
 # Config helpers
@@ -144,6 +153,21 @@ def calculate_kelly_bets(
 # ---------------------------------------------------------------------------
 
 
+def _extract_parent_id(market: dict) -> str:
+    """Extract a parent event ID for grouping multi-outcome markets.
+
+    Polymarket Gamma API may return per-outcome slugs (e.g. "who-wins-0xabc").
+    We fall back to condition_id prefix when slug-based grouping fails.
+    """
+    slug = market.get("slug", "")
+    if not slug:
+        return ""
+    # Many event slugs end with a hex condition_id suffix; try stripping it
+    if "-0x" in slug:
+        return slug.rsplit("-0x", 1)[0]
+    return slug
+
+
 def detect_neg_risk_events(
     markets: list[dict],
     min_outcomes: int = 3,
@@ -152,19 +176,27 @@ def detect_neg_risk_events(
     """
     Detect neg-risk events from a flat list of markets.
 
-    Groups markets by *slug* (Polymarket groups multi-outcome markets under
-    a single event).  An event is neg-risk when it has >= *min_outcomes*
-    mutually exclusive outcomes whose YES prices deviate from 1.0.
+    Groups markets by parent event ID (slug with condition_id suffix stripped).
+    Falls back to raw slug when no suffix pattern is detected.
+
+    An event is neg-risk when it has >= *min_outcomes* outcomes whose
+    YES prices deviate from 1.0 by at least *min_sum_deviation*.
     """
+    # Group by parent event ID, falling back to condition_id prefix
     events: dict[str, list[dict]] = {}
     for m in markets:
+        # Try condition_id grouping first (most reliable for Polymarket)
+        cid = m.get("condition_id") or m.get("market_id") or ""
         slug = m.get("slug", "")
-        if not slug:
+        parent = _extract_parent_id(m)
+        key = parent or slug
+        if not key and not cid:
             continue
-        events.setdefault(slug, []).append(m)
+        group_key = key or cid
+        events.setdefault(group_key, []).append(m)
 
     neg_risk_events: list[NegRiskEvent] = []
-    for slug, outcomes in events.items():
+    for group_key, outcomes in events.items():
         if len(outcomes) < min_outcomes:
             continue
 
@@ -192,8 +224,8 @@ def detect_neg_risk_events(
 
         neg_risk_events.append(
             NegRiskEvent(
-                event_id=slug,
-                slug=slug,
+                event_id=group_key,
+                slug=group_key,
                 question=outcomes[0].get("question", ""),
                 outcomes=parsed,
                 sum_of_prices=price_sum,
@@ -379,14 +411,34 @@ class NegRiskStrategy(BaseStrategy):
 
                     decisions_recorded += len(orders)
 
-                    # 5. Execute
-                    for order in orders:
-                        trades_attempted += 1
-                        result = await self._execute_order(ctx, order)
-                        if result and result.get("success"):
-                            trades_placed += 1
-                        elif result:
-                            errors.append(result.get("error", "unknown"))
+                    # 5. Execute — all-or-nothing (if any leg fails, report failure)
+                    event_executed = 0
+                    event_errors: list[str] = []
+                    try:
+                        for order in orders:
+                            trades_attempted += 1
+                            result = await self._execute_order(ctx, order)
+                            if result and result.get("success"):
+                                trades_placed += 1
+                                event_executed += 1
+                            elif result:
+                                event_errors.append(result.get("error", "unknown"))
+                    except CircuitOpenError:
+                        ctx.logger.warning(
+                            "[negrisk] circuit breaker open, skipping %s", event.event_id
+                        )
+                        errors.append(f"circuit_open:{event.event_id}")
+                        continue
+                    if event_executed < len(orders):
+                        ctx.logger.warning(
+                            "[negrisk] partial fill for %s (%d/%d placed), "
+                            "all-or-nothing: %s",
+                            event.event_id,
+                            event_executed,
+                            len(orders),
+                            "; ".join(event_errors),
+                        )
+                        errors.extend(event_errors)
 
                 except Exception as exc:
                     ctx.logger.warning(
@@ -454,7 +506,23 @@ class NegRiskStrategy(BaseStrategy):
             )
             return {"success": True, "paper": True}
 
+        # Circuit breaker check
+        if not _negrisk_breaker.allow_request():
+            raise CircuitOpenError("negrisk circuit breaker open")
+
         try:
+            # Strategy gate check — blocks live orders for unapproved strategies
+            if ctx.mode in ("live", "testnet"):
+                gate_passed, gate_msg = StrategyGate.can_execute_live(
+                    "negrisk_strategy", ctx.db
+                )
+                if not gate_passed:
+                    ctx.logger.warning(
+                        "[negrisk][GATE] Blocked live order: %s", gate_msg
+                    )
+                    _negrisk_breaker.record_failure()
+                    return {"success": False, "error": f"gate: {gate_msg}"}
+
             result = await ctx.clob.place_limit_order(
                 token_id=order.token_id,
                 side=order.side,
@@ -462,6 +530,7 @@ class NegRiskStrategy(BaseStrategy):
                 size=order.size_usd,
             )
             if result.success:
+                _negrisk_breaker.record_success()
                 ctx.logger.info(
                     "[negrisk] %s %.2f @ %.3f for %s (edge=%.4f)",
                     order.side,
@@ -472,7 +541,11 @@ class NegRiskStrategy(BaseStrategy):
                 )
                 return {"success": True, "order_id": result.order_id}
             else:
+                _negrisk_breaker.record_failure()
                 return {"success": False, "error": result.error or "order failed"}
+        except CircuitOpenError:
+            raise
         except Exception as exc:
+            _negrisk_breaker.record_failure()
             ctx.logger.error("[negrisk] Order execution failed: %s", exc)
             return {"success": False, "error": str(exc)}

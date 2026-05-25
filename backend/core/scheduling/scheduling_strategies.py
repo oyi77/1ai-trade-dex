@@ -407,6 +407,30 @@ async def scan_and_trade_job(mode: str):
                 )
                 strategy = strategy_cls()
                 result = await strategy.run(strategy_ctx)
+                # Record shadow trades in paper/testnet modes so AGI health check
+                # can read win rate from ShadowTrade table.
+                if mode in ("paper", "testnet") and hasattr(result, "decisions") and result.decisions:
+                    try:
+                        from backend.application.strategy.shadow_runner import (
+                            DBSessionShadowRunner,
+                        )
+
+                        shadow_runner = DBSessionShadowRunner(db)
+                        for decision in result.decisions:
+                            if isinstance(decision, dict) and decision.get("token_id"):
+                                shadow_runner.record_signal(
+                                    strategy_name=cfg["strategy_name"],
+                                    token_id=decision["token_id"],
+                                    side=decision.get("side", "BUY"),
+                                    price=decision.get("price"),
+                                    size_usd=decision.get("size_usd"),
+                                    mode=mode,
+                                )
+                    except Exception as shadow_err:
+                        logger.warning(
+                            f"[{mode.upper()}] Shadow trade recording failed for "
+                            f"{cfg['strategy_name']}: {shadow_err}"
+                        )
                 buy_decisions = [
                     d
                     for d in getattr(result, "decisions", [])
@@ -1137,6 +1161,31 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             strategy = strategy_cls()
             result = await strategy.run(ctx)
 
+            # Record shadow trades in paper/testnet modes so AGI health check
+            # can read win rate from ShadowTrade table.
+            if effective_mode in ("paper", "testnet") and hasattr(result, "decisions") and result.decisions:
+                try:
+                    from backend.application.strategy.shadow_runner import (
+                        DBSessionShadowRunner,
+                    )
+
+                    shadow_runner = DBSessionShadowRunner(db)
+                    for decision in result.decisions:
+                        if isinstance(decision, dict) and decision.get("token_id"):
+                            shadow_runner.record_signal(
+                                strategy_name=strategy_name,
+                                token_id=decision["token_id"],
+                                side=decision.get("side", "BUY"),
+                                price=decision.get("price"),
+                                size_usd=decision.get("size_usd"),
+                                mode=effective_mode,
+                            )
+                except Exception as shadow_err:
+                    logger.warning(
+                        f"[{effective_mode.upper()}] Shadow trade recording failed for "
+                        f"{strategy_name}: {shadow_err}"
+                    )
+
             from backend.core.strategy_executor import (
                 execute_decisions as _exec_decisions,
             )
@@ -1208,7 +1257,6 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         log_event("error", f"Strategy cycle job failed for {strategy_name}: {e}")
         logger.exception(f"strategy_cycle_job({strategy_name})")
 
-    # Heartbeat AFTER db.close() so the pool connection is returned first
     try:
         _update_heartbeat(strategy_name)
     except Exception:
@@ -1216,7 +1264,8 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             f"[scheduling_strategies] Heartbeat update failed for {strategy_name} after cycle"
         )
 
-    gc.collect()
+    # gc.collect() removed — causes BufferError when numpy/pandas objects
+    # have been exported to C libraries (existing exports cannot be resized)
 
 
 async def sync_testnet_wallet():

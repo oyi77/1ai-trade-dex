@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { DashboardData, Signal, Trade, BotStats, BtcPrice, BtcWindow, WeatherForecast, WeatherSignal, Setting, TradeAttemptSummary, TradeAttemptsResponse, KanbanBoard, KanbanCard, JournalEntry, JournalStats } from './types'
+import type { DashboardData, Signal, Trade, BotStats, BtcPrice, BtcWindow, WeatherForecast, WeatherSignal, Setting, TradeAttemptSummary, TradeAttemptsResponse, KanbanBoard, KanbanCard, JournalEntry, JournalStats, EvalReportsResponse, EvalReportDetail } from './types'
 import { getCsrfToken, getLegacyApiKey } from './utils/auth'
 
 const getApiBase = () => {
@@ -1114,4 +1114,16 @@ export async function updateJournalNotes(
   tags: string[] = []
 ): Promise<void> {
   await adminApi.put(`/journal/${tradeId}/notes`, { notes, tags })
+}
+
+// ── Eval Reports ────────────────────────────────────────────────────────────
+
+export async function fetchEvalReports(): Promise<EvalReportsResponse> {
+  const { data } = await api.get<EvalReportsResponse>('/evals/reports')
+  return data
+}
+
+export async function fetchEvalReport(filename: string): Promise<EvalReportDetail> {
+  const { data } = await api.get<EvalReportDetail>(`/evals/reports/${encodeURIComponent(filename)}`)
+  return data
 }

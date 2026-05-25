@@ -80,3 +80,69 @@ Live `BotState.bankroll`/`total_pnl` are derived caches. The source of truth is 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `WEATHER_ENABLED` | True | Enable/disable weather trading strategies. |
+
+---
+
+## Prediction Market & DEX Venue Settings
+
+PolyEdge includes a plugin-based multi-venue system supporting a wide variety of prediction markets and decentralized perpetual DEXes. These settings are read from environment variables and validated on startup. Any live venue whose required environment variables are missing will be automatically disabled.
+
+### Shared EVM Wallet Settings
+Many of the decentralized DEX venues (Aster, Lighter, Hyperliquid, Ostium) use a single shared wallet configuration, but allow for specific individual overrides.
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `WALLET_PRIVATE_KEY` | None | Primary EVM-compatible private key for CCXT swap and L2 perpetual transactions. Fallback for Aster, Lighter, Ostium, and Hyperliquid. |
+| `TRADING_MODE` | `"paper"` | Bot trading mode. Set to `"live"` to enable live contract submissions, or `"paper"` to route all transactions to the safe in-memory simulator (`PaperProvider`). |
+
+### SX.bet Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `SXBET_API_URL` | None | SX.bet prediction market API REST endpoint. |
+| `SXBET_PRIVATE_KEY` | None | Private key override for EIP-712 order signing. |
+| `SXBET_WALLET_ADDRESS` | None | SX.bet trading wallet public address. |
+
+### Limitless Exchange Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `LIMITLESS_API_URL` | None | Limitless prediction market REST API endpoint. |
+| `LIMITLESS_PRIVATE_KEY` | None | Private key override for Limitless Base EIP-712 signing. |
+| `LIMITLESS_WALLET_ADDRESS` | None | Limitless wallet public address. |
+
+### Myriad Markets Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `MYRIAD_API_URL` | None | Myriad prediction market REST API endpoint. |
+
+### Azuro Protocol Settings (Bookmaker.xyz & Predict.fun)
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `AZURO_GRAPH_URL` | None | Subgraph URL for reading Gnosis/Polygon sports prediction odds. |
+| `AZURO_RPC_URL` | None | JSON-RPC endpoint for smart contract interactions. |
+| `AZURO_PRIVATE_KEY` | None | Private key for smart contract bet placements. |
+
+### Ostium DEX Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `OSTIUM_RPC_URL` | None | Arbitrum JSON-RPC endpoint for contract state reads. |
+| `OSTIUM_PRIVATE_KEY` | None | Private key override for Ostium perp interactions. |
+
+### Lighter DEX Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `LIGHTER_PRIVATE_KEY` | None | Private key override for Lighter ZK-proof orders. |
+| `LIGHTER_ACCOUNT_INDEX` | None | Lighter account registry index. |
+| `LIGHTER_API_KEY_INDEX` | None | Lighter API key index. |
+
+### Aster DEX Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `ASTER_PRIVATE_KEY` | None | Private key override for Aster CCXT perps signing. |
+| `ASTER_WALLET_ADDRESS` | None | Aster wallet public address. |
+
+### Hyperliquid Settings
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `HYPERLIQUID_PRIVATE_KEY` | None | Private key override for Hyperliquid exchange API. |
+| `HYPERLIQUID_WALLET_ADDRESS` | None | Hyperliquid wallet public address. |
+

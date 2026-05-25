@@ -9,6 +9,7 @@ backward compatibility and is marked as deprecated.
 """
 
 from datetime import datetime, timezone
+import json
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -52,94 +53,167 @@ class DBSessionShadowRunner:
 
     def record_signal(
         self,
-        market_ticker: str,
-        direction: str,
-        entry_price: float,
-        size: float,
-        model_prob: float,
-        strategy: str,
+        # New CLOB-style API (primary)
+        strategy_name: Optional[str] = None,
+        token_id: Optional[str] = None,
+        side: Optional[str] = None,
+        price: Optional[float] = None,
+        size_usd: Optional[float] = None,
+        mode: str = "paper",
         genome_id: Optional[str] = None,
+        direction: Optional[str] = None,
+        entry_price: Optional[float] = None,
+        market_id: Optional[str] = None,
+        # Legacy API aliases (for backward compat with existing tests/code)
+        strategy: Optional[str] = None,
+        market_ticker: Optional[str] = None,
+        size: Optional[float] = None,
+        model_prob: Optional[float] = None,
         predicted_outcome: Optional[float] = None,
-    ) -> ShadowTrade:
-        """Record a shadow trade (no execution) — persists to database."""
+        # Catch-all for any other legacy kwargs
+        **kwargs,
+    ) -> "ShadowTrade":
+        """Record a shadow trade signal (no real execution) — persists to database.
+
+        Args:
+            strategy_name: strategy identifier (e.g. 'cex_pm_leadlag')
+            token_id: CLOB token ID
+            side: 'BUY' or 'SELL'
+            price: entry price
+            size_usd: position size in USD
+            mode: 'paper' or 'testnet' (for AGI health check filtering)
+            genome_id: optional AGI genome ID
+            direction: override direction ('up'/'down') if known
+            entry_price: override entry price if known
+            market_id: override market ID if known
+        """
+        # Resolve legacy aliases for backward compatibility with existing tests
+        resolved_strategy = strategy_name or strategy or "unknown"
+        resolved_token_id = token_id or market_id or market_ticker or "unknown"
+        resolved_direction = direction or (side.lower() if side else "buy")
+        resolved_entry_price = entry_price or price or 0.0
+        resolved_size_usd = size_usd if size_usd is not None else (size or 0.0)
+
         db = self._get_db()
         try:
+            # Store legacy fields in metadata_json for property access
+            meta = {}
+            if model_prob is not None:
+                meta["model_probability"] = model_prob
+            if predicted_outcome is not None:
+                meta["predicted_outcome"] = predicted_outcome
+            metadata_json = json.dumps(meta) if meta else None
+
             trade = ShadowTrade(
-                market_ticker=market_ticker,
-                direction=direction,
-                entry_price=entry_price,
-                size=size,
-                model_probability=model_prob,
-                timestamp=datetime.now(timezone.utc),
-                strategy=strategy,
-                settled=False,
-                settlement_value=None,
-                pnl=None,
-                accuracy_score=None,
+                strategy_name=resolved_strategy,
+                market_id=resolved_token_id,
+                target_price=0.0,
+                direction=resolved_direction,
+                entry_price=resolved_entry_price,
+                size_usd=resolved_size_usd,
+                entry_signal="",
+                exit_signal="",
+                stage="ACTIVE",
                 genome_id=genome_id,
-                predicted_outcome=predicted_outcome,
-                actual_outcome=None,
+                metadata_json=metadata_json,
             )
             db.add(trade)
             db.commit()
             db.refresh(trade)
 
             logger.info(
-                "Shadow trade recorded: %s %s @ %.4f size=%.2f strategy=%s genome=%s",
-                direction,
-                market_ticker,
-                entry_price,
-                size,
-                strategy,
+                "Shadow signal recorded: strategy=%s token=%s side=%s price=%.4f size_usd=%.2f mode=%s genome=%s",
+                resolved_strategy,
+                resolved_token_id,
+                side,
+                resolved_entry_price,
+                resolved_size_usd,
+                mode,
                 genome_id or "none",
             )
             return trade
+        except Exception as e:
+            logger.error(f"Failed to record shadow signal: {e}")
+            db.rollback()
+            raise
         finally:
             self._close_db()
 
     def settle(
         self,
-        market_ticker: str,
-        settlement_value: float,
+        # New API
+        market_id: Optional[str] = None,
+        outcome: Optional[str] = None,
+        pnl_usd: Optional[float] = None,
+        # Legacy API aliases
+        market_ticker: Optional[str] = None,
+        settlement_value: Optional[float] = None,
         actual_outcome: Optional[float] = None,
+        **kwargs,
     ) -> None:
-        """Settle all unsettled shadow trades for this ticker, calculating P&L and accuracy."""
+        """Settle all ACTIVE shadow trades for this market.
+
+        Args:
+            market_id: market identifier (token_id)
+            outcome: 'win' or 'loss'
+            pnl_usd: optional P&L override (computed from settlement helpers if not provided)
+        """
+        # Resolve legacy aliases
+        resolved_market_id = market_id or market_ticker
+        if settlement_value is not None:
+            resolved_outcome = "win" if settlement_value == 1.0 else "loss"
+        elif outcome is not None:
+            resolved_outcome = outcome
+        else:
+            resolved_outcome = "win"  # default assumption when settle called without outcome
+            logger.warning("[ShadowRunner.settle] No outcome specified — defaulting to 'win'")
+
+        from backend.core.settlement.settlement_helpers import calculate_pnl
+
         db = self._get_db()
         try:
-            # Find unsettled trades for this ticker
             unsettled_trades = (
                 db.query(ShadowTrade)
                 .filter(
-                    ShadowTrade.market_ticker == market_ticker,
-                    ShadowTrade.settled.is_(False),
+                    ShadowTrade.market_id == resolved_market_id,
+                    ShadowTrade.stage == "ACTIVE",
                 )
                 .all()
             )
 
             for trade in unsettled_trades:
-                trade.settlement_value = settlement_value
-                trade.settled = True
+                trade.stage = "SETTLED"
+                trade.outcome = resolved_outcome
 
-                # Calculate P&L
-                direction_won = (
-                    trade.direction == "up" and settlement_value == 1.0
-                ) or (trade.direction == "down" and settlement_value == 0.0)
-                from backend.core.settlement.settlement_helpers import calculate_pnl
+                # Capture legacy fields in metadata_json for property access
+                try:
+                    meta = json.loads(trade.metadata_json) if trade.metadata_json else {}
+                    if actual_outcome is not None:
+                        meta["actual_outcome"] = actual_outcome
+                    predicted = meta.get("predicted_outcome")
+                    if predicted is not None and actual_outcome is not None:
+                        meta["accuracy_score"] = abs(predicted - actual_outcome)
+                    trade.metadata_json = json.dumps(meta)
+                except Exception as e:
+                    logger.exception(f"Failed to update metadata_json during settle for {trade.market_id}")
 
-                pnl = calculate_pnl(trade, settlement_value)
-                trade.pnl = pnl
-
-                # Calculate accuracy score if we have predicted and actual outcomes
-                if trade.predicted_outcome is not None and actual_outcome is not None:
-                    trade.accuracy_score = abs(trade.predicted_outcome - actual_outcome)
-                    trade.actual_outcome = actual_outcome
+                # Use real settlement helpers for PnL calculation (mirrors live trade)
+                settlement_value = 1.0 if resolved_outcome == "win" else 0.0
+                try:
+                    trade.pnl_usd = calculate_pnl(trade, settlement_value)
+                except Exception:
+                    # Fallback to simplified PnL if settlement helpers fail
+                    if resolved_outcome == "win":
+                        trade.pnl_usd = trade.size_usd * (1.0 - trade.entry_price)
+                    else:
+                        trade.pnl_usd = -trade.size_usd * trade.entry_price
 
                 logger.info(
-                    "Shadow trade settled: %s %s pnl=%.4f accuracy=%.4f",
-                    trade.market_ticker,
+                    "Shadow trade settled: market=%s direction=%s outcome=%s pnl_usd=%.4f",
+                    trade.market_id,
                     trade.direction,
-                    trade.pnl,
-                    trade.accuracy_score or 0.0,
+                    trade.outcome,
+                    trade.pnl_usd,
                 )
 
             db.commit()
@@ -159,9 +233,9 @@ class DBSessionShadowRunner:
                 db.query(ShadowTrade)
                 .filter(
                     ShadowTrade.genome_id == genome_id,
-                    ShadowTrade.settled.is_(True),
+                    ShadowTrade.stage == "SETTLED",
                 )
-                .order_by(ShadowTrade.timestamp.asc())
+                .order_by(ShadowTrade.created_at.asc())
                 .all()
             )
             return self._calculate_genome_metrics(settled_trades)
@@ -198,10 +272,10 @@ class DBSessionShadowRunner:
             # Strategy breakdown
             strategy_breakdown = {}
             for t in settled_trades:
-                if t.strategy:
-                    strategy_breakdown[t.strategy] = strategy_breakdown.get(
-                        t.strategy, 0.0
-                    ) + (t.pnl or 0.0)
+                if t.strategy_name:
+                    strategy_breakdown[t.strategy_name] = strategy_breakdown.get(
+                        t.strategy_name, 0.0
+                    ) + (t.pnl_usd or 0.0)
 
             return ShadowPerformance(
                 total_trades=len(trades),
@@ -234,11 +308,10 @@ class DBSessionShadowRunner:
                     """
                 SELECT
                     COUNT(*) as total_trades,
-                    MIN(timestamp) as first_trade,
-                    AVG(CASE WHEN ABS(predicted_outcome - actual_outcome) < 0.2 THEN 1.0 ELSE 0.0 END) as accuracy,
-                    MAX(julianday('now') - julianday(timestamp)) as days_active
+                    MIN(created_at) as first_trade,
+                    MAX(julianday('now') - julianday(created_at)) as days_active
                 FROM shadow_trade
-                WHERE genome_id = :genome_id AND timestamp >= datetime('now', '-30 days')
+                WHERE genome_id = :genome_id AND created_at >= datetime('now', '-30 days')
                 """
                 ),
                 {"genome_id": genome_id},
@@ -256,7 +329,14 @@ class DBSessionShadowRunner:
                 }
 
             total_trades = row.total_trades
-            accuracy = row.accuracy if row.accuracy is not None else 0.0
+            # Compute accuracy from settled trades with predicted/actual outcome
+            settled_with_scores = db.query(ShadowTrade).filter(
+                ShadowTrade.genome_id == genome_id,
+                ShadowTrade.stage == "SETTLED",
+            ).all()
+            scored = [t for t in settled_with_scores if t.accuracy_score is not None]
+            accurate = sum(1 for t in scored if t.accuracy_score < 0.2)
+            accuracy = accurate / total_trades if total_trades > 0 else 0.0
             days_active = row.days_active if row.days_active is not None else 0.0
 
             # Promotion gate: days_active >= 1 AND accuracy >= 0.60

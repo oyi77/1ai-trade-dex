@@ -1,0 +1,1 @@
+All checks passed: postgresql dialect, is_postgres=True, _TS_TYPE=TIMESTAMP

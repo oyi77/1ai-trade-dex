@@ -87,8 +87,10 @@ def _parse_prices(m: dict) -> tuple[float, float]:
             logger.exception("Failed to parse outcome prices JSON")
             outcome_prices = ["0.5", "0.5"]
 
-    yes_price = float(outcome_prices[0]) if len(outcome_prices) > 0 else 0.5
-    no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 else 0.5
+    if len(outcome_prices) < 2:
+        return 0.5, 0.5
+    yes_price = float(outcome_prices[0])
+    no_price = float(outcome_prices[1])
     return yes_price, no_price
 
 
@@ -612,15 +614,11 @@ class UniversalScanner(BaseStrategy):
             combined_context = " | ".join(filter(None, [web_context, brain_context]))
             data_sources = ["gamma_api", "websearch"] if web_context else ["gamma_api"]
 
-            debate_result = await _run_debate_gate(
-                question=market.question,
-                market_price=market.yes_price,
-                volume=market.volume,
-                category=market.category or "",
-                context=combined_context,
-                data_sources=data_sources,
-                db=db or (ctx.db if ctx else None),
-            )
+            # Reuse llm_result from above instead of calling _run_debate_gate twice.
+            # The first call (llm_result) was the initial LLM probability estimate,
+            # used only to compute edge. This second call gets the full debate result
+            # with web+brain context for confidence scoring.
+            debate_result = llm_result
 
             if debate_result is not None:
                 llm_conf = (

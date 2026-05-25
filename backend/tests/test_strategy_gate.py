@@ -103,8 +103,8 @@ class TestShadowExempt:
     def test_bond_scanner_exempt(self):
         assert "bond_scanner" in SHADOW_EXEMPT
 
-    def test_cex_pm_leadlag_exempt(self):
-        assert "cex_pm_leadlag" in SHADOW_EXEMPT
+    def test_cex_pm_leadlag_not_exempt(self):
+        assert "cex_pm_leadlag" not in SHADOW_EXEMPT
 
 
 class TestStageRequirements:
@@ -130,6 +130,10 @@ class TestCheckRiskAndDisable:
     def test_returns_list(self):
         db = MagicMock()
         db.execute.return_value.fetchall.return_value = []
-        db.execute.return_value.scalar.return_value = 0
+        db.execute.return_value.scalar.return_value = 0.0
+        bot_state_mock = MagicMock()
+        bot_state_mock.live_initial_bankroll = None
+        bot_state_mock.paper_initial_bankroll = None
+        db.query.return_value.filter_by.return_value.first.return_value = bot_state_mock
         result = check_risk_and_disable(db)
         assert isinstance(result, list)

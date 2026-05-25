@@ -62,8 +62,12 @@ class Orchestrator:
         try:
             from backend.core.activity.tracker import ActivityTracker
             from backend.core.activity import set_tracker
+            from backend.core.activity.event_handler import ActivityHandler
+            from backend.db.utils import get_db_session
             self._activity_tracker = ActivityTracker()
             set_tracker(self._activity_tracker)
+            # Register ActivityHandler to process events into DB
+            self._activity_handler = ActivityHandler(self._activity_tracker, get_db_session)
             # Register platform sources
             await self._register_activity_sources()
             asyncio.create_task(self._activity_tracker.start_all())
@@ -310,13 +314,80 @@ class Orchestrator:
 
         # Polymarket — CLOB fills (REST) + Polygon on-chain
         try:
-            from backend.data.polymarket_clob import PolymarketCLOBClient
             from backend.core.activity.sources.polymarket_source import PolymarketActivitySource
 
-            clob = PolymarketCLOBClient()
+            clob = clob_from_settings()
             tracker.register_source("polymarket", PolymarketActivitySource(addr, clob))
         except Exception as e:
             logger.warning(f"Polymarket activity source skipped: {e}")
+
+        # Azuro — Gnosis Chain subgraph bets
+        try:
+            from backend.clients.azuro_client import AzuroClient
+            from backend.core.activity.sources.azuro_source import AzuroActivitySource
+
+            azuro_client = AzuroClient()
+            tracker.register_source("azuro", AzuroActivitySource(addr, azuro_client))
+        except Exception as e:
+            logger.warning(f"Azuro activity source skipped: {e}")
+
+        # Limitless — Base CLOB REST fills
+        try:
+            from backend.clients.limitless_client import LimitlessClient
+            from backend.core.activity.sources.limitless_source import LimitlessActivitySource
+
+            limitless_client = LimitlessClient()
+            tracker.register_source("limitless", LimitlessActivitySource(addr, limitless_client))
+        except Exception as e:
+            logger.warning(f"Limitless activity source skipped: {e}")
+
+        # Kalshi — REST fills + position polling
+        try:
+            from backend.data.kalshi_client import KalshiClient
+            from backend.core.activity.sources.kalshi_source import KalshiActivitySource
+
+            kalshi_client = KalshiClient()
+            tracker.register_source("kalshi", KalshiActivitySource(addr, kalshi_client))
+        except Exception as e:
+            logger.warning(f"Kalshi activity source skipped: {e}")
+
+        # Ostium — SDK fills + position polling
+        try:
+            from backend.clients.ostium_client import OstiumClient
+            from backend.core.activity.sources.ostium_source import OstiumActivitySource
+
+            ostium_client = OstiumClient()
+            tracker.register_source("ostium", OstiumActivitySource(addr, ostium_client))
+        except Exception as e:
+            logger.warning(f"Ostium activity source skipped: {e}")
+
+        # Myriad — REST fills + position polling
+        try:
+            from backend.clients.myriad_client import MyriadClient
+            from backend.core.activity.sources.myriad_source import MyriadActivitySource
+
+            myriad_client = MyriadClient()
+            tracker.register_source("myriad", MyriadActivitySource(addr, myriad_client))
+        except Exception as e:
+            logger.warning(f"Myriad activity source skipped: {e}")
+
+        # SXBet — REST fills + balance polling
+        try:
+            from backend.clients.sxbet_client import SXBetClient
+            from backend.core.activity.sources.sxbet_source import SXBetActivitySource
+
+            sxbet_client = SXBetClient()
+            tracker.register_source("sxbet", SXBetActivitySource(addr, sxbet_client))
+        except Exception as e:
+            logger.warning(f"SXBet activity source skipped: {e}")
+
+        # Paper — event-driven (no polling, emits from trading engine)
+        try:
+            from backend.core.activity.sources.paper_source import PaperActivitySource
+
+            tracker.register_source("paper", PaperActivitySource())
+        except Exception as e:
+            logger.warning(f"Paper activity source skipped: {e}")
 
     def _patch_weather_job(self) -> None:
         """Replace weather_scan_and_trade_job with a version that dispatches Telegram alerts."""

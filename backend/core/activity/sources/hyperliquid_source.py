@@ -23,14 +23,14 @@ class HyperliquidActivitySource(BaseActivitySource):
             # Subscribe to order updates
             self._client.subscribe_order_updates(self._on_order_update)
             # Balance events
-            asyncio.create_task(self._balance_loop())
+            self.create_subtask(self._balance_loop())
 
             while self._running:
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(f"[hyperliquid] Activity source error: {e}")
+            logger.error("[hyperliquid] Activity source error: {e}")
 
     def _on_fill(self, fill: dict):
         """Called by Hyperliquid SDK WebSocket on fill."""
@@ -53,7 +53,7 @@ class HyperliquidActivitySource(BaseActivitySource):
             fee=float(fill.get("fee", 0)),
             raw_data=fill,
         )
-        asyncio.create_task(self._emit(event))
+        self.create_subtask(self._emit(event))  # WS callback — create_subtask handles cancel tracking
 
     def _on_order_update(self, update: dict):
         """Order fill/close events."""
@@ -66,19 +66,20 @@ class HyperliquidActivitySource(BaseActivitySource):
             try:
                 bal = await self._client.get_balance()
                 if last is not None:
-                    delta = float(bal.get("total", 0)) - float(last.get("total", 0))
-                    if abs(delta) > 0.01:
+                    result = self.detect_balance_delta(float(bal.total_equity), float(last.total_equity))
+                    if result:
+                        event_type, amount = result
                         event = ActivityEvent(
                             source="hyperliquid",
-                            event_type="deposit" if delta > 0 else "withdrawal",
+                            event_type=event_type,
                             wallet_address=self.wallet_address,
                             platform="hyperliquid",
-                            amount=abs(delta),
+                            amount=amount,
                             token="USDC",
                             raw_data={"balance": bal},
                         )
                         await self._emit(event)
                 last = bal
             except Exception as e:
-                logger.warning(f"[hyperliquid] Balance loop error: {e}")
+                logger.warning("[hyperliquid] Balance loop error: {e}")
             await asyncio.sleep(5)

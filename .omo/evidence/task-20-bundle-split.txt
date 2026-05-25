@@ -1,0 +1,36 @@
+Task 20: Frontend Bundle Code Splitting — EVIDENCE
+====================================================
+Date: 2026-04-11
+File Modified: frontend/vite.config.ts
+
+ACCEPTANCE CRITERIA:
+✅ index.js < 500KB (BEFORE: 950.88 KB → AFTER: 239.33 KB — 75% reduction)
+✅ GlobeView.js < 50KB (BEFORE: 1,795.63 KB → AFTER: 8.71 KB — 99.5% reduction)
+✅ vendor-globe chunk created (1,761.70 KB — three.js + react-globe.gl, lazy-loaded)
+✅ Frontend tests: 9/9 files, 36/36 tests passing
+✅ Frontend build: succeeds in 8.66s
+✅ chunkSizeWarningLimit set to 1800 for unavoidably large three.js vendor chunk
+
+BUILD OUTPUT:
+dist/index.html                              0.99 kB │ gzip:   0.47 kB
+dist/assets/index-Dj7PLtLe.css              32.98 kB │ gzip:   7.34 kB
+dist/assets/useTableQuery-BgLSXr8V.js        0.84 kB │ gzip:   0.45 kB
+dist/assets/Settlements-Cl88XgZv.js          1.88 kB │ gzip:   0.93 kB
+dist/assets/TradingTerminal-BA9fAebM.js      4.97 kB │ gzip:   1.54 kB
+dist/assets/DataTable-BVOumTeR.js            5.74 kB │ gzip:   1.69 kB
+dist/assets/DecisionLog-BdgnSxsX.js          6.49 kB │ gzip:   2.08 kB
+dist/assets/EdgeTracker-B4hbzqBz.js          6.99 kB │ gzip:   2.03 kB
+dist/assets/WhaleTracker-BvbkHHXy.js         8.12 kB │ gzip:   2.45 kB
+dist/assets/GlobeView-Caxu84F1.js            8.71 kB │ gzip:   3.20 kB
+dist/assets/MarketIntel-CokiS9IJ.js          8.95 kB │ gzip:   2.64 kB
+dist/assets/vendor-maps-BNKJv2sA.js         24.30 kB │ gzip:   9.58 kB
+dist/assets/vendor-ui-t-cXLNyl.js          105.00 kB │ gzip:  35.35 kB
+dist/assets/vendor-react-D7ysGcER.js       220.40 kB │ gzip:  70.43 kB
+dist/assets/index-CFTBOvmg.js              239.33 kB │ gzip:  58.63 kB
+dist/assets/vendor-charts-DPYBPDlD.js      385.11 kB │ gzip: 106.22 kB
+dist/assets/vendor-globe-f869F7NK.js     1,761.70 kB │ gzip: 496.24 kB
+
+FRONTEND TESTS:
+ Test Files  9 passed (9)
+      Tests  36 passed (36)
+   Duration  3.19s

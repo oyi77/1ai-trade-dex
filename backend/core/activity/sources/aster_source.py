@@ -21,18 +21,18 @@ class AsterActivitySource(BaseActivitySource):
         """Subscribe to fills + balance updates via Aster WebSocket."""
         try:
             # Balance stream
-            asyncio.create_task(self._balance_loop())
+            self.create_subtask(self._balance_loop())
             # Fills stream
-            asyncio.create_task(self._fills_loop())
+            self.create_subtask(self._fills_loop())
             # Positions stream
-            asyncio.create_task(self._positions_loop())
+            self.create_subtask(self._positions_loop())
 
             while self._running:
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(f"[aster] Activity source error: {e}")
+            logger.error("[aster] Activity source error: {e}")
 
     async def _balance_loop(self):
         """Balance delta detection → deposit/withdrawal events."""
@@ -41,22 +41,22 @@ class AsterActivitySource(BaseActivitySource):
             try:
                 bal = await self._client.watch_balance()
                 if last_balance is not None:
-                    delta = float(bal.get("total", 0)) - float(last_balance.get("total", 0))
-                    if abs(delta) > 0.01:
-                        event_type = "deposit" if delta > 0 else "withdrawal"
+                    result = self.detect_balance_delta(float(bal.get("total", 0)), float(last_balance.get("total", 0)))
+                    if result:
+                        event_type, amount = result
                         event = ActivityEvent(
                             source="aster",
                             event_type=event_type,
                             wallet_address=self.wallet_address,
                             platform="aster",
-                            amount=abs(delta),
+                            amount=amount,
                             token="USDC",
-                            raw_data={"balance": bal, "delta": delta},
+                            raw_data=bal,
                         )
                         await self._emit(event)
                 last_balance = bal
             except Exception as e:
-                logger.warning(f"[aster] Balance loop error: {e}")
+                logger.warning("[aster] Balance loop error: {e}")
             await asyncio.sleep(5)
 
     async def _fills_loop(self):
@@ -85,7 +85,7 @@ class AsterActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning(f"[aster] Fills loop error: {e}")
+                logger.warning("[aster] Fills loop error: {e}")
             await asyncio.sleep(3)
 
     async def _positions_loop(self):
@@ -114,5 +114,5 @@ class AsterActivitySource(BaseActivitySource):
                         await self._emit(event)
                     last_positions[market_id] = pos
             except Exception as e:
-                logger.warning(f"[aster] Positions loop error: {e}")
+                logger.warning("[aster] Positions loop error: {e}")
             await asyncio.sleep(5)

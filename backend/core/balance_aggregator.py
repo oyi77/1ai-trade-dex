@@ -90,46 +90,95 @@ class BalanceAggregator:
             logger.error(f"Aster WS feed failed: {e}")
 
     async def _ws_lighter(self):
-        """Lighter WS balance feed."""
+        """Lighter balance feed — WS via watch_account() with REST fallback."""
         try:
             from backend.clients.lighter_client import LighterClient
             client = LighterClient()
-            # Lighter pushes full account state on account_all channel
-            # For now, poll via REST (WsClient needs more integration work)
-            while self._running:
-                try:
-                    bal = await client.get_balance()
-                    self._update("lighter", VenueBalance(
-                        venue="lighter",
-                        cash_balance=float(bal.get("usdc", 0)),
-                        total_equity=float(bal.get("total", 0)),
-                        source="poll",
-                    ))
-                except Exception as e:
-                    logger.warning(f"Lighter balance error: {e}")
-                await asyncio.sleep(30)
+            # Try WS first, fall back to REST polling
+            ws_connected = False
+            try:
+                if hasattr(client, 'watch_account') and callable(client.watch_account):
+                    ws_connected = True
+                    while self._running:
+                        try:
+                            async for account_update in client.watch_account():
+                                if not self._running:
+                                    break
+                                bal = account_update if isinstance(account_update, dict) else {}
+                                self._update("lighter", VenueBalance(
+                                    venue="lighter",
+                                    cash_balance=float(bal.get("usdc", bal.get("balance", 0))),
+                                    total_equity=float(bal.get("total", bal.get("equity", 0))),
+                                    source="ws",
+                                ))
+                        except Exception as e:
+                            logger.warning(f"Lighter WS error, falling back to REST: {e}")
+                            ws_connected = False
+                            break
+            except Exception as e:
+                logger.debug(f"Lighter WS not available, using REST: {e}")
+                ws_connected = False
+
+            # REST fallback
+            if not ws_connected:
+                while self._running:
+                    try:
+                        bal = await client.get_balance()
+                        self._update("lighter", VenueBalance(
+                            venue="lighter",
+                            cash_balance=float(bal.get("usdc", 0)),
+                            total_equity=float(bal.get("total", 0)),
+                            source="poll",
+                        ))
+                    except Exception as e:
+                        logger.warning(f"Lighter REST balance error: {e}")
+                    await asyncio.sleep(15)
         except Exception as e:
             logger.error(f"Lighter feed failed: {e}")
 
     async def _ws_hyperliquid(self):
-        """Hyperliquid WS balance feed."""
+        """Hyperliquid balance feed — SDK WS subscription with REST fallback."""
         try:
             from backend.clients.hyperliquid_client import HyperliquidClient
             client = HyperliquidClient()
-            while self._running:
-                try:
-                    state = await client.get_balance()
-                    margin = state.get("marginSummary", {})
-                    self._update("hyperliquid", VenueBalance(
-                        venue="hyperliquid",
-                        cash_balance=float(margin.get("totalRawUsd", 0)),
-                        total_equity=float(margin.get("accountValue", 0)),
-                        unrealized_pnl=float(margin.get("totalNtlPos", 0)) - float(margin.get("accountValue", 0)),
-                        source="poll",
-                    ))
-                except Exception as e:
-                    logger.warning(f"Hyperliquid balance error: {e}")
-                await asyncio.sleep(10)
+            # Try SDK WS for real-time balance updates
+            ws_connected = False
+            try:
+                if hasattr(client, 'subscribe_user_events') and callable(client.subscribe_user_events):
+                    ws_connected = True
+                    async for event in client.subscribe_user_events():
+                        if not self._running:
+                            break
+                        if event.get("type") in ("userFills", "balanceUpdate"):
+                            state = await client.get_balance()
+                            margin = state.get("marginSummary", {})
+                            self._update("hyperliquid", VenueBalance(
+                                venue="hyperliquid",
+                                cash_balance=float(margin.get("totalRawUsd", 0)),
+                                total_equity=float(margin.get("accountValue", 0)),
+                                unrealized_pnl=float(margin.get("totalNtlPos", 0)) - float(margin.get("accountValue", 0)),
+                                source="ws",
+                            ))
+            except Exception as e:
+                logger.debug(f"Hyperliquid WS not available, using REST: {e}")
+                ws_connected = False
+
+            # REST fallback
+            if not ws_connected:
+                while self._running:
+                    try:
+                        state = await client.get_balance()
+                        margin = state.get("marginSummary", {})
+                        self._update("hyperliquid", VenueBalance(
+                            venue="hyperliquid",
+                            cash_balance=float(margin.get("totalRawUsd", 0)),
+                            total_equity=float(margin.get("accountValue", 0)),
+                            unrealized_pnl=float(margin.get("totalNtlPos", 0)) - float(margin.get("accountValue", 0)),
+                            source="poll",
+                        ))
+                    except Exception as e:
+                        logger.warning(f"Hyperliquid REST balance error: {e}")
+                    await asyncio.sleep(10)
         except Exception as e:
             logger.error(f"Hyperliquid feed failed: {e}")
 
@@ -179,6 +228,69 @@ class BalanceAggregator:
                         ))
                 except Exception as e:
                     logger.debug(f"Ostium poll error: {e}")
+
+                # Myriad
+                try:
+                    from backend.clients.myriad_client import MyriadClient
+                    client = MyriadClient()
+                    bal = await client.get_balance()
+                    if bal:
+                        self._update("myriad", VenueBalance(
+                            venue="myriad",
+                            cash_balance=float(bal),
+                            total_equity=float(bal),
+                            source="poll",
+                        ))
+                except Exception as e:
+                    logger.debug(f"Myriad poll error: {e}")
+
+                # SXBet
+                try:
+                    from backend.clients.sxbet_client import SXBetClient
+                    client = SXBetClient()
+                    bal = await client.get_balance()
+                    if bal:
+                        val = float(bal.get("balance", bal.get("value", 0)))
+                        if val > 1e6:
+                            val = val / 1e6  # Wei to USDC
+                        self._update("sxbet", VenueBalance(
+                            venue="sxbet",
+                            cash_balance=val,
+                            total_equity=val,
+                            source="poll",
+                        ))
+                except Exception as e:
+                    logger.debug(f"SXBet poll error: {e}")
+
+                # Limitless
+                try:
+                    from backend.clients.limitless_client import LimitlessClient
+                    client = LimitlessClient()
+                    bal = await client.get_balance()
+                    if bal:
+                        self._update("limitless", VenueBalance(
+                            venue="limitless",
+                            cash_balance=float(bal.get("balance", bal.get("value", 0))),
+                            total_equity=float(bal.get("balance", bal.get("value", 0))),
+                            source="poll",
+                        ))
+                except Exception as e:
+                    logger.debug(f"Limitless poll error: {e}")
+
+                # Azuro
+                try:
+                    from backend.clients.azuro_client import AzuroClient
+                    client = AzuroClient()
+                    bal = await client.get_balance()
+                    if bal:
+                        self._update("azuro", VenueBalance(
+                            venue="azuro",
+                            cash_balance=float(bal.get("balance", bal.get("value", 0))),
+                            total_equity=float(bal.get("balance", bal.get("value", 0))),
+                            source="poll",
+                        ))
+                except Exception as e:
+                    logger.debug(f"Azuro poll error: {e}")
 
             except Exception as e:
                 logger.warning(f"Poll loop error: {e}")

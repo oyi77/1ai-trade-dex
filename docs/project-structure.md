@@ -52,10 +52,39 @@ polyedge/
 │   │   ├── weather.py              # Open-Meteo ensemble + NWS observations
 │   │   ├── weather_markets.py      # Polymarket weather market fetcher
 │   │   └── markets.py              # Generic market wrapper
+│   ├── clients/
+│   │   ├── aster_client.py         # CCXT Aster DEX client
+│   │   ├── azuro_client.py         # Azuro smart contract / GraphQL client
+│   │   ├── bigbrain.py             # BigBrain HTTP prediction service client
+│   │   ├── hyperliquid_client.py   # Hyperliquid Python SDK wrapper
+│   │   ├── lighter_client.py       # CCXT Lighter DEX client
+│   │   ├── limitless_client.py     # Limitless Exchange API client
+│   │   ├── myriad_client.py        # Myriad REST API client
+│   │   ├── ostium_client.py        # CCXT Ostium DEX client
+│   │   ├── polymarket_sdk_client.py # Polymarket CLOB SDK client wrapper
+│   │   ├── sxbet_client.py         # SX.Bet API client
+│   │   └── websearch.py            # Web search client (Tavily/Exa/etc.)
 │   ├── models/
 │   │   ├── database.py             # SQLAlchemy models (market_type column)
 │   │   ├── kg_models.py            # Knowledge graph SQLAlchemy models
 │   │   └── genome_registry.py      # Genome persistence models (GenomeRegistry, GenomePerformance, GenomeShadowTrade)
+│   ├── markets/
+│   │   ├── base_provider.py        # BaseMarketProvider abstract class
+│   │   ├── provider_registry.py    # MarketProviderRegistry (auto-discovery)
+│   │   ├── order_types.py          # Normalized domain order/position types
+│   │   └── providers/              # 11 plug-and-play market providers
+│   │       ├── aster_provider.py       # Aster DEX provider plugin
+│   │       ├── bookmaker_xyz_provider.py # Bookmaker.xyz Azuro plugin
+│   │       ├── hyperliquid_provider.py # Hyperliquid exchange plugin
+│   │       ├── kalshi_provider.py      # Kalshi REST/event contract plugin
+│   │       ├── lighter_provider.py     # Lighter DEX provider plugin
+│   │       ├── limitless_provider.py   # Limitless L2 prediction market plugin
+│   │       ├── myriad_provider.py      # Myriad prediction market plugin
+│   │       ├── ostium_provider.py      # Ostium DEX provider plugin
+│   │       ├── paper_provider.py       # Universal paper/simulation engine
+│   │       ├── polymarket_provider.py  # Polymarket CLOB SDK provider plugin
+│   │       ├── predict_fun_provider.py # Predict.fun Azuro plugin
+│   │       └── sxbet_provider.py       # SX.Bet prediction market plugin
 │   ├── strategies/
 │   │   ├── copy_trader.py          # Copy trading main logic
 │   │   ├── wallet_sync.py          # Wallet sync helper

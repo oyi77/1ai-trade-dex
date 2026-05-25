@@ -67,6 +67,19 @@ HFT_STRATEGIES = [
         "time_horizon": "mid",
         "params": None,
     },
+    {
+        "strategy_name": "cross_dex_arb",
+        "interval_seconds": 300,  # 5 min — cross-DEX price scanning
+        "trading_mode": "paper",
+        "risk_tier": "moderate",
+        "time_horizon": "short",
+        "params": json.dumps(
+            {
+                "min_profit_pct": 0.005,
+                "gas_estimate": 5.0,
+            }
+        ),
+    },
 ]
 
 

@@ -7,6 +7,8 @@ from typing import Optional
 import httpx
 from sqlalchemy import not_
 
+import json
+
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.config import settings
 
@@ -411,10 +413,10 @@ class GeneralMarketScanner(BaseStrategy):
             # Extract YES price (first outcome price)
             outcome_prices_raw = market.get("outcomePrices") or []
             if isinstance(outcome_prices_raw, str):
-                import json as _json
+                json
 
                 try:
-                    outcome_prices_raw = _json.loads(outcome_prices_raw)
+                    outcome_prices_raw = json.loads(outcome_prices_raw)
                 except Exception:
                     logger.exception("Failed to parse outcome prices JSON")
                     continue
@@ -501,10 +503,10 @@ class GeneralMarketScanner(BaseStrategy):
             clob_token_id = None
             clob_token_ids = market.get("clobTokenIds") or []
             if isinstance(clob_token_ids, str):
-                import json as _json
+                json
 
                 try:
-                    clob_token_ids = _json.loads(clob_token_ids)
+                    clob_token_ids = json.loads(clob_token_ids)
                 except Exception:
                     logger.exception(
                         "general_market_scanner: failed to process market batch"
@@ -926,7 +928,7 @@ class GeneralMarketScanner(BaseStrategy):
             # Log decision
             try:
                 from backend.models.database import DecisionLog
-                import json as _json
+                json
 
                 signal_payload = dict(decision)
                 signal_payload["data_sources"] = data_sources
@@ -935,7 +937,7 @@ class GeneralMarketScanner(BaseStrategy):
                     market_ticker=slug[:64] if slug else "unknown",
                     decision="BUY",
                     confidence=ai_confidence,
-                    signal_data=_json.dumps(signal_payload),
+                    signal_data=json.dumps(signal_payload),
                     reason=(
                         f"AI edge: {direction.upper()} @ {entry_price:.2%} | "
                         f"AI raw={raw_ai_prob:.2%} anchored={ai_prob:.2%} market={market_price:.2%} "

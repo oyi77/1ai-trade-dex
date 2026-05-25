@@ -101,7 +101,10 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
         "reasoning": "Test trade",
     }
 
-    with patch("backend.core.strategy_executor.get_context") as mock_context:
+    mock_limiter = Mock()
+    mock_limiter.acquire = Mock()
+    with patch("backend.core.strategy_executor._get_rate_limiter", return_value=mock_limiter), \
+         patch("backend.core.strategy_executor.get_context") as mock_context:
         mock_ctx = Mock()
         mock_ctx.risk_manager.validate_trade.return_value = Mock(
             allowed=True, adjusted_size=5.0, reason="Adjusted to max_position_usd limit"

@@ -44,7 +44,7 @@ class BookmakerXYZProvider(BaseMarketProvider):
             supported_currencies=["USDC"],
             required_env_vars=["AZURO_GRAPH_URL", "AZURO_RPC_URL"],
             supports_paper_mode=True,
-            is_live_venue=True,
+            is_live_venue=False,  # Azuro subgraph 301 Moved Permanently
             min_order_size_usd=1.0,
             tags=["azuro", "sports"],
         )

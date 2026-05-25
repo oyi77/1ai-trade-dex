@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.11, pytest-7.4.4, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /home/openclaw/projects/polyedge
+configfile: pytest.ini
+plugins: cov-4.1.0, anyio-4.13.0, asyncio-0.23.3, typeguard-4.4.4
+asyncio: mode=Mode.AUTO
+collecting ... collected 5 items
+
+backend/tests/test_whale_scoring.py::test_empty_trades_returns_zero PASSED [ 20%]
+backend/tests/test_whale_scoring.py::test_all_wins_high_score PASSED     [ 40%]
+backend/tests/test_whale_scoring.py::test_all_losses_low_score PASSED    [ 60%]
+backend/tests/test_whale_scoring.py::test_score_in_range PASSED          [ 80%]
+backend/tests/test_whale_scoring.py::test_large_size_boost PASSED        [100%]
+
+============================== 5 passed in 0.05s ===============================
+EXIT: 0

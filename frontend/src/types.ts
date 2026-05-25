@@ -408,3 +408,43 @@ export interface KanbanBoard {
   columns: KanbanColumn[]
   total_experiments: number
 }
+
+// ── Eval Reports ─────────────────────────────────────────────────────────────
+
+export interface EvalReportSummary {
+  filename: string
+  benchmark_type: string
+  timestamp: string
+  score: number | null
+  passed: boolean | null
+  certification_eligible?: boolean | null
+  passed_benchmarks?: string[] | null
+  failed_benchmarks?: string[] | null
+}
+
+export interface EvalReportsResponse {
+  reports: EvalReportSummary[]
+}
+
+export interface CausalPrediction {
+  prediction: string
+  confidence: number
+  reason: string
+}
+
+export interface CausalGroundTruth {
+  actual: string
+}
+
+export interface EvalReportDetail {
+  benchmark_id: string
+  score: number
+  passed: boolean
+  certification_eligible?: boolean
+  passed_benchmarks?: string[]
+  failed_benchmarks?: string[]
+  timestamp: string
+  metadata?: Record<string, unknown>
+  details?: Record<string, unknown>
+  benchmark_thresholds?: Record<string, number>
+}

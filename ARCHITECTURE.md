@@ -2,7 +2,7 @@
 
 ## Overview
 
-PolyEdge is a full-stack automated prediction market trading bot targeting **Polymarket** and **Kalshi**. It combines AI-powered signal generation, multi-strategy execution, real-time market data aggregation, and a React dashboard for monitoring and control.
+PolyEdge is a full-stack automated trading bot supporting **10+ prediction markets and decentralized perpetual DEXes** (including Polymarket, Kalshi, SX.bet, Limitless, Azuro [Bookmaker.xyz, Predict.fun], Myriad, Hyperliquid, Ostium, Aster DEX, Lighter, and a Paper Trading simulation). It combines AI-powered signal generation, multi-strategy execution, real-time multi-venue market data aggregation, and a React dashboard for monitoring and control.
 
 The system supports paper trading (shadow mode), live trading with risk controls, and comprehensive backtesting.
 
@@ -245,7 +245,7 @@ polyedge/
 
 ## Core Data Flow
 
-1. **Market Data Ingestion** — Data clients (`polymarket_clob.py`, `kalshi_client.py`, `crypto.py`, `weather.py`) fetch live market prices, orderbook depth, and external data (GFS ensemble forecasts, BTC candles)
+1. **Market Data Ingestion** — Data clients (Polymarket CLOB, Kalshi API, SX.bet API, Limitless Exchange API, Azuro Protocol GraphQL, Myriad API, Hyperliquid Info API, Ostium, Aster, and Lighter CCXT clients) fetch live market prices, orderbook depth, and external data.
 
 2. **Strategy Execution** — The orchestrator triggers registered strategies on a schedule (APScheduler). Each strategy runs its signal generation logic using the latest market data.
 
@@ -253,7 +253,7 @@ polyedge/
 
 4. **Risk Management** — Before any order, strategy/AI logic may propose a dynamic size, but the risk manager validates position limits, portfolio concentration, drawdown breakers, duplicate open positions, and shadow mode flags. See `docs/architecture/adr-004-bounded-autonomous-sizing.md`.
 
-5. **Order Execution** — `order_executor.py` places orders via the Polymarket CLOB SDK or Kalshi API. Supports limit orders, market orders, and partial fills.
+5. **Order Execution** — The plugin-based order execution layer routes orders to the appropriate venue provider (e.g. Polymarket CLOB SDK, Kalshi REST, SX.bet EIP-712 signer, Limitless EIP-712, Azuro Web3 bets, Hyperliquid exchange, or Ostium/Aster/Lighter CCXT clients). Supports limit orders, market orders, and partial fills.
 
 6. **Settlement Tracking** — `settlement.py` + `settlement_helpers.py` monitor open positions and reconcile outcomes. In live mode, settlement preserves the trade ledger and delegates financial cache updates to `bankroll_reconciliation.py`.
 

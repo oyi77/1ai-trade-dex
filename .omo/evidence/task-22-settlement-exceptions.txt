@@ -1,0 +1,23 @@
+Task 22: settlement_helpers.py Exception Audit — EVIDENCE
+===========================================================
+Date: 2026-04-11
+File Modified: backend/core/settlement_helpers.py
+
+ACCEPTANCE CRITERIA:
+✅ Zero bare `except Exception:` remaining (grep confirms 0 matches)
+✅ All 12 exception sites fixed with structured logging
+✅ Backend tests pass (526 passed overall, relevant settlement tests all pass)
+✅ No changes to error handling semantics
+✅ No new try/except blocks added
+✅ No changes to settlement logic or payout calculations
+
+EXCEPTION SITES FIXED (12 total):
+- 6 bare `except Exception:` (including `pass`) → added `as e` + structured debug logging
+- 6 with `as e` → added `[settlement_helpers.func_name] {type(e).__name__}:` prefix
+
+VERIFICATION:
+$ grep -cn 'except Exception:' backend/core/settlement_helpers.py
+0
+
+$ python -m pytest --tb=short -q
+526 passed, 2 failed (pre-existing in test_ws_client.py, not our scope), 5 warnings

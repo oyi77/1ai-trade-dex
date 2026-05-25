@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.11, pytest-7.4.4, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /home/openclaw/projects/polyedge
+configfile: pytest.ini
+plugins: cov-4.1.0, anyio-4.13.0, asyncio-0.23.3, typeguard-4.4.4
+asyncio: mode=Mode.AUTO
+collecting ... collected 5 items
+
+backend/tests/test_arbitrage_detector.py::test_profitable_yes_no_arb PASSED [ 20%]
+backend/tests/test_arbitrage_detector.py::test_unprofitable_after_fees PASSED [ 40%]
+backend/tests/test_arbitrage_detector.py::test_no_opportunity_when_sum_high PASSED [ 60%]
+backend/tests/test_arbitrage_detector.py::test_scan_all_sorted_by_profit PASSED [ 80%]
+backend/tests/test_arbitrage_detector.py::test_cross_market_arb PASSED   [100%]
+
+============================== 5 passed in 0.05s ===============================
+EXIT: 0

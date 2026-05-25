@@ -1,0 +1,16 @@
+Wave 1 Backend Test Evidence
+============================
+Date: 2026-04-11
+Tasks: 5, 6, 7, 8
+
+RESULT: 397 passed, 0 failed, 17 warnings
+BASELINE: 397 passed, 69,348 warnings
+
+Warning Reduction: 69,348 → 17 (99.98% reduction)
+Remaining 17 warnings: datetime.utcfromtimestamp deprecation from dateutil (3rd-party, out of scope)
+
+Changes Made:
+- Task 5: backend/config.py — model_config = ConfigDict(env_file=".env") replaces class Config
+- Task 6: backend/models/database.py — from sqlalchemy.orm import declarative_base
+- Task 7: backend/api/main.py — lifespan context manager replaces @app.on_event
+- Task 8: backend/core/retry.py, backend/core/errors.py, backend/ai/sentiment_analyzer.py — inspect.iscoroutinefunction replaces asyncio.iscoroutinefunction

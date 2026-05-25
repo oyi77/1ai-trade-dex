@@ -160,6 +160,9 @@ class WalletWatcher:
             )
 
         if not trades_raw and is_first_poll:
+            # Seed _seen with empty set so next poll goes incremental
+            self._seen[wallet] = set()
+            self._sell_sizes[wallet] = {}
             return [], []
 
         if is_first_poll:

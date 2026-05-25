@@ -5,7 +5,6 @@ from typing import Optional
 
 from backend.core.activity.tracker import ActivityTracker
 from backend.core.activity.models import ActivityEvent
-from backend.api.routes import router_dependency
 
 router = APIRouter(prefix="/api/v1/activity", tags=["activity"])
 

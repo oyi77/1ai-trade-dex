@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import httpx
+import json
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -153,10 +154,8 @@ class BondScannerStrategy(BaseStrategy):
             clob_token_id = None
             clob_token_ids = market.get("clobTokenIds") or []
             if isinstance(clob_token_ids, str):
-                import json as _json
-
                 try:
-                    clob_token_ids = _json.loads(clob_token_ids)
+                    clob_token_ids = json.loads(clob_token_ids)
                 except Exception as e:
                     logger.debug(f"Failed to parse clobTokenIds JSON: {e}")
                     clob_token_ids = []
@@ -169,19 +168,15 @@ class BondScannerStrategy(BaseStrategy):
 
             # outcomePrices and outcomes may be JSON strings or lists
             if isinstance(outcome_prices_raw, str):
-                import json as _json
-
                 try:
-                    outcome_prices_raw = _json.loads(outcome_prices_raw)
+                    outcome_prices_raw = json.loads(outcome_prices_raw)
                 except Exception as e:
                     logger.debug(f"Failed to parse outcomePrices JSON: {e}")
                     continue
 
             if isinstance(outcomes, str):
-                import json as _json
-
                 try:
-                    outcomes = _json.loads(outcomes)
+                    outcomes = json.loads(outcomes)
                 except Exception as e:
                     logger.debug(f"Failed to parse outcomes JSON: {e}")
                     outcomes = []
@@ -317,14 +312,13 @@ class BondScannerStrategy(BaseStrategy):
             # Log decision
             try:
                 from backend.models.database import DecisionLog
-                import json as _json
 
                 log_row = DecisionLog(
                     strategy=self.name,
                     market_ticker=slug[:64] if slug else "unknown",
                     decision="BUY",
                     confidence=confidence,
-                    signal_data=_json.dumps(decision),
+                    signal_data=json.dumps(decision),
                     reason=(
                         f"Bond: {qualifying_outcome} @ {qualifying_price:.2%} | "
                         f"edge={edge:.2%} | {days_to_resolution:.1f}d to resolve"

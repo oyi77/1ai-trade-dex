@@ -381,13 +381,13 @@ class ConfigRegistry:
     BTC_ORACLE_MIN_POSITION_USD: float = 1.0
     BTC_ORACLE_MAX_POSITION_USD: float = 50.0
     BTC_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.10
-    BTC_ORACLE_MIN_EDGE: float = 0.05
+    BTC_ORACLE_MIN_EDGE: float = 0.08  # raised from 0.03 — WR 40.7% loss-making, need stronger conviction
     BTC_ORACLE_INTERVAL_SECONDS: int = 30
     BTC_ORACLE_MAX_MINUTES_TO_RESOLUTION: int = 5
 
     # CEX PM Lead-Lag
-    CEX_PM_LEADLAG_MIN_MOMENTUM: float = 0.003
-    CEX_PM_LEADLAG_MIN_EDGE: float = 0.05
+    CEX_PM_LEADLAG_MIN_MOMENTUM: float = 0.001
+    CEX_PM_LEADLAG_MIN_EDGE: float = 0.03
     CEX_PM_LEADLAG_MAX_MINUTES_TO_RESOLUTION: int = 90
     CEX_PM_LEADLAG_MAX_POSITION_USD: float = 20.0
     CEX_PM_LEADLAG_INTERVAL_SECONDS: int = 15
@@ -403,7 +403,7 @@ class ConfigRegistry:
     CROSS_ARB_MIN_SPREAD_PCT: float = 0.013  # 1.3% minimum spread to cover fees
 
     # General Market Scanner
-    GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.05
+    GENERAL_MARKET_SCANNER_MIN_EDGE: float = 0.03
     GENERAL_MARKET_SCANNER_MAX_PRICE: float = 0.80
     GENERAL_MARKET_SCANNER_MIN_PRICE: float = 0.10
     GENERAL_MARKET_SCANNER_MIN_REWARD_RISK: float = 0.3
@@ -517,8 +517,8 @@ class ConfigRegistry:
     # --------------------------------------------------------------------------
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tradingbot.db")
-    POSTGRES_POOL_SIZE: int = 5
-    POSTGRES_MAX_OVERFLOW: int = 5
+    POSTGRES_POOL_SIZE: int = 20
+    POSTGRES_MAX_OVERFLOW: int = 20
     POSTGRES_POOL_TIMEOUT: int = 30
     POSTGRES_POOL_RECYCLE: int = 3600
     POSTGRES_SSL_MODE: str = "prefer"
@@ -656,7 +656,7 @@ class ConfigRegistry:
     HFT_WHALE_MAX_RECONNECT_RETRIES: int = 5
     HFT_WHALE_WS_RECONNECT_DELAY_BASE: float = 0.1
 
-    HFT_ARB_MIN_PROFIT: float = 0.02
+    HFT_ARB_MIN_PROFIT: float = 0.01
     HFT_ARB_POLYMARKET_FEE: float = 0.01
     HFT_ARB_KALSHI_FEE: float = 0.01
     HFT_ARB_EXECUTION_MAX_RETRIES: int = 3

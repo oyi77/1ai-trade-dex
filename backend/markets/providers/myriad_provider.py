@@ -51,7 +51,7 @@ class MyriadProvider(BaseMarketProvider):
             supported_currencies=["USDC"],
             required_env_vars=["MYRIAD_API_URL"],
             supports_paper_mode=True,
-            is_live_venue=True,
+            is_live_venue=False,  # API 404 — service unavailable
             min_order_size_usd=1.0,
             tags=["prediction_market", "polygon"],
         )

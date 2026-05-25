@@ -193,6 +193,42 @@ def _apply_via_safe_tuner(
         config.updated_at = datetime.now(timezone.utc)
         db.commit()
 
+        # Also update GenomeRegistry.fitness_json to close the feedback loop (G3)
+        try:
+            from backend.models.database import GenomeRegistry
+            from backend.strategies.registry import get_genome_id_for_strategy
+
+            genome_id = get_genome_id_for_strategy(strategy_name)
+            if genome_id:
+                reg = db.query(GenomeRegistry).filter(
+                    GenomeRegistry.genome_id == genome_id
+                ).first()
+                if reg:
+                    fitness_data = (
+                        json.loads(reg.fitness_json)
+                        if reg.fitness_json
+                        else {}
+                    )
+                    fitness_data["last_forensics_update"] = datetime.now(
+                        timezone.utc
+                    ).isoformat()
+                    fitness_data["last_param_change"] = {
+                        "param": param,
+                        "old_value": old_value,
+                        "new_value": new_value,
+                        "reason": reason,
+                    }
+                    reg.fitness_json = json.dumps(fitness_data)
+                    db.commit()
+                    logger.debug(
+                        f"[ForensicsFeedback] Updated fitness_json for genome {genome_id}"
+                    )
+        except Exception:
+            logger.debug(
+                f"[ForensicsFeedback] Could not update GenomeRegistry fitness_json "
+                f"for {strategy_name}"
+            )
+
         logger.info(
             f"[ForensicsFeedback] Applied {strategy_name}.{param}: "
             f"{old_value:.4f} -> {new_value:.4f} (reason: {reason})"
@@ -299,5 +335,44 @@ class ForensicsFeedbackApplicator:
         # For non-numeric params (lists, etc.), apply directly
         apply_mutation_to_config(config, mutation, db)
         publish_event("strategy_param_mutated", mutation.model_dump())
+
+        # Close feedback loop: update GenomeRegistry.fitness_json for non-numeric mutations too
+        try:
+            import json
+
+            from backend.models.database import GenomeRegistry
+            from backend.strategies.registry import get_genome_id_for_strategy
+
+            genome_id = get_genome_id_for_strategy(strategy_name)
+            if genome_id:
+                reg = db.query(GenomeRegistry).filter(
+                    GenomeRegistry.genome_id == genome_id
+                ).first()
+                if reg:
+                    fitness_data = (
+                        json.loads(reg.fitness_json)
+                        if reg.fitness_json
+                        else {}
+                    )
+                    fitness_data["last_forensics_update"] = datetime.now(
+                        timezone.utc
+                    ).isoformat()
+                    fitness_data["last_param_change"] = {
+                        "param": mutation.param,
+                        "old_value": mutation.old_value,
+                        "new_value": mutation.new_value,
+                        "reason": mutation.reason,
+                    }
+                    reg.fitness_json = json.dumps(fitness_data)
+                    db.commit()
+                    logger.debug(
+                        f"[ForensicsFeedback] Updated fitness_json for genome {genome_id} "
+                        f"(non-numeric path)"
+                    )
+        except Exception:
+            logger.debug(
+                f"[ForensicsFeedback] Could not update GenomeRegistry fitness_json "
+                f"for {strategy_name} (non-numeric path)"
+            )
 
         return mutation

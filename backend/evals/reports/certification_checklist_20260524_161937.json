@@ -1,0 +1,120 @@
+{
+  "benchmark_thresholds": {
+    "cross_domain_transfer": 0.71,
+    "few_shot_learning": 1.0,
+    "causal_reasoning": 1.0,
+    "agi_score": 0.8012784160198743
+  },
+  "certification_eligible": true,
+  "passed_benchmarks": [
+    "cross_domain_transfer",
+    "few_shot_learning",
+    "causal_reasoning",
+    "agi_score"
+  ],
+  "failed_benchmarks": [],
+  "timestamp": "2026-05-24T16:19:37.822728",
+  "details": {
+    "cross_domain_transfer": {
+      "score": 0.71,
+      "threshold": 0.6,
+      "passed": true,
+      "benchmark_id": "cross_domain_transfer",
+      "metadata": {
+        "simulated_trades": 200,
+        "few_shot_examples": 5,
+        "source_domain": "crypto",
+        "target_domain": "weather",
+        "threshold": 0.6,
+        "adapted_strategy_id": "adapted_strategy_crypto_top1_to_weather",
+        "baseline_win_rate": 0.495,
+        "adapted_win_rate": 0.705
+      }
+    },
+    "few_shot_learning": {
+      "score": 1.0,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "few_shot_learning",
+      "metadata": {
+        "gap": 0.33333333333333337,
+        "train_success_rate": 0.6666666666666666,
+        "test_success_rate": 1.0,
+        "strategy_id": "few_shot_sports_20260524_161937"
+      }
+    },
+    "causal_reasoning": {
+      "score": 1.0,
+      "threshold": 0.8,
+      "passed": true,
+      "benchmark_id": "causal_reasoning",
+      "metadata": {
+        "train_observations": 10,
+        "test_interventions": 5,
+        "threshold": 0.8,
+        "graph_nodes": 5,
+        "graph_edges": 5,
+        "predictions": [
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.7999999999999999,
+            "reason": "Path news\u2192market_up"
+          },
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.7999999999999999,
+            "reason": "Path news\u2192market_up"
+          },
+          {
+            "prediction": "positive_effect",
+            "confidence": 0.875,
+            "reason": "Path earnings\u2192market_up"
+          },
+          {
+            "prediction": "no_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from target semantics and intervention sign"
+          },
+          {
+            "prediction": "no_effect",
+            "confidence": 0.41500000000000004,
+            "reason": "Inferred from target semantics and intervention sign"
+          }
+        ],
+        "ground_truth": [
+          {
+            "actual": "positive_effect"
+          },
+          {
+            "actual": "positive_effect"
+          },
+          {
+            "actual": "positive_effect"
+          },
+          {
+            "actual": "no_effect"
+          },
+          {
+            "actual": "no_effect"
+          }
+        ]
+      }
+    },
+    "agi_score": {
+      "score": 0.8012784160198743,
+      "threshold": 0.7,
+      "passed": true,
+      "benchmark_id": "agi_score",
+      "metadata": {
+        "breakdown": {
+          "cross_domain_transfer": 0.8862509675990498,
+          "few_shot_learning": 0.7265027963578934,
+          "causal_reasoning": 0.791507622775971
+        },
+        "consistency_score": 0.8,
+        "threshold": 0.7,
+        "calculation": "0.3*CDT + 0.3*FSL + 0.3*CR + 0.1*CONS"
+      }
+    }
+  }
+}

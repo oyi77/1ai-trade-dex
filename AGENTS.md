@@ -4,7 +4,7 @@
 # 1ai-poly-trader
 
 ## Purpose
-An AI-powered prediction market trading system for Polymarket and Kalshi markets. Features 14 distinct trading strategies and an adaptive AGI orchestrator that continuously evolves and optimizes trading approaches based on market conditions and historical performance data.
+An AI-powered multi-platform trading system supporting prediction markets and decentralized perpetual exchanges (including Polymarket, Kalshi, SX.bet, Limitless, Azuro [Bookmaker.xyz, Predict.fun], Myriad, Hyperliquid, Ostium, Aster, and Lighter). Features 14 distinct trading strategies and an adaptive AGI orchestrator that continuously evolves and optimizes trading approaches based on market conditions and historical performance data.
 
 ## Key Files
 | File | Description |
@@ -54,5 +54,9 @@ None — standalone repository
 - `web3.py`: Ethereum blockchain interaction
 - `polymarket-sdk`: Official Polymarket API client
 - `kalshi-sdk`: Official Kalshi API client
+- `ccxt`: Crypto Exchange API client for Aster, Lighter, and CCXT DEXes
+- `hyperliquid-python-sdk`: Official Hyperliquid API client
+- `ostium-python-sdk`: Official Ostium API client
+- `lighter-sdk`: Official Lighter DEX client
 - `react`: Frontend framework
 - `typescript`: Type safety for TypeScript components

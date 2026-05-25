@@ -49,7 +49,7 @@ STAGE_REQUIREMENTS = {
 }
 
 # Which strategies are currently allowed to skip shadow (pre-validated)
-SHADOW_EXEMPT = {"whale_frontrun", "bond_scanner", "cex_pm_leadlag"}
+SHADOW_EXEMPT = {"whale_frontrun", "bond_scanner"}
 
 
 class StrategyGate:
@@ -378,7 +378,18 @@ def check_risk_and_disable(db) -> list[str]:
         ).scalar()
         or 0
     )
-    initial = 100.0
+
+    # Use live_initial_bankroll from BotState as the session-start reference.
+    # This is the capital the user began live trading with.
+    from backend.models.database import BotState
+
+    bot_state = db.query(BotState).filter_by(mode="live").first()
+    if bot_state and bot_state.live_initial_bankroll is not None:
+        initial = bot_state.live_initial_bankroll
+    elif bot_state and bot_state.paper_initial_bankroll is not None:
+        initial = bot_state.paper_initial_bankroll
+    else:
+        initial = 100.0
     drawdown_pct = abs(min(0, total_pnl)) / initial * 100
 
     if drawdown_pct > MAX_TOTAL_DRAWDOWN_PCT and total_pnl < 0:

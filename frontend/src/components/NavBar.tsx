@@ -38,6 +38,14 @@ export function NavBar({ title }: { title: string }) {
           MiroFish
         </Link>
         <Link
+          to="/evals"
+          className={`text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
+            location.pathname === '/evals' ? 'text-green-500' : 'text-neutral-500 hover:text-green-500'
+          }`}
+        >
+          Evals
+        </Link>
+        <Link
           to="/livestream"
           className={`text-[10px] uppercase tracking-wider transition-colors whitespace-nowrap ${
             location.pathname === '/livestream' ? 'text-green-500' : 'text-neutral-500 hover:text-green-500'

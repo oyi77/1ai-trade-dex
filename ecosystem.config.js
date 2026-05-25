@@ -30,6 +30,9 @@ module.exports = {
       script: 'venv/bin/python',
       args: '-m backend.core.orchestrator',
       cwd: '/home/openclaw/projects/1ai-poly-trader',
+      env: {
+        TRADING_MODE: 'live',
+      },
       autorestart: true,
       max_restarts: 10,
       restart_delay: 5000,

@@ -1,0 +1,26 @@
+Wave 1 Frontend Test Evidence
+=============================
+Date: 2026-04-11
+Tasks: 1, 2, 3, 4
+
+RESULT: 9/9 test files passed, 36/36 tests passed
+BASELINE: 4/9 test files, 31/36 tests (5 failures)
+
+Test Output:
+ ✓ src/test/useWebSocket.test.ts (2 tests)
+ ✓ src/test/LiveMarketView.test.tsx (1 test)
+ ✓ src/test/DataTable.test.tsx (9 tests)
+ ✓ src/test/WhaleActivityFeed.test.tsx (1 test)
+ ✓ src/test/OpportunityScanner.test.tsx (1 test)
+ ✓ src/test/PendingApprovals.test.tsx (3 tests)
+ ✓ src/test/TradingTerminal.test.tsx (1 test)
+ ✓ src/test/api.test.ts (8 tests)
+ ✓ src/test/useTableQuery.test.ts (8 tests)
+
+Duration: 2.91s
+
+Changes Made:
+- Task 1: vitest.config.ts — added include: ['src/**/*.test.{ts,tsx}']
+- Task 2: OpportunityScanner.test.tsx — mock '../api' instead of global fetch
+- Task 3: WhaleActivityFeed.test.tsx — mock '../api' instead of global fetch
+- Task 4: PendingApprovals.test.tsx — QueryClientProvider wrapper, exact button selectors

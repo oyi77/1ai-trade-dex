@@ -75,6 +75,24 @@ class OstiumClient:
         """Get latest price for a pair."""
         return self._sdk.price.get_price(base, quote)
 
+    async def get_fills(self, wallet_address: str = None, limit: int = 100) -> list:
+        """Get recent trade fills/settlements.
+
+        Args:
+            wallet_address: Wallet address (uses SDK default if None).
+            limit: Maximum number of fills to return.
+
+        Returns:
+            List of fill dicts with trade info.
+        """
+        try:
+            addr = wallet_address or self._sdk.ostium.get_public_address()
+            trades = await self._sdk.subgraph.get_trades_by_account(addr, limit=limit)
+            return trades if isinstance(trades, list) else []
+        except Exception as e:
+            logger.warning(f"[ostium] get_fills error: {e}")
+            return []
+
     async def health_check(self) -> bool:
         """Check if Ostium API is available."""
         try:

@@ -30,6 +30,7 @@ from sqlalchemy import inspect
 from sqlalchemy.ext.hybrid import hybrid_property
 import json
 import asyncio
+from typing import Optional
 
 from backend.config import settings
 
@@ -461,25 +462,104 @@ class ShadowTrade(Base):
     __tablename__ = "shadow_trade"
 
     id = Column(Integer, primary_key=True, index=True)
-    market_ticker = Column(String, index=True)
-    direction = Column(String)  # 'up' or 'down'
-    entry_price = Column(Float)
-    size = Column(Float)
-    model_probability = Column(Float)
-    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    strategy = Column(String, index=True)
-    settled = Column(Boolean, default=False)
-    settlement_value = Column(Float, nullable=True)
-    pnl = Column(Float, nullable=True)
-    accuracy_score = Column(Float, nullable=True)
     genome_id = Column(
         String,
         ForeignKey("genome_registry.genome_id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    predicted_outcome = Column(Float, nullable=True)
-    actual_outcome = Column(Float, nullable=True)
+    strategy_name = Column(String, index=True)
+    market_id = Column(String, index=True)
+    market_ticker = Column(String, index=True)
+    entry_price = Column(Float)
+    target_price = Column(Float, nullable=True)
+    direction = Column(String)  # 'up' or 'down'
+    size_usd = Column(Float)
+    leverage = Column(Float, nullable=True, default=1.0)
+    entry_signal = Column(String, nullable=True)
+    exit_signal = Column(String, nullable=True)
+    stage = Column(String, default="ACTIVE")  # ACTIVE, SETTLED, CANCELLED
+    outcome = Column(String, nullable=True)  # 'win', 'loss', null until settled
+    pnl_usd = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    metadata_json = Column(Text, nullable=True)
+
+    # Backward-compat aliases for legacy test code
+    @property
+    def market_ticker(self) -> str:
+        return self.market_id
+
+    @property
+    def size(self) -> float:
+        return self.size_usd
+
+    @property
+    def settled(self) -> bool:
+        return self.stage == "SETTLED"
+
+    @property
+    def settlement_value(self) -> Optional[float]:
+        return 1.0 if self.outcome == "win" else (0.0 if self.outcome == "loss" else None)
+
+    @property
+    def pnl(self) -> Optional[float]:
+        return self.pnl_usd
+
+    @property
+    def model_probability(self) -> Optional[float]:
+        if self.metadata_json:
+            try:
+                meta = json.loads(self.metadata_json)
+                return meta.get("model_probability")
+            except Exception:
+                pass
+        return None
+
+    @property
+    def predicted_outcome(self) -> Optional[float]:
+        if self.metadata_json:
+            try:
+                meta = json.loads(self.metadata_json)
+                return meta.get("predicted_outcome")
+            except Exception:
+                pass
+        return None
+
+    @property
+    def accuracy_score(self) -> Optional[float]:
+        if self.metadata_json:
+            try:
+                meta = json.loads(self.metadata_json)
+                return meta.get("accuracy_score")
+            except Exception:
+                pass
+        return None
+
+    @property
+    def actual_outcome(self) -> Optional[float]:
+        if self.metadata_json:
+            try:
+                meta = json.loads(self.metadata_json)
+                return meta.get("actual_outcome")
+            except Exception:
+                pass
+        return None
+
+    @property
+    def accuracy_score(self) -> Optional[float]:
+        if self.metadata_json:
+            try:
+                meta = json.loads(self.metadata_json)
+                return meta.get("accuracy_score")
+            except Exception:
+                pass
+        # Fallback: compute from predicted and actual outcome
+        pred = self.predicted_outcome
+        actual = self.actual_outcome
+        if pred is not None and actual is not None:
+            return abs(pred - actual)
+        return None
 
 
 class BtcPriceSnapshot(Base):
@@ -1245,6 +1325,34 @@ class TransactionEvent(Base):
     context = Column(JSON, nullable=True)
     # Human-readable reason/note (optional)
     note = Column(String, nullable=True)
+
+
+class ActivityEventRecord(Base):
+    """Persistent record of activity events from all platforms.
+
+    Mirror of backend.core.activity.models.ActivityEvent for DB storage.
+    Enables historical queries, reconciliation, and audit trails.
+    """
+
+    __tablename__ = "activity_events"
+
+    id = Column(String, primary_key=True)
+    source = Column(String, nullable=False, index=True)  # aster, hyperliquid, lighter, polymarket, azuro, limitless
+    event_type = Column(String, nullable=False, index=True)  # deposit, withdrawal, trade_open, trade_closed, buy, sell, redeem
+    wallet_address = Column(String, nullable=False, index=True)
+    platform = Column(String, nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    token = Column(String, nullable=True, default="USDC")
+    tx_hash = Column(String, nullable=True, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
+    trade_id = Column(String, nullable=True, index=True)  # FK to Trade if matched
+    order_id = Column(String, nullable=True)
+    side = Column(String, nullable=True)  # buy, sell
+    price = Column(Float, nullable=True)
+    fee = Column(Float, nullable=True)
+    pnl = Column(Float, nullable=True)
+    market_ticker = Column(String, nullable=True)
+    raw_data = Column(JSON, nullable=True)
 
 
 class Setting(Base):

@@ -917,6 +917,63 @@ async def _seed_strategy_configs() -> None:
             "paper",
             {"spread": 0.02, "max_position_usd": 200},
         ),
+        (
+            "cex_pm_leadlag",
+            True,
+            300,
+            "paper",
+            {
+                "max_minutes_to_resolution": 10,
+                "fee_rate": 0.02,
+                "min_volatility": 0.001,
+                "max_volatility": 0.10,
+                "momentum_norm": 0.006,
+                "debate_enabled": True,
+                "debate_min_confidence": 0.52,
+            },
+        ),
+        (
+            "cross_dex_arb",
+            True,
+            300,
+            "paper",
+            {"min_profit_pct": 0.003, "gas_estimate": 2.0},
+        ),
+        (
+            "hft_cross_arb",
+            True,
+            60,
+            "paper",
+            {},
+        ),
+        (
+            "arb_scanner",
+            True,
+            120,
+            "paper",
+            {},
+        ),
+        (
+            "hft_scalper",
+            True,
+            60,
+            "paper",
+            {},
+        ),
+        (
+            "line_movement_detector",
+            True,
+            120,
+            "paper",
+            {},
+        ),
+        (
+            "probability_arb",
+            True,
+            300,
+            "paper",
+            {},
+        ),
     ]
 
     max_attempts = 3

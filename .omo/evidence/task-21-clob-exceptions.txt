@@ -1,0 +1,22 @@
+Task 21: polymarket_clob.py Exception Audit — EVIDENCE
+========================================================
+Date: 2026-04-11
+File Modified: backend/data/polymarket_clob.py
+
+ACCEPTANCE CRITERIA:
+✅ Zero bare `except Exception:` remaining (grep confirms 0 matches)
+✅ All 10 exception sites fixed with structured logging
+✅ Backend tests: 526 passed (29 in test_clob.py specifically), 0 failures in our scope
+✅ No changes to error handling semantics (swallow stays swallow, re-raise stays re-raise)
+✅ No new try/except blocks added
+
+EXCEPTION SITES FIXED (10 total):
+- 2 bare `except Exception:` → added `as e` + structured debug logging
+- 8 with `as e` → added `[polymarket_clob.func_name] {type(e).__name__}:` prefix
+
+VERIFICATION:
+$ grep -cn 'except Exception:' backend/data/polymarket_clob.py
+0
+
+$ python -m pytest tests/test_clob.py -v --tb=short
+29 passed, 1 warning in 0.83s

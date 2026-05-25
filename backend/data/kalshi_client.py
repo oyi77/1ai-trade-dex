@@ -113,6 +113,24 @@ class KalshiClient:
         positions = response.get("positions", response.get("market_positions", []))
         return positions if isinstance(positions, list) else []
 
+    async def get_fills(self, limit: int = 100) -> list[dict]:
+        """Get recent trade fills/settlements.
+
+        Args:
+            limit: Maximum number of fills to return.
+
+        Returns:
+            List of fill dicts with order_id, side, size, price, fee, etc.
+        """
+        try:
+            response = await self.get("/portfolio/fills", params={"limit": limit, "count": limit})
+            fills = response.get("fills", response.get("data", []))
+            return fills if isinstance(fills, list) else []
+        except Exception as e:
+            from loguru import logger
+            logger.warning(f"[kalshi] get_fills error: {e}")
+            return []
+
     async def _request(
         self, method: str, path: str, json: Optional[Dict[str, Any]] = None
     ) -> dict:

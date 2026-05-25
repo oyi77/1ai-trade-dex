@@ -26,6 +26,7 @@ class ActivityEvent:
     price: Optional[float] = None
     fee: Optional[float] = None
     pnl: Optional[float] = None  # realized PnL for trade_closed
+    market_ticker: Optional[str] = None  # e.g. "BTC Up or Down"
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def to_dict(self) -> dict:

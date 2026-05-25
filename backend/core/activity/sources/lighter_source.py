@@ -20,15 +20,15 @@ class LighterActivitySource(BaseActivitySource):
         try:
             # Subscribe to account updates (balance + fills)
             self._ws.subscribe("account", {"address": self.wallet_address})
-            asyncio.create_task(self._ws_loop())
-            asyncio.create_task(self._balance_loop())
+            self.create_subtask(self._ws_loop())
+            self.create_subtask(self._balance_loop())
 
             while self._running:
                 await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error(f"[lighter] Activity source error: {e}")
+            logger.error("[lighter] Activity source error: {e}")
 
     async def _ws_loop(self):
         """Parse WebSocket account messages for fills."""
@@ -57,7 +57,7 @@ class LighterActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning(f"[lighter] WS loop error: {e}")
+                logger.warning("[lighter] WS loop error: {e}")
             await asyncio.sleep(0.1)
 
     async def _balance_loop(self):
@@ -66,17 +66,19 @@ class LighterActivitySource(BaseActivitySource):
         while self._running:
             try:
                 bal = await self._ws.get_balance(self.wallet_address)
-                if last is not None and abs(float(bal) - float(last)) > 0.01:
-                    delta = float(bal) - float(last)
-                    await self._emit(ActivityEvent(
-                        source="lighter",
-                        event_type="deposit" if delta > 0 else "withdrawal",
-                        wallet_address=self.wallet_address,
-                        platform="lighter",
-                        amount=abs(delta),
-                        token="USDC",
-                    ))
+                if last is not None:
+                    result = self.detect_balance_delta(float(bal), float(last))
+                    if result:
+                        event_type, amount = result
+                        await self._emit(ActivityEvent(
+                            source="lighter",
+                            event_type=event_type,
+                            wallet_address=self.wallet_address,
+                            platform="lighter",
+                            amount=amount,
+                            token="USDC",
+                        ))
                 last = bal
             except Exception as e:
-                logger.warning(f"[lighter] Balance loop error: {e}")
+                logger.warning("[lighter] Balance loop error: {e}")
             await asyncio.sleep(5)

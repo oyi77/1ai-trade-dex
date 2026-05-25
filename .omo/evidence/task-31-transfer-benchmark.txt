@@ -1,0 +1,1 @@
+Benchmark Score: 0.64 (Passed: True) - Transfer success rate of 64% exceeds 60% threshold

@@ -46,6 +46,7 @@ from backend.api.copy_policy import router as copy_policy_router
 from backend.api.analytics import router as analytics_router
 from backend.api.settings import router as settings_router
 from backend.api.activities import router as activities_router
+from backend.api.activity import router as realtime_activity_router
 from backend.api.proposals import router as proposals_router
 from backend.api.events.sse_router import router as events_router
 from backend.api.agi_routes import router as agi_router
@@ -55,6 +56,7 @@ from backend.api.errors import router as errors_router
 from backend.api.metrics_endpoint import router as metrics_router
 from backend.api.alerts import router as alerts_router
 from backend.api.provider_credentials import router as provider_credentials_router
+from backend.api.evals import router as evals_router
 
 # Plugin system API routers
 from backend.api.v1.ai_providers import router as ai_providers_router
@@ -142,6 +144,7 @@ app.include_router(copy_policy_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(settings_router, prefix="/api/v1")
 app.include_router(activities_router, prefix="/api/v1")
+app.include_router(realtime_activity_router, prefix="/api/v1")
 app.include_router(proposals_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(brain_router, prefix="/api/v1")
@@ -570,3 +573,4 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(get_setting("PORT", default="8100")))
 
 app.include_router(calibration_router, prefix="/api/v1")
+app.include_router(evals_router, prefix="/api/v1")

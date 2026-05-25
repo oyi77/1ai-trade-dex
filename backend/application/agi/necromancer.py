@@ -8,7 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Any
 from collections import Counter
+import json
 
+from loguru import logger
 from backend.core.event_bus import publish_event
 
 
@@ -25,16 +27,68 @@ class NecromancyReport:
 
 def load_graveyard(db) -> List[Dict[str, Any]]:
     """Load genomes from GRAVEYARD stage."""
-    # Simplified: in production, query GenomeRegistry for GRAVEYARD stage
-    # For now, return empty list
-    return []
+    try:
+        from backend.models.database import GenomeRegistry
+        genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage == "GRAVEYARD"
+        ).all()
+        result = []
+        for g in genomes:
+            try:
+                chromosomes = json.loads(g.chromosomes_json) if g.chromosomes_json else {}
+                fitness = json.loads(g.fitness_json) if g.fitness_json else {}
+                death_cert = json.loads(g.death_certificate_json) if g.death_certificate_json else {}
+            except Exception:
+                chromosomes = {}
+                fitness = {}
+                death_cert = {}
+            result.append({
+                "genome_id": g.genome_id,
+                "strategy_name": g.strategy_name,
+                "stage": g.stage,
+                "chromosomes": chromosomes,
+                "fitness": fitness,
+                "death_certificate": death_cert,
+                "win_rate": g.win_rate or 0.0,
+                "total_pnl": g.total_pnl or 0.0,
+                "trade_count": g.trade_count or 0,
+                "created_at": g.created_at.isoformat() if g.created_at else None,
+            })
+        return result
+    except Exception as exc:
+        logger.warning(f"[necromancer] load_graveyard failed: {exc}")
+        return []
 
 
 def load_legends(db) -> List[Dict[str, Any]]:
     """Load elite genomes (LEGEND stage)."""
-    # Simplified: in production, query GenomeRegistry for LEGEND stage
-    # For now, return empty list
-    return []
+    try:
+        from backend.models.database import GenomeRegistry
+        genomes = db.query(GenomeRegistry).filter(
+            GenomeRegistry.stage == "LEGEND"
+        ).all()
+        result = []
+        for g in genomes:
+            try:
+                chromosomes = json.loads(g.chromosomes_json) if g.chromosomes_json else {}
+                fitness = json.loads(g.fitness_json) if g.fitness_json else {}
+            except Exception:
+                chromosomes = {}
+                fitness = {}
+            result.append({
+                "genome_id": g.genome_id,
+                "strategy_name": g.strategy_name,
+                "stage": g.stage,
+                "chromosomes": chromosomes,
+                "fitness": fitness,
+                "win_rate": g.win_rate or 0.0,
+                "total_pnl": g.total_pnl or 0.0,
+                "trade_count": g.trade_count or 0,
+            })
+        return result
+    except Exception as exc:
+        logger.warning(f"[necromancer] load_legends failed: {exc}")
+        return []
 
 
 def find_genes_overrepresented_in(

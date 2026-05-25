@@ -327,10 +327,10 @@ class HFTCrossArbExecutor:
 
             if isinstance(poly_order, Exception):
                 poly_ok = False
-                logger.error(f"[hft_cross_arb] Poly leg exception: {poly_order}")
+                logger.error(f"[hft_cross_arb] Poly leg exception: {poly_order}", exc_info=True)
             if isinstance(kalshi_order, Exception):
                 kalshi_ok = False
-                logger.error(f"[hft_cross_arb] Kalshi leg exception: {kalshi_order}")
+                logger.error(f"[hft_cross_arb] Kalshi leg exception: {kalshi_order}", exc_info=True)
 
             if poly_ok and kalshi_ok:
                 # Both filled
@@ -420,7 +420,7 @@ class HFTCrossArbExecutor:
             raise ValueError("CLOB instance not initialised")
 
         # CircuitBreaker.call() raises CircuitOpenError if breaker is open
-        f"arb-{arb_id}-poly-{int(time.monotonic() * 1000000)}"
+        idempotency_key = f"arb-{arb_id}-poly-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
             try:
@@ -431,6 +431,7 @@ class HFTCrossArbExecutor:
                         side=side,
                         price=price,
                         size=size,
+                        idempotency_key=idempotency_key,
                     )
                     if hasattr(result, "order_id") and result.order_id:
                         return result.order_id
@@ -463,7 +464,7 @@ class HFTCrossArbExecutor:
     ) -> Optional[str]:
         """Place Kalshi order leg with circuit breaker + retry."""
         # CircuitBreaker.call() raises CircuitOpenError if breaker is open
-        f"arb-{arb_id}-kalshi-{int(time.monotonic() * 1000000)}"
+        idempotency_key = f"arb-{arb_id}-kalshi-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
             try:
@@ -553,7 +554,7 @@ class HFTCrossArbExecutor:
         kalshi_markets: List[Dict[str, Any]],
     ) -> List[ArbOpportunityEnhanced]:
         """Detect cross-platform arbitrage opportunities."""
-        return self._detector.detect_cross_platform(poly_markets, kalshi_markets)
+        return self._detector.detect_cross_platform_generic(poly_markets, kalshi_markets)
 
     def scan_all(
         self,

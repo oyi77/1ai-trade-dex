@@ -246,6 +246,13 @@ class CrossMarketArb(BaseStrategy):
                     if spread_pct < min_spread:
                         continue
 
+                    # Gate: ensure strategy has passed live gate before executing
+                    if not await ctx.can_trade():
+                        ctx.logger.debug(
+                            "[cross_market_arb] Skipping — strategy gate not cleared"
+                        )
+                        continue
+
                     opp = detect_cross_arb(poly_price, kalshi_price)
 
                     if opp and opp.net_profit >= self.default_params["min_profit"]:

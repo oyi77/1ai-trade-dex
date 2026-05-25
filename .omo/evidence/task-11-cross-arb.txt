@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.11, pytest-7.4.4, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /home/openclaw/projects/polyedge
+configfile: pytest.ini
+plugins: cov-4.1.0, anyio-4.13.0, asyncio-0.23.3, typeguard-4.4.4
+asyncio: mode=Mode.AUTO
+collecting ... collected 6 items
+
+backend/tests/test_arb_executor.py::test_intra_market_arb_detected PASSED [ 16%]
+backend/tests/test_arb_executor.py::test_intra_market_no_arb PASSED      [ 33%]
+backend/tests/test_arb_executor.py::test_cross_platform_arb_detected PASSED [ 50%]
+backend/tests/test_arb_executor.py::test_cross_platform_no_arb PASSED    [ 66%]
+backend/tests/test_arb_executor.py::test_negrisk_arb_detected PASSED     [ 83%]
+backend/tests/test_arb_executor.py::test_negrisk_no_arb_when_sum_near_one PASSED [100%]
+
+============================== 6 passed in 0.06s ===============================
+EXIT: 0

@@ -628,7 +628,7 @@ class TestCrossMarketArbEnhanced:
         opps = detector.detect_complementary(markets)
         assert len(opps) == 0
 
-    def test_detect_cross_platform(self):
+    def test_detect_cross_platform_generic(self):
         from backend.strategies.cross_market_arb_enhanced import CrossMarketArbEnhanced
 
         detector = CrossMarketArbEnhanced(
@@ -641,7 +641,7 @@ class TestCrossMarketArbEnhanced:
             {"question": "Will BTC hit 100k?", "conditionId": "p1", "yes_price": 0.40}
         ]
         kalshi = [{"question": "Will BTC hit 100k?", "id": "k1", "yes_price": 0.50}]
-        opps = detector.detect_cross_platform(poly, kalshi)
+        opps = detector.detect_cross_platform_generic(poly, kalshi)
         assert len(opps) == 1
         assert opps[0].kind == "cross_platform"
 

@@ -1,0 +1,23 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.11, pytest-7.4.4, pluggy-1.6.0 -- /usr/bin/python
+cachedir: .pytest_cache
+rootdir: /home/openclaw/projects/polyedge
+configfile: pytest.ini
+plugins: cov-4.1.0, anyio-4.13.0, asyncio-0.23.3, typeguard-4.4.4
+asyncio: mode=Mode.AUTO
+collecting ... collected 11 items
+
+backend/tests/test_universal_scanner.py::TestParseMarket::test_parses_valid_market PASSED [  9%]
+backend/tests/test_universal_scanner.py::TestParseMarket::test_handles_missing_optional_fields PASSED [ 18%]
+backend/tests/test_universal_scanner.py::TestParseMarket::test_handles_string_outcome_prices PASSED [ 27%]
+backend/tests/test_universal_scanner.py::TestUniversalScanner::test_analyze_market_high_edge PASSED [ 36%]
+backend/tests/test_universal_scanner.py::TestUniversalScanner::test_analyze_market_low_edge_rejected PASSED [ 45%]
+backend/tests/test_universal_scanner.py::TestUniversalScanner::test_analyze_market_low_volume_rejected PASSED [ 54%]
+backend/tests/test_universal_scanner.py::TestUniversalScanner::test_scan_all_mocks_gamma_api PASSED [ 63%]
+backend/tests/test_universal_scanner.py::TestUniversalScanner::test_run_cycle_returns_cycle_result PASSED [ 72%]
+backend/tests/test_universal_scanner.py::TestStressScenarios::test_handles_10000_markets PASSED [ 81%]
+backend/tests/test_universal_scanner.py::TestStressScenarios::test_graceful_degradation_on_network_failure PASSED [ 90%]
+backend/tests/test_universal_scanner.py::TestStressScenarios::test_race_condition_prevention PASSED [100%]
+
+============================== 11 passed in 0.20s ==============================
+EXIT: 0

@@ -107,6 +107,15 @@ class MyriadClient:
             logger.exception("[MyriadClient] Failed to place order")
             return {"error": True}
 
+    async def health_check(self) -> bool:
+        """Check if Myriad API is available."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{self._base_url}/health")
+                return resp.status_code == 200
+        except Exception:
+            return False
+
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
         try:
@@ -116,3 +125,31 @@ class MyriadClient:
         except Exception:
             logger.exception(f"[MyriadClient] Failed to cancel order {order_id}")
             return False
+
+    async def get_fills(self, wallet_address: str = None, limit: int = 100) -> list:
+        """Get recent trade fills for a wallet.
+
+        Args:
+            wallet_address: Wallet address (uses configured wallet if None).
+            limit: Maximum number of fills to return.
+
+        Returns:
+            List of fill dicts with id, side, size, price, fee, status, etc.
+        """
+        addr = wallet_address or self._wallet
+        if not addr:
+            return []
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/fills",
+                    params={"wallet": addr, "limit": limit},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+                return data.get("data", data.get("fills", []))
+        except Exception as e:
+            logger.warning(f"[myriad] get_fills error: {e}")
+            return []

@@ -60,13 +60,26 @@ class LimitlessClient:
         ).rstrip("/")
 
     async def get_markets(self, limit: int = 100) -> list:
-        """Get available markets from Limitless Exchange."""
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{self._base_url}/markets", params={"limit": limit}
-            )
-            resp.raise_for_status()
-            return resp.json()
+        """Get active markets from Limitless Exchange with pagination (max 25/page)."""
+        all_markets = []
+        page = 1
+        per_page = min(limit, 25)
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            while len(all_markets) < limit:
+                resp = await client.get(
+                    f"{self._base_url}/markets/active",
+                    params={"limit": per_page, "page": page},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                markets = data.get("data", []) if isinstance(data, dict) else data
+                if not isinstance(markets, list) or not markets:
+                    break
+                all_markets.extend(markets)
+                if len(markets) < per_page:
+                    break
+                page += 1
+        return all_markets[:limit]
 
     async def get_orderbook(self, market_id: str) -> dict:
         """Get orderbook for a specific market."""
@@ -208,6 +221,29 @@ class LimitlessClient:
                 headers={"Content-Type": "application/json"},
             )
             return resp.status_code == 200
+
+    async def get_fills(self, wallet_address: str, limit: int = 100) -> list:
+        """Get recent fills/trades for a wallet address.
+
+        Args:
+            wallet_address: The wallet address to query fills for.
+            limit: Maximum number of fills to return.
+
+        Returns:
+            List of fill dicts with id, orderId, side, size, price, fee, pnl, status, etc.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/fills",
+                    params={"address": wallet_address, "limit": limit},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data if isinstance(data, list) else data.get("fills", data.get("data", []))
+        except Exception as e:
+            logger.warning(f"[limitless] get_fills error: {e}")
+            return []
 
     async def health_check(self) -> bool:
         """Check if Limitless Exchange API is available."""
