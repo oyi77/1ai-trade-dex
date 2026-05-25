@@ -20,7 +20,7 @@ from backend.core.external_rate_limiter import ExternalRateLimiter
 from loguru import logger
 
 # Circuit breaker for transient failures
-gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
+gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
 
 # Rate limiter for Gamma API (configurable requests per minute)
 _gamma_rate_limiter = ExternalRateLimiter(

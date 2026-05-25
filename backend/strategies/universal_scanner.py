@@ -44,7 +44,7 @@ GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 PAGE_SIZE = _cfg("SCANNER_PAGE_SIZE", 500)
 MAX_MARKETS = _cfg("SCANNER_MAX_MARKETS", 10000)
 
-_gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=5, recovery_timeout=60.0)
+_gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
 _market_locks: dict[str, asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()
 _MAX_MARKET_LOCKS = 500  # E-105: prevent unbounded memory growth

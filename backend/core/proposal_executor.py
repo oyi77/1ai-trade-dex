@@ -21,6 +21,7 @@ from dataclasses import dataclass
 
 from loguru import logger
 
+from backend.config import settings
 from backend.models.database import StrategyProposal, StrategyConfig, Trade, AuditLog
 
 
@@ -49,13 +50,13 @@ class ProposalExecutor:
     """Executes approved proposals and manages learning loop with auto-rollback."""
 
     # Auto-rollback threshold: if Sharpe ratio drops by more than this, rollback
-    ROLLBACK_THRESHOLD = -0.1
+    ROLLBACK_THRESHOLD = settings.PROPOSAL_ROLLBACK_THRESHOLD
 
     # Impact measurement window: analyze last N hours of trades
-    IMPACT_WINDOW_HOURS = 48
+    IMPACT_WINDOW_HOURS = settings.PROPOSAL_IMPACT_WINDOW_HOURS
 
     # Minimum trades required for impact measurement
-    MIN_TRADES_FOR_IMPACT = 5
+    MIN_TRADES_FOR_IMPACT = settings.PROPOSAL_MIN_TRADES_FOR_IMPACT
 
     def __init__(self):
         """Initialize the ProposalExecutor."""

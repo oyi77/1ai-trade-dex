@@ -9,13 +9,14 @@ from datetime import datetime, timedelta, timezone
 
 from loguru import logger
 
+from backend.config import settings
 from backend.db.utils import get_db_session
 from backend.models.database import StrategyConfig, Trade
 
-MIN_TRADES = 10
-WR_THRESHOLD = 0.50
-CHECK_INTERVAL_HOURS = 6
-LOOKBACK_DAYS = 3
+MIN_TRADES = settings.WR_MONITOR_MIN_TRADES
+WR_THRESHOLD = settings.WR_MONITOR_WR_THRESHOLD
+CHECK_INTERVAL_HOURS = settings.WR_MONITOR_CHECK_INTERVAL_HOURS
+LOOKBACK_DAYS = settings.WR_MONITOR_LOOKBACK_DAYS
 
 
 def wr_monitor_job() -> None:

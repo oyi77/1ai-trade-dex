@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from backend.config import settings
 from backend.models.database import StrategyConfig
 from loguru import logger
 
@@ -310,8 +311,8 @@ def _check_shadow(strategy_name: str, db: Session) -> dict:
 # Risk Layer — auto-disable strategies that exceed loss thresholds
 # =========================================================================
 
-MAX_DAILY_LOSS_PER_STRATEGY = 50.0  # USD
-MAX_TOTAL_DRAWDOWN_PCT = 10.0  # % of total balance
+MAX_DAILY_LOSS_PER_STRATEGY = settings.RISK_MAX_DAILY_LOSS_PER_STRATEGY_USD
+MAX_TOTAL_DRAWDOWN_PCT = settings.RISK_MAX_TOTAL_DRAWDOWN_PCT
 
 
 def check_risk_and_disable(db) -> list[str]:

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from loguru import logger
 
+from backend.config import settings
 from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord
 
 
@@ -37,13 +38,13 @@ def is_in_rehab(config) -> bool:
 
 
 class StrategyHealthMonitor:
-    MIN_WARMUP_TRADES = 30
-    KILL_WIN_RATE = 0.05
-    WARN_WIN_RATE = 0.15
-    WARN_BRIER = 0.4
-    WARN_PSI = 0.25
-    KILL_SHARPE = -2.0
-    KILL_DRAWDOWN = 0.50
+    MIN_WARMUP_TRADES = settings.MIN_WARMUP_TRADES
+    KILL_WIN_RATE = settings.KILL_WIN_RATE
+    WARN_WIN_RATE = settings.WARN_WIN_RATE
+    WARN_BRIER = 0.4  # calibration threshold, deployment-independent
+    WARN_PSI = 0.25  # drift detection threshold, deployment-independent
+    KILL_SHARPE = settings.KILL_SHARPE
+    KILL_DRAWDOWN = settings.KILL_DRAWDOWN
 
     def assess(
         self,

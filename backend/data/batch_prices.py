@@ -15,7 +15,7 @@ from backend.core.external_rate_limiter import ExternalRateLimiter
 from loguru import logger
 
 _batch_breaker = CircuitBreaker(
-    "gamma_batch_prices", failure_threshold=5, recovery_timeout=60.0
+    "gamma_batch_prices", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
 )
 _batch_rate_limiter = ExternalRateLimiter(
     name="gamma_batch",

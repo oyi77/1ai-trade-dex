@@ -25,12 +25,12 @@ from backend.monitoring.agi_metrics import record_pipeline_error
 # Constants
 # ---------------------------------------------------------------------------
 
-MIN_TRADES_FOR_TUNING = 15
-WIN_RATE_FLOOR = 0.40  # below this after 10+ trades -> attempt tuning
-WIN_RATE_CEILING = 0.60  # above this after 20+ trades -> consider loosening
-MAX_PARAM_CHANGE_PCT = 0.30  # hard cap on any single parameter change
-ROLLBACK_WINDOW = 10  # trades to monitor after a change
-ROLLBACK_DEGRADATION = 0.15  # >15% win rate drop triggers revert
+MIN_TRADES_FOR_TUNING = settings.AGI_TUNER_MIN_TRADES_FOR_TUNING
+WIN_RATE_FLOOR = settings.AGI_TUNER_WIN_RATE_FLOOR  # below this after 10+ trades -> attempt tuning
+WIN_RATE_CEILING = settings.AGI_TUNER_WIN_RATE_CEILING  # above this after 20+ trades -> consider loosening
+MAX_PARAM_CHANGE_PCT = settings.AGI_TUNER_MAX_PARAM_CHANGE_PCT  # hard cap on any single parameter change
+ROLLBACK_WINDOW = settings.AGI_TUNER_ROLLBACK_WINDOW  # trades to monitor after a change
+ROLLBACK_DEGRADATION = settings.AGI_TUNER_ROLLBACK_DEGRADATION  # >15% win rate drop triggers revert
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.bot.notification.registry import registry
 from backend.bot.notifier import get_bot
+from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.core.errors import CircuitOpenError
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Circuit breaker for Telegram API — protects against cascading failures
 _telegram_breaker = CircuitBreaker(
-    "telegram_api", failure_threshold=5, recovery_timeout=60.0
+    "telegram_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
 )
 
 # Rate limiter for Telegram API — respects ~30 msg/sec global limit

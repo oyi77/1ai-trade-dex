@@ -17,9 +17,9 @@ from loguru import logger
 
 # Circuit breakers for weather API calls
 openmeteo_breaker = CircuitBreaker("open_meteo")
-nws_breaker = CircuitBreaker("nws_api", failure_threshold=5, recovery_timeout=60.0)
+nws_breaker = CircuitBreaker("nws_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
 noaa_metar_breaker = CircuitBreaker(
-    "noaa_metar", failure_threshold=5, recovery_timeout=60.0
+    "noaa_metar", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
 )
 
 # Rate limiter for weather API calls (30 requests/min default)

@@ -102,13 +102,13 @@ class AutonomousPromoter:
         return (len(reasons) == 0, reasons)
 
     # Kill thresholds (applied to any mode)
-    KILL_WIN_RATE = 0.05
-    KILL_SHARPE = -2.0
-    KILL_DRAWDOWN = 0.50
-    MIN_WARMUP_TRADES = 30
-    DEGRADATION_WR_THRESHOLD = 0.35
-    DEGRADATION_SHARPE_THRESHOLD = -0.5
-    MAX_DEGRADATIONS_BEFORE_REVIEW = 2
+    KILL_WIN_RATE = settings.KILL_WIN_RATE
+    KILL_SHARPE = settings.KILL_SHARPE
+    KILL_DRAWDOWN = settings.KILL_DRAWDOWN
+    MIN_WARMUP_TRADES = settings.MIN_WARMUP_TRADES
+    DEGRADATION_WR_THRESHOLD = settings.DEGRADATION_WR_THRESHOLD
+    DEGRADATION_SHARPE_THRESHOLD = settings.DEGRADATION_SHARPE_THRESHOLD
+    MAX_DEGRADATIONS_BEFORE_REVIEW = settings.MAX_DEGRADATIONS_BEFORE_REVIEW
 
     def __init__(self, runner: Optional[ExperimentRunner] = None):
         self.runner = runner

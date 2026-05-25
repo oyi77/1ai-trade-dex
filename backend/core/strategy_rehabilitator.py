@@ -92,8 +92,8 @@ class StrategyRehabilitator:
             if _owned:
                 db.close()
 
-    CATASTROPHIC_WR_FLOOR = 0.05
-    CATASTROPHIC_MIN_TRADES = 30
+    CATASTROPHIC_WR_FLOOR = settings.REHAB_CATASTROPHIC_WR_FLOOR
+    CATASTROPHIC_MIN_TRADES = settings.REHAB_CATASTROPHIC_MIN_TRADES
 
     def _is_candidate(self, cfg: StrategyConfig, db: Session) -> bool:
         if self._is_catastrophic(cfg.strategy_name, db):

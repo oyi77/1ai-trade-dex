@@ -17,7 +17,7 @@ BASE_URL = settings.KALSHI_API_URL
 
 # Circuit breaker for Kalshi API
 kalshi_breaker = CircuitBreaker(
-    "kalshi_api", failure_threshold=5, recovery_timeout=60.0
+    "kalshi_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
 )
 
 # Rate limiter for Kalshi API (configurable requests per minute)

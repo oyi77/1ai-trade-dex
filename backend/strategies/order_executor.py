@@ -18,7 +18,7 @@ from backend.utils.redaction import redact_sensitive
 from loguru import logger
 
 data_api_breaker = CircuitBreaker(
-    "data_api", failure_threshold=5, recovery_timeout=60.0
+    "data_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
 )
 
 DATA_HOST = settings.DATA_API_URL
