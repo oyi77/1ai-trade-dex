@@ -133,49 +133,50 @@ class DexPriceFeed:
             return []
 
     async def fetch_aster_prices(self) -> List[PriceQuote]:
-        """Fetch Aster prices via ccxt.fetch_ticker()."""
+        """Fetch Aster prices via ccxt fetch_tickers()."""
+        client = None
         try:
             from backend.clients.aster_client import AsterClient
             client = AsterClient()
-            exchange = client._exchange
 
-            def _sync_fetch():
-                exchange.load_markets()
-                quotes = []
-                for symbol in list(exchange.markets.keys()):
-                    if not symbol.endswith("/USDC") and not symbol.endswith("/USDT"):
+            markets = await client.get_markets()
+            tickers = await client.get_tickers()
+            
+            quotes = []
+            for symbol, ticker in tickers.items():
+                if not symbol.endswith("/USDC") and not symbol.endswith("/USDT"):
+                    continue
+                try:
+                    bid = float(ticker.get("bid", 0) or 0)
+                    ask = float(ticker.get("ask", 0) or 0)
+                    last = float(ticker.get("last", 0) or 0)
+                    if bid <= 0 and ask <= 0:
                         continue
-                    try:
-                        ticker = exchange.fetch_ticker(symbol)
-                        bid = float(ticker.get("bid", 0) or 0)
-                        ask = float(ticker.get("ask", 0) or 0)
-                        last = float(ticker.get("last", 0) or 0)
-                        if bid <= 0 and ask <= 0:
-                            continue
-                        base = symbol.split("/")[0]
-                        quotes.append(PriceQuote(
-                            exchange="aster",
-                            base=base,
-                            bid=bid,
-                            ask=ask,
-                            mid=last or ((bid + ask) / 2 if bid and ask else 0),
-                        ))
-                    except Exception:
-                        continue
-                return quotes
+                    base = symbol.split("/")[0]
+                    quotes.append(PriceQuote(
+                        exchange="aster",
+                        base=base,
+                        bid=bid,
+                        ask=ask,
+                        mid=last or ((bid + ask) / 2 if bid and ask else 0),
+                    ))
+                except Exception:
+                    continue
 
-            quotes = await asyncio.to_thread(_sync_fetch)
             logger.debug(f"dex_feed: Aster got {len(quotes)} quotes")
             return quotes
         except Exception as e:
             logger.warning(f"dex_feed: Aster fetch failed: {e}")
             return []
+        finally:
+            if client:
+                await client.close()
 
     async def fetch_lighter_prices(self) -> List[PriceQuote]:
         """Fetch Lighter prices via AccountApi.order_books()."""
         try:
             from backend.clients.lighter_client import LighterClient
-            client = LighterClient()
+            client = LighterClient(skip_signer=True)
             order_books = await client.get_markets()
             quotes = []
             for ob in order_books:

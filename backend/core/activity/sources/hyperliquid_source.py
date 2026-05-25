@@ -30,7 +30,7 @@ class HyperliquidActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[hyperliquid] Activity source error: {e}")
+            logger.error(f"[hyperliquid] Activity source error: {e}")
 
     def _on_fill(self, fill: dict):
         """Called by Hyperliquid SDK WebSocket on fill."""
@@ -81,5 +81,5 @@ class HyperliquidActivitySource(BaseActivitySource):
                         await self._emit(event)
                 last = bal
             except Exception as e:
-                logger.warning("[hyperliquid] Balance loop error: {e}")
+                logger.warning(f"[hyperliquid] Balance loop error: {e}")
             await asyncio.sleep(5)

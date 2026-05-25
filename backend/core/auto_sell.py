@@ -327,14 +327,29 @@ async def auto_sell_monitor_job() -> None:
         prices = await asyncio.to_thread(_fetch_prices_bulk, tickers)
         if not prices:
             return
+            
+        from backend.markets.provider_registry import market_registry
+
+        # Group trades by platform to fetch the right client
+        from collections import defaultdict
+        trades_by_platform = defaultdict(list)
+        for t in trades:
+            plat = getattr(t, "platform", "polymarket") or "polymarket"
+            trades_by_platform[plat].append(t)
 
         manager = AutoSellManager()
-        results = await manager.scan_and_sell_all(trades, prices)
+        total_results = []
+        
+        for platform, plat_trades in trades_by_platform.items():
+            provider = market_registry.get_provider(platform)
+            # If provider is found, it will be used as clob_client to execute live orders
+            results = await manager.scan_and_sell_all(plat_trades, prices, clob_client=provider)
+            total_results.extend(results)
 
-        if results:
+        if total_results:
             logger.info(
-                "[auto_sell_job] Completed: {} sells from {} positions",
-                len(results),
+                "[auto_sell_job] Completed: {} sells from {} positions across platforms",
+                len(total_results),
                 len(trades),
             )
 

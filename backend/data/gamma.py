@@ -7,7 +7,6 @@ to retrieve active markets from the Polymarket Gamma API.
 Rate limiting: Uses ExternalRateLimiter with RATE_LIMIT_GAMMA config.
 """
 
-import asyncio
 from typing import Any, Optional
 
 import httpx
@@ -16,6 +15,7 @@ from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.errors import ExternalAPIError
 from backend.core.external_rate_limiter import ExternalRateLimiter
+from backend.core.retry import retry
 
 from loguru import logger
 
@@ -30,7 +30,6 @@ _gamma_rate_limiter = ExternalRateLimiter(
 )
 
 GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
-_RATE_LIMIT_RETRY_DELAY = 2.0
 _RATE_LIMIT_MAX_RETRIES = 3
 
 
@@ -129,24 +128,26 @@ async def fetch_markets(
     async def _fetch_page(
         client: httpx.AsyncClient, cursor: Optional[str]
     ) -> Optional[list]:
-        for attempt in range(_RATE_LIMIT_MAX_RETRIES):
-            params = {
-                "active": str(active).lower(),
-                "closed": str(not active).lower(),
-                "limit": page_size,
-                "order": order,
-                "ascending": str(ascending).lower(),
-            }
-            if cursor:
-                params["after_cursor"] = cursor
+        params = {
+            "active": str(active).lower(),
+            "closed": str(not active).lower(),
+            "limit": page_size,
+            "order": order,
+            "ascending": str(ascending).lower(),
+        }
+        if cursor:
+            params["after_cursor"] = cursor
+
+        @retry(max_attempts=_RATE_LIMIT_MAX_RETRIES)
+        async def _gamma_request() -> list:
             resp = await client.get(GAMMA_API_URL, params=params)
-            if resp.status_code == 429:
-                delay = _RATE_LIMIT_RETRY_DELAY * (attempt + 1)
-                await asyncio.sleep(delay)
-                continue
             resp.raise_for_status()
             return resp.json()
-        return None
+
+        try:
+            return await _gamma_request()
+        except Exception:
+            return None
 
     all_markets: list[dict[str, Any]] = []
     cursor: Optional[str] = None
@@ -193,20 +194,16 @@ async def fetch_resolved_markets(
     async def _fetch_resolved_page(
         client: httpx.AsyncClient, params: dict
     ) -> Optional[list]:
-        for attempt in range(_RATE_LIMIT_MAX_RETRIES):
+        @retry(max_attempts=_RATE_LIMIT_MAX_RETRIES)
+        async def _gamma_request() -> list:
             resp = await client.get(GAMMA_API_URL, params=params)
-            if resp.status_code == 429:
-                delay = _RATE_LIMIT_RETRY_DELAY * (attempt + 1)
-                logger.debug(
-                    "[gamma] Rate limited, retrying in %.1fs (attempt %d)",
-                    delay,
-                    attempt + 1,
-                )
-                await asyncio.sleep(delay)
-                continue
             resp.raise_for_status()
             return resp.json()
-        return None
+
+        try:
+            return await _gamma_request()
+        except Exception:
+            return None
 
     all_markets = []
     cursor: Optional[str] = None

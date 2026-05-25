@@ -90,34 +90,11 @@ class BalanceAggregator:
             logger.error(f"Aster WS feed failed: {e}")
 
     async def _ws_lighter(self):
-        """Lighter balance feed — WS via watch_account() with REST fallback."""
+        """Lighter balance feed — REST polling fallback."""
         try:
             from backend.clients.lighter_client import LighterClient
             client = LighterClient()
-            # Try WS first, fall back to REST polling
             ws_connected = False
-            try:
-                if hasattr(client, 'watch_account') and callable(client.watch_account):
-                    ws_connected = True
-                    while self._running:
-                        try:
-                            async for account_update in client.watch_account():
-                                if not self._running:
-                                    break
-                                bal = account_update if isinstance(account_update, dict) else {}
-                                self._update("lighter", VenueBalance(
-                                    venue="lighter",
-                                    cash_balance=float(bal.get("usdc", bal.get("balance", 0))),
-                                    total_equity=float(bal.get("total", bal.get("equity", 0))),
-                                    source="ws",
-                                ))
-                        except Exception as e:
-                            logger.warning(f"Lighter WS error, falling back to REST: {e}")
-                            ws_connected = False
-                            break
-            except Exception as e:
-                logger.debug(f"Lighter WS not available, using REST: {e}")
-                ws_connected = False
 
             # REST fallback
             if not ws_connected:
@@ -131,7 +108,8 @@ class BalanceAggregator:
                             source="poll",
                         ))
                     except Exception as e:
-                        logger.warning(f"Lighter REST balance error: {e}")
+                        if "couldn't get nonce" not in str(e):
+                            logger.warning(f"Lighter REST balance error: {e}")
                     await asyncio.sleep(15)
         except Exception as e:
             logger.error(f"Lighter feed failed: {e}")

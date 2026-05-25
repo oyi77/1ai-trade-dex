@@ -195,6 +195,25 @@ PRESETS: Dict[str, RiskProfile] = {
         weekly_loss_floor_pct=-0.95,
         longshot_no_bias_weight=0.20,
     ),
+    "maximum_overdrive": RiskProfile(
+        name="maximum_overdrive",
+        display_name="Maximum Overdrive",
+        is_preset=True,
+        kelly_fraction=1.00,
+        min_edge_threshold=0.01,
+        max_trade_size=5000.0,
+        max_position_fraction=1.00,
+        max_total_exposure_fraction=1.00,
+        daily_loss_limit=5000.0,
+        daily_drawdown_limit_pct=1.00,
+        weekly_drawdown_limit_pct=1.00,
+        slippage_tolerance=0.10,
+        auto_approve_min_confidence=0.10,
+        daily_loss_limit_pct=1.00,
+        daily_loss_floor_pct=-1.00,
+        weekly_loss_floor_pct=-1.00,
+        longshot_no_bias_weight=0.20,
+    ),
 }
 
 DEFAULT_PROFILE = "normal"
@@ -210,6 +229,7 @@ RISK_TIER_MAX_ALLOCATION: Dict[str, float] = {
     "aggressive": 0.15,
     "extreme": 0.05,
     "crazy": 0.01,
+    "maximum_overdrive": 1.00,
 }
 
 

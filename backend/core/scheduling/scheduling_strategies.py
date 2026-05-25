@@ -224,9 +224,9 @@ async def _execute_trade(
     trades_executed += 1
 
     try:
-        from backend.bot.notifier import notify_btc_signal
+        from backend.bot.notification.registry import registry
 
-        notify_btc_signal(signal, None)
+        await registry.send_to("telegram", "btc_signal", str(signal))
     except Exception:
         logger.exception(
             f"[scheduling_strategies] BTC signal notification failed for {getattr(signal, 'market', None)}"
@@ -406,7 +406,17 @@ async def scan_and_trade_job(mode: str):
                     market_registry=market_registry,
                 )
                 strategy = strategy_cls()
-                result = await strategy.run(strategy_ctx)
+                try:
+                    result = await asyncio.wait_for(strategy.run(strategy_ctx), timeout=30.0)
+                except asyncio.TimeoutError:
+                    logger.error(f"[{mode.upper()}] Strategy {cfg['strategy_name']} timed out after 30 seconds.")
+                    continue
+                except Exception as e:
+                    logger.error(f"[{mode.upper()}] Strategy {cfg['strategy_name']} failed with error: {e}", exc_info=True)
+                    continue
+
+                if not result:
+                    continue
                 # Record shadow trades in paper/testnet modes so AGI health check
                 # can read win rate from ShadowTrade table.
                 if mode in ("paper", "testnet") and hasattr(result, "decisions") and result.decisions:
@@ -721,7 +731,7 @@ async def settlement_job():
                     },
                 )
 
-                from backend.bot.notifier import notify_trade_settled
+                from backend.bot.notification.registry import registry
 
                 for trade in settled:
                     result_prefix = "+" if trade.pnl and trade.pnl > 0 else ""
@@ -729,7 +739,7 @@ async def settlement_job():
                         "data",
                         f"  {trade.event_slug}: {trade.result.upper()} {result_prefix}${trade.pnl:.2f}",
                     )
-                    notify_trade_settled(trade)
+                    await registry.send_to("telegram", "trade_settled", str(trade))
             else:
                 log_event("info", "No trades ready for settlement")
 

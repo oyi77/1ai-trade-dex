@@ -344,6 +344,11 @@ def schedule_strategy(
     if sched is None or not sched.running:
         return
 
+    from backend.config import settings
+    if getattr(settings, "RISK_PROFILE", None) == "maximum_overdrive":
+        interval_seconds = 5
+        logger.warning(f"Overriding strategy {strategy_name} interval to 5s due to maximum_overdrive")
+
     job_id = f"{mode}_{strategy_name}_{interval_seconds}"
     # misfire_grace_time must be generous for long-interval strategies (e.g. 300s, 600s)
     # so that a small scheduler delay doesn't permanently skip the run.

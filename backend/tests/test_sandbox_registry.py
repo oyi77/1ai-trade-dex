@@ -1,6 +1,6 @@
 import pytest
 from backend.agi.base_node import BaseAGINode, NodeManifest
-from backend.agi.sandbox.sandbox_registry import SandboxNodeRegistry
+from backend.agi.sandbox.sandbox_registry import sandbox_registry
 
 
 class MockValidNode(BaseAGINode):
@@ -53,13 +53,12 @@ class MockLiveDataNode(BaseAGINode):
 
 class TestSandboxNodeRegistry:
     def setup_method(self):
-        SandboxNodeRegistry._instance = None
-        self.registry = SandboxNodeRegistry()
+        sandbox_registry.reset()
 
     def test_get_valid_node_from_sandbox_registry(self):
-        self.registry.register(MockValidNode)
+        sandbox_registry.register(MockValidNode)
 
-        node = self.registry.get("mock_valid")
+        node = sandbox_registry.get("mock_valid")
 
         assert node is not None
         assert node.manifest().name == "mock_valid"
@@ -68,26 +67,25 @@ class TestSandboxNodeRegistry:
         with pytest.raises(
             ValueError, match="requires database access - not allowed in sandbox"
         ):
-            self.registry.register(MockDBNode)
+            sandbox_registry.register(MockDBNode)
 
-        assert "mock_db_node" not in self.registry._plugins
+        assert "mock_db_node" not in sandbox_registry._plugins
 
     def test_node_with_requires_live_data_true_is_rejected(self):
         with pytest.raises(
             ValueError, match="requires live data - not allowed in sandbox"
         ):
-            self.registry.register(MockLiveDataNode)
+            sandbox_registry.register(MockLiveDataNode)
 
-        assert "mock_live_data_node" not in self.registry._plugins
+        assert "mock_live_data_node" not in sandbox_registry._plugins
 
-    def test_registry_returns_instance(self):
-        registry1 = SandboxNodeRegistry()
-        registry2 = SandboxNodeRegistry()
-
-        assert registry1 is registry2
+    def test_registry_is_reusable(self):
+        # Module-level instance — same on re-import
+        from backend.agi.sandbox.sandbox_registry import sandbox_registry as sr2
+        assert sandbox_registry is sr2
 
     def test_register_multiple_valid_nodes(self):
-        self.registry.register(MockValidNode)
+        sandbox_registry.register(MockValidNode)
 
         class MockValidNode2(BaseAGINode):
             @classmethod
@@ -103,21 +101,21 @@ class TestSandboxNodeRegistry:
             async def execute(self, state):
                 return state
 
-        self.registry.register(MockValidNode2)
+        sandbox_registry.register(MockValidNode2)
 
-        assert "mock_valid" in self.registry._plugins
-        assert "mock_valid_2" in self.registry._plugins
+        assert "mock_valid" in sandbox_registry._plugins
+        assert "mock_valid_2" in sandbox_registry._plugins
 
     def test_get_disabled_node_raises_keyerror(self):
-        self.registry.register(MockValidNode)
-        self.registry.set_enabled("mock_valid", False)
+        sandbox_registry.register(MockValidNode)
+        sandbox_registry.set_enabled("mock_valid", False)
 
         with pytest.raises(KeyError, match="is disabled"):
-            self.registry.get("mock_valid")
+            sandbox_registry.get("mock_valid")
 
     def test_get_missing_node_raises_keyerror(self):
         with pytest.raises(KeyError, match="not found"):
-            self.registry.get("nonexistent")
+            sandbox_registry.get("nonexistent")
 
     def test_node_instantiation_on_register(self):
         class InstantiationTestNode(BaseAGINode):
@@ -139,70 +137,53 @@ class TestSandboxNodeRegistry:
                 self.instantiated = True
 
         node_class = InstantiationTestNode
-        self.registry.register(node_class)
+        sandbox_registry.register(node_class)
 
-        node = self.registry.get("instantiation_test")
+        node = sandbox_registry.get("instantiation_test")
         assert hasattr(node, "instantiated")
         assert node.instantiated is True
 
     def test_list_all_returns_manifests(self):
-        self.registry.register(MockValidNode)
+        sandbox_registry.register(MockValidNode)
 
-        manifests = self.registry.list_all()
+        manifests = sandbox_registry.list_all()
 
         assert len(manifests) == 1
         assert manifests[0].name == "mock_valid"
         assert manifests[0].version == "1.0.0"
 
 
-def test_sandbox_registry_singleton():
-    registry1 = SandboxNodeRegistry()
-    registry2 = SandboxNodeRegistry()
-
-    assert registry1 is registry2
-
-    SandboxNodeRegistry._instance = None
-
-
 async def test_sandbox_registry_health_check():
-    SandboxNodeRegistry._instance = None
-    registry = SandboxNodeRegistry()
+    sandbox_registry.reset()
 
-    registry.register(MockValidNode)
+    sandbox_registry.register(MockValidNode)
 
-    node = registry.get("mock_valid")
+    node = sandbox_registry.get("mock_valid")
     health = await node.health_check()
 
     assert health is True
 
-    SandboxNodeRegistry._instance = None
+    sandbox_registry.reset()
 
 
 def test_sandbox_registry_enabled_disabled():
-    SandboxNodeRegistry._instance = None
-    registry = SandboxNodeRegistry()
+    sandbox_registry.reset()
 
-    registry.register(MockValidNode)
+    sandbox_registry.register(MockValidNode)
 
-    assert registry._enabled["mock_valid"] is True
+    assert sandbox_registry._enabled["mock_valid"] is True
 
-    registry.set_enabled("mock_valid", False)
+    sandbox_registry.set_enabled("mock_valid", False)
 
-    assert registry._enabled["mock_valid"] is False
+    assert sandbox_registry._enabled["mock_valid"] is False
 
-    SandboxNodeRegistry._instance = None
+    sandbox_registry.reset()
 
 
 def test_sandbox_registry_reset():
-    SandboxNodeRegistry._instance = None
-    registry = SandboxNodeRegistry()
+    sandbox_registry.register(MockValidNode)
+    assert "mock_valid" in sandbox_registry._plugins
 
-    registry.register(MockValidNode)
-    assert "mock_valid" in registry._plugins
+    sandbox_registry.reset()
 
-    SandboxNodeRegistry.reset()
-
-    assert SandboxNodeRegistry._instance is None
-
-    new_registry = SandboxNodeRegistry()
-    assert "mock_valid" not in new_registry._plugins
+    assert "mock_valid" not in sandbox_registry._plugins

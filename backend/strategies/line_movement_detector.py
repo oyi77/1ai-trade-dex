@@ -364,20 +364,13 @@ class LineMovementDetectorStrategy(BaseStrategy):
         )
 
         if confidence >= 0.75 and ctx.settings.TELEGRAM_HIGH_CONFIDENCE_ALERTS:
-            from backend.bot.notifier import notify_high_confidence_signal
+            from backend.bot.notification.registry import registry
 
-            notify_high_confidence_signal(
-                strategy=self.name,
-                market_title=movement.question[:80],
-                direction=side,
-                confidence=confidence,
-                edge=abs(movement.price_change_pct) / 100,
-                reasoning=f"Sharp {direction} move: {movement.price_change_pct:+.1f}% in 1h. Vol: ${movement.volume_24h:,.0f}",
-                market_url=(
-                    f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker}"
-                    if movement.ticker
-                    else ""
-                ),
+            await registry.send_to(
+                "telegram", "high_confidence_signal",
+                f"{self.name}|{movement.question[:80]}|{side}|{confidence}|{abs(movement.price_change_pct) / 100}|"
+                f"Sharp {direction} move: {movement.price_change_pct:+.1f}% in 1h. Vol: ${movement.volume_24h:,.0f}|"
+                f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker if movement.ticker else ''}",
             )
 
         # Size: scale with edge (price_change_pct) and volume confidence.

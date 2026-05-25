@@ -7,9 +7,9 @@ module.exports = {
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
         ADMIN_API_KEY: '24c8bfd739504a528e1d24177c8e967a',
-        LLM_DEFAULT_PROVIDER: 'openai',
-        LLM_DEBATE_PROVIDER: 'openai',
-        LLM_JUDGE_PROVIDER: 'openai',
+        LLM_DEFAULT_PROVIDER: 'groq',
+        LLM_DEBATE_PROVIDER: 'groq',
+        LLM_JUDGE_PROVIDER: 'groq',
         LLM_OPENAI_API_KEY: 'omniroute',
         LLM_OPENAI_BASE_URL: 'http://localhost:20128/v1',
         LLM_OPENAI_MODEL: 'auto/best-fast',

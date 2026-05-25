@@ -15,11 +15,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from backend.models.database import PerformanceMetric
 from backend.config import settings
+from backend.core.retry import retry
 
 from loguru import logger
 
 _MAX_DB_RETRIES = settings.PERF_TRACKER_MAX_RETRIES
-_RETRY_DELAY_S = settings.PERF_TRACKER_RETRY_DELAY
 
 
 class PercentileTracker:
@@ -59,27 +59,30 @@ class PercentileTracker:
 
 
 def _best_effort_write(db: Session, metric: PerformanceMetric) -> None:
-    """Write a PerformanceMetric row with one retry on SQLite lock contention.
+    """Write a PerformanceMetric row with retry on SQLite lock contention.
 
     Uses the engine-level WAL busy_timeout (30 s) for the first attempt.
-    Falls back to a single short retry, then silently drops the metric.
+    Falls back to retries via @retry decorator, then silently drops the metric.
     """
-    for attempt in range(_MAX_DB_RETRIES):
+    @retry(max_attempts=_MAX_DB_RETRIES)
+    def _write_metrics() -> None:
         try:
             db.add(metric)
             db.commit()
-            return
-        except (OperationalError, PendingRollbackError) as e:
-            if "database is locked" in str(e).lower() and attempt < _MAX_DB_RETRIES - 1:
+        except (OperationalError, PendingRollbackError):
+            try:
                 db.rollback()
-                time.sleep(_RETRY_DELAY_S)
-                continue
-            db.rollback()
+            except Exception:
+                pass
             raise
         except Exception:
             db.rollback()
             raise
-    logger.debug("PerformanceMetric write dropped after %d attempts", _MAX_DB_RETRIES)
+
+    try:
+        _write_metrics()
+    except Exception:
+        logger.debug("PerformanceMetric write dropped after %d attempts", _MAX_DB_RETRIES)
 
 
 class PerformanceTracker:

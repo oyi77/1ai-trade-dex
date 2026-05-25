@@ -2,7 +2,7 @@
 
 import os
 
-import ccxt
+import ccxt.async_support as ccxt_async
 import ccxt.pro as ccxtpro
 from loguru import logger
 
@@ -23,7 +23,7 @@ class AsterClient:
             "signerAddress": _address,
         }
 
-        self._exchange = ccxt.aster({
+        self._exchange = ccxt_async.aster({
             "privateKey": self._private_key,
             "walletAddress": _address,
             "options": _opts,
@@ -37,15 +37,15 @@ class AsterClient:
 
     async def get_markets(self) -> list:
         """Get all available markets."""
-        return self._exchange.load_markets()
+        return await self._exchange.load_markets()
 
     async def get_balance(self) -> dict:
         """Get account balance."""
-        return self._exchange.fetch_balance()
+        return await self._exchange.fetch_balance()
 
     async def get_positions(self) -> list:
         """Get open positions."""
-        return self._exchange.fetch_positions()
+        return await self._exchange.fetch_positions()
 
     async def place_order(
         self,
@@ -56,22 +56,26 @@ class AsterClient:
         order_type: str = "limit",
     ) -> dict:
         """Place an order."""
-        return self._exchange.create_order(symbol, order_type, side, amount, price)
+        return await self._exchange.create_order(symbol, order_type, side, amount, price)
 
     async def cancel_order(self, order_id: str, symbol: str) -> dict:
         """Cancel an order."""
-        return self._exchange.cancel_order(order_id, symbol)
+        return await self._exchange.cancel_order(order_id, symbol)
 
     async def get_ticker(self, symbol: str) -> dict:
         """Get ticker for a symbol."""
-        return self._exchange.fetch_ticker(symbol)
+        return await self._exchange.fetch_ticker(symbol)
+
+    async def get_tickers(self) -> dict:
+        """Get tickers for all symbols."""
+        return await self._exchange.fetch_tickers()
 
     async def health_check(self) -> bool:
         """Check if Aster API is available."""
         try:
-            self._exchange.fetch_time()
+            await self._exchange.fetch_time()
             return True
-        except (ConnectionError, TimeoutError):
+        except Exception:
             return False
 
     async def watch_balance(self) -> dict:
@@ -89,3 +93,8 @@ class AsterClient:
     async def close_ws(self):
         """Close WebSocket connection."""
         await self._ws_exchange.close()
+
+    async def close(self):
+        """Close REST connection."""
+        if hasattr(self._exchange, "close"):
+            await self._exchange.close()

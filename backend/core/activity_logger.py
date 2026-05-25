@@ -4,7 +4,6 @@ Logs all strategy decisions (entry/exit/hold/adjustment) to the ActivityLog tabl
 with thread-safe writes and automatic retention policy enforcement.
 """
 
-import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -15,9 +14,45 @@ from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from backend.models.database import SessionLocal, ActivityLog
 from backend.core.config_service import get_setting
+from backend.core.retry import retry
 
 # SQLite retry configuration for cross-process database lock contention
 # Uses exponential backoff to handle database locks between polyedge-bot and polyedge-api PM2 processes
+
+
+@retry(max_attempts=3)
+def _write_activity(db: Session, activity: ActivityLog) -> int:
+    """Write an ActivityLog row + commit. Retried on transient DB errors."""
+    try:
+        db.add(activity)
+        db.commit()
+        db.refresh(activity)
+        return activity.id
+    except (OperationalError, PendingRollbackError):
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+
+
+@retry(max_attempts=3)
+def _delete_old_activities(db: Session, cutoff: datetime) -> int:
+    """Delete ActivityLog rows older than cutoff + commit. Retried on transient DB errors."""
+    try:
+        deleted = (
+            db.query(ActivityLog)
+            .filter(ActivityLog.timestamp < cutoff)
+            .delete()
+        )
+        db.commit()
+        return deleted
+    except (OperationalError, PendingRollbackError):
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
 
 
 class ActivityLogger:
@@ -56,45 +91,27 @@ class ActivityLogger:
             should_close = True
 
         try:
-            # Retry with exponential backoff for cross-process database lock contention
-            max_retries = 3
-            base_delay_ms = 200
+            activity = ActivityLog(
+                timestamp=datetime.now(timezone.utc),
+                strategy_name=strategy_name,
+                decision_type=decision_type,
+                data=data,
+                confidence_score=confidence,
+                mode=mode,
+            )
+            activity_id = _write_activity(db, activity)
 
-            for attempt in range(max_retries):
-                try:
-                    activity = ActivityLog(
-                        timestamp=datetime.now(timezone.utc),
-                        strategy_name=strategy_name,
-                        decision_type=decision_type,
-                        data=data,
-                        confidence_score=confidence,
-                        mode=mode,
-                    )
-                    db.add(activity)
-                    db.commit()
-                    db.refresh(activity)
-
-                    logger.debug(
-                        f"ActivityLogger: Logged {decision_type} for {strategy_name} "
-                        f"(confidence={confidence:.2f}, mode={mode}, id={activity.id})"
-                    )
-                    return activity.id
-                except (OperationalError, PendingRollbackError):
-                    # Only retry OperationalError (database locked) or PendingRollbackError
-                    # not other errors
-                    if attempt < max_retries - 1:
-                        # Rollback to clear the session state before retrying
-                        db.rollback()
-                        delay_ms = base_delay_ms * (2**attempt)
-                        logger.warning(
-                            f"ActivityLogger: Database locked, retrying in {delay_ms}ms "
-                            f"(attempt {attempt + 1}/{max_retries})"
-                        )
-                        time.sleep(delay_ms / 1000)
-                        continue
-                    else:
-                        # Re-raise if out of retries
-                        raise
+            logger.debug(
+                f"ActivityLogger: Logged {decision_type} for {strategy_name} "
+                f"(confidence={confidence:.2f}, mode={mode}, id={activity_id})"
+            )
+            return activity_id
+        except (OperationalError, PendingRollbackError):
+            db.rollback()
+            logger.warning(
+                f"ActivityLogger: write failed after retries for {strategy_name}/{decision_type}"
+            )
+            return None
         except Exception as e:
             logger.error(f"ActivityLogger: Failed to log activity: {e}", exc_info=True)
             db.rollback()
@@ -194,42 +211,20 @@ class ActivityLogger:
 
             cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
-            # Retry with exponential backoff for cross-process database lock contention
-            max_retries = 3
-            base_delay_ms = 200
+            deleted = _delete_old_activities(db, cutoff)
 
-            for attempt in range(max_retries):
-                try:
-                    deleted = (
-                        db.query(ActivityLog)
-                        .filter(ActivityLog.timestamp < cutoff)
-                        .delete()
-                    )
-                    db.commit()
-
-                    if deleted > 0:
-                        logger.info(
-                            f"ActivityLogger: Cleaned up {deleted} activity logs "
-                            f"older than {retention_days} days"
-                        )
-
-                    return deleted
-                except (OperationalError, PendingRollbackError):
-                    # Only retry OperationalError (database locked) or PendingRollbackError
-                    # not other errors
-                    if attempt < max_retries - 1:
-                        # Rollback to clear the session state before retrying
-                        db.rollback()
-                        delay_ms = base_delay_ms * (2**attempt)
-                        logger.warning(
-                            f"ActivityLogger: Database locked during cleanup, retrying in {delay_ms}ms "
-                            f"(attempt {attempt + 1}/{max_retries})"
-                        )
-                        time.sleep(delay_ms / 1000)
-                        continue
-                    else:
-                        # Re-raise if out of retries
-                        raise
+            if deleted > 0:
+                logger.info(
+                    f"ActivityLogger: Cleaned up {deleted} activity logs "
+                    f"older than {retention_days} days"
+                )
+            return deleted
+        except (OperationalError, PendingRollbackError):
+            db.rollback()
+            logger.warning(
+                "ActivityLogger: cleanup failed after retries"
+            )
+            return 0
         except Exception as e:
             logger.error(
                 f"ActivityLogger: Failed to cleanup old activities: {e}", exc_info=True
