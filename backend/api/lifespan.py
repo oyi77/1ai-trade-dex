@@ -543,13 +543,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
 
     # --- Wire WalletRouter (multi-wallet N:N fan-out) ---
-    if settings.WALLET_ENCRYPTION_KEY and settings.WALLET_ROUTER_ENABLED:
+    encryption_key = settings.WALLET_ENCRYPTION_KEY or settings.WALLET_FERNET_KEY
+    if encryption_key and settings.WALLET_ROUTER_ENABLED:
         try:
             from backend.core.wallet_router import WalletRouter
 
             with get_db_session() as db:
                 wallet_router = WalletRouter(
-                    db, fernet_key=settings.WALLET_ENCRYPTION_KEY.encode()
+                    db, fernet_key=encryption_key.encode()
                 )
             app.state.wallet_router = wallet_router
             from backend.core.wallet.registry import set_wallet_router

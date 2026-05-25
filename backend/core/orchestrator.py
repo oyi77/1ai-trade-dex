@@ -212,6 +212,15 @@ class Orchestrator:
         register_agi_event_handlers()
         logger.info("[DEBUG] register_agi_event_handlers() completed")
 
+        # --- AGI Node Discovery ---
+        try:
+            from backend.agi.node_registry import node_registry
+
+            node_registry.auto_discover("backend.agi.nodes")
+            logger.info(f"AGI nodes discovered: {len(node_registry._plugins)}")
+        except Exception as e:
+            logger.warning(f"AGI node discovery failed: {e}")
+
         # Start real-time settlement WebSocket handler
         # if settings.is_mode_active("paper") or settings.is_mode_active("live"):
         #     try:

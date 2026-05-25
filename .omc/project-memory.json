@@ -261,14 +261,14 @@
   "hotPaths": [
     {
       "path": "backend/application/strategy/shadow_runner.py",
-      "accessCount": 158,
-      "lastAccessed": 1779719277920,
+      "accessCount": 162,
+      "lastAccessed": 1779722432097,
       "type": "file"
     },
     {
       "path": "backend/models/database.py",
-      "accessCount": 72,
-      "lastAccessed": 1779718007776,
+      "accessCount": 80,
+      "lastAccessed": 1779722603409,
       "type": "file"
     },
     {

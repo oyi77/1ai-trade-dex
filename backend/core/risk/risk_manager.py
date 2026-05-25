@@ -459,9 +459,20 @@ class RiskManager:
             )
             strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
             if strat_dd is None:
-                logger.warning(
-                    "[risk_manager] Skipping drawdown check for {} (DB error)",
+                record_signal(
+                    strategy=strategy_name, signal_type="rejected_strategy_drawdown_db_error"
+                )
+                increment_risk_rejection(
+                    strategy=strategy_name, reason="strategy_drawdown_db_error"
+                )
+                logger.error(
+                    "[risk_manager] DB error checking strategy drawdown for {}; aborting trade for capital safety.",
                     strategy_name,
+                )
+                return RiskDecision(
+                    False,
+                    f"DB error checking strategy drawdown for {strategy_name}",
+                    0.0,
                 )
             elif (
                 strat_allocation > 0

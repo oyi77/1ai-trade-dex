@@ -15,6 +15,13 @@ const LiveStream = React.lazy(() => import('./pages/LiveStream'))
 const TradingJournal = React.lazy(() => import('./pages/TradingJournal'))
 const Backtest = React.lazy(() => import('./pages/Backtest').then(m => ({ default: m.Backtest })))
 const Evals = React.lazy(() => import('./pages/Evals').then(m => ({ default: m.Evals })))
+const DecisionLog = React.lazy(() => import('./pages/DecisionLog'))
+const EdgeTracker = React.lazy(() => import('./pages/EdgeTracker'))
+const MarketIntel = React.lazy(() => import('./pages/MarketIntel'))
+const PendingApprovals = React.lazy(() => import('./pages/PendingApprovals'))
+const Settlements = React.lazy(() => import('./pages/Settlements'))
+const TradingTerminal = React.lazy(() => import('./pages/TradingTerminal'))
+const WhaleTracker = React.lazy(() => import('./pages/WhaleTracker'))
 
 /**
  * Redirect component for /docs* paths.
@@ -50,14 +57,14 @@ export default function App() {
             <Route path="/backtest" element={<Backtest />} />
             <Route path="/evals" element={<Evals />} />
             <Route path="/agi/*" element={<Navigate to="/admin" replace />} />
-            {/* Legacy standalone routes → redirect to Dashboard tabs */}
-            <Route path="/whale-tracker" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/settlements" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/market-intel" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/decisions" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/trading-terminal" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/pending-approvals" element={<Navigate to="/admin" replace />} />
-            <Route path="/edge-tracker" element={<Navigate to="/dashboard" replace />} />
+            {/* Standalone pages wired directly */}
+            <Route path="/whale-tracker" element={<WhaleTracker />} />
+            <Route path="/settlements" element={<Settlements />} />
+            <Route path="/market-intel" element={<MarketIntel />} />
+            <Route path="/decisions" element={<DecisionLog />} />
+            <Route path="/trading-terminal" element={<TradingTerminal />} />
+            <Route path="/pending-approvals" element={<PendingApprovals />} />
+            <Route path="/edge-tracker" element={<EdgeTracker />} />
             <Route path="/docs/*" element={<DocsRedirect />} />
             <Route path="/docs" element={<DocsRedirect />} />
             {/* Missing routes → map to Dashboard or Settings */}

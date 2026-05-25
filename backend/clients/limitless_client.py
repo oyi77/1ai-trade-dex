@@ -9,13 +9,11 @@ from loguru import logger
 from backend.core.eip712_signer import sign_typed_data
 
 # Limitless Exchange EIP-712 domain for Base (chain_id=8453).
-# verifyingContract: TODO — replace with the deployed Limitless exchange contract address
-# once confirmed from https://docs.limitless.exchange or on-chain.
 _LIMITLESS_DOMAIN = {
     "name": "Limitless Exchange",
     "version": "1",
     "chainId": 8453,
-    "verifyingContract": "0xTODO_LIMITLESS_CONTRACT_ADDRESS",  # TODO: fill from Limitless docs
+    "verifyingContract": os.getenv("LIMITLESS_CONTRACT_ADDRESS", "0x0000000000000000000000000000000000000000"),
 }
 
 _LIMITLESS_ORDER_TYPES = {
@@ -107,11 +105,14 @@ class LimitlessClient:
         """
         account = Account.from_key(private_key)
 
-        if "TODO" in _LIMITLESS_DOMAIN["verifyingContract"]:
+        if (
+            "TODO" in _LIMITLESS_DOMAIN["verifyingContract"]
+            or _LIMITLESS_DOMAIN["verifyingContract"] == "0x0000000000000000000000000000000000000000"
+            or not _LIMITLESS_DOMAIN["verifyingContract"]
+        ):
             raise RuntimeError(
                 "Limitless contract address not configured. "
-                "Set the verifyingContract in _LIMITLESS_DOMAIN after obtaining the "
-                "deployed exchange contract from https://docs.limitless.exchange."
+                "Set the LIMITLESS_CONTRACT_ADDRESS env var or verifyingContract in _LIMITLESS_DOMAIN."
             )
 
         # Scale price to integer (basis points: 0.50 -> 5000)
@@ -179,11 +180,14 @@ class LimitlessClient:
         """
         account = Account.from_key(private_key)
 
-        if "TODO" in _LIMITLESS_DOMAIN["verifyingContract"]:
+        if (
+            "TODO" in _LIMITLESS_DOMAIN["verifyingContract"]
+            or _LIMITLESS_DOMAIN["verifyingContract"] == "0x0000000000000000000000000000000000000000"
+            or not _LIMITLESS_DOMAIN["verifyingContract"]
+        ):
             raise RuntimeError(
                 "Limitless contract address not configured. "
-                "Set the verifyingContract in _LIMITLESS_DOMAIN after obtaining the "
-                "deployed exchange contract from https://docs.limitless.exchange."
+                "Set the LIMITLESS_CONTRACT_ADDRESS env var or verifyingContract in _LIMITLESS_DOMAIN."
             )
 
         nonce = int(time.time() * 1000)

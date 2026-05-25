@@ -37,8 +37,12 @@ def sign_typed_data(private_key: str, domain: dict, types: dict, primary_type: s
     )
     signed = account.sign_message(encoded)
 
+    sig_hex = signed.signature.hex()
+    if not sig_hex.startswith("0x"):
+        sig_hex = "0x" + sig_hex
+
     logger.debug("EIP-712 signed: primary_type={}, signer={}", primary_type, account.address)
-    return signed.signature.hex()
+    return sig_hex
 
 
 def recover_typed_data_signer(domain: dict, types: dict, primary_type: str, message: dict, signature: str) -> str:

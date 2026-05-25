@@ -115,11 +115,14 @@ class SXBetClient:
             "expiration": expiration,
         }
 
-        if "TODO" in _SXBET_DOMAIN["verifyingContract"]:
+        if (
+            "TODO" in _SXBET_DOMAIN["verifyingContract"]
+            or _SXBET_DOMAIN["verifyingContract"] == "0x0000000000000000000000000000000000000000"
+            or not _SXBET_DOMAIN["verifyingContract"]
+        ):
             raise RuntimeError(
                 "SX.bet contract address not configured. "
-                "Set the verifyingContract in _SXBET_DOMAIN after obtaining the "
-                "deployed exchange contract from https://docs.sx.bet."
+                "Set the SXBET_CONTRACT_ADDRESS env var or verifyingContract in _SXBET_DOMAIN."
             )
 
         signature = sign_typed_data(

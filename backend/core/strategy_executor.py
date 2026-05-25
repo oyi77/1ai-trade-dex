@@ -1549,9 +1549,9 @@ async def _execute_decision_live_clob(
                                     f"[{mode.upper()}][{strategy_name}] Retrying with refreshed mid price {entry_price:.4f}"
                                 )
                                 continue
-                            except Exception as refresh_err:
-                                logger.warning(
-                                    f"Failed to refresh mid price: {refresh_err}"
+                            except Exception:
+                                logger.exception(
+                                    "Failed to refresh mid price"
                                 )
                         attempt_recorder.record_rejected(
                             err_msg,

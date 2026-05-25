@@ -100,9 +100,9 @@ class RiskMonitor:
                 )
                 if config and config.risk_tier:
                     return config.risk_tier
-        except Exception as e:
-            logger.bind(task="safety", strategy=strategy_key).warning(
-                "Failed to read risk tier from DB: {}", e
+        except Exception:
+            logger.bind(task="safety", strategy=strategy_key).exception(
+                "Failed to read risk tier from DB"
             )
 
         # Compute tier from strategy metrics
@@ -198,9 +198,9 @@ class RiskMonitor:
             else:
                 return "crazy"
 
-        except Exception as e:
-            logger.bind(task="safety", strategy=strategy_key).warning(
-                "Failed to compute risk tier: {}", e
+        except Exception:
+            logger.bind(task="safety", strategy=strategy_key).exception(
+                "Failed to compute risk tier"
             )
             return "moderate"
 
@@ -230,9 +230,9 @@ class RiskMonitor:
                 logger.bind(task="safety", strategy=strategy_key).info(
                     "Persisted risk tier to {}", tier
                 )
-        except Exception as e:
-            logger.bind(task="safety", strategy=strategy_key).error(
-                "Failed to persist risk tier: {}", e
+        except Exception:
+            logger.bind(task="safety", strategy=strategy_key).exception(
+                "Failed to persist risk tier"
             )
 
     def record_alert(

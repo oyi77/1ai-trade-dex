@@ -710,9 +710,9 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
             event_slug=getattr(trade, "event_slug", None),
             condition_id=getattr(trade, "condition_id", None),
         )
-    except Exception as e:
-        logger.warning(
-            f"[settlement] Resolution fetch failed for {trade.market_ticker} (platform={platform}): {type(e).__name__}: {e}"
+    except Exception:
+        logger.exception(
+            f"[settlement] Resolution fetch failed for {trade.market_ticker} (platform={platform})"
         )
 
     # BTC up/down 5-min fallback: resolve via Binance price data
@@ -722,9 +722,9 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
             result = await _resolve_btc_updown_via_binance(ticker)
             if result is not None:
                 return True, result
-        except Exception as e:
-            logger.warning(
-                f"[settlement] BTC Binance fallback failed for {ticker}: {e}"
+        except Exception:
+            logger.exception(
+                f"[settlement] BTC Binance fallback failed for {ticker}"
             )
 
     # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports

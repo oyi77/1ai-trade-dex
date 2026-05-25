@@ -4,13 +4,15 @@ Position Sizer — Kelly Criterion and dynamic position sizing.
 Quarter-Kelly for conservative sizing.
 """
 
+from typing import Optional
+from backend.config import settings
+
 # Hard limits
 MIN_POSITION_USD = 5.0
 MAX_POSITION_USD = 50.0
-KELLY_FRACTION = 0.25  # Quarter-Kelly
 
 
-def kelly_criterion(win_rate: float, avg_win: float, avg_loss: float) -> float:
+def kelly_criterion(win_rate: float, avg_win: float, avg_loss: float, kelly_fraction: float = 0.25) -> float:
     """
     Calculate optimal Kelly fraction.
     f* = (p * b - q) / b
@@ -30,7 +32,7 @@ def kelly_criterion(win_rate: float, avg_win: float, avg_loss: float) -> float:
     # Clamp to [0, 1] before applying quarter-Kelly
     f_star = max(0.0, min(1.0, f_star))
 
-    return f_star * KELLY_FRACTION
+    return f_star * kelly_fraction
 
 
 def calculate_position_size(
@@ -41,6 +43,7 @@ def calculate_position_size(
     win_rate: float = 0.5,
     avg_win: float = 1.0,
     avg_loss: float = 1.0,
+    kelly_fraction: float = 0.25,
 ) -> float:
     """
     Position sizing accounting for Kelly, confidence, liquidity, and hard limits.
@@ -53,6 +56,7 @@ def calculate_position_size(
         win_rate: Historical win rate 0-1
         avg_win: Average win multiplier
         avg_loss: Average loss multiplier
+        kelly_fraction: Optional Kelly fraction override
 
     Returns:
         Position size in USD, clamped to [MIN_POSITION_USD, MAX_POSITION_USD]
@@ -61,7 +65,7 @@ def calculate_position_size(
         return 0.0
 
     # Kelly base sizing
-    kelly_frac = kelly_criterion(win_rate, avg_win, avg_loss)
+    kelly_frac = kelly_criterion(win_rate, avg_win, avg_loss, kelly_fraction)
     base_size = capital * kelly_frac
 
     # Confidence discount (lower confidence = smaller size)
@@ -84,3 +88,4 @@ def calculate_position_size(
     size = min(size, MAX_POSITION_USD)
 
     return round(size, 2)
+
