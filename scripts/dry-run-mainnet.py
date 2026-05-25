@@ -84,18 +84,11 @@ async def test_clob_connectivity(clob: PolymarketCLOB):
     # 1c: API credential derivation (L1)
     if clob._clob_client:
         try:
-            creds = await asyncio.to_thread(
-                clob._clob_client.create_or_derive_api_creds
-            )
+            creds = await clob.create_or_derive_api_key()
             if creds:
                 _result(
                     "API key derivation (L1)", True, f"Key: {creds.api_key[:20]}..."
                 )
-                # Now set creds for L2
-                clob._clob_client.set_api_creds(creds)
-                clob.api_key = creds.api_key
-                clob.api_secret = creds.api_secret
-                clob.api_passphrase = creds.api_passphrase
             else:
                 _result("API key derivation (L1)", False, "Returned None")
         except Exception as e:
@@ -103,7 +96,7 @@ async def test_clob_connectivity(clob: PolymarketCLOB):
 
         # 1d: Builder auth check
         try:
-            can_builder = clob._clob_client.can_builder_auth()
+            can_builder = bool(clob._clob_client.builder_config and clob._clob_client.builder_config.builder_address)
             _result("Builder auth capable", can_builder, f"Builder auth: {can_builder}")
         except Exception as e:
             _result("Builder auth capable", False, str(e))
@@ -406,6 +399,25 @@ async def test_strategy_executor_dry_run():
         original_mode = s.TRADING_MODE
         s.TRADING_MODE = "paper"  # Force paper mode for safety
 
+        from backend.core.mode_context import ModeExecutionContext, register_context
+        from backend.core.risk_manager import RiskManager
+        from backend.data.polymarket_clob import PolymarketCLOB
+
+        clob_client = PolymarketCLOB(
+            private_key=s.POLYMARKET_PRIVATE_KEY,
+            mode="paper",
+        )
+        risk_manager = RiskManager()
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=clob_client,
+                risk_manager=risk_manager,
+                strategy_configs={},
+            )
+        )
+
         decision = {
             "market_ticker": "DRY_RUN_TEST_MARKET",
             "direction": "up",
@@ -419,7 +431,7 @@ async def test_strategy_executor_dry_run():
             "market_type": "btc",
         }
 
-        result = await execute_decision(decision, strategy_name="dry_run_test", db=db)
+        result = await execute_decision(decision, strategy_name="dry_run_test", mode="paper", db=db)
 
         if result:
             _result(
@@ -479,6 +491,7 @@ async def main():
         builder_api_key=settings.POLYMARKET_BUILDER_API_KEY,
         builder_secret=settings.POLYMARKET_BUILDER_SECRET,
         builder_passphrase=settings.POLYMARKET_BUILDER_PASSPHRASE,
+        builder_address=settings.POLYMARKET_BUILDER_ADDRESS,
         signature_type=settings.POLYMARKET_SIGNATURE_TYPE,
     ) as clob:
         await test_clob_connectivity(clob)
@@ -494,10 +507,11 @@ async def main():
         builder_api_key=settings.POLYMARKET_BUILDER_API_KEY,
         builder_secret=settings.POLYMARKET_BUILDER_SECRET,
         builder_passphrase=settings.POLYMARKET_BUILDER_PASSPHRASE,
+        builder_address=settings.POLYMARKET_BUILDER_ADDRESS,
         signature_type=settings.POLYMARKET_SIGNATURE_TYPE,
     ) as clob2:
         # Derive L2 creds first
-        await clob2.create_or_derive_api_creds()
+        await clob2.create_or_derive_api_key()
         await test_order_creation_dry_run(clob2)
 
     await test_settlement_flow()

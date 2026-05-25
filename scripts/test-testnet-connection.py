@@ -23,6 +23,7 @@ async def test_testnet():
     builder_key = os.getenv("POLYMARKET_BUILDER_API_KEY")
     builder_secret = os.getenv("POLYMARKET_BUILDER_SECRET")
     builder_pass = os.getenv("POLYMARKET_BUILDER_PASSPHRASE")
+    builder_address = os.getenv("POLYMARKET_BUILDER_ADDRESS")
 
     # NOTE: Testnet mode uses mainnet CLOB with Builder auth (gasless trading).
     print("=" * 60)
@@ -46,6 +47,7 @@ async def test_testnet():
         builder_api_key=builder_key,
         builder_secret=builder_secret,
         builder_passphrase=builder_pass,
+        builder_address=builder_address,
         signature_type=settings.POLYMARKET_SIGNATURE_TYPE,
     ) as clob:
         print(f"  Account:    {clob._account.address if clob._account else 'N/A'}")
@@ -73,7 +75,7 @@ async def test_testnet():
         print("TEST 2: Derive API credentials from PK...")
         try:
             if clob._clob_client:
-                api_creds = clob._clob_client.create_or_derive_api_creds()
+                api_creds = await clob.create_or_derive_api_key()
                 if api_creds:
                     print(f"  ✓ API Key derived: {api_creds.api_key[:20]}...")
                     print(f"  ✓ API Secret: {api_creds.api_secret[:10]}...")
@@ -113,7 +115,7 @@ async def test_testnet():
         print("TEST 4: Builder Program authentication...")
         try:
             if clob._clob_client and builder_key:
-                can_builder = clob._clob_client.can_builder_auth()
+                can_builder = bool(clob._clob_client.builder_config and clob._clob_client.builder_config.builder_address)
                 print(f"  ✓ Builder auth capable: {can_builder}")
             else:
                 print("  ✗ Builder credentials not configured")
