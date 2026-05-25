@@ -37,5 +37,27 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 5000,
     },
+    {
+      name: 'polyedge-frontend',
+      script: '/home/openclaw/projects/1ai-poly-trader/frontend/node_modules/.bin/vite',
+      args: '--host',
+      cwd: '/home/openclaw/projects/1ai-poly-trader/frontend',
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 3000,
+    },
+    {
+      name: 'mirofish-backend',
+      script: '/home/openclaw/projects/mirofish/backend/venv/bin/python',
+      args: '/home/openclaw/projects/mirofish/backend/run.py',
+      cwd: '/home/openclaw/projects/mirofish/backend',
+      env: {
+        FLASK_PORT: '5001',
+        FLASK_DEBUG: 'false',
+      },
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 3000,
+    },
   ],
 };

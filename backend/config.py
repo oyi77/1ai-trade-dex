@@ -1460,6 +1460,7 @@ class ConfigRegistry:
     KALSHI_API_KEY: str = ""
     KALSHI_API_SECRET: str = ""
     RISK_PROFILE: str = "default"
+    ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS: Optional[int] = None  # set by apply_profile()
     WALLET_PRIVATE_KEY: str = ""
     WALLET_ADDRESS: str = ""
     SAFETY_MAX_POSITION_SIZE: float = 0.1

@@ -62,6 +62,7 @@ class RiskProfile:
     daily_loss_floor_pct: float = -0.10
     weekly_loss_floor_pct: float = -0.20
     longshot_no_bias_weight: float = 0.10
+    orchestrator_interval_seconds: int = 300  # how often each strategy is polled (default 5 min)
     is_preset: bool = False
 
     def to_row(self) -> RiskProfileRow:
@@ -100,6 +101,7 @@ PRESETS: Dict[str, RiskProfile] = {
         auto_approve_min_confidence=0.70,
         daily_loss_limit_pct=0.05,
         longshot_no_bias_weight=0.05,
+        orchestrator_interval_seconds=600,  # 10 min — ultra-safe
     ),
     # conservative sits between safe and normal — suitable for strategies that
     # have passed paper validation but haven't yet proven live performance.
@@ -119,6 +121,7 @@ PRESETS: Dict[str, RiskProfile] = {
         auto_approve_min_confidence=0.60,
         daily_loss_limit_pct=0.07,
         longshot_no_bias_weight=0.07,
+        orchestrator_interval_seconds=480,  # 8 min
     ),
     "normal": RiskProfile(
         name="normal",
@@ -136,6 +139,7 @@ PRESETS: Dict[str, RiskProfile] = {
         auto_approve_min_confidence=0.50,
         daily_loss_limit_pct=0.10,
         longshot_no_bias_weight=0.10,
+        orchestrator_interval_seconds=300,  # 5 min — default
     ),
     "aggressive": RiskProfile(
         name="aggressive",
@@ -153,6 +157,7 @@ PRESETS: Dict[str, RiskProfile] = {
         auto_approve_min_confidence=0.35,
         daily_loss_limit_pct=0.20,
         longshot_no_bias_weight=0.12,
+        orchestrator_interval_seconds=60,  # 1 min
     ),
     "extreme": RiskProfile(
         name="extreme",
@@ -172,6 +177,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_floor_pct=-0.40,
         weekly_loss_floor_pct=-0.60,
         longshot_no_bias_weight=0.15,
+        orchestrator_interval_seconds=30,  # 30 sec
     ),
     # crazy tier is for unlimited paper experimentation only. BankrollAllocator
     # caps live allocation at 1% of bankroll for crazy-tier strategies.
@@ -194,6 +200,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_floor_pct=-0.80,
         weekly_loss_floor_pct=-0.95,
         longshot_no_bias_weight=0.20,
+        orchestrator_interval_seconds=15,  # 15 sec — crazy fast
     ),
     "maximum_overdrive": RiskProfile(
         name="maximum_overdrive",
@@ -213,6 +220,7 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_floor_pct=-1.00,
         weekly_loss_floor_pct=-1.00,
         longshot_no_bias_weight=0.20,
+        orchestrator_interval_seconds=5,  # 5 sec — maximum aggression
     ),
 }
 
@@ -408,11 +416,14 @@ def apply_profile(
     settings.DAILY_LOSS_FLOOR_PCT = profile.daily_loss_floor_pct
     settings.WEEKLY_LOSS_FLOOR_PCT = profile.weekly_loss_floor_pct
     settings.LONGSHOT_NO_BIAS_WEIGHT = profile.longshot_no_bias_weight
+    # Expose the profile's preferred strategy poll interval for the scheduler
+    settings.ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS = profile.orchestrator_interval_seconds
 
     _persist_profile_name(profile.name)
 
     logger.info(
-        f"[risk_profiles] Applied profile '{profile.display_name}' to runtime settings"
+        f"[risk_profiles] Applied profile '{profile.display_name}' to runtime settings "
+        f"(strategy interval: {profile.orchestrator_interval_seconds}s)"
     )
     return profile
 
