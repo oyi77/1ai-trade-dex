@@ -46,7 +46,8 @@ class TestNotificationRegistry:
         assert registry._health_status["mock"] is True
 
     @patch.dict(os.environ, {"SHADOW_MODE": ""})
-    def test_register_provider_missing_env_vars(self):
+    def test_register_provider_missing_env_vars_registers_anyway(self):
+        # NotificationRegistry uses env_var_check=False — registers even without env vars
         class EnvProvider(BaseNotificationProvider):
             @classmethod
             def manifest(cls):
@@ -63,8 +64,8 @@ class TestNotificationRegistry:
             async def health_check(self):
                 return True
 
-        with pytest.raises(PluginEnvVarMissing):
-            registry.register(EnvProvider)
+        registry.register(EnvProvider)
+        assert "env_provider" in registry._plugins
 
     def test_send_to_unregistered_channel(self):
         registry.register(MockProvider)

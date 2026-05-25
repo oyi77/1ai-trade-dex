@@ -86,6 +86,16 @@ class NotificationRegistry(PluginRegistry[NotificationManifest, BaseNotification
             logger.error(f"Failed to send notification via '{channel_name}': {e}")
             return False
 
+    # ── Backward-compatible aliases ──
+
+    def list_available(self) -> List[str]:
+        """Legacy alias — returns list of enabled provider names."""
+        return self.get_enabled()
+
+    async def health_check_all(self) -> dict:
+        """Legacy alias for run_health_checks."""
+        return await self.run_health_checks()
+
     async def send_alert(
         self, title: str = "", message: str = "", level: str = "info"
     ) -> bool:
