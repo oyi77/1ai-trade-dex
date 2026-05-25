@@ -18,7 +18,6 @@ from backend.backtesting.base import (
     BacktestStrategyRunnerManifest,
 )
 
-
 class BacktestingPyAdapter(BaseBacktestStrategyRunner):
     """Adapter that wraps backtesting.py's Backtest for PolyEdge strategies.
 

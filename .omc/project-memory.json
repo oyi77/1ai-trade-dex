@@ -494,6 +494,12 @@
       "type": "file"
     },
     {
+      "path": "backend/data/arb_opportunity_scanner.py",
+      "accessCount": 2,
+      "lastAccessed": 1779725124242,
+      "type": "file"
+    },
+    {
       "path": "backend/strategies/line_movement_detector.py",
       "accessCount": 1,
       "lastAccessed": 1779655645686,
@@ -515,12 +521,6 @@
       "path": "backend/strategies/arb_executor.py",
       "accessCount": 1,
       "lastAccessed": 1779686403490,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/arb_opportunity_scanner.py",
-      "accessCount": 1,
-      "lastAccessed": 1779686421518,
       "type": "file"
     },
     {

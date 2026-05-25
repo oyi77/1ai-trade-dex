@@ -5,11 +5,8 @@ Background scheduler for multi-strategy autonomous trading.
 This module manages the APScheduler instance and scheduling configuration.
 The actual job functions are in scheduling_strategies.py.
 
-
 This module will be removed in a future release.
 """
-
-
 
 import asyncio
 import datetime as dt_module
@@ -95,12 +92,10 @@ task_manager: Optional[TaskManager] = None
 # Concurrency guard for scheduler state mutations (threading.Lock since start_scheduler is sync)
 _scheduler_state_lock = threading.Lock()
 
-
 def _get_scheduler() -> Optional[AsyncIOScheduler]:
     """Thread-safe accessor for the module-level scheduler."""
     with _scheduler_state_lock:
         return scheduler
-
 
 def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
     """Thread-safe setter for the module-level scheduler."""
@@ -108,12 +103,10 @@ def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
     with _scheduler_state_lock:
         scheduler = value
 
-
 # Event log for terminal display (in-memory, last 200 events)
 event_log: List[dict] = []
 MAX_LOG_SIZE = 200
 _event_log_lock = threading.Lock()
-
 
 def _register_evolution_jobs(target_scheduler) -> None:
     """Register evolution scheduler jobs using config-driven intervals."""
@@ -162,7 +155,6 @@ def _register_evolution_jobs(target_scheduler) -> None:
         settings.AGI_MUTATION_INTERVAL_HOURS,
     )
 
-
 def log_event(event_type: str, message: str, data: dict = None):
     """Log an event for terminal display."""
     event = {
@@ -188,12 +180,10 @@ def log_event(event_type: str, message: str, data: dict = None):
 
     log_func(f"[{event_type.upper()}] {message}")
 
-
 def get_recent_events(limit: int = 50) -> List[dict]:
     """Get recent events for terminal display."""
     with _event_log_lock:
         return list(event_log[-limit:])
-
 
 JOB_FUNCTION_REGISTRY = {
     "settlement_job": settlement_job,
@@ -215,14 +205,12 @@ JOB_FUNCTION_REGISTRY = {
     "wallet_reconciler_job": wallet_reconciler_job,
 }
 
-
 def _serialize_trigger(trigger) -> dict:
     if isinstance(trigger, IntervalTrigger):
         interval = getattr(trigger, "interval", None)
         seconds = int(interval.total_seconds()) if interval is not None else None
         return {"type": "interval", "seconds": seconds}
     return {"type": "unknown", "repr": repr(trigger)}
-
 
 def save_scheduler_state(
     job_id: str,
@@ -261,7 +249,6 @@ def save_scheduler_state(
     except Exception as exc:
         logger.warning(f"Failed to persist scheduled job '{job_id}': {exc}")
 
-
 def _persist_and_add_job(
     sched: AsyncIOScheduler,
     func,
@@ -293,7 +280,6 @@ def _persist_and_add_job(
     if misfire_grace_time is not None:
         add_kwargs["misfire_grace_time"] = misfire_grace_time
     return sched.add_job(func, trigger, **add_kwargs)
-
 
 def load_scheduler_state(sched: AsyncIOScheduler) -> int:
     """Reload all enabled persisted jobs into the scheduler. Returns count restored."""
@@ -342,7 +328,6 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
         logger.warning(f"load_scheduler_state failed: {exc}")
     return restored
 
-
 def schedule_strategy(
     strategy_name: str, interval_seconds: int, mode: str = "paper"
 ) -> None:
@@ -380,7 +365,6 @@ def schedule_strategy(
         f"Scheduled strategy {strategy_name} for mode {mode} every {interval_seconds}s (job_id={job_id})"
     )
 
-
 def unschedule_strategy(
     strategy_name: str, mode: str = "paper", interval_seconds: int = 60
 ) -> None:
@@ -398,7 +382,6 @@ def unschedule_strategy(
         )
         logger.warning(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
 
-
 def get_scheduler_jobs() -> list[dict]:
     """Return current scheduled jobs info."""
     sched = _get_scheduler()
@@ -412,7 +395,6 @@ def get_scheduler_jobs() -> list[dict]:
         }
         for job in sched.get_jobs()
     ]
-
 
 def _load_strategy_jobs() -> None:
     """Read StrategyConfig table and schedule enabled strategies for all modes."""
@@ -437,7 +419,6 @@ def _load_strategy_jobs() -> None:
 
     # Register WS-driven strategies with event bus
     _register_event_driven_strategies()
-
 
 def _register_event_driven_strategies() -> None:
     """Register strategies that support WS events with the event bus."""
@@ -475,7 +456,6 @@ def _register_event_driven_strategies() -> None:
             )
     logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
-
 def _job_executed_listener(event):
     """Update ScheduledJob.last_run after each job completes."""
     job_id = event.job_id
@@ -494,7 +474,6 @@ def _job_executed_listener(event):
                 db.commit()
     except Exception as exc:
         logger.debug(f"Failed to update last_run for job '{job_id}': {exc}")
-
 
 def start_scheduler():
     """Start the background scheduler for multi-strategy trading."""
@@ -1597,7 +1576,6 @@ def start_scheduler():
     except Exception as e:
         logger.warning("Could not register research event triggers: %s", e)
 
-
 def stop_scheduler():
     """Stop the background scheduler."""
     global worker, queue, worker_task
@@ -1635,12 +1613,10 @@ def stop_scheduler():
     _set_scheduler(None)
     log_event("info", "Scheduler stopped")
 
-
 def is_scheduler_running() -> bool:
     """Check if scheduler is currently running."""
     sched = _get_scheduler()
     return sched is not None and sched.running
-
 
 def reschedule_jobs() -> list[dict]:
     """Reschedule jobs with current settings values. Call after settings update."""
@@ -1710,18 +1686,15 @@ def reschedule_jobs() -> list[dict]:
     log_event("info", f"Scheduler jobs rescheduled: {[r['job_id'] for r in results]}")
     return results
 
-
 async def run_manual_scan(mode: str = "paper"):
     """Trigger a manual market scan."""
     log_event("info", f"Manual scan triggered for mode: {mode}")
     await scan_and_trade_job(mode)
 
-
 async def run_manual_settlement():
     """Trigger a manual settlement check."""
     log_event("info", "Manual settlement triggered")
     await settlement_job()
-
 
 # Add monitoring job
 async def monitoring_job():
@@ -1738,7 +1711,6 @@ async def monitoring_job():
         logger.error(f"❌ Monitoring check failed: {e}")
     finally:
         db.close()
-
 
 def performance_decay_check_job():
     """G-09: Detect strategy performance decay by comparing 24h vs 7d win rates.

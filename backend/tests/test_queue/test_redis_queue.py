@@ -8,7 +8,6 @@ import socket
 
 import pytest
 
-
 def _redis_available() -> bool:
     """Return True if a local Redis server is reachable on 127.0.0.1:6379."""
     try:
@@ -18,21 +17,17 @@ def _redis_available() -> bool:
     except OSError:
         return False
 
-
 def _arq_available() -> bool:
     """Return True if arq is installed."""
     try:
-        import arq  # noqa: F401
 
         return True
     except ImportError:
         return False
 
-
 # ---------------------------------------------------------------------------
 # Factory routing tests
 # ---------------------------------------------------------------------------
-
 
 class TestQueueFactory:
     def test_redis_queue_factory_selects_sqlite(self, monkeypatch):
@@ -64,11 +59,9 @@ class TestQueueFactory:
         queue = create_queue()
         assert isinstance(queue, RedisQueue)
 
-
 # ---------------------------------------------------------------------------
 # RedisQueue unit tests (no live Redis required)
 # ---------------------------------------------------------------------------
-
 
 @pytest.mark.skipif(not _arq_available(), reason="arq not installed")
 class TestRedisQueueUnit:
@@ -121,11 +114,9 @@ class TestRedisQueueUnit:
         with pytest.raises(ValueError, match="payload must be a dictionary"):
             await q.enqueue("market_scan", "not a dict")
 
-
 # ---------------------------------------------------------------------------
 # Live arq tests (requires Redis)
 # ---------------------------------------------------------------------------
-
 
 @pytest.mark.skipif(
     not (_arq_available() and _redis_available()),

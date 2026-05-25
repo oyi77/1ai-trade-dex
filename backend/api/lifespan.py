@@ -31,7 +31,6 @@ from backend.core.bankroll_reconciliation import reconcile_bot_state
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.db.utils import get_db_session
 
-
 def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
     """Keep best-effort startup writes from blocking API availability."""
 
@@ -44,7 +43,6 @@ def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
         db.execute(text(f"PRAGMA busy_timeout={int(timeout_ms)}"))
     except Exception as exc:
         logger.debug(f"Failed to set startup SQLite busy_timeout={timeout_ms}: {exc}")
-
 
 class GracefulShutdownHandler:
     """Handles graceful shutdown on SIGTERM/SIGINT with timeout."""
@@ -83,7 +81,6 @@ class GracefulShutdownHandler:
             return 0.0
         return time.time() - self.start_time
 
-
 async def _refresh_balance_cache():
     """Refresh the cached wallet balance from CLOB."""
     if not any(m in ("live", "testnet") for m in settings.active_modes_set):
@@ -107,7 +104,6 @@ async def _refresh_balance_cache():
             f"[api.main.refresh_balance_cache] {type(e).__name__}: Failed to refresh balance cache: {e}",
             exc_info=True,
         )
-
 
 async def _stats_broadcaster():
     """Background task that periodically broadcasts stats to WebSocket subscribers."""
@@ -150,7 +146,6 @@ async def _stats_broadcaster():
                 exc_info=True,
             )
         await asyncio.sleep(1)
-
 
 async def _startup_polymarket_websocket():
     """Initialize and start Polymarket WebSocket connections."""
@@ -350,7 +345,6 @@ async def _startup_polymarket_websocket():
     _polymarket_ws_tasks["market"] = market_ws_task
     _polymarket_ws_tasks["user"] = user_ws_task
 
-
 async def _startup_bankroll_reconciliation():
     """Perform bankroll reconciliation at startup."""
     try:
@@ -370,20 +364,16 @@ async def _startup_bankroll_reconciliation():
             exc_info=True,
         )
 
-
 # Global reference to app (for use in inner functions)
 _app_ref = None
-
 
 def _get_app():
     """Get the FastAPI app reference."""
     return _app_ref
 
-
 # Global state for background tasks and caches
 _balance_cache = {"balance": None, "timestamp": 0, "mode": settings.TRADING_MODE}
 _polymarket_ws_tasks = {"market": None, "user": None}
-
 
 async def _redis_log_bridge():
     """Background task that bridges logs from Redis to the internal EventBus."""
@@ -421,7 +411,6 @@ async def _redis_log_bridge():
             import asyncio
 
             await asyncio.sleep(5)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -793,7 +782,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"SHUTDOWN COMPLETE (took {elapsed:.1f}s)")
     logger.info("=" * 60)
 
-
 async def _startup_wallet_sync():
     """Perform wallet sync during startup."""
     try:
@@ -824,7 +812,6 @@ async def _startup_wallet_sync():
                     )
     except Exception as e:
         logger.warning(f"Wallet sync failed: {e}", exc_info=True)
-
 
 async def _seed_strategy_configs() -> None:
     """Seed default strategy configurations into the database.

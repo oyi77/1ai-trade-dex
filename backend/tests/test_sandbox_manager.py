@@ -2,7 +2,6 @@ import pytest
 from backend.agi.sandbox.sandbox_manager import SandboxManager
 from backend.agi.sandbox.results import SandboxResult
 
-
 class TestSandboxManager:
     def setup_method(self):
         # Import nodes to trigger @node_registry.plugin decorators and populate the registry

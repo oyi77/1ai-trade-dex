@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.market_risk import X' keeps working.
 """
 
-from backend.core.risk.market_risk import *  # noqa: F401,F403
+from backend.core.risk.market_risk import *

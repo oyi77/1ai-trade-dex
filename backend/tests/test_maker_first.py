@@ -16,14 +16,12 @@ from types import SimpleNamespace
 
 import pytest
 
-
 @pytest.fixture
 def clob():
     """A real PolymarketCLOB instance in paper mode for deterministic fills."""
     from backend.data.polymarket_clob import PolymarketCLOB
 
     return PolymarketCLOB(mode="paper")
-
 
 @pytest.mark.asyncio
 async def test_method_exists(clob):
@@ -32,7 +30,6 @@ async def test_method_exists(clob):
         "PolymarketCLOB must expose place_maker_first_order("
         "token_id, side, size, edge_pp, timeout)"
     )
-
 
 @pytest.mark.asyncio
 async def test_high_edge_skips_maker_uses_taker(clob):
@@ -47,7 +44,6 @@ async def test_high_edge_skips_maker_uses_taker(clob):
     assert result.success is True
     assert getattr(result, "maker_filled", False) is False
 
-
 @pytest.mark.asyncio
 async def test_low_edge_posts_maker_and_fills(clob):
     """edge_pp < 20 → post limit (maker) order, paper mode reports maker fill."""
@@ -60,7 +56,6 @@ async def test_low_edge_posts_maker_and_fills(clob):
     )
     assert result.success is True
     assert getattr(result, "maker_filled", False) is True
-
 
 @pytest.mark.asyncio
 async def test_unfilled_maker_escalates_to_taker(monkeypatch, clob):
@@ -112,7 +107,6 @@ async def test_unfilled_maker_escalates_to_taker(monkeypatch, clob):
     assert not getattr(
         result, "maker_filled", False
     ), "maker_filled must be False when taker escalation was used"
-
 
 @pytest.mark.asyncio
 async def test_maker_fill_rate_metric_incremented(clob):

@@ -5,7 +5,6 @@ from typing import Dict
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
 from backend.monitoring.backends.registry import plugin
 
-
 @plugin
 class CloudWatchBackend(BaseMetricsBackend):
     def __init__(self):
@@ -13,7 +12,6 @@ class CloudWatchBackend(BaseMetricsBackend):
         self.enabled = True
 
         try:
-            import boto3  # noqa: F401
 
             self._boto3_available = True
             self._client = None
@@ -34,7 +32,6 @@ class CloudWatchBackend(BaseMetricsBackend):
         if not self._boto3_available:
             return None
         if self._client is None:
-            import boto3  # noqa: F401
 
             self._client = boto3.client("cloudwatch")
         return self._client

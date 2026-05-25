@@ -136,7 +136,7 @@ def check_rollback_needed(
 
     # Gather settled trades since the change was applied (scoped to strategy when possible)
     trade_filter = [
-        Trade.settled.is_(True),  # noqa: E712
+        Trade.settled.is_(True),
         Trade.settlement_time >= applied_at,
         Trade.result.in_(("win", "loss")),
     ]
@@ -379,7 +379,7 @@ async def _write_outcomes_to_brain(db: Session, bigbrain: BigBrainClient) -> Non
         trades = (
             db.query(Trade)
             .filter(
-                Trade.settled.is_(True),  # noqa: E712
+                Trade.settled.is_(True),
                 Trade.settlement_time >= week_ago,
             )
             .limit(50)

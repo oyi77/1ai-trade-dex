@@ -19,7 +19,6 @@ from backend.core.agi_types import (  # noqa: F401
 )
 from backend.models.database import Base
 
-
 @pytest.fixture
 def agi_db():
     engine = create_engine("sqlite:///:memory:")
@@ -44,7 +43,6 @@ def agi_db():
     yield session
     session.close()
 
-
 @pytest.fixture
 def regime_data_bull():
     return {
@@ -57,7 +55,6 @@ def regime_data_bull():
         "drawdown": 0.02,
         "volume_trend": 0.5,
     }
-
 
 @pytest.fixture
 def regime_data_bear():
@@ -72,7 +69,6 @@ def regime_data_bear():
         "volume_trend": -0.5,
     }
 
-
 @pytest.fixture
 def regime_data_sideways():
     return {
@@ -85,7 +81,6 @@ def regime_data_sideways():
         "drawdown": 0.01,
         "volume_trend": 0.0,
     }
-
 
 @pytest.fixture
 def regime_data_crisis():
@@ -100,7 +95,6 @@ def regime_data_crisis():
         "volume_trend": -0.8,
     }
 
-
 @pytest.fixture
 def sample_kg_entity():
     return KGEntity(
@@ -108,7 +102,6 @@ def sample_kg_entity():
         entity_id="btc_momentum",
         properties={"win_rate": 0.65, "sharpe": 1.2},
     )
-
 
 @pytest.fixture
 def sample_kg_relation():
@@ -121,7 +114,6 @@ def sample_kg_relation():
         timestamp=datetime(2026, 4, 30, tzinfo=timezone.utc),
     )
 
-
 @pytest.fixture
 def sample_strategy_block():
     return StrategyBlock(
@@ -132,7 +124,6 @@ def sample_strategy_block():
         exit_rule="take_profit_10pct",
     )
 
-
 @pytest.fixture
 def mock_llm_response():
     return {
@@ -141,7 +132,6 @@ def mock_llm_response():
         "cost_usd": 0.05,
         "token_count": 500,
     }
-
 
 @pytest.fixture
 def mock_market_data():
@@ -156,12 +146,10 @@ def mock_market_data():
         "volume_trend": 0.2,
     }
 
-
 @pytest.fixture
 def shadow_mode_settings():
     with patch("backend.config.settings.ACTIVE_MODES", "paper"):
         yield
-
 
 @pytest.fixture
 def risk_bounding_settings():

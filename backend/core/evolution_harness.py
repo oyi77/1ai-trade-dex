@@ -29,7 +29,6 @@ from backend.monitoring.agi_metrics import (
 # Data transfer objects
 # ---------------------------------------------------------------------------
 
-
 @dataclass
 class PopulationStats:
     """Aggregate statistics for a population."""
@@ -40,7 +39,6 @@ class PopulationStats:
     worst_fitness: float = 0.0
     pareto_front_size: int = 0
     generation: int = 0
-
 
 @dataclass
 class Individual:
@@ -58,11 +56,9 @@ class Individual:
     fitness: tuple[float, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
 
-
 # ---------------------------------------------------------------------------
 # Abstract base class
 # ---------------------------------------------------------------------------
-
 
 class EvolutionBackend(ABC):
     """Abstract evolution backend interface.
@@ -155,11 +151,9 @@ class EvolutionBackend(ABC):
             f"{type(self).__name__} does not implement export_genes_to_genome_dict"
         )
 
-
 # ---------------------------------------------------------------------------
 # DEAP backend
 # ---------------------------------------------------------------------------
-
 
 class DEAPEvolutionBackend(EvolutionBackend):
     """DEAP-based evolution backend using NSGA-II multi-objective optimization.
@@ -432,7 +426,6 @@ class DEAPEvolutionBackend(EvolutionBackend):
 
         return front
 
-
 def _dominates(
     a: tuple[float, ...],
     b: tuple[float, ...],
@@ -467,11 +460,9 @@ def _dominates(
             better_in_any = True
     return better_in_any
 
-
 # ---------------------------------------------------------------------------
 # Legacy backend (wraps existing genome system)
 # ---------------------------------------------------------------------------
-
 
 class LegacyGenomeBackend(EvolutionBackend):
     """Legacy evolution backend wrapping the existing mutation/crossover engines.
@@ -661,11 +652,9 @@ class LegacyGenomeBackend(EvolutionBackend):
         best = max(population, key=lambda ind: ind.fitness[0] if ind.fitness else 0.0)
         return [best]
 
-
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
-
 
 def create_evolution_backend(
     backend_name: str | None = None,

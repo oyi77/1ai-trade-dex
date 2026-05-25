@@ -42,27 +42,22 @@ EXPECTED_ADDRESSES = {
     "neg_risk_adapter": "0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296",
 }
 
-
 @dataclasses.dataclass
 class CheckResult:
     name: str
     passed: bool
     detail: str
 
-
 results: list[CheckResult] = []
-
 
 def check(name: str, passed: bool, detail: str) -> None:
     results.append(CheckResult(name=name, passed=passed, detail=detail))
     symbol = "PASS" if passed else "FAIL"
     print(f"  [{symbol}] {name}: {detail}")
 
-
 # ---------------------------------------------------------------------------
 # 1. Package version
 # ---------------------------------------------------------------------------
-
 
 def validate_version() -> None:
     print("\n=== 1. Package Version ===")
@@ -83,11 +78,9 @@ def validate_version() -> None:
         f"installed={raw}, minimum={'.'.join(map(str, MIN_VERSION))}",
     )
 
-
 # ---------------------------------------------------------------------------
 # 2. Contract addresses
 # ---------------------------------------------------------------------------
-
 
 def validate_contract_addresses() -> None:
     print("\n=== 2. Contract Addresses (Polygon / chain_id=137) ===")
@@ -112,11 +105,9 @@ def validate_contract_addresses() -> None:
             f"expected={expected}, got={actual}",
         )
 
-
 # ---------------------------------------------------------------------------
 # 3. auto_redeem.py addresses
 # ---------------------------------------------------------------------------
-
 
 def validate_auto_redeem_addresses() -> None:
     print("\n=== 3. auto_redeem.py Contract Addresses ===")
@@ -144,11 +135,9 @@ def validate_auto_redeem_addresses() -> None:
         f"auto_redeem={USDC_POLYGON} (USDC.e on Polygon, used for CTF redemption)",
     )
 
-
 # ---------------------------------------------------------------------------
 # 4. ClobClient V2 order path
 # ---------------------------------------------------------------------------
-
 
 def validate_order_builder_v2() -> None:
     print("\n=== 4. OrderBuilder V2 Path ===")
@@ -189,11 +178,9 @@ def validate_order_builder_v2() -> None:
         f"order_struct_fields={len(CTF_EXCHANGE_V2_ORDER_STRUCT)}",
     )
 
-
 # ---------------------------------------------------------------------------
 # 5. OrderArgsV2 compatibility with polymarket_clob.py
 # ---------------------------------------------------------------------------
-
 
 def validate_clob_imports() -> None:
     print("\n=== 5. polymarket_clob.py V2 Compatibility ===")
@@ -250,11 +237,9 @@ def validate_clob_imports() -> None:
     else:
         check("default_version_is_2", False, "no 'version' param found")
 
-
 # ---------------------------------------------------------------------------
 # 6. SignatureTypeV2 support (proxy wallets)
 # ---------------------------------------------------------------------------
-
 
 def validate_signature_types() -> None:
     print("\n=== 6. SignatureTypeV2 (Proxy Wallet Support) ===")
@@ -279,11 +264,9 @@ def validate_signature_types() -> None:
             f"expected={value}, got={actual}",
         )
 
-
 # ---------------------------------------------------------------------------
 # 7. Dry-run order creation (no network, no signing key needed)
 # ---------------------------------------------------------------------------
-
 
 def validate_dry_run_order() -> None:
     print("\n=== 7. Dry-Run Order Construction ===")
@@ -350,11 +333,9 @@ def validate_dry_run_order() -> None:
     except Exception as exc:
         check("v2_order_built", False, f"build_order failed: {exc}")
 
-
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
-
 
 def print_summary() -> bool:
     total = len(results)
@@ -373,7 +354,6 @@ def print_summary() -> bool:
 
     return failed == 0
 
-
 def to_json() -> str:
     return json.dumps(
         {
@@ -388,11 +368,9 @@ def to_json() -> str:
         indent=2,
     )
 
-
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -433,7 +411,6 @@ def main() -> int:
         print("\nCTF Exchange V2 has ISSUES - see failed checks above.")
 
     return 0 if all_passed else 1
-
 
 if __name__ == "__main__":
     sys.exit(main())
