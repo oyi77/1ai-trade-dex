@@ -353,27 +353,9 @@ class LLMRouter:
 
     # ── Provider management API (replaces backend.ai.provider_registry) ──
 
-    def list_available(self) -> list[dict]:
-        """Return metadata for all available (enabled + healthy) providers."""
-        results = []
-        for name, cfg in self.providers.items():
-            results.append({
-                "name": name,
-                "display_name": cfg.get("display_name", name),
-                "tags": cfg.get("tags", []),
-                "cost_per_1k_tokens_usd": cfg.get("cost_per_1k_tokens_usd", 0),
-                "max_tokens": cfg.get("max_tokens", 0),
-                "supports_streaming": cfg.get("supports_streaming", False),
-                "supports_tool_use": cfg.get("supports_tool_use", False),
-            })
-        return results
-
-    def get_provider_info(self, name: str) -> Optional[dict]:
-        """Get metadata + status for a specific provider."""
-        cfg = self.providers.get(name)
-        if cfg is None:
-            return None
-        return {
+    @staticmethod
+    def _provider_meta(name: str, cfg: dict, extra: Optional[dict] = None) -> dict:
+        result = {
             "name": name,
             "display_name": cfg.get("display_name", name),
             "tags": cfg.get("tags", []),
@@ -381,9 +363,21 @@ class LLMRouter:
             "max_tokens": cfg.get("max_tokens", 0),
             "supports_streaming": cfg.get("supports_streaming", False),
             "supports_tool_use": cfg.get("supports_tool_use", False),
-            "enabled": True,
-            "healthy": True,
         }
+        if extra:
+            result.update(extra)
+        return result
+
+    def list_available(self) -> list[dict]:
+        """Return metadata for all available (enabled + healthy) providers."""
+        return [self._provider_meta(name, cfg) for name, cfg in self.providers.items()]
+
+    def get_provider_info(self, name: str) -> Optional[dict]:
+        """Get metadata + status for a specific provider."""
+        cfg = self.providers.get(name)
+        if cfg is None:
+            return None
+        return self._provider_meta(name, cfg, extra={"enabled": True, "healthy": True})
 
     def set_enabled(self, name: str, enabled: bool) -> None:
         """Enable or disable a provider by adding/removing from self.providers."""

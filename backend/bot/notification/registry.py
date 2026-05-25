@@ -1,6 +1,5 @@
 """Notification registry — inherits from PluginRegistry for multi-channel notifications."""
 
-import asyncio
 import logging
 from typing import Optional, List
 
@@ -107,24 +106,8 @@ class NotificationRegistry(PluginRegistry[NotificationManifest, BaseNotification
     async def auto_discover(
         self, package_path: str = "backend.bot.notification.providers"
     ) -> None:
-        """Auto-discover notification providers."""
-        import importlib
-        import pkgutil
-
-        package = importlib.import_module(package_path)
-        for _, name, _ in pkgutil.iter_modules(package.__path__):
-            try:
-                module = importlib.import_module(f"{package_path}.{name}")
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if (
-                        isinstance(attr, type)
-                        and issubclass(attr, BaseNotificationProvider)
-                        and attr != BaseNotificationProvider
-                    ):
-                        self.register(attr)
-            except Exception as e:
-                logger.warning(f"Failed to auto-discover provider '{name}': {e}")
+        """Auto-discover notification providers via base PluginRegistry.auto_discover."""
+        self._auto_discover(package_path)
 
 
 registry = NotificationRegistry()
