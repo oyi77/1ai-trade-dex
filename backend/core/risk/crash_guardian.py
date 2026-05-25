@@ -72,7 +72,7 @@ class CrashGuardian:
             try:
                 await self._task
             except asyncio.CancelledError:
-                logger.exception("[CrashGuardian] task cancelled unexpectedly")
+                pass
         logger.info("[CrashGuardian] Stopped")
 
     async def _loop(self) -> None:

@@ -6,7 +6,7 @@ module.exports = {
       args: '-m uvicorn backend.api.main:app --host 0.0.0.0 --port 8100',
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
-        ADMIN_API_KEY: 'polyedge-admin-2026',
+        ADMIN_API_KEY: '24c8bfd739504a528e1d24177c8e967a',
         LLM_DEFAULT_PROVIDER: 'openai',
         LLM_DEBATE_PROVIDER: 'openai',
         LLM_JUDGE_PROVIDER: 'openai',

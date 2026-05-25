@@ -585,7 +585,6 @@ class ConfigRegistry:
 
     # Trading modes
     ACTIVE_MODES: str = "paper"
-    TRADING_MODE: str = "paper"
     SHADOW_MODE: bool = True
 
     # Logging
@@ -1299,6 +1298,46 @@ class ConfigRegistry:
 
     def is_mode_active(self, mode: str) -> bool:
         return mode in self.active_modes_set
+
+    @property
+    def TRADING_MODE(self) -> str:
+        override = getattr(self, "_trading_mode_override", None)
+        if override:
+            return override
+        env_val = os.environ.get("TRADING_MODE")
+        if env_val:
+            return env_val
+        modes = self.active_modes_set
+        if "live" in modes:
+            return "live"
+        if "testnet" in modes:
+            return "testnet"
+        return "paper"
+
+    @TRADING_MODE.setter
+    def TRADING_MODE(self, value: str) -> None:
+        self._trading_mode_override = value
+
+    @TRADING_MODE.deleter
+    def TRADING_MODE(self) -> None:
+        if hasattr(self, "_trading_mode_override"):
+            del self._trading_mode_override
+
+    @property
+    def SIMULATION_MODE(self) -> bool:
+        override = getattr(self, "_simulation_mode_override", None)
+        if override is not None:
+            return override
+        return "live" not in self.active_modes_set
+
+    @SIMULATION_MODE.setter
+    def SIMULATION_MODE(self, value: bool) -> None:
+        self._simulation_mode_override = value
+
+    @SIMULATION_MODE.deleter
+    def SIMULATION_MODE(self) -> None:
+        if hasattr(self, "_simulation_mode_override"):
+            del self._simulation_mode_override
 
     WALLET_FERNET_KEY: Optional[str] = None
 

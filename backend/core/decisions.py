@@ -82,7 +82,7 @@ def record_decision(
             try:
                 db.rollback()
             except Exception:
-                logger.error(
+                logger.exception(
                     f"record_decision: rollback also failed for {strategy}/{market_ticker}"
                 )
             return None
@@ -98,7 +98,7 @@ def record_decision(
                 try:
                     db.rollback()
                 except Exception:
-                    logger.error(
+                    logger.exception(
                         f"record_decision: rollback also failed for {strategy}/{market_ticker}"
                     )
                 return None
