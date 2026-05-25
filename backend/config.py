@@ -395,6 +395,7 @@ class ConfigRegistry:
     PAPER_SLIPPAGE_BPS: float = 20.0  # paper slippage in basis points
     PAPER_MIN_SLIPPAGE_BPS: float = 5.0  # minimum slippage (0.05%)
     HFT_MAX_SLIPPAGE_BPS: float = 20.0
+    SLIPPAGE_TOLERANCE: float = 0.02  # max acceptable price slippage (2%)
     PAPER_RANDOM_SLIPPAGE: bool = True  # add random jitter to slippage
     PAPER_SIZE_IMPACT_FACTOR: float = 0.5  # logarithmic size impact on slippage
     PAPER_CLOB_FEE_RATE: float = 0.02  # Polymarket fee rate (2%)
@@ -704,6 +705,7 @@ class ConfigRegistry:
 
     # Daily loss monitoring
     DAILY_LOSS_LIMIT_ENABLED: bool = True
+    DAILY_LOSS_LIMIT: float = 100.0  # max daily loss in USD
     DRAWDOWN_BREAKER_ENABLED_PER_MODE: Dict[str, bool] = field(
         default_factory=lambda: {"paper": False, "testnet": True, "live": True}
     )
