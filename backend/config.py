@@ -372,7 +372,6 @@ class ConfigRegistry:
     DEFAULT_MAX_DAILY_LOSS_USD: float = 100.0
     DEFAULT_MAX_DRAWDOWN_PCT: float = 0.20
     TERMINAL_DRAWDOWN_PCT: float = 0.50
-    INITIAL_BANKROLL: float = 1000.0
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10  # max daily drawdown
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  # max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
@@ -956,6 +955,25 @@ class ConfigRegistry:
     # --------------------------------------------------------------------------
     INITIAL_BANKROLL: float = 1000.0
     PAPER_MIN_BANKROLL: float = 50.0
+
+    # Genome strategy defaults
+    GENOME_KELLY_FRACTION: float = 0.25
+    GENOME_MAX_POSITION_FRACTION: float = 0.08
+    GENOME_MAX_EXPOSURE_FRACTION: float = 0.70
+    GENOME_MIN_CONFIDENCE: float = 0.50
+    GENOME_BANKROLL: float = 1000.0
+    GENOME_MAX_TRADE_SIZE: float = 100.0
+    GENOME_CONFIDENCE_BASELINE: float = 0.5
+    GENOME_MARKET_LIMIT: int = 50
+    GENOME_TOP_MARKETS: int = 10
+
+    # DB backup
+    DB_BACKUP_RETENTION_DAYS: int = 30
+    DB_BACKUP_MAX_BACKUPS: int = 100
+
+    # Performance tracker
+    PERF_TRACKER_MAX_RETRIES: int = 2
+    PERF_TRACKER_RETRY_DELAY: float = 0.1
     PAPER_TOPUP_AMOUNT: float = 500.0
     MAX_TOPUPS: int = 10
 

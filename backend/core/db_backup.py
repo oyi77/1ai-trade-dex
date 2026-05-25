@@ -14,8 +14,8 @@ from loguru import logger
 
 # Default backup settings
 DEFAULT_BACKUP_DIR = "backups"
-DEFAULT_RETENTION_DAYS = 30
-MAX_BACKUPS = 100  # Safety limit to prevent disk exhaustion
+DEFAULT_RETENTION_DAYS = settings.DB_BACKUP_RETENTION_DAYS
+MAX_BACKUPS = settings.DB_BACKUP_MAX_BACKUPS
 
 
 def get_db_path() -> Optional[Path]:

@@ -14,11 +14,12 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from backend.models.database import PerformanceMetric
+from backend.config import settings
 
 from loguru import logger
 
-_MAX_DB_RETRIES = 2
-_RETRY_DELAY_S = 0.1
+_MAX_DB_RETRIES = settings.PERF_TRACKER_MAX_RETRIES
+_RETRY_DELAY_S = settings.PERF_TRACKER_RETRY_DELAY
 
 
 class PercentileTracker:
