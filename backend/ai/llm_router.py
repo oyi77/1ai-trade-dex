@@ -2,6 +2,7 @@
 
 Supports: groq, claude, openai-compatible (any provider with OpenAI API).
 Configurable via settings.LLM_PROVIDERS JSON dict or individual ENV vars.
+Single source of truth for all AI provider management.
 """
 
 import json
@@ -28,49 +29,128 @@ ROLE_SETTING_MAP = {
     "claude_escalation": "claude",
 }
 
+# Single definition per provider: env key + runtime defaults + display metadata
+_BUILTIN_PROVIDERS: list[dict] = [
+    {
+        "name": "groq",
+        "env_key": "GROQ_API_KEY",
+        "model_env": "GROQ_MODEL",
+        "model_default": "llama-3.3-70b-versatile",
+        "max_tokens": 250,
+        "temperature": 0.2,
+        "provider_type": "groq",
+        "display_name": "Groq",
+        "tags": ["primary", "llm", "fast"],
+        "cost_per_1k_tokens_usd": 0.0005,
+        "supports_streaming": False,
+        "supports_tool_use": False,
+    },
+    {
+        "name": "claude",
+        "env_key": "ANTHROPIC_API_KEY",
+        "model_env": "ANTHROPIC_MODEL",
+        "model_default": "claude-sonnet-4-20250514",
+        "max_tokens": 300,
+        "temperature": 0.2,
+        "provider_type": "claude",
+        "display_name": "Anthropic Claude",
+        "tags": ["primary", "llm", "reasoning"],
+        "cost_per_1k_tokens_usd": 0.003,
+        "supports_streaming": False,
+        "supports_tool_use": True,
+    },
+    {
+        "name": "openai",
+        "env_key": "LLM_OPENAI_API_KEY",
+        "model_env": "LLM_OPENAI_MODEL",
+        "model_default": "gpt-4o-mini",
+        "max_tokens": 250,
+        "temperature": 0.2,
+        "provider_type": "openai",
+        "display_name": "OpenAI",
+        "tags": ["openai-compat", "llm"],
+        "cost_per_1k_tokens_usd": 0.005,
+        "supports_streaming": True,
+        "supports_tool_use": True,
+    },
+    {
+        "name": "gemini",
+        "env_key": "GEMINI_API_KEY",
+        "model_env": "GEMINI_MODEL",
+        "model_default": "gemini-1.5-pro",
+        "max_tokens": 250,
+        "temperature": 0.2,
+        "provider_type": "openai",
+        "display_name": "Google Gemini",
+        "tags": ["google", "mid-tier"],
+        "cost_per_1k_tokens_usd": 0.001,
+        "supports_streaming": False,
+        "supports_tool_use": False,
+    },
+    {
+        "name": "openrouter",
+        "env_key": "OPENROUTER_API_KEY",
+        "model_env": "OPENROUTER_MODEL",
+        "model_default": "openai/gpt-4o-mini",
+        "max_tokens": 250,
+        "temperature": 0.2,
+        "provider_type": "openai",
+        "display_name": "OpenRouter",
+        "tags": ["aggregator", "multi-model"],
+        "cost_per_1k_tokens_usd": 0.001,
+        "supports_streaming": True,
+        "supports_tool_use": True,
+    },
+]
+
 
 def _build_openai_provider(name: str, cfg: dict) -> dict:
     """Build a provider config dict from a raw settings entry."""
     return {
+        "provider_type": "openai",
         "api_key": cfg.get("api_key", ""),
         "model": cfg.get("model", "gpt-4o-mini"),
         "base_url": cfg.get("base_url") or None,
         "max_tokens": int(cfg.get("max_tokens", 250)),
         "temperature": float(cfg.get("temperature", 0.2)),
-        "provider_type": "openai",
+        "display_name": cfg.get("display_name", name.title()),
+        "tags": cfg.get("tags", []),
+        "cost_per_1k_tokens_usd": float(cfg.get("cost_per_1k_tokens_usd", 0.002)),
+        "supports_streaming": cfg.get("supports_streaming", True),
+        "supports_tool_use": cfg.get("supports_tool_use", True),
     }
 
 
 def _discover_providers() -> dict[str, dict]:
-    """Build provider registry from settings + env vars."""
+    """Build runtime provider configs from settings + env vars.
+    Each entry carries runtime config + display metadata inline.
+    """
     from backend.config import settings
 
     providers: dict[str, dict] = {}
 
-    # Built-in: groq
-    if getattr(settings, "GROQ_API_KEY", None):
-        providers["groq"] = {
-            "api_key": settings.GROQ_API_KEY,
-            "model": getattr(settings, "GROQ_MODEL", "llama-3.3-70b-versatile"),
+    for defn in _BUILTIN_PROVIDERS:
+        name = defn["name"]
+        env_key = defn["env_key"]
+        api_key = os.getenv(env_key) or getattr(settings, env_key, None) or ""
+        if not api_key:
+            continue
+
+        providers[name] = {
+            "api_key": api_key,
+            "model": getattr(settings, defn["model_env"], defn["model_default"]),
             "base_url": None,
-            "max_tokens": 250,
-            "temperature": 0.2,
-            "provider_type": "groq",
+            "max_tokens": defn["max_tokens"],
+            "temperature": defn["temperature"],
+            "provider_type": defn["provider_type"],
+            "display_name": defn["display_name"],
+            "tags": defn.get("tags", []),
+            "cost_per_1k_tokens_usd": defn.get("cost_per_1k_tokens_usd", 0.0),
+            "supports_streaming": defn.get("supports_streaming", False),
+            "supports_tool_use": defn.get("supports_tool_use", False),
         }
 
-    # Built-in: claude
-    anthropic_key = getattr(settings, "ANTHROPIC_API_KEY", None)
-    if anthropic_key:
-        providers["claude"] = {
-            "api_key": anthropic_key,
-            "model": getattr(settings, "ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-            "base_url": None,
-            "max_tokens": 300,
-            "temperature": 0.2,
-            "provider_type": "claude",
-        }
-
-    # Configurable: LLM_PROVIDERS JSON dict (e.g. openai, together, fireworks, ollama)
+    # Configurable: LLM_PROVIDERS JSON dict (e.g. together, fireworks, ollama)
     raw_providers = getattr(settings, "LLM_PROVIDERS", None)
     if raw_providers:
         try:
@@ -78,26 +158,10 @@ def _discover_providers() -> dict[str, dict]:
                 raw_providers = json.loads(raw_providers)
             for name, cfg in raw_providers.items():
                 if name in providers:
-                    continue  # don't override built-ins
+                    continue
                 providers[name] = _build_openai_provider(name, cfg)
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning("LLMRouter: failed to parse LLM_PROVIDERS: {}", e)
-
-    # ENV-var based: LLM_OPENAI_API_KEY + LLM_OPENAI_BASE_URL + LLM_OPENAI_MODEL
-    openai_key = os.getenv("LLM_OPENAI_API_KEY") or getattr(
-        settings, "LLM_OPENAI_API_KEY", None
-    )
-    if openai_key and "openai" not in providers:
-        providers["openai"] = _build_openai_provider(
-            "openai",
-            {
-                "api_key": openai_key,
-                "model": getattr(settings, "LLM_OPENAI_MODEL", "gpt-4o-mini"),
-                "base_url": getattr(settings, "LLM_OPENAI_BASE_URL", None),
-                "max_tokens": getattr(settings, "LLM_OPENAI_MAX_TOKENS", 250),
-                "temperature": getattr(settings, "LLM_OPENAI_TEMPERATURE", 0.2),
-            },
-        )
 
     return providers
 
@@ -286,3 +350,75 @@ class LLMRouter:
             return obj
         except (json.JSONDecodeError, ValueError):
             return {}
+
+    # ── Provider management API (replaces backend.ai.provider_registry) ──
+
+    def list_available(self) -> list[dict]:
+        """Return metadata for all available (enabled + healthy) providers."""
+        results = []
+        for name, cfg in self.providers.items():
+            results.append({
+                "name": name,
+                "display_name": cfg.get("display_name", name),
+                "tags": cfg.get("tags", []),
+                "cost_per_1k_tokens_usd": cfg.get("cost_per_1k_tokens_usd", 0),
+                "max_tokens": cfg.get("max_tokens", 0),
+                "supports_streaming": cfg.get("supports_streaming", False),
+                "supports_tool_use": cfg.get("supports_tool_use", False),
+            })
+        return results
+
+    def get_provider_info(self, name: str) -> Optional[dict]:
+        """Get metadata + status for a specific provider."""
+        cfg = self.providers.get(name)
+        if cfg is None:
+            return None
+        return {
+            "name": name,
+            "display_name": cfg.get("display_name", name),
+            "tags": cfg.get("tags", []),
+            "cost_per_1k_tokens_usd": cfg.get("cost_per_1k_tokens_usd", 0),
+            "max_tokens": cfg.get("max_tokens", 0),
+            "supports_streaming": cfg.get("supports_streaming", False),
+            "supports_tool_use": cfg.get("supports_tool_use", False),
+            "enabled": True,
+            "healthy": True,
+        }
+
+    def set_enabled(self, name: str, enabled: bool) -> None:
+        """Enable or disable a provider by adding/removing from self.providers."""
+        if enabled:
+            self.providers = _discover_providers()
+            if self.default_provider not in self.providers and self.providers:
+                self.default_provider = next(iter(self.providers))
+        else:
+            if name in self.providers:
+                del self.providers[name]
+                if self.default_provider == name and self.providers:
+                    self.default_provider = next(iter(self.providers))
+        logger.info(f"AI provider '{name}' {'enabled' if enabled else 'disabled'}")
+
+    def get_best(self, preferred_tags: Optional[list[str]] = None) -> Optional[str]:
+        """Return best available provider name matching preferred tags."""
+        if not self.providers:
+            return None
+        if not preferred_tags:
+            return self.default_provider
+        scored = []
+        for name, cfg in self.providers.items():
+            tags = set(cfg.get("tags", []))
+            score = len(tags & set(preferred_tags))
+            scored.append((score, name))
+        scored.sort(reverse=True)
+        return scored[0][1] if scored else self.default_provider
+
+    async def simple_complete(
+        self, prompt: str, system: Optional[str] = None, max_tokens: int = 1000,
+        temperature: float = 0.7, **kwargs
+    ) -> str:
+        """Simple completion using default provider. For code_refactorer compatibility."""
+        return await self.complete(prompt, role="default", system=system,
+                                   max_tokens=max_tokens, temperature=temperature, **kwargs)
+
+# Singleton
+llm_router = LLMRouter()

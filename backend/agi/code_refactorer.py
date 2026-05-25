@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 from loguru import logger
 
-from backend.ai.provider_registry import ProviderRegistry, AllProvidersExhausted
+from backend.ai.llm_router import llm_router
 from backend.core.safety import SafetyMonitor, AlertSeverity
 from backend.models.database import BotState, SessionLocal
 
@@ -26,7 +26,6 @@ class CodeRefactoringAgent:
 
     def __init__(self):
         """Initialize the refactoring agent."""
-        self.provider_registry = ProviderRegistry()
         self.safety_monitor = SafetyMonitor()
         self.logger = logger.bind(task="code_refactorer")
 
@@ -93,17 +92,13 @@ Generate high-quality unified diffs that improve code quality while maintaining 
 Always output valid, applicable diffs."""
 
         try:
-            # Try to get a provider from the registry
-            available = self.provider_registry.list_available()
-            if not available:
+            # Get best available provider from LLMRouter
+            provider_name = llm_router.get_best(["primary", "cheap"])
+            if provider_name is None:
                 self.logger.warning(
                     "No AI providers available for refactoring proposal"
                 )
                 return None
-
-            # Use the first available provider
-            provider_name = available[0].name
-            provider = self.provider_registry.get(provider_name)
 
             self.logger.info(
                 f"Requesting refactor proposal from {provider_name}",
@@ -111,11 +106,11 @@ Always output valid, applicable diffs."""
                 module=module_path,
             )
 
-            diff = await provider.complete(
+            diff = await llm_router.simple_complete(
                 prompt=prompt,
                 system=system_prompt,
                 max_tokens=4096,
-                temperature=0.3,  # Lower temperature for more deterministic output
+                temperature=0.3,
             )
 
             self.logger.info(
@@ -124,9 +119,6 @@ Always output valid, applicable diffs."""
 
             return diff
 
-        except AllProvidersExhausted:
-            self.logger.error("All AI providers exhausted")
-            return None
         except Exception as e:
             self.logger.error(f"Failed to propose refactor: {e}")
             return None

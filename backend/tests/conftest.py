@@ -371,13 +371,12 @@ def cleanup_proposals_between_tests(db):
 
 @pytest.fixture(autouse=True)
 def reset_provider_registry():
-    from backend.ai.provider_registry import ProviderRegistry
     from backend.data.source_registry import DataSourceRegistry
     from backend.markets.provider_registry import MarketProviderRegistry
     from backend.agi.node_registry import NodeRegistry
     from backend.agi.sandbox.sandbox_registry import SandboxNodeRegistry
 
-    ProviderRegistry.reset()
+    DataSourceRegistry.reset()
     DataSourceRegistry.reset()
     MarketProviderRegistry.reset()
     NodeRegistry.reset()
