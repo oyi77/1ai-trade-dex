@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
+from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 
 # Supported exchanges
