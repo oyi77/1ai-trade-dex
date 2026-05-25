@@ -25,12 +25,14 @@ from typing import Dict, Optional
 
 from loguru import logger
 
+from backend.config import settings
+
 _MONITORED_PROCESSES = ("polyedge-bot", "polyedge-api")
 _PM2_TIMEOUT = 10
-_CHECK_INTERVAL = 30
-_MEMORY_WARN_MB = 1024
-_MEMORY_RESTART_MB = 2048
-_MAX_UNHEALTHY_CHECKS = 3
+_CHECK_INTERVAL = settings.CRASH_CHECK_INTERVAL
+_MEMORY_WARN_MB = settings.CRASH_MEMORY_WARN_MB
+_MEMORY_RESTART_MB = settings.CRASH_MEMORY_RESTART_MB
+_MAX_UNHEALTHY_CHECKS = settings.CRASH_MAX_UNHEALTHY
 
 
 @dataclass

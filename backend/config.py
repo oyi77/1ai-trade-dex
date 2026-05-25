@@ -314,6 +314,28 @@ class ConfigRegistry:
     AGI_TUNER_MAX_PARAM_CHANGE_PCT: float = 0.30  # hard cap on any single param change
     AGI_TUNER_ROLLBACK_WINDOW: int = 10  # trades to monitor after tuning change
     AGI_TUNER_ROLLBACK_DEGRADATION: float = 0.15  # >15% WR drop triggers revert
+
+    # Position sizing
+    POSITION_MIN_USD: float = 5.0  # minimum position size
+    POSITION_MAX_USD: float = 50.0  # maximum position size
+
+    # Strategy executor
+    MAX_CONCURRENT_TRADES: int = 6  # max parallel trade executions
+
+    # Crash guardian
+    CRASH_CHECK_INTERVAL: int = 30  # seconds between health checks
+    CRASH_MEMORY_WARN_MB: int = 1024  # MB threshold for memory warning
+    CRASH_MEMORY_RESTART_MB: int = 2048  # MB threshold for restart
+    CRASH_MAX_UNHEALTHY: int = 3  # consecutive unhealthy checks before action
+
+    # Auto-improve (learning pipeline)
+    AUTO_IMPROVE_MIN_CONFIDENCE: float = 0.8  # confidence threshold for auto-apply
+    AUTO_IMPROVE_MAX_PARAM_CHANGE: float = 0.30  # max fraction change per param
+    AUTO_IMPROVE_ROLLBACK_WINDOW: int = 10  # trades to monitor post-change
+    AUTO_IMPROVE_ROLLBACK_DEGRADATION: float = 0.15  # perf drop triggering rollback
+
+    # LLM cost tracking
+    LLM_DAILY_BUDGET_DEFAULT: float = 10.0  # default daily LLM budget in USD
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10  # max daily drawdown
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  # max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)

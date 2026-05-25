@@ -29,10 +29,10 @@ from loguru import logger
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MIN_CONFIDENCE_FOR_AUTO_APPLY = 0.8
-MAX_PARAM_CHANGE_FRACTION = 0.30  # ±30%
-ROLLBACK_TRADE_WINDOW = 10
-ROLLBACK_PERF_DEGRADATION_THRESHOLD = 0.15  # >15% drop triggers rollback
+MIN_CONFIDENCE_FOR_AUTO_APPLY = settings.AUTO_IMPROVE_MIN_CONFIDENCE
+MAX_PARAM_CHANGE_FRACTION = settings.AUTO_IMPROVE_MAX_PARAM_CHANGE
+ROLLBACK_TRADE_WINDOW = settings.AUTO_IMPROVE_ROLLBACK_WINDOW
+ROLLBACK_PERF_DEGRADATION_THRESHOLD = settings.AUTO_IMPROVE_ROLLBACK_DEGRADATION
 
 # Tunable parameters that auto-improve may modify
 TUNABLE_PARAMS = (

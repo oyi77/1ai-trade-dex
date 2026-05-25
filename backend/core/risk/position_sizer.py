@@ -8,8 +8,8 @@ from typing import Optional
 from backend.config import settings
 
 # Hard limits
-MIN_POSITION_USD = 5.0
-MAX_POSITION_USD = 50.0
+MIN_POSITION_USD = settings.POSITION_MIN_USD
+MAX_POSITION_USD = settings.POSITION_MAX_USD
 
 
 def kelly_criterion(win_rate: float, avg_win: float, avg_loss: float, kelly_fraction: float = 0.25) -> float:

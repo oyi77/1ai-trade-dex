@@ -7,10 +7,11 @@ from dataclasses import dataclass
 
 from backend.models.database import SessionLocal
 from backend.models.kg_models import LLMCostRecord as LLMCostRecordDB
+from backend.config import settings
 
 from loguru import logger
 
-DAILY_BUDGET_DEFAULT = 10.0
+DAILY_BUDGET_DEFAULT = settings.LLM_DAILY_BUDGET_DEFAULT
 COST_LIMITS = {
     "strategy_generation": 0.50,
     "prompt_evolution": 0.10,
