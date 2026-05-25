@@ -283,10 +283,22 @@ class ConfigRegistry:
     MIN_MARKET_VOLUME: float = 100.0  # minimum market volume
     MIN_WHALE_TRADE_USD: float = 1000.0  # minimum whale trade size
 
-    # Risk management
-    DAILY_LOSS_LIMIT: float = 5.0  # maximum daily loss
-    DAILY_LOSS_LIMIT_PCT: float = 0.10  # daily loss % (overrides flat limit)
-    SLIPPAGE_TOLERANCE: float = 0.02  # max slippage (2%)
+    # Strategy governance thresholds
+    KILL_WIN_RATE: float = 0.05  # win rate below which strategy is auto-killed
+    KILL_SHARPE: float = -2.0  # Sharpe ratio below which strategy is auto-killed
+    KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
+    WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
+    WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
+    MIN_WARMUP_TRADES: int = 30  # trades before strategy governance activates
+    DEGRADATION_WR_THRESHOLD: float = 0.35  # win rate drop triggering degradation review
+    DEGRADATION_SHARPE_THRESHOLD: float = -0.5  # Sharpe drop triggering degradation review
+    MAX_DEGRADATIONS_BEFORE_REVIEW: int = 2  # consecutive degradations before forced review
+    REHAB_CATASTROPHIC_WR_FLOOR: float = 0.05  # min WR to enter strategy rehabilitation
+    REHAB_CATASTROPHIC_MIN_TRADES: int = 30  # min trades before rehab evaluation
+    STRATEGY_MIN_WIN_RATE: float = 0.45  # circuit breaker kill threshold per strategy
+    STRATEGY_MIN_PNL_RATIO: float = 0.05  # circuit breaker PnL kill threshold
+    STRATEGY_WINRATE_LOOKBACK_TRADES: int = 20  # trade lookback for WR calculation
+    STRATEGY_PNL_LOOKBACK_DAYS: int = 30  # day lookback for PnL evaluation
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10  # max daily drawdown
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  # max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
