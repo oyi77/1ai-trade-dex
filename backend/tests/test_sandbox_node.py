@@ -58,7 +58,7 @@ class MockLiveDataNode(BaseAGINode):
 class TestSandboxNodeRegistry:
     def setup_method(self):
         self.registry = PluginRegistry[NodeManifest, BaseAGINode](
-            name="test_sandbox", on_register=_sandbox_registry_instance._on_register, env_var_check=False
+            name="test_sandbox", pre_register=_sandbox_registry_instance._pre_register, env_var_check=False
         )
 
     def test_get_valid_node_from_sandbox_registry(self):

@@ -51,7 +51,6 @@ class TestAGINodeRegistry:
 
     def test_get_disabled_node_raises(self):
         """Test that getting a disabled node raises KeyError."""
-        registry = NodeRegistry()
         NodeCls = self._make_node("test_disabled")
         node_registry.register(NodeCls)
         node_registry._enabled["test_disabled"] = False
