@@ -486,25 +486,112 @@ class ShadowTrade(Base):
     metadata_json = Column(Text, nullable=True)
 
     # Backward-compat aliases for legacy test code
-    @property
-    def market_ticker(self) -> str:
-        return self.market_id
 
-    @property
+    # Helper to update key-value in metadata_json
+    def _update_metadata(self, key: str, value):
+        try:
+            meta = json.loads(self.metadata_json) if self.metadata_json else {}
+        except Exception:
+            meta = {}
+        meta[key] = value
+        self.metadata_json = json.dumps(meta)
+
+    @hybrid_property
     def size(self) -> float:
         return self.size_usd
 
-    @property
+    @size.setter
+    def size(self, value: float):
+        self.size_usd = value
+
+    @size.expression
+    def size(cls):
+        return cls.size_usd
+
+    @hybrid_property
     def settled(self) -> bool:
         return self.stage == "SETTLED"
 
-    @property
+    @settled.setter
+    def settled(self, value: bool):
+        self.stage = "SETTLED" if value else "ACTIVE"
+
+    @settled.expression
+    def settled(cls):
+        return cls.stage == "SETTLED"
+
+    @hybrid_property
     def settlement_value(self) -> Optional[float]:
         return 1.0 if self.outcome == "win" else (0.0 if self.outcome == "loss" else None)
 
-    @property
+    @settlement_value.setter
+    def settlement_value(self, value: Optional[float]):
+        if value == 1.0:
+            self.outcome = "win"
+        elif value == 0.0:
+            self.outcome = "loss"
+        else:
+            self.outcome = None
+
+    @settlement_value.expression
+    def settlement_value(cls):
+        from sqlalchemy import case
+        return case(
+            (cls.outcome == "win", 1.0),
+            (cls.outcome == "loss", 0.0),
+            else_=None
+        )
+
+    @hybrid_property
     def pnl(self) -> Optional[float]:
         return self.pnl_usd
+
+    @pnl.setter
+    def pnl(self, value: Optional[float]):
+        self.pnl_usd = value
+
+    @pnl.expression
+    def pnl(cls):
+        return cls.pnl_usd
+
+    @hybrid_property
+    def strategy(self) -> str:
+        return self.strategy_name
+
+    @strategy.setter
+    def strategy(self, value: str):
+        self.strategy_name = value
+
+    @strategy.expression
+    def strategy(cls):
+        return cls.strategy_name
+
+    @hybrid_property
+    def timestamp(self) -> datetime:
+        return self.created_at
+
+    @timestamp.setter
+    def timestamp(self, value: datetime):
+        self.created_at = value
+
+    @timestamp.expression
+    def timestamp(cls):
+        return cls.created_at
+
+    @hybrid_property
+    def market_ticker(self) -> str:
+        """Legacy market_ticker — falls back to market_id when column is NULL."""
+        raw = self.__dict__.get("market_ticker")
+        return raw or self.market_id
+
+    @market_ticker.setter
+    def market_ticker(self, value: str):
+        self.__dict__["market_ticker"] = value
+
+    @market_ticker.expression
+    def market_ticker(cls):
+        from sqlalchemy import case
+        return case((cls.market_ticker.is_(None), cls.market_id), else_=cls.market_ticker)
 
     @property
     def model_probability(self) -> Optional[float]:
@@ -516,6 +603,10 @@ class ShadowTrade(Base):
                 pass
         return None
 
+    @model_probability.setter
+    def model_probability(self, value: Optional[float]):
+        self._update_metadata("model_probability", value)
+
     @property
     def predicted_outcome(self) -> Optional[float]:
         if self.metadata_json:
@@ -526,15 +617,9 @@ class ShadowTrade(Base):
                 pass
         return None
 
-    @property
-    def accuracy_score(self) -> Optional[float]:
-        if self.metadata_json:
-            try:
-                meta = json.loads(self.metadata_json)
-                return meta.get("accuracy_score")
-            except Exception:
-                pass
-        return None
+    @predicted_outcome.setter
+    def predicted_outcome(self, value: Optional[float]):
+        self._update_metadata("predicted_outcome", value)
 
     @property
     def actual_outcome(self) -> Optional[float]:
@@ -546,12 +631,18 @@ class ShadowTrade(Base):
                 pass
         return None
 
+    @actual_outcome.setter
+    def actual_outcome(self, value: Optional[float]):
+        self._update_metadata("actual_outcome", value)
+
     @property
     def accuracy_score(self) -> Optional[float]:
         if self.metadata_json:
             try:
                 meta = json.loads(self.metadata_json)
-                return meta.get("accuracy_score")
+                val = meta.get("accuracy_score")
+                if val is not None:
+                    return val
             except Exception:
                 pass
         # Fallback: compute from predicted and actual outcome
@@ -560,6 +651,10 @@ class ShadowTrade(Base):
         if pred is not None and actual is not None:
             return abs(pred - actual)
         return None
+
+    @accuracy_score.setter
+    def accuracy_score(self, value: Optional[float]):
+        self._update_metadata("accuracy_score", value)
 
 
 class BtcPriceSnapshot(Base):

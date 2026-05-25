@@ -338,13 +338,17 @@ class DBSessionShadowRunner:
             accurate = sum(1 for t in scored if t.accuracy_score < 0.2)
             accuracy = accurate / total_trades if total_trades > 0 else 0.0
             days_active = row.days_active if row.days_active is not None else 0.0
+            settled_count = len([t for t in settled_with_scores if t.stage == "SETTLED"])
 
-            # Promotion gate: days_active >= 1 AND accuracy >= 0.60
-            eligible = days_active >= 1 and accuracy >= 0.60
+            # Promotion gate: (days_active >= 1 OR settled_trades >= 12) AND accuracy >= 0.60
+            # Fast-settling markets (5-min) can accumulate 12+ settled trades in ~1hr,
+            # bypassing the 1-day wall for high-frequency strategies
+            has_sufficient_history = days_active >= 1 or settled_count >= 12
+            eligible = has_sufficient_history and accuracy >= 0.60
 
             reason = "Eligible for promotion"
-            if days_active < 1:
-                reason = "Less than 1 day of trading activity"
+            if not has_sufficient_history:
+                reason = f"Insufficient history ({settled_count} settled, {days_active:.2f} days). Need 12+ settled or 1+ day"
             elif accuracy < 0.60:
                 reason = "Accuracy below 60% threshold"
 
@@ -352,6 +356,7 @@ class DBSessionShadowRunner:
                 "total_trades": total_trades,
                 "accuracy": accuracy,
                 "days_active": days_active,
+                "settled_trades": settled_count,
                 "eligible": eligible,
                 "reason": reason,
             }

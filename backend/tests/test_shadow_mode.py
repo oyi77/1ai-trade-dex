@@ -358,8 +358,8 @@ class TestDBSessionShadowRunner:
         assert eligibility["total_trades"] == 2
         assert eligibility["accuracy"] >= 1.0  # Both trades accurate
         assert eligibility["days_active"] <= 1  # Less than 1 day old
-        assert not eligibility["eligible"]  # Not enough days
-        assert "Less than 1 day" in eligibility["reason"]
+        assert not eligibility["eligible"]  # Not enough days or settled
+        assert "Need 12+ settled or 1+ day" in eligibility["reason"]
 
     def test_promotion_eligibility_accuracy_below_threshold(self):
         """Test promotion eligibility with accuracy below 60%."""
@@ -420,7 +420,7 @@ class TestDBSessionShadowRunner:
         assert eligibility["accuracy"] == 0.0  # No accurate trades
         assert not eligibility["eligible"]
         # Accuracy check comes before days_active check since both trades exist (just inaccurate)
-        assert "Accuracy below 60%" in eligibility["reason"] or "Less than 1 day" in eligibility["reason"]
+        assert "Accuracy below 60%" in eligibility["reason"] or "Need 12+ settled" in eligibility["reason"]
 
     def test_promotion_eligibility_no_trades(self):
         """Test promotion eligibility with no trades."""
