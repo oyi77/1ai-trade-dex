@@ -1,6 +1,5 @@
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.bot.notification.registry import registry
-from backend.bot.notifier import get_bot
 from backend.config import settings
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
@@ -9,6 +8,18 @@ from typing import Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Module-level bot reference (set by orchestrator on startup)
+_bot = None
+
+
+def set_bot(bot) -> None:
+    global _bot
+    _bot = bot
+
+
+def get_bot():
+    return _bot
 
 # Circuit breaker for Telegram API — protects against cascading failures
 _telegram_breaker = CircuitBreaker(
@@ -53,6 +64,77 @@ class TelegramProvider(BaseNotificationProvider):
             return False
         except Exception as e:
             logger.error(f"Telegram send failed: {e}")
+            return False
+
+    # ── Domain-specific send methods (delegate to PolyEdgeBot) ──
+
+    async def send_btc_signal(self, signal, trade=None) -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_btc_signal(signal, trade)
+            return True
+        except Exception as e:
+            logger.error(f"send_btc_signal failed: {e}")
+            return False
+
+    async def send_trade_opened(self, trade) -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_trade_opened(trade)
+            return True
+        except Exception as e:
+            logger.error(f"send_trade_opened failed: {e}")
+            return False
+
+    async def send_trade_settled(self, trade) -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_trade_settled(trade)
+            return True
+        except Exception as e:
+            logger.error(f"send_trade_settled failed: {e}")
+            return False
+
+    async def send_scan_summary(
+        self, total: int, actionable: int, placed: int
+    ) -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_scan_summary(total, actionable, placed)
+            return True
+        except Exception as e:
+            logger.error(f"send_scan_summary failed: {e}")
+            return False
+
+    async def send_error_alert(self, error: str, context: str = "") -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_error_alert(error, context)
+            return True
+        except Exception as e:
+            logger.error(f"send_error_alert failed: {e}")
+            return False
+
+    async def send_high_confidence_signal(
+        self, strategy: str, market_title: str, direction: str,
+        confidence: float, edge: float, reasoning: str, market_url: str = "",
+    ) -> bool:
+        if not self.bot_instance:
+            return False
+        try:
+            await self.bot_instance.send_high_confidence_signal(
+                strategy=strategy, market_title=market_title,
+                direction=direction, confidence=confidence, edge=edge,
+                reasoning=reasoning, market_url=market_url,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"send_high_confidence_signal failed: {e}")
             return False
 
     async def health_check(self) -> bool:

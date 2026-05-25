@@ -246,9 +246,11 @@ async def watchdog_job() -> None:
                         if last_alert and (now_dt - last_alert) < ALERT_DEDUP_WINDOW:
                             continue  # skip duplicate alert within 5 min window
                         _recent_alerts[h["name"]] = now_dt
-                        _send_telegram_alert_sync(
-                            f"⚠️ WATCHDOG: Strategy {h['name']} is silent "
-                            f"({h['lag_seconds']:.0f}s since last heartbeat)"
+                        from backend.bot.notification.registry import registry
+
+                        await registry.send_alert(
+                            title="WATCHDOG",
+                            message=f"Strategy {h['name']} is silent ({h['lag_seconds']:.0f}s since last heartbeat)",
                         )
                 except Exception as te:
                     logger.debug(f"Watchdog Telegram alert failed: {te}")

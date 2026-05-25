@@ -31,7 +31,7 @@ class KalshiActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[kalshi] Activity source error: {e}")
+            logger.error(f"[kalshi] Activity source error: {e}")
 
     async def _fills_loop(self):
         """Poll Kalshi fills endpoint every 10s."""
@@ -66,7 +66,7 @@ class KalshiActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[kalshi] Fills loop error: {e}")
+                logger.warning(f"[kalshi] Fills loop error: {e}")
             await asyncio.sleep(self._fills_interval)
 
     async def _positions_loop(self):
@@ -118,5 +118,5 @@ class KalshiActivitySource(BaseActivitySource):
                 last_balance = current_balance
 
             except Exception as e:
-                logger.warning("[kalshi] Positions loop error: {e}")
+                logger.warning(f"[kalshi] Positions loop error: {e}")
             await asyncio.sleep(self._positions_interval)

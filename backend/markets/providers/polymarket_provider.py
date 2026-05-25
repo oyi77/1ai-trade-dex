@@ -215,10 +215,14 @@ class PolymarketProvider(BaseMarketProvider):
             yes_price_raw = m.get("outcomePrices", m.get("current_price", "0.5"))
             if isinstance(yes_price_raw, str):
                 try:
-                    yes_price_raw = yes_price_raw.strip('[]"').split(",")[0]
-                except (AttributeError, IndexError):
+                    import json
+                    if yes_price_raw.startswith("["):
+                        yes_price_raw = json.loads(yes_price_raw)[0]
+                    else:
+                        yes_price_raw = yes_price_raw.strip('[]" \t').split(",")[0].strip('"')
+                except Exception:
                     yes_price_raw = "0.5"
-            yes_price = Decimal(str(yes_price_raw or "0.5"))
+            yes_price = Decimal(str(yes_price_raw or "0.5").strip(' "'))
             no_price = Decimal("1") - yes_price
             volume_raw = m.get("volume", m.get("volume_24h", 0))
             open_interest_raw = m.get("openInterest", m.get("liquidity", 0))

@@ -127,7 +127,7 @@ class ExternalRateLimiter:
 
             # Wait if no tokens available
             wait_time = 0.0
-            while self._tokens < 1:
+            if self._tokens < 1:
                 # Calculate time until next token
                 tokens_needed = 1 - self._tokens
                 wait_time = (tokens_needed / self.max_calls_per_minute) * 60.0
@@ -384,3 +384,13 @@ class TokenBucketRateLimiter:
         """Clear all rate limit state."""
         self._market_timestamps.clear()
         self._global_timestamps.clear()
+
+    async def wait_and_acquire(self, market_id: str) -> None:
+        """Wait until a token is available, then acquire it."""
+        import asyncio
+        while True:
+            try:
+                self.acquire(market_id)
+                return
+            except RateLimitError:
+                await asyncio.sleep(0.1)

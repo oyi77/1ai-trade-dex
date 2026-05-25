@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 
 from backend.config import settings
+from backend.core.retry import retry
 
 from loguru import logger
 
@@ -212,25 +213,23 @@ async def fetch_short_duration_token_ids(
     return tokens
 
 
-async def _fetch_page(client: httpx.AsyncClient, params: dict) -> list[dict]:
-    """Fetch one page from Gamma /markets with retry."""
+@retry(max_attempts=3, retryable_exceptions=(httpx.HTTPStatusError,))
+async def _fetch_page_inner(client: httpx.AsyncClient, params: dict) -> list[dict]:
+    """Fetch one page from Gamma /markets — retryable core."""
     url = f"{GAMMA_HOST}/markets"
-    for attempt in range(3):
-        try:
-            async with _SCAN_SEMAPHORE:
-                resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code >= 500:
-                logger.warning(
-                    f"market_scanner: Gamma {resp.status_code} on attempt {attempt + 1}"
-                )
-                if attempt < 2:
-                    await asyncio.sleep(1.0 * (attempt + 1))
-                    continue
-            return []
-        except httpx.TimeoutException:
-            logger.warning(f"market_scanner: timeout on attempt {attempt + 1}")
-            if attempt < 2:
-                await asyncio.sleep(1.0)
-    return []
+    async with _SCAN_SEMAPHORE:
+        resp = await client.get(url, params=params)
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def _fetch_page(client: httpx.AsyncClient, params: dict) -> list[dict]:
+    """Fetch one page from Gamma /markets with retry on 5xx."""
+    try:
+        return await _fetch_page_inner(client, params)
+    except httpx.HTTPStatusError:
+        return []
+    except httpx.TimeoutException:
+        return []
+    except Exception:
+        return []

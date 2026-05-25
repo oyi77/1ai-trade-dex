@@ -377,19 +377,20 @@ class ConfigRegistry:
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
     WEEKLY_LOSS_FLOOR_PCT: float = -0.20  # weekly loss floor (revert to paper)
     MAX_STRATEGY_DRAWDOWN_PCT: float = (
-        0.80  # per-strategy max drawdown (% of allocation)
+        1.00  # per-strategy max drawdown (% of allocation)
     )
-    VOLATILITY_SIZE_SCALE: bool = True  # reduce size in high volatility
+    VOLATILITY_SIZE_SCALE: bool = False  # reduce size in high volatility
     COOLDOWN_CONSECUTIVE_LOSSES: int = 3  # losses before cooldown
     COOLDOWN_MINUTES: int = 60  # strategy cooldown after consecutive losses
-    MAX_CONCENTRATION_PCT: float = 0.30  # max exposure to single event (% of bankroll)
+    DUPLICATE_TRADE_COOLDOWN_SEC: int = 15  # cooldown between trades on the same market
+    MAX_CONCENTRATION_PCT: float = 1.0  # max exposure to single event (% of bankroll)
     DISK_USAGE_ALERT_PCT: float = 0.90  # disk usage alert threshold
 
     # HFT parameters
     HFT_ENABLED: bool = True
-    HFT_POSITION_SIZE_PCT: float = 0.25  # position size as % of bankroll
-    HFT_MAX_POSITION_USD: float = 1000.0  # max position in USD
-    SAFE_TUNER_MAX_CHANGE_PCT: float = 0.10  # max parameter drift per tuning
+    HFT_POSITION_SIZE_PCT: float = 1.0  # position size as % of bankroll
+    HFT_MAX_POSITION_USD: float = 5000.0  # max position in USD
+    SAFE_TUNER_MAX_CHANGE_PCT: float = 1.0  # max parameter drift per tuning
     SAFE_TUNER_MIN_TRADES_FOR_TUNING: int = 20
     SAFE_TUNER_REVERT_SIGMA_THRESHOLD: float = 2.0
     PAPER_SLIPPAGE_BPS: float = 20.0  # paper slippage in basis points
@@ -1221,7 +1222,7 @@ class ConfigRegistry:
             ("DAILY_LOSS_FLOOR_PCT", self.DAILY_LOSS_FLOOR_PCT, -0.5, 0.0),
             ("WEEKLY_LOSS_FLOOR_PCT", self.WEEKLY_LOSS_FLOOR_PCT, -0.5, 0.0),
             ("AI_SIGNAL_WEIGHT", self.AI_SIGNAL_WEIGHT, 0.0, 0.5),
-            ("HFT_POSITION_SIZE_PCT", self.HFT_POSITION_SIZE_PCT, 0.01, 0.25),
+            ("HFT_POSITION_SIZE_PCT", self.HFT_POSITION_SIZE_PCT, 0.01, 1.0),
             (
                 "WEATHER_MAX_BANKROLL_FRACTION",
                 self.WEATHER_MAX_BANKROLL_FRACTION,

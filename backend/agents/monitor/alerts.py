@@ -140,12 +140,12 @@ class AlertManager:
     async def _send_telegram(self, title: str, body: str, level: str) -> None:
         """Send alert to Telegram via the bot module (best-effort)."""
         try:
-            from backend.bot.telegram_bot import send_alert
+            from backend.bot.notification.registry import registry
 
             # Truncate body for Telegram (max 4096 chars)
             truncated_body = body[:4000] if len(body) > 4000 else body
 
-            await send_alert(
+            await registry.send_alert(
                 title=title,
                 message=truncated_body,
                 level=level,

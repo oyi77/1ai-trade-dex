@@ -31,7 +31,7 @@ class OstiumActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[ostium] Activity source error: {e}")
+            logger.error(f"[ostium] Activity source error: {e}")
 
     async def _fills_loop(self):
         """Poll Ostium fills for recent trades."""
@@ -70,7 +70,7 @@ class OstiumActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[ostium] Fills loop error: {e}")
+                logger.warning(f"[ostium] Fills loop error: {e}")
             await asyncio.sleep(self._fills_interval)
 
     async def _positions_loop(self):
@@ -119,5 +119,5 @@ class OstiumActivitySource(BaseActivitySource):
                 last_balance = current_balance
 
             except Exception as e:
-                logger.warning("[ostium] Positions loop error: {e}")
+                logger.warning(f"[ostium] Positions loop error: {e}")
             await asyncio.sleep(self._positions_interval)

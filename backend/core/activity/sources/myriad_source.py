@@ -32,7 +32,7 @@ class MyriadActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[myriad] Activity source error: {e}")
+            logger.error(f"[myriad] Activity source error: {e}")
 
     async def _fills_loop(self):
         """Poll Myriad fills endpoint for recent trades."""
@@ -71,7 +71,7 @@ class MyriadActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[myriad] Fills loop error: {e}")
+                logger.warning(f"[myriad] Fills loop error: {e}")
             await asyncio.sleep(self._fills_interval)
 
     async def _positions_loop(self):
@@ -133,5 +133,5 @@ class MyriadActivitySource(BaseActivitySource):
                 last_balance = current_balance
 
             except Exception as e:
-                logger.warning("[myriad] Positions loop error: {e}")
+                logger.warning(f"[myriad] Positions loop error: {e}")
             await asyncio.sleep(self._positions_interval)

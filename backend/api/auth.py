@@ -779,11 +779,11 @@ async def get_admin_system(
 @router.post("/alerts/test")
 async def test_alert(_: None = Depends(require_admin)):
     """Send a test Telegram alert to verify bot configuration."""
-    from backend.core.heartbeat import _send_telegram_alert_sync
+    from backend.bot.notification.registry import registry
 
     if not settings.TELEGRAM_BOT_TOKEN:
         raise HTTPException(status_code=400, detail="TELEGRAM_BOT_TOKEN not configured")
-    _send_telegram_alert_sync("✅ PolyEdge alert test — bot is configured correctly")
+    await registry.send_alert(title="Auth Alert", message="PolyEdge alert test -- bot is configured correctly")
     return {"status": "ok", "message": "Test alert sent"}
 
 

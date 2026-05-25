@@ -373,11 +373,5 @@ def cleanup_proposals_between_tests(db):
 def reset_provider_registry():
     from backend.data.source_registry import DataSourceRegistry
     from backend.markets.provider_registry import MarketProviderRegistry
-    from backend.agi.node_registry import NodeRegistry
-    from backend.agi.sandbox.sandbox_registry import SandboxNodeRegistry
 
     DataSourceRegistry.reset()
-    DataSourceRegistry.reset()
-    MarketProviderRegistry.reset()
-    NodeRegistry.reset()
-    SandboxNodeRegistry.reset()

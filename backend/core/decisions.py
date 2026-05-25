@@ -6,17 +6,53 @@ evaluation — including skips. This creates the audit trail and ML training dat
 """
 
 import json
-import time
 from datetime import datetime, timezone
 
-from sqlalchemy.exc import OperationalError, PendingRollbackError
+from sqlalchemy.exc import OperationalError, PendingRollbackError, TimeoutError
 
 from backend.models.database import DecisionLog
+from backend.core.retry import retry
 
 from loguru import logger
 
-_DB_LOCKED_MAX_RETRIES = 3
-_DB_LOCKED_RETRY_DELAY = 0.5
+
+@retry(max_attempts=5, retryable_exceptions=(OperationalError, TimeoutError))
+def _flush_decision(
+    db,
+    strategy: str,
+    market_ticker: str,
+    decision: str,
+    confidence: float | None,
+    signal_json: str | None,
+    reason: str | None,
+) -> DecisionLog:
+    """DB-write portion: create + flush a DecisionLog row. Retried on lock/timeout."""
+    try:
+        row = DecisionLog(
+            strategy=strategy,
+            market_ticker=market_ticker,
+            decision=decision.upper(),
+            confidence=confidence,
+            signal_data=signal_json,
+            reason=reason,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(row)
+        db.flush()
+        return row
+    except OperationalError:
+        # Rollback to clear the session before the decorator retries
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    except TimeoutError:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
 
 
 def record_decision(
@@ -57,72 +93,58 @@ def record_decision(
                 )
                 signal_json = str(signal_data)
 
-    for attempt in range(_DB_LOCKED_MAX_RETRIES):
+    try:
+        return _flush_decision(
+            db, strategy, market_ticker, decision, confidence, signal_json, reason
+        )
+    except PendingRollbackError as e:
+        # Session is in DEACTIVE state due to a prior failed flush.
+        # Rollback to recover the session, then return None — do not retry.
+        logger.warning(
+            f"record_decision: PendingRollbackError for {strategy}/{market_ticker}, "
+            f"rolling back to recover session: {e}",
+            extra={"component": "decisions"},
+        )
         try:
-            row = DecisionLog(
-                strategy=strategy,
-                market_ticker=market_ticker,
-                decision=decision.upper(),
-                confidence=confidence,
-                signal_data=signal_json,
-                reason=reason,
-                created_at=datetime.now(timezone.utc),
+            db.rollback()
+        except Exception:
+            logger.exception(
+                f"record_decision: rollback also failed for {strategy}/{market_ticker}"
             )
-            db.add(row)
-            db.flush()
-            return row
-        except PendingRollbackError as e:
-            # Session is in DEACTIVE state due to a prior failed flush.
-            # Rollback to recover the session, then return None — do not retry.
-            logger.warning(
-                f"record_decision: PendingRollbackError for {strategy}/{market_ticker}, "
-                f"rolling back to recover session: {e}",
-                extra={"component": "decisions"},
+        return None
+    except OperationalError as e:
+        logger.warning(
+            f"record_decision: OperationalError for {strategy}/{market_ticker} after retries, "
+            f"rolling back session: {e}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            logger.exception(
+                f"record_decision: rollback also failed for {strategy}/{market_ticker}"
             )
-            try:
-                db.rollback()
-            except Exception:
-                logger.exception(
-                    f"record_decision: rollback also failed for {strategy}/{market_ticker}"
-                )
-            return None
-        except OperationalError as e:
-            if (
-                "database is locked" not in str(e).lower()
-                or attempt >= _DB_LOCKED_MAX_RETRIES - 1
-            ):
-                logger.warning(
-                    f"record_decision: OperationalError for {strategy}/{market_ticker}, "
-                    f"rolling back session: {e}"
-                )
-                try:
-                    db.rollback()
-                except Exception:
-                    logger.exception(
-                        f"record_decision: rollback also failed for {strategy}/{market_ticker}"
-                    )
-                return None
-            logger.info(
-                f"record_decision: database locked for {strategy}/{market_ticker}, "
-                f"retry {attempt + 1}/{_DB_LOCKED_MAX_RETRIES}"
+        return None
+    except TimeoutError as e:
+        logger.warning(
+            f"record_decision: TimeoutError for {strategy}/{market_ticker} after retries, "
+            f"rolling back session: {e}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            logger.exception(
+                f"record_decision: rollback also failed for {strategy}/{market_ticker}"
             )
-            try:
-                db.rollback()
-            except Exception:
-                logger.exception(
-                    "record_decision: failed to rollback after OperationalError"
-                )
-            time.sleep(_DB_LOCKED_RETRY_DELAY)
-        except Exception as e:
-            logger.error(f"record_decision failed for {strategy}/{market_ticker}: {e}")
-            try:
-                db.rollback()
-            except Exception:
-                logger.exception(
-                    "record_decision: rollback failed after unhandled exception"
-                )
-            return None
-    return None
+        return None
+    except Exception as e:
+        logger.error(f"record_decision failed for {strategy}/{market_ticker}: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            logger.exception(
+                "record_decision: rollback failed after unhandled exception"
+            )
+        return None
 
 
 def record_decision_standalone(
@@ -135,8 +157,8 @@ def record_decision_standalone(
     max_retries: int = 3,
     retry_delay: float = 0.1,
 ) -> DecisionLog | None:
-    """
-    Open own DB session, insert decision, commit immediately, close.
+    """Open own DB session, insert decision, commit immediately, close.
+
     Use for burst writes (e.g., 6 BTC 5-min markets in a loop)
     to avoid shared-session lock contention.
 
@@ -147,31 +169,29 @@ def record_decision_standalone(
     """
     from backend.db.utils import get_db_session
 
-    for attempt in range(max_retries):
-        try:
-            with get_db_session() as db:
-                row = record_decision(
-                    db,
-                    strategy,
-                    market_ticker,
-                    decision,
-                    confidence,
-                    signal_data,
-                    reason,
-                )
+    @retry(max_attempts=max_retries, retryable_exceptions=(OperationalError, TimeoutError))
+    def _insert_standalone() -> DecisionLog:
+        with get_db_session() as db:
+            row = record_decision(
+                db,
+                strategy,
+                market_ticker,
+                decision,
+                confidence,
+                signal_data,
+                reason,
+            )
+            # Force the result so exceptions propagate out of the context manager
+            if row is not None:
                 return row
-        except OperationalError as e:
-            logger.warning(
-                f"record_decision_standalone: OperationalError on attempt {attempt+1}/{max_retries} "
-                f"for {strategy}/{market_ticker}: {e}"
-            )
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay * (attempt + 1))
-                continue
-            return None
-        except Exception as e:
-            logger.error(
-                f"record_decision_standalone failed for {strategy}/{market_ticker}: {e}"
-            )
-            return None
-    return None
+            raise OperationalError("record_decision returned None", {}, None)
+
+    try:
+        return _insert_standalone()
+    except OperationalError:
+        return None
+    except Exception as e:
+        logger.error(
+            f"record_decision_standalone failed for {strategy}/{market_ticker}: {e}"
+        )
+        return None

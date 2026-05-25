@@ -28,7 +28,7 @@ class LighterActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[lighter] Activity source error: {e}")
+            logger.error(f"[lighter] Activity source error: {e}")
 
     async def _ws_loop(self):
         """Parse WebSocket account messages for fills."""
@@ -57,7 +57,7 @@ class LighterActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[lighter] WS loop error: {e}")
+                logger.warning(f"[lighter] WS loop error: {e}")
             await asyncio.sleep(0.1)
 
     async def _balance_loop(self):
@@ -80,5 +80,5 @@ class LighterActivitySource(BaseActivitySource):
                         ))
                 last = bal
             except Exception as e:
-                logger.warning("[lighter] Balance loop error: {e}")
+                logger.warning(f"[lighter] Balance loop error: {e}")
             await asyncio.sleep(5)

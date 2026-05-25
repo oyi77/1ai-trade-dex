@@ -1,16 +1,23 @@
-from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
-from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
-import importlib
-import os
-import pkgutil
-from typing import List, Optional
+"""Notification registry — inherits from PluginRegistry for multi-channel notifications."""
+
+import asyncio
 import logging
+from typing import Optional, List
+
+from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
+from backend.core.plugin_registry import PluginRegistry
 
 logger = logging.getLogger(__name__)
 
 
-class NotificationRegistry:
-    _instance: "NotificationRegistry" = None
+class NotificationRegistry(PluginRegistry[NotificationManifest, BaseNotificationProvider]):
+    """Singleton registry for notification providers (Telegram, Discord, Slack, Webhook).
+
+    Inherits register(), get(), set_enabled(), auto_discover(), run_health_checks()
+    from PluginRegistry. Adds broadcast(), send_to(), and send_alert() convenience methods.
+    """
+
+    _instance: Optional["NotificationRegistry"] = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -19,20 +26,14 @@ class NotificationRegistry:
         return cls._instance
 
     def __init__(self, name: str = "notification_registry"):
-        if hasattr(self, "__initialized"):
+        if self.__initialized:
             return
-        self.name = name
-        self._plugins: dict[str, BaseNotificationProvider] = {}
-        self._manifests: dict[str, NotificationManifest] = {}
-        self._enabled: dict[str, bool] = {}
-        self._health_status: dict[str, bool] = {}
+        super().__init__(name=name, health_interval=120.0, env_var_check=False)
         self.__initialized = True
 
     @classmethod
     def reset(cls) -> None:
-        """E-97: Thread-safe singleton reset — acquire lock before clearing state."""
         import threading
-
         with threading.Lock():
             if cls._instance is not None:
                 cls._instance._plugins.clear()
@@ -42,49 +43,8 @@ class NotificationRegistry:
                 cls._instance.__initialized = False
                 cls._instance = None
 
-    def plugin(self, cls: type) -> type:
-        self.register(cls)
-        return cls
-
-    def register(self, plugin_class: type) -> None:
-        manifest = plugin_class.manifest()
-        name = manifest.name
-
-        if not os.environ.get("SHADOW_MODE") and name != "webhook":
-            missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
-            if missing:
-                raise PluginEnvVarMissing(
-                    f"Notification plugin '{name}' requires env vars: {missing}"
-                )
-
-        try:
-            instance = plugin_class()
-            self._plugins[name] = instance
-            self._manifests[name] = manifest
-            self._enabled[name] = True
-            self._health_status[name] = True
-            logger.info(f"Registered notification provider: {name} v{manifest.version}")
-        except Exception as e:
-            logger.warning(f"Failed to instantiate notification provider {name}: {e}")
-
-    def get(self, name: str) -> BaseNotificationProvider:
-        if name not in self._plugins:
-            raise PluginNotFound(f"Notification provider '{name}' not found")
-        if not self._enabled.get(name, False):
-            raise PluginNotFound(f"Notification provider '{name}' is disabled")
-        if not self._health_status.get(name, False):
-            raise PluginNotFound(f"Notification provider '{name}' is unhealthy")
-        return self._plugins[name]
-
-    def list_available(self) -> List[str]:
-        return list(self._plugins.keys())
-
     def get_enabled(self) -> List[str]:
         return [name for name, enabled in self._enabled.items() if enabled]
-
-    def set_enabled(self, name: str, enabled: bool) -> None:
-        if name in self._enabled:
-            self._enabled[name] = enabled
 
     def is_enabled(self, name: str) -> bool:
         return self._enabled.get(name, False)
@@ -92,6 +52,7 @@ class NotificationRegistry:
     async def broadcast(
         self, event_type: str, message: str, details: Optional[dict] = None
     ) -> None:
+        """Send to all enabled providers."""
         for name in self.get_enabled():
             try:
                 provider = self._plugins[name]
@@ -106,6 +67,7 @@ class NotificationRegistry:
         message: str,
         details: Optional[dict] = None,
     ) -> bool:
+        """Send to a specific channel."""
         if channel_name not in self._plugins:
             logger.error(f"Notification provider '{channel_name}' not found")
             return False
@@ -124,19 +86,21 @@ class NotificationRegistry:
             logger.error(f"Failed to send notification via '{channel_name}': {e}")
             return False
 
-    async def health_check_all(self) -> dict[str, bool]:
-        results = {}
-        for name, provider in self._plugins.items():
-            try:
-                results[name] = await provider.health_check()
-            except Exception as e:
-                logger.error(f"Health check failed for '{name}': {e}")
-                results[name] = False
-        return results
+    async def send_alert(
+        self, title: str = "", message: str = "", level: str = "info"
+    ) -> bool:
+        """Convenience method for alert notifications. Fixes broken imports."""
+        return await self.send_to(
+            "telegram", level, f"{title}\n{message}" if title else message
+        )
 
     async def auto_discover(
         self, package_path: str = "backend.bot.notification.providers"
     ) -> None:
+        """Auto-discover notification providers."""
+        import importlib
+        import pkgutil
+
         package = importlib.import_module(package_path)
         for _, name, _ in pkgutil.iter_modules(package.__path__):
             try:

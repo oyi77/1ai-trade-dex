@@ -35,7 +35,7 @@ class PolymarketActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[polymarket] Activity source error: {e}")
+            logger.error(f"[polymarket] Activity source error: {e}")
 
     async def _ws_fills_loop(self):
         """Try WebSocket fills subscription; fall back to REST polling on failure."""
@@ -43,7 +43,7 @@ class PolymarketActivitySource(BaseActivitySource):
             try:
                 await self._connect_ws_fills()
             except Exception as e:
-                logger.warning("[polymarket] WS fills error, falling back to REST: {e}")
+                logger.warning(f"[polymarket] WS fills error, falling back to REST: {e}")
                 self._ws_connected = False
             # If WS fails, run REST fallback for a while before retrying
             if not self._ws_connected and self._running:
@@ -95,7 +95,7 @@ class PolymarketActivitySource(BaseActivitySource):
                 except RuntimeError:
                     asyncio.ensure_future(self._emit(event))
             except Exception as e:
-                logger.warning("[polymarket] WS trade callback error: {e}")
+                logger.warning(f"[polymarket] WS trade callback error: {e}")
 
         def on_user_order(data: dict):
             """Callback for WS order status updates (fills, cancellations)."""
@@ -104,7 +104,7 @@ class PolymarketActivitySource(BaseActivitySource):
                 if status in ("matched", "filled", "live_matched"):
                     on_user_trade(data)
             except Exception as e:
-                logger.warning("[polymarket] WS order callback error: {e}")
+                logger.warning(f"[polymarket] WS order callback error: {e}")
 
         ws.on(EventType.USER_TRADE, on_user_trade)
         ws.on(EventType.USER_ORDER, on_user_order)
@@ -147,7 +147,7 @@ class PolymarketActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[polymarket] REST fills loop error: {e}")
+                logger.warning(f"[polymarket] REST fills loop error: {e}")
             await asyncio.sleep(5)
 
     async def _transfer_loop(self):
@@ -194,7 +194,7 @@ class PolymarketActivitySource(BaseActivitySource):
                     await self._emit(event)
                 last_block = current + 1
             except Exception as e:
-                logger.warning("[polymarket] Transfer loop error: {e}")
+                logger.warning(f"[polymarket] Transfer loop error: {e}")
             await asyncio.sleep(3)
 
     async def _clob_balance_loop(self):
@@ -218,5 +218,5 @@ class PolymarketActivitySource(BaseActivitySource):
                         ))
                 last = balance
             except Exception as e:
-                logger.warning("[polymarket] Balance loop error: {e}")
+                logger.warning(f"[polymarket] Balance loop error: {e}")
             await asyncio.sleep(10)

@@ -60,7 +60,7 @@ class AzuroActivitySource(BaseActivitySource):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning("[azuro] Activity poll error: {e}")
+                logger.warning(f"[azuro] Activity poll error: {e}")
             await asyncio.sleep(self._poll_interval)
 
     async def _poll_bets(self):

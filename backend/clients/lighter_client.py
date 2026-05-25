@@ -16,6 +16,7 @@ class LighterClient:
         private_key: str = None,
         account_index: int = None,
         api_key_index: int = None,
+        skip_signer: bool = False,
     ):
         self._private_key = private_key or os.getenv("LIGHTER_PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY", "")
         self._account_index = int(
@@ -24,6 +25,7 @@ class LighterClient:
         self._api_key_index = int(
             api_key_index or os.getenv("LIGHTER_API_KEY_INDEX") or "2"
         )
+        self._skip_signer = skip_signer
         self._initialized = False
         self._api_client = None
         self._account_api = None
@@ -39,7 +41,7 @@ class LighterClient:
         self._api_client = ApiClient(config)
         self._account_api = AccountApi(self._api_client)
         self._tx_api = TransactionApi(self._api_client)
-        if self._private_key:
+        if self._private_key and not self._skip_signer:
             self._signer = SignerClient(
                 url=_LIGHTER_HOST,
                 account_index=self._account_index,

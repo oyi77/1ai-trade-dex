@@ -10,6 +10,7 @@ from backend.config import settings
 from backend.strategies.types_hft import HFTSignal, HFTExecution
 from backend.core.risk_manager_hft import HRiskManager
 from backend.core.slippage import calculate_slippage
+from backend.core.retry import retry
 from backend.monitoring.hft_metrics import (
     record_execution,
     record_circuit_open,
@@ -17,6 +18,33 @@ from backend.monitoring.hft_metrics import (
 )
 
 from loguru import logger
+
+
+@retry(max_attempts=3)
+async def _place_order_with_retry(
+    clob: object,
+    market_id: str,
+    side: str,
+    price: float,
+    size: float,
+    idempotency_key: str,
+    signal_id: str,
+) -> Optional[str]:
+    """Place a limit order with retry. Extracted for @retry decorator."""
+    try:
+        result = await clob.place_limit_order(
+            token_id=market_id,
+            side=side,
+            price=price,
+            size=size,
+            idempotency_key=idempotency_key,
+        )
+        return getattr(result, "order_id", None)
+    except Exception:
+        logger.exception(
+            f"[hft_executor] Order placement failed for signal {signal_id}, retrying..."
+        )
+        raise
 
 
 class HFTExecutor:
@@ -226,26 +254,10 @@ class HFTExecutor:
             raise ValueError("CLOB instance not initialized")
 
         idempotency_key = f"hft-{signal.signal_id}-{int(time.monotonic() * 1000000)}"
-
-        for attempt in range(3):
-            try:
-                result = await self._clob.place_limit_order(
-                    token_id=signal.market_id,
-                    side=side,
-                    price=signal.edge,
-                    size=size,
-                    idempotency_key=idempotency_key,
-                )
-                return getattr(result, "order_id", None)
-            except Exception:
-                logger.exception(
-                    f"[hft_executor] Order placement attempt {attempt+1}/3 failed for signal {signal.signal_id}"
-                )
-                if attempt < 2:
-                    wait = 0.01 * (2**attempt)
-                    await asyncio.sleep(wait)
-                else:
-                    raise
+        return await _place_order_with_retry(
+            self._clob, signal.market_id, side, signal.edge, size, idempotency_key,
+            signal.signal_id
+        )
 
     async def _monitor_fill(self, order_id: str, market_id: str) -> None:
         """Monitor WebSocket for fill confirmation."""

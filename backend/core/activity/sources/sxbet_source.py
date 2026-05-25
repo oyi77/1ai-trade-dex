@@ -30,7 +30,7 @@ class SXBetActivitySource(BaseActivitySource):
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            logger.error("[sxbet] Activity source error: {e}")
+            logger.error(f"[sxbet] Activity source error: {e}")
 
     async def _fills_loop(self):
         """Poll SX.bet trades endpoint for recent fills."""
@@ -70,7 +70,7 @@ class SXBetActivitySource(BaseActivitySource):
                     )
                     await self._emit(event)
             except Exception as e:
-                logger.warning("[sxbet] Fills loop error: {e}")
+                logger.warning(f"[sxbet] Fills loop error: {e}")
             await asyncio.sleep(self._fills_interval)
 
     async def _balance_loop(self):
@@ -99,5 +99,5 @@ class SXBetActivitySource(BaseActivitySource):
                     ))
                 last_balance = current_balance
             except Exception as e:
-                logger.warning("[sxbet] Balance loop error: {e}")
+                logger.warning(f"[sxbet] Balance loop error: {e}")
             await asyncio.sleep(self._balance_interval)

@@ -7,7 +7,7 @@ import os
 import pkgutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic, List, Optional, TypeVar, Dict
+from typing import Callable, Generic, List, Optional, TypeVar, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -51,14 +51,27 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
         T_Plugin: the base plugin class (BaseAIProvider, BaseDataSource, etc.)
     """
 
-    def __init__(self, name: str = "plugin_registry"):
+    def __init__(
+        self,
+        name: str = "plugin_registry",
+        *,
+        env_var_check: bool = True,
+        error_cls: type | None = None,
+        health_interval: float = 60.0,
+        on_register: Optional[Callable[[type, object], None]] = None,
+        pre_register: Optional[Callable[[type], None]] = None,
+    ):
         self.name = name
         self._plugins: Dict[str, T_Plugin] = {}
         self._manifests: Dict[str, T_Manifest] = {}
         self._enabled: Dict[str, bool] = {}
         self._health_status: Dict[str, bool] = {}
         self._health_check_task: Optional[asyncio.Task] = None
-        self._health_check_interval: float = 60.0
+        self._health_check_interval: float = health_interval
+        self._env_var_check: bool = env_var_check
+        self._error_cls = error_cls
+        self._on_register: Optional[Callable[[type, object], None]] = on_register
+        self._pre_register: Optional[Callable[[type], None]] = pre_register
 
     def plugin(self, cls: type) -> type:
         """Decorator that registers a class with this registry at import time."""
@@ -70,23 +83,33 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
         manifest = plugin_class.manifest()
         name = manifest.name
 
-        # Check required env vars
-        from backend.core.plugin_errors import PluginEnvVarMissing
+        # Pre-register hook: runs before env-var check (sandbox filtering, etc.)
+        if self._pre_register:
+            self._pre_register(plugin_class)
 
-        missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
-        if missing:
-            raise PluginEnvVarMissing(f"Plugin '{name}' requires env vars: {missing}")
+        # Check required env vars (skip if env_var_check=False)
+        if self._env_var_check:
+            from backend.core.plugin_errors import PluginEnvVarMissing
+
+            _err_cls = self._error_cls or PluginEnvVarMissing
+            missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+            if missing:
+                raise _err_cls(f"Plugin '{name}' requires env vars: {missing}")
 
         # Instantiate and store
         try:
             instance = plugin_class()
-            self._plugins[name] = instance
-            self._manifests[name] = manifest
-            self._enabled[name] = True
-            self._health_status[name] = True
-            logger.info(f"Registered plugin: {name} v{manifest.version}")
         except Exception as e:
             logger.warning(f"Failed to instantiate plugin {name}: {e}")
+            return
+        # on_register hook runs before storing — may raise ValueError to reject
+        if self._on_register:
+            self._on_register(plugin_class, instance)
+        self._plugins[name] = instance
+        self._manifests[name] = manifest
+        self._enabled[name] = True
+        self._health_status[name] = True
+        logger.info(f"Registered plugin: {name} v{manifest.version}")
 
     def get(self, name: str) -> T_Plugin:
         """Get a plugin by name. Raises PluginNotFound if missing or disabled."""

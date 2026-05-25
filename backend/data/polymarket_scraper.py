@@ -13,12 +13,12 @@ Fetches REAL data from polymarket.com:
 NO MOCK DATA - Everything is real!
 """
 
-import asyncio
 import time
 from typing import List, Dict, Optional, Any
 import httpx
 
 from backend.config import settings
+from backend.core.retry import retry
 
 from loguru import logger
 
@@ -33,7 +33,6 @@ POLYMARKET_BUILDER_LEADERBOARD = (
 # Rate limiting (from polymarket-mcp-server patterns)
 REQUEST_TIMEOUT = 30.0
 MAX_RETRIES = 3
-RETRY_DELAY = 1.0
 
 # Builder leaderboard cache (5 min TTL)
 _BUILDER_LEADERBOARD_CACHE: List[Dict[str, Any]] = []
@@ -82,40 +81,28 @@ class PolymarketScraper:
                 "PolymarketScraper must be used as async context manager"
             )
 
-        for attempt in range(MAX_RETRIES):
-            try:
-                logger.debug(f"Fetching {url} (attempt {attempt + 1}/{MAX_RETRIES})")
-                response = await self._client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-                logger.debug(f"Successfully fetched {len(str(data))} bytes from {url}")
-                return data
+        @retry(max_attempts=MAX_RETRIES)
+        async def _do_get() -> Dict[str, Any]:
+            response = await self._client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
 
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:  # Rate limit
-                    wait_time = RETRY_DELAY * (2**attempt)
-                    logger.warning(f"Rate limited, waiting {wait_time}s before retry")
-                    await asyncio.sleep(wait_time)
-                elif e.response.status_code >= 500:
-                    logger.warning(
-                        f"Server error {e.response.status_code}, retrying..."
-                    )
-                    await asyncio.sleep(RETRY_DELAY)
-                else:
-                    logger.error(f"HTTP error fetching {url}: {e.response.status_code}")
-                    return {}
-
-            except httpx.TimeoutException:
-                logger.warning(f"Timeout on attempt {attempt + 1}, retrying...")
-                await asyncio.sleep(RETRY_DELAY)
-
-            except Exception as e:
-                logger.error(f"Error fetching {url}: {e}")
-                if attempt == MAX_RETRIES - 1:
-                    return {}
-                await asyncio.sleep(RETRY_DELAY)
-
-        return {}
+        try:
+            return await _do_get()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                logger.warning("Rate limited after retries")
+            elif e.response.status_code >= 500:
+                logger.warning(f"Server error {e.response.status_code} after retries")
+            else:
+                logger.error(f"HTTP error fetching {url}: {e.response.status_code}")
+            return {}
+        except httpx.TimeoutException:
+            logger.warning(f"Timeout after retries for {url}")
+            return {}
+        except Exception as e:
+            logger.error(f"Error fetching {url}: {e}")
+            return {}
 
     async def fetch_leaderboard(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Fetch trader leaderboard from Polymarket v1 Data API."""

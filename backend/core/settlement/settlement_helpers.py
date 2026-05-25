@@ -813,11 +813,18 @@ async def check_market_settlement(
 
     Returns: (is_settled, settlement_value, pnl)
     """
-    is_resolved, settlement_value = await fetch_polymarket_resolution(
-        trade.market_ticker,
-        event_slug=trade.event_slug,
-        condition_id=getattr(trade, "condition_id", None),
-    )
+    platform = getattr(trade, "platform", "polymarket") or "polymarket"
+    
+    if platform == "kalshi":
+        is_resolved, settlement_value = await _fetch_kalshi_resolution(trade.market_ticker)
+    elif platform == "lighter":
+        is_resolved, settlement_value = False, None
+    else:
+        is_resolved, settlement_value = await fetch_polymarket_resolution(
+            trade.market_ticker,
+            event_slug=trade.event_slug,
+            condition_id=getattr(trade, "condition_id", None),
+        )
 
     if not is_resolved or settlement_value is None:
         return False, None, None
@@ -920,8 +927,11 @@ async def _resolve_markets(
                             f"[settlement_helpers._resolve_one] METAR lookup skipped for {ticker}: {metar_err}"
                         )
 
-                if is_weather and platform == "kalshi":
+                if platform == "kalshi":
                     result = await _fetch_kalshi_resolution(ticker)
+                elif platform == "lighter":
+                    # Lighter does not have a fetch_lighter_resolution yet, so return False
+                    result = False, None
                 else:
                     result = await fetch_polymarket_resolution(
                         ticker, event_slug=trade_slugs.get(ticker)

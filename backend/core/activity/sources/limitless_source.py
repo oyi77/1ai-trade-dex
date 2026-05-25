@@ -27,7 +27,7 @@ class LimitlessActivitySource(BaseActivitySource):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.warning("[limitless] Activity poll error: {e}")
+                logger.warning(f"[limitless] Activity poll error: {e}")
             await asyncio.sleep(self._poll_interval)
 
     async def _poll_trades(self):
@@ -35,7 +35,7 @@ class LimitlessActivitySource(BaseActivitySource):
         try:
             fills = await self._client.get_fills(self.wallet_address)
         except Exception as e:
-            logger.warning("[limitless] get_fills error: {e}")
+            logger.warning(f"[limitless] get_fills error: {e}")
             return
 
         for fill in fills:

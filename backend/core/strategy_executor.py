@@ -30,6 +30,7 @@ from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator
 from sqlalchemy import case, func, and_, update
 from sqlalchemy.exc import OperationalError
+from backend.core.retry import retry
 
 from loguru import logger
 
@@ -44,6 +45,16 @@ MAX_CONCURRENT_TRADES = settings.MAX_CONCURRENT_TRADES
 _trade_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TRADES)
 
 _rate_limiter: Optional[TokenBucketRateLimiter] = None
+
+
+@retry(max_attempts=3, retryable_exceptions=(OperationalError,))
+def _commit_with_retry(db) -> None:
+    """Commit a DB session with retry on OperationalError."""
+    try:
+        db.commit()
+    except OperationalError:
+        db.rollback()
+        raise
 
 
 def _get_rate_limiter() -> TokenBucketRateLimiter:
@@ -495,8 +506,9 @@ def _execute_decision_paper_or_kalshi(
                     db.commit()
                     return None
 
-            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (same mode only) ---
-            _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+            # --- Duplicate market guard: block if same strategy+ticker traded recently (same mode only) ---
+            _cooldown_sec = settings.DUPLICATE_TRADE_COOLDOWN_SEC
+            _cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cooldown_sec)
             _dup_query = (
                 db.query(Trade)
                 .filter(
@@ -511,10 +523,10 @@ def _execute_decision_paper_or_kalshi(
             if _recent_dup is not None:
                 logger.warning(
                     f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
-                    f"(any direction) within 5 min (trade #{_recent_dup.id})"
+                    f"(any direction) within {_cooldown_sec} sec (trade #{_recent_dup.id})"
                 )
                 attempt_recorder.record_rejected(
-                    f"Duplicate: {market_ticker} already traded in last 5 min (any direction)",
+                    f"Duplicate: {market_ticker} already traded in last {_cooldown_sec} sec (any direction)",
                     phase="duplicate_guard",
                     reason_code="REJECTED_DUPLICATE_MARKET",
                     adjusted_size=adjusted_size,
@@ -772,16 +784,7 @@ def _execute_decision_paper_or_kalshi(
                 risk_reason=risk.reason,
             )
 
-            for _db_attempt in range(3):
-                try:
-                    db.commit()
-                    break
-                except OperationalError:
-                    db.rollback()
-                    if _db_attempt < 2:
-                        time.sleep(0.5 * (_db_attempt + 1))
-                    else:
-                        raise
+            _commit_with_retry(db)
 
             trade_dict = {
                 "id": trade.id,
@@ -889,14 +892,8 @@ async def execute_decision(
     asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
     market_id = str(asset_key)
 
-    # Rate limit check
-    try:
-        _get_rate_limiter().acquire(market_id)
-    except RateLimitError:
-        logger.warning(
-            "[execute_decision] Rate limit exceeded for {} — skipping trade", market_id
-        )
-        return None
+    # Rate limit check: smoothly wait for tokens instead of skipping
+    await _get_rate_limiter().wait_and_acquire(market_id)
 
     asset_lock = await _get_asset_lock(str(asset_key))
     async with _trade_semaphore:
@@ -1392,8 +1389,9 @@ async def _execute_decision_live_clob(
                     db.commit()
                     return None
 
-            # --- Duplicate market guard: block if same strategy+ticker traded in last 5 min (same mode only) ---
-            _cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+            # --- Duplicate market guard: block if same strategy+ticker traded recently (same mode only) ---
+            _cooldown_sec = settings.DUPLICATE_TRADE_COOLDOWN_SEC
+            _cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cooldown_sec)
             _dup_query = (
                 db.query(Trade)
                 .filter(
@@ -1408,10 +1406,10 @@ async def _execute_decision_live_clob(
             if _recent_dup is not None:
                 logger.warning(
                     f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
-                    f"(any direction) within 5 min (trade #{_recent_dup.id})"
+                    f"(any direction) within {_cooldown_sec} sec (trade #{_recent_dup.id})"
                 )
                 attempt_recorder.record_rejected(
-                    f"Duplicate: {market_ticker} already traded in last 5 min (any direction)",
+                    f"Duplicate: {market_ticker} already traded in last {_cooldown_sec} sec (any direction)",
                     phase="duplicate_guard",
                     reason_code="REJECTED_DUPLICATE_MARKET",
                     adjusted_size=adjusted_size,
@@ -1759,16 +1757,7 @@ async def _execute_decision_live_clob(
                 risk_reason=risk.reason,
             )
 
-            for _db_attempt in range(3):
-                try:
-                    db.commit()
-                    break
-                except OperationalError:
-                    db.rollback()
-                    if _db_attempt < 2:
-                        time.sleep(0.5 * (_db_attempt + 1))
-                    else:
-                        raise
+            _commit_with_retry(db)
 
             trade_dict = {
                 "id": trade.id,

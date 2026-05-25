@@ -122,9 +122,12 @@ class Orchestrator:
             self._bot.on_resume = self._on_resume
             self._bot.on_mode_switch = self.on_mode_switch
             await self._bot.start()
-            from backend.bot.notifier import set_bot
+            from backend.bot.notification.providers.telegram import set_bot
 
             set_bot(self._bot)
+            from backend.bot.notification.registry import registry
+
+            registry.auto_discover()
 
         profile_name = get_active_profile_name()
         profile = apply_profile(profile_name)
@@ -282,10 +285,9 @@ class Orchestrator:
 
     async def _register_activity_sources(self):
         """Register platform activity sources with ActivityTracker."""
-        from backend.core.wallet.bankroll_reconciliation import get_wallet
+        from backend.config import settings
 
-        wallet = get_wallet()
-        addr = wallet.address if hasattr(wallet, "address") else str(wallet)
+        addr = settings.WALLET_ADDRESS or settings.POLYMARKET_WALLET_ADDRESS or "0x0"
         tracker = self._activity_tracker
 
         # Aster — WebSocket fills + balance + positions

@@ -4,10 +4,10 @@ import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+from backend.core.plugin_registry import PluginRegistry
 from backend.agi.graph_engine import GraphEngine, GraphDefinition
 from backend.agi.agent_state import AgentState
 from backend.agi.base_node import NodeManifest, BaseAGINode
-from backend.agi.node_registry import NodeRegistry
 
 
 class TestGraphEngine:
@@ -28,8 +28,7 @@ class TestGraphEngine:
 
     @pytest.fixture
     def registry_with_nodes(self, mock_node):
-        registry = NodeRegistry()
-        NodeRegistry._instance = None
+        registry = PluginRegistry[NodeManifest, BaseAGINode](name="test_graph")
         registry._plugins = {}
         registry._manifests = {}
         registry._enabled = {}

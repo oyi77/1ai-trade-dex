@@ -69,11 +69,12 @@ class PolygonListener:
                     MAX_RETRIES,
                 )
                 try:
-                    from backend.bot.notification_router import send_alert
+                    from backend.bot.notification.registry import registry
 
-                    await send_alert(
-                        "Polygon listener permanently disconnected after %d retries"
-                        % MAX_RETRIES
+                    await registry.send_alert(
+                        title="Polygon Listener",
+                        message="Polygon listener permanently disconnected after %d retries"
+                        % MAX_RETRIES,
                     )
                 except Exception:
                     logger.debug("Failed to send polygon listener alert")

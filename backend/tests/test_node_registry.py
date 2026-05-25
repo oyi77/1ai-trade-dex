@@ -1,6 +1,6 @@
 import pytest
 
-from backend.agi.node_registry import NodeRegistry
+from backend.agi.node_registry import node_registry
 from backend.agi.base_node import BaseAGINode, NodeManifest
 from backend.agi.agent_state import AgentState
 
@@ -8,7 +8,7 @@ from backend.agi.agent_state import AgentState
 class TestNodeRegistry:
 
     def teardown_method(self):
-        NodeRegistry._instance = None
+        node_registry.reset()
 
     def test_register_valid_node(self):
         class TestNode(BaseAGINode):
@@ -25,12 +25,11 @@ class TestNodeRegistry:
             async def execute(self, state: AgentState) -> AgentState:
                 return state
 
-        registry = NodeRegistry()
-        registry.register(TestNode)
+        node_registry.register(TestNode)
 
-        assert "test_node" in registry._plugins
-        assert registry._enabled["test_node"] is True
-        assert registry._health_status["test_node"] is True
+        assert "test_node" in node_registry._plugins
+        assert node_registry._enabled["test_node"] is True
+        assert node_registry._health_status["test_node"] is True
 
     def test_get_node_by_name(self):
         class TestNode(BaseAGINode):
@@ -47,9 +46,8 @@ class TestNodeRegistry:
             async def execute(self, state: AgentState) -> AgentState:
                 return state
 
-        registry = NodeRegistry()
-        registry.register(TestNode)
-        node = registry.get("test_node_get")
+        node_registry.register(TestNode)
+        node = node_registry.get("test_node_get")
 
         assert node is not None
         assert isinstance(node, TestNode)
@@ -69,18 +67,15 @@ class TestNodeRegistry:
             async def execute(self, state: AgentState) -> AgentState:
                 return state
 
-        registry = NodeRegistry()
-        registry.register(TestNode)
-        registry.set_enabled("disabled_test_node", False)
+        node_registry.register(TestNode)
+        node_registry.set_enabled("disabled_test_node", False)
 
         with pytest.raises(KeyError, match="is disabled"):
-            registry.get("disabled_test_node")
+            node_registry.get("disabled_test_node")
 
     def test_get_nonexistent_node_raises_keyerror(self):
-        registry = NodeRegistry()
-
         with pytest.raises(KeyError, match="not found"):
-            registry.get("nonexistent_node")
+            node_registry.get("nonexistent_node")
 
     def test_list_all_returns_only_enabled_nodes(self):
         class EnabledNode(BaseAGINode):
@@ -111,26 +106,23 @@ class TestNodeRegistry:
             async def execute(self, state: AgentState) -> AgentState:
                 return state
 
-        registry = NodeRegistry()
-        registry.register(EnabledNode)
-        registry.register(DisabledNode)
-        registry.set_enabled("disabled_node_list", False)
+        node_registry.register(EnabledNode)
+        node_registry.register(DisabledNode)
+        node_registry.set_enabled("disabled_node_list", False)
 
-        manifests = registry.list_all()
+        manifests = node_registry.list_all()
 
         assert len(manifests) == 1
         assert manifests[0].name == "enabled_node"
 
     def test_auto_discover_loads_nodes_from_package(self):
-        registry = NodeRegistry()
-        count = registry.auto_discover("backend.agi.nodes")
+        count = node_registry.auto_discover("backend.agi.nodes")
         assert count > 0
 
     def test_singleton_instance(self):
-        registry1 = NodeRegistry()
-        registry2 = NodeRegistry()
-
-        assert registry1 is registry2
+        # Singleton behavior — import returns same instance
+        from backend.agi.node_registry import node_registry as registry2
+        assert node_registry is registry2
 
     @pytest.mark.asyncio
     async def test_health_check(self):
@@ -151,9 +143,8 @@ class TestNodeRegistry:
             async def health_check(self) -> bool:
                 return True
 
-        registry = NodeRegistry()
-        registry.register(HealthNode)
+        node_registry.register(HealthNode)
 
-        results = await registry.run_health_checks()
+        results = await node_registry.run_health_checks()
 
         assert results["health_node"] is True
