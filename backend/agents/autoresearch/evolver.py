@@ -9,6 +9,7 @@ from backend.models.database import SessionLocal, StrategyConfig
 from backend.models.outcome_tables import StrategyOutcome
 from backend.models.kg_models import ExperimentRecord
 from backend.core.agi_types import ExperimentStatus
+from backend.config import settings
 
 from loguru import logger
 
@@ -21,13 +22,13 @@ TUNABLE_PARAM_RANGES = {
     "slippage_buffer": (0.5, 2.0),
 }
 
-EVOLVABLE_WIN_RATE_FLOOR = 0.0
-EVOLVABLE_WIN_RATE_CEIL = 0.45
-MIN_OUTCOMES_TO_EVOLVE = 10
-FUNDAMENTALLY_BROKEN_WIN_RATE = 0.0
-FUNDAMENTALLY_BROKEN_MIN_TRADES = 30
-VARIANTS_PER_STRATEGY = 3
-PARAM_PERTURBATION = 0.25
+EVOLVABLE_WIN_RATE_FLOOR = settings.EVOLVER_WIN_RATE_FLOOR
+EVOLVABLE_WIN_RATE_CEIL = settings.EVOLVER_WIN_RATE_CEIL
+MIN_OUTCOMES_TO_EVOLVE = settings.EVOLVER_MIN_OUTCOMES
+FUNDAMENTALLY_BROKEN_WIN_RATE = settings.EVOLVER_BROKEN_WIN_RATE
+FUNDAMENTALLY_BROKEN_MIN_TRADES = settings.EVOLVER_BROKEN_MIN_TRADES
+VARIANTS_PER_STRATEGY = settings.EVOLVER_VARIANTS_PER_STRATEGY
+PARAM_PERTURBATION = settings.EVOLVER_PARAM_PERTURBATION
 
 
 class StrategyEvolver:

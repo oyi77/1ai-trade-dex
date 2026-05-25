@@ -336,6 +336,43 @@ class ConfigRegistry:
 
     # LLM cost tracking
     LLM_DAILY_BUDGET_DEFAULT: float = 10.0  # default daily LLM budget in USD
+
+    # Evolution promotion thresholds
+    EVOLUTION_SHADOW_PAPER_MIN_TRADES: int = 20
+    EVOLUTION_SHADOW_PAPER_MIN_WIN_RATE: float = 0.45
+    EVOLUTION_SHADOW_PAPER_MIN_SHARPE: float = 0.5
+    EVOLUTION_PAPER_LIVE_MIN_TRADES: int = 50
+    EVOLUTION_PAPER_LIVE_MIN_WIN_RATE: float = 0.50
+    EVOLUTION_PAPER_LIVE_MIN_SHARPE: float = 0.8
+    EVOLUTION_PAPER_LIVE_MAX_DRAWDOWN: float = 0.20
+    EVOLUTION_AUTO_KILL_MAX_DRAWDOWN: float = 0.50
+    EVOLUTION_AUTO_KILL_MIN_SHARPE: float = -2.0
+    EVOLUTION_AUTO_KILL_MIN_WIN_RATE: float = 0.05
+
+    # Auto-research evolver
+    EVOLVER_WIN_RATE_FLOOR: float = 0.0
+    EVOLVER_WIN_RATE_CEIL: float = 0.45
+    EVOLVER_MIN_OUTCOMES: int = 10
+    EVOLVER_BROKEN_WIN_RATE: float = 0.0
+    EVOLVER_BROKEN_MIN_TRADES: int = 30
+    EVOLVER_VARIANTS_PER_STRATEGY: int = 3
+    EVOLVER_PARAM_PERTURBATION: float = 0.25
+
+    # Mesh health monitoring
+    MESH_SUCCESS_RATE_WINDOW: int = 20
+    MESH_DEGRADED_THRESHOLD: float = 0.90
+    MESH_FAILED_THRESHOLD: float = 0.50
+    MESH_CONSECUTIVE_FAILURE_THRESHOLD: int = 5
+    MESH_RECOVERY_PROBE_INTERVAL: int = 60
+    MESH_RECOVERY_SUCCESSES_NEEDED: int = 3
+
+    # Risk config (canonical source)
+    DEFAULT_KELLY_FRACTION: float = 0.25
+    MAX_KELLY_FRACTION: float = 0.50
+    DEFAULT_MAX_DAILY_LOSS_USD: float = 100.0
+    DEFAULT_MAX_DRAWDOWN_PCT: float = 0.20
+    TERMINAL_DRAWDOWN_PCT: float = 0.50
+    INITIAL_BANKROLL: float = 1000.0
     DAILY_DRAWDOWN_LIMIT_PCT: float = 0.10  # max daily drawdown
     WEEKLY_DRAWDOWN_LIMIT_PCT: float = 0.20  # max weekly drawdown
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
