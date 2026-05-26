@@ -69,20 +69,11 @@ class WalletReconciler:
     """Reconcile blockchain state with local database."""
 
     def __init__(self, clob_client: PolymarketCLOB, db: Session, mode: str):
-        """
-        Initialize wallet reconciler.
-
-        Args:
-            clob_client: PolymarketCLOB instance for API calls
-            db: SQLAlchemy session
-            mode: Trading mode ("live" | "testnet")
-        """
         self.clob = clob_client
         self.db = db
         self.mode = mode
         self.alert_manager = AlertManager(db)
 
-        # Determine wallet address from CLOB client
         if self.clob.builder_address:
             self.wallet_address = self.clob.builder_address
         elif hasattr(self.clob, "_account") and self.clob._account:
@@ -112,7 +103,6 @@ class WalletReconciler:
         result = SyncResult()
 
         try:
-            # 1. Import historical trades from blockchain
             self.logger.info("Starting full reconciliation cycle")
             imported = await self.import_blockchain_history(max_pages=None)
 
@@ -122,13 +112,11 @@ class WalletReconciler:
             imported += activity_imported
             result.imported_count = imported
 
-            # 2. Sync current open positions
             position_result = await self.sync_current_positions()
             result.updated_count = position_result.updated_count
             result.closed_count = position_result.closed_count
             result.errors.extend(position_result.errors)
 
-            # 3. Check for orphaned positions
             orphans = await self.detect_orphaned_positions()
             for orphan in orphans:
                 try:
@@ -140,7 +128,6 @@ class WalletReconciler:
                     self.logger.error(error_msg, exc_info=True)
                     result.errors.append(error_msg)
 
-            # 4. Update timestamps
             result.last_sync_at = datetime.now(timezone.utc)
             self.logger.info(
                 f"Reconciliation complete: imported={result.imported_count}, "
@@ -211,7 +198,6 @@ class WalletReconciler:
         self.logger.info(f"Importing blockchain history for {self.wallet_address}")
 
         try:
-            # Paginate through ALL activity records
             all_trades: list[dict] = []
             offset = 0
             page_limit = 100
@@ -233,7 +219,6 @@ class WalletReconciler:
                     if not batch:
                         break
 
-                    # Filter to TRADE records only
                     trade_records = [r for r in batch if r.get("type") == "TRADE"]
                     all_trades.extend(trade_records)
 
@@ -244,7 +229,6 @@ class WalletReconciler:
                         self.logger.info(f"Reached max_pages={max_pages} limit")
                         break
 
-                    # If we got fewer than page_limit, we've reached the end
                     if len(batch) < page_limit:
                         break
 
@@ -256,7 +240,6 @@ class WalletReconciler:
             if not all_trades:
                 return 0
 
-            # Aggregate by conditionId: one position per unique market
             agg: dict[str, dict] = {}
             for rec in all_trades:
                 cond_id = rec.get("conditionId", "")
@@ -289,13 +272,11 @@ class WalletReconciler:
                 total_size = pos_data["total_size"]
                 outcome = pos_data["outcome"]
 
-                # Compute weighted average price
                 if total_size > 0:
                     avg_price = pos_data["weighted_price_sum"] / total_size
                 else:
                     avg_price = 0.0
 
-                # Check if a Trade with this exact slug already exists
                 existing = (
                     self.db.query(Trade)
                     .filter(
@@ -308,14 +289,12 @@ class WalletReconciler:
                 if existing:
                     size_diff = abs((existing.size or 0.0) - total_size)
                     if size_diff <= 0.01:
-                        # Already imported with matching size — skip
                         self.logger.debug(
                             f"Trade {slug} already in DB (id={existing.id}, "
                             f"size={existing.size})"
                         )
                         continue
                     else:
-                        # Size differs — update with audit log
                         from backend.models.audit_logger import log_position_updated
 
                         old_size = existing.size
@@ -342,9 +321,8 @@ class WalletReconciler:
                             },
                             user_id="system:reconciliation",
                         )
-                    continue
+                        continue
 
-                # No existing trade — create new one
                 from backend.core.trade_forensics import classify_trade_role
                 role, maker_size, taker_size = await classify_trade_role(
                     platform="polymarket",

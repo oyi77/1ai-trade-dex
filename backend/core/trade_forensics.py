@@ -40,22 +40,17 @@ def legacy_classify_trade_role(
     Returns:
         'maker', 'taker', or 'unknown'
     """
-    # Market orders are always takers
     if order_type == "market":
         return "taker"
 
-    # Positive maker rebate → definitely a maker
     if maker_rebate is not None and maker_rebate > 0:
         return "maker"
 
-    # Positive taker fee → definitely a taker
     if taker_fee is not None and taker_fee > 0:
         return "taker"
 
-    # Limit order near mid → likely maker
     if order_type == "limit" and fill_price is not None and mid_price is not None:
         spread = abs(fill_price - mid_price)
-        # If fill is within 0.5% of mid, call it a maker
         if mid_price > 0 and spread / mid_price < 0.005:
             return "maker"
 
@@ -188,7 +183,6 @@ def classify_trade_role_sync(
     )
 
     try:
-        # Check if there is a running loop in the current thread
         asyncio.get_running_loop()
         in_loop = True
     except RuntimeError:
@@ -201,7 +195,6 @@ def classify_trade_role_sync(
 
         def target():
             try:
-                # We need to run the coroutine in the new thread's event loop
                 val = asyncio.run(coro)
                 res_container.append(val)
             except Exception as e:
@@ -215,7 +208,6 @@ def classify_trade_role_sync(
             raise err_container[0]
         return res_container[0]
     else:
-        # Safe to run directly using asyncio.run
         return asyncio.run(coro)
 
 
@@ -275,11 +267,9 @@ class TradeForensics:
                 "signal_edge": getattr(signal, "edge", None) if signal else None,
             }
 
-            # Diagnose using heuristics
             diagnosis = self._diagnose(trade, signal, db)
             context.update(diagnosis)
 
-            # Cache and log
             self._analysis_cache[trade_id] = context
             logger.info(
                 f"[TradeForensics] Analyzed loss trade#{trade_id} ({trade.strategy}): "
@@ -324,7 +314,6 @@ class TradeForensics:
                 logger.exception(
                     f"[TradeForensics] Slippage calculation failed for trade_id={trade.id} market={trade.market_ticker}"
                 )
-                pass
 
         # 3. Check if strategy was already warned
         from backend.core.strategy_health import StrategyHealthMonitor
@@ -406,7 +395,6 @@ class TradeForensics:
                 if analysis:
                     analyses.append(analysis)
 
-            # Aggregate stats
             total = len(analyses)
             causes = Counter(a["root_cause"] for a in analyses)
             all_factors = [

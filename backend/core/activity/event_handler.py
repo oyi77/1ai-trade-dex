@@ -21,7 +21,6 @@ class ActivityHandler:
         self._tracker.on_event(self.handle_event)
 
     async def handle_event(self, event: ActivityEvent):
-        """Main entry — called by tracker on every event."""
         logger.info(
             f"[ActivityHandler] {event.source}.{event.event_type}: "
             f"{event.amount} {event.token} tx={event.tx_hash or 'n/a'}"
@@ -38,7 +37,6 @@ class ActivityHandler:
             await self._handle_trade_close(event)
 
     async def _persist_event(self, event: ActivityEvent):
-        """Save event to activity_events table for historical queries."""
         try:
             from backend.db.utils import get_db_session
             from backend.models.database import ActivityEventRecord
@@ -96,7 +94,6 @@ class ActivityHandler:
                 state.total_deposits = (state.total_deposits or 0.0) + (event.amount if event.event_type == "deposit" else 0.0)
                 state.total_withdrawals = (state.total_withdrawals or 0.0) + (event.amount if event.event_type == "withdrawal" else 0.0)
 
-                # Record transaction event
                 tx_event = TransactionEvent(
                     type=event.event_type,
                     amount=event.amount,
@@ -120,7 +117,6 @@ class ActivityHandler:
             logger.opt(exception=True).warning(f"[ActivityHandler] Failed to update bankroll: {e}")
 
     async def _handle_trade_open(self, event: ActivityEvent):
-        """Record trade_open → create pending Trade in DB."""
         logger.info(
             f"[{event.source}] TRADE OPEN: {event.side} {event.amount} @ {event.price} "
             f"order={event.order_id} tx={event.tx_hash or 'n/a'}"
@@ -166,7 +162,6 @@ class ActivityHandler:
             logger.opt(exception=True).warning(f"[ActivityHandler] Failed to create trade: {e}")
 
     async def _handle_trade_close(self, event: ActivityEvent):
-        """Record trade_closed → finalize Trade in DB."""
         logger.info(
             f"[{event.source}] TRADE CLOSED: PnL={event.pnl} tx={event.tx_hash or 'n/a'}"
         )

@@ -419,7 +419,6 @@ async def wallet_sync_job() -> None:
 
 
 def _sync_balance_to_db(balance: float, mode: str) -> None:
-    """Write wallet balance to bot_state DB row via SQLAlchemy."""
     from backend.db.utils import get_db_session
 
     try:
@@ -438,8 +437,6 @@ def _sync_balance_to_db(balance: float, mode: str) -> None:
             )
         else:
             logger.warning(f"wallet_sync: failed to update {mode} balance: {e}")
-    except Exception as e:
-        logger.warning(f"wallet_sync: {mode} balance update failed: {e}")
 
 
 HEARTBEAT_FILE = os.path.join(

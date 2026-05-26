@@ -60,8 +60,6 @@ def _get_rate_limiter() -> TokenBucketRateLimiter:
     """Lazily instantiate the global rate limiter."""
     global _rate_limiter
     if _rate_limiter is None:
-        from backend.config import settings
-
         _rate_limiter = TokenBucketRateLimiter(
             per_market_limit=int(getattr(settings, "ORDER_RATE_LIMIT_PER_MARKET", 1)),
             per_market_window=10.0,
@@ -652,7 +650,6 @@ def _execute_decision_paper_or_kalshi(
                 ):
                     fee = simulation_result.get("fee_usd", 0.0)
 
-            # Classify role dynamically
             from backend.core.trade_forensics import classify_trade_role_sync
 
             role, maker_size, taker_size = classify_trade_role_sync(
@@ -1024,7 +1021,6 @@ async def _maker_first_execute(
     maker_fill_price = getattr(maker_result, "fill_price", None) or price
     maker_order_id = maker_result.order_id
 
-    # Fully filled on placement → no wait needed.
     if maker_filled >= size - 1e-9:
         logger.info(
             f"[{mode.upper()}][{strategy_name}] Maker order fully filled on placement: "
@@ -1065,7 +1061,6 @@ async def _maker_first_execute(
             logger.info(
                 f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} no longer open — treating as filled"
             )
-            # Synthesize a filled result with maker/taker breakdown
             m_size = size - maker_filled
             return SimpleNamespace(
                 success=True,
@@ -1078,7 +1073,6 @@ async def _maker_first_execute(
                 error=None,
             )
 
-    # Timed out — cancel and escalate to taker for remaining size.
     logger.warning(
         f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} unfilled after "
         f"{MAKER_WAIT_SECONDS:.1f}s; cancelling and escalating to taker"
@@ -1152,7 +1146,6 @@ async def _maker_first_execute(
     taker_fill_price = getattr(taker_result, "fill_price", None) or taker_price
     total_filled = maker_filled + taker_filled
 
-    # Weighted-average fill price across legs.
     if total_filled > 0:
         avg_price = (
             (maker_fill_price * maker_filled) + (taker_fill_price * taker_filled)
@@ -1535,7 +1528,6 @@ async def _execute_decision_live_clob(
                         f"Fill: {fill_price:.4f} (was {entry_price:.4f})"
                     )
 
-            # Strategy gating: only place CLOB orders if strategy passed live gate
             if mode in ("testnet", "live") and token_id:
                 from backend.core.strategy_gate import StrategyGate
 
@@ -1552,7 +1544,6 @@ async def _execute_decision_live_clob(
                     )
                     db.commit()
                     return None
-                # Check for force_maker_only parameter override in StrategyConfig
                 force_maker_only = False
                 cfg = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
                 if cfg and cfg.params:
@@ -1595,7 +1586,6 @@ async def _execute_decision_live_clob(
                             ):
                                 filled_size = result.fill_size
 
-                            # Classification logic
                             from backend.core.trade_forensics import classify_trade_role
 
                             best_ask = None
