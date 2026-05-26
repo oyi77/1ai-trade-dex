@@ -392,8 +392,9 @@ def mutate_genome(
     if random.random() < effective_rate * 0.30:
         # E-131: Use actual drawdown from genome fitness, not hardcoded
         actual_drawdown = []
-        if genome.fitness:
-            dd = genome.fitness.get("max_drawdown", 0.0)
+        fitness = getattr(genome, "fitness_metrics", None)
+        if fitness:
+            dd = getattr(fitness, "max_drawdown_pct", 0.0)
             actual_drawdown = [dd] if dd else [0.1, 0.05, 0.15]
         else:
             actual_drawdown = [0.1, 0.05, 0.15]

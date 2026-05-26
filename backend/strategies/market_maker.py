@@ -149,6 +149,36 @@ class MarketMakerStrategy(BaseStrategy):
     # Avellaneda-Stoikov math
     # ------------------------------------------------------------------
 
+    def calculate_spread(self, volatility: float, inventory_pct: float) -> float:
+        """Calculate optimal spread for backward-compatibility with tests."""
+        gamma = self.default_params.get("risk_aversion", 0.3)
+        kappa = self.default_params.get("kappa", 1.5)
+        min_spread = self.default_params["min_spread"]
+        max_spread = self.default_params["max_spread"]
+
+        vol_sq = max(volatility, 0.001) ** 2
+        spread = gamma * vol_sq * 1.0 + (2.0 / gamma) * math.log(
+            1.0 + gamma / max(kappa, 0.01)
+        )
+        return max(min_spread, min(spread, max_spread))
+
+    def calculate_quotes(self, mid: float, spread: float, inventory_pct: float) -> Quote:
+        """Calculate skew quotes for backward-compatibility with tests."""
+        gamma = self.default_params.get("risk_aversion", 0.3)
+        skew_factor = self.default_params.get("inventory_skew_factor", 0.7)
+        
+        reservation = mid - inventory_pct * skew_factor * spread
+        
+        bid = max(0.01, reservation - spread / 2.0)
+        ask = min(0.99, reservation + spread / 2.0)
+        
+        return Quote(
+            bid_price=round(bid, 4),
+            ask_price=round(ask, 4),
+            bid_size=self.default_params["quote_size"],
+            ask_size=self.default_params["quote_size"],
+        )
+
     def calculate_as_quote(
         self,
         mid_price: float,

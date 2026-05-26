@@ -258,6 +258,10 @@ class HFTScalperStrategy(BaseStrategy):
         now: float,
     ) -> Optional[str]:
         """Return rejection reason or None if risk gates pass."""
+        ticker_str = ticker.ticker if hasattr(ticker, "ticker") else (ticker.market_ticker if hasattr(ticker, "market_ticker") else ticker)
+        if not isinstance(ticker_str, str):
+            ticker_str = str(ticker_str)
+
         if self._halted:
             return "safety_halted"
 
@@ -271,12 +275,25 @@ class HFTScalperStrategy(BaseStrategy):
             return "daily_loss_limit"
 
         cooldown = params.get("cooldown_seconds", 5)
-        last_exit = self._cooldowns.get(ticker, 0)
+        last_exit = self._cooldowns.get(ticker_str, 0)
         if (now - last_exit) < cooldown:
             return "cooldown"
 
-        if ticker in self._open_positions:
+        if ticker_str in self._open_positions:
             return "already_in_position"
+
+        # Additional gates for MarketInfo object attributes if available
+        if hasattr(ticker, "volume") and ticker.volume < params.get("min_volume", 500):
+            return "low_volume"
+        if hasattr(ticker, "liquidity") and ticker.liquidity < params.get("min_liquidity", 1000):
+            return "low_liquidity"
+        if hasattr(ticker, "yes_price") and hasattr(ticker, "no_price"):
+            best_bid = ticker.metadata.get("bestBid") if ticker.metadata else None
+            best_ask = ticker.metadata.get("bestAsk") if ticker.metadata else None
+            if best_bid is not None and best_ask is not None:
+                spread = abs(best_ask - best_bid)
+                if spread > params.get("max_spread", 0.05):
+                    return "wide_spread"
 
         return None
 
@@ -511,12 +528,41 @@ class HFTScalperStrategy(BaseStrategy):
             pass
 
         # Scan open positions for exits
-        now = time.time()
         for ticker, pos in list(self._open_positions.items()):
-            signal, _pnl = self.detect_exit(pos, {}, now)
+            prices = self._price_history.get(ticker, [])
+            current_price = prices[-1][1] if prices else pos.entry_price
+            signal, _pnl = self.check_exit(pos, current_price, self.default_params)
+            
+            # Check maximum hold safeguard
+            now = time.monotonic()
+            if not signal and (now - pos.opened_at) > self.default_params.get("max_hold_seconds", 15):
+                signal = "TIME_EXIT"
+                
             if signal:
-                self._close_position(pos, pos.entry_price, signal)
+                self._close_position(pos, current_price, signal)
                 trades += 1
+
+        # Scan markets for new opportunities
+        try:
+            raw_markets = await ctx.clob.get_markets()
+            for raw in raw_markets:
+                token_id = raw.get("conditionId") or raw.get("token_id")
+                if not token_id:
+                    continue
+                price = raw.get("midpoint") or raw.get("price") or raw.get("last_trade_price")
+                if price is not None:
+                    event = MarketEvent(
+                        token_id=token_id,
+                        event_type="price_change",
+                        data={"price": str(price), "timestamp": time.time()},
+                        timestamp=time.time(),
+                    )
+                    pre_open = len(self._open_positions)
+                    await self._process_tick(event)
+                    if len(self._open_positions) > pre_open:
+                        trades += 1
+        except Exception as e:
+            logger.error(f"Error scanning markets in run_cycle: {e}")
 
         return CycleResult(
             decisions_recorded=trades,
