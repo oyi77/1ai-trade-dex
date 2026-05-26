@@ -289,9 +289,12 @@ class Orchestrator:
 
         addr = settings.WALLET_ADDRESS or settings.POLYMARKET_WALLET_ADDRESS or "0x0"
         tracker = self._activity_tracker
+        skip_raw = os.environ.get("SKIP_ACTIVITY_SOURCES", "").strip().lower()
+        skip_sources = set(s.strip() for s in skip_raw.split(",") if s.strip()) if skip_raw else set()
 
         # Aster — WebSocket fills + balance + positions
         try:
+            if "aster" in skip_sources: raise RuntimeError("SKIP_ACTIVITY_SOURCES")
             from backend.markets.providers.aster_provider import AsterProvider
             from backend.core.activity.sources.aster_source import AsterActivitySource
 

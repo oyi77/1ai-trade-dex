@@ -240,8 +240,8 @@ class Trade(Base):
     # Execution and cost tracking
     source = Column(String, default="bot", index=True)  # "bot", "user", "import"
     role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
-    # maker_size = Column(Float, nullable=True)  # DB column exists, model disabled - schema mismatch
-    # taker_size = Column(Float, nullable=True)  # DB column exists, model disabled - schema mismatch
+    maker_size = Column(Float, nullable=True)
+    taker_size = Column(Float, nullable=True)
     clob_order_id = Column(String, nullable=True, index=True)
     clob_idempotency_key = Column(String, nullable=True)
     filled_size = Column(Float, nullable=True)
