@@ -495,16 +495,34 @@ class HFTScalperStrategy(BaseStrategy):
             )
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """Scheduled fallback: events process sequentially, cycles only log metrics."""
+        """Poll processing loop + scan markets for new opportunities on each cycle."""
         if not self._tokens_populated:
             await self._populate_subscribed_tokens()
 
-        result = CycleResult(
-            decisions_recorded=0,
-            trades_attempted=0,
-            trades_placed=0,
+        trades = 0
+        # Drain any pending WS events from queue
+        try:
+            while not self._queue.empty():
+                event = self._queue.get_nowait()
+                if hasattr(self, '_process_ws_event_sync'):
+                    self._process_ws_event_sync(event)
+                self._queue.task_done()
+        except Exception:
+            pass
+
+        # Scan open positions for exits
+        now = time.time()
+        for ticker, pos in list(self._open_positions.items()):
+            signal, _pnl = self.detect_exit(pos, {}, now)
+            if signal:
+                self._close_position(pos, pos.entry_price, signal)
+                trades += 1
+
+        return CycleResult(
+            decisions_recorded=trades,
+            trades_attempted=trades,
+            trades_placed=trades,
         )
-        return result
 
     def _win_rate(self) -> float:
         """Rolling win rate from closed positions."""
