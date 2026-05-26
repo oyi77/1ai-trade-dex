@@ -1,16 +1,55 @@
 import { useState } from 'react'
-import { Terminal, Bug, ShieldAlert } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../api'
+import { Terminal, Bug, ShieldAlert, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
+
+interface SandboxLog {
+  time: string
+  level: string
+  msg: string
+}
+
+interface PromptTrace {
+  id: number
+  agent: string
+  prompt: string
+  response: string
+  time: string
+}
+
+interface SandboxStatus {
+  active: boolean
+  message: string
+  details: string
+}
+
+interface SandboxLogsResponse {
+  logs: SandboxLog[]
+  prompts: PromptTrace[]
+  sandbox_status: SandboxStatus
+}
 
 export function ExecutionSandboxTab() {
   const [activeTab, setActiveTab] = useState<'sandbox' | 'logs' | 'prompts'>('sandbox')
 
-  const logs = [
-    { time: '15:42:01', level: 'INFO', msg: '[CodeGenerator] Generating backend/strategies/arb.py via groq...' },
-    { time: '15:42:05', level: 'DEBUG', msg: 'Validating AST tree for generated code...' },
-    { time: '15:42:06', level: 'SUCCESS', msg: 'AST Validation passed. Pushing to Sandbox context.' },
-    { time: '15:42:10', level: 'WARN', msg: '[Sandbox] Trade execution simulated. PnL: +$1.20 (Slippage high)' },
-  ]
+  const { data, isLoading } = useQuery<SandboxLogsResponse>({
+    queryKey: ['agi-sandbox-logs'],
+    queryFn: async () => {
+      const res = await api.get('/agi/sandbox-logs')
+      return res.data
+    },
+    refetchInterval: 10000,
+  })
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex flex-col h-full bg-[#0d1117] rounded-xl border border-slate-700/50 overflow-hidden shadow-2xl items-center justify-center p-6 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
+        <span className="text-sm">Loading sandbox telemetry...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#0d1117] rounded-xl border border-slate-700/50 overflow-hidden shadow-2xl">
@@ -41,11 +80,11 @@ export function ExecutionSandboxTab() {
       <div className="flex-1 p-4 overflow-y-auto font-mono text-sm">
         {activeTab === 'logs' && (
           <div className="space-y-2">
-            {logs.map((log, i) => (
+            {data.logs.map((log, i) => (
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.05 }}
                 key={i} 
                 className="flex items-start"
               >
@@ -68,18 +107,32 @@ export function ExecutionSandboxTab() {
         )}
 
         {activeTab === 'sandbox' && (
-          <div className="h-full flex items-center justify-center text-slate-500 flex-col">
-            <ShieldAlert className="w-16 h-16 text-slate-700 mb-4" />
-            <p className="text-lg">Sandbox Environment Active</p>
-            <p className="text-xs mt-2 text-slate-600">No dangerous code detected in last 24h.</p>
+          <div className="h-full flex items-center justify-center text-slate-500 flex-col p-4 text-center">
+            <ShieldAlert className="w-16 h-16 text-indigo-400 mb-4" />
+            <p className="text-lg text-slate-300 font-semibold">{data.sandbox_status.message}</p>
+            <p className="text-xs mt-2 text-slate-500">{data.sandbox_status.details}</p>
           </div>
         )}
 
         {activeTab === 'prompts' && (
-          <div className="h-full flex items-center justify-center text-slate-500 flex-col">
-            <Bug className="w-16 h-16 text-slate-700 mb-4" />
-            <p className="text-lg">Prompt Traces Empty</p>
-            <p className="text-xs mt-2 text-slate-600">Waiting for LLMRouter invocation...</p>
+          <div className="space-y-4">
+            {data.prompts.map((trace) => (
+              <motion.div 
+                key={trace.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-slate-900 border border-slate-800 rounded p-3 text-xs space-y-2"
+              >
+                <div className="flex justify-between items-center text-slate-400 pb-1 border-b border-slate-850">
+                  <span className="font-semibold text-blue-400 font-mono">{trace.agent}</span>
+                  <span>{trace.time}</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-slate-400"><span className="text-amber-500 font-semibold font-mono">Prompt:</span> {trace.prompt}</div>
+                  <div className="text-slate-300"><span className="text-emerald-500 font-semibold font-mono">Response:</span> {trace.response}</div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

@@ -1,24 +1,44 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../api'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Activity } from 'lucide-react'
+import { Activity, Loader2 } from 'lucide-react'
 
-const providerData = [
-  { name: 'GPT-4o', profit: 4500, trades: 120 },
-  { name: 'Claude-3.5', profit: 3200, trades: 85 },
-  { name: 'Groq/Llama3', profit: 1200, trades: 300 },
-]
+interface AttributionItem {
+  name: string
+  profit: number
+  trades: number
+}
 
-const strategyData = [
-  { name: 'Arbitrage', profit: 6000, trades: 450 },
-  { name: 'Momentum', profit: 2100, trades: 30 },
-  { name: 'Mean Reversion', profit: 800, trades: 25 },
-]
+interface AttributionResponse {
+  providers: AttributionItem[]
+  strategies: AttributionItem[]
+}
 
 export function PerformanceAttributionChart() {
   const [groupBy, setGroupBy] = useState<'provider' | 'strategy'>('provider')
 
-  const data = groupBy === 'provider' ? providerData : strategyData
+  const { data, isLoading } = useQuery<AttributionResponse>({
+    queryKey: ['agi-performance-attribution'],
+    queryFn: async () => {
+      const res = await api.get('/agi/performance-attribution')
+      return res.data
+    },
+    refetchInterval: 30000,
+  })
+
   const colors = ['#3b82f6', '#8b5cf6', '#10b981']
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex flex-col h-full bg-slate-900 rounded-xl border border-slate-700/50 shadow-2xl items-center justify-center p-6 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-2 text-purple-500" />
+        <span className="text-sm">Loading attribution data...</span>
+      </div>
+    )
+  }
+
+  const chartData = groupBy === 'provider' ? data.providers : data.strategies
 
   return (
     <div className="flex flex-col h-full bg-slate-900 rounded-xl border border-slate-700/50 shadow-2xl p-4">
@@ -49,7 +69,7 @@ export function PerformanceAttributionChart() {
 
       <div className="flex-1 w-full min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
             <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
             <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
@@ -59,7 +79,7 @@ export function PerformanceAttributionChart() {
               itemStyle={{ color: '#e2e8f0' }}
             />
             <Bar dataKey="profit" radius={[4, 4, 0, 0]}>
-              {data.map((_, index) => (
+              {chartData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Bar>

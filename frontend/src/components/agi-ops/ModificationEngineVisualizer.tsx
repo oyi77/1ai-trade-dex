@@ -1,25 +1,35 @@
-import { Code, FileCode, Zap, Clock } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../api'
+import { Code, FileCode, Zap, Clock, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
+interface Modification {
+  id: string
+  file: string
+  time: string
+  agent: string
+  status: 'success' | 'failed' | 'pending'
+  diff: string
+}
+
 export function ModificationEngineVisualizer() {
-  const modifications = [
-    {
-      id: 'mod-1',
-      file: 'backend/strategies/arb_strategy.py',
-      time: '2 mins ago',
-      agent: 'GPT-4o',
-      status: 'success',
-      diff: `+ def calculate_spread():\n+     return ask - bid\n- def calculate_spread():\n-     pass`
+  const { data: modifications = [], isLoading } = useQuery<Modification[]>({
+    queryKey: ['agi-modifications'],
+    queryFn: async () => {
+      const res = await api.get('/agi/modifications')
+      return res.data
     },
-    {
-      id: 'mod-2',
-      file: 'backend/config.py',
-      time: '1 hour ago',
-      agent: 'Claude-3.5-Sonnet',
-      status: 'success',
-      diff: `+ ENABLE_HFT = True\n- ENABLE_HFT = False`
-    }
-  ]
+    refetchInterval: 10000, // Refresh every 10s
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden shadow-2xl items-center justify-center p-6 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin mb-2 text-blue-500" />
+        <span className="text-sm">Loading modifications...</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden shadow-2xl">
