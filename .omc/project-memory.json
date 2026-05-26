@@ -267,8 +267,8 @@
     },
     {
       "path": "backend",
-      "accessCount": 55,
-      "lastAccessed": 1779811625280,
+      "accessCount": 56,
+      "lastAccessed": 1779817562059,
       "type": "directory"
     },
     {
@@ -354,6 +354,12 @@
       "accessCount": 7,
       "lastAccessed": 1779795215170,
       "type": "directory"
+    },
+    {
+      "path": "backend/bot/notification/registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779817863033,
+      "type": "file"
     },
     {
       "path": "backend/core/settlement/settlement_helpers.py",
@@ -455,12 +461,6 @@
       "path": "backend/core/risk/position_sizer.py",
       "accessCount": 3,
       "lastAccessed": 1779789999511,
-      "type": "file"
-    },
-    {
-      "path": "backend/bot/notification/registry.py",
-      "accessCount": 3,
-      "lastAccessed": 1779814617219,
       "type": "file"
     },
     {
