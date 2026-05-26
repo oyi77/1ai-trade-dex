@@ -182,12 +182,11 @@ class EventResponse(BaseModel):
 
 @router.get("/stats", response_model=BotStats)
 async def get_stats(db: Session = Depends(get_db), mode: Optional[str] = Query(None)):
-    # Query all 3 mode states (read-only: no for_update to avoid lock contention)
+    # Read-only: no for_update to avoid lock contention during stats polling
     paper_state = db.query(BotState).filter_by(mode="paper").first()
     testnet_state = db.query(BotState).filter_by(mode="testnet").first()
     live_state = db.query(BotState).filter_by(mode="live").first()
 
-    # Use provided mode or current mode as primary
     effective_mode = mode or settings.TRADING_MODE
     if effective_mode == "all":
         effective_mode = settings.TRADING_MODE
@@ -1105,13 +1104,11 @@ async def run_backtest(
     from backend.core.backtesting import BacktestEngine, BacktestConfig
 
     try:
-        # Parse dates
         start_date = (
             datetime.fromisoformat(body.start_date) if body.start_date else None
         )
         end_date = datetime.fromisoformat(body.end_date) if body.end_date else None
 
-        # Create config
         config = BacktestConfig(
             initial_bankroll=body.initial_bankroll,
             max_trade_size=body.max_trade_size,
@@ -1122,7 +1119,6 @@ async def run_backtest(
             slippage_bps=body.slippage_bps,
         )
 
-        # Run backtest
         engine = BacktestEngine(config)
         result = engine.run(db)
 
@@ -1221,7 +1217,6 @@ async def get_events(limit: int = 50):
 async def run_scan(db: Session = Depends(get_db), _: None = Depends(require_admin)):
     from backend.core.scheduler import run_manual_scan, log_event
 
-    # Iterate over all active modes to update last_run
     for mode in settings.active_modes_set:
         state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
         if state:
@@ -1241,7 +1236,6 @@ async def run_scan(db: Session = Depends(get_db), _: None = Depends(require_admi
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Also run weather scan if enabled
     if settings.WEATHER_ENABLED:
         try:
             from backend.core.weather_signals import scan_for_weather_signals
@@ -1690,10 +1684,7 @@ async def get_strategies_health(db: Session = Depends(get_db)):
     if not STRATEGY_REGISTRY:
         load_all_strategies()
 
-    # Fetch all configuration overrides from the database
     db_configs = {c.strategy_name: c for c in db.query(StrategyConfig).all()}
-
-    # Query all BotStates to extract heartbeats and scan stats
     bot_states = {state.mode: state for state in db.query(BotState).all()}
 
     result = []
@@ -1702,7 +1693,6 @@ async def get_strategies_health(db: Session = Depends(get_db)):
         enabled = cfg.enabled if cfg else False
         effective_mode = cfg.trading_mode or settings.TRADING_MODE if cfg else settings.TRADING_MODE
 
-        # Retrieve heartbeat and scan stats from the BotState matching the mode
         bot_state = bot_states.get(effective_mode)
         last_heartbeat = None
         scan_stats = {}
@@ -1718,7 +1708,6 @@ async def get_strategies_health(db: Session = Depends(get_db)):
             except Exception:
                 logger.warning(f"Failed to parse misc_data for mode {effective_mode}")
 
-        # Retrieve the last generated signal
         last_signal = (
             db.query(Signal)
             .filter(
@@ -1741,7 +1730,6 @@ async def get_strategies_health(db: Session = Depends(get_db)):
                 "reasoning": last_signal.reasoning,
             }
 
-        # Retrieve recent rejections / blocks
         recent_rejections = (
             db.query(TradeAttempt)
             .filter(
@@ -1793,14 +1781,12 @@ async def compare_strategies(db: Session = Depends(get_db)):
     from backend.models.outcome_tables import StrategyHealthRecord
     from sqlalchemy import case
 
-    # Fetch latest AGI health record for each strategy
     all_health = db.query(StrategyHealthRecord).order_by(StrategyHealthRecord.last_updated.desc()).all()
     latest_health = {}
     for h in all_health:
         if h.strategy not in latest_health:
             latest_health[h.strategy] = h
 
-    # Fetch trade statistics grouped by strategy
     trade_stats = (
         db.query(
             Trade.strategy,
@@ -1827,7 +1813,6 @@ async def compare_strategies(db: Session = Depends(get_db)):
     )
 
     comparison = {}
-    # Incorporate strategies with trades
     for r in trade_stats:
         strat = r.strategy
         h = latest_health.get(strat)
@@ -1847,7 +1832,7 @@ async def compare_strategies(db: Session = Depends(get_db)):
             "status": h.status if h else "active",
         }
 
-    # Add any strategies that have an AGI health record but no trades yet
+    # Strategies with health records but no trades yet
     for strat, h in latest_health.items():
         if strat not in comparison:
             comparison[strat] = {
@@ -2288,7 +2273,6 @@ async def readiness_check(db: Session = Depends(get_db)):
     database_status = "disconnected"
     redis_status = None
 
-    # Check database connectivity
     try:
         db.execute(text("SELECT 1"))
         database_status = "connected"
@@ -2298,7 +2282,6 @@ async def readiness_check(db: Session = Depends(get_db)):
             status="not_ready", database=database_status, redis=redis_status
         )
 
-    # Check Redis if configured
     if settings.REDIS_URL:
         try:
             import redis
@@ -2330,7 +2313,6 @@ async def detailed_health_check(db: Session = Depends(get_db)):
     timestamp = datetime.now(timezone.utc).isoformat()
     is_healthy = True
 
-    # Database check
     database_info = {"status": "disconnected", "latency_ms": None, "error": None}
     try:
         import time
@@ -2346,7 +2328,6 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         database_info["error"] = str(e)
         is_healthy = False
 
-    # Redis check (if configured)
     redis_info = None
     if settings.REDIS_URL:
         redis_info = {"status": "disconnected", "latency_ms": None, "error": None}
@@ -2367,10 +2348,8 @@ async def detailed_health_check(db: Session = Depends(get_db)):
             redis_info["status"] = "disconnected"
             redis_info["error"] = str(e)
 
-    # Circuit breaker status
     circuit_breakers = get_breaker_status()
 
-    # Disk space check
     disk_info = {
         "status": "ok",
         "total_gb": 0,
@@ -2398,7 +2377,6 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         disk_info["status"] = "unknown"
         disk_info["error"] = str(e)
 
-    # Memory check
     memory_info = {
         "status": "ok",
         "total_gb": 0,
@@ -2426,7 +2404,6 @@ async def detailed_health_check(db: Session = Depends(get_db)):
         memory_info["status"] = "unknown"
         memory_info["error"] = str(e)
 
-    # Uptime (if available from process)
     uptime_seconds = None
     try:
         process = psutil.Process(os.getpid())

@@ -435,11 +435,6 @@ async def settle_trades_endpoint(
 
 
 # ============================================================================
-# Calibration Endpoints
-# ============================================================================
-
-
-# ============================================================================
 # Settlement Events Endpoint
 # ============================================================================
 
@@ -753,7 +748,6 @@ async def get_journal_stats(
         edges = [t.edge_at_entry for t in trades if t.edge_at_entry is not None]
         confs = [t.confidence for t in trades if t.confidence is not None]
 
-        # Per-strategy
         by_strategy = {}
         for t in trades:
             s = t.strategy or "unknown"
@@ -775,7 +769,6 @@ async def get_journal_stats(
             del st["wins"]
             del st["settled"]
 
-        # Daily P&L
         daily = {}
         for t in settled:
             if t.pnl is not None and t.timestamp:
