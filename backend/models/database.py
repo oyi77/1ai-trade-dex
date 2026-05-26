@@ -446,7 +446,7 @@ class ShadowTrade(Base):
     )
     strategy_name = Column(String, index=True)
     market_id = Column(String, index=True)
-    market_ticker = Column(String, index=True)
+    _market_ticker = Column("market_ticker", String, index=True)
     entry_price = Column(Float)
     target_price = Column(Float, nullable=True)
     direction = Column(String)  # 'up' or 'down'
@@ -557,17 +557,19 @@ class ShadowTrade(Base):
     @hybrid_property
     def market_ticker(self) -> str:
         """Legacy market_ticker — falls back to market_id when column is NULL."""
-        raw = self.__dict__.get("market_ticker")
-        return raw or self.market_id
+        return self._market_ticker or self.market_id
 
     @market_ticker.setter
     def market_ticker(self, value: str):
-        self.__dict__["market_ticker"] = value
+        self._market_ticker = value
 
     @market_ticker.expression
     def market_ticker(cls):
         from sqlalchemy import case
-        return case((cls.market_ticker.is_(None), cls.market_id), else_=cls.market_ticker)
+        return case(
+            (cls._market_ticker.is_(None), cls.market_id),
+            else_=cls._market_ticker
+        )
 
     @property
     def model_probability(self) -> Optional[float]:

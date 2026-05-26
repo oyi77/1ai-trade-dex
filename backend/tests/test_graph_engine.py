@@ -45,6 +45,10 @@ class TestGraphEngine:
         registry._enabled["node_b"] = True
         registry._enabled["node_c"] = True
         registry._enabled["node_d"] = True
+        registry._health_status["node_a"] = True
+        registry._health_status["node_b"] = True
+        registry._health_status["node_c"] = True
+        registry._health_status["node_d"] = True
         return registry
 
     def test_add_valid_graph(self, registry_with_nodes):
