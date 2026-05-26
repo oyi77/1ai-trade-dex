@@ -75,10 +75,11 @@ def test_archive_trades_to_parquet(setup_test_db, temp_dir):
     assert count == 2
     
     assert os.path.exists(parquet_dir)
-    sql = "SELECT COUNT(*) as cnt FROM {table}"
+    sql = "SELECT COUNT(*) as cnt, MAX(category) as cat FROM {table}"
     res = query_parquet_analytics(parquet_dir, sql)
     assert len(res) == 1
     assert res[0]["cnt"] == 2
+    assert res[0]["cat"] == "btc"
 
 
 def test_analytics_role_breakdown_endpoint(setup_test_db, temp_dir, monkeypatch):
