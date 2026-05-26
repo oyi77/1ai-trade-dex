@@ -5,6 +5,8 @@ import importlib
 import logging
 import os
 import pkgutil
+
+from backend.core.registry_utils import check_env_vars
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable, Generic, List, Optional, TypeVar, Dict
@@ -92,7 +94,7 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
             from backend.core.plugin_errors import PluginEnvVarMissing
 
             _err_cls = self._error_cls or PluginEnvVarMissing
-            missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+            missing = check_env_vars(manifest)
             if missing:
                 raise _err_cls(f"Plugin '{name}' requires env vars: {missing}")
 

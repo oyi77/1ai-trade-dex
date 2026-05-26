@@ -161,9 +161,10 @@ class CorrelationMonitor:
     def __init__(self, settings_obj=None):
         self.s = settings_obj or settings
         self.correlation_multiplier = getattr(self.s, "CORRELATION_MULTIPLIER", 2.0)
-        self.max_correlated_exposure_pct = getattr(
-            self.s, "MAX_CORRELATED_EXPOSURE_PCT", 0.30
-        )
+
+    @property
+    def max_correlated_exposure_pct(self) -> float:
+        return getattr(self.s, "MAX_CORRELATED_EXPOSURE_PCT", 0.30)
 
     def check_correlation(
         self,

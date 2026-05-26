@@ -10,6 +10,7 @@ from backend.core.plugin_errors import (
     PluginEnvVarMissing,
 )
 from backend.core.plugin_registry import PluginRegistry
+from backend.core.registry_utils import check_env_vars
 from backend.markets.base_provider import BaseMarketProvider, MarketProviderManifest
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class MarketProviderRegistry(
         manifest = provider_class.manifest()
         name = manifest.name
 
-        missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+        missing = check_env_vars(manifest)
         if missing:
             raise PluginEnvVarMissing(f"Market provider '{name}' requires env vars: {missing}")
 

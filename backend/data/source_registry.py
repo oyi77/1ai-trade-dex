@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 from backend.core.plugin_registry import PluginRegistry
+from backend.core.registry_utils import check_env_vars
 from backend.data.base_source import BaseDataSource, DataSourceManifest, DataType
 from backend.models.database import BotState, get_db
 
@@ -56,7 +57,7 @@ class DataSourceRegistry(PluginRegistry[DataSourceManifest, BaseDataSource]):
         manifest = source_class.manifest()
         name = manifest.name
 
-        missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+        missing = check_env_vars(manifest)
         if missing:
             raise PluginEnvVarMissing(
                 f"Data source '{name}' requires env vars: {missing}"

@@ -4,6 +4,7 @@ from typing import List
 
 from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 from backend.core.plugin_registry import PluginRegistry
+from backend.core.registry_utils import check_env_vars
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
 
 
@@ -36,7 +37,7 @@ class MetricsBackendRegistry(
         manifest = backend_class.manifest()
         name = manifest.name
 
-        missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+        missing = check_env_vars(manifest)
         if missing:
             raise PluginEnvVarMissing(
                 f"Metrics backend '{name}' requires env vars: {missing}"

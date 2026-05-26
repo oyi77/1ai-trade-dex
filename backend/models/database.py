@@ -170,6 +170,7 @@ try:
     import backend.models.kg_models
     import backend.models.outcome_tables
     import backend.models.historical_data
+    import backend.core.risk.risk_profiles
 except ImportError:
     logger.exception("database model imports failed")
     pass
@@ -2483,6 +2484,35 @@ def ensure_schema():
                 logger.info("Created composite indexes on genome_registry")
     except Exception as e:
         logger.warning(f"Could not create genome_registry composite indexes: {e}")
+
+    # Add max_concentration_pct column to risk_profiles if missing
+    try:
+        tables = inspector.get_table_names()
+        if "risk_profiles" in tables:
+            rp_columns = {col["name"] for col in inspector.get_columns("risk_profiles")}
+            if "max_concentration_pct" not in rp_columns:
+                with engine.connect() as conn:
+                    with conn.begin():
+                        conn.execute(
+                            text(
+                                "ALTER TABLE risk_profiles ADD COLUMN max_concentration_pct FLOAT DEFAULT 0.3"
+                            )
+                        )
+                logger.info("Added 'max_concentration_pct' column to risk_profiles")
+            
+            if "max_correlated_exposure_pct" not in rp_columns:
+                with engine.connect() as conn:
+                    with conn.begin():
+                        conn.execute(
+                            text(
+                                "ALTER TABLE risk_profiles ADD COLUMN max_correlated_exposure_pct FLOAT DEFAULT 0.8"
+                            )
+                        )
+                logger.info("Added 'max_correlated_exposure_pct' column to risk_profiles")
+    except Exception as e:
+        logger.warning(
+            f"Schema migration: could not add risk_profiles columns: {e}"
+        )
 
 def log_audit(action: str, actor: str = "system", details: dict = None):
     db = SessionLocal()

@@ -1250,6 +1250,10 @@ class RiskManager:
             max_concentration_pct = float(
                 getattr(self.s, "MAX_CONCENTRATION_PCT", 0.30) or 0.30
             )
+            logger.debug(
+                f"[risk_manager.check_concentration] Checking ticker={market_ticker} size=${trade_size:.2f} "
+                f"against dynamic concentration limit={max_concentration_pct:.0%} of bankroll (${bankroll:.2f})"
+            )
             # Get event_slug for this market to group by event
             from backend.models.database import Trade as T
 

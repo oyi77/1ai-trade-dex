@@ -4,6 +4,7 @@ import logging
 from typing import Dict, List, Optional
 
 from backend.core.plugin_registry import PluginRegistry
+from backend.core.registry_utils import check_env_vars
 from backend.data.crypto_feeds.base import ExchangeFeedManifest, BaseExchangeFeed
 
 logger = logging.getLogger(__name__)
@@ -38,10 +39,9 @@ class ExchangeFeedRegistry(PluginRegistry[ExchangeFeedManifest, BaseExchangeFeed
         manifest = feed_class.manifest()
         name = manifest.name
 
-        import os
         from backend.core.plugin_errors import PluginEnvVarMissing
 
-        missing = [v for v in manifest.required_env_vars if not os.environ.get(v)]
+        missing = check_env_vars(manifest)
         if missing:
             raise PluginEnvVarMissing(
                 f"Exchange feed '{name}' requires env vars: {missing}"

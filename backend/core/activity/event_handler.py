@@ -139,7 +139,7 @@ class ActivityHandler:
                     size=event.amount,
                     status="open",
                     confidence=event.raw_data.get("confidence", 0.5),
-                    external_order_id=event.order_id,
+                    clob_order_id=event.order_id,
                 )
                 db.add(trade)
                 db.commit()
@@ -157,9 +157,9 @@ class ActivityHandler:
             from backend.models.database import Trade
 
             with get_db_session() as db:
-                # Find open trade by external_order_id or most recent open trade for this source
+                # Find open trade by clob_order_id or most recent open trade for this source
                 trade = db.query(Trade).filter(
-                    Trade.external_order_id == event.order_id,
+                    Trade.clob_order_id == event.order_id,
                     Trade.status == "open",
                     Trade.trading_mode == "live",
                 ).order_by(Trade.created_at.desc()).first()

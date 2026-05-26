@@ -69,6 +69,7 @@ class TestProfileDefinitions:
         assert normal.daily_drawdown_limit_pct == 0.10
         assert normal.weekly_drawdown_limit_pct == 0.20
         assert normal.slippage_tolerance == 0.02
+        assert normal.max_concentration_pct == 0.30
 
 
 class TestGetProfile:
@@ -112,17 +113,20 @@ class TestApplyProfile:
         from backend.config import settings
 
         original_kelly = settings.KELLY_FRACTION
+        original_concentration = settings.MAX_CONCENTRATION_PCT
 
         profile = apply_profile("safe")
         assert profile.name == "safe"
         assert settings.KELLY_FRACTION == PRESETS["safe"].kelly_fraction
         assert settings.MAX_POSITION_FRACTION == PRESETS["safe"].max_position_fraction
+        assert settings.MAX_CONCENTRATION_PCT == PRESETS["safe"].max_concentration_pct
         assert (
             settings.DAILY_DRAWDOWN_LIMIT_PCT
             == PRESETS["safe"].daily_drawdown_limit_pct
         )
 
         settings.KELLY_FRACTION = original_kelly
+        settings.MAX_CONCENTRATION_PCT = original_concentration
 
     def test_apply_sets_env_var(self):
         with patch.dict(os.environ, {}, clear=False):
@@ -164,20 +168,23 @@ class TestDBBackedProfiles:
             weekly_drawdown_limit_pct=0.25,
             slippage_tolerance=0.025,
             auto_approve_min_confidence=0.4,
+            max_concentration_pct=0.45,
         )
         result = create_profile(custom, db=db)
         assert result.name == "custom1"
 
         fetched = get_profile("custom1", db=db)
         assert fetched.kelly_fraction == 0.4
+        assert fetched.max_concentration_pct == 0.45
 
     def test_update_profile(self, db):
         seed_presets(db=db)
         updated = update_profile(
-            "safe", {"kelly_fraction": 0.15, "max_trade_size": 5.0}, db=db
+            "safe", {"kelly_fraction": 0.15, "max_trade_size": 5.0, "max_concentration_pct": 0.25}, db=db
         )
         assert updated.kelly_fraction == 0.15
         assert updated.max_trade_size == 5.0
+        assert updated.max_concentration_pct == 0.25
 
     def test_delete_custom_profile(self, db):
         seed_presets(db=db)

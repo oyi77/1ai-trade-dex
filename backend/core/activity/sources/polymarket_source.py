@@ -22,16 +22,18 @@ class PolymarketActivitySource(BaseActivitySource):
 
     async def _run(self):
         try:
-            # Try WS first, fall back to REST polling
-            self.create_subtask(self._ws_fills_loop())
-            # Polygon transfer events (deposits/withdrawals)
-            if self._w3:
-                self.create_subtask(self._transfer_loop())
-            else:
-                self.create_subtask(self._clob_balance_loop())
+            # Enter the CLOB HTTP context so _http is initialised
+            async with self._clob:
+                # Try WS first, fall back to REST polling
+                self.create_subtask(self._ws_fills_loop())
+                # Polygon transfer events (deposits/withdrawals)
+                if self._w3:
+                    self.create_subtask(self._transfer_loop())
+                else:
+                    self.create_subtask(self._clob_balance_loop())
 
-            while self._running:
-                await asyncio.sleep(1)
+                while self._running:
+                    await asyncio.sleep(1)
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -126,7 +128,10 @@ class PolymarketActivitySource(BaseActivitySource):
         while self._running and asyncio.get_running_loop().time() < deadline:
             try:
                 fills = await self._clob.get_trader_trades(self.wallet_address)
-                for fill in fills:
+                raw = fills if isinstance(fills, list) else (fills or {}).get("data", [])
+                for fill in (raw or []):
+                    if not fill or not isinstance(fill, dict):
+                        continue
                     order_id = fill.get("orderID", fill.get("id", ""))
                     if order_id in self._seen_orders:
                         continue
@@ -137,12 +142,12 @@ class PolymarketActivitySource(BaseActivitySource):
                         event_type="trade_open",
                         wallet_address=self.wallet_address,
                         platform="polymarket",
-                        amount=float(fill.get("size", fill.get("amount", 0))),
+                        amount=float(fill.get("size", fill.get("amount", 0)) or 0),
                         token="USDC",
                         order_id=order_id,
-                        side=fill.get("side", "").lower(),
-                        price=float(fill.get("price", 0)),
-                        fee=float(fill.get("fee", 0)),
+                        side=(fill.get("side") or "").lower(),
+                        price=float(fill.get("price", 0) or 0),
+                        fee=float(fill.get("fee", 0) or 0),
                         raw_data=fill,
                     )
                     await self._emit(event)

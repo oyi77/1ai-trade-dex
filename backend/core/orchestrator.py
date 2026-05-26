@@ -681,6 +681,32 @@ async def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, _signal_handler)
 
+    def _dump_handler(sig, frame):
+        import traceback
+        import sys
+        import asyncio
+        try:
+            with open("/tmp/orchestrator_stack.txt", "w") as f:
+                f.write("=== Thread Stacks ===\n")
+                for thread_id, stack in sys._current_frames().items():
+                    f.write(f"\n--- Thread {thread_id} ---\n")
+                    traceback.print_stack(stack, file=f)
+                
+                f.write("\n=== Async Tasks ===\n")
+                try:
+                    loop = asyncio.get_event_loop()
+                    for task in asyncio.all_tasks(loop):
+                        f.write(f"\n--- Task {task.get_name()} ({task.get_coro()}) ---\n")
+                        for task_frame in task.get_stack():
+                            traceback.print_stack(task_frame, file=f)
+                except Exception as e:
+                    f.write(f"Failed to dump async tasks: {e}\n")
+            print("Dumped stack traces to /tmp/orchestrator_stack.txt", file=sys.stderr, flush=True)
+        except Exception as err:
+            print(f"Error in signal handler: {err}", file=sys.stderr, flush=True)
+
+    signal.signal(signal.SIGUSR1, _dump_handler)
+
     await orchestrator.start()
     logger.info("[DEBUG] orchestrator.start() completed — now entering main event loop")
 

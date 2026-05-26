@@ -27,9 +27,23 @@ class OstiumClient:
         """Get all available trading pairs."""
         return await self._sdk.subgraph.get_pairs()
 
-    async def get_balance(self) -> dict:
+    async def get_balance(self, address: str = None) -> dict:
         """Get account balance."""
-        return self._sdk.balance.get_balance()
+        addr = address or self._sdk.ostium.get_public_address()
+        try:
+            ether, usdc = self._sdk.balance.get_balance(addr)
+            usdc_val = float(usdc) if usdc is not None else 0.0
+            ether_val = float(ether) if ether is not None else 0.0
+        except Exception as e:
+            logger.warning(f"[ostium] get_balance error: {e}")
+            usdc_val, ether_val = 0.0, 0.0
+        return {
+            "usdc": usdc_val,
+            "total": usdc_val,
+            "balance": usdc_val,
+            "value": usdc_val,
+            "ether": ether_val,
+        }
 
     async def get_positions(self, address: str = None) -> list:
         """Get open positions."""
@@ -87,9 +101,37 @@ class OstiumClient:
         """
         try:
             addr = wallet_address or self._sdk.ostium.get_public_address()
-            trades = await self._sdk.subgraph.get_trades_by_account(addr, limit=limit)
-            return trades if isinstance(trades, list) else []
-        except (ConnectionError, TimeoutError) as e:
+            orders = await self._sdk.subgraph.get_recent_history(addr, last_n_orders=limit)
+            fills = []
+            for order in (orders or []):
+                if not order:
+                    continue
+                side = "buy" if order.get("isBuy") else "sell"
+                pair_data = order.get("pair", {}) or {}
+                market_name = ""
+                if pair_data:
+                    market_name = f"{pair_data.get('from', '')}-{pair_data.get('to', '')}"
+
+                fill = {
+                    "id": order.get("id"),
+                    "tradeId": order.get("id"),
+                    "direction": side,
+                    "side": side,
+                    "collateral": order.get("collateral"),
+                    "size": order.get("tradeNotional"),
+                    "entryPrice": order.get("price"),
+                    "price": order.get("price"),
+                    "fee": float(order.get("fundingFee", 0) or 0) + float(order.get("rolloverFee", 0) or 0),
+                    "pnl": order.get("amountSentToTrader"),
+                    "pair": market_name,
+                    "market": market_name,
+                    "status": "closed" if order.get("orderAction") == "CLOSE" or order.get("isCancelled") else "open",
+                    "txnHash": order.get("executedTx"),
+                    "tx_hash": order.get("executedTx"),
+                }
+                fills.append(fill)
+            return fills
+        except Exception as e:
             logger.warning(f"[ostium] get_fills error: {e}")
             return []
 

@@ -24,7 +24,6 @@ from backend.core.validation import (
     ValidationError,
     log_validation_error,
 )
-from backend.core.errors import RateLimitError
 from backend.core.external_rate_limiter import TokenBucketRateLimiter
 from backend.core.trade_attempts import TradeAttemptRecorder
 from backend.core.paper_slippage import get_simulator

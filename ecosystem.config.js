@@ -19,7 +19,8 @@ module.exports = {
         WALLET_FERNET_KEY: 'M7nIPAS8uCl34sjHjvfnpQAKi43Fkc56YW3cppgpnTs=',
         MAX_POSITION_FRACTION: '0.30',
         MAX_STRATEGY_DRAWDOWN_PCT: '0.50',
-        MAX_CORRELATED_EXPOSURE_PCT: '0.80',
+        MAX_CORRELATED_EXPOSURE_PCT: '2.00',
+        RISK_PROFILE: 'crazy',
       },
       autorestart: true,
       max_restarts: 10,
@@ -32,6 +33,7 @@ module.exports = {
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
         TRADING_MODE: 'live',
+        RISK_PROFILE: 'crazy',
       },
       autorestart: true,
       max_restarts: 10,

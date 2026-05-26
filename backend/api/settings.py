@@ -730,6 +730,9 @@ class RiskProfileResponse(BaseModel):
     weekly_drawdown_limit_pct: float
     slippage_tolerance: float
     auto_approve_min_confidence: float
+    max_concentration_pct: float
+    max_correlated_exposure_pct: float
+    longshot_no_bias_weight: float
     is_preset: bool = False
 
 
@@ -754,6 +757,9 @@ class UpdateRiskProfileRequest(BaseModel):
     weekly_drawdown_limit_pct: Optional[float] = None
     slippage_tolerance: Optional[float] = None
     auto_approve_min_confidence: Optional[float] = None
+    max_concentration_pct: Optional[float] = None
+    max_correlated_exposure_pct: Optional[float] = None
+    longshot_no_bias_weight: Optional[float] = None
 
 
 class CreateRiskProfileRequest(BaseModel):
@@ -769,6 +775,9 @@ class CreateRiskProfileRequest(BaseModel):
     weekly_drawdown_limit_pct: float = 0.2
     slippage_tolerance: float = 0.02
     auto_approve_min_confidence: float = 0.5
+    max_concentration_pct: float = 0.3
+    max_correlated_exposure_pct: float = 0.8
+    longshot_no_bias_weight: float = 0.1
 
 
 def _profile_to_response(p) -> RiskProfileResponse:
@@ -785,6 +794,9 @@ def _profile_to_response(p) -> RiskProfileResponse:
         weekly_drawdown_limit_pct=p.weekly_drawdown_limit_pct,
         slippage_tolerance=p.slippage_tolerance,
         auto_approve_min_confidence=p.auto_approve_min_confidence,
+        max_concentration_pct=getattr(p, "max_concentration_pct", 0.3),
+        max_correlated_exposure_pct=getattr(p, "max_correlated_exposure_pct", 0.8),
+        longshot_no_bias_weight=p.longshot_no_bias_weight,
         is_preset=getattr(p, "is_preset", False),
     )
 
@@ -859,6 +871,9 @@ async def create_risk_profile(
             weekly_drawdown_limit_pct=body.weekly_drawdown_limit_pct,
             slippage_tolerance=body.slippage_tolerance,
             auto_approve_min_confidence=body.auto_approve_min_confidence,
+            max_concentration_pct=body.max_concentration_pct,
+            max_correlated_exposure_pct=body.max_correlated_exposure_pct,
+            longshot_no_bias_weight=body.longshot_no_bias_weight,
         )
         created = create_profile(profile)
         return {"status": "ok", "profile": _profile_to_response(created).model_dump()}

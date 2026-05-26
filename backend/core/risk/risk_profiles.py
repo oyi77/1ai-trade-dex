@@ -41,6 +41,8 @@ class RiskProfileRow(Base):
     weekly_drawdown_limit_pct = Column(Float, nullable=False, default=0.2)
     slippage_tolerance = Column(Float, nullable=False, default=0.02)
     auto_approve_min_confidence = Column(Float, nullable=False, default=0.5)
+    max_concentration_pct = Column(Float, nullable=False, default=0.3)
+    max_correlated_exposure_pct = Column(Float, nullable=False, default=0.8)
     is_preset = Column(Boolean, nullable=False, default=False)
 
 
@@ -61,6 +63,8 @@ class RiskProfile:
     daily_loss_limit_pct: float = 0.10
     daily_loss_floor_pct: float = -0.10
     weekly_loss_floor_pct: float = -0.20
+    max_concentration_pct: float = 0.30
+    max_correlated_exposure_pct: float = 0.80
     longshot_no_bias_weight: float = 0.10
     orchestrator_interval_seconds: int = 300  # how often each strategy is polled (default 5 min)
     is_preset: bool = False
@@ -80,6 +84,8 @@ class RiskProfile:
             weekly_drawdown_limit_pct=self.weekly_drawdown_limit_pct,
             slippage_tolerance=self.slippage_tolerance,
             auto_approve_min_confidence=self.auto_approve_min_confidence,
+            max_concentration_pct=self.max_concentration_pct,
+            max_correlated_exposure_pct=self.max_correlated_exposure_pct,
             is_preset=self.is_preset,
         )
 
@@ -100,6 +106,8 @@ PRESETS: Dict[str, RiskProfile] = {
         slippage_tolerance=0.01,
         auto_approve_min_confidence=0.70,
         daily_loss_limit_pct=0.05,
+        max_concentration_pct=0.10,
+        max_correlated_exposure_pct=0.30,
         longshot_no_bias_weight=0.05,
         orchestrator_interval_seconds=600,  # 10 min — ultra-safe
     ),
@@ -120,6 +128,8 @@ PRESETS: Dict[str, RiskProfile] = {
         slippage_tolerance=0.015,
         auto_approve_min_confidence=0.60,
         daily_loss_limit_pct=0.07,
+        max_concentration_pct=0.20,
+        max_correlated_exposure_pct=0.50,
         longshot_no_bias_weight=0.07,
         orchestrator_interval_seconds=480,  # 8 min
     ),
@@ -138,6 +148,8 @@ PRESETS: Dict[str, RiskProfile] = {
         slippage_tolerance=0.02,
         auto_approve_min_confidence=0.50,
         daily_loss_limit_pct=0.10,
+        max_concentration_pct=0.30,
+        max_correlated_exposure_pct=0.80,
         longshot_no_bias_weight=0.10,
         orchestrator_interval_seconds=300,  # 5 min — default
     ),
@@ -156,6 +168,8 @@ PRESETS: Dict[str, RiskProfile] = {
         slippage_tolerance=0.03,
         auto_approve_min_confidence=0.35,
         daily_loss_limit_pct=0.20,
+        max_concentration_pct=0.50,
+        max_correlated_exposure_pct=1.00,
         longshot_no_bias_weight=0.12,
         orchestrator_interval_seconds=60,  # 1 min
     ),
@@ -176,6 +190,8 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit_pct=0.40,
         daily_loss_floor_pct=-0.40,
         weekly_loss_floor_pct=-0.60,
+        max_concentration_pct=0.80,
+        max_correlated_exposure_pct=1.50,
         longshot_no_bias_weight=0.15,
         orchestrator_interval_seconds=30,  # 30 sec
     ),
@@ -199,6 +215,8 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit_pct=0.80,
         daily_loss_floor_pct=-0.80,
         weekly_loss_floor_pct=-0.95,
+        max_concentration_pct=1.00,
+        max_correlated_exposure_pct=2.00,
         longshot_no_bias_weight=0.20,
         orchestrator_interval_seconds=15,  # 15 sec — crazy fast
     ),
@@ -219,6 +237,8 @@ PRESETS: Dict[str, RiskProfile] = {
         daily_loss_limit_pct=1.00,
         daily_loss_floor_pct=-1.00,
         weekly_loss_floor_pct=-1.00,
+        max_concentration_pct=1.00,
+        max_correlated_exposure_pct=5.00,
         longshot_no_bias_weight=0.20,
         orchestrator_interval_seconds=5,  # 5 sec — maximum aggression
     ),
@@ -415,6 +435,8 @@ def apply_profile(
     settings.AUTO_APPROVE_MIN_CONFIDENCE = profile.auto_approve_min_confidence
     settings.DAILY_LOSS_FLOOR_PCT = profile.daily_loss_floor_pct
     settings.WEEKLY_LOSS_FLOOR_PCT = profile.weekly_loss_floor_pct
+    settings.MAX_CONCENTRATION_PCT = profile.max_concentration_pct
+    settings.MAX_CORRELATED_EXPOSURE_PCT = profile.max_correlated_exposure_pct
     settings.LONGSHOT_NO_BIAS_WEIGHT = profile.longshot_no_bias_weight
     # Expose the profile's preferred strategy poll interval for the scheduler
     settings.ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS = profile.orchestrator_interval_seconds
@@ -443,6 +465,8 @@ def _row_to_profile(row: RiskProfileRow) -> RiskProfile:
         weekly_drawdown_limit_pct=row.weekly_drawdown_limit_pct,
         slippage_tolerance=row.slippage_tolerance,
         auto_approve_min_confidence=row.auto_approve_min_confidence,
+        max_concentration_pct=getattr(row, "max_concentration_pct", 0.3),
+        max_correlated_exposure_pct=getattr(row, "max_correlated_exposure_pct", 0.8),
         is_preset=row.is_preset,
     )
 

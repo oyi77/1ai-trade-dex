@@ -27,7 +27,7 @@ async def test_trade_creation_logs_audit_event(test_db):
     from backend.core.mode_context import register_context, ModeExecutionContext
     from backend.core.risk_manager import RiskManager
     from backend.core.strategy_executor import execute_decision
-    from unittest.mock import AsyncMock, patch, MagicMock
+    from unittest.mock import AsyncMock, patch
 
     # Register execution context for paper mode
     register_context(
@@ -53,8 +53,8 @@ async def test_trade_creation_logs_audit_event(test_db):
         "market_type": "btc",
     }
 
-    mock_limiter = MagicMock()
-    mock_limiter.acquire = MagicMock()
+    mock_limiter = AsyncMock()
+    mock_limiter.wait_and_acquire = AsyncMock()
     with patch("backend.core.strategy_executor._get_rate_limiter", return_value=mock_limiter):
         result = await execute_decision(
             decision=decision,
