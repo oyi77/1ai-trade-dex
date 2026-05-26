@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.models.database import SessionLocal, Trade, EquitySnapshot
 from backend.core.strategy_ranker import strategy_ranker
 from backend.core.calibration_tracker import get_bucket_calibration
+from backend.core.maker_taker_analytics import maker_taker_analytics
 from backend.db.utils import get_db_session
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -167,3 +168,18 @@ def get_longshot_bias(
     detector = LongshotBiasDetector()
     results = detector.compute_longshot_bias(category=category, days=days)
     return {"category": category, "days": days, "bias": results}
+
+
+@router.get("/maker-taker")
+def get_maker_taker_stats(
+    db: Session = Depends(get_db),
+):
+    """Get full-history maker vs taker ROI stats with AGI recommendation.
+
+    Returns:
+        maker        – {count, pnl, size, roi} over all settled maker trades
+        taker        – {count, pnl, size, roi} over all settled taker trades
+        recommendation – 'prefer_maker' | 'reduce_taker' | 'neutral' | 'insufficient_data'
+        cached_at    – ISO-8601 timestamp of last cache refresh (5-min TTL)
+    """
+    return maker_taker_analytics.get_stats(db)

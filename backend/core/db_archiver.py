@@ -23,7 +23,7 @@ def archive_trades_to_parquet(
     sql = (
         "SELECT id, market_ticker AS market_id, market_ticker, direction AS side, "
         "size, entry_price, settlement_value AS exit_price, pnl, result, timestamp, "
-        "signal_id, strategy "
+        "signal_id, strategy, COALESCE(role, 'unknown') AS role "
         "FROM trades WHERE timestamp >= :since_time"
     )
     with engine.connect() as conn:

@@ -28,6 +28,7 @@ const PluginStatusPanel = lazy(() => import('../components/PluginStatusPanel').t
 const SandboxMonitor = lazy(() => import('../components/SandboxMonitor').then(m => ({ default: m.SandboxMonitor })))
 const AGIGraphRunner = lazy(() => import('../components/AGIGraphRunner').then(m => ({ default: m.AGIGraphRunner })))
 const EdgeDistribution = lazy(() => import('../components/EdgeDistribution').then(m => ({ default: m.EdgeDistribution })))
+const MakerTakerPanel = lazy(() => import('../components/MakerTakerPanel').then(m => ({ default: m.MakerTakerPanel })))
 
 // ── Shared Helpers ────────────────────────────────────────────────────────────
 
@@ -284,10 +285,13 @@ export default function Dashboard() {
             )}
             {activeTab === 'HFT' && <HFTTab />}
             {activeTab === 'Analytics' && (
-              <div className="p-4 h-full" style={{ minHeight: 400 }}>
-                <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Edge Distribution</div>
-                <div className="h-[calc(100%-24px)]">
-                  <EdgeDistribution btcSignals={activeSignals ?? []} weatherSignals={weatherSignals ?? []} />
+              <div className="p-4 h-full overflow-y-auto space-y-4" style={{ minHeight: 400 }}>
+                <MakerTakerPanel />
+                <div>
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wider mb-2">Edge Distribution</div>
+                  <div style={{ minHeight: 320 }}>
+                    <EdgeDistribution btcSignals={activeSignals ?? []} weatherSignals={weatherSignals ?? []} />
+                  </div>
                 </div>
               </div>
             )}

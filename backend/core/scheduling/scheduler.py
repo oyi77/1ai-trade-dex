@@ -534,43 +534,30 @@ def auto_disable_losing_strategies():
                         )
                         break
                     else:
-                        # Taker vs Maker ROI audit (using a 24-hour window)
-                        since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
-                        trades_24h = (
-                            db.query(Trade)
-                            .filter(
-                                Trade.strategy == config.strategy_name,
-                                Trade.settled,
-                                Trade.timestamp >= since_24h,
-                                Trade.trading_mode == mode,
-                            )
-                            .all()
-                        )
-                        maker_trades = [t for t in trades_24h if t.role == "maker"]
-                        taker_trades = [t for t in trades_24h if t.role == "taker"]
+                        # Maker/Taker ROI audit — full history, min 20 settled trades per role
+                        from backend.core.maker_taker_analytics import maker_taker_analytics
+                        mt_stats = maker_taker_analytics.get_stats(db)
+                        recommendation = mt_stats.get("recommendation", "insufficient_data")
+                        maker_info = mt_stats.get("maker", {})
+                        taker_info = mt_stats.get("taker", {})
 
-                        maker_pnl = sum(t.pnl for t in maker_trades if t.pnl)
-                        maker_size = sum(t.size for t in maker_trades if t.size)
-                        taker_pnl = sum(t.pnl for t in taker_trades if t.pnl)
-                        taker_size = sum(t.size for t in taker_trades if t.size)
-
-                        if len(taker_trades) >= 3:
-                            taker_roi = taker_pnl / taker_size
-                            should_throttle = False
-                            reason = ""
-                            if maker_size > 0:
-                                maker_roi = maker_pnl / maker_size
-                                if taker_roi < -0.01 or taker_roi < maker_roi - 0.05:
-                                    should_throttle = True
-                                    reason = f"Taker ROI ({taker_roi:.2%}) significantly worse than Maker ROI ({maker_roi:.2%})"
+                        if recommendation in ("reduce_taker", "prefer_maker"):
+                            import json as _json
+                            should_throttle = True
+                            if recommendation == "reduce_taker":
+                                reason = (
+                                    f"Taker ROI ({taker_info.get('roi', 0):.2%}) is negative "
+                                    f"(n={taker_info.get('count', 0)} settled trades)"
+                                )
                             else:
-                                if taker_roi < -0.02:
-                                    should_throttle = True
-                                    reason = f"Taker ROI ({taker_roi:.2%}) is negative and no Maker trades exist"
+                                reason = (
+                                    f"Maker ROI ({maker_info.get('roi', 0):.2%}) significantly "
+                                    f"exceeds Taker ROI ({taker_info.get('roi', 0):.2%}) "
+                                    f"over full trade history"
+                                )
 
                             if should_throttle:
                                 config.rehab_allocation_pct = 0.50
-                                import json as _json
                                 try:
                                     params = _json.loads(config.params) if config.params else {}
                                 except Exception:
@@ -579,8 +566,8 @@ def auto_disable_losing_strategies():
                                 config.params = _json.dumps(params)
                                 db.commit()
                                 logger.warning(
-                                    f"Throttled {config.strategy_name} ({mode}) due to Taker underperformance: "
-                                    f"{reason}. Enforced maker-only execution."
+                                    f"Throttled {config.strategy_name} ({mode}) due to Taker "
+                                    f"underperformance: {reason}. Enforced maker-only execution."
                                 )
 
         if disabled:
