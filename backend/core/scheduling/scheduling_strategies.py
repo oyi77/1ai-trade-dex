@@ -226,7 +226,8 @@ async def _execute_trade(
     try:
         from backend.bot.notification.registry import registry
 
-        await registry.send_to("telegram", "btc_signal", str(signal))
+        if settings.TELEGRAM_BOT_TOKEN:
+            await registry.send_to("telegram", "btc_signal", str(signal))
     except Exception:
         logger.exception(
             f"[scheduling_strategies] BTC signal notification failed for {getattr(signal, 'market', None)}"
@@ -743,7 +744,8 @@ async def settlement_job():
                         "data",
                         f"  {trade.event_slug}: {trade.result.upper()} {result_prefix}${trade.pnl:.2f}",
                     )
-                    await registry.send_to("telegram", "trade_settled", str(trade))
+                    if settings.TELEGRAM_BOT_TOKEN:
+                        await registry.send_to("telegram", "trade_settled", str(trade))
             else:
                 log_event("info", "No trades ready for settlement")
 

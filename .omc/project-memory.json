@@ -272,6 +272,12 @@
       "type": "directory"
     },
     {
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 54,
+      "lastAccessed": 1779816094996,
+      "type": "directory"
+    },
+    {
       "path": "backend/models/database.py",
       "accessCount": 51,
       "lastAccessed": 1779807518985,
@@ -282,12 +288,6 @@
       "accessCount": 51,
       "lastAccessed": 1779810881998,
       "type": "file"
-    },
-    {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 50,
-      "lastAccessed": 1779815260766,
-      "type": "directory"
     },
     {
       "path": "backend/core/scheduling/scheduler.py",
