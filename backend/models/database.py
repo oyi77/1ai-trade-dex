@@ -237,6 +237,8 @@ class Trade(Base):
     # Execution and cost tracking
     source = Column(String, default="bot", index=True)  # "bot", "user", "import"
     role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
+    maker_size = Column(Float, nullable=True)
+    taker_size = Column(Float, nullable=True)
     clob_order_id = Column(String, nullable=True, index=True)
     clob_idempotency_key = Column(String, nullable=True)
     filled_size = Column(Float, nullable=True)
@@ -1829,6 +1831,30 @@ def ensure_schema():
                     )
         except Exception as e:
             logger.warning(f"Schema migration: could not backfill trading_mode: {e}")
+
+    if "maker_size" not in columns:
+        try:
+            with engine.connect() as conn:
+                with conn.begin():
+                    conn.execute(
+                        text(
+                            "ALTER TABLE trades ADD COLUMN maker_size FLOAT"
+                        )
+                    )
+        except Exception as e:
+            logger.warning(f"Schema migration: could not add maker_size column: {e}")
+
+    if "taker_size" not in columns:
+        try:
+            with engine.connect() as conn:
+                with conn.begin():
+                    conn.execute(
+                        text(
+                            "ALTER TABLE trades ADD COLUMN taker_size FLOAT"
+                        )
+                    )
+        except Exception as e:
+            logger.warning(f"Schema migration: could not add taker_size column: {e}")
 
     # Add paper tracking columns to bot_state
     try:

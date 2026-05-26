@@ -9,7 +9,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from backend.models.database import BotState, SessionLocal, StrategyConfig
+from backend.models.database import BotState, StrategyConfig
 
 from loguru import logger
 
@@ -20,6 +20,10 @@ ALERT_DEDUP_WINDOW = timedelta(minutes=5)
 # In-memory heartbeat cache: strategy_name -> ISO timestamp
 _pending_heartbeats: dict[str, str] = {}
 _hb_lock = threading.Lock()
+
+# In-memory scan stats cache: "mode:strategy_name" -> stats dict
+_pending_scan_stats: dict[str, dict] = {}
+_scan_stats_lock = threading.Lock()
 
 
 def _is_lock_timeout_error(exc: Exception) -> bool:
@@ -52,8 +56,29 @@ def update_heartbeat(strategy_name: str) -> None:
     _touch_heartbeat_file()
 
 
+def update_scan_stats(
+    strategy_name: str,
+    mode: str,
+    markets_scanned: int,
+    signals_had_edge: int,
+    signals_rejected: int,
+    trades_executed: int,
+) -> None:
+    """Record scan stats in memory — no DB write (watchdog flushes batch)."""
+    ts = datetime.now(timezone.utc).isoformat()
+    key = f"{mode}:{strategy_name}"
+    with _scan_stats_lock:
+        _pending_scan_stats[key] = {
+            "last_scan_time": ts,
+            "markets_scanned": markets_scanned,
+            "signals_had_edge": signals_had_edge,
+            "signals_rejected": signals_rejected,
+            "trades_executed": trades_executed,
+        }
+
+
 def _flush_heartbeats() -> bool:
-    """Write all pending heartbeats to DB in a single transaction.
+    """Write all pending heartbeats and scan stats to DB in a single transaction.
 
     Uses atomic jsonb_set() for PostgreSQL to avoid lock contention.
     Falls back to SQLAlchemy ORM for SQLite.
@@ -61,20 +86,19 @@ def _flush_heartbeats() -> bool:
     from backend.config import settings
 
     with _hb_lock:
-        if not _pending_heartbeats:
-            return True
-        snapshot = dict(_pending_heartbeats)
+        snapshot_hb = dict(_pending_heartbeats)
+    with _scan_stats_lock:
+        snapshot_stats = dict(_pending_scan_stats)
+
+    if not snapshot_hb and not snapshot_stats:
+        return True
 
     try:
-        heartbeat_patch = json.dumps(
-            {
-                f"{HEARTBEAT_PREFIX}{strategy_name}": ts
-                for strategy_name, ts in snapshot.items()
-            }
-        )
+        from backend.models.database import SessionLocal
         with SessionLocal() as db:
             # Postgres: use atomic jsonb_set to avoid read-modify-write deadlocks
-            if settings.is_postgres:
+            is_pg = "postgresql" in str(db.bind.url) if (db.bind and db.bind.url) else settings.is_postgres
+            if is_pg:
                 db.execute(text("SET LOCAL lock_timeout = '2s'"))
                 db.execute(text("SET LOCAL statement_timeout = '5s'"))
                 acquired = db.execute(
@@ -87,18 +111,31 @@ def _flush_heartbeats() -> bool:
                     logger.debug("heartbeat flush skipped: another flusher is active")
                     return False
 
-            heartbeat_stmt = text(
-                "UPDATE bot_state "
-                "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
-                "WHERE mode = :mode"
-            )
-            for mode in settings.active_modes_set:
-                db.execute(
-                    heartbeat_stmt,
-                    {"heartbeat_patch": heartbeat_patch, "mode": mode},
+                heartbeat_stmt = text(
+                    "UPDATE bot_state "
+                    "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
+                    "WHERE mode = :mode"
                 )
-                db.commit()
+                
+                hb_patch = {
+                    f"{HEARTBEAT_PREFIX}{strategy_name}": ts
+                    for strategy_name, ts in snapshot_hb.items()
+                }
+
+                for mode in settings.active_modes_set:
+                    mode_patch = dict(hb_patch)
+                    for key, stats in snapshot_stats.items():
+                        m, strategy_name = key.split(":", 1)
+                        if m == mode:
+                            mode_patch[f"scan_stats:{strategy_name}"] = stats
+
+                    db.execute(
+                        heartbeat_stmt,
+                        {"heartbeat_patch": json.dumps(mode_patch), "mode": mode},
+                    )
+                    db.commit()
             else:
+                # SQLite ORM fallback
                 for state in db.query(BotState).all():
                     data = {}
                     if state.misc_data:
@@ -113,14 +150,27 @@ def _flush_heartbeats() -> bool:
                                 f"heartbeat: failed to parse misc_data JSON for mode {state.mode}"
                             )
                             data = {}
-                    for strategy_name, ts in snapshot.items():
+                    
+                    for strategy_name, ts in snapshot_hb.items():
                         data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
+                    
+                    for key, stats in snapshot_stats.items():
+                        m, strategy_name = key.split(":", 1)
+                        if m == state.mode:
+                            data[f"scan_stats:{strategy_name}"] = stats
+
                     state.misc_data = json.dumps(data)
                 db.commit()
+
+        # Clean up successfully flushed entries from memory cache
         with _hb_lock:
-            for strategy_name, ts in snapshot.items():
+            for strategy_name, ts in snapshot_hb.items():
                 if _pending_heartbeats.get(strategy_name) == ts:
                     _pending_heartbeats.pop(strategy_name, None)
+        with _scan_stats_lock:
+            for key, stats in snapshot_stats.items():
+                if _pending_scan_stats.get(key) == stats:
+                    _pending_scan_stats.pop(key, None)
         return True
     except Exception as e:
         if _is_lock_timeout_error(e):

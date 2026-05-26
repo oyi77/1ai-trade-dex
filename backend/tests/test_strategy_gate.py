@@ -95,13 +95,13 @@ class TestCanAdvanceToLive:
 
 
 class TestShadowExempt:
-    """Test SHADOW_EXEMPT set."""
+    """Test SHADOW_EXEMPT set is empty."""
 
-    def test_whale_frontrun_exempt(self):
-        assert "whale_frontrun" in SHADOW_EXEMPT
+    def test_whale_frontrun_not_exempt(self):
+        assert "whale_frontrun" not in SHADOW_EXEMPT
 
-    def test_bond_scanner_exempt(self):
-        assert "bond_scanner" in SHADOW_EXEMPT
+    def test_bond_scanner_not_exempt(self):
+        assert "bond_scanner" not in SHADOW_EXEMPT
 
     def test_cex_pm_leadlag_not_exempt(self):
         assert "cex_pm_leadlag" not in SHADOW_EXEMPT

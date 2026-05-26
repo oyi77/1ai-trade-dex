@@ -523,6 +523,7 @@ class BtcOracleStrategy(BaseStrategy):
 
         try:
             btc_5m_markets = await fetch_active_btc_markets()
+            result.markets_scanned = len(btc_5m_markets)
         except Exception as e:
             logger.warning(
                 f"BtcOracleStrategy.run_cycle: failed to fetch BTC markets: {e}"
@@ -736,6 +737,7 @@ class BtcOracleStrategy(BaseStrategy):
         # Also try keyword-based scanner for any other BTC markets
         kw_markets = await fetch_markets_by_keywords(["btc", "bitcoin"], limit=200)
         btc_markets = await self.market_filter(kw_markets)
+        result.markets_scanned += len(btc_markets)
 
         for market in btc_markets:
             end_dt = parse_end_date(market.end_date)
@@ -746,10 +748,10 @@ class BtcOracleStrategy(BaseStrategy):
                 continue
 
             # Determine which direction oracle price implies
-            result = implied_direction(market.question, btc_price)
-            if result is None:
+            implied_res = implied_direction(market.question, btc_price)
+            if implied_res is None:
                 continue
-            direction, strike_price = result
+            direction, strike_price = implied_res
 
             # FIX 2026-05-19: Block DOWN direction — data shows 30.4% WR
             block_down = params.get("block_direction_down", True)

@@ -484,6 +484,113 @@ def _job_executed_listener(event):
     except Exception as exc:
         logger.debug(f"Failed to update last_run for job '{job_id}': {exc}")
 
+def auto_disable_losing_strategies():
+    """Audit strategy performance and disable/throttle losers. Module-level so it can be tested."""
+    from backend.models.database import Trade, StrategyConfig
+    from backend.config import settings
+    from backend.db.utils import get_db_session
+    from datetime import datetime, timezone, timedelta
+
+    disabled = []
+    min_trades = getattr(settings, "AGI_AUTO_DISABLE_MIN_TRADES", 10)
+    try:
+        since = datetime.now(timezone.utc) - timedelta(hours=1)
+        with get_db_session() as db:
+            for config in (
+                db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
+            ):
+                for mode in settings.active_modes_set:
+                    trades = (
+                        db.query(Trade)
+                        .filter(
+                            Trade.strategy == config.strategy_name,
+                            Trade.settled,
+                            Trade.timestamp >= since,
+                            Trade.trading_mode == mode,
+                        )
+                        .all()
+                    )
+
+                    if len(trades) < min_trades:
+                        continue
+
+                    # Only count trades with definitive outcomes for win rate
+                    resolved = [t for t in trades if t.result in ("win", "loss")]
+                    if len(resolved) < max(3, min_trades // 2):
+                        continue  # not enough resolved outcomes yet
+
+                    wins = sum(1 for t in resolved if t.result == "win")
+                    win_rate = wins / len(resolved)
+                    pnl = sum(t.pnl for t in trades if t.pnl)
+
+                    if win_rate < 0.30 or pnl < -50.0:
+                        from backend.core.strategy_health import disable_for_rehab
+                        disable_for_rehab(config)
+                        disabled.append(
+                            f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                        )
+                        logger.warning(
+                            f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
+                        )
+                        break
+                    else:
+                        # Taker vs Maker ROI audit (using a 24-hour window)
+                        since_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+                        trades_24h = (
+                            db.query(Trade)
+                            .filter(
+                                Trade.strategy == config.strategy_name,
+                                Trade.settled,
+                                Trade.timestamp >= since_24h,
+                                Trade.trading_mode == mode,
+                            )
+                            .all()
+                        )
+                        maker_trades = [t for t in trades_24h if t.role == "maker"]
+                        taker_trades = [t for t in trades_24h if t.role == "taker"]
+
+                        maker_pnl = sum(t.pnl for t in maker_trades if t.pnl)
+                        maker_size = sum(t.size for t in maker_trades if t.size)
+                        taker_pnl = sum(t.pnl for t in taker_trades if t.pnl)
+                        taker_size = sum(t.size for t in taker_trades if t.size)
+
+                        if len(taker_trades) >= 3:
+                            taker_roi = taker_pnl / taker_size
+                            should_throttle = False
+                            reason = ""
+                            if maker_size > 0:
+                                maker_roi = maker_pnl / maker_size
+                                if taker_roi < -0.01 or taker_roi < maker_roi - 0.05:
+                                    should_throttle = True
+                                    reason = f"Taker ROI ({taker_roi:.2%}) significantly worse than Maker ROI ({maker_roi:.2%})"
+                            else:
+                                if taker_roi < -0.02:
+                                    should_throttle = True
+                                    reason = f"Taker ROI ({taker_roi:.2%}) is negative and no Maker trades exist"
+
+                            if should_throttle:
+                                config.rehab_allocation_pct = 0.50
+                                import json as _json
+                                try:
+                                    params = _json.loads(config.params) if config.params else {}
+                                except Exception:
+                                    params = {}
+                                params["force_maker_only"] = True
+                                config.params = _json.dumps(params)
+                                db.commit()
+                                logger.warning(
+                                    f"Throttled {config.strategy_name} ({mode}) due to Taker underperformance: "
+                                    f"{reason}. Enforced maker-only execution."
+                                )
+
+        if disabled:
+            logger.info(
+                f"Auto-disabled {len(disabled)} losing strategies: {disabled}"
+            )
+    except Exception as e:
+        logger.warning(f"Auto-disable check failed: {e}")
+
+
 def start_scheduler():
     """Start the background scheduler for multi-strategy trading."""
     global queue, worker, worker_task
@@ -711,63 +818,27 @@ def start_scheduler():
         logger.exception("Failed to remove settlement_verify job")
         # Job may not exist
 
-    # Start OrderbookRouter as APScheduler fallback heartbeat
+    # Start WSDispatcher and unified WS stream
     if settings.POLYMARKET_WS_ENABLED:
         from backend.infrastructure.market_stream.orderbook_router import (
             OrderbookRouter,
         )
-        from backend.data.polymarket_websocket import (
-            PolymarketWebSocket,
-            WebSocketConfig,
-            ChannelType,
-        )
+        from backend.core.ws_dispatcher import ws_dispatcher
 
         orderbook_router = OrderbookRouter()
 
         # Start the router dispatch loop
         asyncio.create_task(orderbook_router.start())
 
-        # Connect to WebSocket and register router as handler
         if settings.POLYMARKET_WS_CLOB_URL:
-
-            async def _start_market_ws() -> None:
-                subscribed_tokens = set()
-                try:
-                    from backend.core.event_bus import event_bus
-
-                    subscribed_tokens.update(event_bus.get_all_subscribed_tokens())
-                except Exception:
-                    logger.exception(
-                        "Failed to read strategy WS subscriptions from EventBus"
-                    )
-
-                try:
-                    from backend.core.market_scanner import (
-                        fetch_short_duration_token_ids,
-                    )
-
-                    short_tokens = await fetch_short_duration_token_ids(
-                        limit=settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
-                    )
-                    subscribed_tokens.update(short_tokens)
-                except Exception:
-                    logger.exception("Failed to preload short-duration WS tokens")
-
-                ws_config = WebSocketConfig(
-                    channel=ChannelType.MARKET,
-                    asset_ids=list(subscribed_tokens)[
-                        : settings.POLYMARKET_WS_SUBSCRIPTION_LIMIT
-                    ],
-                )
-                ws_client = PolymarketWebSocket(ws_config)
-                orderbook_router.register_with_websocket(ws_client)
-                await ws_client.connect()
-
-            asyncio.create_task(_start_market_ws())
-            logger.info("OrderbookRouter WebSocket startup task scheduled")
+            # Register OrderbookRouter with WSDispatcher
+            ws_dispatcher.register_router(orderbook_router)
+            # Start unified dispatcher pipeline
+            asyncio.create_task(ws_dispatcher.start())
+            logger.info("WSDispatcher and OrderbookRouter startup task scheduled")
         else:
             logger.warning(
-                "POLYMARKET_WS_CLOB_URL not configured, OrderbookRouter running in fallback mode"
+                "POLYMARKET_WS_CLOB_URL not configured, WSDispatcher not started, OrderbookRouter running in fallback mode"
             )
 
     # Weekly HuggingFace dataset ingestion — refreshes local Parquet cache
@@ -813,11 +884,6 @@ def start_scheduler():
     # Phase 1: read configs + trade history (read-only, no for_update)
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
-            if config.protected:
-                interval = config.interval_seconds or 60
-                configs_to_schedule.append((config.strategy_name, interval, "paper"))
-                configs_to_schedule.append((config.strategy_name, interval, "live"))
-                continue
             for mode in settings.active_modes_set:
                 trades = (
                     db.query(Trade)
@@ -1246,65 +1312,6 @@ def start_scheduler():
     )
     logger.info("Scheduled source performance audit job at 03:00 UTC")
 
-    def auto_disable_losing_strategies():
-        from backend.models.database import Trade, StrategyConfig
-        from backend.config import settings
-        from backend.db.utils import get_db_session
-        from datetime import datetime, timezone, timedelta
-
-        disabled = []
-        min_trades = getattr(settings, "AGI_AUTO_DISABLE_MIN_TRADES", 10)
-        try:
-            since = datetime.now(timezone.utc) - timedelta(hours=1)
-            with get_db_session() as db:
-                for config in (
-                    db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
-                ):
-                    if config.protected:
-                        continue
-
-                    for mode in settings.active_modes_set:
-                        trades = (
-                            db.query(Trade)
-                            .filter(
-                                Trade.strategy == config.strategy_name,
-                                Trade.settled,
-                                Trade.timestamp >= since,
-                                Trade.trading_mode == mode,
-                            )
-                            .all()
-                        )
-
-                        if len(trades) < min_trades:
-                            continue
-
-                        # Only count trades with definitive outcomes for win rate
-                        resolved = [t for t in trades if t.result in ("win", "loss")]
-                        if len(resolved) < max(3, min_trades // 2):
-                            continue  # not enough resolved outcomes yet
-
-                        wins = sum(1 for t in resolved if t.result == "win")
-                        win_rate = wins / len(resolved)
-                        pnl = sum(t.pnl for t in trades if t.pnl)
-
-                        if win_rate < 0.30 or pnl < -50.0:
-                            from backend.core.strategy_health import disable_for_rehab
-                            disable_for_rehab(config)
-                            disabled.append(
-                                f"{config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
-                            )
-                            logger.warning(
-                                f"Auto-disabled {config.strategy_name} ({mode}): win_rate={win_rate:.0%}, pnl=${pnl:.0f}"
-                            )
-                            break
-
-            if disabled:
-                logger.info(
-                    f"Auto-disabled {len(disabled)} losing strategies: {disabled}"
-                )
-        except Exception as e:
-            logger.warning(f"Auto-disable check failed: {e}")
-
     try:
         scheduler.add_job(
             auto_disable_losing_strategies,
@@ -1385,7 +1392,10 @@ def start_scheduler():
                             break
                     else:
                         config.enabled = True
-                        config.trading_mode = "paper"
+                        # Only set paper mode if strategy was previously disabled/rehabbing.
+                        # Active live strategies keep their existing trading_mode.
+                        if config.disabled_at is not None:
+                            config.trading_mode = "paper"
                         config.disabled_at = None
                         if config.rehab_allocation_pct is None:
                             config.rehab_allocation_pct = getattr(
@@ -1616,6 +1626,17 @@ def stop_scheduler():
             queue.shutdown()
             queue = None
             logger.info("Queue shutdown complete")
+
+    # Stop WSDispatcher if active
+    try:
+        from backend.core.ws_dispatcher import ws_dispatcher
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(ws_dispatcher.stop())
+        except RuntimeError:
+            asyncio.run(ws_dispatcher.stop())
+    except Exception as e:
+        logger.warning(f"Failed to stop ws_dispatcher: {e}")
 
     # Shutdown scheduler
     scheduler.shutdown(wait=False)

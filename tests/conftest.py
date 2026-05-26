@@ -13,6 +13,11 @@ _sched_stub = MagicMock()
 sys.modules.setdefault("apscheduler", MagicMock())
 sys.modules.setdefault("apscheduler.schedulers", MagicMock())
 sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
+sys.modules.setdefault("apscheduler.events", MagicMock())
+sys.modules.setdefault("apscheduler.triggers", MagicMock())
+sys.modules.setdefault("apscheduler.triggers.interval", MagicMock())
+sys.modules.setdefault("apscheduler.jobstores", MagicMock())
+sys.modules.setdefault("apscheduler.jobstores.base", MagicMock())
 sys.modules["backend.core.scheduler"] = _sched_stub
 
 # Create in-memory test database

@@ -50,7 +50,7 @@ STAGE_REQUIREMENTS = {
 }
 
 # Which strategies are currently allowed to skip shadow (pre-validated)
-SHADOW_EXEMPT = {"whale_frontrun", "bond_scanner"}
+SHADOW_EXEMPT = set()
 
 
 class StrategyGate:

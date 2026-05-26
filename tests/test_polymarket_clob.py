@@ -122,7 +122,7 @@ class TestPlaceLimitOrderLive:
 
         clob._http = AsyncMock()
         try:
-            result = await clob.place_limit_order("token1", "BUY", price=0.50, size=1.0)
+            result = await clob.place_limit_order("token1", "BUY", price=0.50, size=0.5)
             assert not result.success
             assert "minimum" in result.error.lower()
         finally:

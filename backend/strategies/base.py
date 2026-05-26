@@ -98,6 +98,7 @@ class CycleResult:
     errors: list[str] = field(default_factory=list)
     decisions: list = field(default_factory=list)
     cycle_duration_ms: float = 0.0
+    markets_scanned: int = 0
 
 
 class BaseStrategy(ABC):

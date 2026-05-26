@@ -1679,6 +1679,195 @@ async def list_strategies(
     return result
 
 
+@router.get("/strategies/health")
+async def get_strategies_health(db: Session = Depends(get_db)):
+    """Return health metrics, heartbeat, last signal, and rejections per strategy."""
+    from backend.strategies.registry import STRATEGY_REGISTRY
+    from backend.strategies.loader import load_all_strategies
+    from backend.models.database import StrategyConfig, BotState, Signal, TradeAttempt
+    from backend.config import settings
+
+    if not STRATEGY_REGISTRY:
+        load_all_strategies()
+
+    # Fetch all configuration overrides from the database
+    db_configs = {c.strategy_name: c for c in db.query(StrategyConfig).all()}
+
+    # Query all BotStates to extract heartbeats and scan stats
+    bot_states = {state.mode: state for state in db.query(BotState).all()}
+
+    result = []
+    for name, cls in STRATEGY_REGISTRY.items():
+        cfg = db_configs.get(name)
+        enabled = cfg.enabled if cfg else False
+        effective_mode = cfg.trading_mode or settings.TRADING_MODE if cfg else settings.TRADING_MODE
+
+        # Retrieve heartbeat and scan stats from the BotState matching the mode
+        bot_state = bot_states.get(effective_mode)
+        last_heartbeat = None
+        scan_stats = {}
+        if bot_state and bot_state.misc_data:
+            try:
+                misc = (
+                    _json.loads(bot_state.misc_data)
+                    if isinstance(bot_state.misc_data, str)
+                    else bot_state.misc_data
+                )
+                last_heartbeat = misc.get(f"heartbeat:{name}")
+                scan_stats = misc.get(f"scan_stats:{name}", {})
+            except Exception:
+                logger.warning(f"Failed to parse misc_data for mode {effective_mode}")
+
+        # Retrieve the last generated signal
+        last_signal = (
+            db.query(Signal)
+            .filter(
+                Signal.track_name == name,
+                Signal.execution_mode == effective_mode,
+            )
+            .order_by(Signal.timestamp.desc())
+            .first()
+        )
+        last_signal_details = None
+        if last_signal:
+            last_signal_details = {
+                "timestamp": _iso(last_signal.timestamp),
+                "market_ticker": last_signal.market_ticker,
+                "direction": last_signal.direction,
+                "model_probability": last_signal.model_probability,
+                "market_price": last_signal.market_price,
+                "edge": last_signal.edge,
+                "confidence": last_signal.confidence,
+                "reasoning": last_signal.reasoning,
+            }
+
+        # Retrieve recent rejections / blocks
+        recent_rejections = (
+            db.query(TradeAttempt)
+            .filter(
+                TradeAttempt.strategy == name,
+                TradeAttempt.mode == effective_mode,
+                TradeAttempt.status.in_(("REJECTED", "BLOCKED", "FAILED")),
+            )
+            .order_by(TradeAttempt.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        rejections_details = [
+            {
+                "timestamp": _iso(rej.created_at),
+                "market_ticker": rej.market_ticker,
+                "status": rej.status,
+                "phase": rej.phase,
+                "reason_code": rej.reason_code,
+                "reason": rej.reason,
+                "requested_size": rej.requested_size,
+                "adjusted_size": rej.adjusted_size,
+            }
+            for rej in recent_rejections
+        ]
+
+        result.append(
+            {
+                "strategy": name,
+                "enabled": enabled,
+                "trading_mode": effective_mode,
+                "last_heartbeat": last_heartbeat,
+                "last_scan_time": scan_stats.get("last_scan_time"),
+                "markets_scanned": scan_stats.get("markets_scanned", 0),
+                "signals_had_edge": scan_stats.get("signals_had_edge", 0),
+                "signals_rejected": scan_stats.get("signals_rejected", 0),
+                "trades_executed": scan_stats.get("trades_executed", 0),
+                "last_signal": last_signal_details,
+                "rejections": rejections_details,
+            }
+        )
+
+    return result
+
+
+@router.get("/strategies/compare")
+async def compare_strategies(db: Session = Depends(get_db)):
+    """Compare active strategies side-by-side using PnL and AGI health metrics."""
+    from backend.models.database import Trade
+    from backend.models.outcome_tables import StrategyHealthRecord
+    from sqlalchemy import case
+
+    # Fetch latest AGI health record for each strategy
+    all_health = db.query(StrategyHealthRecord).order_by(StrategyHealthRecord.last_updated.desc()).all()
+    latest_health = {}
+    for h in all_health:
+        if h.strategy not in latest_health:
+            latest_health[h.strategy] = h
+
+    # Fetch trade statistics grouped by strategy
+    trade_stats = (
+        db.query(
+            Trade.strategy,
+            func.count(Trade.id).label("total_trades"),
+            func.sum(
+                case(
+                    (Trade.settled.is_(True), case((Trade.pnl > 0, 1), else_=0)),
+                    else_=0,
+                )
+            ).label("wins"),
+            func.sum(
+                case(
+                    (Trade.settled.is_(True), case((Trade.pnl <= 0, 1), else_=0)),
+                    else_=0,
+                )
+            ).label("losses"),
+            func.sum(case((Trade.settled, Trade.pnl), else_=0)).label("total_pnl"),
+            func.avg(Trade.edge_at_entry).label("avg_edge"),
+            func.avg(Trade.size).label("avg_size"),
+        )
+        .filter(Trade.strategy.isnot(None), Trade.source == "bot")
+        .group_by(Trade.strategy)
+        .all()
+    )
+
+    comparison = {}
+    # Incorporate strategies with trades
+    for r in trade_stats:
+        strat = r.strategy
+        h = latest_health.get(strat)
+        total_wr_trades = r.wins + r.losses
+        comparison[strat] = {
+            "total_trades": r.total_trades,
+            "wins": r.wins,
+            "losses": r.losses,
+            "win_rate": r.wins / total_wr_trades if total_wr_trades > 0 else (h.win_rate if h else 0.0),
+            "total_pnl": round(r.total_pnl or 0, 2),
+            "avg_edge": round(r.avg_edge or 0, 4),
+            "avg_size": round(r.avg_size or 0, 2),
+            "sharpe": h.sharpe if h else 0.0,
+            "max_drawdown": h.max_drawdown if h else None,
+            "brier_score": h.brier_score if h else None,
+            "psi_score": h.psi_score if h else None,
+            "status": h.status if h else "active",
+        }
+
+    # Add any strategies that have an AGI health record but no trades yet
+    for strat, h in latest_health.items():
+        if strat not in comparison:
+            comparison[strat] = {
+                "total_trades": h.total_trades,
+                "wins": h.wins,
+                "losses": h.losses,
+                "win_rate": h.win_rate,
+                "total_pnl": 0.0,
+                "avg_edge": 0.0,
+                "avg_size": 0.0,
+                "sharpe": h.sharpe,
+                "max_drawdown": h.max_drawdown,
+                "brier_score": h.brier_score,
+                "psi_score": h.psi_score,
+                "status": h.status,
+            }
+
+    return comparison
+
+
 class StrategyUpdateRequest(BaseModel):
     enabled: Optional[bool] = None
     interval_seconds: Optional[int] = None

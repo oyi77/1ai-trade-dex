@@ -130,8 +130,11 @@ class ActivityHandler:
             from backend.models.database import Trade
 
             with get_db_session() as db:
+                market_ticker = event.raw_data.get("market_ticker") if isinstance(event.raw_data, dict) else None
+                if not market_ticker:
+                    return
                 trade = Trade(
-                    market_ticker=event.market_ticker or event.raw_data.get("market_ticker", "UNKNOWN"),
+                    market_ticker=market_ticker,
                     strategy=event.raw_data.get("strategy", event.source),
                     trading_mode="live",
                     direction=event.side or "UNKNOWN",

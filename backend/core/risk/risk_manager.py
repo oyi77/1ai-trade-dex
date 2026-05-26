@@ -1247,9 +1247,8 @@ class RiskManager:
     ) -> Optional[str]:
         """G-18: Block if total exposure to same event exceeds MAX_CONCENTRATION_PCT of bankroll."""
         try:
-            max_concentration_pct = float(
-                getattr(self.s, "MAX_CONCENTRATION_PCT", 0.30) or 0.30
-            )
+            profile_pct = getattr(self.s, "MAX_CONCENTRATION_PCT", 0.30) or 0.30
+            max_concentration_pct = float(profile_pct) if bankroll >= 500 else 1.0
             logger.debug(
                 f"[risk_manager.check_concentration] Checking ticker={market_ticker} size=${trade_size:.2f} "
                 f"against dynamic concentration limit={max_concentration_pct:.0%} of bankroll (${bankroll:.2f})"

@@ -34,16 +34,8 @@ sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
 sys.modules["backend.core.scheduler"] = _sched_stub
 
 # ---------------------------------------------------------------------------
-# In-memory SQLite for test isolation
+# Use the configured test database engine and session
 # ---------------------------------------------------------------------------
-TEST_DB_URL = "sqlite:///:memory:"
-_engine = create_engine(
-    TEST_DB_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-_TestSession = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
-
 from backend.models import database as _db_mod  # noqa: E402
 from backend.models.database import (
     Base,
@@ -53,14 +45,8 @@ from backend.models.database import (
     SettlementEvent,
 )  # noqa: E402
 
-_db_mod.engine = _engine
-_db_mod.SessionLocal = _TestSession
-
-Base.metadata.create_all(bind=_engine)
-try:
-    _db_mod.ensure_schema()
-except Exception:
-    pass
+_engine = _db_mod.engine
+_TestSession = _db_mod.SessionLocal
 
 # Patch heartbeat module's SessionLocal
 try:

@@ -27,26 +27,15 @@ sys.modules.setdefault("apscheduler.schedulers", MagicMock())
 sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
 sys.modules["backend.core.scheduler"] = _sched_stub
 
-TEST_DB_URL = "sqlite:///:memory:"
-_engine = create_engine(
-    TEST_DB_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-_TestSession = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
-
+# ---------------------------------------------------------------------------
+# Use the configured test database engine and session
+# ---------------------------------------------------------------------------
 from backend.models import database as _db_mod  # noqa: E402
 from backend.models.database import Base, BotState, StrategyProposal  # noqa: E402
 from backend.models.kg_models import ExperimentRecord  # noqa: E402
 
-_db_mod.engine = _engine
-_db_mod.SessionLocal = _TestSession
-
-Base.metadata.create_all(bind=_engine)
-try:
-    _db_mod.ensure_schema()
-except Exception:
-    pass
+_engine = _db_mod.engine
+_TestSession = _db_mod.SessionLocal
 
 from backend.core.agi_types import ExperimentStatus  # noqa: E402
 from backend.core.autonomous_promoter import AutonomousPromoter  # noqa: E402
@@ -54,7 +43,7 @@ from backend.core import autonomous_promoter as _promoter_mod  # noqa: E402
 from backend.db import utils as _db_utils_mod  # noqa: E402
 from backend.config import settings  # noqa: E402
 
-# Ensure promoter uses THIS test's SessionLocal (not one cached from a prior test file)
+# Ensure promoter uses the active test's SessionLocal
 _promoter_mod.SessionLocal = _TestSession
 _db_utils_mod.SessionLocal = _TestSession
 

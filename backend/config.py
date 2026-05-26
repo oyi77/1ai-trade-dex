@@ -251,9 +251,9 @@ class ConfigRegistry:
         0.80  # max correlation-adjusted exposure % of bankroll
     )
     MAX_TRADE_SIZE: float = 100.0  # max single trade size in USD
-    MIN_ORDER_USDC: float = 5.0  # minimum order size (live)
+    MIN_ORDER_USDC: float = 1.0  # minimum order size (live)
     PAPER_MIN_ORDER_USDC: float = (
-        5.0  # minimum order size (paper — matches live to prevent hallucination)
+        1.0  # minimum order size (paper — matches live to prevent hallucination)
     )
 
     # Confidence and signal weights

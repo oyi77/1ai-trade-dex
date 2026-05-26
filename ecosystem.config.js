@@ -34,6 +34,8 @@ module.exports = {
       env: {
         TRADING_MODE: 'live',
         RISK_PROFILE: 'crazy',
+        WEATHER_ENABLED: 'false',
+        PYTHONDONTWRITEBYTECODE: '1'
       },
       autorestart: true,
       max_restarts: 10,

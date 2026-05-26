@@ -1,41 +1,26 @@
 """
 Real-time Price Velocity Scanner (Track 1 - Parallel Edge Discovery).
 
-Generates signals based on rate of price change (velocity) from Polymarket CLOB WebSocket.
-High price velocity can indicate momentum shifts before they're reflected in slower indicators.
-
-Strategy:
-- Tracks mid-price changes over sliding windows (5s, 15s, 30s)
-- Calculates velocity: (current_price - price_n_seconds_ago) / n_seconds
-- Generates UP signals when velocity > threshold (rapid price increase)
-- Generates DOWN signals when velocity < -threshold (rapid price decrease)
-- Records all signals with track_name='realtime' for paper trading validation
-
-Edge Hypothesis:
-Rapid price movements often precede volume surges and trend continuations.
-By catching velocity early, we can enter before slower momentum indicators trigger.
-
-Track Configuration:
-- Default bankroll: $500 (isolated from other tracks)
-- Loss limit: $100
-- Signal threshold: velocity > 0.15 (15% price change over 30s)
+Generates signals based on rate of price change (velocity) from Polymarket CLOB WebSocket
+integrated into the central WS dispatcher pipeline.
 """
 
 import asyncio
 import time
-from backend.config import settings
+from datetime import datetime, timezone
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict, Set, Optional, List, Any
 
+from backend.config import settings
 from backend.strategies.base import (
     BaseStrategy,
     StrategyContext,
     CycleResult,
     MarketInfo,
 )
+from backend.core.event_bus import MarketEvent
 from backend.core.decisions import record_decision
-
 from loguru import logger
 
 
@@ -93,7 +78,7 @@ class RealtimeScannerStrategy(BaseStrategy):
     description = "Real-time price velocity scanner (Track 1 - Parallel Edge Discovery)"
     category = "edge_discovery"
     default_params = {
-        "_force_disabled": True,
+        "_force_disabled": False,  # Enabled by default when active in DB
         # Velocity thresholds (0.15 = 15% price change over 30s)
         "velocity_threshold_up": 0.15,  # Generate UP signal when velocity > 0.15
         "velocity_threshold_down": -0.15,  # Generate DOWN signal when velocity < -0.15
@@ -113,13 +98,50 @@ class RealtimeScannerStrategy(BaseStrategy):
         "max_position_usd": 50.0,  # Max trade size for this strategy (USD)
     }
 
+    # -- Event-driven (WebSocket) subscription config --
+    subscribed_tokens: Set[str] = set()
+    subscribed_events: Set[str] = {"last_trade_price", "price_change"}
+
     def __init__(self):
         super().__init__()
         self._price_history: Dict[str, PriceHistory] = {}
-        self._ws_client = None
-        self._running = False
+        self._token_to_ticker: Dict[str, str] = {}
+        self._tokens_populated: bool = False
 
-    async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
+    async def _populate_subscribed_tokens(self) -> None:
+        """Discover active short-duration markets and map token_id -> ticker/slug."""
+        try:
+            from backend.core.market_scanner import fetch_all_active_markets, fetch_short_duration_token_ids
+            import json
+            
+            markets = await fetch_all_active_markets(limit=1000)
+            
+            for m in markets:
+                raw_token_ids = m.metadata.get("clobTokenIds") or []
+                if isinstance(raw_token_ids, str):
+                    try:
+                        raw_token_ids = json.loads(raw_token_ids)
+                    except Exception:
+                        raw_token_ids = []
+                token_ids = [str(token_id) for token_id in raw_token_ids if token_id]
+                
+                if len(token_ids) >= 1:
+                    self._token_to_ticker[token_ids[0]] = f"{m.slug}_YES"
+                if len(token_ids) >= 2:
+                    self._token_to_ticker[token_ids[1]] = f"{m.slug}_NO"
+                    
+            # Subset/limit our subscribed tokens to short duration or liquid ones
+            short_tokens = await fetch_short_duration_token_ids(limit=50)
+            
+            self.subscribed_tokens = set(short_tokens)
+            self._tokens_populated = True
+            logger.info(
+                f"[{self.name}] Subscribed tokens populated with {len(self.subscribed_tokens)} active tokens."
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to populate subscribed tokens: {e}")
+
+    async def market_filter(self, markets: List[MarketInfo]) -> List[MarketInfo]:
         """Filter to high-liquidity markets suitable for velocity tracking."""
         min_liquidity = self.default_params["min_liquidity"]
         min_volume = self.default_params["min_volume"]
@@ -130,75 +152,103 @@ class RealtimeScannerStrategy(BaseStrategy):
             if m.liquidity >= min_liquidity and m.volume >= min_volume
         ]
 
-    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """
-        Execute one trading cycle.
+    async def on_market_event(self, event: MarketEvent) -> Optional[dict]:
+        """Handle real-time WebSocket market events (trades or price updates)."""
+        if not self._tokens_populated:
+            await self._populate_subscribed_tokens()
 
-        1. Check for price velocity signals from tracked tokens
-        2. Record decisions for high-velocity movements
-        3. Maintain price history and WebSocket subscriptions
-        """
-        result = CycleResult(
-            decisions_recorded=0,
-            trades_attempted=0,
-            trades_placed=0,
-        )
+        token_id = event.token_id
+        if token_id not in self.subscribed_tokens:
+            return None
+
+        price_str = event.data.get("price") or event.data.get("last_trade_price")
+        if not price_str:
+            return None
 
         try:
-            # Check for velocity signals in tracked tokens
-            for token_id, history in list(self._price_history.items()):
-                if len(history.prices) < ctx.params.get(
-                    "min_history_points", self.default_params["min_history_points"]
-                ):
-                    continue
+            current_price = float(price_str)
+        except (ValueError, TypeError):
+            return None
 
-                # Calculate velocity across multiple time windows
-                velocities = {}
-                for window_name in ["fast", "med", "slow"]:
-                    window_key = f"velocity_window_{window_name}"
-                    window_seconds = ctx.params.get(
-                        window_key, self.default_params[window_key]
+        # Resolve or track token history
+        if token_id not in self._price_history:
+            ticker = self._token_to_ticker.get(token_id, token_id)
+            self._price_history[token_id] = PriceHistory(token_id=token_id, ticker=ticker)
+
+        history = self._price_history[token_id]
+
+        # Extract timestamp
+        event_ts = event.data.get("timestamp") or event.timestamp
+        if isinstance(event_ts, str):
+            try:
+                event_ts = datetime.fromisoformat(event_ts.replace("Z", "+00:00")).timestamp()
+            except Exception:
+                event_ts = time.time()
+        elif not isinstance(event_ts, (int, float)):
+            event_ts = time.time()
+        else:
+            if event_ts > 10_000_000_000:
+                event_ts = event_ts / 1000.0
+
+        await history.add_price(current_price, event_ts)
+
+        min_points = self.default_params["min_history_points"]
+        if len(history.prices) < min_points:
+            return None
+
+        # Calculate price velocity across windows
+        velocities = {}
+        for window_name in ["fast", "med", "slow"]:
+            window_key = f"velocity_window_{window_name}"
+            window_seconds = self.default_params[window_key]
+            velocity = await history.get_velocity(window_seconds)
+            if velocity is not None:
+                velocities[window_name] = velocity
+
+        if not velocities:
+            return None
+
+        slow_velocity = velocities.get("slow", 0.0)
+        threshold_up = self.default_params["velocity_threshold_up"]
+        threshold_down = self.default_params["velocity_threshold_down"]
+
+        direction = None
+        confidence = 0.0
+
+        if slow_velocity > threshold_up:
+            direction = "UP"
+            confidence = min(abs(slow_velocity) / threshold_up, 1.0)
+        elif slow_velocity < threshold_down:
+            direction = "DOWN"
+            confidence = min(abs(slow_velocity) / abs(threshold_down), 1.0)
+
+        if direction:
+            now = time.monotonic()
+            min_interval = self.default_params["min_signal_interval"]
+
+            if now - history.last_signal_time >= min_interval:
+                history.last_signal_time = now
+                history.last_signal_direction = direction
+
+                rt_entry_price = current_price
+                if direction.lower() in ("no", "down"):
+                    rt_entry_price = (
+                        round(1.0 - current_price, 6)
+                        if current_price < 1.0
+                        else 0.01
                     )
-                    velocity = await history.get_velocity(window_seconds)
-                    if velocity is not None:
-                        velocities[window_name] = velocity
 
-                if not velocities:
-                    continue
-
-                # Use slow velocity (30s) as primary signal
-                slow_velocity = velocities.get("slow", 0)
-                threshold_up = ctx.params.get(
-                    "velocity_threshold_up",
-                    self.default_params["velocity_threshold_up"],
-                )
-                threshold_down = ctx.params.get(
-                    "velocity_threshold_down",
-                    self.default_params["velocity_threshold_down"],
+                logger.info(
+                    f"[{self.name}] Real-time velocity breach: {history.ticker} "
+                    f"velocity={slow_velocity:.3f} confidence={confidence:.2f}"
                 )
 
-                direction = None
-                confidence = 0.0
-
-                if slow_velocity > threshold_up:
-                    direction = "UP"
-                    confidence = min(abs(slow_velocity) / threshold_up, 1.0)
-                elif slow_velocity < threshold_down:
-                    direction = "DOWN"
-                    confidence = min(abs(slow_velocity) / abs(threshold_down), 1.0)
-
-                if direction:
-                    # Check minimum signal interval
-                    now = time.time()
-                    min_interval = ctx.params.get(
-                        "min_signal_interval",
-                        self.default_params["min_signal_interval"],
-                    )
-
-                    if now - history.last_signal_time >= min_interval:
-                        # Record decision
+                # Fetch dynamic db context safely if needed or record decision directly
+                from backend.db.utils import get_db_session
+                try:
+                    with get_db_session() as db:
                         record_decision(
-                            ctx.db,
+                            db,
                             self.name,
                             history.ticker,
                             "BUY",
@@ -207,121 +257,48 @@ class RealtimeScannerStrategy(BaseStrategy):
                                 "direction": direction.lower(),
                                 "velocity": slow_velocity,
                                 "velocities": velocities,
-                                "current_price": history.prices[-1][1],
+                                "current_price": current_price,
                                 "token_id": token_id,
-                                "track_name": ctx.params.get("track_name", "realtime"),
+                                "track_name": self.default_params["track_name"],
                                 "sources": ["realtime_scanner", "polymarket_websocket"],
                             },
                             reason=f"realtime_scanner velocity={slow_velocity:.3f} > {threshold_up if direction == 'UP' else threshold_down:.3f}",
                         )
-                        result.decisions_recorded += 1
-                        result.trades_attempted += 1
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Failed to save real-time decision to DB: {e}")
 
-                        current_price = history.prices[-1][1]
-                        rt_entry_price = current_price
-                        if direction.lower() in ("no", "down"):
-                            rt_entry_price = (
-                                round(1.0 - current_price, 6)
-                                if current_price < 1.0
-                                else 0.01
-                            )
-                        result.decisions.append(
-                            {
-                                "decision": "BUY",
-                                "market_ticker": history.ticker,
-                                "direction": direction.lower(),
-                                "confidence": confidence,
-                                "edge": slow_velocity,
-                                "size": ctx.params.get(
-                                    "max_position_usd",
-                                    self.default_params["max_position_usd"],
-                                ),
-                                "entry_price": rt_entry_price,
-                                "suggested_size": ctx.params.get(
-                                    "max_position_usd",
-                                    self.default_params["max_position_usd"],
-                                ),
-                                "model_probability": confidence,
-                                "market_probability": current_price,
-                                "platform": settings.DEFAULT_VENUE,
-                                "strategy_name": self.name,
-                                "token_id": token_id,
-                                "reasoning": f"realtime_scanner velocity={slow_velocity:.3f}",
-                            }
-                        )
+                return {
+                    "decision": "BUY",
+                    "market_ticker": history.ticker,
+                    "direction": direction.lower(),
+                    "confidence": confidence,
+                    "edge": slow_velocity,
+                    "size": self.default_params["max_position_usd"],
+                    "entry_price": rt_entry_price,
+                    "suggested_size": self.default_params["max_position_usd"],
+                    "model_probability": confidence,
+                    "market_probability": current_price,
+                    "platform": settings.DEFAULT_VENUE,
+                    "strategy_name": self.name,
+                    "token_id": token_id,
+                    "reasoning": f"realtime_scanner velocity={slow_velocity:.3f}",
+                }
 
-                        history.last_signal_time = now
-                        history.last_signal_direction = direction
+        return None
 
-                        logger.info(
-                            f"[{self.name}] {direction} signal: {history.ticker} "
-                            f"velocity={slow_velocity:.3f} confidence={confidence:.2f}"
-                        )
+    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
+        """
+        Execute one periodic/scheduled cycle.
+        
+        RealtimeScannerStrategy is fully event-driven, but we preserve
+        run_cycle to act as fallback and populate tokens periodically.
+        """
+        if not self._tokens_populated:
+            await self._populate_subscribed_tokens()
 
-        except Exception as e:
-            result.errors.append(str(e))
-            logger.error(f"[{self.name}] Error in run_cycle: {e}")
-
+        result = CycleResult(
+            decisions_recorded=0,
+            trades_attempted=0,
+            trades_placed=0,
+        )
         return result
-
-    async def start_websocket_tracking(self, ctx: StrategyContext) -> None:
-        """
-        Start WebSocket client for real-time price updates.
-
-        This should be called once when the strategy starts.
-        Prices will be tracked in self._price_history and used for velocity calculations.
-        """
-        if self._running:
-            return
-
-        from backend.data.ws_client import CLOBWebSocket, PriceUpdate
-
-        async def on_price(update: PriceUpdate) -> None:
-            """Handle price updates from WebSocket."""
-            history = self._price_history.get(update.token_id)
-            if history:
-                await history.add_price(update.mid_price, update.timestamp)
-
-        self._ws_client = CLOBWebSocket(on_price=on_price)
-        self._running = True
-
-        from backend.api.main import app
-
-        if hasattr(app.state, "task_manager"):
-            self._ws_task = await app.state.task_manager.create_task(
-                self._ws_client.run(), name="realtime_scanner_ws"
-            )
-        else:
-            self._ws_task = asyncio.create_task(self._ws_client.run())
-
-        logger.info(f"[{self.name}] WebSocket tracking started")
-
-    async def stop_websocket_tracking(self) -> None:
-        """Stop WebSocket client."""
-        if self._ws_client:
-            await self._ws_client.stop()
-        if getattr(self, "_ws_task", None) and not self._ws_task.done():
-            self._ws_task.cancel()
-        self._running = False
-        logger.info(f"[{self.name}] WebSocket tracking stopped")
-
-    def track_token(self, token_id: str, ticker: str) -> None:
-        """
-        Add a token to the tracking list.
-
-        Should be called during market_filter or strategy initialization.
-        """
-        if token_id not in self._price_history:
-            self._price_history[token_id] = PriceHistory(
-                token_id=token_id, ticker=ticker
-            )
-            if self._ws_client:
-                self._ws_client.subscribe(token_id)
-                logger.debug(f"[{self.name}] Now tracking: {ticker} ({token_id})")
-
-    def untrack_token(self, token_id: str) -> None:
-        """Remove a token from tracking."""
-        self._price_history.pop(token_id, None)
-        if self._ws_client:
-            self._ws_client.unsubscribe(token_id)
-            logger.debug(f"[{self.name}] Stopped tracking: {token_id}")

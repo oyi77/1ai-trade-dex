@@ -651,6 +651,31 @@ def _execute_decision_paper_or_kalshi(
                 ):
                     fee = simulation_result.get("fee_usd", 0.0)
 
+            # Classify role for paper/Kalshi
+            role = "unknown"
+            maker_size = None
+            taker_size = None
+            if mode == "paper":
+                if MAKER_FIRST_ENABLED:
+                    role = "maker"
+                    maker_size = adjusted_size
+                    taker_size = 0.0
+                else:
+                    role = "taker"
+                    maker_size = 0.0
+                    taker_size = adjusted_size
+            else:
+                # Kalshi or live/testnet (e.g. Kalshi live/testnet)
+                order_type = decision.get("order_type", "limit")
+                if order_type == "limit":
+                    role = "maker"
+                    maker_size = adjusted_size
+                    taker_size = 0.0
+                else:
+                    role = "taker"
+                    maker_size = 0.0
+                    taker_size = adjusted_size
+
             trade_data = {
                 "market_ticker": market_ticker,
                 "platform": platform,
@@ -699,6 +724,9 @@ def _execute_decision_paper_or_kalshi(
                 market_end_date=market_end_date,
                 token_id=token_id,
                 condition_id=decision.get("condition_id") or decision.get("slug"),
+                role=role,
+                maker_size=maker_size,
+                taker_size=taker_size,
             )
 
             db.add(trade)
@@ -954,7 +982,7 @@ async def execute_decision(
 
 
 # Maker-first execution config (overridable via settings).
-MAKER_WAIT_SECONDS = float(getattr(settings, "MAKER_WAIT_SECONDS", 15.0))
+MAKER_WAIT_SECONDS = float(getattr(settings, "MAKER_WAIT_SECONDS", 5.0))
 MAKER_POLL_INTERVAL_SECONDS = float(
     getattr(settings, "MAKER_POLL_INTERVAL_SECONDS", 2.0)
 )
@@ -970,6 +998,7 @@ async def _maker_first_execute(
     strategy_name: str,
     mode: str,
     market_ticker: str,
+    force_maker_only: bool = False,
 ):
     """Execute an order maker-first with taker escalation.
 
@@ -1011,7 +1040,16 @@ async def _maker_first_execute(
             f"[{mode.upper()}][{strategy_name}] Maker order fully filled on placement: "
             f"{maker_order_id} ({maker_filled:.4f}@{maker_fill_price:.4f})"
         )
-        return maker_result
+        return SimpleNamespace(
+            success=True,
+            order_id=maker_order_id,
+            fill_price=maker_fill_price,
+            fill_size=maker_filled,
+            maker_filled=False,
+            maker_size=0.0,
+            taker_size=maker_filled,
+            error=None,
+        )
 
     logger.info(
         f"[{mode.upper()}][{strategy_name}] Maker order resting ({maker_order_id}); "
@@ -1037,12 +1075,16 @@ async def _maker_first_execute(
             logger.info(
                 f"[{mode.upper()}][{strategy_name}] Maker order {maker_order_id} no longer open — treating as filled"
             )
-            # Synthesize a filled result; broker confirms fill via settlement reconciliation.
+            # Synthesize a filled result with maker/taker breakdown
+            m_size = size - maker_filled
             return SimpleNamespace(
                 success=True,
                 order_id=maker_order_id,
                 fill_price=maker_fill_price,
                 fill_size=size,
+                maker_filled=m_size > 0,
+                maker_size=m_size,
+                taker_size=maker_filled,
                 error=None,
             )
 
@@ -1059,6 +1101,21 @@ async def _maker_first_execute(
     except Exception as cancel_err:
         logger.error(
             f"[{mode.upper()}][{strategy_name}] Cancel of maker {maker_order_id} failed: {cancel_err}"
+        )
+
+    if force_maker_only:
+        logger.warning(
+            f"[{mode.upper()}][{strategy_name}] force_maker_only is enabled; skipping taker escalation."
+        )
+        return SimpleNamespace(
+            success=maker_filled > 0,
+            order_id=maker_order_id,
+            fill_price=maker_fill_price,
+            fill_size=maker_filled,
+            maker_filled=maker_filled > 0,
+            maker_size=maker_filled,
+            taker_size=0.0,
+            error="force_maker_only GTC timeout" if maker_filled == 0 else None,
         )
 
     remaining = size - maker_filled
@@ -1094,6 +1151,9 @@ async def _maker_first_execute(
                 order_id=maker_order_id,
                 fill_price=maker_fill_price,
                 fill_size=maker_filled,
+                maker_filled=False,
+                maker_size=0.0,
+                taker_size=maker_filled,
                 error=f"Taker escalation rejected: {taker_result.error}",
             )
         return taker_result
@@ -1115,6 +1175,9 @@ async def _maker_first_execute(
         order_id=taker_result.order_id or maker_order_id,
         fill_price=avg_price,
         fill_size=total_filled,
+        maker_filled=False,
+        maker_size=0.0,
+        taker_size=total_filled,
         error=None,
     )
 
@@ -1443,6 +1506,9 @@ async def _execute_decision_live_clob(
             fill_price = entry_price
             filled_size = None
             alert_manager = AlertManager(db)
+            role = "unknown"
+            maker_size = None
+            taker_size = None
 
             if mode == "paper":
                 simulator = get_simulator()
@@ -1495,11 +1561,22 @@ async def _execute_decision_live_clob(
                     )
                     db.commit()
                     return None
+                # Check for force_maker_only parameter override in StrategyConfig
+                force_maker_only = False
+                cfg = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
+                if cfg and cfg.params:
+                    try:
+                        params = _json.loads(cfg.params) if isinstance(cfg.params, str) else cfg.params
+                        if params.get("force_maker_only") or params.get("maker_only"):
+                            force_maker_only = True
+                    except Exception:
+                        pass
+
                 for clob_attempt in range(2):
                     try:
                         async with context.clob_client as clob:
                             await clob.create_or_derive_api_key()
-                            if MAKER_FIRST_ENABLED:
+                            if MAKER_FIRST_ENABLED or force_maker_only:
                                 result = await _maker_first_execute(
                                     clob,
                                     token_id=token_id,
@@ -1509,6 +1586,7 @@ async def _execute_decision_live_clob(
                                     strategy_name=strategy_name,
                                     mode=mode,
                                     market_ticker=market_ticker,
+                                    force_maker_only=force_maker_only,
                                 )
                             else:
                                 result = await clob.place_limit_order(
@@ -1525,6 +1603,32 @@ async def _execute_decision_live_clob(
                                 and result.filled_size is not None
                             ):
                                 filled_size = result.fill_size
+
+                            # Classification logic
+                            maker_size = getattr(result, "maker_size", None)
+                            taker_size = getattr(result, "taker_size", None)
+                            if maker_size is None or taker_size is None:
+                                base_size = filled_size if (filled_size is not None and filled_size > 0) else adjusted_size
+                                try:
+                                    book = await clob.get_order_book(token_id)
+                                    if book:
+                                        best_ask = book.best_ask
+                                        best_bid = book.best_bid
+                                        if entry_price >= best_ask if best_ask is not None else 0.5:
+                                            taker_size = base_size
+                                            maker_size = 0.0
+                                        else:
+                                            maker_size = base_size
+                                            taker_size = 0.0
+                                    else:
+                                        taker_size = base_size
+                                        maker_size = 0.0
+                                except Exception:
+                                    taker_size = base_size
+                                    maker_size = 0.0
+
+                            role = "maker" if (maker_size or 0.0) >= (taker_size or 0.0) else "taker"
+
                             logger.info(
                                 f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}"
                             )
@@ -1674,6 +1778,9 @@ async def _execute_decision_live_clob(
                 market_end_date=market_end_date,
                 token_id=token_id,
                 condition_id=decision.get("condition_id") or decision.get("slug"),
+                role=role,
+                maker_size=maker_size,
+                taker_size=taker_size,
             )
 
             db.add(trade)

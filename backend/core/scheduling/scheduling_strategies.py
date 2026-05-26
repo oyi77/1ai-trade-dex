@@ -1232,6 +1232,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 logger.info(
                     f"[{strategy_name}] Preparing to execute {len(buy_decisions)} decisions in {mode} mode"
                 )
+                trade_results = []
                 if buy_decisions:
                     decisions_copy = [d.copy() for d in buy_decisions]
                     for d in decisions_copy:
@@ -1250,6 +1251,32 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     )
                 else:
                     logger.info(f"[{strategy_name}] No buy_decisions to execute")
+
+                # Compute scan stats for this mode
+                markets_scanned = getattr(result, "markets_scanned", 0)
+                signals_had_edge = len(buy_decisions)
+                trades_executed = len(trade_results)
+                signals_rejected = signals_had_edge - trades_executed
+
+                # Log structured scan outcome
+                logger.info(
+                    f"scanned {markets_scanned} markets, {signals_had_edge} had edge, "
+                    f"{signals_rejected} rejected by edge filter, {trades_executed} executed"
+                )
+
+                # Update in-memory scan stats
+                from backend.core.heartbeat import update_scan_stats
+                try:
+                    update_scan_stats(
+                        strategy_name=strategy_name,
+                        mode=mode,
+                        markets_scanned=markets_scanned,
+                        signals_had_edge=signals_had_edge,
+                        signals_rejected=signals_rejected,
+                        trades_executed=trades_executed,
+                    )
+                except Exception as stats_err:
+                    logger.warning(f"Failed to update scan stats for {strategy_name} ({mode}): {stats_err}")
 
             _update_heartbeat(strategy_name)
 

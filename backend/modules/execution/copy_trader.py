@@ -15,10 +15,13 @@ Data flow:
 
 import asyncio
 import json
+import os
 import time
 from typing import Optional
 
 import httpx
+
+DEFAULT_MIN_SCORE = float(os.environ.get("COPY_TRADER_MIN_SCORE", 15.0))
 
 from backend.core.activity_logger import activity_logger
 from backend.config import settings
@@ -178,7 +181,7 @@ class CopyTrader:
     """
 
     def __init__(
-        self, bankroll: float = 1000.0, max_wallets: int = 10, min_score: float = 30.0
+        self, bankroll: float = 1000.0, max_wallets: int = 10, min_score: float = DEFAULT_MIN_SCORE
     ):
         self.bankroll = bankroll
         self.max_wallets = max_wallets
@@ -286,7 +289,7 @@ class CopyTraderStrategy(BaseStrategy):
 
     default_params = {
         "max_wallets": 20,
-        "min_score": 30.0,
+        "min_score": DEFAULT_MIN_SCORE,
         "poll_interval": 60,
         "interval_seconds": 60,
     }
@@ -302,7 +305,7 @@ class CopyTraderStrategy(BaseStrategy):
     # Cache for active market condition_ids (refreshed every 5 min)
     _ACTIVE_CACHE_TTL = 300  # seconds
 
-    def __init__(self, max_wallets: int = 20, min_score: float = 30.0):
+    def __init__(self, max_wallets: int = 20, min_score: float = DEFAULT_MIN_SCORE):
         super().__init__()
         # Defer bankroll resolution — _resolve_bankroll() uses FOR UPDATE which
         # can block/deadlock when called during startup inside the event loop.
@@ -394,7 +397,7 @@ class CopyTraderStrategy(BaseStrategy):
         from backend.models.database import WalletConfig
 
         max_wallets = ctx.params.get("max_wallets", 20)
-        min_score = ctx.params.get("min_score", 30.0)
+        min_score = ctx.params.get("min_score", DEFAULT_MIN_SCORE)
 
         # 1. Get user-configured wallets
         with get_db_session() as db:
@@ -470,7 +473,7 @@ class CopyTraderStrategy(BaseStrategy):
         from backend.models.database import DecisionLog
 
         max_wallets = ctx.params.get("max_wallets", 20)
-        min_score = ctx.params.get("min_score", 30.0)
+        min_score = ctx.params.get("min_score", DEFAULT_MIN_SCORE)
 
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
         try:
@@ -490,6 +493,7 @@ class CopyTraderStrategy(BaseStrategy):
                 )
 
             wallet_pool = await self._get_active_wallets(ctx)
+            result.markets_scanned = len(wallet_pool)
 
             signals = await self._engine.poll_once()
 

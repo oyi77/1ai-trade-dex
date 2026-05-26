@@ -597,11 +597,27 @@ class WeatherEMOSStrategy(BaseStrategy):
 
             all_markets = await fetch_markets_by_keywords(keywords, limit=1000)
             weather_markets = await self.market_filter(all_markets)
+            result.markets_scanned = len(weather_markets)
         except Exception as e:
             result.errors.append(f"Market fetch failed: {e}")
             return result
 
         if not weather_markets:
+            logger.warning(f"No active weather markets found. Auto-pausing weather_emos strategy.")
+            # Auto-pause by setting enabled=False in StrategyConfig
+            if ctx.db:
+                try:
+                    from backend.models.database import StrategyConfig
+                    cfg = ctx.db.query(StrategyConfig).filter(
+                        StrategyConfig.strategy_name == self.name
+                    ).first()
+                    if cfg:
+                        cfg.enabled = False
+                        ctx.db.commit()
+                        logger.info(f"Successfully auto-paused {self.name} in DB.")
+                except Exception as db_ex:
+                    logger.error(f"Failed to auto-pause {self.name} in DB: {db_ex}")
+
             record_decision(
                 ctx.db,
                 self.name,
