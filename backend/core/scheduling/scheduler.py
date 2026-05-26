@@ -16,6 +16,7 @@ from typing import List, Optional
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
 from backend.config import settings
@@ -61,6 +62,7 @@ from backend.core.agi_jobs import (
 )
 from backend.core.db_backup import backup_job
 from backend.core.cache_cleanup import cache_cleanup_job
+from backend.core.db_archiver import nightly_archive_job
 from backend.core.autonomous_promoter import autonomous_promotion_job
 from backend.core.bankroll_allocator import bankroll_allocation_job
 from backend.core.agi_orchestrator import agi_improvement_cycle_job
@@ -1176,6 +1178,16 @@ def start_scheduler():
         max_instances=1,
     )
     logger.info("Scheduled cache cleanup job every 1 hour")
+
+    # Parquet Archiver - runs daily at 2:00 AM
+    scheduler.add_job(
+        nightly_archive_job,
+        CronTrigger(hour=2, minute=0),
+        id="nightly_archive",
+        replace_existing=True,
+        max_instances=1,
+    )
+    logger.info("Scheduled nightly Parquet database archiver at 2:00 AM")
 
     # G-09: Strategy performance decay detection — every 6 hours
     _persist_and_add_job(

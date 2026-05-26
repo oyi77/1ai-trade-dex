@@ -88,48 +88,99 @@ def get_equity_curve(
 
 
 @router.get("/stats/role-breakdown")
-def get_role_breakdown(days: int = 30):
+def get_role_breakdown(
+    days: int = 30,
+    db: Session = Depends(get_db),
+):
     """Role breakdown of trades: count, win_rate, avg_pnl by MAKER/TAKER/UNKNOWN.
 
     Query params:
         days: number of days to look back (default 30)
     """
+    import os
+    from backend.config import settings
+    from backend.core.db_archiver import query_parquet_analytics
+
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    db = SessionLocal()
-    try:
-        trades = (
-            db.query(Trade)
-            .filter(
-                Trade.timestamp >= cutoff,
-                Trade.role is not None,
+
+    parquet_dir = os.path.join(settings.PARQUET_DIR, "trades")
+    has_parquet = False
+    if os.path.exists(parquet_dir):
+        for root, dirs, files in os.walk(parquet_dir):
+            if any(f.endswith(".parquet") for f in files):
+                has_parquet = True
+                break
+
+    if has_parquet:
+        try:
+            sql = (
+                "SELECT role, COUNT(*) AS count, "
+                "SUM(CASE WHEN result = 'win' THEN 1.0 ELSE 0.0 END) AS wins, "
+                "SUM(pnl) AS total_pnl "
+                "FROM {table} "
+                "WHERE timestamp >= '" + cutoff.isoformat() + "' "
+                "GROUP BY role"
             )
-            .all()
+            rows = query_parquet_analytics(parquet_dir, sql)
+            
+            result = {}
+            for row in rows:
+                role = str(row.get("role", "unknown")).lower()
+                count = int(row.get("count", 0))
+                wins = float(row.get("wins", 0.0) or 0.0)
+                total_pnl = float(row.get("total_pnl", 0.0) or 0.0)
+                
+                result[role] = {
+                    "count": count,
+                    "win_rate": round(wins / count, 4) if count > 0 else 0,
+                    "avg_pnl": round(total_pnl / count, 4) if count > 0 else 0,
+                    "total_pnl": round(total_pnl, 4),
+                }
+            # Make sure all standard keys are initialized (maker, taker, unknown)
+            for r in ["maker", "taker", "unknown"]:
+                if r not in result:
+                    result[r] = {
+                        "count": 0,
+                        "win_rate": 0,
+                        "avg_pnl": 0,
+                        "total_pnl": 0,
+                    }
+            return {"days": days, "roles": result}
+        except Exception:
+            # Fall back to sqlite if DuckDB query fails
+            pass
+
+    trades = (
+        db.query(Trade)
+        .filter(
+            Trade.timestamp >= cutoff,
+            Trade.role is not None,
         )
+        .all()
+    )
 
-        # Group by role
-        by_role: dict[str, list] = {"maker": [], "taker": [], "unknown": []}
-        for t in trades:
-            role = t.role or "unknown"
-            if role not in by_role:
-                by_role[role] = []
-            by_role[role].append(t)
+    # Group by role
+    by_role: dict[str, list] = {"maker": [], "taker": [], "unknown": []}
+    for t in trades:
+        role = t.role or "unknown"
+        if role not in by_role:
+            by_role[role] = []
+        by_role[role].append(t)
 
-        result = {}
-        for role_name, role_trades in by_role.items():
-            if not role_trades:
-                continue
-            wins = sum(1 for t in role_trades if t.result == "win")
-            total_pnl = sum((t.pnl or 0) for t in role_trades)
-            result[role_name] = {
-                "count": len(role_trades),
-                "win_rate": round(wins / len(role_trades), 4) if role_trades else 0,
-                "avg_pnl": round(total_pnl / len(role_trades), 4) if role_trades else 0,
-                "total_pnl": round(total_pnl, 4),
-            }
+    result = {}
+    for role_name, role_trades in by_role.items():
+        if not role_trades:
+            continue
+        wins = sum(1 for t in role_trades if t.result == "win")
+        total_pnl = sum((t.pnl or 0) for t in role_trades)
+        result[role_name] = {
+            "count": len(role_trades),
+            "win_rate": round(wins / len(role_trades), 4) if role_trades else 0,
+            "avg_pnl": round(total_pnl / len(role_trades), 4) if role_trades else 0,
+            "total_pnl": round(total_pnl, 4),
+        }
 
-        return {"days": days, "roles": result}
-    finally:
-        db.close()
+    return {"days": days, "roles": result}
 
 
 @router.get("/calibration/buckets")

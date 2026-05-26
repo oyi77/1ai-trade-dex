@@ -605,6 +605,7 @@ class ConfigRegistry:
     # --------------------------------------------------------------------------
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./tradingbot.db")
+    PARQUET_DIR: str = os.getenv("PARQUET_DIR", "data/parquet")
     POSTGRES_POOL_SIZE: int = 20
     POSTGRES_MAX_OVERFLOW: int = 20
     POSTGRES_POOL_TIMEOUT: int = 30
