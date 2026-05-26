@@ -455,7 +455,6 @@ def get_db_resolved_positions() -> list[dict]:
                 .filter(
                     Trade.settled.is_(True),
                     Trade.result == "win",
-                    Trade.settlement_value == 1.0,
                     # Exclude BTC 5-min markets (handled separately)
                     ~Trade.market_ticker.like("btc-updown-5m-%"),
                     # Only live/testnet trades (paper has no on-chain positions)
