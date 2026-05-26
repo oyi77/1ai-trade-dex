@@ -53,7 +53,7 @@ HFT_STRATEGIES = [
     },
     {
         "strategy_name": "cex_pm_leadlag",
-        "interval_seconds": 120,  # 2 min — lead-lag detection
+        "interval_seconds": 5,  # 5 sec — lead-lag detection
         "trading_mode": "paper",
         "risk_tier": "moderate",
         "time_horizon": "short",
