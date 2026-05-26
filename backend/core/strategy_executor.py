@@ -533,12 +533,13 @@ def _execute_decision_paper_or_kalshi(
                 db.commit()
                 return None
 
-            # --- Per-market position cap: max 1 open position per event ---
+            # --- Per-market position cap: max 1 open position per event per mode ---
             _existing_open = (
                 db.query(Trade)
                 .filter(
                     Trade.market_ticker == market_ticker,
                     Trade.settled == False,  # noqa: E712
+                    Trade.trading_mode == mode,
                 )
                 .first()
             )
@@ -1479,12 +1480,13 @@ async def _execute_decision_live_clob(
                 db.commit()
                 return None
 
-            # --- Per-market position cap: max 1 open position per event ---
+            # --- Per-market position cap: max 1 open position per event per mode ---
             _existing_open = (
                 db.query(Trade)
                 .filter(
                     Trade.market_ticker == market_ticker,
                     Trade.settled == False,  # noqa: E712
+                    Trade.trading_mode == mode,
                 )
                 .first()
             )

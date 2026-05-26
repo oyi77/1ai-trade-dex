@@ -124,6 +124,10 @@ class RiskManager:
         self._safety_rules = self._load_safety_rules()
         self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 5.0))
         self._correlation_monitor = CorrelationMonitor(settings_obj)
+        self._calibration_cache = None
+        self._calibration_cache_time = None
+        self._longshot_bias_cache = None
+        self._longshot_bias_cache_time = None
 
     def check_edge(
         self, market_price: float, signal_win_rate: float, market_id: str, db=None
@@ -240,6 +244,73 @@ class RiskManager:
     ) -> RiskDecision:
         effective_mode = mode or self.s.TRADING_MODE
 
+        # --- Price Calibration probability adjustment ---
+        if db is not None and market_price is not None and signal_win_rate is not None:
+            try:
+                calibration_stats, _ = self._get_or_update_calibration_and_bias(db)
+                bucket_start = int(market_price * 100) - (int(market_price * 100) % 5)
+                if bucket_start in calibration_stats:
+                    bucket = calibration_stats[bucket_start]
+                    # We want at least a moderate confidence
+                    if bucket.get("confidence", 0.0) >= 0.3:
+                        adjustment = bucket["error"] * bucket["confidence"]
+                        adjustment = max(-0.05, min(0.05, adjustment))
+                        pre_adj = signal_win_rate
+                        signal_win_rate = max(0.01, min(0.99, signal_win_rate + adjustment))
+                        logger.info(
+                            "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
+                            bucket_start,
+                            pre_adj,
+                            signal_win_rate,
+                            bucket["error"],
+                            bucket["confidence"]
+                        )
+            except Exception as e:
+                logger.error(f"[RiskManager] Failed to apply calibration adjustment: {e}")
+
+        # --- Dynamic Longshot Bias Sizing & Blocking ---
+        if (
+            db is not None
+            and market_price is not None
+            and direction
+            and direction.upper() in ("YES", "UP")
+            and market_price < 0.30
+        ):
+            try:
+                _, longshot_bias_stats = self._get_or_update_calibration_and_bias(db)
+                if longshot_bias_stats and "bias" in longshot_bias_stats:
+                    bias = longshot_bias_stats["bias"]
+                    if bias < 0.8:
+                        logger.info(
+                            "[risk_manager] Longshot YES trade blocked: overall bias={:.4f} < 0.8 (market={}, price={:.3f})",
+                            bias,
+                            market_ticker or "unknown",
+                            market_price,
+                        )
+                        record_signal(
+                            strategy=strategy_name or "unknown",
+                            signal_type="blocked_longshot_yes_bias",
+                        )
+                        increment_risk_rejection(
+                            strategy=strategy_name or "unknown", reason="longshot_yes_bias"
+                        )
+                        return RiskDecision(
+                            False,
+                            f"longshot YES bet blocked: overall bias ratio {bias:.4f} is critically low (< 0.8)",
+                            0.0,
+                        )
+                    else:
+                        original_size = size
+                        size = size * bias
+                        logger.info(
+                            "[risk_manager] Longshot YES bet size dynamically scaled: ${:.2f} -> ${:.2f} (bias={:.4f})",
+                            original_size,
+                            size,
+                            bias,
+                        )
+            except Exception as e:
+                logger.error(f"[RiskManager] Failed to apply longshot bias signal: {e}")
+
         from backend.strategies.registry import STRATEGY_REGISTRY
 
         params = None
@@ -261,7 +332,7 @@ class RiskManager:
         # --- Longshot bias filter: reject YES trades at <30c, boost NO trades ---
         if market_price is not None and direction:
             longshot_yes_reject = getattr(self.s, "LONGSHOT_YES_REJECT_PRICE", 0.30)
-            if direction.upper() == "YES" and market_price < longshot_yes_reject:
+            if self._longshot_bias_cache is None and direction.upper() == "YES" and market_price < longshot_yes_reject:
                 record_signal(
                     strategy=strategy_name or "unknown",
                     signal_type="rejected_longshot_yes",
@@ -694,6 +765,51 @@ class RiskManager:
                 )
 
         return RiskDecision(True, "ok", adjusted)
+
+    def _get_or_update_calibration_and_bias(self, db) -> tuple[dict, Optional[dict]]:
+        """Return cached calibration and longshot bias, updating if stale (> 5 minutes)."""
+        import time
+        from datetime import datetime, timezone
+        from backend.core.learning.calibration_tracker import compute_price_bucket_calibration
+        from backend.core.longshot_bias import LongshotBiasDetector
+
+        now_ts = time.time()
+
+        # Update calibration if needed
+        if (
+            self._calibration_cache is None
+            or self._calibration_cache_time is None
+            or now_ts - self._calibration_cache_time > 300
+        ):
+            try:
+                # Recalculate price bucket calibration in 5c increments
+                self._calibration_cache = compute_price_bucket_calibration(
+                    db, bucket_width=5, window_days=30
+                )
+                self._calibration_cache_time = now_ts
+            except Exception as e:
+                logger.error(f"[RiskManager] Failed to update calibration cache: {e}")
+                if self._calibration_cache is None:
+                    self._calibration_cache = {}
+
+        # Update longshot bias if needed
+        if (
+            self._longshot_bias_cache is None
+            or self._longshot_bias_cache_time is None
+            or now_ts - self._longshot_bias_cache_time > 300
+        ):
+            try:
+                detector = LongshotBiasDetector()
+                # Compute longshot bias ratio from actual settled trades
+                self._longshot_bias_cache = detector.compute_longshot_bias_from_trades(
+                    db, price_threshold=0.30, window_days=60
+                )
+                self._longshot_bias_cache_time = now_ts
+            except Exception as e:
+                logger.error(f"[RiskManager] Failed to update longshot bias cache: {e}")
+
+        return self._calibration_cache, self._longshot_bias_cache
+
 
     def check_drawdown(
         self, bankroll: float, db=None, mode: Optional[str] = None

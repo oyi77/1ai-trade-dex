@@ -119,3 +119,48 @@ class LongshotBiasDetector:
 
         finally:
             db.close()
+
+    def compute_longshot_bias_from_trades(
+        self,
+        db,
+        price_threshold: float = 0.30,
+        window_days: int = 60,
+        strategy_name: Optional[str] = None,
+    ) -> Optional[dict]:
+        """Compute longshot bias ratio from actual settled trades.
+
+        Formula:
+          bias = longshot_win_rate / longshot_expected_win_rate
+          where longshot_expected_win_rate is the average entry price of longshots.
+          bias < 1.0 -> longshots are overpriced.
+        """
+        from backend.models.database import Trade
+        cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+
+        query = db.query(Trade).filter(
+            Trade.settled.is_(True),
+            Trade.timestamp >= cutoff,
+            Trade.entry_price.isnot(None),
+            Trade.entry_price < price_threshold,
+            Trade.result.isnot(None),
+        )
+        if strategy_name:
+            query = query.filter(Trade.strategy == strategy_name)
+
+        trades = query.all()
+        if not trades:
+            return None
+
+        longshot_win_rate = sum(1.0 for t in trades if t.result.lower() == "win") / len(trades)
+        longshot_expected = sum(t.entry_price for t in trades) / len(trades)
+
+        bias = longshot_win_rate / longshot_expected if longshot_expected > 0 else 1.0
+
+        return {
+            "bias": round(bias, 4),
+            "strength": round(1.0 - bias, 4),
+            "sample_size": len(trades),
+            "expected_win_rate": round(longshot_expected, 4),
+            "actual_win_rate": round(longshot_win_rate, 4),
+        }
+
