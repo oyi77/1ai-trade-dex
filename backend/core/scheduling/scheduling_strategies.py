@@ -368,7 +368,7 @@ async def scan_and_trade_job(mode: str):
                     try:
                         params = _json.loads(cfg.params)
                     except Exception:
-                        pass
+                        logger.warning("scheduling_strategies: failed to parse strategy config params")
                 config_data.append(
                     {"strategy_name": cfg.strategy_name, "params": params}
                 )
@@ -666,7 +666,7 @@ async def weather_scan_and_trade_job(mode: str):
                         state.last_run = datetime.now(timezone.utc)
                         db.commit()
             except Exception:
-                pass
+                logger.debug("scheduling_strategies: last_run update failed in weather scheduler")
 
         await asyncio.to_thread(_update_weather_last_run)
 

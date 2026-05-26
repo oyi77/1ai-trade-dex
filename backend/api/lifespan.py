@@ -405,7 +405,7 @@ async def _redis_log_bridge():
                                 log_data = json.loads(message["data"])
                                 event_bus.publish("system_log", log_data)
                             except Exception:
-                                pass
+                                logger.warning("lifespan: failed to parse log bridge JSON")
         except Exception as e:
             bridge_logger.debug(f"Redis log bridge reconnecting: {e}")
             import asyncio

@@ -224,19 +224,6 @@ class Orchestrator:
         except Exception as e:
             logger.warning(f"AGI node discovery failed: {e}")
 
-        # Start real-time settlement WebSocket handler
-        # if settings.is_mode_active("paper") or settings.is_mode_active("live"):
-        #     try:
-        #         from backend.core.settlement_ws import SettlementWebSocketHandler
-
-        #         self._settlement_handler = SettlementWebSocketHandler(task_manager=self._task_manager)
-        #         await self._settlement_handler.start()
-        #         logger.info("Settlement WebSocket handler started")
-        #     except Exception as e:
-        #         logger.warning(
-        #             f"[orchestrator.start] {type(e).__name__}: Could not start settlement WebSocket handler: {e}",
-        #             exc_info=True,
-        #         )
         logger.info("Settlement WebSocket handler skipped for now.")
         self._phase2 = init_phase2_modules()
         logger.info(

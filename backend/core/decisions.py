@@ -45,13 +45,13 @@ def _flush_decision(
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.debug("decisions: db rollback failed after OperationalError")
         raise
     except TimeoutError:
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.debug("decisions: db rollback failed after TimeoutError")
         raise
 
 

@@ -700,7 +700,7 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
         except Exception:
-            pass
+            logger.warning("cross_market_arb_enhanced: failed to parse Kalshi orderbook price")
 
     kalshi_ask = market.get("yes_ask_dollars")
     if kalshi_ask is not None:

@@ -32,7 +32,7 @@ def _write_activity(db: Session, activity: ActivityLog) -> int:
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.debug("activity_logger: db rollback failed after OperationalError")
         raise
 
 
@@ -51,7 +51,7 @@ def _delete_old_activities(db: Session, cutoff: datetime) -> int:
         try:
             db.rollback()
         except Exception:
-            pass
+            logger.debug("activity_logger: db rollback failed in delete")
         raise
 
 

@@ -577,8 +577,8 @@ class ShadowTrade(Base):
             try:
                 meta = json.loads(self.metadata_json)
                 return meta.get("model_probability")
-            except ImportError:
-                pass
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("database: failed to parse metadata_json for model_probability")
         return None
 
     @model_probability.setter
@@ -591,8 +591,8 @@ class ShadowTrade(Base):
             try:
                 meta = json.loads(self.metadata_json)
                 return meta.get("predicted_outcome")
-            except ImportError:
-                pass
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("database: failed to parse metadata_json for model_probability")
         return None
 
     @predicted_outcome.setter
@@ -605,8 +605,8 @@ class ShadowTrade(Base):
             try:
                 meta = json.loads(self.metadata_json)
                 return meta.get("actual_outcome")
-            except ImportError:
-                pass
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("database: failed to parse metadata_json for model_probability")
         return None
 
     @actual_outcome.setter
@@ -621,8 +621,8 @@ class ShadowTrade(Base):
                 val = meta.get("accuracy_score")
                 if val is not None:
                     return val
-            except ImportError:
-                pass
+            except (json.JSONDecodeError, TypeError):
+                logger.warning("database: failed to parse metadata_json for model_probability")
         # Fallback: compute from predicted and actual outcome
         pred = self.predicted_outcome
         actual = self.actual_outcome

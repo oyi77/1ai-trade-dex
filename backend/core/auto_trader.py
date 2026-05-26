@@ -4,6 +4,7 @@ low-confidence signals to a manual approval queue."""
 import asyncio
 
 from dataclasses import dataclass
+from loguru import logger
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -50,7 +51,7 @@ class AutoTrader:
                     _time.monotonic() - _exec_start
                 )
             except Exception:
-                pass
+                logger.debug("auto_trader: latency metric recording failed")
 
         confidence = float(signal.get("confidence", 0.0))
         size = float(signal.get("size", 0.0))

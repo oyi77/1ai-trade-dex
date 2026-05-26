@@ -525,7 +525,7 @@ class HFTScalperStrategy(BaseStrategy):
                     self._process_ws_event_sync(event)
                 self._queue.task_done()
         except Exception:
-            pass
+            logger.debug("hft_scalper: WS queue drain error")
 
         # Scan open positions for exits
         for ticker, pos in list(self._open_positions.items()):

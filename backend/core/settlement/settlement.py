@@ -392,7 +392,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     _time.monotonic() - _qstart
                 )
             except Exception:
-                pass
+                logger.debug("settlement: Prometheus metric recording failed")
         except Exception as e:
             logger.error(f"Failed to query pending trades: {e}")
             return []

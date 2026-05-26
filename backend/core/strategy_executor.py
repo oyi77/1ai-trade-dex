@@ -1552,7 +1552,7 @@ async def _execute_decision_live_clob(
                         if params.get("force_maker_only") or params.get("maker_only"):
                             force_maker_only = True
                     except Exception:
-                        pass
+                        logger.warning("strategy_executor: failed to parse strategy params JSON")
 
                 for clob_attempt in range(2):
                     try:
@@ -1596,7 +1596,7 @@ async def _execute_decision_live_clob(
                                     best_ask = book.best_ask
                                     best_bid = book.best_bid
                             except Exception:
-                                pass
+                                logger.warning("strategy_executor: get_order_book failed")
 
                             execution_decision = dict(decision)
                             if best_ask is not None:
