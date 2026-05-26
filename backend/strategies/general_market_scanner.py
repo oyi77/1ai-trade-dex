@@ -23,13 +23,8 @@ async def _fetch_web_context(question: str) -> str:
         if not client.is_enabled:
             return ""
         return await client.search_for_market(question, max_results=3)
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to fetch web context for market enrichment")
-        logger.debug(
-            "[general_scanner._fetch_web_context] %s: %s",
-            type(exc).__name__,
-            exc,
-        )
         return ""
 
 
@@ -48,13 +43,8 @@ async def _fetch_brain_context(question: str) -> str:
             if text:
                 parts.append(text[:200])
         return " | ".join(parts) if parts else ""
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to fetch brain context for market enrichment")
-        logger.debug(
-            "[general_scanner._fetch_brain_context] %s: %s",
-            type(exc).__name__,
-            exc,
-        )
         return ""
 
 
@@ -333,7 +323,6 @@ class GeneralMarketScanner(BaseStrategy):
 
         min_debate_edge = float(getattr(ctx.settings, "MIN_DEBATE_EDGE", 0.04))
 
-        # Fetch current bankroll
         bankroll = 100.0
         try:
             from backend.models.database import BotState, for_update
@@ -413,8 +402,6 @@ class GeneralMarketScanner(BaseStrategy):
             # Extract YES price (first outcome price)
             outcome_prices_raw = market.get("outcomePrices") or []
             if isinstance(outcome_prices_raw, str):
-                json
-
                 try:
                     outcome_prices_raw = json.loads(outcome_prices_raw)
                 except Exception:
@@ -503,8 +490,6 @@ class GeneralMarketScanner(BaseStrategy):
             clob_token_id = None
             clob_token_ids = market.get("clobTokenIds") or []
             if isinstance(clob_token_ids, str):
-                json
-
                 try:
                     clob_token_ids = json.loads(clob_token_ids)
                 except Exception:
@@ -564,7 +549,6 @@ class GeneralMarketScanner(BaseStrategy):
                             )
                 except Exception as e:
                     ctx.logger.error(f"[general_scanner] CLOB fetch failed: {e}")
-                    pass  # Non-fatal: if CLOB fetch fails, continue without OB data
 
             # --- 3. Whale pressure from WalletConfig (top whales per market, if available) ---
             # We skip per-market whale API calls (too slow). Whale discovery runs independently.
@@ -925,10 +909,8 @@ class GeneralMarketScanner(BaseStrategy):
             result.decisions_recorded += 1
             result.trades_attempted += 1
 
-            # Log decision
             try:
                 from backend.models.database import DecisionLog
-                json
 
                 signal_payload = dict(decision)
                 signal_payload["data_sources"] = data_sources
@@ -948,7 +930,6 @@ class GeneralMarketScanner(BaseStrategy):
             except Exception as e:
                 ctx.logger.warning(f"[general_scanner] DecisionLog write failed: {e}")
 
-            # Record prediction for calibration tracking
             try:
                 from backend.core.calibration_tracker import calibration_tracker
 

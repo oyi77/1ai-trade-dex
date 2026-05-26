@@ -558,19 +558,6 @@ class BtcOracleStrategy(BaseStrategy):
             if minutes_remaining < 0 or minutes_remaining > max_minutes:
                 continue
 
-            # FIX 2026-05-19: Session filter — block 23:00-01:00 UTC
-            current_hour = now.hour
-            blocked_hours = params.get("blocked_hours_utc", [23, 0, 1])
-            if current_hour in blocked_hours:
-                logger.debug(
-                    "BtcOracleStrategy: skipping — hour %d UTC is in blocked hours %s",
-                    current_hour,
-                    blocked_hours,
-                )
-                continue
-
-            # Direct direction from RSI/momentum — if RSI < 50, momentum
-            # is negative → BTC more likely DOWN. If RSI > 50, UP.
             from backend.data.crypto import compute_btc_microstructure
 
             try:
@@ -747,7 +734,6 @@ class BtcOracleStrategy(BaseStrategy):
             if minutes_remaining < 0 or minutes_remaining > max_minutes:
                 continue
 
-            # Determine which direction oracle price implies
             implied_res = implied_direction(market.question, btc_price)
             if implied_res is None:
                 continue
@@ -851,7 +837,6 @@ class BtcOracleStrategy(BaseStrategy):
                     edge=edge,
                     oracle_implied=oracle_implied,
                 )
-                # Extract token_id from market metadata (clobTokenIds)
                 clob_token_id = None
                 clob_token_ids = market.metadata.get("clobTokenIds") or []
                 if isinstance(clob_token_ids, str):
@@ -871,8 +856,6 @@ class BtcOracleStrategy(BaseStrategy):
                 elif clob_token_ids:
                     clob_token_id = str(clob_token_ids[0])
 
-                # Populate result.decisions so scan_and_trade_job() / strategy_cycle_job()
-                # can feed them into strategy_executor.execute_decisions() for paper + live mode.
                 oracle_entry_price = (
                     market_mid
                     if direction in ("yes", "up")

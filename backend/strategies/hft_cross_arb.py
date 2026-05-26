@@ -419,7 +419,6 @@ class HFTCrossArbExecutor:
         if self._clob is None:
             raise ValueError("CLOB instance not initialised")
 
-        # CircuitBreaker.call() raises CircuitOpenError if breaker is open
         idempotency_key = f"arb-{arb_id}-poly-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
@@ -463,7 +462,6 @@ class HFTCrossArbExecutor:
         arb_id: str,
     ) -> Optional[str]:
         """Place Kalshi order leg with circuit breaker + retry."""
-        # CircuitBreaker.call() raises CircuitOpenError if breaker is open
         idempotency_key = f"arb-{arb_id}-kalshi-{int(time.monotonic() * 1000000)}"
 
         for attempt in range(self._MAX_RETRIES):
@@ -576,13 +574,6 @@ class HFTCrossArbExecutor:
         if not opportunities:
             return []
         # Limit concurrency to avoid overwhelming the APIs
-        sem = asyncio.Semaphore(5)
-
-        async def _exec(opp: AtomicArbResult) -> AtomicArbResult:
-            async with sem:
-                return await self.execute_arb(opp, bankroll)
-
-        # We need to pass the actual opportunity, not result
         results = await asyncio.gather(
             *[self.execute_arb(opp, bankroll) for opp in opportunities],
             return_exceptions=True,

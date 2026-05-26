@@ -46,7 +46,6 @@ _COINGECKO_TO_ASSET_PREFIX = {
     "solana": "sol",
 }
 
-# Reverse: asset prefix -> CoinGecko ID
 _ASSET_PREFIX_TO_COINGECKO = {v: k for k, v in _COINGECKO_TO_ASSET_PREFIX.items()}
 
 
@@ -111,7 +110,6 @@ def _log_signal(
 
 COINGECKO_PRICE_URL = f"{settings.COINGECKO_API_URL}/simple/price"
 
-# Module-level tracker instance (lazy init)
 _tracker: Optional[CryptoOracleTracker] = None
 
 
@@ -416,6 +414,7 @@ class CryptoOracleStrategy(BaseStrategy):
         direction = "up" if trade_price > 0.5 else "down"
         market_mid = trade_price
 
+
         # Price bucket filter: reject negative-EV territory
         min_price_bucket = params.get(
             "min_price_bucket",
@@ -434,7 +433,6 @@ class CryptoOracleStrategy(BaseStrategy):
             )
             return None
 
-        # Determine asset from event metadata or default to bitcoin
         asset = event.data.get("asset", "bitcoin")
 
         crypto_price = await fetch_crypto_price_for_asset(asset)
@@ -601,7 +599,6 @@ class CryptoOracleStrategy(BaseStrategy):
             getattr(settings, "CRYPTO_ORACLE_MAX_PRICE_BUCKET", 0.65),
         )
 
-        # Dynamic allocation: compute per-asset weights from rolling WR
         asset_weights: Dict[str, float] = {}
         if getattr(settings, "CRYPTO_ORACLE_DYNAMIC_ALLOCATION", False):
             asset_weights = _compute_asset_weights(self.supported_assets)
@@ -609,7 +606,6 @@ class CryptoOracleStrategy(BaseStrategy):
                 "CryptoOracleStrategy: dynamic allocation weights = %s", asset_weights
             )
 
-        # Time-of-day multiplier
         time_mult = _get_time_multiplier()
         if time_mult < 1.0:
             logger.debug(
@@ -618,7 +614,6 @@ class CryptoOracleStrategy(BaseStrategy):
                 now.hour,
             )
 
-        # Iterate over all supported assets
         for coingecko_id in self.supported_assets:
             asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(
                 coingecko_id, coingecko_id[:3]
@@ -632,7 +627,6 @@ class CryptoOracleStrategy(BaseStrategy):
                 )
                 continue
 
-            # Fetch dedicated 5-min markets for this asset
             try:
                 asset_markets = await fetch_active_crypto_markets(asset=asset_prefix)
             except Exception as e:
@@ -770,7 +764,6 @@ class CryptoOracleStrategy(BaseStrategy):
                         get_bucket_win_rate(market_mid, "crypto_oracle") or 0,
                         market_mid,
                     )
-                    # Apply time-of-day multiplier and asset weight to Kelly
                     asset_weight = asset_weights.get(coingecko_id, 1.0)
                     adjusted_kelly = kelly * time_mult * asset_weight
                     if adjusted_kelly > 0:
@@ -855,8 +848,6 @@ class CryptoOracleStrategy(BaseStrategy):
                         )
                         continue
 
-                    # Compute real edge: oracle probability from spot price vs strike
-                    # Extract strike from question for edge calculation
                     import re as _re
 
                     _q = market.question.lower()
@@ -888,9 +879,6 @@ class CryptoOracleStrategy(BaseStrategy):
                         )
                         oracle_implied = max(0.05, min(0.95, oracle_implied))
                     edge = oracle_implied - market_mid
-                    # No sign flip needed — market_mid is already market.no_price
-                    # for NO direction (line 682), so oracle_implied - market_mid
-                    # gives correct positive edge when NO is underpriced.
 
                     decision = "BUY" if edge > 0 else "SKIP"
                     confidence_score = (

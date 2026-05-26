@@ -386,7 +386,6 @@ class UniversalScanner(BaseStrategy):
         self._ws_known_tokens.add(token_id)
         event_bus.update_strategy_tokens(self.name, self._ws_known_tokens)
 
-        # Reuse debate_result from edge calc above (already fetched)
         if debate_result is not None:
             llm_conf = (
                 debate_result.consensus_probability
@@ -614,10 +613,6 @@ class UniversalScanner(BaseStrategy):
             combined_context = " | ".join(filter(None, [web_context, brain_context]))
             data_sources = ["gamma_api", "websearch"] if web_context else ["gamma_api"]
 
-            # Reuse llm_result from above instead of calling _run_debate_gate twice.
-            # The first call (llm_result) was the initial LLM probability estimate,
-            # used only to compute edge. This second call gets the full debate result
-            # with web+brain context for confidence scoring.
             debate_result = llm_result
 
             if debate_result is not None:
@@ -658,14 +653,7 @@ class UniversalScanner(BaseStrategy):
     _MAX_DECISION_SIZE = 10.0
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """
-        Execute one scanning cycle.
-
-        1. Scan all markets (parallel, paginated)
-        2. Analyze each for edge >= min_edge
-        3. Convert qualifying signals into BUY decision dicts
-        4. Return CycleResult with populated decisions list
-        """
+        """Execute one scanning cycle."""
         start = time.monotonic()
 
         try:
