@@ -126,3 +126,5 @@ docs/paper/**/*.toc
 tradingbot.db.pre_rebuild_*
 tradingdb
 tradingbot.db.corrupted
+amp
+*.wav
