@@ -68,7 +68,7 @@ class NotificationRegistry(PluginRegistry[NotificationManifest, BaseNotification
     ) -> bool:
         """Send to a specific channel."""
         if channel_name not in self._plugins:
-            logger.error(f"Notification provider '{channel_name}' not found")
+            logger.debug(f"Notification provider '{channel_name}' not found")
             return False
         if not self._enabled.get(channel_name, False):
             logger.warning(f"Notification provider '{channel_name}' is disabled")
