@@ -344,7 +344,7 @@ def check_risk_and_disable(db) -> list[str]:
             SELECT COALESCE(SUM(pnl), 0) FROM trades
             WHERE strategy = :s AND trading_mode = 'live'
               AND DATE(timestamp) = :today
-              AND result = 'loss'
+              AND pnl < 0
         """
                 ),
                 {"s": sname, "today": today},
