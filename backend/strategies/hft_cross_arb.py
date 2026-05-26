@@ -686,7 +686,7 @@ class HFTCrossArbStrategy(BaseStrategy):
             if provider and hasattr(provider, "search_markets"):
                 return await provider.search_markets("", limit=500)
         except Exception:
-            pass
+            logger.warning("hft_cross_arb: provider search_markets failed, falling back to Gamma")
         try:
             from backend.data.gamma import fetch_markets
 
@@ -702,7 +702,7 @@ class HFTCrossArbStrategy(BaseStrategy):
             if provider and hasattr(provider, "search_markets"):
                 return await provider.search_markets("", limit=500)
         except Exception:
-            pass
+            logger.warning("hft_cross_arb: failed to parse Kalshi price")
         try:
             from backend.data.kalshi_client import KalshiClient
 

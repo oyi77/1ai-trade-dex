@@ -427,7 +427,7 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
         except Exception:
-            pass
+            logger.warning("arb_opp_scanner: failed to extract price from outcomePrices")
 
     # Check for yes_sub_title / no_sub_title (Kalshi multi-outcome)
     outcomes = m.get("outcomes")
@@ -464,5 +464,5 @@ def _extract_yes_no_from_outcome_prices(m: Dict[str, Any]) -> Tuple[Optional[flo
             if 0 < yes < 1:
                 return (yes, 1.0 - yes)
     except Exception:
-        pass
+        logger.warning("arb_opp_scanner: failed to extract yes/no from outcomePrices")
     return (None, None)

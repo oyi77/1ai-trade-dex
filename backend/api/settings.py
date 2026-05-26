@@ -558,7 +558,6 @@ def _find_process_by_port(port: int) -> Optional[int]:
             return int(pids[0])
     except Exception:
         logger.exception(f"Failed to find process on port {port}")
-        pass
     return None
 
 

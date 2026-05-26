@@ -496,7 +496,7 @@ async def get_debate_topology(db: Session = Depends(get_db)):
                 signal_data = json.loads(signal_data)
             debate_transcript = signal_data.get("debate_transcript")
         except Exception:
-            pass
+            logger.warning("agi_routes: failed to parse debate_transcript JSON")
 
     if not debate_transcript:
         debate_transcript = {
