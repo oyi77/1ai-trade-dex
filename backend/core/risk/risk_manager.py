@@ -8,6 +8,7 @@ This module will be removed in a future release.
 
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
@@ -25,8 +26,6 @@ from loguru import logger
 
 
 def _not_backfill_settlement_source():
-    """Include normal settlements and exclude only explicit historical backfills."""
-
     return or_(
         Trade.settlement_source.is_(None),
         ~Trade.settlement_source.op("LIKE")("backfill_%"),
@@ -161,13 +160,11 @@ class RiskManager:
         return edge_pp
 
     def _get_bankroll(self, db, mode: str) -> float:
-        import time as _time
-
-        _qstart = _time.monotonic()
+        _qstart = time.monotonic()
         state = db.query(BotState).filter_by(mode=mode).first()
         try:
             db_query_duration.labels(query_type="get_bankroll").observe(
-                _time.monotonic() - _qstart
+                time.monotonic() - _qstart
             )
         except Exception:
             logger.exception(
@@ -183,16 +180,12 @@ class RiskManager:
 
         rules = {}
         for rule_name, rule_config in IMMUTABLE_SAFETY_RULES.items():
-            # Start with default value
             value = rule_config["default"]
-
-            # Check for environment variable override
             env_var = rule_config.get("override_env_var")
             if env_var:
                 env_value = os.environ.get(env_var)
                 if env_value is not None:
                     try:
-                        # Convert to appropriate type
                         if isinstance(value, float):
                             value = float(env_value)
                         elif isinstance(value, int):
@@ -244,14 +237,12 @@ class RiskManager:
     ) -> RiskDecision:
         effective_mode = mode or self.s.TRADING_MODE
 
-        # --- Price Calibration probability adjustment ---
         if db is not None and market_price is not None and signal_win_rate is not None:
             try:
                 calibration_stats, _ = self._get_or_update_calibration_and_bias(db)
                 bucket_start = int(market_price * 100) - (int(market_price * 100) % 5)
                 if bucket_start in calibration_stats:
                     bucket = calibration_stats[bucket_start]
-                    # We want at least a moderate confidence
                     if bucket.get("confidence", 0.0) >= 0.3:
                         adjustment = bucket["error"] * bucket["confidence"]
                         adjustment = max(-0.05, min(0.05, adjustment))
@@ -268,7 +259,6 @@ class RiskManager:
             except Exception as e:
                 logger.error(f"[RiskManager] Failed to apply calibration adjustment: {e}")
 
-        # --- Dynamic Longshot Bias Sizing & Blocking ---
         if (
             db is not None
             and market_price is not None
@@ -329,7 +319,6 @@ class RiskManager:
         if params and params.get("_force_disabled", False):
             return RiskDecision(False, "strategy explicitly disabled", 0.0)
 
-        # --- Longshot bias filter: reject YES trades at <30c, boost NO trades ---
         if market_price is not None and direction:
             longshot_yes_reject = getattr(self.s, "LONGSHOT_YES_REJECT_PRICE", 0.30)
             if self._longshot_bias_cache is None and direction.upper() == "YES" and market_price < longshot_yes_reject:
@@ -352,7 +341,6 @@ class RiskManager:
                     0.0,
                 )
 
-        # --- Category-aware minimum edge routing ---
         if category and market_price is not None and signal_win_rate is not None:
             cat_min_edge = getattr(self.s, "CATEGORY_MIN_EDGE", {})
             min_edge_for_cat = cat_min_edge.get(category.lower(), 0.03)
@@ -380,7 +368,6 @@ class RiskManager:
                     0.0,
                 )
 
-        # --- Minimum trade EV filter ---
         if market_price is not None and signal_win_rate is not None and size > 0:
             min_trade_ev = getattr(self.s, "MIN_TRADE_EV", 0.10)
             edge = abs(signal_win_rate - market_price)
@@ -505,7 +492,6 @@ class RiskManager:
                     False, f"drawdown breaker: {drawdown.breach_reason}", 0.0
                 )
 
-        # --- G-17: Category circuit breaker ---
         if category and db is not None:
             cat_cooldown = self._check_category_circuit_breaker(
                 category, db, effective_mode
@@ -520,7 +506,6 @@ class RiskManager:
                 )
                 return RiskDecision(False, cat_cooldown, 0.0)
 
-        # --- G-14: Per-strategy drawdown check ---
         if strategy_name and db is not None:
             max_strat_dd = float(
                 getattr(self.s, "MAX_STRATEGY_DRAWDOWN_PCT", 0.15) or 0.15
@@ -569,7 +554,6 @@ class RiskManager:
                     0.0,
                 )
 
-        # --- G-18: Position concentration limit ---
         if market_ticker and db is not None:
             conc_reason = self.check_concentration(
                 market_ticker, size, bankroll, db, effective_mode
@@ -715,15 +699,12 @@ class RiskManager:
                 f"remaining: ${effective_cap:.2f}, adjusted size: ${adjusted:.2f}"
             )
 
-        # --- G-15: Volatility-based size scaling ---
         if (
             bool(getattr(self.s, "VOLATILITY_SIZE_SCALE", True))
             and market_price is not None
         ):
-            # Higher market price volatility = reduce position size
-            # Prices near 0.5 have max volatility (uncertainty), near 0/1 have min
-            vol_factor = 4.0 * market_price * (1.0 - market_price)  # peaks at 0.5 = 1.0
-            vol_factor = max(0.25, min(1.0, vol_factor))  # clamp to [0.25, 1.0]
+            vol_factor = 4.0 * market_price * (1.0 - market_price)
+            vol_factor = max(0.25, min(1.0, vol_factor))
             if vol_factor < 1.0:
                 pre_vol_size = adjusted
                 adjusted = adjusted * vol_factor
