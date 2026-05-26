@@ -351,7 +351,7 @@ def check_risk_and_disable(db) -> list[str]:
             or 0
         )
 
-        if abs(daily_loss) > MAX_DAILY_LOSS_PER_STRATEGY:
+        if daily_loss < -MAX_DAILY_LOSS_PER_STRATEGY:
             from backend.models.database import StrategyConfig
             from backend.core.strategy_health import disable_for_rehab
 
