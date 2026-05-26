@@ -21,11 +21,10 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Enum,
+    event,
 )
-from sqlalchemy import event
-from sqlalchemy.orm import Session as SQLAlchemySession, declarative_base, relationship
+from sqlalchemy.orm import Session as SQLAlchemySession, declarative_base, relationship, sessionmaker
 from sqlalchemy.orm.attributes import set_committed_value
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import inspect
 from sqlalchemy.ext.hybrid import hybrid_property
 import json
@@ -47,8 +46,6 @@ if _is_postgres:
         {
             "pool_size": settings.POSTGRES_POOL_SIZE,
             "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
-            "pool_pre_ping": True,
-            "pool_recycle": 300,
             "connect_args": {},
         }
     )
@@ -176,7 +173,6 @@ try:
     import backend.core.risk.risk_profiles
 except ImportError:
     logger.exception("database model imports failed")
-    pass
 
 async def execute_with_timeout(db_operation, timeout: float = None):
     """
@@ -220,7 +216,6 @@ class Trade(Base):
         index=True,
     )
 
-    # Core trade identifiers
     market_ticker = Column(String, index=True)
     platform = Column(String)
     strategy = Column(String, nullable=True, index=True)
@@ -229,15 +224,13 @@ class Trade(Base):
     event_slug = Column(String, nullable=True)
     market_end_date = Column(DateTime, nullable=True)
     token_id = Column(String, nullable=True, index=True)
-    condition_id = Column(String, nullable=True)
+    condition_id = Column(String, nullable=True, index=True)
 
-    # Trade direction, entry, and size
     direction = Column(String)  # "up" or "down"
     entry_price = Column(Float)
     size = Column(Float)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
-    # Execution and cost tracking
     source = Column(String, default="bot", index=True)  # "bot", "user", "import"
     role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
     maker_size = Column(Float, nullable=True)
@@ -250,7 +243,6 @@ class Trade(Base):
     fee = Column(Float, nullable=True)
     slippage = Column(Float, nullable=True)
 
-    # Signal metadata
     signal_source = Column(String, nullable=True)
     confidence = Column(Float, nullable=True)
     model_probability = Column(Float, nullable=True)
@@ -258,18 +250,12 @@ class Trade(Base):
     edge_at_entry = Column(Float, nullable=True)
     data_quality_flags = Column(Text, nullable=True)
 
-    # CLOB identifiers
-    token_id = Column(String, nullable=True, index=True)
-    condition_id = Column(String, nullable=True, index=True)
-
-    # Blockchain verification
     blockchain_verified = Column(Boolean, default=False)
     settlement_source = Column(String, nullable=True)
     last_sync_at = Column(DateTime, nullable=True)
     external_import_at = Column(DateTime, nullable=True)
     status = Column(String, nullable=True)
 
-    # Settlement
     settled = Column(Boolean, default=False)
     settlement_time = Column(DateTime, nullable=True)
     settlement_value = Column(Float, nullable=True)  # 1.0=Up won, 0.0=Down won
@@ -278,7 +264,6 @@ class Trade(Base):
     )  # pending, win, loss, expired, push, closed
     pnl = Column(Float, nullable=True)
 
-    # Journal
     journal_notes = Column(Text, nullable=True)
     journal_tags = Column(JSON, nullable=True)  # list of tag strings
 
@@ -1583,7 +1568,6 @@ def _restore_recovered_data(recovered: dict[str, list[dict]]):
             restored_in_table = 0
             for row_data in rows:
                 try:
-                    # Check if row already exists (idempotent)
                     row_id = row_data.get("id")
                     if row_id is not None:
                         existing = db.query(model_class).filter_by(id=row_id).first()
@@ -1591,7 +1575,6 @@ def _restore_recovered_data(recovered: dict[str, list[dict]]):
                             total_skipped += 1
                             continue
 
-                    # Only include columns the model actually has (handles schema drift)
                     clean_data = {
                         k: v
                         for k, v in row_data.items()
@@ -2179,7 +2162,6 @@ def ensure_schema():
         existing_cols = set()
 
     if existing_cols:
-        # NEW FIELD 1: source
         if "source" not in existing_cols:
             try:
                 with engine.connect() as conn:
@@ -2193,7 +2175,6 @@ def ensure_schema():
             except Exception as e:
                 logger.warning(f"Schema migration: could not add trades.source: {e}")
 
-        # NEW FIELD 2: blockchain_verified
         if "blockchain_verified" not in existing_cols:
             try:
                 with engine.connect() as conn:
@@ -2209,7 +2190,6 @@ def ensure_schema():
                     f"Schema migration: could not add trades.blockchain_verified: {e}"
                 )
 
-        # NEW FIELD 3: settlement_source
         if "settlement_source" not in existing_cols:
             try:
                 with engine.connect() as conn:
@@ -2225,7 +2205,6 @@ def ensure_schema():
                     f"Schema migration: could not add trades.settlement_source: {e}"
                 )
 
-        # NEW FIELD 4: last_sync_at
         if "last_sync_at" not in existing_cols:
             try:
                 with engine.connect() as conn:
@@ -2241,7 +2220,6 @@ def ensure_schema():
                     f"Schema migration: could not add trades.last_sync_at: {e}"
                 )
 
-        # NEW FIELD 5: external_import_at
         if "external_import_at" not in existing_cols:
             try:
                 with engine.connect() as conn:
@@ -2267,7 +2245,6 @@ def ensure_schema():
         bot_state_columns = set()
 
     if bot_state_columns:
-        # NEW FIELD 1: last_sync_at
         if "last_sync_at" not in bot_state_columns:
             try:
                 with engine.connect() as conn:
@@ -2283,7 +2260,6 @@ def ensure_schema():
                     f"Schema migration: could not add bot_state.last_sync_at: {e}"
                 )
 
-        # NEW FIELD 2: last_live_sync_error
         if "last_live_sync_error" not in bot_state_columns:
             try:
                 with engine.connect() as conn:
@@ -2299,7 +2275,6 @@ def ensure_schema():
                     f"Schema migration: could not add bot_state.last_live_sync_error: {e}"
                 )
 
-        # NEW FIELD 3: settlement_last_check_at
         if "settlement_last_check_at" not in bot_state_columns:
             try:
                 with engine.connect() as conn:

@@ -1597,10 +1597,7 @@ async def resolve_paper_trades(db) -> List[Trade]:
                         trade.settlement_time = now
                         trade.settlement_source = "gamma_outcome"
 
-                        if is_win:
-                            trade.pnl = calculate_pnl(trade, settlement_value)
-                        else:
-                            trade.pnl = calculate_pnl(trade, settlement_value)
+                        trade.pnl = calculate_pnl(trade, settlement_value)
 
                         if condition_id:
                             trade.condition_id = condition_id
@@ -1614,7 +1611,6 @@ async def resolve_paper_trades(db) -> List[Trade]:
         try:
             db.commit()
         except Exception as e:
-            logger.error("[Settlement] reconciliation error: {}", e)
             logger.error(f"Failed to commit paper settlements: {e}")
             db.rollback()
             return []
@@ -1630,23 +1626,22 @@ async def resolve_paper_trades(db) -> List[Trade]:
             logger.error(f"Failed to record paper outcomes: {e}")
 
         # Update bot_state inline to avoid circular import
-        if settled:
-            try:
-                for trade in settled:
-                    if trade.pnl is None:
-                        continue
-                    state = (
-                        db.query(type("BotState", (object,), {}))
-                        .filter_by(mode="paper")
-                        .first()
-                    )
-                    if state and hasattr(state, "paper_pnl"):
-                        state.paper_pnl = (state.paper_pnl or 0) + trade.pnl
-                        state.paper_trades = (state.paper_trades or 0) + 1
-                        if trade.result == "win":
-                            state.paper_wins = (state.paper_wins or 0) + 1
-                db.commit()
-            except Exception as e:
-                logger.error(f"Failed to update paper bot_state: {e}")
+        try:
+            for trade in settled:
+                if trade.pnl is None:
+                    continue
+                state = (
+                    db.query(type("BotState", (object,), {}))
+                    .filter_by(mode="paper")
+                    .first()
+                )
+                if state and hasattr(state, "paper_pnl"):
+                    state.paper_pnl = (state.paper_pnl or 0) + trade.pnl
+                    state.paper_trades = (state.paper_trades or 0) + 1
+                    if trade.result == "win":
+                        state.paper_wins = (state.paper_wins or 0) + 1
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update paper bot_state: {e}")
 
     return settled

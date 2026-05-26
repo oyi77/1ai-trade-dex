@@ -389,7 +389,6 @@ def unschedule_strategy(
         logger.exception(
             f"Failed to unschedule strategy {strategy_name} for mode {mode}"
         )
-        logger.warning(f"Failed to unschedule strategy {strategy_name} for mode {mode}")
 
 def get_scheduler_jobs() -> list[dict]:
     """Return current scheduled jobs info."""
@@ -435,15 +434,11 @@ def _register_event_driven_strategies() -> None:
     from backend.core.event_bus import event_bus
     from backend.core.ws_fallback import WsFirstExecutor
 
-    logger.info("[DEBUG] _register_event_driven_strategies() starting")
     for name, strategy_cls in STRATEGY_REGISTRY.items():
         try:
             strategy = strategy_cls()
             tokens = getattr(strategy, "subscribed_tokens", set())
             events = getattr(strategy, "subscribed_events", {"last_trade_price"})
-            logger.info(
-                f"[DEBUG] Registering {name}: tokens={len(tokens)}, events={len(events)}"
-            )
 
             if not tokens:
                 continue
@@ -461,9 +456,8 @@ def _register_event_driven_strategies() -> None:
             )
         except Exception as e:
             logger.warning(
-                f"[DEBUG] Failed to register strategy {name} for event bus: {e}"
+                f"Failed to register strategy {name} for event bus: {e}"
             )
-    logger.info("[DEBUG] _register_event_driven_strategies() completed")
 
 def _job_executed_listener(event):
     """Update ScheduledJob.last_run after each job completes."""
@@ -621,7 +615,6 @@ def start_scheduler():
     scan_seconds = settings.SCAN_INTERVAL_SECONDS
     settle_seconds = settings.SETTLEMENT_INTERVAL_SECONDS
 
-    # Check settlements every 2 minutes
     _persist_and_add_job(
         scheduler,
         settlement_job,
@@ -632,7 +625,6 @@ def start_scheduler():
         misfire_grace_time=60,
     )
 
-    # Heartbeat every minute
     _persist_and_add_job(
         scheduler,
         heartbeat_job,
@@ -710,7 +702,6 @@ def start_scheduler():
         misfire_grace_time=300,
     )
 
-    # Sell signal monitor: scan open positions for sell triggers every 5 minutes
     _persist_and_add_job(
         scheduler,
         sell_signal_monitor_job,
@@ -774,7 +765,6 @@ def start_scheduler():
         max_instances=1,
     )
 
-    # Wallet reconciler: periodic balance sync every 5 minutes (async, non-blocking)
     _persist_and_add_job(
         scheduler,
         wallet_reconciler_job,
@@ -850,10 +840,8 @@ def start_scheduler():
     )
     logger.info("Scheduled weekly HuggingFace dataset ingestion job")
 
-    # Health: update last_run/next_run after each job execution
     scheduler.add_listener(_job_executed_listener, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
 
-    # Start the scheduler
     scheduler.start()
     for job in scheduler.get_jobs():
         logger.info(
@@ -981,11 +969,9 @@ def start_scheduler():
 
     # Auto-improvement job - learns from trade outcomes
     if settings.AUTO_IMPROVE_ENABLED:
-        from apscheduler.triggers.interval import IntervalTrigger as _IntervalTrigger
-
         scheduler.add_job(
             auto_improve_job,
-            _IntervalTrigger(days=settings.AUTO_IMPROVE_INTERVAL_DAYS),
+            IntervalTrigger(days=settings.AUTO_IMPROVE_INTERVAL_DAYS),
             id="auto_improve",
             replace_existing=True,
             max_instances=1,
@@ -1566,21 +1552,17 @@ def start_scheduler():
             },
         )
 
-    # Load registry-driven strategy jobs from DB
-    logger.info("[DEBUG] About to load strategy jobs from DB")
+    logger.info("Loading strategy jobs from DB")
     try:
         _load_strategy_jobs()
-        logger.info("[DEBUG] _load_strategy_jobs() completed successfully")
+        logger.info("Strategy jobs loaded from DB")
     except Exception as e:
         logger.exception(f"Could not load strategy jobs from DB: {e}")
 
-    # Register event-driven research triggers
-    logger.info("[DEBUG] About to register research event triggers")
     try:
         from backend.research.event_triggers import register_research_triggers
 
         register_research_triggers()
-        logger.info("[DEBUG] register_research_triggers() completed")
     except Exception as e:
         logger.warning("Could not register research event triggers: %s", e)
 
