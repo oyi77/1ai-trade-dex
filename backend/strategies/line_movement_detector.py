@@ -394,6 +394,9 @@ class LineMovementDetectorStrategy(BaseStrategy):
             max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)),
         )
         size = round(base_size * vol_factor * confidence, 2)
+        # Cap to bankroll fraction to avoid concentration rejections
+        max_position_frac = getattr(ctx.settings, "MAX_POSITION_FRACTION", 0.30)
+        size = min(size, ctx.bankroll * max_position_frac)
 
         return {
             "decision": action,

@@ -15,6 +15,7 @@ const LiveStream = React.lazy(() => import('./pages/LiveStream'))
 const TradingJournal = React.lazy(() => import('./pages/TradingJournal'))
 const Backtest = React.lazy(() => import('./pages/Backtest').then(m => ({ default: m.Backtest })))
 const Evals = React.lazy(() => import('./pages/Evals').then(m => ({ default: m.Evals })))
+const AgiOps = React.lazy(() => import('./pages/AgiOps'))
 const DecisionLog = React.lazy(() => import('./pages/DecisionLog'))
 const EdgeTracker = React.lazy(() => import('./pages/EdgeTracker'))
 const MarketIntel = React.lazy(() => import('./pages/MarketIntel'))
@@ -56,7 +57,7 @@ export default function App() {
             <Route path="/journal" element={<TradingJournal />} />
             <Route path="/backtest" element={<Backtest />} />
             <Route path="/evals" element={<Evals />} />
-            <Route path="/agi/*" element={<Navigate to="/admin" replace />} />
+            <Route path="/agi-ops" element={<AgiOps />} />
             {/* Standalone pages wired directly */}
             <Route path="/whale-tracker" element={<WhaleTracker />} />
             <Route path="/settlements" element={<Settlements />} />

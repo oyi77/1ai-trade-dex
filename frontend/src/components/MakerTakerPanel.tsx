@@ -6,7 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { fetchMakerTakerStats, type MakerTakerRoleStats } from '../../api'
+import { fetchMakerTakerStats, type MakerTakerRoleStats } from '../api'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
