@@ -162,12 +162,23 @@ class MarketMakerStrategy(BaseStrategy):
         )
         return max(min_spread, min(spread, max_spread))
 
-    def calculate_quotes(self, mid: float, spread: float, inventory_pct: float) -> Quote:
+    def calculate_quotes(
+        self,
+        mid_price: float,
+        spread: float,
+        inventory_pct: float,
+        params: Optional[dict] = None,
+    ) -> Quote:
         """Calculate skew quotes for backward-compatibility with tests."""
-        gamma = self.default_params.get("risk_aversion", 0.3)
-        skew_factor = self.default_params.get("inventory_skew_factor", 0.7)
+        p = params or self.default_params
+        quote_size = p.get("quote_size", self.default_params["quote_size"])
+        if quote_size <= 0:
+            raise ValueError("quote_size must be > 0")
+
+        gamma = p.get("risk_aversion", 0.3)
+        skew_factor = p.get("inventory_skew_factor", 0.7)
         
-        reservation = mid - inventory_pct * skew_factor * spread
+        reservation = mid_price - inventory_pct * skew_factor * spread
         
         bid = max(0.01, reservation - spread / 2.0)
         ask = min(0.99, reservation + spread / 2.0)
@@ -175,9 +186,28 @@ class MarketMakerStrategy(BaseStrategy):
         return Quote(
             bid_price=round(bid, 4),
             ask_price=round(ask, 4),
-            bid_size=self.default_params["quote_size"],
-            ask_size=self.default_params["quote_size"],
+            bid_size=quote_size,
+            ask_size=quote_size,
         )
+
+    def lmsr_spread(
+        self,
+        yes_shares: float,
+        no_shares: float,
+        liquidity_param: Optional[float] = None,
+    ) -> dict[str, float]:
+        """Calculate yes/no pricing based on LMSR model for backward-compatibility with tests."""
+        b = liquidity_param or self.default_params.get("lmsr_liquidity_param", 10.0)
+        b = max(b, 0.001)  # prevent division by zero
+        
+        e_yes = math.exp(yes_shares / b)
+        e_no = math.exp(no_shares / b)
+        denom = e_yes + e_no
+        
+        return {
+            "yes_price": e_yes / denom,
+            "no_price": e_no / denom,
+        }
 
     def calculate_as_quote(
         self,
