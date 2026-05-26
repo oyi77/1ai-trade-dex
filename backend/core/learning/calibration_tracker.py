@@ -202,6 +202,46 @@ class CalibrationTracker:
             "bins": bins,
         }
 
+    def check_calibration(
+        self,
+        prediction_history: list,
+        actual_outcomes: list,
+    ) -> dict:
+        """Compute calibration report including Brier score and Brier drift.
+        
+        Drift is computed by comparing the Brier score of the second half of the 
+        history to that of the first half.
+        """
+        if not prediction_history or not actual_outcomes or len(prediction_history) != len(actual_outcomes):
+            return {"brier_drift": 0.0, "brier_score": 0.0}
+
+        try:
+            preds = [float(p) for p in prediction_history]
+            outcomes = [
+                1.0 if (o == 1.0 or o == "win" or o is True or o == "1.0") else 0.0
+                for o in actual_outcomes
+            ]
+        except (TypeError, ValueError):
+            return {"brier_drift": 0.0, "brier_score": 0.0}
+
+        squared_errors = [(p - o) ** 2 for p, o in zip(preds, outcomes)]
+        total = len(squared_errors)
+        brier = sum(squared_errors) / total
+
+        half = total // 2
+        if half >= 5:
+            brier_first = sum(squared_errors[:half]) / half
+            brier_second = sum(squared_errors[half:]) / (total - half)
+            brier_drift = brier_second - brier_first
+        else:
+            brier_drift = 0.0
+
+        return {
+            "brier_score": round(brier, 6),
+            "brier_drift": round(max(0.0, brier_drift), 6),
+            "sample_count": total,
+        }
+
 
 # Module-level singleton
 calibration_tracker = CalibrationTracker()
