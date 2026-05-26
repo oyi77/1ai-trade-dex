@@ -81,7 +81,12 @@ class CexPmLeadLagStrategy(BaseStrategy):
         min_momentum = float(params["min_momentum"])
         min_edge = float(params["min_edge"])
         max_minutes = float(params["max_minutes_to_resolution"])
-        max_size = float(params["max_position_usd"])
+        max_position_frac = getattr(settings, "MAX_POSITION_FRACTION", 0.30)
+        hard_cap = float(params.get("max_position_usd", 5.0))
+        dynamic_cap = ctx.bankroll * max_position_frac
+        max_size = max(hard_cap, dynamic_cap)
+        # Floor: at least MIN_ORDER_USDC so we can always place a trade
+        max_size = max(max_size, float(getattr(settings, "MIN_ORDER_USDC", 1.0)))
         fee_rate = float(params.get("fee_rate", settings.PAPER_CLOB_FEE_RATE))
         min_volatility = float(params.get("min_volatility", 0.001))
         max_volatility = float(params.get("max_volatility", 0.030))

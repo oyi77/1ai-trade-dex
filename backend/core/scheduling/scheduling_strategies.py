@@ -396,6 +396,9 @@ async def scan_and_trade_job(mode: str):
                 strategy_cls = STRATEGY_REGISTRY.get(cfg["strategy_name"])
                 if strategy_cls is None:
                     continue
+                from backend.models.database import BotState
+                state = db.query(BotState).first()
+                bankroll = _get_bankroll_for_mode(state, mode) if state else 100.0
                 strategy_ctx = StrategyContext(
                     db=db,
                     clob=None,
@@ -403,6 +406,7 @@ async def scan_and_trade_job(mode: str):
                     logger=logger,
                     params=cfg["params"],
                     mode=mode,
+                    bankroll=bankroll,
                     market_registry=market_registry,
                 )
                 strategy = strategy_cls()
@@ -1158,6 +1162,10 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
         _db_ctx, db = await asyncio.to_thread(_open_db_session)
         try:
+            # Read bankroll for dynamic position sizing
+            from backend.models.database import BotState
+            state = db.query(BotState).first()
+            bankroll = _get_bankroll_for_mode(state, effective_mode) if state else 100.0
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1165,6 +1173,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                 logger=logger,
                 params=params,
                 mode=effective_mode,
+                bankroll=bankroll,
                 market_registry=market_registry,
             )
 

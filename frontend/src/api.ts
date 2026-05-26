@@ -1127,3 +1127,22 @@ export async function fetchEvalReport(filename: string): Promise<EvalReportDetai
   const { data } = await api.get<EvalReportDetail>(`/evals/reports/${encodeURIComponent(filename)}`)
   return data
 }
+
+export interface MakerTakerRoleStats {
+  count: number
+  pnl: number
+  size: number
+  roi: number
+}
+
+export interface MakerTakerStats {
+  maker: MakerTakerRoleStats
+  taker: MakerTakerRoleStats
+  recommendation: 'prefer_maker' | 'reduce_taker' | 'neutral' | 'insufficient_data'
+  cached_at: string
+}
+
+export async function fetchMakerTakerStats(): Promise<MakerTakerStats> {
+  const { data } = await api.get<MakerTakerStats>('/analytics/maker-taker')
+  return data
+}

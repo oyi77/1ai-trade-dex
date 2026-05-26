@@ -37,6 +37,7 @@ class StrategyContext:
     logger: object  # loguru.Logger
     params: dict  # StrategyConfig.params from DB
     mode: str  # "paper" | "testnet" | "live"
+    bankroll: float = 100.0  # current bankroll for position sizing
 
     # Providers dict mapping provider name to DataProvider instance
     if TYPE_CHECKING:
