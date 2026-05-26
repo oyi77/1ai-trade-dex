@@ -136,7 +136,9 @@ def _flush_heartbeats() -> bool:
                     db.commit()
             else:
                 # SQLite ORM fallback
-                for state in db.query(BotState).all():
+                states = db.query(BotState).all()
+                logger.info(f"heartbeat flush: found {len(states)} BotState rows in DB: {[s.mode for s in states]}")
+                for state in states:
                     data = {}
                     if state.misc_data:
                         try:

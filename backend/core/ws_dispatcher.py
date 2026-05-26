@@ -228,9 +228,23 @@ class WSDispatcher:
                 if ws_client.ws and ws_client.ws.open:
                     if not event_bus.ws_connected:
                         event_bus.set_ws_connected()
+                        # Trigger reconnect on active strategies
+                        for strat in self._strategies.values():
+                            if hasattr(strat, "on_ws_reconnected"):
+                                try:
+                                    await strat.on_ws_reconnected()
+                                except Exception as e:
+                                    logger.error(f"WSDispatcher: error on WS reconnect hook for strategy: {e}")
                 else:
                     if event_bus.ws_connected:
                         event_bus.set_ws_disconnected()
+                        # Trigger halt on active strategies immediately
+                        for strat in self._strategies.values():
+                            if hasattr(strat, "on_ws_disconnected"):
+                                try:
+                                    await strat.on_ws_disconnected()
+                                except Exception as e:
+                                    logger.error(f"WSDispatcher: error on WS disconnect hook for strategy: {e}")
 
             # If stopped, cancel the task
             ws_task.cancel()
