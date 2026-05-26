@@ -49,7 +49,6 @@ class ConfigRegistry:
         from dataclasses import Field, MISSING
 
         all_fields = {}
-        # Collect dataclass fields first (they carry type + default metadata)
         for f in dataclasses.fields(self):
             if f.default is not MISSING:
                 all_fields[f.name] = f.default
@@ -62,7 +61,6 @@ class ConfigRegistry:
                     else None
                 )
 
-        # Then collect plain class annotations (non-dataclass-field defaults)
         for name, value in self.__class__.__dict__.items():
             if (
                 name.startswith("_")
@@ -542,8 +540,6 @@ class ConfigRegistry:
 
     # Market Maker
     MARKET_MAKER_DEFAULT_CONFIDENCE: float = 0.5
-
-    # Market Maker
     MARKET_MAKER_BASE_SPREAD: float = 0.06
     MARKET_MAKER_MAX_INVENTORY: float = 250.0
     MARKET_MAKER_INVENTORY_SKEW_FACTOR: float = 0.7
@@ -1175,14 +1171,12 @@ class ConfigRegistry:
         """
         issues: list[str] = []
 
-        # Check required values
         if not self.DATABASE_URL:
             issues.append("DATABASE_URL is required")
 
         if not self.GAMMA_API_URL:
             issues.append("GAMMA_API_URL is required")
 
-        # Check API endpoints are valid URLs
         api_urls = [
             self.GAMMA_API_URL,
             self.DATA_API_URL,
@@ -1198,7 +1192,6 @@ class ConfigRegistry:
             if url and not url.startswith(("http://", "https://", "wss://", "ws://")):
                 issues.append(f"Invalid URL format: {url}")
 
-        # Check rate limits are positive
         if self.RATE_LIMIT_GAMMA <= 0:
             issues.append("RATE_LIMIT_GAMMA must be positive")
         if self.RATE_LIMIT_KALSHI <= 0:
@@ -1206,17 +1199,14 @@ class ConfigRegistry:
         if self.RATE_LIMIT_CRYPTO <= 0:
             issues.append("RATE_LIMIT_CRYPTO must be positive")
 
-        # Check rate limit backoff parameters
         if self.RATE_LIMIT_BACKOFF_BASE < 1.0:
             issues.append("RATE_LIMIT_BACKOFF_BASE must be >= 1.0")
         if self.RATE_LIMIT_MAX_DELAY < self.RATE_LIMIT_BACKOFF_BASE:
             issues.append("RATE_LIMIT_MAX_DELAY must be >= RATE_LIMIT_BACKOFF_BASE")
 
-        # Check port numbers are valid
         if self.PORT < 1 or self.PORT > 65535:
             issues.append(f"PORT must be between 1 and 65535, got {self.PORT}")
 
-        # Check percentages are in valid range (0-1)
         risky_floats = [
             ("KELLY_FRACTION", self.KELLY_FRACTION, 0.0, 0.5),
             ("MAX_POSITION_FRACTION", self.MAX_POSITION_FRACTION, 0.0, 1.0),
@@ -1250,7 +1240,6 @@ class ConfigRegistry:
                     f"{name} must be between {min_val} and {max_val}, got {value}"
                 )
 
-        # Check integer ranges
         risky_ints = [
             ("HFT_MAX_POSITION_USD", self.HFT_MAX_POSITION_USD, 100, 100000),
             ("MAX_TRADES_PER_WINDOW", self.MAX_TRADES_PER_WINDOW, 1, 1000),
@@ -1271,7 +1260,6 @@ class ConfigRegistry:
                     f"{name} must be between {min_val} and {max_val}, got {value}"
                 )
 
-        # Check scan intervals are reasonable
         if self.SCAN_INTERVAL_SECONDS < 5:
             issues.append(
                 f"SCAN_INTERVAL_SECONDS too aggressive: {self.SCAN_INTERVAL_SECONDS}s (min: 5s)"
@@ -1286,13 +1274,11 @@ class ConfigRegistry:
                 "WALLET_FERNET_KEY is empty — wallet encryption disabled: private keys stored in plaintext. This is safe for dev/paper-only but NOT for live production trading."
             )
 
-        # Check HFT parameters
         if self.HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD < 1:
             issues.append("HFT_SCANNER_CIRCUIT_BREAKER_THRESHOLD must be >= 1")
         if self.HFT_SCANNER_CIRCUIT_BREAKER_TIMEOUT < 1:
             issues.append("HFT_SCANNER_CIRCUIT_BREAKER_TIMEOUT must be >= 1s")
 
-        # Check AGI thresholds
         if self.REGISTRY_MIN_WIN_RATE < 0 or self.REGISTRY_MIN_WIN_RATE > 1:
             issues.append(
                 f"REGISTRY_MIN_WIN_RATE must be 0-1, got {self.REGISTRY_MIN_WIN_RATE}"
@@ -1302,7 +1288,6 @@ class ConfigRegistry:
                 f"REGISTRY_MIN_ROI must be >= -1, got {self.REGISTRY_MIN_ROI}"
             )
 
-        # Check intervals are positive
         positive_ints = [
             ("SCAN_INTERVAL_SECONDS", self.SCAN_INTERVAL_SECONDS),
             ("SETTLEMENT_INTERVAL_SECONDS", self.SETTLEMENT_INTERVAL_SECONDS),
@@ -1377,7 +1362,6 @@ class ConfigRegistry:
             if value < 1:
                 issues.append(f"{name} must be >= 1, got {value}")
 
-        # Check timeouts are positive
         positive_floats = [
             ("RATE_LIMIT_BACKOFF_BASE", self.RATE_LIMIT_BACKOFF_BASE),
             ("RATE_LIMIT_MAX_DELAY", self.RATE_LIMIT_MAX_DELAY),
@@ -1495,13 +1479,8 @@ for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:
     if not getattr(settings, _key, None):
         logger.debug(f"[Config] {_key} not set — fallback provider disabled")
 
-# Backwards compatibility: Settings still exists for existing code
-# This provides a bridge during migration to the new registry system
-# New code should use the ConfigRegistry directly or through settings
-
 
 if __name__ == "__main__":
-    # Validation check on startup
     issues = settings.validate()
     if issues:
         print("Configuration validation errors:")
@@ -1509,7 +1488,6 @@ if __name__ == "__main__":
             print(f"  - {issue}")
         raise ValueError(f"Configuration validation failed: {issues[:3]}")
 
-    # Print configuration summary
     print("PolyEdge Configuration Loaded Successfully")
     print(f"  Trading mode: {settings.TRADING_MODE}")
     print(f"  Bankroll: ${settings.INITIAL_BANKROLL:.2f}")
