@@ -806,7 +806,6 @@ async def auto_trader_job(mode: str):
     """Run AutoTrader against unexecuted signals when AUTO_TRADER_ENABLED."""
     await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
-    from loguru import logger
 
     if not settings.AUTO_TRADER_ENABLED:
         return
