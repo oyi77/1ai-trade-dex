@@ -86,6 +86,7 @@ class BalanceAggregator:
                 except Exception as e:
                     logger.warning(f"Aster WS balance error: {e}")
                     await asyncio.sleep(5)
+                await asyncio.sleep(1)
         except Exception as e:
             logger.error(f"Aster WS feed failed: {e}")
 

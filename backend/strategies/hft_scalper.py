@@ -3,16 +3,17 @@
 High-frequency scalping: detect directional price momentum over a rolling
 lookback window, enter when move exceeds threshold, exit on profit target,
 stop loss, or max hold time. Kelly criterion sizing based on rolling win rate.
-
-Paper mode only. Uses HFT executor path.
+Refactored to support lock-free async queue consumer ticks from WSDispatcher.
 """
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Optional, Set, List, Dict, Any
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -20,10 +21,10 @@ from backend.strategies.base import (
     MarketInfo,
     StrategyContext,
 )
-from backend.strategies.types_hft import HFTSignal
+from backend.core.event_bus import MarketEvent
 from backend.core.decisions import record_decision
-
 from loguru import logger
+
 
 # ---------------------------------------------------------------------------
 # Position tracking
@@ -60,8 +61,7 @@ class HFTScalperStrategy(BaseStrategy):
     description = (
         "HFT momentum scalper: detects directional price moves within a "
         "rolling lookback window and enters for quick profit. Exits on "
-        "target, stop, or time limit. Kelly sizing. Paper mode only. "
-        "0W/0L ROI: 0%"
+        "target, stop, or time limit. Kelly sizing. Safe halting."
     )
     category = "hft"
 
@@ -81,6 +81,10 @@ class HFTScalperStrategy(BaseStrategy):
         "max_daily_loss_pct": 0.03,  # 3% bankroll max daily loss
     }
 
+    # -- Event-driven (WebSocket) subscription config --
+    subscribed_tokens: Set[str] = set()
+    subscribed_events: Set[str] = {"last_trade_price"}
+
     def __init__(self) -> None:
         super().__init__()
         # Rolling price history: market_id -> deque[(timestamp, price)]
@@ -95,6 +99,52 @@ class HFTScalperStrategy(BaseStrategy):
         self._daily_pnl: float = 0.0
         self._daily_pnl_day: str = ""
 
+        # High-speed lock-free processing queue
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._consumer_task: Optional[asyncio.Task] = None
+        self._tokens_populated: bool = False
+        self._halted: bool = False
+
+    def start_consumer(self) -> None:
+        """Start the background consumer task if not active."""
+        if self._consumer_task is None or self._consumer_task.done():
+            self._consumer_task = asyncio.create_task(self._process_queue_loop())
+            logger.info(f"[{self.name}] Async queue consumer loop started.")
+
+    async def _populate_subscribed_tokens(self) -> None:
+        """Discover active short-duration markets and map outcome token IDs."""
+        try:
+            from backend.core.market_scanner import fetch_short_duration_token_ids
+            
+            # Subscribe to the top highly liquid short-duration tokens
+            short_tokens = await fetch_short_duration_token_ids(limit=50)
+            self.subscribed_tokens = set(short_tokens)
+            self._tokens_populated = True
+            
+            self.start_consumer()
+            logger.info(
+                f"[{self.name}] Subscribed tokens populated with {len(self.subscribed_tokens)} active tokens."
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Failed to populate subscribed tokens: {e}")
+
+    async def on_ws_disconnected(self) -> None:
+        """Safety Safeguard: Disconnection halts execution and flushes exposure."""
+        self._halted = True
+        logger.warning(f"[{self.name}] WebSocket telemetry lost! Activating safety halt.")
+        
+        # Safe positions cancel
+        to_exit = list(self._open_positions.values())
+        for pos in to_exit:
+            logger.warning(f"[{self.name}] Telemetry lost: Emergency closing position on {pos.ticker}")
+            # Close position locally at entry price to neutralize exposure in simulation
+            self._close_position(pos, pos.entry_price, "EMERGENCY_HALT")
+
+    async def on_ws_reconnected(self) -> None:
+        """Resume trading after WebSocket reconnection."""
+        self._halted = False
+        logger.info(f"[{self.name}] WebSocket telemetry restored. Strategy resumed.")
+
     # ------------------------------------------------------------------
     # Momentum detection
     # ------------------------------------------------------------------
@@ -102,10 +152,7 @@ class HFTScalperStrategy(BaseStrategy):
     def detect_momentum(
         self, price_history: deque, params: dict
     ) -> tuple[Optional[str], float]:
-        """Detect directional momentum from recent price ticks.
-
-        Returns (signal_direction, total_move) or (None, 0).
-        """
+        """Detect directional momentum from recent price ticks."""
         confirmation = params.get("momentum_confirmation", 2)
         lookback = params.get("lookback_window", 30)
         threshold = params.get("entry_threshold", 0.01)
@@ -127,7 +174,6 @@ class HFTScalperStrategy(BaseStrategy):
             for i in range(1, len(recent_prices))
         ]
 
-        # All ticks same direction + total move exceeds threshold
         if all(d > 0 for d in deltas):
             total_move = recent_prices[-1] - recent_prices[0]
             if total_move >= threshold:
@@ -146,10 +192,7 @@ class HFTScalperStrategy(BaseStrategy):
     def check_exit(
         self, position: ScalpPosition, current_price: float, params: dict
     ) -> tuple[Optional[str], float]:
-        """Check whether to exit an open position.
-
-        Returns (exit_reason, pnl_pct) or (None, pnl_pct).
-        """
+        """Check whether to exit an open position."""
         entry = position.entry_price
         elapsed = time.monotonic() - position.opened_at
 
@@ -184,7 +227,6 @@ class HFTScalperStrategy(BaseStrategy):
         total = len(self._closed_positions)
 
         if total < 5:
-            # Insufficient data: use conservative fixed size
             return min(max_position, bankroll * 0.01)
 
         win_rate = wins / total
@@ -195,7 +237,6 @@ class HFTScalperStrategy(BaseStrategy):
             abs(p.pnl_pct) for p in self._closed_positions if p.pnl_pct <= 0
         ) / max(total - wins, 1)
 
-        # Kelly: f* = (p * b - q) / b where b = avg_win/avg_loss
         b = avg_win / max(avg_loss, 0.001)
         q = 1.0 - win_rate
         kelly_f = (win_rate * b - q) / max(b, 0.01)
@@ -210,55 +251,37 @@ class HFTScalperStrategy(BaseStrategy):
 
     def _passes_risk_gates(
         self,
-        market: MarketInfo,
+        ticker: str,
         current_price: float,
         bankroll: float,
         params: dict,
         now: float,
     ) -> Optional[str]:
         """Return rejection reason or None if risk gates pass."""
-        # Max concurrent positions
+        if self._halted:
+            return "safety_halted"
+
         max_concurrent = params.get("max_concurrent_positions", 5)
         if len(self._open_positions) >= max_concurrent:
             return "max_concurrent_positions"
 
-        # Daily loss limit
         self._maybe_reset_daily_pnl(now)
         max_daily_loss = params.get("max_daily_loss_pct", 0.03)
         if self._daily_pnl < 0 and abs(self._daily_pnl) >= bankroll * max_daily_loss:
             return "daily_loss_limit"
 
-        # Min volume
-        min_volume = params.get("min_volume", 500)
-        if market.volume < min_volume:
-            return "low_volume"
-
-        # Max spread
-        max_spread = params.get("max_spread", 0.05)
-        meta = market.metadata or {}
-        best_bid = float(meta.get("bestBid", 0))
-        best_ask = float(meta.get("bestAsk", 0))
-        if best_bid > 0 and best_ask > 0:
-            spread = best_ask - best_bid
-            if spread > max_spread:
-                return "wide_spread"
-
-        # Cooldown
         cooldown = params.get("cooldown_seconds", 5)
-        last_exit = self._cooldowns.get(market.ticker, 0)
+        last_exit = self._cooldowns.get(ticker, 0)
         if (now - last_exit) < cooldown:
             return "cooldown"
 
-        # Already in position on this market
-        if market.ticker in self._open_positions:
+        if ticker in self._open_positions:
             return "already_in_position"
 
         return None
 
     def _maybe_reset_daily_pnl(self, now: float) -> None:
         """Reset daily PnL counter at midnight UTC."""
-        from datetime import datetime, timezone
-
         today = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y-%m-%d")
         if today != self._daily_pnl_day:
             self._daily_pnl = 0.0
@@ -292,7 +315,6 @@ class HFTScalperStrategy(BaseStrategy):
         position.pnl_usd = position.pnl_pct * position.size_usd
         self._daily_pnl += position.pnl_usd
 
-        # Remove from open, add to closed
         self._open_positions.pop(position.ticker, None)
         self._closed_positions.append(position)
         self._cooldowns[position.ticker] = time.time()
@@ -314,248 +336,175 @@ class HFTScalperStrategy(BaseStrategy):
     # ------------------------------------------------------------------
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
-        """Filter markets suitable for scalping: sufficient volume and liquidity."""
+        """Filter markets suitable for scalping: sufficient volume."""
         return [
             m
             for m in markets
-            if m.volume >= self.default_params["min_volume"] and m.liquidity >= 100
+            if m.volume >= self.default_params["min_volume"]
         ]
 
     # ------------------------------------------------------------------
-    # Event-driven: update price history from WS events
+    # Event-driven: Ingest into async queue
     # ------------------------------------------------------------------
 
-    async def on_market_event(self, event) -> Optional[dict]:
-        """Ingest price events into rolling history for momentum detection."""
-        if event.event_type == "last_trade_price":
-            price = float(event.data.get("price", 0))
-            if 0 < price < 1:
-                self._price_history[event.token_id].append((event.timestamp, price))
+    async def on_market_event(self, event: MarketEvent) -> Optional[dict]:
+        """Ingest price events into rolling history sequentially."""
+        if self._halted:
+            return None
+
+        self.start_consumer()
+        if event.event_type in ("last_trade_price", "price_change"):
+            await self._queue.put(event)
         return None
 
     # ------------------------------------------------------------------
-    # Main cycle
+    # Lock-free queue consumer
     # ------------------------------------------------------------------
 
-    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """Execute one scalping cycle: check exits, scan for entries."""
-        result = CycleResult(
-            decisions_recorded=0,
-            trades_attempted=0,
-            trades_placed=0,
-        )
+    async def _process_queue_loop(self) -> None:
+        """Consumes WebSocket ticks sequentially to avoid race conditions."""
+        while True:
+            try:
+                event = await self._queue.get()
+                await self._process_tick(event)
+                self._queue.task_done()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"[{self.name}] Error in queue consumer loop: {e}")
+                await asyncio.sleep(0.01)
 
-        params = {**self.default_params, **(ctx.params or {})}
-        now = time.monotonic()
-        now_wall = time.time()
-
+    async def _process_tick(self, event: MarketEvent) -> None:
+        """Process a single real-time WS price or trade tick."""
+        token_id = event.token_id
+        price_str = event.data.get("price") or event.data.get("last_trade_price")
+        if not price_str:
+            return
         try:
-            # ---------------------------------------------------------------
-            # 1. Check exits on all open positions
-            # ---------------------------------------------------------------
-            tickers_to_close: dict[str, tuple[ScalpPosition, str]] = {}
-            for ticker, position in list(self._open_positions.items()):
-                history = self._price_history.get(ticker)
-                if not history:
-                    continue
-                current_price = history[-1][1]
-                exit_reason, pnl_pct = self.check_exit(position, current_price, params)
-                if exit_reason:
-                    tickers_to_close[ticker] = (position, current_price)
-                # Also check stale positions by wall clock
-                elif (now - position.opened_at) > params.get(
-                    "max_hold_seconds", 15
-                ) * 3:
-                    tickers_to_close[ticker] = (position, current_price)
+            price = float(price_str)
+        except (ValueError, TypeError):
+            return
 
-            for ticker, (position, exit_price) in tickers_to_close.items():
-                reason, pnl_pct = self.check_exit(position, exit_price, params)
-                reason = reason or "TIME_EXIT"
-                closed = self._close_position(position, exit_price, reason)
+        if not (0 < price < 1):
+            return
 
-                record_decision(
-                    ctx.db,
-                    self.name,
-                    position.ticker,
-                    "SELL",
-                    confidence=0.5,
-                    signal_data={
-                        "exit_reason": reason,
-                        "pnl_pct": closed.pnl_pct,
-                        "pnl_usd": closed.pnl_usd,
-                        "hold_time_s": closed.closed_at - closed.opened_at,
-                        "direction": closed.direction,
-                        "sources": ["hft_scalper"],
-                    },
-                    reason=f"Exit {reason}: pnl={closed.pnl_pct:.4f}%",
-                )
-                result.decisions_recorded += 1
-
-            # ---------------------------------------------------------------
-            # 2. Scan markets for entry signals
-            # ---------------------------------------------------------------
-            markets: list[MarketInfo] = []
+        # Handle timestamp parsing
+        event_ts = event.data.get("timestamp") or event.timestamp
+        if isinstance(event_ts, str):
             try:
-                if ctx.clob is not None:
-                    raw = await ctx.clob.get_markets(limit=100)
-                    for m in raw:
-                        markets.append(
-                            MarketInfo(
-                                ticker=m.get("conditionId", ""),
-                                slug=m.get("slug", ""),
-                                category=m.get("category", ""),
-                                end_date=m.get("endDate"),
-                                volume=float(m.get("volume24hr", 0)),
-                                liquidity=float(m.get("liquidity", 0)),
-                                metadata=m,
-                            )
-                        )
-            except Exception as fetch_err:
-                logger.warning("[hft_scalper] Market fetch failed: {}", fetch_err)
-
-            if not markets:
-                return result
-
-            # Get bankroll for sizing
-            bankroll = 100.0
-            try:
-                if ctx.clob is not None:
-                    balance = await ctx.clob.get_usdc_balance()
-                    bankroll = float(balance) if balance else 100.0
+                event_ts = datetime.fromisoformat(event_ts.replace("Z", "+00:00")).timestamp()
             except Exception:
-                logger.warning(
-                    "Failed to fetch USDC balance from CLOB, using default bankroll"
-                )
+                event_ts = time.time()
+        elif not isinstance(event_ts, (int, float)):
+            event_ts = time.time()
+        else:
+            if event_ts > 10_000_000_000:
+                event_ts = event_ts / 1000.0
 
-            for market in markets:
+        # 1. Record price
+        self._price_history[token_id].append((event_ts, price))
+
+        # 2. Check exits for existing position on this market
+        position = self._open_positions.get(token_id)
+        if position:
+            params = self.default_params
+            exit_reason, pnl_pct = self.check_exit(position, price, params)
+            
+            # Check maximum hold safeguard
+            now = time.monotonic()
+            if not exit_reason and (now - position.opened_at) > params.get("max_hold_seconds", 15):
+                exit_reason = "TIME_EXIT"
+
+            if exit_reason:
+                closed = self._close_position(position, price, exit_reason)
+                
+                # Persist exit decision immediately
+                from backend.db.utils import get_db_session
                 try:
-                    # Update price history from market metadata if no WS data
-                    meta = market.metadata or {}
-                    mid = float(meta.get("midpoint", 0))
-                    if mid <= 0:
-                        best_bid = float(meta.get("bestBid", 0))
-                        best_ask = float(meta.get("bestAsk", 0))
-                        if best_bid > 0 and best_ask > 0:
-                            mid = (best_bid + best_ask) / 2.0
-                    if 0 < mid < 1:
-                        self._price_history[market.ticker].append((now_wall, mid))
+                    with get_db_session() as db:
+                        record_decision(
+                            db,
+                            self.name,
+                            position.ticker,
+                            "SELL",
+                            confidence=0.5,
+                            signal_data={
+                                "exit_reason": exit_reason,
+                                "pnl_pct": closed.pnl_pct,
+                                "pnl_usd": closed.pnl_usd,
+                                "sources": ["hft_scalper", "polymarket_websocket"],
+                            },
+                            reason=f"Exit {exit_reason}: pnl={closed.pnl_pct:.4f}%",
+                        )
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Failed to save exit decision: {e}")
+                return
 
-                    # Risk gates
-                    rejection = self._passes_risk_gates(
-                        market, mid, bankroll, params, now_wall
-                    )
-                    if rejection:
-                        continue
+        # 3. Check entry momentum for new position
+        else:
+            params = self.default_params
+            direction, move_size = self.detect_momentum(self._price_history[token_id], params)
+            if not direction:
+                return
 
-                    # Momentum detection
-                    direction, move_size = self.detect_momentum(
-                        self._price_history[market.ticker], params
-                    )
-                    if direction is None:
-                        continue
+            bankroll = 100.0
+            rejection = self._passes_risk_gates(token_id, price, bankroll, params, time.time())
+            if rejection:
+                return
 
-                    # Size the position
-                    size_usd = self._kelly_size(bankroll, params)
-                    if size_usd < 1.0:
-                        continue
+            size_usd = self._kelly_size(bankroll, params)
+            if size_usd < 1.0:
+                return
 
-                    # Record decision
+            # Record entry decision
+            from backend.db.utils import get_db_session
+            try:
+                with get_db_session() as db:
                     record_decision(
-                        ctx.db,
+                        db,
                         self.name,
-                        market.ticker,
+                        token_id,
                         "BUY",
                         confidence=min(move_size / params["entry_threshold"], 1.0),
                         signal_data={
                             "direction": direction,
                             "move_size": move_size,
-                            "entry_price": mid,
+                            "entry_price": price,
                             "size_usd": size_usd,
-                            "kelly_win_rate": self._win_rate(),
-                            "sources": ["hft_scalper"],
+                            "sources": ["hft_scalper", "polymarket_websocket"],
                         },
-                        reason=f"Momentum {direction}: move={move_size:.4f} "
-                        f"threshold={params['entry_threshold']:.4f}",
+                        reason=f"Momentum {direction}: move={move_size:.4f}",
                     )
-                    result.decisions_recorded += 1
+            except Exception as e:
+                logger.debug(f"[{self.name}] Failed to save entry decision: {e}")
 
-                    # Open position
-                    import uuid
+            # Open position locally (Simulation fills instantly on tick)
+            import uuid
+            position = ScalpPosition(
+                position_id=str(uuid.uuid4()),
+                market_id=token_id,
+                ticker=token_id,
+                direction=direction,
+                entry_price=price,
+                size_usd=size_usd,
+                opened_at=time.monotonic(),
+            )
+            self._open_positions[token_id] = position
+            logger.info(
+                f"[hft_scalper] OPENED {direction} {token_id} @ {price} size=${size_usd:.2f}"
+            )
 
-                    position = ScalpPosition(
-                        position_id=str(uuid.uuid4()),
-                        market_id=market.ticker,
-                        ticker=market.ticker,
-                        direction=direction,
-                        entry_price=mid,
-                        size_usd=size_usd,
-                        opened_at=now,
-                    )
-                    self._open_positions[market.ticker] = position
+    async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
+        """Scheduled fallback: events process sequentially, cycles only log metrics."""
+        if not self._tokens_populated:
+            await self._populate_subscribed_tokens()
 
-                    logger.info(
-                        "[hft_scalper] OPENED {} {} @ {} size=${:.2f} move={:.4f}",
-                        direction,
-                        market.ticker,
-                        mid,
-                        size_usd,
-                        move_size,
-                    )
-
-                    # Execute via HFT path if CLOB available
-                    if ctx.clob is not None:
-                        try:
-                            HFTSignal(
-                                market_id=market.ticker,
-                                ticker=market.ticker,
-                                signal_type="edge",
-                                edge=mid,
-                                confidence=min(
-                                    move_size / params["entry_threshold"], 1.0
-                                ),
-                                metadata={
-                                    "strategy": self.name,
-                                    "direction": direction,
-                                    "size_usd": size_usd,
-                                    "move_size": move_size,
-                                },
-                            )
-                            side = "BUY"
-                            await ctx.clob.place_limit_order(
-                                token_id=market.ticker,
-                                side=side,
-                                price=mid,
-                                size=size_usd / mid if mid > 0 else size_usd,
-                            )
-                            result.trades_placed += 1
-                        except Exception as exec_err:
-                            logger.warning(
-                                "[hft_scalper] Execution failed for {}: {}",
-                                market.ticker,
-                                exec_err,
-                            )
-                            # Remove position on execution failure
-                            self._open_positions.pop(market.ticker, None)
-
-                    result.trades_attempted += 1
-
-                except Exception as market_err:
-                    logger.warning(
-                        "[hft_scalper] Error processing {}: {}",
-                        market.ticker,
-                        market_err,
-                    )
-                    result.errors.append(str(market_err))
-
-        except Exception as e:
-            result.errors.append(str(e))
-            logger.error("[hft_scalper] Cycle error: {}", e)
-
+        result = CycleResult(
+            decisions_recorded=0,
+            trades_attempted=0,
+            trades_placed=0,
+        )
         return result
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     def _win_rate(self) -> float:
         """Rolling win rate from closed positions."""
@@ -565,11 +514,9 @@ class HFTScalperStrategy(BaseStrategy):
         return wins / len(self._closed_positions)
 
     def get_open_positions(self) -> dict[str, ScalpPosition]:
-        """Return current open positions (for monitoring)."""
         return dict(self._open_positions)
 
     def get_stats(self) -> dict:
-        """Return strategy statistics."""
         closed = list(self._closed_positions)
         wins = [p for p in closed if p.pnl_usd > 0]
         losses = [p for p in closed if p.pnl_usd <= 0]

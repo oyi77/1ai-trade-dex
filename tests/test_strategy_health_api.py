@@ -16,6 +16,19 @@ from backend.core.scheduling.scheduling_strategies import strategy_cycle_job
 
 
 @pytest.fixture(autouse=True)
+def force_test_session_local():
+    """Force all modules to use the central test sessionmaker to share the same in-memory DB."""
+    from tests.conftest import TestSessionLocal
+    from backend.models import database as _db_mod
+    from backend.db import utils as _db_utils_mod
+    from backend.core import heartbeat as _hb_mod
+
+    _db_mod.SessionLocal = TestSessionLocal
+    _db_utils_mod.SessionLocal = TestSessionLocal
+    _hb_mod.SessionLocal = TestSessionLocal
+
+
+@pytest.fixture(autouse=True)
 def setup_bot_states(db_session):
     """Ensure BotState records exist in the DB for the test."""
     from backend.config import settings
@@ -55,18 +68,21 @@ def test_update_and_flush_scan_stats(db_session):
     success = _flush_heartbeats()
     assert success is True
 
-    # Reload BotState and check misc_data
-    db_session.refresh(state)
-    assert state.misc_data is not None
-    misc = json.loads(state.misc_data)
-    
-    assert "scan_stats:btc_oracle" in misc
-    stats = misc["scan_stats:btc_oracle"]
-    assert stats["markets_scanned"] == 15
-    assert stats["signals_had_edge"] == 4
-    assert stats["signals_rejected"] == 1
-    assert stats["trades_executed"] == 3
-    assert "last_scan_time" in stats
+    # Reload BotState and check misc_data using a fresh database session
+    db_session.close()
+    from backend.models.database import SessionLocal
+    with SessionLocal() as fresh_db:
+        fresh_state = fresh_db.query(BotState).filter_by(mode="paper").first()
+        assert fresh_state.misc_data is not None
+        misc = json.loads(fresh_state.misc_data)
+        
+        assert "scan_stats:btc_oracle" in misc
+        stats = misc["scan_stats:btc_oracle"]
+        assert stats["markets_scanned"] == 15
+        assert stats["signals_had_edge"] == 4
+        assert stats["signals_rejected"] == 1
+        assert stats["trades_executed"] == 3
+        assert "last_scan_time" in stats
 
 
 def test_strategies_health_api_endpoint(test_app, db_session):
@@ -218,9 +234,8 @@ def test_strategies_compare_api_endpoint(test_app, db_session):
 
 
 @pytest.mark.asyncio
-@patch("backend.strategies.registry.STRATEGY_REGISTRY")
 @patch("backend.core.strategy_executor.execute_decisions")
-async def test_strategy_cycle_job_outcomes(mock_exec, mock_registry, db_session):
+async def test_strategy_cycle_job_outcomes(mock_exec, db_session):
     # Set up mock strategy
     mock_strategy_cls = MagicMock()
     mock_strategy = AsyncMock()
@@ -239,7 +254,8 @@ async def test_strategy_cycle_job_outcomes(mock_exec, mock_registry, db_session)
         markets_scanned=20,
     ))
     
-    mock_registry.get.return_value = mock_strategy_cls
+    from backend.strategies.registry import STRATEGY_REGISTRY
+    STRATEGY_REGISTRY["mock_strat"] = mock_strategy_cls
     
     # Mock executor decisions to execute 1 trade and reject 1
     mock_exec.return_value = [{"trade_id": 101}]
@@ -249,19 +265,26 @@ async def test_strategy_cycle_job_outcomes(mock_exec, mock_registry, db_session)
     db_session.add(cfg)
     db_session.commit()
     
-    # Run strategy cycle
-    await strategy_cycle_job("mock_strat", "paper")
+    try:
+        # Run strategy cycle
+        await strategy_cycle_job("mock_strat", "paper")
+    finally:
+        STRATEGY_REGISTRY.pop("mock_strat", None)
     
     # Verify update_scan_stats was updated
     # We flush heartbeats first
     _flush_heartbeats()
     
-    # Load BotState and check
-    state = db_session.query(BotState).filter_by(mode="paper").first()
-    misc = json.loads(state.misc_data)
-    assert "scan_stats:mock_strat" in misc
-    stats = misc["scan_stats:mock_strat"]
-    assert stats["markets_scanned"] == 20
-    assert stats["signals_had_edge"] == 2
-    assert stats["signals_rejected"] == 1
-    assert stats["trades_executed"] == 1
+    # Load BotState and check using a fresh database session
+    db_session.close()
+    from backend.models.database import SessionLocal
+    with SessionLocal() as fresh_db:
+        fresh_state = fresh_db.query(BotState).filter_by(mode="paper").first()
+        assert fresh_state.misc_data is not None
+        misc = json.loads(fresh_state.misc_data)
+        assert "scan_stats:mock_strat" in misc
+        stats = misc["scan_stats:mock_strat"]
+        assert stats["markets_scanned"] == 20
+        assert stats["signals_had_edge"] == 2
+        assert stats["signals_rejected"] == 1
+        assert stats["trades_executed"] == 1

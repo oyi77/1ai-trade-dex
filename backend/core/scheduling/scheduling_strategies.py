@@ -1169,7 +1169,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             )
 
             strategy = strategy_cls()
-            result = await strategy.run(ctx)
+            result = await asyncio.wait_for(strategy.run(ctx), timeout=60)
 
             # Record shadow trades in paper/testnet modes so AGI health check
             # can read win rate from ShadowTrade table.
@@ -1287,6 +1287,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         finally:
             _db_ctx.__exit__(None, None, None)
 
+    except asyncio.TimeoutError:
+        log_event("error", f"Strategy {strategy_name} cycle timed out (60s limit)")
+        logger.error(f"strategy_cycle_job({strategy_name}) timed out after 60s")
     except asyncio.CancelledError:
         logger.info(f"strategy_cycle_job({strategy_name}) cancelled during shutdown")
         return

@@ -47,6 +47,9 @@ if _is_postgres:
         {
             "pool_size": settings.POSTGRES_POOL_SIZE,
             "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "connect_args": {},
         }
     )
 else:
@@ -237,8 +240,8 @@ class Trade(Base):
     # Execution and cost tracking
     source = Column(String, default="bot", index=True)  # "bot", "user", "import"
     role = Column(String(10), default="unknown", index=True)  # maker, taker, unknown
-    maker_size = Column(Float, nullable=True)
-    taker_size = Column(Float, nullable=True)
+    # maker_size = Column(Float, nullable=True)  # DB column exists, model disabled - schema mismatch
+    # taker_size = Column(Float, nullable=True)  # DB column exists, model disabled - schema mismatch
     clob_order_id = Column(String, nullable=True, index=True)
     clob_idempotency_key = Column(String, nullable=True)
     filled_size = Column(Float, nullable=True)
