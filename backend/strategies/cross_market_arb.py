@@ -286,10 +286,24 @@ class CrossMarketArb(BaseStrategy):
 
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
                         opp.event_id = poly_m.get("conditionId", "")
+                        # Resolve Polymarket token_id for live execution
+                        poly_clob_token_ids = poly_m.get("clobTokenIds") or []
+                        if isinstance(poly_clob_token_ids, str):
+                            import json as _json
+                            try:
+                                poly_clob_token_ids = _json.loads(poly_clob_token_ids)
+                            except Exception:
+                                poly_clob_token_ids = []
+                        poly_token_id = str(poly_clob_token_ids[0]) if poly_clob_token_ids else None
                         global _consecutive_failures
                         if _consecutive_failures >= _FAILURE_THRESHOLD:
                             raise CircuitOpenError("cross_market_arb")
-                        result = await execute_cross_arb(opp, opp.event_id, ctx.clob)
+                        result = await execute_cross_arb(
+                            opp, opp.event_id,
+                            poly_clob=ctx.clob,
+                            poly_token_id=poly_token_id,
+                            size=self.default_params.get("position_size", 10.0),
+                        )
                         if result.get("success"):
                             matched += 1
                             _consecutive_failures = 0

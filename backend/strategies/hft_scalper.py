@@ -464,7 +464,7 @@ class HFTScalperStrategy(BaseStrategy):
             if not direction:
                 return
 
-            bankroll = 100.0
+            bankroll = getattr(self, '_bankroll', 100.0)
             rejection = self._passes_risk_gates(token_id, price, bankroll, params, time.time())
             if rejection:
                 return
