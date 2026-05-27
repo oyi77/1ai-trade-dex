@@ -312,6 +312,15 @@ def _normalize_pm_markets(
         yes_price, no_price = _extract_yes_no_from_outcome_prices(m)
         if yes_price is None:
             continue
+        # Extract clobTokenIds for live CLOB execution
+        clob_token_ids = m.get("clobTokenIds") or []
+        if isinstance(clob_token_ids, str):
+            import json as _json
+            try:
+                clob_token_ids = _json.loads(clob_token_ids)
+            except Exception:
+                clob_token_ids = []
+
         normalized.append({
             "question": m.get("question", ""),
             "event_id": str(m.get("conditionId", m.get("id", ""))),
@@ -321,6 +330,7 @@ def _normalize_pm_markets(
             "fee_pct": fee_pct,
             "liquidity": float(m.get("liquidity", 0) or 0),
             "volume": float(m.get("volume", 0) or 0),
+            "clobTokenIds": clob_token_ids,
             "_raw": m,
         })
     return normalized

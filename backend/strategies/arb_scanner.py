@@ -27,11 +27,10 @@ class ArbScannerStrategy(BaseStrategy):
         super().__init__()
         self._token_cache: dict = {}  # event_id -> market data with clobTokenIds
 
-    async def _resolve_token_id(self, event_id: str) -> tuple[str | None, str | None]:
-        """Resolve token_id and platform from event_id by looking up market data.
+    async def _resolve_token_id(self, event_id: str, scanner=None) -> tuple[str | None, str | None]:
+        """Resolve token_id and platform from event_id using scanner's cached market data.
 
         Returns (token_id, platform) or (None, None) if not found.
-        Caches results to avoid repeated lookups.
         """
         if not event_id:
             return None, None
@@ -40,31 +39,15 @@ class ArbScannerStrategy(BaseStrategy):
             cached = self._token_cache[event_id]
             return cached.get("token_id"), cached.get("platform")
 
-        try:
-            from backend.data.gamma import fetch_markets
-
-            markets = await fetch_markets(limit=200)
-            for m in markets:
-                slug = m.get("slug", "")
-                condition_id = m.get("condition_id", "")
-                if slug == event_id or condition_id == event_id:
-                    clob_token_ids = m.get("clobTokenIds") or []
-                    if isinstance(clob_token_ids, str):
-                        import json as _json
-                        try:
-                            clob_token_ids = _json.loads(clob_token_ids)
-                        except Exception:
-                            clob_token_ids = []
-                    if clob_token_ids:
-                        token_id = str(clob_token_ids[0])  # YES token
-                        self._token_cache[event_id] = {
-                            "token_id": token_id,
-                            "platform": "polymarket",
-                        }
-                        return token_id, "polymarket"
-                    break
-        except Exception as e:
-            logger.debug(f"[arb_scanner] token resolution failed for {event_id}: {e}")
+        # Search scanner's cached normalized markets (has clobTokenIds from Gamma)
+        if scanner and hasattr(scanner, "_last_scan") and scanner._last_scan:
+            for opp in scanner._last_scan.opportunities:
+                if opp.event_id == event_id and opp.token_id:
+                    self._token_cache[event_id] = {
+                        "token_id": opp.token_id,
+                        "platform": opp.platform,
+                    }
+                    return opp.token_id, opp.platform
 
         self._token_cache[event_id] = {"token_id": None, "platform": None}
         return None, None
@@ -142,11 +125,10 @@ class ArbScannerStrategy(BaseStrategy):
                     "model_probability": 0.5 + opp.net_profit_pct,
                 }
 
-                # Resolve token_id for live CLOB execution
-                token_id, platform = await self._resolve_token_id(opp.event_id)
-                if token_id:
-                    decision["token_id"] = token_id
-                    decision["platform"] = platform or "polymarket"
+                # Use token_id from opportunity (resolved during scan)
+                if opp.token_id:
+                    decision["token_id"] = opp.token_id
+                    decision["platform"] = opp.platform or "polymarket"
 
                 decisions.append(decision)
 
