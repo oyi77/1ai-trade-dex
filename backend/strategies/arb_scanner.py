@@ -122,7 +122,7 @@ class ArbScannerStrategy(BaseStrategy):
                     "details": opp.details,
                     "size": size_usd,
                     "market_type": "arb",
-                    "model_probability": 0.5 + opp.net_profit_pct,
+                    "model_probability": min(1.0, max(0.0, 0.5 + opp.net_profit_pct)),
                 }
 
                 # Use token_id from opportunity (resolved during scan)
