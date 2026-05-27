@@ -623,13 +623,13 @@ def auto_disable_losing_strategies():
 
 
 async def _cleanup_stale_trades_job():
-    """Settle trades older than 24h that are still open. Prevents stale accumulation."""
+    """Settle trades older than 12h that are still open. Prevents stale accumulation."""
     from backend.db.utils import get_db_session
     from backend.models.database import Trade
 
     try:
         with get_db_session() as db:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
             stale = (
                 db.query(Trade)
                 .filter(Trade.settled.is_(False), Trade.created_at < cutoff)
@@ -643,7 +643,7 @@ async def _cleanup_stale_trades_job():
                     t.resolved_at = datetime.now(timezone.utc)
                 db.commit()
                 logger.info(
-                    f"[stale_trade_cleanup] Auto-settled {len(stale)} stale trades (>24h)"
+                    f"[stale_trade_cleanup] Auto-settled {len(stale)} stale trades (>12h)"
                 )
     except Exception as e:
         logger.warning(f"[stale_trade_cleanup] Failed: {e}")
@@ -725,15 +725,15 @@ def start_scheduler():
             f"(dry_run={getattr(settings, 'AUTO_REDEEM_DRY_RUN', True)})"
         )
 
-    # Stale trade cleanup: settle trades older than 24h to prevent accumulation
+    # Stale trade cleanup: settle trades older than 12h to prevent accumulation
     _persist_and_add_job(
         scheduler,
         _cleanup_stale_trades_job,
-        IntervalTrigger(hours=1),
+        IntervalTrigger(minutes=15),
         id="stale_trade_cleanup",
         max_instances=1,
         replace_existing=True,
-        misfire_grace_time=300,
+        misfire_grace_time=60,
     )
 
     from backend.core.mode_context import list_contexts
