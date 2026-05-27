@@ -24,7 +24,7 @@ from backend.ai.training.model_trainer import ModelTrainer
 
 from loguru import logger
 from backend.core.log import configure_logging
-from joblib import joblib
+import joblib
 
 
 def _split(

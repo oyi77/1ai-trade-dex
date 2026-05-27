@@ -3,7 +3,7 @@ import json
 import os
 from typing import Tuple
 from backend.core.errors import PolyEdgeException
-from pickle import pickle
+import pickle
 
 MODEL_HASHES_PATH = os.path.join(
     os.path.dirname(__file__), "models", "model_hashes.json"

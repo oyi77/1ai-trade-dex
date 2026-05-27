@@ -16,7 +16,7 @@ from backend.models.outcome_tables import ProposalFeedback, ParamChange
 from loguru import logger
 from backend.db.utils import get_db_session
 from contextlib import nullcontext
-from statistics import statistics
+import statistics
 
 MIN_TRADES_TO_MEASURE = 5
 ROLLBACK_WR_THRESHOLD = -0.05

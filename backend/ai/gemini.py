@@ -5,7 +5,7 @@ import httpx
 from backend.config import settings
 
 from loguru import logger
-from re import re
+import re
 
 
 class GeminiProvider:

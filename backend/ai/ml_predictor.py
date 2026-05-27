@@ -15,7 +15,7 @@ import numpy as np
 from backend.ai.training.feature_engineering import FeatureEngineer
 
 from loguru import logger
-from joblib import joblib
+import joblib
 
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "ml_predictor.pkl"
