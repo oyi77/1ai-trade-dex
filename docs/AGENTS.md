@@ -23,7 +23,7 @@ Project documentation — architecture decision records, API reference, operatio
 | `api-versioning.md` | API versioning policy |
 | `fee-calculation.md` | Exchange fee calculation methodology |
 | `validation-implementation.md` | Input validation implementation notes |
-| `postgresql-migration-plan.md` | Future PostgreSQL migration plan (not yet executed) |
+| `postgresql-migration-plan.md` | PostgreSQL migration plan and execution notes |
 
 ## Subdirectories
 

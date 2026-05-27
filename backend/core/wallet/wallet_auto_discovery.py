@@ -154,25 +154,29 @@ async def auto_add_profitable_wallets(
         limit=max_wallets,
     )
 
+    # Batch check existing wallets (single query instead of N)
+    suggested_addrs = [w["address"] for w in suggested]
+    existing_addrs = set(
+        row[0] for row in
+        db.query(WalletConfig.address)
+        .filter(WalletConfig.address.in_(suggested_addrs))
+        .all()
+    )
+
     # Add to database
     added = []
     for wallet in suggested:
-        existing = (
-            db.query(WalletConfig)
-            .filter(WalletConfig.address == wallet["address"])
-            .first()
+        if wallet["address"] in existing_addrs:
+            continue
+        new_wallet = WalletConfig(
+            address=wallet["address"],
+            pseudonym=f"Auto-{wallet['address'][:6]}",
+            enabled=auto_enable,
+            tags=["auto-discovered"],
+            notes=f"Auto-added: P&L ${wallet['pnl']:,.0f}, Win Rate {wallet['win_rate']:.1%}",
         )
-
-        if not existing:
-            new_wallet = WalletConfig(
-                address=wallet["address"],
-                pseudonym=f"Auto-{wallet['address'][:6]}",
-                enabled=auto_enable,
-                tags=["auto-discovered"],
-                notes=f"Auto-added: P&L ${wallet['pnl']:,.0f}, Win Rate {wallet['win_rate']:.1%}",
-            )
-            db.add(new_wallet)
-            added.append(wallet)
+        db.add(new_wallet)
+        added.append(wallet)
 
     db.commit()
 

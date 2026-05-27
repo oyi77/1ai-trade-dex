@@ -48,23 +48,17 @@ class AzuroActivitySource(BaseActivitySource):
         super().__init__(wallet_address, "azuro")
         self._client = azuro_client
         self._seen_bets: set[str] = set()
-        self._poll_interval = 15  # seconds
 
     async def _run(self):
         if not self._client:
             logger.warning("[azuro] No client provided, skipping activity source")
             return
+        self.create_subtask(self.throttled_loop(self._poll_cycle))
         while self._running:
-            try:
-                await self._poll_bets()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"[azuro] Activity poll error: {e}")
-            await asyncio.sleep(self._poll_interval)
+            await asyncio.sleep(1)
 
-    async def _poll_bets(self):
-        """Poll subgraph for recent bets by wallet."""
+    async def _poll_cycle(self):
+        """Single iteration of subgraph bet polling."""
         variables = {
             "bettor": self.wallet_address.lower(),
             "first": 50,

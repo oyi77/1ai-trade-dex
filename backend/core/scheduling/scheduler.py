@@ -492,20 +492,30 @@ def auto_disable_losing_strategies():
     try:
         since = datetime.now(timezone.utc) - timedelta(hours=24)
         with get_db_session() as db:
-            for config in (
-                db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
-            ):
-                for mode in settings.active_modes_set:
-                    trades = (
-                        db.query(Trade)
-                        .filter(
-                            Trade.strategy == config.strategy_name,
-                            Trade.settled,
-                            Trade.timestamp >= since,
-                            Trade.trading_mode == mode,
-                        )
-                        .all()
-                    )
+            # Batch fetch enabled configs and active modes
+            enabled_configs = db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
+            strategy_names = [c.strategy_name for c in enabled_configs]
+            active_modes = list(settings.active_modes_set)
+
+            # Single batch query grouped by (strategy_name, trading_mode)
+            all_trades = db.query(Trade).filter(
+                Trade.strategy.in_(strategy_names),
+                Trade.settled,
+                Trade.timestamp >= since,
+                Trade.trading_mode.in_(active_modes),
+            ).all()
+
+            trades_by_key: dict[tuple[str, str], list] = {}
+            for t in all_trades:
+                trades_by_key.setdefault((t.strategy, t.trading_mode), []).append(t)
+
+            # Fetch maker/taker stats once before the loop
+            from backend.core.maker_taker_analytics import maker_taker_analytics
+            mt_stats = maker_taker_analytics.get_stats(db)
+
+            for config in enabled_configs:
+                for mode in active_modes:
+                    trades = trades_by_key.get((config.strategy_name, mode), [])
 
                     if len(trades) < min_trades:
                         continue
@@ -532,9 +542,7 @@ def auto_disable_losing_strategies():
                         )
                         break
                     else:
-                        # Maker/Taker ROI audit — full history, min 20 settled trades per role
-                        from backend.core.maker_taker_analytics import maker_taker_analytics
-                        mt_stats = maker_taker_analytics.get_stats(db)
+                        # Maker/Taker ROI audit — uses pre-fetched stats
                         recommendation = mt_stats.get("recommendation", "insufficient_data")
                         maker_info = mt_stats.get("maker", {})
                         taker_info = mt_stats.get("taker", {})

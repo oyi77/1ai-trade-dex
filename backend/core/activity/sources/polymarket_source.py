@@ -19,6 +19,7 @@ class PolymarketActivitySource(BaseActivitySource):
         self._seen_orders: set[str] = set()
         self._last_transfer_block: int = 0
         self._ws_connected = False
+        self._pm_last_balance: float | None = None
 
     async def _run(self):
         try:
@@ -26,11 +27,11 @@ class PolymarketActivitySource(BaseActivitySource):
             async with self._clob:
                 # Try WS first, fall back to REST polling
                 self.create_subtask(self._ws_fills_loop())
-                # Polygon transfer events (deposits/withdrawals)
+                # Polygon transfer events (deposits/withdrawals) — throttled
                 if self._w3:
-                    self.create_subtask(self._transfer_loop())
+                    self.create_subtask(self.throttled_loop(self._transfer_cycle))
                 else:
-                    self.create_subtask(self._clob_balance_loop())
+                    self.create_subtask(self.throttled_loop(self._clob_balance_cycle))
 
                 while self._running:
                     await asyncio.sleep(1)
@@ -155,73 +156,64 @@ class PolymarketActivitySource(BaseActivitySource):
                 logger.warning(f"[polymarket] REST fills loop error: {e}")
             await asyncio.sleep(5)
 
-    async def _transfer_loop(self):
-        """Poll Polygon Transfer events for deposit/withdrawal."""
+    async def _transfer_cycle(self):
+        """Single iteration of Polygon Transfer event polling."""
         USDC_CONTRACT = USDC_E_ADDRESS
         TRANSFER_TOPIC = ERC20_TRANSFER_TOPIC
         WALLET_LOWER = self.wallet_address.lower()
 
-        last_block = self._last_transfer_block or await self._w3.eth.block_number
-        while self._running:
-            try:
-                current = await self._w3.eth.block_number
-                logs = await self._w3.eth.get_logs({
-                    "address": USDC_CONTRACT,
-                    "topics": [TRANSFER_TOPIC],
-                    "fromBlock": last_block,
-                    "toBlock": current,
-                })
-                for log in logs:
-                    tx_hash = log.transactionHash.hex()
-                    if tx_hash in self._seen_orders:
-                        continue
-                    self._seen_orders.add(tx_hash)
+        if self._last_transfer_block == 0:
+            self._last_transfer_block = await self._w3.eth.block_number
 
-                    to_addr = log.topics[2].hex()[-40:].lower()
-                    from_addr = log.topics[1].hex()[-40:].lower()
-                    is_deposit = (to_addr == WALLET_LOWER)
-                    event_type = "deposit" if is_deposit else "withdrawal"
-                    amount = abs(int(log.data, 16)) / 1e6
+        current = await self._w3.eth.block_number
+        logs = await self._w3.eth.get_logs({
+            "address": USDC_CONTRACT,
+            "topics": [TRANSFER_TOPIC],
+            "fromBlock": self._last_transfer_block,
+            "toBlock": current,
+        })
+        for log in logs:
+            tx_hash = log.transactionHash.hex()
+            if tx_hash in self._seen_orders:
+                continue
+            self._seen_orders.add(tx_hash)
 
-                    if amount < BALANCE_DELTA_THRESHOLD:
-                        continue
+            to_addr = log.topics[2].hex()[-40:].lower()
+            from_addr = log.topics[1].hex()[-40:].lower()
+            is_deposit = (to_addr == WALLET_LOWER)
+            event_type = "deposit" if is_deposit else "withdrawal"
+            amount = abs(int(log.data, 16)) / 1e6
 
-                    event = ActivityEvent(
-                        source="polymarket",
-                        event_type=event_type,
-                        wallet_address=self.wallet_address,
-                        platform="polymarket",
-                        amount=amount,
-                        token="USDC",
-                        tx_hash=tx_hash,
-                        raw_data={"blockNumber": log.blockNumber, "log": str(log)},
-                    )
-                    await self._emit(event)
-                last_block = current + 1
-            except Exception as e:
-                logger.warning(f"[polymarket] Transfer loop error: {e}")
-            await asyncio.sleep(3)
+            if amount < BALANCE_DELTA_THRESHOLD:
+                continue
 
-    async def _clob_balance_loop(self):
-        """Fallback: poll CLOB balance endpoint for changes."""
-        last = None
-        while self._running:
-            try:
-                bal = await self._clob.get_wallet_balance()
-                balance = float(bal.get("usdc_balance", 0))
-                if last is not None:
-                    result = self.detect_balance_delta(balance, last)
-                    if result:
-                        event_type, amount = result
-                        await self._emit(ActivityEvent(
-                            source="polymarket",
-                            event_type=event_type,
-                            wallet_address=self.wallet_address,
-                            platform="polymarket",
-                            amount=amount,
-                            token="USDC",
-                        ))
-                last = balance
-            except Exception as e:
-                logger.warning(f"[polymarket] Balance loop error: {e}")
-            await asyncio.sleep(10)
+            event = ActivityEvent(
+                source="polymarket",
+                event_type=event_type,
+                wallet_address=self.wallet_address,
+                platform="polymarket",
+                amount=amount,
+                token="USDC",
+                tx_hash=tx_hash,
+                raw_data={"blockNumber": log.blockNumber, "log": str(log)},
+            )
+            await self._emit(event)
+        self._last_transfer_block = current + 1
+
+    async def _clob_balance_cycle(self):
+        """Single iteration of CLOB balance polling."""
+        bal = await self._clob.get_wallet_balance()
+        balance = float(bal.get("usdc_balance", 0))
+        if self._pm_last_balance is not None:
+            result = self.detect_balance_delta(balance, self._pm_last_balance)
+            if result:
+                event_type, amount = result
+                await self._emit(ActivityEvent(
+                    source="polymarket",
+                    event_type=event_type,
+                    wallet_address=self.wallet_address,
+                    platform="polymarket",
+                    amount=amount,
+                    token="USDC",
+                ))
+        self._pm_last_balance = balance

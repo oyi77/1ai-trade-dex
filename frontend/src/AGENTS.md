@@ -26,7 +26,7 @@ React application source root. Defines the main application structure with React
 | `components/` | Reusable React components — UI building blocks (NavBar, SignalsTable, TradesTable, DataTable, charts, modals, tabs for Admin and Dashboard) |
 | `pages/` | Page-level components — full screens (Landing, Dashboard, Admin, WhaleTracker, Settlements, MarketIntel, DecisionLog, TradingTerminal, PendingApprovals, EdgeTracker, Backtest) |
 | `hooks/` | Custom React hooks — `useAuth`, `useWebSocket`, `useStats`, `useTradeEvents`, `useTableQuery` |
-| `test/` | Test setup and test files — `setup.ts`, `mocks.ts`, component and hook unit tests, API mocks |
+| `test/` | Test setup and test files — `setup.ts`, `mocks.ts`, component and hook unit tests, API mocks (see `test/AGENTS.md`) |
 
 ## For AI Agents
 
@@ -36,14 +36,14 @@ React application source root. Defines the main application structure with React
 - Admin operations require `Authorization: Bearer {token}` header injected by `adminApi` interceptor
 - Types must be imported from `types.ts` — keep types.ts as the single source of truth
 - Lazy routes in App.tsx use React.lazy() + Suspense; add new pages here before creating the file
-- Service worker managed by `sw.ts` — handles offline caching and push notifications. Production registration first verifies `/sw.js` returns JavaScript so Vite's SPA HTML fallback is not registered as a service-worker script.
+- Service worker managed by `sw.ts` — handles offline caching and push notifications.
 
 ### Testing Requirements
 - Component tests in `test/` use Vitest + React Testing Library
 - Mock API calls in test files using fixtures from `test/mocks.ts`
 - Test data should reflect real API shapes (use `types.ts` shapes)
 - WebSocket tests use mock event emitter pattern
-- E2E tests in `frontend/e2e/` cover full user workflows; unit tests focus on component logic
+- E2E tests in `frontend/e2e/` cover full user workflows (Playwright); unit tests focus on component logic
 
 ### Common Patterns
 - All async data loading uses custom hooks (useStats, useTableQuery, useWebSocket)
@@ -57,10 +57,10 @@ React application source root. Defines the main application structure with React
 
 ### Internal
 - Backend API: `GET /api/dashboard`, `/api/signals`, `/api/trades`, `/api/wallets`, `/api/admin/*` endpoints
-- Backend WebSocket: `wss://` market data and event streams
-- `frontend/e2e/` — Playwright specs for routing and dashboard rendering
-- `frontend/hooks/` — useAuth, useWebSocket, useStats, useTableQuery
-- `frontend/components/` — 30+ reusable UI components
+- Backend WebSocket: market data and event streams
+- `e2e/` — Playwright specs for routing and dashboard rendering
+- `hooks/` — useAuth, useWebSocket, useStats, useTableQuery
+- `components/` — 30+ reusable UI components
 
 ### External
 - `react@18`, `react-router-dom@7` — routing and navigation

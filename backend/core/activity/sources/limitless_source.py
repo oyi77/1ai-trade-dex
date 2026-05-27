@@ -15,28 +15,18 @@ class LimitlessActivitySource(BaseActivitySource):
         super().__init__(wallet_address, "limitless")
         self._client = limitless_client
         self._seen_orders: set[str] = set()
-        self._poll_interval = 10  # seconds
 
     async def _run(self):
         if not self._client:
             logger.warning("[limitless] No client provided, skipping activity source")
             return
+        self.create_subtask(self.throttled_loop(self._poll_cycle))
         while self._running:
-            try:
-                await self._poll_trades()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"[limitless] Activity poll error: {e}")
-            await asyncio.sleep(self._poll_interval)
+            await asyncio.sleep(1)
 
-    async def _poll_trades(self):
-        """Poll Limitless REST API for recent fills by wallet."""
-        try:
-            fills = await self._client.get_fills(self.wallet_address)
-        except Exception as e:
-            logger.warning(f"[limitless] get_fills error: {e}")
-            return
+    async def _poll_cycle(self):
+        """Single iteration of trade polling."""
+        fills = await self._client.get_fills(self.wallet_address)
 
         for fill in fills:
             order_id = fill.get("id", fill.get("orderId", ""))

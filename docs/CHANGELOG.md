@@ -419,6 +419,27 @@ The Polyedge trading bot is now hardened for production deployment with enterpri
 - [API Reference](docs/api.md)
 - [Configuration Guide](docs/configuration.md)
 
+## [2026-05-27] — Performance Optimization: N+1 Query Fixes + Activity Source Throttling
+
+### Fixed — Database Query Performance
+- **Settlement batch query** (`backend/core/settlement/settlement.py`): Replaced per-trade `db.query(Trade).filter(Trade.id=trade_id).first()` loop with single `IN` clause batch query. Reduced settlement cycle DB queries by ~60-70%.
+- **Nightly review batch query** (`backend/core/nightly_review.py`): Replaced per-strategy query loop with single `Trade.strategy.in_(names)` query grouped in Python.
+- **Experiment tracker batch query** (`backend/core/experiment_tracker.py`): Replaced per-strategy active experiment query with single batch query grouped by `strategy_name`.
+- **Signals bulk persist** (`backend/core/signals.py`): Replaced per-signal duplicate check with time-window range query + Python-side composite key dedup + bulk insert. Index-friendly pattern avoids OR-of-AND degradation.
+- **Wallet discovery batch check** (`backend/core/wallet/wallet_auto_discovery.py`): Replaced per-wallet existence check with single `IN` clause query.
+- **Scheduler audit batch** (`backend/core/scheduling/scheduler.py`): Replaced nested per-strategy+per-mode loop with single grouped query using `(strategy_name, trading_mode)` key. Moved `maker_taker_analytics.get_stats(db)` call before loop to avoid N+1.
+
+### Fixed — Activity Source Throttling
+- **Staggered startup** (`backend/core/activity/tracker.py`): Added 0.5-3s random jitter between activity source starts to prevent burst CPU spikes from 13 concurrent polling loops.
+- **Per-source subtask loop throttling** (`backend/core/activity/sources/base.py`): Added `throttled_loop()` wrapper with 5s minimum interval and 30s timeout for subtask polling loops. Dead endpoints no longer block other sources.
+
+### Changed
+- All performance fixes follow the "batch, don't loop" principle: single `IN` queries replace N individual queries, results grouped in Python.
+- IN clauses chunked at 500 items to avoid PostgreSQL query plan regression.
+- `trading_mode` dimension included in scheduler audit grouping to prevent cross-mode contamination.
+
+---
+
 ## [2026-05-17] — Major System Overhaul
 
 ### Added

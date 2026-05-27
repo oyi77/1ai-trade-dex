@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-07 | Updated: 2026-05-10 -->
+<!-- Updated: 2026-05-27 -->
 
 # scripts
 
@@ -14,15 +14,9 @@ Chart generation and video production scripts for the research paper.
 | `generate_charts.py` | Generates all paper figures from experiment data |
 | `video_script.md` | Script for the abstract video narration |
 
-## Subdirectories
-
-None.
-
 ## For AI Agents
 
 ### Working In This Directory
-- Read `data/` for input, write to `figures/` for output
-- Run with `python scripts/generate_charts.py`
+- Read `../data/` for input, write to `../figures/` for output
+- Run with `python generate_charts.py` from this directory
 - Video generation requires ffmpeg
-
-<!-- MANUAL: -->

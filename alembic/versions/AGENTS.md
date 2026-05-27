@@ -1,20 +1,16 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-05-17 | Updated: 2026-05-17 -->
+<!-- Updated: 2026-05-27 -->
 
 # alembic/versions
 
 ## Purpose
-Alembic migration version scripts for the root-level database schema. Each file is a numbered migration that upgrades or downgrades the database schema.
+Alembic migration version scripts for the root-level database schema. Each file is a numbered migration that upgrades or downgrades the database schema. This is a legacy/secondary migration directory — primary migrations live in `backend/alembic/versions/`.
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
 | `46ed961e0cde_initial_schema.py` | Initial database schema migration |
-
-## Subdirectories
-
-None.
 
 ## For AI Agents
 
@@ -23,13 +19,13 @@ None.
 - Run migrations with `alembic upgrade head`
 - Never modify a migration that has already been applied to production
 - For new migrations, ensure `upgrade()` and `downgrade()` are both implemented
-- The primary migration directory for the backend is `backend/alembic/versions/` -- this root `alembic/` may be a legacy or secondary setup
+- **Prefer `backend/alembic/versions/` for new migrations** — this root `alembic/` is legacy
 
 ## Dependencies
 
 ### Internal
-- `../backend/db/` -- SQLAlchemy models that drive autogenerate
+- `backend/db/` — SQLAlchemy models that drive autogenerate
 
 ### External
-- `alembic` -- Database migration framework
-- `sqlalchemy` -- ORM for schema definitions
+- `alembic` — Database migration framework
+- `sqlalchemy` — ORM for schema definitions

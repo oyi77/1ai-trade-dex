@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import asyncio
+import random
 from typing import Callable, Optional
 
 from backend.core.activity.models import ActivityEvent
@@ -28,10 +29,14 @@ class ActivityTracker:
         self._handlers.append(handler)
 
     async def start_all(self):
-        """Start all registered sources."""
-        for name, source in self._sources.items():
+        """Start all registered sources with staggered jitter to avoid burst."""
+        for i, (name, source) in enumerate(self._sources.items()):
             try:
                 await source.start()
+                # Stagger: 0.5-3s jitter between each source start
+                if i < len(self._sources) - 1:
+                    jitter = random.uniform(0.5, 3.0)
+                    await asyncio.sleep(jitter)
             except Exception as e:
                 logger.error(f"[ActivityTracker] Failed to start {name}: {e}")
 

@@ -242,15 +242,22 @@ class ExperimentTracker:
         for c in candidates:
             by_strategy.setdefault(c.strategy_name, []).append(c)
 
-        for strategy_name, strategy_candidates in by_strategy.items():
-            active = (
+        # Batch fetch all active experiments for strategies with candidates
+        active_by_strategy: dict[str, Experiment] = {}
+        if by_strategy:
+            all_active = (
                 db.query(Experiment)
                 .filter(
-                    Experiment.strategy_name == strategy_name,
+                    Experiment.strategy_name.in_(list(by_strategy.keys())),
                     Experiment.status == "active",
                 )
-                .first()
+                .all()
             )
+            for a in all_active:
+                active_by_strategy[a.strategy_name] = a
+
+        for strategy_name, strategy_candidates in by_strategy.items():
+            active = active_by_strategy.get(strategy_name)
 
             active_sharpe = 0.0
             if active and active.metrics_json:

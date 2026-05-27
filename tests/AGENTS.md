@@ -19,11 +19,19 @@ Python pytest test suite: strategy execution, settlement, reconciliation, API en
 
 ## KEY TEST FILES
 
-- `test_strategy_executor.py` (1150 LOC) — Executor tests (largest)
-- `test_queue/` — Job queue tests
+- `test_settlement.py` — Settlement logic tests
+- `test_settlement_phase2.py` — Phase 2 settlement tests
+- `test_signal_engine.py` — Signal engine tests
+- `test_signal_parser.py` — Signal parser tests
+- `test_risk_manager_coverage.py` — Risk manager coverage tests
+- `test_polymarket_clob.py` — Polymarket CLOB tests
+- `test_copy_trader.py` — Copy trader tests
+- `test_telegram_bot.py` — Telegram bot tests
+- `test_agi_autonomous_loop.py` — AGI autonomous loop tests
+- `test_graceful_shutdown.py` — Graceful shutdown tests
 - `reliability/` — Error recovery tests
-- `SHUTDOWN_TEST_RESULTS.md` — Recent test run results
-- `TASK_32_COMPLETION.md` — Test completion tracking
+- `fixtures/` — Test data fixtures
+- `load/` — Load testing scripts
 
 ## CONVENTIONS
 
@@ -66,10 +74,10 @@ pytest tests/ --tb=short                      # Short traceback
 
 ## Current Test State (May 2026)
 
-### Strategy Gate — 0 tests (GAP G-22)
-`strategy_gate.py` has no unit tests. Needs coverage.
-
-### Key Areas Needing Tests
-- StrategyGate.can_execute_live()
-- check_risk_and_disable()
-- resolve_paper_trades()
+### Coverage Areas
+- Settlement logic and reconciliation
+- Signal engine and parser
+- Risk manager validation
+- Copy trading and wallet APIs
+- WebSocket and real-time updates
+- Graceful shutdown and error recovery

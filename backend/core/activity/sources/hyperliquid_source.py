@@ -15,6 +15,7 @@ class HyperliquidActivitySource(BaseActivitySource):
         super().__init__(wallet_address, "hyperliquid")
         self._client = client
         self._seen_fills: set[str] = set()
+        self._hl_last_balance = None
 
     async def _run(self):
         try:
@@ -22,8 +23,8 @@ class HyperliquidActivitySource(BaseActivitySource):
             self._client.subscribe_user_fills(self._on_fill)
             # Subscribe to order updates
             self._client.subscribe_order_updates(self._on_order_update)
-            # Balance events
-            self.create_subtask(self._balance_loop())
+            # Balance events — throttled polling
+            self.create_subtask(self.throttled_loop(self._balance_cycle))
 
             while self._running:
                 await asyncio.sleep(1)
@@ -59,27 +60,21 @@ class HyperliquidActivitySource(BaseActivitySource):
         """Order fill/close events."""
         pass  # Hyperliquid handles fills via subscribe_user_fills
 
-    async def _balance_loop(self):
-        """Poll balance for delta detection."""
-        last = None
-        while self._running:
-            try:
-                bal = await self._client.get_balance()
-                if last is not None:
-                    result = self.detect_balance_delta(float(bal.total_equity), float(last.total_equity))
-                    if result:
-                        event_type, amount = result
-                        event = ActivityEvent(
-                            source="hyperliquid",
-                            event_type=event_type,
-                            wallet_address=self.wallet_address,
-                            platform="hyperliquid",
-                            amount=amount,
-                            token="USDC",
-                            raw_data={"balance": bal},
-                        )
-                        await self._emit(event)
-                last = bal
-            except Exception as e:
-                logger.warning(f"[hyperliquid] Balance loop error: {e}")
-            await asyncio.sleep(5)
+    async def _balance_cycle(self):
+        """Single iteration of balance polling for delta detection."""
+        bal = await self._client.get_balance()
+        if self._hl_last_balance is not None:
+            result = self.detect_balance_delta(float(bal.total_equity), float(self._hl_last_balance.total_equity))
+            if result:
+                event_type, amount = result
+                event = ActivityEvent(
+                    source="hyperliquid",
+                    event_type=event_type,
+                    wallet_address=self.wallet_address,
+                    platform="hyperliquid",
+                    amount=amount,
+                    token="USDC",
+                    raw_data={"balance": bal},
+                )
+                await self._emit(event)
+        self._hl_last_balance = bal

@@ -111,17 +111,23 @@ class NightlyReviewWriter:
         try:
             week_ago = now - timedelta(days=lookback_days)
             configs = db.query(StrategyConfig).all()
-            for cfg in configs:
-                trades = (
-                    db.query(Trade)
-                    .filter(
-                        Trade.strategy == cfg.strategy_name,
-                        Trade.timestamp >= week_ago,
-                        Trade.settled.is_(True),
-                        Trade.trading_mode == "live",
-                    )
-                    .all()
+            strategy_names = [cfg.strategy_name for cfg in configs]
+            all_trades = (
+                db.query(Trade)
+                .filter(
+                    Trade.strategy.in_(strategy_names),
+                    Trade.timestamp >= week_ago,
+                    Trade.settled.is_(True),
+                    Trade.trading_mode == "live",
                 )
+                .all()
+            ) if strategy_names else []
+            trades_by_strategy: dict[str, list] = {}
+            for t in all_trades:
+                trades_by_strategy.setdefault(t.strategy, []).append(t)
+
+            for cfg in configs:
+                trades = trades_by_strategy.get(cfg.strategy_name, [])
                 settled = [t for t in trades if t.result in ("win", "loss")]
                 if not settled:
                     continue

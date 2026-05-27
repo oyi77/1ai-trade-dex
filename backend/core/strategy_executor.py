@@ -287,7 +287,7 @@ def _execute_decision_paper_or_kalshi(
                 )
             else:
                 filters.append(Trade.market_ticker == market_ticker)
-            existing = db.query(Trade).filter(*filters).first()
+            existing = db.query(Trade).filter(*filters, Trade.strategy != strategy_name).first()
             if existing:
                 logger.info(
                     f"[{strategy_name}] Duplicate execution blocked for {market_ticker}/{event_slug}"
@@ -538,6 +538,7 @@ def _execute_decision_paper_or_kalshi(
                     Trade.market_ticker == market_ticker,
                     Trade.settled == False,  # noqa: E712
                     Trade.trading_mode == mode,
+                    Trade.strategy != strategy_name,
                 )
                 .first()
             )
@@ -1218,7 +1219,7 @@ async def _execute_decision_live_clob(
                 )
             else:
                 filters.append(Trade.market_ticker == market_ticker)
-            existing = db.query(Trade).filter(*filters).first()
+            existing = db.query(Trade).filter(*filters, Trade.strategy != strategy_name).first()
             if existing:
                 logger.info(
                     f"[{strategy_name}] Duplicate execution blocked for {market_ticker}/{event_slug}"
@@ -1469,6 +1470,7 @@ async def _execute_decision_live_clob(
                     Trade.market_ticker == market_ticker,
                     Trade.settled == False,  # noqa: E712
                     Trade.trading_mode == mode,
+                    Trade.strategy != strategy_name,
                 )
                 .first()
             )

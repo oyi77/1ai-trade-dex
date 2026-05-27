@@ -15,15 +15,15 @@ Co-located component tests for complex components that benefit from having tests
 ## For AI Agents
 
 ### Working In This Directory
-- Tests use Vitest + React Testing Library (same setup as `src/test/`)
-- This directory is for tests tightly coupled to a specific component — prefer `src/test/` for most tests
+- Tests use Vitest + React Testing Library (same setup as the shared test directory)
+- This directory is for tests tightly coupled to a specific component — prefer the shared test directory for most tests
 - The `ErrorBoundary.test.tsx` mocks `console.error` to suppress expected error output during testing
 - Tests cover both synchronous render throws and asynchronous lifecycle errors
 
 ### Testing Requirements
-- Run with: `npx vitest run src/components/__tests__/`
+- Run with: `npx vitest run src/components/__tests__/` from the frontend/ directory
 - Uses `@testing-library/react` render and screen utilities
-- Uses `@testing-library/jest-dom` matchers (configured in `src/test/setup.ts`)
+- Uses `@testing-library/jest-dom` matchers (configured in the shared test setup file)
 - Mock `console.error` in beforeEach/afterEach to avoid noisy test output
 
 ### Common Patterns
@@ -37,7 +37,7 @@ Co-located component tests for complex components that benefit from having tests
 
 ### Internal
 - `../ErrorBoundary.tsx` — the component under test
-- `../../test/setup.ts` — Vitest setup with jest-dom matchers
+- `../../test/setup.ts` — Vitest setup with jest-dom matchers (relative path)
 
 ### External
 - `vitest` — test runner

@@ -30,10 +30,9 @@ Start here if you just deployed or are investigating recent issues:
 
 Understanding the system design:
 
-- **[../ARCHITECTURE.md](../ARCHITECTURE.md)** — High-level architecture with execution path invariants
 - **[../AGENTS.md](../AGENTS.md)** — Agent catalog with architectural rules
 - **[SYSTEM_FLOW.md](SYSTEM_FLOW.md)** — Detailed system flow and data movement
-- **[../IMPLEMENTATION_GAPS.md](../IMPLEMENTATION_GAPS.md)** — Known gaps and incomplete features
+- **[architecture/](architecture/)** — Architecture Decision Records (ADRs)
 
 ---
 
@@ -43,7 +42,6 @@ Configuring and deploying:
 
 - **[configuration.md](configuration.md)** — All environment variables and settings
 - **[config-system.md](config-system.md)** — Configuration system architecture
-- **[../POLYMARKET_SETUP.md](../POLYMARKET_SETUP.md)** — Polymarket API credential setup
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — How to deploy and restart services
 
 ---
@@ -112,7 +110,6 @@ Planning and future work:
 Finding answers to common questions:
 
 - **[KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)** — Frequently encountered issues and solutions
-- **[../IMPLEMENTATION_GAPS.md](../IMPLEMENTATION_GAPS.md)** — Known limitations and TODO items
 
 ---
 
@@ -174,10 +171,10 @@ polyedge/
 → Read [SYSTEM_FLOW.md](SYSTEM_FLOW.md) then look at existing strategies in `backend/core/`
 
 ### Configure the system
-→ Read [configuration.md](configuration.md) and [../POLYMARKET_SETUP.md](../POLYMARKET_SETUP.md)
+→ Read [configuration.md](configuration.md)
 
 ### Fix a bug or issue
-→ Check [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md) then [../IMPLEMENTATION_GAPS.md](../IMPLEMENTATION_GAPS.md)
+→ Check [KNOWLEDGE_BASE.md](KNOWLEDGE_BASE.md)
 
 ### Investigate why position consolidation bug happened
 → Read [PREVENTION_FRAMEWORK.md](PREVENTION_FRAMEWORK.md)
@@ -187,7 +184,7 @@ polyedge/
 
 ### Understand architectural rules
 → Read [../AGENTS.md](../AGENTS.md) (Architectural Rules section)
-→ Read [../ARCHITECTURE.md](../ARCHITECTURE.md) (Execution Path Invariants section)
+→ Read [architecture/](architecture/) ADRs
 
 ---
 
@@ -201,17 +198,17 @@ polyedge/
 - **Deployment:** [DEPLOYMENT_REPORT.md](DEPLOYMENT_REPORT.md)
 
 ### Key Files to Know
-- `backend/core/hft_executor.py` — HFT trading execution
-- `backend/core/auto_trader.py` — Automated trading signals
 - `backend/core/strategy_executor.py` — Strategy orchestration
+- `backend/core/scheduler.py` — Job scheduling and coordination
+- `backend/core/settlement_helpers.py` — Trade settlement (sacred path)
 - `backend/core/autonomous_promoter.py` — Strategy lifecycle management
 - `backend/models/database.py` — Data models
 
 ### Important Environment Variables
-- `TRADING_MODE` — `paper` or `live`
+- `ACTIVE_MODES` — Comma-separated active trading modes (paper/testnet/live)
 - `DATABASE_URL` — PostgreSQL connection string
-- `MIROFISH_ENABLED` — Enable debate engine
-- `REDIS_URL` — Cache backend
+- `RISK_PROFILE` — Risk preset (safe/normal/aggressive/extreme)
+- `REDIS_URL` — Cache backend (optional, falls back to SQLite)
 - See [configuration.md](configuration.md) for complete list
 
 ---

@@ -16,7 +16,10 @@ class BaseActivitySource(ABC):
     - Lifecycle management (start/stop with proper sub-task cancellation)
     - Event dispatch via callbacks
     - Shared balance-delta detection for deposit/withdrawal inference
+    - Throttled loop wrapper for subtask polling loops (MIN_POLL_INTERVAL floor)
     """
+
+    MIN_POLL_INTERVAL = 5.0  # Minimum seconds between poll cycle iterations
 
     def __init__(self, wallet_address: str, platform: str):
         self.wallet_address = wallet_address
@@ -72,6 +75,27 @@ class BaseActivitySource(ABC):
     async def _run(self):
         """Main loop — subclasses implement connection + event emission."""
         pass
+
+    async def throttled_loop(self, coro_func, *args, **kwargs):
+        """Wrapper for subtask polling loops — enforces MIN_POLL_INTERVAL between iterations.
+
+        Usage in subclass _run():
+            self.create_subtask(self.throttled_loop(self._fills_cycle))
+        """
+        while self._running:
+            cycle_start = asyncio.get_event_loop().time()
+            try:
+                await asyncio.wait_for(coro_func(*args, **kwargs), timeout=30)
+            except asyncio.TimeoutError:
+                logger.warning(f"[{self.platform}] {coro_func.__name__} timed out (30s)")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.error(f"[{self.platform}] {coro_func.__name__} error: {e}")
+            elapsed = asyncio.get_event_loop().time() - cycle_start
+            sleep_time = max(0, self.MIN_POLL_INTERVAL - elapsed)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
 
     async def _emit(self, event):
         """Dispatch event to all callbacks."""

@@ -373,19 +373,31 @@ def _persist_signals(signals: list, mode: str = "paper"):
 
     try:
         with get_db_session() as db:
-            for signal in to_save:
-                existing = (
-                    db.query(Signal)
-                    .filter(
-                        Signal.market_ticker == signal.market.market_id,
-                        Signal.timestamp
-                        >= signal.timestamp.replace(second=0, microsecond=0),
-                    )
-                    .first()
-                )
-                if existing:
-                    continue
+            # Compute time window and ticker set for single range query
+            truncated_times = [s.timestamp.replace(second=0, microsecond=0) for s in to_save]
+            min_ts = min(truncated_times)
+            tickers = list({s.market.market_id for s in to_save})
 
+            # Single range query with IN clause (index-friendly, no OR-of-AND)
+            # Chunk IN clause if >500 tickers
+            existing_set: set[tuple[str, datetime]] = set()
+            for i in range(0, len(tickers), 500):
+                chunk = tickers[i:i + 500]
+                rows = db.query(Signal.market_ticker, Signal.timestamp).filter(
+                    Signal.timestamp >= min_ts,
+                    Signal.market_ticker.in_(chunk),
+                ).all()
+                existing_set.update(
+                    (row[0], row[1].replace(second=0, microsecond=0)) for row in rows
+                )
+
+            # Python-side dedup + bulk insert
+            new_signals = []
+            signal_map: dict[str, TradingSignal] = {}
+            for signal in to_save:
+                key = (signal.market.market_id, signal.timestamp.replace(second=0, microsecond=0))
+                if key in existing_set:
+                    continue
                 db_signal = Signal(
                     market_ticker=signal.market.market_id,
                     platform="polymarket",
@@ -403,56 +415,53 @@ def _persist_signals(signals: list, mode: str = "paper"):
                     execution_mode=execution_mode,
                     executed=False,
                 )
-                db.add(db_signal)
-                try:
-                    from backend.core.event_bus import _broadcast_event
+                new_signals.append(db_signal)
+                signal_map[db_signal.market_ticker] = signal
 
-                    # Find the original signal to get full context
-                    original_signal = next(
-                        (
-                            s
-                            for s in signals
-                            if s.market.market_id == db_signal.market_ticker
-                        ),
-                        None,
-                    )
-                    market_title = (
-                        f"BTC {original_signal.market.window_start.strftime('%H:%M')} - {original_signal.market.window_end.strftime('%H:%M')} UTC"
-                        if original_signal
-                        else db_signal.market_ticker
-                    )
-                    _broadcast_event(
-                        "signal_found",
-                        {
-                            "market_ticker": db_signal.market_ticker,
-                            "market_title": market_title,
-                            "direction": db_signal.direction,
-                            "model_probability": db_signal.model_probability,
-                            "market_probability": db_signal.market_price,
-                            "edge": db_signal.edge,
-                            "confidence": db_signal.confidence,
-                            "suggested_size": db_signal.suggested_size,
-                            "reasoning": db_signal.reasoning,
-                            "timestamp": db_signal.timestamp.isoformat(),
-                            "category": "trading",
-                            "btc_price": (
-                                original_signal.btc_price if original_signal else None
-                            ),
-                            "window_end": (
-                                original_signal.market.window_end.isoformat()
-                                if original_signal and original_signal.market.window_end
-                                else None
-                            ),
-                            "actionable": abs(db_signal.edge) >= 0.02,
-                            "event_slug": (
-                                original_signal.market.slug if original_signal else None
-                            ),
-                        },
-                    )
-                except Exception as _e:
-                    logger.debug(f"Event broadcast failed for signal: {_e}")
-
-            db.commit()
+            if new_signals:
+                db.add_all(new_signals)
+                db.flush()
+                # Broadcast events for each new signal
+                for db_signal in new_signals:
+                    try:
+                        from backend.core.event_bus import _broadcast_event
+                        original_signal = signal_map.get(db_signal.market_ticker)
+                        market_title = (
+                            f"BTC {original_signal.market.window_start.strftime('%H:%M')} - {original_signal.market.window_end.strftime('%H:%M')} UTC"
+                            if original_signal
+                            else db_signal.market_ticker
+                        )
+                        _broadcast_event(
+                            "signal_found",
+                            {
+                                "market_ticker": db_signal.market_ticker,
+                                "market_title": market_title,
+                                "direction": db_signal.direction,
+                                "model_probability": db_signal.model_probability,
+                                "market_probability": db_signal.market_price,
+                                "edge": db_signal.edge,
+                                "confidence": db_signal.confidence,
+                                "suggested_size": db_signal.suggested_size,
+                                "reasoning": db_signal.reasoning,
+                                "timestamp": db_signal.timestamp.isoformat(),
+                                "category": "trading",
+                                "btc_price": (
+                                    original_signal.btc_price if original_signal else None
+                                ),
+                                "window_end": (
+                                    original_signal.market.window_end.isoformat()
+                                    if original_signal and original_signal.market.window_end
+                                    else None
+                                ),
+                                "actionable": abs(db_signal.edge) >= 0.02,
+                                "event_slug": (
+                                    original_signal.market.slug if original_signal else None
+                                ),
+                            },
+                        )
+                    except Exception as _e:
+                        logger.debug(f"Event broadcast failed for signal: {_e}")
+                db.commit()
     except Exception as e:
         logger.warning(f"Failed to persist signals: {e}")
         db.rollback()

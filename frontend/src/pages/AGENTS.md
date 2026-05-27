@@ -36,8 +36,8 @@ Top-level page components mapped to React Router routes. Each page is a full-scr
 - Framer Motion provides animations and transitions.
 
 ### Testing Requirements
-- Page components tested in `src/test/` using Vitest + React Testing Library.
-- Mock API responses in `mocks.ts` for all pages that depend on server data.
+- Page components tested in `../test/` using Vitest + React Testing Library.
+- Mock API responses using fixtures from `../test/mocks.ts`.
 - Mock useAuth hook to test authenticated vs unauthenticated states.
 - Mock useQuery to test loading/error/success states.
 - Mock WebSocket subscriptions for real-time data pages.
@@ -45,7 +45,7 @@ Top-level page components mapped to React Router routes. Each page is a full-scr
 
 ### Common Patterns
 - **Landing CTA**: `Landing.tsx` primary and secondary CTA labels/URLs are configurable via `VITE_LANDING_CTA_LABEL`, `VITE_LANDING_CTA_URL`, `VITE_LANDING_SECONDARY_CTA_LABEL`, and `VITE_LANDING_SECONDARY_CTA_URL` in `frontend/.env.example`. The landing page uses verified static proof stats only; do not add live-performance claims unless backed by a verified source.
-- **Landing Language**: `Landing.tsx` supports `en`, `id`, `ru`, and `ch` copy directly in the page. Default selection order is saved `localStorage` choice (`polyedge.landing.language`) → IP country lookup via `https://api.country.is/` → browser language → English. Keep `src/test/Landing.i18n.test.tsx` in sync when changing language behavior.
+- **Landing Language**: `Landing.tsx` supports `en`, `id`, `ru`, and `ch` copy directly in the page. Default selection order is saved `localStorage` choice (`polyedge.landing.language`) → IP country lookup → browser language → English. Keep `../test/Landing.i18n.test.tsx` in sync when changing language behavior.
 - **Authentication Gate**: useAuth() hook. If !isAuthenticated, show LoginModal.
 - **Async Data Loading**: useQuery for fetching, useMutation for mutations. Refetch on tab change or manual triggers.
 - **Real-Time Updates**: useWebSocket hook subscribes to channels (e.g., 'trades', 'whale_activity'). Auto-reconnect on disconnect.

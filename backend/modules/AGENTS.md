@@ -1,5 +1,6 @@
 # SIGNAL MODULES (INFRASTRUCTURE)
 <!-- Parent: ../AGENTS.md -->
+<!-- Updated: 2026-05-27 -->
 
 **Module**: `backend/modules/` — Signal infrastructure, external feed integration
 
@@ -9,20 +10,28 @@ Infrastructure modules: source external signals (leaderboard, on-chain, weather 
 
 ## MODULE ROSTER
 
-| Module | Purpose | File | External Feed |
-|--------|---------|------|----------------|
-| `copy_trader` | Mirror top traders | copy_trader.py | Leaderboard data |
-| `weather_emos` | Weather-driven signals | weather_emos.py (905 LOC) | Weather APIs |
-| `whale_frontrun` | Whale transaction tracking | whale_frontrun.py | Blockchain data |
-| `whale_pnl_tracker` | Whale PnL analysis | whale_pnl_tracker.py | Leaderboard |
+| Module | Purpose | Directory | External Feed |
+|--------|---------|-----------|---------------|
+| `copy_trader` | Mirror top traders | `copy_trader/` | Leaderboard data |
+| `whale_frontrun` | Whale transaction tracking | `scanners/` | Blockchain data |
+| `whale_pnl_tracker` | Whale PnL analysis | `scanners/` | Leaderboard |
+| `data_feeds` | Data feed infrastructure | `data_feeds/` | Various APIs |
+| `execution` | Execution helpers | `execution/` | — |
+| `arbitrage` | Cross-exchange arbitrage | `arbitrage/` | — |
 
-## KEY FILE
+## SUBDIRECTORIES
 
-- `weather_emos.py` (905 LOC) — Largest module; sources weather APIs
+| Directory | Purpose |
+|-----------|---------|
+| `copy_trader/` | Copy trading signal source |
+| `scanners/` | Whale and market scanners |
+| `data_feeds/` | Data feed infrastructure |
+| `execution/` | Execution helpers |
+| `arbitrage/` | Cross-exchange arbitrage logic |
 
 ## CRITICAL DISTINCTION
 
-**NOT alpha strategies** — they don't generate independent market analysis.  
+**NOT alpha strategies** — they don't generate independent market analysis.
 **Still governed as strategies** — auto-kill at <30% WR, registered in StrategyConfig.
 
 Infrastructure role justifies placement in `backend/modules/` rather than `backend/strategies/`.
@@ -34,21 +43,8 @@ Infrastructure role justifies placement in `backend/modules/` rather than `backe
 - Disabled state in DB (never override in code)
 - Health checks every 15min (same cadence)
 
-## ANTI-PATTERNS
-
-- ❌ Treating modules as non-strategic (they ARE governed)
-- ❌ Manual re-enable after auto-kill
-- ❌ Hardcoding external feed credentials (use config)
-- ❌ No fallback for failed external API calls
-
 ## TESTING
 
 ```bash
 pytest backend/tests/ -k "weather|whale|copy" -v
 ```
-
-## EXTERNAL INTEGRATIONS
-
-- **Weather APIs**: Configure in backend/config.py
-- **Blockchain RPC**: Direct node or Infura
-- **Leaderboard**: Polymarket/Kalshi API keys (in .env)

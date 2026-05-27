@@ -4,7 +4,7 @@
 # training
 
 ## Purpose
-ML training pipeline for the prediction model. Collects historical resolved Polymarket data, engineers features (edge, liquidity, price spread, whale pressure, sentiment, volume), trains logistic regression models, and evaluates performance with accuracy, log-loss, and calibration metrics. Saves trained artifacts to `ai/models/baseline.pkl` and metadata to `baseline.pkl.json`.
+ML training pipeline for the prediction model. Collects historical resolved Polymarket data, engineers features (edge, liquidity, price spread, whale pressure, sentiment, volume), trains logistic regression models, and evaluates performance with accuracy, log-loss, and calibration metrics. Saves trained artifacts to ai/models/baseline.pkl and metadata to ai/models/baseline.pkl.json.
 
 ## Key Files
 | File | Description |

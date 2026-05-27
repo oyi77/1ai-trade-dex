@@ -15,13 +15,15 @@ class LighterActivitySource(BaseActivitySource):
         super().__init__(wallet_address, "lighter")
         self._ws = ws_client
         self._seen_orders: set[str] = set()
+        self._lighter_last_balance = None
 
     async def _run(self):
         try:
             # Subscribe to account updates (balance + fills)
             self._ws.subscribe("account", {"address": self.wallet_address})
             self.create_subtask(self._ws_loop())
-            self.create_subtask(self._balance_loop())
+            # Balance polling — throttled
+            self.create_subtask(self.throttled_loop(self._balance_cycle))
 
             while self._running:
                 await asyncio.sleep(1)
@@ -60,25 +62,19 @@ class LighterActivitySource(BaseActivitySource):
                 logger.warning(f"[lighter] WS loop error: {e}")
             await asyncio.sleep(0.1)
 
-    async def _balance_loop(self):
-        """Poll balance for deposit/withdrawal detection."""
-        last = None
-        while self._running:
-            try:
-                bal = await self._ws.get_balance(self.wallet_address)
-                if last is not None:
-                    result = self.detect_balance_delta(float(bal), float(last))
-                    if result:
-                        event_type, amount = result
-                        await self._emit(ActivityEvent(
-                            source="lighter",
-                            event_type=event_type,
-                            wallet_address=self.wallet_address,
-                            platform="lighter",
-                            amount=amount,
-                            token="USDC",
-                        ))
-                last = bal
-            except Exception as e:
-                logger.warning(f"[lighter] Balance loop error: {e}")
-            await asyncio.sleep(5)
+    async def _balance_cycle(self):
+        """Single iteration of balance polling for deposit/withdrawal detection."""
+        bal = await self._ws.get_balance(self.wallet_address)
+        if self._lighter_last_balance is not None:
+            result = self.detect_balance_delta(float(bal), float(self._lighter_last_balance))
+            if result:
+                event_type, amount = result
+                await self._emit(ActivityEvent(
+                    source="lighter",
+                    event_type=event_type,
+                    wallet_address=self.wallet_address,
+                    platform="lighter",
+                    amount=amount,
+                    token="USDC",
+                ))
+        self._lighter_last_balance = bal

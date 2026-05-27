@@ -684,13 +684,17 @@ class HFTCrossArbStrategy(BaseStrategy):
         try:
             provider = ctx.get_market_provider("polymarket")
             if provider and hasattr(provider, "search_markets"):
-                return await provider.search_markets("", limit=500)
+                result = await provider.search_markets("", limit=500)
+                logger.debug(f"[hft_cross_arb] Poly provider returned {len(result)} markets")
+                return result
         except Exception:
             logger.warning("hft_cross_arb: provider search_markets failed, falling back to Gamma")
         try:
             from backend.data.gamma import fetch_markets
 
-            return await fetch_markets(limit=500)
+            result = await fetch_markets(limit=500)
+            logger.debug(f"[hft_cross_arb] Gamma fallback returned {len(result)} markets")
+            return result
         except Exception as exc:
             logger.warning(f"[hft_cross_arb] Poly fetch failed: {exc}")
             return []
@@ -700,7 +704,9 @@ class HFTCrossArbStrategy(BaseStrategy):
         try:
             provider = ctx.get_market_provider("kalshi")
             if provider and hasattr(provider, "search_markets"):
-                return await provider.search_markets("", limit=500)
+                result = await provider.search_markets("", limit=500)
+                logger.debug(f"[hft_cross_arb] Kalshi provider returned {len(result)} markets")
+                return result
         except Exception:
             logger.warning("hft_cross_arb: failed to parse Kalshi price")
         try:
@@ -708,7 +714,9 @@ class HFTCrossArbStrategy(BaseStrategy):
 
             client = KalshiClient()
             data = await client.get_markets(params={"limit": 500, "status": "open"})
-            return data.get("markets", []) if isinstance(data, dict) else []
+            result = data.get("markets", []) if isinstance(data, dict) else []
+            logger.debug(f"[hft_cross_arb] KalshiClient returned {len(result)} markets (raw type: {type(data).__name__})")
+            return result
         except Exception as exc:
             logger.warning(f"[hft_cross_arb] Kalshi fetch failed: {exc}")
             return []
