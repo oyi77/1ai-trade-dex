@@ -389,10 +389,9 @@ class TestCryptoOracleFilters:
         mock_active_markets.return_value = []
         mock_kw_markets.return_value = [
             MarketInfo(
-                slug="btc-updown-5m-1234567890",
                 ticker="btc-5m-test",
-                active=True,
-                closed=False,
+                slug="btc-updown-5m-1234567890",
+                category="crypto",
                 end_date=datetime(2026, 5, 27, 10, 5, 0, tzinfo=timezone.utc).isoformat(),
                 volume=1000.0,
                 liquidity=1000.0,
