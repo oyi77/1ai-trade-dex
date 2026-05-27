@@ -304,6 +304,19 @@ def implied_direction(question: str, crypto_price: float) -> Optional[str]:
     return None
 
 
+def get_physical_direction(question: str, contract_direction: str) -> str:
+    """Determine physical price direction (up/down) from contract direction (yes/no) and question."""
+    q = question.lower()
+    is_below = any(
+        kw in q
+        for kw in ("below", "under", "lower", "less than", "fall", "drop", "dip")
+    )
+    if is_below:
+        return "down" if contract_direction == "yes" else "up"
+    else:
+        return "up" if contract_direction == "yes" else "down"
+
+
 class CryptoOracleStrategy(BaseStrategy):
     name = "crypto_oracle"
     description = (
@@ -400,6 +413,18 @@ class CryptoOracleStrategy(BaseStrategy):
             "min_position_usd", self.default_params["min_position_usd"]
         )
 
+        asset = event.data.get("asset", "bitcoin")
+        is_btc = asset in ("bitcoin", "btc")
+
+        # Session filter
+        blocked_hours = params.get("blocked_hours_utc", [23, 0, 1] if is_btc else [])
+        now_utc = datetime.now(timezone.utc)
+        if now_utc.hour in blocked_hours:
+            logger.info(
+                f"CryptoOracleStrategy.on_market_event: session filter — hour {now_utc.hour} UTC blocked for {asset} (blocked hours {blocked_hours})"
+            )
+            return None
+
         price_str = event.data.get("price") or event.data.get("last_trade_price")
         if not price_str:
             return None
@@ -412,6 +437,13 @@ class CryptoOracleStrategy(BaseStrategy):
             return None
 
         direction = "up" if trade_price > 0.5 else "down"
+        block_down = params.get("block_direction_down", True if is_btc else False)
+        if block_down and direction == "down":
+            logger.debug(
+                f"CryptoOracleStrategy.on_market_event: skipping DOWN direction for {asset} — blocked"
+            )
+            return None
+
         market_mid = trade_price
 
 
@@ -432,8 +464,6 @@ class CryptoOracleStrategy(BaseStrategy):
                 max_price_bucket,
             )
             return None
-
-        asset = event.data.get("asset", "bitcoin")
 
         crypto_price = await fetch_crypto_price_for_asset(asset)
         if crypto_price is None:
@@ -631,6 +661,18 @@ class CryptoOracleStrategy(BaseStrategy):
             asset_prefix = _COINGECKO_TO_ASSET_PREFIX.get(
                 coingecko_id, coingecko_id[:3]
             )
+            is_btc = coingecko_id in ("bitcoin", "btc") or asset_prefix == "btc"
+
+            # Retrieve configured parameters or fallbacks
+            block_down = params.get("block_direction_down", True if is_btc else False)
+            blocked_hours = params.get("blocked_hours_utc", [23, 0, 1] if is_btc else [])
+
+            # Session filter check per asset
+            if now.hour in blocked_hours:
+                logger.info(
+                    f"CryptoOracleStrategy: session filter — hour {now.hour} UTC blocked for {coingecko_id} (hours {blocked_hours})"
+                )
+                continue
 
             crypto_price = await fetch_crypto_price_for_asset(coingecko_id)
             if crypto_price is None:
@@ -672,6 +714,13 @@ class CryptoOracleStrategy(BaseStrategy):
                     direction = "up" if micro.momentum_5m > 0 else "down"
                 else:
                     direction = "down" if market.up_price > market.down_price else "up"
+
+                # Check direction block filter
+                if block_down and direction == "down":
+                    logger.debug(
+                        f"CryptoOracleStrategy: skipping {market.slug} — DOWN direction blocked for {coingecko_id}"
+                    )
+                    continue
 
                 market_mid = market.up_price if direction == "up" else market.down_price
 
@@ -844,6 +893,14 @@ class CryptoOracleStrategy(BaseStrategy):
 
                     direction = implied_direction(market.question, crypto_price)
                     if direction is None:
+                        continue
+
+                    # Check direction block filter
+                    phys_dir = get_physical_direction(market.question, direction)
+                    if block_down and phys_dir == "down":
+                        logger.debug(
+                            f"CryptoOracleStrategy: skipping {market.ticker} — DOWN direction blocked for {coingecko_id}"
+                        )
                         continue
 
                     market_mid = (

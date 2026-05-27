@@ -89,7 +89,7 @@ class TestFronttestValidator:
         from backend.core.fronttest_validator import FronttestValidator
 
         proposal = StrategyProposal(
-            strategy_name="btc_oracle",
+            strategy_name="crypto_oracle",
             change_details={"kelly_fraction": 0.1},
             expected_impact="test",
             admin_decision="executed",
@@ -107,7 +107,7 @@ class TestFronttestValidator:
         from backend.core.fronttest_validator import FronttestValidator
 
         proposal = StrategyProposal(
-            strategy_name="btc_oracle",
+            strategy_name="crypto_oracle",
             change_details={"kelly_fraction": 0.1},
             expected_impact="test",
             admin_decision="executed",
@@ -120,7 +120,7 @@ class TestFronttestValidator:
         for i in range(12):
             db.add(
                 Trade(
-                    strategy="btc_oracle",
+                    strategy="crypto_oracle",
                     trading_mode="paper",
                     market_ticker=f"T{i}",
                     direction="up",

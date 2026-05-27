@@ -854,13 +854,13 @@ async def _seed_strategy_configs() -> None:
             {"min_edge": 0.02, "allow_live_execution": False},
         ),
         (
-            "btc_oracle",
+            "crypto_oracle",
             True,
             300,
             "live",
             {"min_edge": 0.02, "max_minutes_to_resolution": 30},
         ),
-        ("btc_oracle_legacy", False, 300, "live", {}),
+        ("crypto_oracle_legacy", False, 300, "live", {}),
         ("btc_momentum", False, 300, "live", {"max_trade_fraction": 0.03}),
         (
             "general_scanner",

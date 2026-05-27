@@ -48,6 +48,41 @@ class FrontrunResult:
     sell_scheduled: bool
 
 
+class WhalePnLTracker:
+    @staticmethod
+    async def get_30d_realized_pnl(wallet: str) -> float:
+        """Fetch position history from Polymarket data API and sum realized PNL for the last 30 days."""
+        if not wallet:
+            return 0.0
+        try:
+            url = f"{settings.DATA_API_URL}/positions?user={wallet}&limit=200"
+            import httpx
+            from datetime import datetime, timezone, timedelta
+
+            thirty_days_ago = (datetime.now(timezone.utc) - timedelta(days=30)).timestamp()
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(url)
+            if r.status_code != 200:
+                return 0.0
+            payload = r.json()
+            rows = payload if isinstance(payload, list) else payload.get("data", [])
+
+            total_pnl = 0.0
+            for row in rows:
+                try:
+                    ts = int(row.get("timestamp", row.get("createdAt", 0)) or 0)
+                    if ts >= thirty_days_ago:
+                        pnl = float(row.get("realizedPnl", row.get("pnl", 0.0)) or 0.0)
+                        total_pnl += pnl
+                except (ValueError, TypeError):
+                    continue
+            return total_pnl
+        except Exception as e:
+            logger.debug(f"WhalePnLTracker: failed to calculate realized PnL for {wallet}: {e}")
+            return 0.0
+
+
 class WhaleFrontrun(BaseStrategy):
     """
     Whale Front-Running strategy.
@@ -76,6 +111,7 @@ class WhaleFrontrun(BaseStrategy):
         "min_size": _cfg("WHALE_FRONTRUN_MIN_SIZE", 10000.0),
         "min_score": _cfg("WHALE_FRONTRUN_MIN_SCORE", 0.8),
         "frontrun_delay_ms": _cfg("WHALE_FRONTRUN_DELAY_MS", 50),
+        "min_whale_notional": 10000.0,
     }
 
     # Event-driven WebSocket subscriptions
@@ -128,6 +164,19 @@ class WhaleFrontrun(BaseStrategy):
         data = event.data
         size = float(data.get("size", 0) or 0)
         min_whale_size = self.default_params.get("min_size", 10000.0)
+
+        wallet = data.get("wallet") or data.get("user") or data.get("maker") or data.get("taker") or ""
+        min_whale_notional = self.default_params.get("min_whale_notional", 10000.0)
+
+        if size < min_whale_notional:
+            logger.debug(f"WhaleFrontrun: size ${size:.0f} < threshold ${min_whale_notional:.0f}")
+            return None
+
+        if wallet:
+            realized_pnl = await WhalePnLTracker.get_30d_realized_pnl(wallet)
+            if realized_pnl < 0:
+                logger.info(f"[whale_frontrun] rejecting whale {wallet[:10]}...: 30d PnL is negative (${realized_pnl:,.2f})")
+                return None
 
         if size < min_whale_size:
             return None
@@ -264,6 +313,18 @@ class WhaleFrontrun(BaseStrategy):
 
         for activity in buffered:
             try:
+                # Dynamic whale checks
+                min_whale_notional = params.get("min_whale_notional", 10000.0)
+                if activity.size < min_whale_notional:
+                    logger.debug(f"WhaleFrontrun: activity size ${activity.size:.0f} < threshold ${min_whale_notional:.0f}")
+                    continue
+
+                if activity.wallet:
+                    realized_pnl = await WhalePnLTracker.get_30d_realized_pnl(activity.wallet)
+                    if realized_pnl < 0:
+                        logger.info(f"[whale_frontrun] rejecting whale {activity.wallet[:10]}...: 30d PnL is negative (${realized_pnl:,.2f})")
+                        continue
+
                 result = self.detect_and_frontrun(activity)
                 if result.frontrun_placed:
                     frontruns += 1

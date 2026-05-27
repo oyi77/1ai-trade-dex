@@ -29,7 +29,7 @@ class Signal:
     market_id: str
     prediction: float  # 0.0-1.0
     confidence: float  # 0.0-1.0
-    source: str  # e.g., "mirofish_prediction", "btc_oracle", "weather_emos"
+    source: str  # e.g., "mirofish_prediction", "crypto_oracle", "weather_emos"
     reasoning: str
     weight: float = 1.0  # Default weight; configurable per signal type
 

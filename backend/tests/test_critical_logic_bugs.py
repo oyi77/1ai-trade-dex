@@ -317,13 +317,7 @@ class TestE18CEXPMLeadlagImpliedProb:
 class TestE19E20OracleModelProbability:
     """Verify model_probability uses oracle_implied."""
 
-    def test_btc_oracle_no_binary_probability(self):
-        """btc_oracle should use oracle_implied for model_probability."""
-        from backend.strategies.btc_oracle import BtcOracleStrategy
-        import inspect
 
-        source = inspect.getsource(BtcOracleStrategy.run_cycle)
-        assert "oracle_implied" in source, "E-19: Should use oracle_implied"
 
     def test_crypto_oracle_no_binary_probability(self):
         """crypto_oracle should use oracle_implied for model_probability."""

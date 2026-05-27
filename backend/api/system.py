@@ -1642,7 +1642,7 @@ async def list_strategies(
     STRATEGY_CREDENTIALS = {
         "kalshi_arb": ["KALSHI_API_KEY"],
         "copy_trader": ["POLYMARKET_PRIVATE_KEY"],
-        "btc_oracle": [],  # uses public data only
+        "crypto_oracle": [],  # uses public data only
         "btc_momentum": [],  # uses public data only
         "weather_emos": [],  # uses public weather data
         "general_market_scanner": [],

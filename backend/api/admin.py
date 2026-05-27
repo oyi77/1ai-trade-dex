@@ -111,7 +111,7 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
     grouped["trading_mode"] = s.TRADING_MODE
     grouped["strategies"] = {
         "btc_momentum": getattr(s, "BTC_MOMENTUM_ENABLED", False),
-        "btc_oracle": getattr(s, "BTC_ORACLE_ENABLED", False),
+        "crypto_oracle": getattr(s, "CRYPTO_ORACLE_ENABLED", False),
         "weather_emos": s.WEATHER_ENABLED,
         "copy_trader": getattr(s, "COPY_TRADER_ENABLED", False),
         "market_maker": getattr(s, "MARKET_MAKER_ENABLED", False),

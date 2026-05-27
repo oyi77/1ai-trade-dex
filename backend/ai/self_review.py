@@ -77,7 +77,7 @@ class Postmortem:
 class DegradationAlert:
     """Alert for a signal/strategy whose win rate has degraded."""
 
-    signal_key: str  # e.g. "strategy=btc_oracle"
+    signal_key: str  # e.g. "strategy=crypto_oracle"
     factor: str
     baseline_win_rate: float
     recent_win_rate: float

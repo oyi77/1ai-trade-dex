@@ -51,6 +51,7 @@ class LineMovement:
     volume_24h: float
     condition_id: str
     token_id: Optional[str] = None
+    liquidity: float = 0.0
 
 
 class LineMovementDetectorStrategy(BaseStrategy):
@@ -67,6 +68,9 @@ class LineMovementDetectorStrategy(BaseStrategy):
         "max_markets_per_cycle": settings.GENERAL_MARKET_SCANNER_MAX_MARKETS_PER_CYCLE,
         "web_search_enabled": settings.LINE_MOVE_WEB_SEARCH_ENABLED,
         "min_confidence_to_signal": settings.LINE_MOVE_MIN_CONFIDENCE_TO_SIGNAL,
+        "max_spread_pct": 0.05,
+        "min_imbalance_ratio": -0.6,
+        "min_top_size": 5.0,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
@@ -267,6 +271,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 volume_24h=volume_24h,
                 condition_id=market.get("conditionId", ""),
                 token_id=token_id,
+                liquidity=float(market.get("liquidity", 0) or 0),
             )
 
         except Exception as e:
@@ -277,6 +282,94 @@ class LineMovementDetectorStrategy(BaseStrategy):
         self, movement: LineMovement, params: dict, ctx: StrategyContext
     ) -> Optional[dict]:
         direction = "up" if movement.price_change_pct > 0 else "down"
+
+        # 1. Dynamically scaled thresholds check based on price move magnitude
+        move_magnitude = abs(movement.price_change_pct)
+        scaling_factor = max(1.0, move_magnitude / 5.0)
+        dynamic_min_volume = params.get("min_volume_24h", 5000) * scaling_factor
+        dynamic_min_liquidity = params.get("min_liquidity", 5000) * scaling_factor
+
+        if movement.volume_24h < dynamic_min_volume:
+            logger.info(
+                f"[{self.name}] skipping {movement.ticker} — volume ${movement.volume_24h:,.0f} below dynamic threshold ${dynamic_min_volume:,.0f}"
+            )
+            return None
+
+        if movement.liquidity < dynamic_min_liquidity:
+            logger.info(
+                f"[{self.name}] skipping {movement.ticker} — liquidity ${movement.liquidity:,.0f} below dynamic threshold ${dynamic_min_liquidity:,.0f}"
+            )
+            return None
+
+        # 2. Fetch CLOB order book for spread and kinetics checks
+        top_bid = 0.0
+        top_ask = 0.0
+        book_spread = 0.0
+        imbalance = 0.0
+        top_bid_size = 0.0
+        top_ask_size = 0.0
+
+        if movement.token_id:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as clob_client:
+                    book_resp = await clob_client.get(
+                        f"{settings.CLOB_API_URL}/book",
+                        params={"token_id": movement.token_id},
+                    )
+                    if book_resp.status_code == 200:
+                        book_data = book_resp.json()
+                        bids = [
+                            [float(b["price"]), float(b["size"])]
+                            for b in book_data.get("bids", [])
+                            if b.get("price") and b.get("size")
+                        ]
+                        asks = [
+                            [float(a["price"]), float(a["size"])]
+                            for a in book_data.get("asks", [])
+                            if a.get("price") and a.get("size")
+                        ]
+                        bid_depth = sum(s for _, s in bids)
+                        ask_depth = sum(s for _, s in asks)
+                        total_depth = bid_depth + ask_depth
+                        if total_depth > 0:
+                            imbalance = (bid_depth - ask_depth) / total_depth
+
+                        top_bid = bids[0][0] if bids else 0.0
+                        top_ask = asks[0][0] if asks else 0.0
+                        top_bid_size = bids[0][1] if bids else 0.0
+                        top_ask_size = asks[0][1] if asks else 0.0
+                        if top_bid and top_ask:
+                            book_spread = top_ask - top_bid
+            except Exception as e:
+                logger.warning(f"[{self.name}] CLOB order book fetch failed for {movement.ticker}: {e}")
+
+        # 3. Volatility spread validation
+        if top_bid > 0 and top_ask > 0:
+            mid_price = (top_bid + top_ask) / 2.0
+            max_spread_pct = params.get("max_spread_pct", 0.05)
+            if mid_price > 0 and (book_spread / mid_price) > max_spread_pct:
+                logger.info(
+                    f"[{self.name}] skipping {movement.ticker} — spread {(book_spread/mid_price):.1%} wider than max {max_spread_pct:.1%}"
+                )
+                return None
+
+            # 4. Kinetics check: top sizes stability (no rapid flickering of tiny sizes)
+            min_top_size = params.get("min_top_size", 5.0)
+            if top_bid_size < min_top_size or top_ask_size < min_top_size:
+                logger.info(
+                    f"[{self.name}] skipping {movement.ticker} — order book unstable/flickering (bid_size={top_bid_size:.1f}, ask_size={top_ask_size:.1f} < {min_top_size})"
+                )
+                return None
+
+            # 5. Kinetics check: imbalance ratio (no buying if opposite liquidity dries up)
+            target_imbalance = imbalance if direction == "up" else -imbalance
+            min_imbalance = params.get("min_imbalance_ratio", -0.6)
+            if target_imbalance < min_imbalance:
+                logger.info(
+                    f"[{self.name}] skipping {movement.ticker} — buy-side liquidity drying up (imbalance={target_imbalance:.2f} < {min_imbalance})"
+                )
+                return None
+
         news_context = ""
 
         if params.get("web_search_enabled", True):
@@ -317,7 +410,12 @@ class LineMovementDetectorStrategy(BaseStrategy):
                     db=getattr(ctx, "db", None),
                     question=movement.question or movement.ticker,
                     market_price=movement.current_price,
-                    context=f"{movement.price_change_pct:+.1f}% move, vol=${movement.volume_24h:,.0f}, news={bool(news_context)}",
+                    context=(
+                        f"Price move: {movement.price_change_pct:+.1f}% in 1h. "
+                        f"Volume 24h: ${movement.volume_24h:,.0f}. "
+                        f"Liquidity: ${movement.liquidity:,.0f}. "
+                        f"Web news context: {news_context[:1000] if news_context else 'No breaking news found.'}"
+                    ),
                     max_rounds=2,
                 )
                 if debate_result and debate_result.confidence > 0:

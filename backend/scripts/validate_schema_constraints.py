@@ -52,7 +52,7 @@ VALID_STRATEGY_NAMES = [
     "agi_orchestrator",
     "bond_scanner",
     "btc_momentum",
-    "btc_oracle",
+    "crypto_oracle",
     "cex_pm_leadlag",
     "copy_trader",
     "cross_market_arb",

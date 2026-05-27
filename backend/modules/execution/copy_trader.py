@@ -171,6 +171,51 @@ from backend.strategies.order_executor import (  # noqa: E402
 )
 
 
+def get_target_wallet_db_stats(db, wallet_address: str) -> tuple[float, float, int]:
+    """Query the DB for the 30-day win rate, ROI, and sample size of the target wallet.
+
+    Returns:
+        (win_rate, roi, sample_size)
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import and_
+    from backend.models.database import Trade, CopyTraderEntry
+
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+
+    # Query trades joined with CopyTraderEntry on condition_id matching the wallet
+    try:
+        trades = (
+            db.query(Trade)
+            .join(CopyTraderEntry, and_(
+                Trade.condition_id == CopyTraderEntry.condition_id,
+                CopyTraderEntry.wallet == wallet_address
+            ))
+            .filter(
+                Trade.strategy == "copy_trader",
+                Trade.settled.is_(True),
+                Trade.timestamp >= thirty_days_ago
+            )
+            .all()
+        )
+    except Exception as e:
+        logger.warning(f"Failed to query target wallet DB stats: {e}")
+        return 0.0, 0.0, 0
+
+    if not trades:
+        return 0.0, 0.0, 0
+
+    sample_size = len(trades)
+    wins = sum(1 for t in trades if t.result == "win")
+    win_rate = wins / sample_size if sample_size > 0 else 0.0
+
+    total_cost = sum(t.size for t in trades)
+    total_pnl = sum(t.pnl if t.pnl is not None else 0.0 for t in trades)
+    roi = total_pnl / total_cost if total_cost > 0 else 0.0
+
+    return win_rate, roi, sample_size
+
+
 class CopyTrader:
     """
     Orchestrates the copy trading strategy.
@@ -221,7 +266,7 @@ class CopyTrader:
         self._last_refresh = asyncio.get_running_loop().time()
         logger.info(f"Tracking {len(self._tracked)} wallets after leaderboard refresh")
 
-    async def poll_once(self) -> list[CopySignal]:
+    async def poll_once(self, db=None) -> list[CopySignal]:
         """Poll all tracked wallets once. Returns new copy signals."""
         now = asyncio.get_running_loop().time()
         if now - self._last_refresh > 21600:
@@ -234,6 +279,31 @@ class CopyTrader:
             if not trader.user:
                 continue
             try:
+                # Dynamic wallet scoring checks
+                win_rate = trader.win_rate
+                sample_size = trader.total_trades
+                roi = 0.0
+
+                if db is not None:
+                    db_win_rate, db_roi, db_sample_size = get_target_wallet_db_stats(db, trader.user)
+                    if db_sample_size >= 5:
+                        win_rate = db_win_rate
+                        roi = db_roi
+                        sample_size = db_sample_size
+
+                if win_rate < 0.45:
+                    logger.info(
+                        f"CopyTrader: skipping wallet {trader.pseudonym} ({trader.user[:10]}) — "
+                        f"win rate {win_rate:.1%} < 45%"
+                    )
+                    continue
+                if sample_size < 5:
+                    logger.info(
+                        f"CopyTrader: skipping wallet {trader.pseudonym} ({trader.user[:10]}) — "
+                        f"sample size {sample_size} < 5 trades"
+                    )
+                    continue
+
                 new_buys, new_exits = await self._watcher.poll(trader.user)
 
                 for trade in new_buys:
@@ -495,7 +565,7 @@ class CopyTraderStrategy(BaseStrategy):
             wallet_pool = await self._get_active_wallets(ctx)
             result.markets_scanned = len(wallet_pool)
 
-            signals = await self._engine.poll_once()
+            signals = await self._engine.poll_once(db=ctx.db)
 
             if not signals:
                 ctx.logger.info(

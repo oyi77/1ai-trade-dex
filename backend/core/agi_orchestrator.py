@@ -256,7 +256,7 @@ class AGIOrchestrator:
                     .filter(StrategyConfig.enabled.is_(True))
                     .all()
                 ]
-            strategy_names = active if active else ["btc_oracle", "weather_emos"]
+            strategy_names = active if active else ["crypto_oracle", "weather_emos"]
             allocations = allocator.allocate(
                 strategy_names, regime, capital=10000.0 * source_mult
             )

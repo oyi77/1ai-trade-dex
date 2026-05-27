@@ -259,3 +259,150 @@ class TestCryptoOracleDiscovery:
         ):
             result = await strategy.run_cycle(ctx)
         assert result is not None
+
+
+class TestCryptoOracleFilters:
+    """Validate block_direction_down and blocked_hours_utc filters."""
+
+    @pytest.mark.asyncio
+    @patch("backend.strategies.crypto_oracle.datetime")
+    @patch("backend.strategies.crypto_oracle.fetch_crypto_price_for_asset")
+    async def test_on_market_event_blocked_hours(self, mock_fetch_price, mock_datetime):
+        import time
+        mock_fetch_price.return_value = 95000.0
+
+        # Set current time to a blocked hour (e.g. 0 UTC)
+        mock_now = datetime(2026, 5, 27, 0, 0, 0, tzinfo=timezone.utc)
+        mock_datetime.now.return_value = mock_now
+
+        strategy = CryptoOracleStrategy()
+        # Set min_edge to -1.0 so that edge check always passes
+        strategy.default_params["min_edge"] = -1.0
+
+        from backend.strategies.base import MarketEvent
+        event = MarketEvent(
+            token_id="btc-token-id",
+            event_type="last_trade_price",
+            data={"asset": "btc", "price": "0.35"},
+            timestamp=time.time()
+        )
+        # 0 UTC is blocked for BTC by default -> should return None
+        result = await strategy.on_market_event(event)
+        assert result is None
+
+        # 0 UTC is NOT blocked for non-BTC assets (default empty list)
+        event_eth = MarketEvent(
+            token_id="eth-token-id",
+            event_type="last_trade_price",
+            data={"asset": "eth", "price": "0.35"},
+            timestamp=time.time()
+        )
+        result_eth = await strategy.on_market_event(event_eth)
+        # Direction is "down" (price < 0.5), which is NOT blocked for ETH by default
+        assert result_eth is not None
+
+    @pytest.mark.asyncio
+    @patch("backend.strategies.crypto_oracle.fetch_crypto_price_for_asset")
+    async def test_on_market_event_block_direction_down(self, mock_fetch_price):
+        import time
+        mock_fetch_price.return_value = 95000.0
+
+        strategy = CryptoOracleStrategy()
+        strategy.default_params["min_edge"] = -1.0
+        from backend.strategies.base import MarketEvent
+
+        # For BTC, down direction is blocked by default
+        event_btc_down = MarketEvent(
+            token_id="btc-token-id",
+            event_type="last_trade_price",
+            data={"asset": "btc", "price": "0.35"}, # price < 0.5 -> down
+            timestamp=time.time()
+        )
+        # Mock datetime to ensure it is NOT a blocked hour (e.g. 10 UTC)
+        with patch("backend.strategies.crypto_oracle.datetime") as mock_datetime:
+            mock_now = datetime(2026, 5, 27, 10, 0, 0, tzinfo=timezone.utc)
+            mock_datetime.now.return_value = mock_now
+            result = await strategy.on_market_event(event_btc_down)
+            assert result is None
+
+            # For BTC, up direction is NOT blocked
+            event_btc_up = MarketEvent(
+                token_id="btc-token-id",
+                event_type="last_trade_price",
+                data={"asset": "btc", "price": "0.65"}, # price > 0.5 -> up
+                timestamp=time.time()
+            )
+            result_up = await strategy.on_market_event(event_btc_up)
+            assert result_up is not None
+
+    @pytest.mark.asyncio
+    @patch("backend.strategies.crypto_oracle.fetch_crypto_price_for_asset")
+    @patch("backend.data.btc_markets.fetch_active_crypto_markets")
+    @patch("backend.core.market_scanner.fetch_markets_by_keywords")
+    @patch("backend.strategies.crypto_oracle.datetime")
+    async def test_run_cycle_filters(self, mock_datetime, mock_kw_markets, mock_active_markets, mock_price):
+        # Ensure we are in a blocked hour (e.g., 23 UTC)
+        mock_now = datetime(2026, 5, 27, 23, 0, 0, tzinfo=timezone.utc)
+        mock_datetime.now.return_value = mock_now
+
+        mock_price.return_value = 95000.0
+        
+        from backend.data.btc_markets import CryptoMarket
+        from backend.strategies.base import MarketInfo
+        mock_active_markets.return_value = [
+            CryptoMarket(
+                slug="btc-updown-5m-1234567890",
+                market_id="btc-5m-test",
+                up_price=0.55,
+                down_price=0.45,
+                window_start=datetime(2026, 5, 27, 23, 0, 0, tzinfo=timezone.utc),
+                window_end=datetime(2026, 5, 27, 23, 5, 0, tzinfo=timezone.utc),
+                volume=1000.0,
+                closed=False,
+                up_token_id="token-up-123",
+                down_token_id="token-down-456",
+                asset="btc",
+            )
+        ]
+        mock_kw_markets.return_value = []
+
+        strategy = CryptoOracleStrategy()
+        strategy.default_params["min_edge"] = -1.0
+        ctx = MagicMock()
+        ctx.params = {}
+        ctx.mode = "paper"
+        ctx.db = MagicMock()
+
+        # Under blocked hour, BTC should be skipped immediately
+        with patch("backend.strategies.crypto_oracle._get_time_multiplier", return_value=1.0):
+            result = await strategy.run_cycle(ctx)
+            assets_traded = {d["asset"] for d in result.decisions}
+            assert "bitcoin" not in assets_traded
+            assert "ethereum" in assets_traded
+            assert "solana" in assets_traded
+
+        # Now test run_cycle with direction block
+        mock_now = datetime(2026, 5, 27, 10, 0, 0, tzinfo=timezone.utc)
+        mock_datetime.now.return_value = mock_now
+        
+        # Scenario: Down direction ("Will BTC exceed 96k?" -> price 95k is < 96k, contract direction is "no", physical direction is "down")
+        mock_active_markets.return_value = []
+        mock_kw_markets.return_value = [
+            MarketInfo(
+                slug="btc-updown-5m-1234567890",
+                ticker="btc-5m-test",
+                active=True,
+                closed=False,
+                end_date=datetime(2026, 5, 27, 10, 5, 0, tzinfo=timezone.utc).isoformat(),
+                volume=1000.0,
+                liquidity=1000.0,
+                yes_price=0.55,
+                no_price=0.45,
+                question="Will BTC exceed $96,000?",
+            )
+        ]
+        
+        with patch("backend.strategies.crypto_oracle._get_time_multiplier", return_value=1.0):
+            result = await strategy.run_cycle(ctx)
+            # Physical direction down is blocked -> decisions_recorded should be 0
+            assert result.decisions_recorded == 0

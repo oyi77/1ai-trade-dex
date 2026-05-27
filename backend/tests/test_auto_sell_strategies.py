@@ -3,7 +3,6 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from backend.strategies.base import StrategyContext, CycleResult
-from backend.strategies.btc_oracle import BtcOracleStrategy
 from backend.strategies.crypto_oracle import CryptoOracleStrategy
 from backend.strategies.general_market_scanner import GeneralMarketScanner
 from backend.strategies.bond_scanner import BondScannerStrategy
@@ -78,33 +77,7 @@ async def test_strategies_call_auto_sell_twice(monkeypatch):
         bankroll=1000.0,
     )
 
-    # Test BtcOracleStrategy
-    calls.clear()
-    btc_strat = BtcOracleStrategy()
-    btc_strat._tokens_populated = True
 
-    async def mock_fetch_btc():
-        return 95000.0
-
-    monkeypatch.setattr(
-        "backend.strategies.btc_oracle.fetch_btc_price", mock_fetch_btc
-    )
-
-    async def mock_fetch_active_btc():
-        return []
-
-    monkeypatch.setattr(
-        "backend.data.btc_markets.fetch_active_btc_markets",
-        mock_fetch_active_btc,
-    )
-
-    await btc_strat.run_cycle(ctx)
-    assert len(calls) == 2
-    for call in calls:
-        assert call["strategy"] == "btc_oracle"
-        assert call["profit_target"] == 0.05
-        assert call["stop_loss"] == 0.08
-        assert call["max_hold"] == 600
 
     # Test CryptoOracleStrategy
     calls.clear()
@@ -144,6 +117,7 @@ async def test_strategies_call_auto_sell_twice(monkeypatch):
             "min_edge": 0.01,
             "max_price": 0.99,
             "min_price": 0.01,
+            "skip_hours": [],
         }
     )
     mock_provider = AsyncMock()

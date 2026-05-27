@@ -244,6 +244,20 @@ class CalibrationState:
         return math.sqrt(sum(errors) / len(errors))
 
 
+CATEGORY_WEATHER_WEIGHTS = {
+    "sports": 1.5,
+    "entertainment": 1.5,
+    "pop culture": 1.5,
+    "retail": 1.5,
+    "politics": 0.8,
+    "crypto": 0.5,
+    "economy": 0.2,
+    "financials": 0.2,
+    "macroeconomics": 0.2,
+    "general": 1.0,
+}
+
+
 def normal_cdf(x: float, mean: float, std: float) -> float:
     """Cumulative distribution function of normal distribution."""
     if std <= 0:
@@ -757,6 +771,25 @@ class WeatherEMOSStrategy(BaseStrategy):
                 calibrated_p = 1.0 - pr_exceeds_threshold(
                     threshold_f, calibrated_mean, calibrated_std
                 )
+
+            # Compute weather mood shift (z-score anomaly)
+            mood_anomaly = (calibrated_mean - forecast_mean) / calibrated_std if calibrated_std > 0 else 0.0
+
+            # Determine category weight for emotional sentiment
+            cat = getattr(market, "category", "general") or "general"
+            cat_lower = cat.lower()
+
+            category_weight = 1.0
+            for k, w in CATEGORY_WEATHER_WEIGHTS.items():
+                if k in cat_lower:
+                    category_weight = w
+                    break
+
+            # Calculate emotional sentiment adjustment (up to 5% baseline shift scaled by category weight)
+            sentiment_shift = mood_anomaly * 0.05 * category_weight
+
+            # Adjust calibrated probability with the category-weighted sentiment
+            calibrated_p = max(0.01, min(0.99, calibrated_p + sentiment_shift))
 
             market_mid = market.yes_price
             edge = calibrated_p - market_mid
