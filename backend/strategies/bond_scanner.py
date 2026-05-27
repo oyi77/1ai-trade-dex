@@ -60,6 +60,20 @@ class BondScannerStrategy(BaseStrategy):
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
 
         params = {**self.default_params, **(ctx.params or {})}
+
+        # Check open positions for auto-sell exits at cycle start
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
+
         min_price = float(params["min_price"])
         max_price = float(params["max_price"])
         min_volume = float(params["min_volume"])
@@ -341,4 +355,18 @@ class BondScannerStrategy(BaseStrategy):
         ctx.logger.info(
             f"[bond_scanner] Cycle done: {result.decisions_recorded} bond opportunities found"
         )
+
+        # Check open positions for auto-sell exits at cycle end
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
+
         return result

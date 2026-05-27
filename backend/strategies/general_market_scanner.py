@@ -235,6 +235,20 @@ class GeneralMarketScanner(BaseStrategy):
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
+        params = {**self.default_params, **(ctx.params or {})}
+
+        # Check open positions for auto-sell exits at cycle start
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
 
         # AI is required for this strategy to have any edge — check first to skip early
         if not getattr(ctx.settings, "AI_ENABLED", False):
@@ -247,8 +261,6 @@ class GeneralMarketScanner(BaseStrategy):
         rejected_raw_edge = 0
         rejected_edge_low = 0
         rejected_rr = 0
-
-        params = {**self.default_params, **(ctx.params or {})}
         min_volume = float(params["min_volume"])
         min_edge = float(params["min_edge"])
         max_price = float(params["max_price"])
@@ -954,4 +966,18 @@ class GeneralMarketScanner(BaseStrategy):
             f"Rejected: raw_edge={rejected_raw_edge}, edge_low={rejected_edge_low}, rr_low={rejected_rr} | "
             f"AI calls={ai_calls_this_cycle}"
         )
+
+        # Check open positions for auto-sell exits at cycle end
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
+
         return result

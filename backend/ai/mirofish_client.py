@@ -14,6 +14,14 @@ from loguru import logger
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
+import asyncio
+from backend.config import settings as _s
+from backend.config_extensions import settings as extended_settings
+from backend.db.utils import get_db_session
+from backend.models.database import SystemSettings
+from backend.services.mirofish_service import get_mirofish_service
+import os
+import traceback
 
 
 @dataclass
@@ -63,9 +71,6 @@ class MiroFishClient:
             api_key: API authentication key (from settings if None)
             timeout: Request timeout in seconds (from settings if None)
         """
-        import os
-        from backend.models.database import SystemSettings
-        from backend.config_extensions import settings as extended_settings
 
         # Initialize with provided values or defaults
         self.api_url = api_url
@@ -75,7 +80,6 @@ class MiroFishClient:
         # Try to read from database first
         db_source = None
         try:
-            from backend.db.utils import get_db_session
 
             with get_db_session() as db:
                 # Query database for credentials
@@ -163,7 +167,6 @@ class MiroFishClient:
 
         # Apply defaults
         if not self.api_url:
-            from backend.config import settings as _s
 
             self.api_url = _s.MIROFISH_API_URL
         if not self.api_key:
@@ -262,7 +265,6 @@ class MiroFishClient:
                 self._consecutive_failures = 0
 
                 try:
-                    from backend.services.mirofish_service import get_mirofish_service
 
                     get_mirofish_service().record_signal_fetch(len(signals))
                 except Exception:
@@ -403,7 +405,6 @@ class MiroFishClient:
         Returns:
             ErrorResponse with error details
         """
-        import traceback
 
         error_type = type(error).__name__
         message = str(error)
@@ -428,7 +429,6 @@ class MiroFishClient:
 
     async def _async_sleep(self, seconds: float):
         """Async sleep helper for retry delays."""
-        import asyncio
 
         await asyncio.sleep(seconds)
 

@@ -47,14 +47,25 @@ class LongshotBiasStrategy(BaseStrategy):
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Execute one scan cycle: find longshot markets, evaluate EV, size by Kelly."""
-        max_price = ctx.params.get("max_price", self.default_params["max_price"])
-        min_ev = ctx.params.get("min_ev", self.default_params["min_ev"])
-        max_position = ctx.params.get(
-            "max_position_usd", self.default_params["max_position_usd"]
-        )
-        kelly_frac = ctx.params.get(
-            "kelly_fraction", self.default_params["kelly_fraction"]
-        )
+        params = {**self.default_params, **(ctx.params or {})}
+
+        # Check open positions for auto-sell exits at cycle start
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            ctx.logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
+
+        max_price = params.get("max_price")
+        min_ev = params.get("min_ev")
+        max_position = params.get("max_position_usd")
+        kelly_frac = params.get("kelly_fraction")
 
         decisions_recorded = 0
         trades_attempted = 0
@@ -180,6 +191,19 @@ class LongshotBiasStrategy(BaseStrategy):
         except Exception as exc:
             errors.append(str(exc))
             ctx.logger.exception("[longshot_bias] Cycle failed: {}", exc)
+
+        # Check open positions for auto-sell exits at cycle end
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
+                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
+                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
+            )
+        except Exception as e:
+            ctx.logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
 
         return CycleResult(
             decisions_recorded=decisions_recorded,

@@ -257,3 +257,53 @@ def test_auto_sell_result_to_dict():
     assert d["trade_id"] == 5
     assert d["trigger_reason"] == "TAKE_PROFIT"
     assert d["triggered"] is True
+
+
+@pytest.mark.asyncio
+async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
+    """Verify check_strategy_positions_for_auto_sell passes kwargs to AutoSellManager."""
+    from unittest.mock import AsyncMock, patch
+    from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
+    mock_trade = _make_trade(trade_id=1, entry_price=0.50, direction="yes")
+    mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.filter.return_value.all.return_value = [mock_trade]
+
+    # Mock the DB session helper
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__.return_value = mock_db
+    mock_get_session = MagicMock(return_value=mock_ctx)
+    monkeypatch.setattr("backend.db.utils.get_db_session", mock_get_session)
+
+    # Mock fetch_prices_bulk
+    monkeypatch.setattr("backend.core.position_monitor._fetch_prices_bulk", lambda x: {"test-market": 0.505})
+
+    # Mock scan_and_sell_all to check manager configuration
+    original_scan = AutoSellManager.scan_and_sell_all
+    call_params = {}
+
+    async def mock_scan(self, trades, prices, clob_client=None):
+        call_params["profit_target"] = self.profit_target
+        call_params["stop_loss"] = self.stop_loss
+        call_params["max_hold"] = self.max_hold
+        return []
+
+    monkeypatch.setattr(AutoSellManager, "scan_and_sell_all", mock_scan)
+
+    # Invoke with overrides
+    await check_strategy_positions_for_auto_sell(
+        "test_strat",
+        profit_target_pct=0.05,
+        stop_loss_pct=0.10,
+        max_hold_seconds=600,
+    )
+
+    assert call_params["profit_target"] == 0.05
+    assert call_params["stop_loss"] == 0.10
+    assert call_params["max_hold"] == 600
+
+    # Invoke without overrides to ensure global defaults are used
+    await check_strategy_positions_for_auto_sell("test_strat")
+    assert call_params["profit_target"] == 0.03
+    assert call_params["stop_loss"] == 0.03
+    assert call_params["max_hold"] == 300

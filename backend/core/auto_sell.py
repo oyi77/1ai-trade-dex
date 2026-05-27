@@ -365,6 +365,10 @@ async def auto_sell_monitor_job() -> None:
 async def check_strategy_positions_for_auto_sell(
     strategy_name: str,
     clob_client: Optional[Any] = None,
+    *,
+    profit_target_pct: Optional[float] = None,
+    stop_loss_pct: Optional[float] = None,
+    max_hold_seconds: Optional[int] = None,
 ) -> List[AutoSellResult]:
     """Check all open positions belonging to *strategy_name* for auto-sell.
 
@@ -391,7 +395,11 @@ async def check_strategy_positions_for_auto_sell(
     tickers = list({t.market_ticker for t in trades if t.market_ticker})
     prices = await asyncio.to_thread(_fetch_prices_bulk, tickers)
 
-    manager = AutoSellManager()
+    manager = AutoSellManager(
+        profit_target_pct=profit_target_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_hold_seconds=max_hold_seconds,
+    )
     return await manager.scan_and_sell_all(trades, prices, clob_client)
 
 
