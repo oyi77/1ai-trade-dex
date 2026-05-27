@@ -23,6 +23,8 @@ from backend.ai.training.model_evaluator import ModelEvaluator
 from backend.ai.training.model_trainer import ModelTrainer
 
 from loguru import logger
+from backend.core.log import configure_logging
+from joblib import joblib
 
 
 def _split(
@@ -36,7 +38,6 @@ def _split(
 
 
 async def main() -> None:
-    from backend.core.log import configure_logging
 
     configure_logging()
 
@@ -64,7 +65,6 @@ async def main() -> None:
     # Security: joblib.load() is the standard for scikit-learn models
     # and does NOT execute arbitrary code from unpickled objects,
     # unlike raw pickle.load() which is vulnerable to RCE.
-    import joblib
 
     with open(result.model_path, "rb") as fh:
         bundle = joblib.load(fh)
@@ -129,7 +129,6 @@ async def run_training_pipeline(min_examples: int = 200) -> dict:
         trainer.write_metadata(result)
         fe = FeatureEngineer()
         # Security: joblib.load() replaces pickle.load() — avoids RCE vulnerability
-        import joblib
 
         with open(result.model_path, "rb") as fh:
             bundle = joblib.load(fh)

@@ -16,6 +16,9 @@ from sqlalchemy.sql import func
 from backend.models.database import TradeAttempt, StrategyConfig, StrategyProposal
 
 from loguru import logger
+from backend.db.utils import get_db_session
+from backend.models.database import DecisionLog
+from json import json
 
 LOOKBACK_DAYS = 7
 MIN_REJECTIONS = 10
@@ -87,12 +90,10 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
     Checks for: constant probability, always-positive edge, flat confidence.
     Returns list of {root_cause, description, severity}.
     """
-    from backend.db.utils import get_db_session
 
     causes = []
     try:
         with get_db_session() as db:
-            from backend.models.database import DecisionLog
 
             decisions = (
                 db.query(DecisionLog)
@@ -112,7 +113,6 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
             for d in decisions:
                 data = d.signal_data if d.signal_data else {}
                 if isinstance(data, str):
-                    import json as _json
 
                     try:
                         data = _json.loads(data)
@@ -187,7 +187,6 @@ def analyze_rejections(lookback_days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
     - total rejection count
     - total attempt count (for context)
     """
-    from backend.db.utils import get_db_session
 
     try:
         with get_db_session() as db:
@@ -252,7 +251,6 @@ def analyze_rejections(lookback_days: int = LOOKBACK_DAYS) -> Dict[str, Dict]:
 
 def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[str]:
     """Generate StrategyProposals from systematic rejection patterns + root cause analysis."""
-    from backend.db.utils import get_db_session
 
     created: List[str] = []
     try:
@@ -306,7 +304,6 @@ def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[s
 
                     raw_params = cfg.params if cfg and cfg.params else "{}"
                     try:
-                        import json as _json
 
                         current_params = (
                             _json.loads(raw_params)

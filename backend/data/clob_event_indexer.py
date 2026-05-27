@@ -23,7 +23,7 @@ class CLOBEventIndexer:
         self.rpc_url = rpc_url or settings.POLYGON_RPC_URL
         self.contract = contract or CLOB_CONTRACT
         self._w3 = None
-        self._last_indexed_block: int = 0
+        self.last_indexed_block: int = 0
         self._block_time_cache: dict[int, int] = {}
 
     def _get_w3(self):
@@ -64,7 +64,7 @@ class CLOBEventIndexer:
             except Exception as e:
                 logger.warning(f"CLOB event fetch failed blocks {start}-{end}: {e}")
 
-        self._last_indexed_block = to_block
+        self.last_indexed_block = to_block
         return events
 
     def _decode_event(self, log) -> dict:
@@ -154,10 +154,3 @@ class CLOBEventIndexer:
             "transactionHash": tx_hash,
         }
 
-    @property
-    def last_indexed_block(self) -> int:
-        return self._last_indexed_block
-
-    @last_indexed_block.setter
-    def last_indexed_block(self, value: int):
-        self._last_indexed_block = value

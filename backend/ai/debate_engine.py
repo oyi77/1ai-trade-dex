@@ -28,6 +28,7 @@ from backend.ai.llm_router import LLMRouter as _LLMRouter
 from backend.ai.probability_utils import clamp_probability
 
 from loguru import logger
+from random import random
 
 # --- Configuration ---
 MAX_DEBATE_ROUNDS = 2
@@ -258,7 +259,6 @@ def _build_judge_prompt(
         default=0,
     )
 
-    import random
 
     for r in range(1, max_rounds + 1):
         prompt += f"\n=== ROUND {r} ===\n"

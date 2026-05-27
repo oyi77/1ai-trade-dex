@@ -10,6 +10,23 @@ import os
 from typing import Optional
 
 from loguru import logger
+from backend.config import settings
+from backend.core.llm_cost_tracker import LLMCostTracker
+
+try:
+    from anthropic import AsyncAnthropic
+except ImportError:
+    AsyncAnthropic = None
+
+try:
+    from groq import AsyncGroq
+except ImportError:
+    AsyncGroq = None
+
+try:
+    from openai import AsyncOpenAI
+except ImportError:
+    AsyncOpenAI = None
 
 # Approximate cost per 1K tokens by provider type (USD)
 _PROVIDER_COST_PER_1K: dict[str, float] = {
@@ -125,7 +142,6 @@ def _discover_providers() -> dict[str, dict]:
     """Build runtime provider configs from settings + env vars.
     Each entry carries runtime config + display metadata inline.
     """
-    from backend.config import settings
 
     providers: dict[str, dict] = {}
 
@@ -168,8 +184,6 @@ def _discover_providers() -> dict[str, dict]:
 
 class LLMRouter:
     def __init__(self):
-        from backend.config import settings
-        from backend.core.llm_cost_tracker import LLMCostTracker
 
         self.providers: dict[str, dict] = _discover_providers()
         self.default_provider: str = getattr(settings, "LLM_DEFAULT_PROVIDER", "groq")
@@ -178,7 +192,6 @@ class LLMRouter:
         self._cost_tracker = LLMCostTracker()
 
     def _resolve_provider(self, role: str) -> Optional[str]:
-        from backend.config import settings
 
         mapping = ROLE_SETTING_MAP.get(role)
         if mapping is None:
@@ -198,7 +211,6 @@ class LLMRouter:
     async def _call_groq(
         self, config: dict, messages: list[dict], **kwargs
     ) -> tuple[str, int]:
-        from groq import AsyncGroq
 
         client = AsyncGroq(api_key=config["api_key"])
         response = await client.chat.completions.create(
@@ -214,7 +226,6 @@ class LLMRouter:
     async def _call_claude(
         self, config: dict, messages: list[dict], **kwargs
     ) -> tuple[str, int]:
-        from anthropic import AsyncAnthropic
 
         client = AsyncAnthropic(api_key=config["api_key"])
 
@@ -242,7 +253,6 @@ class LLMRouter:
     async def _call_openai(
         self, config: dict, messages: list[dict], **kwargs
     ) -> tuple[str, int]:
-        from openai import AsyncOpenAI
 
         base = config.get("base_url") or None
         client = AsyncOpenAI(api_key=config["api_key"], base_url=base)
@@ -291,7 +301,6 @@ class LLMRouter:
         # Lazy-init cost tracker (may be absent if __init__ was patched in tests)
         cost_tracker = getattr(self, "_cost_tracker", None)
         if cost_tracker is None:
-            from backend.core.llm_cost_tracker import LLMCostTracker
 
             cost_tracker = LLMCostTracker()
             self._cost_tracker = cost_tracker

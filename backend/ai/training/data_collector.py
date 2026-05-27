@@ -18,6 +18,7 @@ from backend.ai.training.feature_engineering import FeatureEngineer
 from backend.config import settings
 
 from loguru import logger
+from backend.core.log import configure_logging
 
 GAMMA_HOST = settings.GAMMA_API_URL
 
@@ -108,7 +109,6 @@ class DataCollector:
 
 async def collect_main():
     """CLI entry point: ``python -m backend.ai.training.data_collector``."""
-    from backend.core.log import configure_logging
 
     configure_logging()
     collector = DataCollector()

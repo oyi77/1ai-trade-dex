@@ -9,6 +9,9 @@ import re
 from sqlalchemy.orm import Session
 
 from loguru import logger
+from backend.ai.custom import get_custom_client
+from backend.core.llm_cost_tracker import LLMCostTracker
+from backend.models.database import Trade
 
 
 class ParameterOptimizer:
@@ -43,7 +46,6 @@ class ParameterOptimizer:
             dict with keys: win_rate, total_trades, pnl, avg_win_edge,
                           avg_loss_edge, top_strategy
         """
-        from backend.models.database import Trade
 
         trades = (
             db.query(Trade).order_by(Trade.timestamp.desc()).limit(trade_limit).all()
@@ -203,7 +205,6 @@ Provide specific numerical suggestions in JSON format:
 
         # --- OmniRoute / Custom (OpenAI-compatible) ---
         if ai_provider in ("omniroute", "custom"):
-            from backend.ai.custom import get_custom_client
 
             custom = get_custom_client()
             if custom:
@@ -227,7 +228,6 @@ Provide specific numerical suggestions in JSON format:
             groq_key = getattr(self.settings, "GROQ_API_KEY", None)
             if groq_key:
                 try:
-                    from groq import AsyncGroq
 
                     model = (
                         getattr(self.settings, "AI_MODEL", None)
@@ -244,7 +244,6 @@ Provide specific numerical suggestions in JSON format:
                     raw = response.choices[0].message.content.strip()
                     tokens = response.usage.total_tokens if response.usage else 0
                     try:
-                        from backend.core.llm_cost_tracker import LLMCostTracker
 
                         cost_tracker = LLMCostTracker()
                         cost_per_1k = 0.0002  # Groq approximate cost
@@ -272,7 +271,6 @@ Provide specific numerical suggestions in JSON format:
             claude_key = getattr(self.settings, "ANTHROPIC_API_KEY", None)
             if claude_key:
                 try:
-                    from anthropic import AsyncAnthropic
 
                     model = (
                         getattr(self.settings, "AI_MODEL", None)
@@ -288,7 +286,6 @@ Provide specific numerical suggestions in JSON format:
                     raw = message.content[0].text.strip()
                     tokens = message.usage.input_tokens + message.usage.output_tokens
                     try:
-                        from backend.core.llm_cost_tracker import LLMCostTracker
 
                         cost_tracker = LLMCostTracker()
                         cost_per_1k = 0.015  # Claude approximate cost

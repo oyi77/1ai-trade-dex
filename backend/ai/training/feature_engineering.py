@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import math
 from typing import Any, Dict, List
+from logging import logging
 
 # Canonical feature order — kept stable so trained model coefficients align.
 FEATURE_ORDER: List[str] = [
@@ -43,7 +44,6 @@ class FeatureEngineer:
             # features are also absent, edge collapses to zero, so log a
             # warning for observability.
             if row.get("sentiment") is None and row.get("whale_pressure") is None:
-                import logging
 
                 logging.getLogger(__name__).warning(
                     "model_probability missing and no sentiment/whale data; edge will be 0"

@@ -11,16 +11,19 @@ This module integrates with:
 - API endpoints for approval workflow
 """
 
+import json
+import re
+import statistics as stats_mod
 from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from dataclasses import dataclass
-
-from backend.models.database import Trade
+from backend.db.utils import get_db_session
+from backend.models.database import StrategyConfig, StrategyProposal as DBProposal, Trade
 from backend.ai.trade_analyzer import TradeAnalyzer
 from backend.ai.claude import ClaudeAnalyzer
 from backend.config import settings
-
+from sqlalchemy.sql import func
 
 @dataclass
 class StrategyProposal:
@@ -104,17 +107,11 @@ class ProposalGenerator:
         Returns:
             Dictionary mapping strategy names to their current configurations
         """
-        from backend.db.utils import get_db_session
-
         with get_db_session() as db:
-            from backend.models.database import StrategyConfig
-
             configs = db.query(StrategyConfig).all()
 
             result = {}
             for config in configs:
-                import json
-
                 result[config.strategy_name] = {
                     "enabled": config.enabled,
                     "interval_seconds": config.interval_seconds,
@@ -306,8 +303,6 @@ Be specific and actionable. Do not suggest vague improvements."""
         """
         result = []
         for strategy, config in configs.items():
-            import json
-
             params_str = json.dumps(config.get("params", {}))
             result.append(
                 f"- {strategy}: enabled={config.get('enabled')}, "
@@ -328,9 +323,6 @@ Be specific and actionable. Do not suggest vague improvements."""
             StrategyProposal object or None if parsing fails
         """
         try:
-            import json
-            import re
-
             # Extract fields using regex
             strategy_match = re.search(r"STRATEGY:\s*(.+)", response_text)
             change_type_match = re.search(r"CHANGE_TYPE:\s*(.+)", response_text)
@@ -429,11 +421,7 @@ Be specific and actionable. Do not suggest vague improvements."""
             Database ID of stored proposal
         """
         try:
-            from backend.db.utils import get_db_session
-
             with get_db_session() as db:
-                from backend.models.database import StrategyProposal as DBProposal
-
                 db_proposal = DBProposal(
                     strategy_name=proposal.strategy_name,
                     change_details=proposal.change_details,
@@ -467,10 +455,7 @@ Be specific and actionable. Do not suggest vague improvements."""
         Returns:
             List of proposal dictionaries
         """
-        from backend.db.utils import get_db_session
-
         with get_db_session() as db:
-            from backend.models.database import StrategyProposal as DBProposal
 
             proposals = (
                 db.query(DBProposal)
@@ -516,11 +501,7 @@ Be specific and actionable. Do not suggest vague improvements."""
             True if approved successfully, False otherwise
         """
         try:
-            from backend.db.utils import get_db_session
-
             with get_db_session() as db:
-                from backend.models.database import StrategyProposal as DBProposal
-
                 proposal = (
                     db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
                 )
@@ -569,11 +550,7 @@ Be specific and actionable. Do not suggest vague improvements."""
             True if rejected successfully, False otherwise
         """
         try:
-            from backend.db.utils import get_db_session
-
             with get_db_session() as db:
-                from backend.models.database import StrategyProposal as DBProposal
-
                 proposal = (
                     db.query(DBProposal).filter(DBProposal.id == proposal_id).first()
                 )
@@ -614,12 +591,6 @@ def auto_promote_eligible_proposals():
     3. Apply params with adaptive deviation limit (wider for broken strategies)
     """
     try:
-        from backend.models.database import (
-            StrategyProposal as DBProposal,
-            StrategyConfig,
-        )
-        from backend.db.utils import get_db_session
-
         with get_db_session() as db:
             eligible = (
                 db.query(DBProposal)
@@ -661,9 +632,8 @@ def auto_promote_eligible_proposals():
                     if config and proposal.change_details:
                         current_params = config.params or {}
                         if isinstance(current_params, str):
-                            import json as _json
 
-                            current_params = _json.loads(current_params)
+                            current_params = json.loads(current_params)
 
                         baseline_wr = _get_baseline_win_rate(db, proposal.strategy_name)
                         max_deviation = (
@@ -694,10 +664,9 @@ def auto_promote_eligible_proposals():
                                     applied = True
 
                         if applied:
-                            import json as _json
 
                             config.params = (
-                                _json.dumps(current_params)
+                                json.dumps(current_params)
                                 if not isinstance(current_params, str)
                                 else current_params
                             )
@@ -715,8 +684,6 @@ def auto_promote_eligible_proposals():
 
 
 def _get_baseline_win_rate(db, strategy_name: str) -> float:
-    from backend.models.database import Trade
-    from sqlalchemy.sql import func
 
     stats = (
         db.query(
@@ -752,8 +719,6 @@ def _run_backtest_for_proposal(db, proposal) -> dict:
     Gate: improvement in win_rate OR sharpe over baseline (≥2 of 3 metrics + ≥3 trades).
     """
     try:
-        import statistics as stats_mod
-        from backend.models.database import Trade
 
         # ⚠️ IMPORTANT: This is PnL replay, NOT a real backtest
         logger.warning(

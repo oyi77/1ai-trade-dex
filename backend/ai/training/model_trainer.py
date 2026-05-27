@@ -21,6 +21,7 @@ from backend.ai.training.data_collector import TrainingExample
 from backend.ai.training.feature_engineering import FEATURE_ORDER, FeatureEngineer
 
 from loguru import logger
+from joblib import joblib
 
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "baseline.pkl"
@@ -62,7 +63,6 @@ class ModelTrainer:
         # Security: joblib.dump() replaces pickle.dump() — avoids RCE
         # vulnerability when the model is later loaded. joblib is the
         # standard serialization format for scikit-learn models.
-        import joblib
 
         with open(self.model_path, "wb") as fh:
             joblib.dump(

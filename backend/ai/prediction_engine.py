@@ -11,6 +11,9 @@ from typing import Any, Dict, List, Optional
 from backend.ai.probability_utils import clamp_probability
 
 from loguru import logger
+from backend.core.outcome_repository import get_strategy_stats
+from backend.db.utils import get_db_session
+import joblib
 
 
 @dataclass
@@ -64,7 +67,6 @@ class PredictionEngine:
             # Security: joblib.load() is the standard for scikit-learn models
             # and does NOT execute arbitrary code from unpickled objects,
             # unlike raw pickle.load() which is vulnerable to RCE.
-            import joblib
 
             logger.warning(
                 f"Loading model from {self._model_path} — verify model source is trusted"
@@ -116,8 +118,6 @@ class PredictionEngine:
 
         if strategy is not None:
             try:
-                from backend.core.outcome_repository import get_strategy_stats
-                from backend.db.utils import get_db_session
 
                 with get_db_session() as db:
                     stats = get_strategy_stats(strategy, None, db)

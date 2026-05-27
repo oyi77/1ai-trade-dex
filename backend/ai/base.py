@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from enum import Enum
+from backend.config import settings
 
 
 class AIProvider(str, Enum):
@@ -96,7 +97,6 @@ class BaseAIClient(ABC):
 
 def get_ai_client() -> "BaseAIClient":
     """Return the configured AI client based on settings."""
-    from backend.config import settings
 
     provider = settings.AI_PROVIDER.lower()
     if provider == "groq":

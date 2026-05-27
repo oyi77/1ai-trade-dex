@@ -12,6 +12,7 @@ from typing import Dict, Any, List
 
 from backend.models import database as db_mod
 from backend.models.database import Trade
+from collections import Counter
 
 
 class TradeAnalyzer:
@@ -360,7 +361,6 @@ class TradeAnalyzer:
         if not factors:
             return []
 
-        from collections import Counter
 
         factor_counts = Counter(factors)
 

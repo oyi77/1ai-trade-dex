@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 from backend.config import settings
 from backend.core.event_bus import subscribe_handler, publish_event
+from backend.db.utils import get_db_session
 
 from loguru import logger
 
@@ -34,7 +35,6 @@ async def on_trade_executed(event_type: str, data: Dict[str, Any]) -> None:
                 attribute_trade_to_chromosomes,
             )
             from backend.models.database import GenomeRegistry, Trade
-            from backend.db.utils import get_db_session
 
             with get_db_session() as db:
                 trade = db.query(Trade).filter_by(id=trade_id).first()
@@ -93,7 +93,6 @@ async def on_trade_settled(event_type: str, data: Dict[str, Any]) -> None:
 
         def _forensics():
             from backend.core.forensics_integration import generate_forensics_proposals
-            from backend.db.utils import get_db_session
 
             with get_db_session() as db:
                 generate_forensics_proposals(db=db)
@@ -136,7 +135,6 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
 
     def _necromancy():
         from backend.application.agi.necromancer import run_necromancy_analysis
-        from backend.db.utils import get_db_session
 
         with get_db_session() as db:
             report = run_necromancy_analysis(db)
@@ -166,7 +164,6 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
 
     def _graveyard():
         from backend.models.database import GenomeRegistry
-        from backend.db.utils import get_db_session
 
         with get_db_session() as db:
             genome = (
@@ -202,7 +199,6 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
     # Create DRAFT experiment so AutonomousPromoter tracks rehab pipeline
     def _create_draft():
         from backend.models.database import ExperimentRecord
-        from backend.db.utils import get_db_session
         from backend.agi_types import ExperimentStatus
 
         with get_db_session() as db:
@@ -260,7 +256,6 @@ async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
     if to_stage == "LIVE" and getattr(settings, "AGI_AUTO_ENABLE", False):
 
         def _auto_enable():
-            from backend.db.utils import get_db_session
             from backend.models.database import StrategyConfig
 
             with get_db_session() as db:
@@ -297,7 +292,6 @@ async def on_chromosome_flagged(event_type: str, data: Dict[str, Any]) -> None:
 
     def _mutate():
         from backend.application.agi.evolution_jobs import targeted_mutation
-        from backend.db.utils import get_db_session
 
         with get_db_session() as db:
             targeted_mutation(genome_id=genome_id, chrom_name=chrom_name, db=db)
@@ -323,7 +317,6 @@ async def on_mutation_proposed(event_type: str, data: Dict[str, Any]) -> None:
 
     def _forensics():
         from backend.core.forensics_integration import generate_forensics_proposals
-        from backend.db.utils import get_db_session
 
         with get_db_session() as db:
             generate_forensics_proposals(db=db)
@@ -350,7 +343,6 @@ async def on_regime_shift(event_type: str, data: Dict[str, Any]) -> None:
         from backend.application.agi.regime_population_manager import (
             detect_regime_and_rebalance,
         )
-        from backend.db.utils import get_db_session
 
         with get_db_session() as db:
             detect_regime_and_rebalance(db)
@@ -549,7 +541,6 @@ async def on_strategy_demoted(event_type: str, data: Dict[str, Any]) -> None:
     # Trigger AGI improvement cycle for the demoted strategy
     try:
         from backend.core.agi_self_tuner import get_agi_self_tuner
-        from backend.db.utils import get_db_session
 
         # evaluate_and_tune is async, so we can't use to_thread for the whole block.
         # Wrap only the sync DB session setup in to_thread, keep await for async tuner.

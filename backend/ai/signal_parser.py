@@ -17,6 +17,9 @@ from loguru import logger
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from backend.core.config_service import get_setting
+from backend.models.database import MiroFishSignal
+from backend.models.database import get_db_session
 
 
 @dataclass
@@ -36,7 +39,6 @@ class SignalParser:
 
     def __init__(self):
         """Initialize signal parser."""
-        from backend.core.config_service import get_setting
 
         self.mirofish_signal_weight = get_setting("MIROFISH_SIGNAL_WEIGHT", 1.0)
         logger.info(
@@ -206,11 +208,9 @@ class SignalParser:
         """
         try:
             if session is None:
-                from backend.models.database import get_db_session
 
                 session = get_db_session()
 
-            from backend.models.database import MiroFishSignal
 
             # Check if signal already exists for this market
             existing = (

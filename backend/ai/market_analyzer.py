@@ -9,6 +9,8 @@ from typing import Optional
 from backend.ai.logger import get_ai_logger
 
 from backend.ai.llm_router import LLMRouter as _LLMRouter
+from backend.config import settings
+from backend.research.storage import ResearchStorage
 
 _router: _LLMRouter | None = None
 
@@ -197,7 +199,6 @@ def _parse_ai_response(response: str) -> tuple[float, float, str]:
 async def _call_groq(prompt: str) -> Optional[str]:
     start_time = time.time()
     try:
-        from backend.config import settings
 
         router = _get_router()
         system = (
@@ -230,7 +231,6 @@ async def _call_groq(prompt: str) -> Optional[str]:
         logger.error(f"Groq market analysis failed: {e}")
         latency_ms = (time.time() - start_time) * 1000
         try:
-            from backend.config import settings
 
             ai_logger = get_ai_logger()
             ai_logger.log_call(
@@ -252,7 +252,6 @@ async def _call_groq(prompt: str) -> Optional[str]:
 async def _call_claude(prompt: str) -> Optional[str]:
     start_time = time.time()
     try:
-        from backend.config import settings
 
         router = _get_router()
         model = getattr(settings, "ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
@@ -282,7 +281,6 @@ async def _call_claude(prompt: str) -> Optional[str]:
         logger.error(f"Claude market analysis failed: {e}")
         latency_ms = (time.time() - start_time) * 1000
         try:
-            from backend.config import settings
 
             model = getattr(settings, "ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
             ai_logger = get_ai_logger()
@@ -304,7 +302,6 @@ async def _call_claude(prompt: str) -> Optional[str]:
 
 async def check_ai_budget() -> dict:
     """Return current AI spend vs daily budget."""
-    from backend.config import settings
 
     ai_logger = get_ai_logger()
     stats = ai_logger.get_daily_stats()
@@ -339,7 +336,6 @@ async def analyze_market(
     research_text = ""
     if research_items is None:
         try:
-            from backend.research.storage import ResearchStorage
 
             storage = ResearchStorage()
             fetched = await storage.get_for_market(question, limit=5)

@@ -7,6 +7,7 @@ from loguru import logger
 
 from .base import AIAnalysis, BaseAIClient, create_classification_prompt
 from .logger import get_ai_logger
+from backend.config import settings
 
 
 class GroqClassifier(BaseAIClient):
@@ -28,7 +29,6 @@ class GroqClassifier(BaseAIClient):
         """Lazy load the async Groq client."""
         if self._client is None:
             if not self.api_key:
-                from backend.config import settings
 
                 self.api_key = settings.GROQ_API_KEY
 
@@ -36,7 +36,6 @@ class GroqClassifier(BaseAIClient):
                 raise ValueError("GROQ_API_KEY not configured")
 
             try:
-                from groq import AsyncGroq
 
                 self._client = AsyncGroq(api_key=self.api_key)
             except ImportError:

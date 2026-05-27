@@ -5,6 +5,7 @@ import httpx
 from backend.config import settings
 
 from loguru import logger
+from re import re
 
 
 class GeminiProvider:
@@ -43,7 +44,6 @@ class GeminiProvider:
 
     @staticmethod
     def _extract_probability(text: str) -> float:
-        import re
 
         match = re.search(r"(\d+\.?\d*)", text)
         if match:

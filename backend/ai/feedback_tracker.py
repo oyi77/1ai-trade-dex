@@ -14,6 +14,9 @@ from backend.models.database import StrategyProposal, StrategyConfig, Trade
 from backend.models.outcome_tables import ProposalFeedback, ParamChange
 
 from loguru import logger
+from backend.db.utils import get_db_session
+from contextlib import nullcontext
+from statistics import statistics
 
 MIN_TRADES_TO_MEASURE = 5
 ROLLBACK_WR_THRESHOLD = -0.05
@@ -26,7 +29,6 @@ def compute_sharpe(returns: list) -> float:
     Returns 0.0 for empty input, single-element input, or zero-mean inputs
     where the ratio is undefined.
     """
-    import statistics
 
     if len(returns) < 2:
         return 0.0
@@ -41,8 +43,6 @@ def compute_sharpe(returns: list) -> float:
 
 def measure_recent_changes(db: Optional[Session] = None) -> dict:
     """Measure all recently applied proposals that haven't been measured yet."""
-    from backend.db.utils import get_db_session
-    from contextlib import nullcontext
 
     owns_db = db is None
     ctx = get_db_session() if owns_db else nullcontext(db)
@@ -135,7 +135,6 @@ def _measure_proposal(proposal: StrategyProposal, db: Session) -> Optional[dict]
 
     pre_pnls = [t.pnl or 0.0 for t in pre_trades]
     post_pnls = [t.pnl or 0.0 for t in post_trades]
-    import statistics
 
     pre_stdev = statistics.stdev(pre_pnls) if len(pre_pnls) > 1 else 0.0
     post_stdev = statistics.stdev(post_pnls) if len(post_pnls) > 1 else 0.0

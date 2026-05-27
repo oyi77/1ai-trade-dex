@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from backend.models.database import Trade, StrategyProposal
+from backend.db.utils import get_db_session
 
 
 @dataclass
@@ -245,7 +246,6 @@ class ImpactMeasurer:
             metrics_before: Metrics before proposal execution
             metrics_after: Metrics after proposal execution
         """
-        from backend.db.utils import get_db_session
 
         try:
             with get_db_session() as db:
@@ -293,7 +293,6 @@ class ImpactMeasurer:
         Returns:
             Impact data dictionary or None if not found
         """
-        from backend.db.utils import get_db_session
 
         try:
             with get_db_session() as db:

@@ -18,6 +18,8 @@ from backend.ai.training.data_collector import DataCollector, TrainingExample
 from backend.ai.training.feature_engineering import FEATURE_ORDER, FeatureEngineer
 
 from loguru import logger
+from joblib import joblib
+from random import random
 
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "ml_predictor.pkl"
@@ -131,7 +133,6 @@ class MLTrainer:
 
     def _save_model(self, model) -> None:
         """Save trained model to disk."""
-        import joblib
 
         os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         with open(self.model_path, "wb") as fh:
@@ -147,7 +148,6 @@ class MLTrainer:
 
     def _synthetic_examples(self, n: int) -> List[TrainingExample]:
         """Generate synthetic training examples for fallback."""
-        import random as _random
 
         rng = _random.Random(42)
         out: List[TrainingExample] = []

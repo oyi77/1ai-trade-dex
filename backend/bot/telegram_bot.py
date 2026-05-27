@@ -39,6 +39,7 @@ except ImportError:
     TELEGRAM_AVAILABLE = False
     logger.warning("python-telegram-bot not installed — Telegram alerts disabled")
 
+from backend.config import settings
 
 class PolyEdgeBot:
     """
@@ -169,7 +170,6 @@ class PolyEdgeBot:
         """
         if not self._bot or self._paused:
             return
-        from backend.config import settings
 
         market = signal.market
         condition_id = market.market_id
@@ -268,7 +268,6 @@ class PolyEdgeBot:
         if not self._bot or self._paused:
             return
         try:
-            from backend.config import settings
 
             edge_pct = abs(getattr(signal, "edge", 0) or 0) * 100
             direction = getattr(signal, "direction", "N/A").upper()
@@ -323,7 +322,6 @@ class PolyEdgeBot:
         if not self._bot:
             return
         try:
-            from backend.config import settings
 
             _mode_str = ", ".join(m.upper() for m in sorted(settings.active_modes_set))
             primary_mode = (
@@ -510,7 +508,6 @@ class PolyEdgeBot:
         )
 
     async def _cmd_status(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
-        from backend.config import settings
         from backend.models.database import SessionLocal, BotState, for_update
 
         mode_emoji = {"paper": "🟠 PAPER", "testnet": "🟡 TESTNET", "live": "🔴 LIVE"}
@@ -562,12 +559,11 @@ class PolyEdgeBot:
             from backend.models.database import SessionLocal, Trade
 
             with SessionLocal() as db:
-                from backend.config import settings as _s
 
                 pending = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(False))
-                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
+                    .filter(Trade.trading_mode.in_(settings.active_modes_set))
                     .order_by(Trade.timestamp.desc())
                     .all()
                 )
@@ -633,7 +629,6 @@ class PolyEdgeBot:
     async def _cmd_settings(
         self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"
     ):
-        from backend.config import settings
 
         await update.message.reply_text(
             f"<b>PolyEdge Settings</b>\n\n"
@@ -652,7 +647,6 @@ class PolyEdgeBot:
             return
         args = context.args
         if not args or args[0] not in ("paper", "testnet", "live"):
-            from backend.config import settings
 
             current = settings.TRADING_MODE
             await update.message.reply_text(
@@ -712,11 +706,10 @@ class PolyEdgeBot:
             from backend.models.database import SessionLocal, Trade
 
             with SessionLocal() as db:
-                from backend.config import settings as _s
 
                 trades = (
                     db.query(Trade)
-                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
+                    .filter(Trade.trading_mode.in_(settings.active_modes_set))
                     .order_by(Trade.timestamp.desc())
                     .limit(n)
                     .all()
@@ -752,21 +745,19 @@ class PolyEdgeBot:
         """Show current bankroll and equity."""
         try:
             from backend.models.database import SessionLocal, Trade
-            from backend.config import settings
 
             with SessionLocal() as db:
-                from backend.config import settings as _s
 
                 pending = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(False))
-                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
+                    .filter(Trade.trading_mode.in_(settings.active_modes_set))
                     .all()
                 )
                 settled = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(True))
-                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
+                    .filter(Trade.trading_mode.in_(settings.active_modes_set))
                     .all()
                 )
             total_pnl = sum(t.pnl or 0.0 for t in settled)
@@ -816,12 +807,11 @@ class PolyEdgeBot:
             from backend.models.database import SessionLocal, Trade
 
             with SessionLocal() as db:
-                from backend.config import settings as _s
 
                 all_trades = (
                     db.query(Trade)
                     .filter(Trade.settled.is_(True))
-                    .filter(Trade.trading_mode.in_(_s.active_modes_set))
+                    .filter(Trade.trading_mode.in_(settings.active_modes_set))
                     .all()
                 )
             if not all_trades:
@@ -852,7 +842,6 @@ class PolyEdgeBot:
 
 def bot_from_settings() -> "PolyEdgeBot":
     """Create PolyEdgeBot from app settings."""
-    from backend.config import settings
 
     token = getattr(settings, "TELEGRAM_BOT_TOKEN", "") or ""
     raw_ids = getattr(settings, "TELEGRAM_ADMIN_CHAT_IDS", "") or ""

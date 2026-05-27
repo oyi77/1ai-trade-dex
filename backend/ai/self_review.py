@@ -16,6 +16,10 @@ from sqlalchemy.orm import Session
 from backend.ai.llm_router import LLMRouter
 from backend.clients.bigbrain import BigBrainClient
 from backend.models.database import SessionLocal, Trade
+from backend.ai.rejection_learner import generate_rejection_proposals
+from backend.models.database import StrategyProposal, StrategyConfig
+from backend.models.outcome_tables import StrategyOutcome
+from json import json
 
 # ── Configuration defaults ────────────────────────────────────────────────
 
@@ -436,7 +440,6 @@ class SelfReview:
             # 7. Rejection learning — feed blocked/rejected patterns back into proposals
             rejection_proposals = []
             try:
-                from backend.ai.rejection_learner import generate_rejection_proposals
 
                 rejection_proposals = generate_rejection_proposals()
             except Exception as e:
@@ -458,8 +461,6 @@ class SelfReview:
         session = db or self._get_db()
         close = db is None
         try:
-            from backend.models.database import StrategyProposal, StrategyConfig
-            from backend.models.outcome_tables import StrategyOutcome
 
             strategies = session.query(StrategyOutcome.strategy).distinct().all()
             generated = 0
@@ -490,7 +491,6 @@ class SelfReview:
                     }
                     if isinstance(current_params, str):
                         try:
-                            import json
 
                             current_params = json.loads(current_params)
                         except Exception:

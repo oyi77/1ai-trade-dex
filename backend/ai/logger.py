@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
+from backend.db.utils import get_db_session
+from backend.models.database import AILog
 
 
 @dataclass
@@ -110,8 +112,6 @@ class AICallLogger:
         if not self.log_to_db:
             return
         try:
-            from backend.models.database import AILog
-            from backend.db.utils import get_db_session
 
             with get_db_session() as db:
                 db_record = AILog(
@@ -138,7 +138,6 @@ class AICallLogger:
             return
 
         try:
-            from backend.models.database import AILog
 
             db_record = AILog(
                 timestamp=datetime.fromisoformat(record.timestamp),

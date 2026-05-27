@@ -3,6 +3,7 @@ import json
 import os
 from typing import Tuple
 from backend.core.errors import PolyEdgeException
+from pickle import pickle
 
 MODEL_HASHES_PATH = os.path.join(
     os.path.dirname(__file__), "models", "model_hashes.json"
@@ -54,7 +55,6 @@ def load_model_safely(pkl_path: str) -> Tuple[object, bool]:
     elif expected:
         print(f"[model_integrity] Hash OK: {fname}")
     # RestrictedUnpickler fallback
-    import pickle
 
     class _RestrictedUnpickler(pickle.Unpickler):
         ALLOWED_PREFIXES = (
