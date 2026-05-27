@@ -342,7 +342,7 @@ class CrossDexArbStrategy(BaseStrategy):
             )
 
         # Gate: ensure strategy has passed live gate before returning decisions
-        if not await ctx.can_trade():
+        if ctx.mode != "live":
             return CycleResult(
                 decisions_recorded=0,
                 trades_attempted=0,

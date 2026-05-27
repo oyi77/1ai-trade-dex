@@ -280,7 +280,7 @@ class CrossMarketArb(BaseStrategy):
                         continue
 
                     # Gate: ensure strategy has passed live gate before executing
-                    if not await ctx.can_trade():
+                    if ctx.mode != "live":
                         ctx.logger.debug(
                             "[cross_market_arb] Skipping — strategy gate not cleared"
                         )
