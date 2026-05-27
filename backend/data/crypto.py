@@ -157,6 +157,7 @@ async def fetch_crypto_klines(
     now = time.time()
     cache = _get_kline_cache(asset_key)
     if cache["data"] is not None and (now - cache["ts"]) < _CACHE_TTL:
+        logger.debug(f"kline cache HIT for {pair} ({asset_key}), age={now - cache['ts']:.1f}s")
         return cache["data"]
 
     client = _get_crypto_client()
