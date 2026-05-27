@@ -343,11 +343,14 @@ class CrossMarketArbEnhanced:
         id_a = str(m_a.get("event_id", ""))
         id_b = str(m_b.get("event_id", ""))
 
-        # Resolve token_id from the cheaper platform's market data
-        cheaper_market = m_a if price_a < price_b else m_b
+        # Resolve token_id from Polymarket side (only PM has clobTokenIds)
+        pm_market = m_a if platform_a == "polymarket" else m_b if platform_b == "polymarket" else None
         cheaper_platform = platform_a if price_a < price_b else platform_b
-        clob_token_ids = cheaper_market.get("clobTokenIds") or []
-        token_id = str(clob_token_ids[0]) if clob_token_ids else None
+        token_id = None
+        if pm_market:
+            clob_token_ids = pm_market.get("clobTokenIds") or []
+            if clob_token_ids:
+                token_id = str(clob_token_ids[0])
 
         return ArbOpportunityEnhanced(
             event_id=f"{id_a}:{id_b}",
