@@ -96,6 +96,8 @@ class ArbScannerStrategy(BaseStrategy):
 
         decisions = []
         for idx, opp in enumerate(result.opportunities[:10]):
+            if idx == 0:
+                logger.info(f"[arb_scanner] first opp: kind={opp.kind} token_id={opp.token_id} platform={opp.platform} event_id={opp.event_id}")
             try:
                 _opp_size = getattr(opp, "size_usd", None)
                 size_usd = _opp_size if _opp_size and _opp_size > 0 else 10.0
@@ -129,6 +131,11 @@ class ArbScannerStrategy(BaseStrategy):
                 if opp.token_id:
                     decision["token_id"] = opp.token_id
                     decision["platform"] = opp.platform or "polymarket"
+                else:
+                    logger.warning(
+                        f"[arb_scanner] No token_id for {opp.kind} "
+                        f"({opp.event_id}): pm={opp.platform_a}/{opp.platform_b}"
+                    )
 
                 decisions.append(decision)
 
