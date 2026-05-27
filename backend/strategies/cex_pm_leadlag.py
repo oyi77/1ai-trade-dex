@@ -66,6 +66,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "max_per_asset": 1,
         "stop_loss_pct": 0.20,
         "max_hold_seconds": 240,
+        "profit_target_pct": 0.08,
     }
 
     async def market_filter(self, markets: list[CryptoMarket]) -> list[CryptoMarket]:
@@ -99,6 +100,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
+                profit_target_pct=float(params.get("profit_target_pct", 0.08)),
                 stop_loss_pct=float(params.get("stop_loss_pct", 0.20)),
                 max_hold_seconds=int(params.get("max_hold_seconds", 240)),
             )
