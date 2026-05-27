@@ -36,6 +36,8 @@ class ArbOpportunityEnhanced:
     net_profit: float
     net_profit_pct: float
     confidence: float
+    token_id: Optional[str] = None
+    platform: str = ""
     details: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -178,6 +180,8 @@ class CrossMarketArbEnhanced:
             return None
 
         market_id = str(market.get("event_id", ""))
+        clob_token_ids = market.get("clobTokenIds") or []
+        token_id = str(clob_token_ids[0]) if clob_token_ids else None
         return ArbOpportunityEnhanced(
             event_id=market_id,
             kind="yes_no_sum",
@@ -194,6 +198,8 @@ class CrossMarketArbEnhanced:
             net_profit=net,
             net_profit_pct=net_pct,
             confidence=min(1.0, net_pct / 0.05),
+            token_id=token_id,
+            platform=platform,
             details={"yes_no_sum": total, "platform": platform},
         )
 
