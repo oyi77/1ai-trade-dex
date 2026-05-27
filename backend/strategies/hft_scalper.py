@@ -93,8 +93,9 @@ class HFTScalperStrategy(BaseStrategy):
         super().__init__()
         # Rolling price history: market_id -> deque[(timestamp, price)]
         self._price_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=500))
-        # Open positions — restored from DB on startup
+        # Open positions — restored from DB on first run_cycle
         self._open_positions: dict[str, ScalpPosition] = {}
+        self._positions_restored: bool = False
         # Closed positions (last 200 for win rate calc)
         self._closed_positions: deque[ScalpPosition] = deque(maxlen=200)
         # Cooldown tracker: market_id -> last exit timestamp
@@ -515,8 +516,38 @@ class HFTScalperStrategy(BaseStrategy):
                 f"[hft_scalper] OPENED {direction} {token_id} @ {price} size=${size_usd:.2f}"
             )
 
+    def _restore_positions_from_db(self, ctx: StrategyContext) -> None:
+        """Restore open hft_scalper positions from DB on startup."""
+        try:
+            from backend.models.database import Trade
+            open_trades = (
+                ctx.db.query(Trade)
+                .filter(Trade.strategy == "hft_scalper", Trade.settled.is_(False))
+                .all()
+            )
+            for t in open_trades:
+                pos = ScalpPosition(
+                    position_id=str(t.id),
+                    market_id=t.token_id or t.market_ticker,
+                    ticker=t.market_ticker,
+                    direction=t.direction or "YES",
+                    entry_price=t.entry_price or 0.0,
+                    size_usd=t.size or 0.0,
+                    opened_at=time.monotonic(),  # approximate
+                )
+                self._open_positions[pos.market_id] = pos
+            if open_trades:
+                logger.info(f"[hft_scalper] Restored {len(open_trades)} open positions from DB")
+        except Exception as e:
+            logger.warning(f"[hft_scalper] Failed to restore positions: {e}")
+
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Poll processing loop + scan markets for new opportunities on each cycle."""
+        # Restore open positions from DB on first cycle (survives restart)
+        if not self._positions_restored:
+            self._restore_positions_from_db(ctx)
+            self._positions_restored = True
+
         if not self._tokens_populated:
             await self._populate_subscribed_tokens()
 
