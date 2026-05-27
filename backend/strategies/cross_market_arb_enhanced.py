@@ -245,12 +245,17 @@ class CrossMarketArbEnhanced:
             net = raw_profit - fees - slippage
 
             if net > 0:
+                # Extract token_id from first market's clobTokenIds
+                first_market = prices[0][0]
+                clob_token_ids = first_market.get("clobTokenIds") or []
+                token_id = str(clob_token_ids[0]) if clob_token_ids else None
+
                 opp = ArbOpportunityEnhanced(
                     event_id=eid,
                     kind="multi_outcome",
                     platform_a=platform,
                     platform_b=platform,
-                    market_a_id=str(prices[0][0].get("event_id", "")),
+                    market_a_id=str(first_market.get("event_id", "")),
                     market_b_id=str(prices[-1][0].get("event_id", "")),
                     price_a=prices[0][1],
                     price_b=prices[-1][1],
@@ -261,6 +266,8 @@ class CrossMarketArbEnhanced:
                     net_profit=net,
                     net_profit_pct=net / total_prob if total_prob > 0 else 0,
                     confidence=min(1.0, net / 0.05),
+                    token_id=token_id,
+                    platform=platform,
                     details={"n_outcomes": len(prices), "total_prob": total_prob},
                 )
                 opportunities.append(opp)
