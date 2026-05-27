@@ -86,7 +86,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         max_size = max(max_size, float(getattr(settings, "MIN_ORDER_USDC", 1.0)))
         fee_rate = float(params.get("fee_rate", settings.PAPER_CLOB_FEE_RATE))
         min_volatility = float(params.get("min_volatility", 0.001))
-        max_volatility = float(params.get("max_volatility", 0.030))
+        max_volatility = float(params.get("max_volatility", 0.10))
 
         # Check open positions for auto-sell exits (profit-taking before settlement)
         try:
@@ -115,7 +115,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 if micro is None or micro.price <= 0 or micro.momentum_1m is None:
                     continue
 
-                momentum_norm = float(params.get("momentum_norm", 0.008))
+                momentum_norm = float(params.get("momentum_norm", 0.006))
 
                 if abs(micro.momentum_1m) < min_momentum:
                     logger.debug(
@@ -158,10 +158,13 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     else:
                         target_mid = 1.0 - pm_up_mid
 
-                    strength = abs(micro.momentum_1m) / momentum_norm
+                    # Convert micro.momentum_1m (percentage, e.g. 0.2 for 0.2%) to decimal to align with momentum_norm (decimal, e.g. 0.006)
+                    momentum_decimal = abs(micro.momentum_1m) / 100.0
+                    strength = momentum_decimal / momentum_norm
                     sigmoid = 2.0 / (1.0 + math.exp(-3.0 * strength)) - 1.0
                     raw_prob = max(0.01, min(0.99, 0.5 + 0.49 * sigmoid))
-                    implied_prob = max(0.40, min(0.65, raw_prob))
+                    # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
+                    implied_prob = max(0.40, min(0.75, raw_prob))
                     total_fees = fee_rate * 2
                     edge = (implied_prob - target_mid) - min_edge - total_fees
 
