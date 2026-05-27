@@ -399,9 +399,11 @@ class UniversalScanner(BaseStrategy):
             f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}"
         )
 
+        market_ticker = data.get("condition_id") or data.get("slug") or data.get("question", "")[:80]
         return {
             "decision": "BUY",
             "token_id": token_id,
+            "market_ticker": market_ticker,
             "direction": "YES" if edge > 0 else "NO",
             "confidence": llm_conf,
             "edge": edge,
@@ -470,9 +472,11 @@ class UniversalScanner(BaseStrategy):
             f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}"
         )
 
+        market_ticker = data.get("condition_id") or data.get("slug") or data.get("question", "")[:80]
         return {
             "decision": "BUY",
             "token_id": token_id,
+            "market_ticker": market_ticker,
             "direction": "YES" if edge > 0 else "NO",
             "confidence": confidence,
             "edge": edge,
@@ -637,6 +641,16 @@ class UniversalScanner(BaseStrategy):
                 data_source_count=data_source_count,
             )
 
+            # Extract real clobTokenIds from Gamma metadata (not conditionId ticker)
+            raw_meta = market.metadata if isinstance(market.metadata, dict) else {}
+            clob_token_ids = raw_meta.get("clobTokenIds", [])
+            if isinstance(clob_token_ids, str):
+                import json
+                try:
+                    clob_token_ids = json.loads(clob_token_ids)
+                except Exception:
+                    clob_token_ids = []
+
             return {
                 "ticker": market.ticker,
                 "question": market.question,
@@ -648,6 +662,7 @@ class UniversalScanner(BaseStrategy):
                 "confidence": confidence,
                 "llm_confidence": llm_conf,
                 "debate_confidence": debate_conf,
+                "clobTokenIds": clob_token_ids,
             }
 
     _MAX_DECISION_SIZE = 10.0
@@ -678,11 +693,20 @@ class UniversalScanner(BaseStrategy):
                 size = max(size, 1.0)
                 side = "YES" if edge > 0 else "NO"
 
+                # Resolve real clobTokenIds from Gamma metadata (not the conditionId ticker)
+                raw_token_ids = sig.get("clobTokenIds") or []
+                if side == "YES" and len(raw_token_ids) >= 1:
+                    real_token_id = raw_token_ids[0]
+                elif side == "NO" and len(raw_token_ids) >= 2:
+                    real_token_id = raw_token_ids[1]
+                else:
+                    real_token_id = raw_token_ids[0] if raw_token_ids else sig["ticker"]
+
                 decisions.append(
                     {
                         "decision": "BUY",
                         "market_ticker": sig["ticker"],
-                        "token_id": sig["ticker"],
+                        "token_id": real_token_id,
                         "size": round(size, 2),
                         "confidence": round(confidence, 4),
                         "edge": round(edge, 4),

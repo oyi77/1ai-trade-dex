@@ -241,7 +241,7 @@ class ConfigRegistry:
     MAX_TRADES_PER_SCAN: int = 10  # trades per scan cycle
     AUTO_TRADER_BATCH_SIZE: int = 100  # batch size for auto-trader
     MAX_TOTAL_PENDING_TRADES: int = 50  # max pending trades
-    STALE_TRADE_HOURS: int = 48  # hours before trade considered stale
+    STALE_TRADE_HOURS: int = 24  # hours before trade considered stale
 
     # Position sizing
     KELLY_FRACTION: float = 0.30  # Kelly fraction (0.30 = 30% Kelly)
