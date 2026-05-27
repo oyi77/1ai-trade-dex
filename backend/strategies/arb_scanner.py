@@ -128,14 +128,13 @@ class ArbScannerStrategy(BaseStrategy):
                 }
 
                 # Use token_id from opportunity (resolved during scan)
+                logger.warning(
+                    f"[arb_scanner] opp.token_id={opp.token_id!r} kind={opp.kind} "
+                    f"event={opp.event_id} platforms={opp.platform_a}/{opp.platform_b}"
+                )
                 if opp.token_id:
                     decision["token_id"] = opp.token_id
                     decision["platform"] = opp.platform or "polymarket"
-                else:
-                    logger.warning(
-                        f"[arb_scanner] No token_id for {opp.kind} "
-                        f"({opp.event_id}): pm={opp.platform_a}/{opp.platform_b}"
-                    )
 
                 decisions.append(decision)
 
