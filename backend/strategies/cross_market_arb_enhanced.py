@@ -331,18 +331,27 @@ class CrossMarketArbEnhanced:
         price_a: float,
         price_b: float,
     ) -> Optional[ArbOpportunityEnhanced]:
-        """Compute cross-platform arb with provider-specific fees."""
+        """Compute cross-platform arb: buy YES on both platforms when sum < 1.0.
+
+        Real arb: Platform A YES + Platform B YES < 1.0
+        Buy both → guaranteed $1.00 payout on resolution → profit = 1.0 - sum - fees
+        """
         platform_a = m_a.get("platform", "unknown")
         platform_b = m_b.get("platform", "unknown")
         fee_a = m_a.get("fee_pct", _DEFAULT_FEES.get(platform_a, 0.02))
         fee_b = m_b.get("fee_pct", _DEFAULT_FEES.get(platform_b, 0.02))
 
-        spread = abs(price_a - price_b)
+        sum_price = price_a + price_b
         total_fees = fee_a + fee_b
         slippage = self.slippage_bps / 10000 * 2
-        net = spread - total_fees - slippage
-        min_price = min(price_a, price_b)
-        net_pct = net / min_price if min_price > 0 else 0
+
+        # Real arb: sum < 1.0 → buy both sides → guaranteed payout
+        if sum_price >= 1.0:
+            return None
+
+        gross_profit = 1.0 - sum_price
+        net = gross_profit - total_fees - slippage
+        net_pct = net / sum_price if sum_price > 0 else 0
 
         if net_pct < self.min_net_profit_pct:
             return None
@@ -350,37 +359,36 @@ class CrossMarketArbEnhanced:
         id_a = str(m_a.get("event_id", ""))
         id_b = str(m_b.get("event_id", ""))
 
-        # Resolve token_id from Polymarket side (only PM has clobTokenIds)
-        pm_market = m_a if platform_a == "polymarket" else m_b if platform_b == "polymarket" else None
-        cheaper_platform = platform_a if price_a < price_b else platform_b
-        token_id = None
-        if pm_market:
-            clob_token_ids = pm_market.get("clobTokenIds") or []
-            if clob_token_ids:
-                token_id = str(clob_token_ids[0])
+        # Resolve token_ids from both platforms
+        clob_a = m_a.get("clobTokenIds") or []
+        clob_b = m_b.get("clobTokenIds") or []
+        token_id_a = str(clob_a[0]) if clob_a else None
+        token_id_b = str(clob_b[0]) if clob_b else None
 
         return ArbOpportunityEnhanced(
             event_id=f"{id_a}:{id_b}",
-            kind="cross_platform",
+            kind="cross_platform_arb",
             platform_a=platform_a,
             platform_b=platform_b,
             market_a_id=id_a,
             market_b_id=id_b,
             price_a=price_a,
             price_b=price_b,
-            raw_spread=spread,
+            raw_spread=gross_profit,
             fees=total_fees,
             slippage_cost=slippage,
-            execution_risk=0.3,
+            execution_risk=0.1,
             net_profit=net,
             net_profit_pct=net_pct,
             confidence=min(1.0, net_pct / 0.03),
-            token_id=token_id,
-            platform=cheaper_platform,
+            token_id=token_id_a,  # PM side token for executor
+            platform=platform_a,
             details={
-                "cheaper": cheaper_platform,
-                "fee_a": fee_a,
-                "fee_b": fee_b,
+                "token_id_a": token_id_a,
+                "token_id_b": token_id_b,
+                "sum_price": sum_price,
+                "gross_profit": gross_profit,
+                "arb_type": "two_leg",
             },
         )
 
