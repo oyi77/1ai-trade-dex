@@ -380,22 +380,24 @@ async def check_strategy_positions_for_auto_sell(
     from backend.core.position_monitor import _fetch_prices_bulk
 
     def _load() -> list:
-        from sqlalchemy.orm import make_transient
-        with get_db_session() as db:
+        from backend.models.database import SessionLocal
+        db = SessionLocal()
+        db.expire_on_commit = False
+        try:
             trades = (
                 db.query(Trade)
                 .filter(Trade.settled.is_(False))
                 .filter(Trade.strategy == strategy_name)
                 .all()
             )
-            # Force-load all attributes before detaching from session
+            # Force-load all attributes while session is open
             for t in trades:
                 _ = t.market_ticker, t.entry_price, t.size, t.direction, t.token_id
                 _ = t.trading_mode, t.strategy, t.platform, t.confidence
                 _ = t.market_type, t.market_end_date, t.slug, t.event_slug
-                db.expunge(t)
-                make_transient(t)
             return trades
+        finally:
+            db.close()
 
     trades = await asyncio.to_thread(_load)
     if not trades:
