@@ -79,7 +79,7 @@ def get_bucket_win_rate(
     if len(trades) < 10:
         return None
 
-    wins = sum(1 for t in trades if getattr(t, "settlement_value", 0) == 1.0)
+    wins = sum(1 for t in trades if t.__dict__.get("settlement_value", 0) == 1.0)
     return wins / len(trades)
 
 
