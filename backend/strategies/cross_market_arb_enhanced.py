@@ -343,6 +343,12 @@ class CrossMarketArbEnhanced:
         id_a = str(m_a.get("event_id", ""))
         id_b = str(m_b.get("event_id", ""))
 
+        # Resolve token_id from the cheaper platform's market data
+        cheaper_market = m_a if price_a < price_b else m_b
+        cheaper_platform = platform_a if price_a < price_b else platform_b
+        clob_token_ids = cheaper_market.get("clobTokenIds") or []
+        token_id = str(clob_token_ids[0]) if clob_token_ids else None
+
         return ArbOpportunityEnhanced(
             event_id=f"{id_a}:{id_b}",
             kind="cross_platform",
@@ -359,8 +365,10 @@ class CrossMarketArbEnhanced:
             net_profit=net,
             net_profit_pct=net_pct,
             confidence=min(1.0, net_pct / 0.03),
+            token_id=token_id,
+            platform=cheaper_platform,
             details={
-                "cheaper": platform_a if price_a < price_b else platform_b,
+                "cheaper": cheaper_platform,
                 "fee_a": fee_a,
                 "fee_b": fee_b,
             },
