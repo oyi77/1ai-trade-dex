@@ -274,7 +274,7 @@ class MarketMakerStrategy(BaseStrategy):
         self._active_quotes.pop(market_id, None)
 
     def _estimate_volatility(self, market_id: str) -> float:
-        """Estimate volatility from recent price history."""
+        """Estimate volatility from recent price history using std of returns."""
         prices = list(self._price_history.get(market_id, []))
         if len(prices) < 2:
             return 0.05  # default fallback
@@ -282,8 +282,9 @@ class MarketMakerStrategy(BaseStrategy):
         returns = [(recent[i] - recent[i-1]) / recent[i-1] for i in range(1, len(recent)) if recent[i-1] > 0]
         if not returns:
             return 0.05
-        import numpy as np
-        return max(0.001, float(np.std(returns)))
+        mean_r = sum(returns) / len(returns)
+        variance = sum((r - mean_r) ** 2 for r in returns) / len(returns)
+        return max(0.001, variance ** 0.5)
 
     def _estimate_time_remaining(self, market_id: str) -> float:
         """Estimate seconds to market resolution. Default 1h if unknown."""
