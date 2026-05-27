@@ -63,11 +63,28 @@ class ArbOpportunityScanner:
     # ── Provider scanners ──────────────────────────────────────────
 
     async def _scan_polymarket(self) -> List[Dict[str, Any]]:
-        """Fetch Polymarket markets via gamma API."""
+        """Fetch Polymarket markets via gamma API with pagination."""
         try:
-            from backend.data.gamma import fetch_markets
-            markets = await fetch_markets(limit=200)
-            return _normalize_pm_markets(markets, "polymarket", fee_pct=0.02)
+            import httpx
+            all_markets = []
+            offset = 0
+            page_size = 100
+            max_pages = 5  # Up to 500 markets
+            for _ in range(max_pages):
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(
+                        "https://gamma-api.polymarket.com/markets",
+                        params={"active": "true", "closed": "false", "limit": page_size, "offset": offset},
+                    )
+                    resp.raise_for_status()
+                    page = resp.json()
+                if not page:
+                    break
+                all_markets.extend(page)
+                if len(page) < page_size:
+                    break
+                offset += page_size
+            return _normalize_pm_markets(all_markets, "polymarket", fee_pct=0.02)
         except Exception as e:
             logger.warning(f"arb_scanner: Polymarket fetch failed: {e}")
             return []
