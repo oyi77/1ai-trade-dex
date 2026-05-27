@@ -182,6 +182,8 @@ class CrossMarketArbEnhanced:
         market_id = str(market.get("event_id", ""))
         clob_token_ids = market.get("clobTokenIds") or []
         token_id = str(clob_token_ids[0]) if clob_token_ids else None
+        if not token_id:
+            logger.info(f"[yes_no_sum] no token_id for {market.get('question', '?')[:50]} keys={sorted(market.keys())}")
         return ArbOpportunityEnhanced(
             event_id=market_id,
             kind="yes_no_sum",
