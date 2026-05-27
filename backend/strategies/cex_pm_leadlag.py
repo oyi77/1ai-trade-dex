@@ -62,6 +62,10 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "momentum_norm": 0.006,
         "debate_enabled": True,
         "debate_min_confidence": 0.52,
+        "max_open_positions": 3,
+        "max_per_asset": 1,
+        "stop_loss_pct": 0.20,
+        "max_hold_seconds": 240,
     }
 
     async def market_filter(self, markets: list[CryptoMarket]) -> list[CryptoMarket]:
@@ -79,10 +83,11 @@ class CexPmLeadLagStrategy(BaseStrategy):
         min_momentum = float(params["min_momentum"])
         min_edge = float(params["min_edge"])
         max_minutes = float(params["max_minutes_to_resolution"])
-        max_position_frac = getattr(settings, "MAX_POSITION_FRACTION", 0.30)
+        max_position_frac = getattr(settings, "MAX_POSITION_FRACTION", 0.10)
         hard_cap = float(params.get("max_position_usd", 5.0))
         dynamic_cap = ctx.bankroll * max_position_frac
         max_size = max(hard_cap, dynamic_cap)
+        max_size = min(max_size, ctx.bankroll * 0.15)  # never more than 15% of bankroll per trade
         max_size = max(max_size, float(getattr(settings, "MIN_ORDER_USDC", 1.0)))
         fee_rate = float(params.get("fee_rate", settings.PAPER_CLOB_FEE_RATE))
         min_volatility = float(params.get("min_volatility", 0.001))
@@ -92,10 +97,26 @@ class CexPmLeadLagStrategy(BaseStrategy):
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
             await check_strategy_positions_for_auto_sell(
-                self.name, clob_client=ctx.clob
+                self.name,
+                clob_client=ctx.clob,
+                stop_loss_pct=float(params.get("stop_loss_pct", 0.20)),
+                max_hold_seconds=int(params.get("max_hold_seconds", 240)),
             )
         except Exception as e:
             logger.warning(f"[cex_pm_leadlag] Auto-sell exit check failed: {e}")
+
+        # Max open positions gate
+        db = ctx.db
+        from backend.models.database import Trade
+        open_count = db.query(Trade).filter(
+            Trade.strategy == self.name,
+            Trade.settled.is_(False),
+            Trade.trading_mode == ctx.mode,
+        ).count()
+        max_open = int(params.get("max_open_positions", 3))
+        if open_count >= max_open:
+            logger.info(f"[cex_pm_leadlag] {open_count} open positions >= max {max_open}, skipping")
+            return result
 
         # Supported assets mapping to CoinGecko IDs
         asset_map = {
@@ -143,6 +164,21 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     continue
 
                 candidates = await self.market_filter(all_markets)
+                if not candidates:
+                    logger.debug(f"[cex_pm_leadlag] {asset_key}: 0 qualifying markets from {len(all_markets)} fetched")
+                    continue
+
+                # Per-asset open positions cap
+                asset_open = db.query(Trade).filter(
+                    Trade.strategy == self.name,
+                    Trade.settled.is_(False),
+                    Trade.trading_mode == ctx.mode,
+                    Trade.market_ticker.like(f"{asset_key}%"),
+                ).count()
+                max_per_asset = int(params.get("max_per_asset", 1))
+                if asset_open >= max_per_asset:
+                    logger.debug(f"[cex_pm_leadlag] {asset_key} has {asset_open} open >= max {max_per_asset}")
+                    continue
 
                 for market in candidates:
                     minutes_remaining = market.time_until_end / 60.0
