@@ -18,8 +18,8 @@ from backend.ai.training.data_collector import DataCollector, TrainingExample
 from backend.ai.training.feature_engineering import FEATURE_ORDER, FeatureEngineer
 
 from loguru import logger
-from joblib import joblib
-from random import random
+import joblib
+import random
 
 DEFAULT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "models", "ml_predictor.pkl"

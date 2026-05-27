@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from typing import Any, Dict, List
-from logging import logging
+import logging
 
 # Canonical feature order — kept stable so trained model coefficients align.
 FEATURE_ORDER: List[str] = [

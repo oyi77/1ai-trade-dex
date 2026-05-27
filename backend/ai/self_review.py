@@ -19,7 +19,7 @@ from backend.models.database import SessionLocal, Trade
 from backend.ai.rejection_learner import generate_rejection_proposals
 from backend.models.database import StrategyProposal, StrategyConfig
 from backend.models.outcome_tables import StrategyOutcome
-from json import json
+import json
 
 # ── Configuration defaults ────────────────────────────────────────────────
 

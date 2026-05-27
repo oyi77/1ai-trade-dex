@@ -18,7 +18,7 @@ from backend.models.database import TradeAttempt, StrategyConfig, StrategyPropos
 from loguru import logger
 from backend.db.utils import get_db_session
 from backend.models.database import DecisionLog
-from json import json
+import json
 
 LOOKBACK_DAYS = 7
 MIN_REJECTIONS = 10
