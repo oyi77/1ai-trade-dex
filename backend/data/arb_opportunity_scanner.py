@@ -24,7 +24,7 @@ from backend.strategies.cross_market_arb_enhanced import (
 from loguru import logger
 
 # Timeout per provider scan in seconds
-_SCAN_TIMEOUT = 15.0
+_SCAN_TIMEOUT = 30.0
 
 # All prediction-market providers we can scan for arb opportunities.
 # Format: (platform_key, scan_method_name)
