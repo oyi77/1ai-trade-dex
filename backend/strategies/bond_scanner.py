@@ -173,8 +173,10 @@ class BondScannerStrategy(BaseStrategy):
                 except Exception as e:
                     logger.debug(f"Failed to parse clobTokenIds JSON: {e}")
                     clob_token_ids = []
+            # Store all token IDs for later direction-aware selection
+            # clobTokenIds[0] = YES token, clobTokenIds[1] = NO token
             if clob_token_ids and len(clob_token_ids) > 0:
-                clob_token_id = str(clob_token_ids[0])
+                clob_token_id = str(clob_token_ids[0])  # Default YES; overridden below if NO direction
 
             # Price filter — check outcomePrices
             outcome_prices_raw = market.get("outcomePrices") or []
@@ -293,6 +295,9 @@ class BondScannerStrategy(BaseStrategy):
             # If betting NO, the share cost is (1 - qualifying_price).
             if trade_direction in ("no", "down"):
                 trade_entry_price = round(1.0 - qualifying_price, 6)
+                # NO token is clobTokenIds[1], YES is [0]
+                if clob_token_ids and len(clob_token_ids) > 1:
+                    clob_token_id = str(clob_token_ids[1])
             else:
                 trade_entry_price = qualifying_price
 

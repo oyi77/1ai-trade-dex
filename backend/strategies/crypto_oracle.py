@@ -335,6 +335,10 @@ class CryptoOracleStrategy(BaseStrategy):
         "oracle_implied_scale": settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE,
         "debate_enabled": True,
         "debate_min_confidence": 0.55,
+        "max_open_positions": 3,
+        "max_per_asset": 1,
+        "stop_loss_pct": 0.20,
+        "profit_target_pct": 0.08,
     }
 
     supported_assets = SUPPORTED_ASSETS
