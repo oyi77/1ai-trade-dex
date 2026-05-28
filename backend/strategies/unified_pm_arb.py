@@ -751,12 +751,24 @@ class UnifiedPMArb(BaseStrategy):
             # 1. Fetch markets from all PM venues
             all_markets = await self._fetch_all_pm_markets(ctx)
             total_markets = sum(len(v) for v in all_markets.values())
+            venue_counts = {k: len(v) for k, v in all_markets.items() if v}
+            logger.info(
+                f"[unified_arb] Fetched {total_markets} markets from "
+                f"{len(venue_counts)} venues: {venue_counts}"
+            )
             if total_markets == 0:
                 return CycleResult(0, 0, 0, errors=["No markets available"])
 
-            # 2. Detect PM opportunities
-            min_edge = self.default_params.get("min_net_edge", 0.02)
-            opportunities = self._detect_opportunities(all_markets, min_edge)
+            # 2. Detect PM opportunities (low-fee pairs only: skip venues with fee > 3%)
+            min_edge = self.default_params.get("min_net_edge", 0.01)
+            max_fee = _cfg("ARB_MAX_VENUE_FEE", 0.08)
+            low_fee_markets = {
+                k: v for k, v in all_markets.items()
+                if _FEE_MAP.get(k, 0.02) <= max_fee
+            }
+            if len(low_fee_markets) < 2:
+                low_fee_markets = all_markets  # fallback to all
+            opportunities = self._detect_opportunities(low_fee_markets, min_edge)
 
             # 2b. Detect DEX cross-exchange opportunities
             try:
