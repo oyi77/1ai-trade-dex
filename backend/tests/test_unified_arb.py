@@ -5,10 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.strategies.unified_arb.strategy import UnifiedArbStrategy
-from backend.strategies.unified_pm_arb import (
-    UnifiedPMArb,
+from backend.strategies.unified_arb.engine import (
     _kelly_size,
-    _normalize_market_info,
+    _calculate_fees,
 )
 from backend.strategies.cross_market_arb_enhanced import ArbOpportunityEnhanced
 

@@ -16,6 +16,7 @@ import asyncio
 import json
 import time
 import uuid
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -40,6 +41,38 @@ from backend.strategies.cross_market_arb_enhanced import (
     ArbOpportunityEnhanced,
     CrossMarketArbEnhanced,
 )
+
+
+# ---------------------------------------------------------------------------
+# DEX price types (inlined from cross_dex_arb.py)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PriceQuote:
+    """Normalized price from a single exchange for one asset."""
+    exchange: str
+    base: str
+    quote: str = "USD"
+    bid: float = 0.0
+    ask: float = 0.0
+    mid: float = 0.0
+    timestamp: float = field(default_factory=time.time)
+
+
+@dataclass
+class DexArbOpportunity:
+    """Cross-DEX arbitrage opportunity."""
+    asset: str
+    buy_exchange: str
+    sell_exchange: str
+    buy_price: float
+    sell_price: float
+    gross_spread: float
+    taker_fees_pct: float
+    gas_estimate: float
+    net_profit_pct: float
+    confidence: float
+    timestamp: float = field(default_factory=time.time)
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +203,7 @@ class UnifiedPMArb(BaseStrategy):
     CrossMarketArbEnhanced, and executes atomically via provider.place_order().
     """
 
-    name = "unified_pm_arb"
+    name = "unified_arb"
     description = "Unified PM arbitrage: multi-venue scan + Kelly sizing + atomic execution"
     category = "arb"
 
@@ -229,7 +262,7 @@ class UnifiedPMArb(BaseStrategy):
             )
             for venue, result in zip(tasks.keys(), results):
                 if isinstance(result, Exception):
-                    logger.warning(f"[unified_pm_arb] {venue} fetch failed: {result}")
+                    logger.warning(f"[unified_arb] {venue} fetch failed: {result}")
                     all_markets[venue] = []
                 else:
                     all_markets[venue] = result
@@ -245,13 +278,13 @@ class UnifiedPMArb(BaseStrategy):
                 timeout=30.0,
             )
             normalized = [_normalize_market_info(m, venue) for m in (raw or [])]
-            logger.debug(f"[unified_pm_arb] {venue}: {len(normalized)} markets")
+            logger.debug(f"[unified_arb] {venue}: {len(normalized)} markets")
             return normalized
         except asyncio.TimeoutError:
-            logger.warning(f"[unified_pm_arb] {venue} timed out (30s)")
+            logger.warning(f"[unified_arb] {venue} timed out (30s)")
             return []
         except Exception as exc:
-            logger.warning(f"[unified_pm_arb] {venue} fetch failed: {exc}")
+            logger.warning(f"[unified_arb] {venue} fetch failed: {exc}")
             return []
 
     # ------------------------------------------------------------------
@@ -367,7 +400,7 @@ class UnifiedPMArb(BaseStrategy):
         if a_ok and b_ok:
             profit = opp.net_profit * size
             logger.info(
-                f"[unified_pm_arb] FILLED arb={arb_id} "
+                f"[unified_arb] FILLED arb={arb_id} "
                 f"{opp.platform_a}@{opp.price_a:.3f} + "
                 f"{opp.platform_b}@{opp.price_b:.3f} "
                 f"profit=${profit:.4f} ({elapsed_ms:.0f}ms)"
@@ -379,7 +412,7 @@ class UnifiedPMArb(BaseStrategy):
             order_id_a = result_a.venue_order_id if isinstance(result_a, NormalizedOrderResult) else str(result_a)
             await self._emergency_cancel(provider_a, order_id_a, arb_id)
             error = f"leg_b_failed: {result_b}"
-            logger.warning(f"[unified_pm_arb] PARTIAL arb={arb_id}: {error}")
+            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: {error}")
             return {"status": "partial", "error": error, "arb_id": arb_id}
 
         elif not a_ok and b_ok:
@@ -387,14 +420,14 @@ class UnifiedPMArb(BaseStrategy):
             order_id_b = result_b.venue_order_id if isinstance(result_b, NormalizedOrderResult) else str(result_b)
             await self._emergency_cancel(provider_b, order_id_b, arb_id)
             error = f"leg_a_failed: {result_a}"
-            logger.warning(f"[unified_pm_arb] PARTIAL arb={arb_id}: {error}")
+            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: {error}")
             return {"status": "partial", "error": error, "arb_id": arb_id}
 
         else:
             error_a = str(result_a) if isinstance(result_a, Exception) else str(result_a)
             error_b = str(result_b) if isinstance(result_b, Exception) else str(result_b)
             logger.warning(
-                f"[unified_pm_arb] FAILED arb={arb_id}: "
+                f"[unified_arb] FAILED arb={arb_id}: "
                 f"a={error_a} b={error_b}"
             )
             return {"status": "failed", "error": f"both_failed: a={error_a}, b={error_b}"}
@@ -425,16 +458,16 @@ class UnifiedPMArb(BaseStrategy):
             if hasattr(provider, "cancel_order"):
                 await provider.cancel_order(order_id)
                 logger.warning(
-                    f"[unified_pm_arb] EMERGENCY CANCEL order={order_id} arb={arb_id}"
+                    f"[unified_arb] EMERGENCY CANCEL order={order_id} arb={arb_id}"
                 )
             else:
                 logger.error(
-                    f"[unified_pm_arb] Cannot cancel order={order_id}: "
+                    f"[unified_arb] Cannot cancel order={order_id}: "
                     f"provider has no cancel_order"
                 )
         except Exception as exc:
             logger.error(
-                f"[unified_pm_arb] Cancel failed order={order_id} arb={arb_id}: {exc}"
+                f"[unified_arb] Cancel failed order={order_id} arb={arb_id}: {exc}"
             )
 
     # ------------------------------------------------------------------
@@ -493,10 +526,10 @@ class UnifiedPMArb(BaseStrategy):
                         "timestamp": time.time(),
                     })
                 except CircuitOpenError as exc:
-                    logger.warning(f"[unified_pm_arb] Circuit breaker open: {exc}")
+                    logger.warning(f"[unified_arb] Circuit breaker open: {exc}")
                     errors.append(str(exc))
                 except Exception as exc:
-                    logger.exception(f"[unified_pm_arb] Execution error: {exc}")
+                    logger.exception(f"[unified_arb] Execution error: {exc}")
                     errors.append(str(exc))
 
             # Trim history
@@ -505,7 +538,7 @@ class UnifiedPMArb(BaseStrategy):
 
             elapsed = (time.monotonic() - start) * 1000
             logger.info(
-                f"[unified_pm_arb] Cycle: {len(opportunities)} detected, "
+                f"[unified_arb] Cycle: {len(opportunities)} detected, "
                 f"{trades_placed} filled, {len(errors)} errors, "
                 f"{total_markets} markets, {elapsed:.0f}ms"
             )
@@ -520,11 +553,11 @@ class UnifiedPMArb(BaseStrategy):
             )
 
         except CircuitOpenError as exc:
-            logger.warning(f"[unified_pm_arb] Circuit breaker open: {exc}")
+            logger.warning(f"[unified_arb] Circuit breaker open: {exc}")
             return CycleResult(0, 0, 0, errors=[str(exc)])
 
         except Exception as exc:
-            logger.exception(f"[unified_pm_arb] Cycle failed: {exc}")
+            logger.exception(f"[unified_arb] Cycle failed: {exc}")
             return CycleResult(0, 0, 0, errors=[str(exc)])
 
     # ------------------------------------------------------------------

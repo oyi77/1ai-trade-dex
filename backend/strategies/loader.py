@@ -86,12 +86,6 @@ def load_all_strategies() -> None:
     strategies_dir = os.path.join(os.path.dirname(__file__))
     modules_dir = os.path.join(os.path.dirname(__file__), "..", "modules")
 
-    # Import unified_arb package explicitly (skipped by _discover_flat because ispkg=True)
-    try:
-        importlib.import_module("backend.strategies.unified_arb")
-    except Exception as e:
-        log.warning(f"Could not load unified_arb package: {e}")
-
     candidates: list[str] = []
     candidates.extend(_discover_flat("backend.strategies", strategies_dir))
     candidates.extend(_discover_recursive("backend.modules", modules_dir))
