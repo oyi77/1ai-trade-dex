@@ -153,9 +153,12 @@ def _normalize_market_info(m: Any, venue: str) -> dict:
     volume_24h = getattr(m, "volume_24h", 0)
     open_interest = getattr(m, "open_interest", 0)
 
+    slug = str(getattr(m, "slug", "") or raw.get("slug", "") or "")
+
     return {
         "question": title,
         "event_id": market_id,
+        "slug": slug,
         "yes_price": yes_price,
         "no_price": no_price,
         "platform": venue,
@@ -769,20 +772,10 @@ class UnifiedPMArb(BaseStrategy):
             if total_markets == 0:
                 return CycleResult(0, 0, 0, errors=["No markets available"])
 
-            # 1b. Filter to crypto binaries (higher volume, faster mispricing)
-            crypto_keywords = {"btc", "bitcoin", "eth", "ethereum", "sol", "solana", "crypto", "5min", "5-min"}
-            crypto_markets = {}
-            for venue, markets in all_markets.items():
-                crypto = [
-                    m for m in markets
-                    if any(kw in (m.get("question", "") or "").lower() for kw in crypto_keywords)
-                ]
-                if crypto:
-                    crypto_markets[venue] = crypto
-            if crypto_markets:
-                crypto_total = sum(len(v) for v in crypto_markets.values())
-                logger.info(f"[unified_arb] Crypto filter: {crypto_total} crypto markets from {len(crypto_markets)} venues")
-                all_markets = crypto_markets
+            # 1b. Log top markets per venue for debugging
+            for v, ms in all_markets.items():
+                if ms:
+                    logger.info(f"[unified_arb]   {v}: {len(ms)} markets, top: {ms[0].get('question', '?')[:80]}")
 
             # 2. Detect PM opportunities (low-fee pairs only: skip venues with fee > 3%)
             min_edge = self.default_params.get("min_net_edge", 0.01)
