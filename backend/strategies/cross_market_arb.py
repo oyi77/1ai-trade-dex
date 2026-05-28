@@ -266,19 +266,13 @@ class CrossMarketArb(BaseStrategy):
             matched = 0
             for poly_m in poly_markets:
                 try:
-                    outcome_prices_raw = poly_m.get("outcomePrices", [0.5])
-                    if isinstance(outcome_prices_raw, str):
-                        import json as _json
-                        try:
-                            outcome_prices_raw = _json.loads(outcome_prices_raw)
-                        except Exception:
-                            outcome_prices_raw = [0.5]
-                    poly_price = float(outcome_prices_raw[0])
+                    # MarketInfo has yes_price/no_price directly
+                    poly_price = float(poly_m.yes_price) if hasattr(poly_m, 'yes_price') else 0.5
                     kalshi_m = self._find_kalshi_match(poly_m, kalshi_markets)
                     if not kalshi_m:
                         continue
 
-                    kalshi_price = float(kalshi_m.get("price", 0.5))
+                    kalshi_price = float(kalshi_m.yes_price) if hasattr(kalshi_m, 'yes_price') else 0.5
 
                     # Min spread threshold: only trade when spread > 1.3% (covers fees)
                     spread_pct = abs(poly_price - kalshi_price)
@@ -296,9 +290,11 @@ class CrossMarketArb(BaseStrategy):
                     opp = detect_cross_arb(poly_price, kalshi_price)
 
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
-                        opp.event_id = poly_m.get("conditionId", "")
+                        # MarketInfo has slug and metadata dict
+                        meta = getattr(poly_m, 'metadata', {}) or {}
+                        opp.event_id = getattr(poly_m, 'slug', '') or meta.get("conditionId", "")
                         # Resolve Polymarket token_id for live execution
-                        poly_clob_token_ids = poly_m.get("clobTokenIds") or []
+                        poly_clob_token_ids = meta.get("clobTokenIds") or []
                         if isinstance(poly_clob_token_ids, str):
                             import json as _json
                             try:
