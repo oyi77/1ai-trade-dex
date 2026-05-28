@@ -105,21 +105,42 @@ class LimitlessProvider(BaseMarketProvider):
         """Search markets — delegates to get_markets since Limitless has no search API."""
         return await self.get_markets(limit=limit)
 
+    @staticmethod
+    def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:
+        return NormalizedOrderResult(
+            venue_order_id="",
+            client_order_id=order.client_order_id,
+            status=OrderStatus.REJECTED,
+            filled_size=Decimal("0"),
+            filled_avg_price=None,
+            remaining_size=order.size,
+            fees_paid=Decimal("0"),
+            raw={"error": reason},
+        )
+
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         """Get available markets from Limitless Exchange."""
         raw = await self._client.get_markets(limit=limit)
         result = []
         for m in raw:
             prices = m.get("prices", [])
-            yes_price = float(prices[0]) if prices and len(prices) > 0 else 0.5
-            no_price = float(prices[1]) if prices and len(prices) > 1 else 1.0 - yes_price
+            yes_price = Decimal(str(prices[0])) if prices and len(prices) > 0 else Decimal("0.5")
+            no_price = Decimal(str(prices[1])) if prices and len(prices) > 1 else Decimal("1") - yes_price
             title = m.get("title") or m.get("proxyTitle") or m.get("question", "")
             result.append(MarketInfo(
+                venue="limitless",
                 market_id=str(m.get("id", "")),
-                question=title,
+                title=title,
+                description="",
+                category="crypto",
                 yes_price=yes_price,
                 no_price=no_price,
                 volume_24h=Decimal(str(m.get("volume", 0) or 0)),
+                open_interest=Decimal("0"),
+                closes_at=m.get("expirationTimestamp"),
+                is_active=True,
+                min_order_size=Decimal("1"),
+                tick_size=Decimal("0.01"),
                 raw=m,
             ))
         return result
