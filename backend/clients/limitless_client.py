@@ -53,6 +53,38 @@ class LimitlessClient:
         ).rstrip("/")
         self._cached_domain = None
         self._api_key = os.getenv("LIMITLESS_API_KEY", "")
+        self._api_secret = os.getenv("LIMITLESS_API_SECRET", "")
+
+    def _build_auth(self, method: str, path: str, body: str = "") -> dict:
+        """Build HMAC auth headers per Limitless API spec."""
+        import base64
+        import hashlib
+        import hmac as hmac_mod
+        from datetime import datetime, timezone
+
+        headers = {"Content-Type": "application/json"}
+        if not self._api_key:
+            return headers
+
+        # Legacy key
+        if self._api_key.startswith("lmts_"):
+            headers["X-API-Key"] = self._api_key
+            return headers
+
+        # HMAC scoped token
+        if not self._api_secret:
+            headers["X-API-Key"] = self._api_key
+            return headers
+
+        ts = datetime.now(timezone.utc).isoformat()
+        msg = f"{ts}\n{method.upper()}\n{path}\n{body}"
+        sig = base64.b64encode(
+            hmac_mod.new(base64.b64decode(self._api_secret), msg.encode(), hashlib.sha256).digest()
+        ).decode()
+        headers["lmts-api-key"] = self._api_key
+        headers["lmts-timestamp"] = ts
+        headers["lmts-signature"] = sig
+        return headers
 
     async def _get_domain(self) -> dict:
         """Fetch and cache EIP-712 domain parameters dynamically."""
@@ -181,14 +213,13 @@ class LimitlessClient:
             maker=account.address,
         )
 
-        headers = {"Content-Type": "application/json"}
-        if self._api_key:
-            headers["X-API-Key"] = self._api_key
+        body_str = json.dumps(payload)
+        headers = self._build_auth("POST", "/orders", body_str)
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 f"{self._base_url}/orders",
-                json=payload,
+                content=body_str,
                 headers=headers,
             )
             resp.raise_for_status()
