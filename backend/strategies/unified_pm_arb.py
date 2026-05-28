@@ -490,6 +490,7 @@ class UnifiedPMArb(BaseStrategy):
         super().__init__(**kwargs)
         self._breakers: Dict[str, CircuitBreaker] = {}
         self._history: List[dict] = []
+        self._dex_feed = DexPriceFeed()
 
     # ------------------------------------------------------------------
     # Circuit breaker per venue
@@ -753,9 +754,40 @@ class UnifiedPMArb(BaseStrategy):
             if total_markets == 0:
                 return CycleResult(0, 0, 0, errors=["No markets available"])
 
-            # 2. Detect opportunities
+            # 2. Detect PM opportunities
             min_edge = self.default_params.get("min_net_edge", 0.02)
             opportunities = self._detect_opportunities(all_markets, min_edge)
+
+            # 2b. Detect DEX cross-exchange opportunities
+            try:
+                dex_prices = await self._dex_feed.fetch_all_prices()
+                dex_opps = _detect_cross_dex_opportunities(
+                    dex_prices,
+                    min_profit_pct=min_edge,
+                    gas_estimate=5.0,
+                    taker_fees=self._dex_feed._taker_fees,
+                )
+                if dex_opps:
+                    logger.info(
+                        f"[unified_arb] DEX: {len(dex_opps)} cross-DEX opportunities "
+                        f"from {sum(len(v) for v in dex_prices.values())} quotes"
+                    )
+                    # Log DEX opportunities as decisions (execution deferred)
+                    for dop in dex_opps:
+                        self._history.append({
+                            "event_id": f"dex:{dop.asset}:{dop.buy_exchange}:{dop.sell_exchange}",
+                            "kind": "cross_dex_arb",
+                            "platform_a": dop.buy_exchange,
+                            "platform_b": dop.sell_exchange,
+                            "price_a": dop.buy_price,
+                            "price_b": dop.sell_price,
+                            "net_profit": dop.net_profit_pct,
+                            "status": "detected",
+                            "timestamp": time.time(),
+                        })
+            except Exception as exc:
+                logger.warning(f"[unified_arb] DEX detection failed: {exc}")
+
             if not opportunities:
                 elapsed = (time.monotonic() - start) * 1000
                 return CycleResult(
