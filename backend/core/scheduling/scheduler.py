@@ -368,7 +368,7 @@ def schedule_strategy(
         kwargs={"strategy_name": strategy_name, "mode": mode},
         id=job_id,
         replace_existing=True,
-        max_instances=2,
+        max_instances=3,
         misfire_grace_time=grace,
         next_run_time=next_run,
     )

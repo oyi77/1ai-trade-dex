@@ -73,19 +73,35 @@ class LongshotBiasStrategy(BaseStrategy):
         errors: list[str] = []
 
         try:
-            # Get markets from primary provider
+            # Get markets from primary provider or fallback to Gamma
             provider = ctx.primary_provider
             if provider is None:
-                ctx.logger.warning("[longshot_bias] No market provider available")
-                return CycleResult(
-                    decisions_recorded=0,
-                    trades_attempted=0,
-                    trades_placed=0,
-                    errors=["No market provider available"],
-                )
-
-            # Scan for cheap markets
-            raw_markets = await provider.get_markets(limit=200)
+                # Fallback: fetch from Gamma API directly
+                try:
+                    from backend.data.gamma import fetch_markets
+                    gamma_markets = await fetch_markets(limit=200)
+                    raw_markets = [
+                        type('Market', (), {
+                            'slug': m.get('slug', ''),
+                            'question': m.get('question', ''),
+                            'yes_price': float(m.get('outcomePrices', [0.5])[0]) if isinstance(m.get('outcomePrices'), list) else 0.5,
+                            'no_price': 1.0 - float(m.get('outcomePrices', [0.5])[0]) if isinstance(m.get('outcomePrices'), list) else 0.5,
+                            'metadata': m,
+                        })()
+                        for m in gamma_markets
+                        if m.get('outcomePrices')
+                    ]
+                except Exception as e:
+                    ctx.logger.warning("[longshot_bias] Gamma fallback failed: {}", e)
+                    return CycleResult(
+                        decisions_recorded=0,
+                        trades_attempted=0,
+                        trades_placed=0,
+                        errors=[f"No provider: {e}"],
+                    )
+            else:
+                # Scan for cheap markets
+                raw_markets = await provider.get_markets(limit=200)
             candidates = [
                 m
                 for m in raw_markets
