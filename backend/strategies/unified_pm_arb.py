@@ -541,14 +541,14 @@ class UnifiedPMArb(BaseStrategy):
         """Fetch and normalize markets from a single provider."""
         try:
             raw = await asyncio.wait_for(
-                provider.search_markets("", limit=500),
-                timeout=30.0,
+                provider.search_markets(None, category=None, limit=500),
+                timeout=15.0,
             )
             normalized = [_normalize_market_info(m, venue) for m in (raw or [])]
             logger.debug(f"[unified_arb] {venue}: {len(normalized)} markets")
             return normalized
         except asyncio.TimeoutError:
-            logger.warning(f"[unified_arb] {venue} timed out (30s)")
+            logger.warning(f"[unified_arb] {venue} timed out (15s)")
             return []
         except Exception as exc:
             logger.warning(f"[unified_arb] {venue} fetch failed: {exc}")
