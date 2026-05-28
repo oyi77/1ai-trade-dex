@@ -323,6 +323,8 @@ class CrossMarketArb(BaseStrategy):
 
                 except Exception as exc:
                     errors.append(str(exc))
+                    if len(errors) <= 3:
+                        logger.warning(f"[cross_market_arb] Error processing market: {exc}")
 
             elapsed_ms = (time.monotonic() - start) * 1000
             return CycleResult(
