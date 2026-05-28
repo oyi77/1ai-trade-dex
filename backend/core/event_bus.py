@@ -24,7 +24,7 @@ from typing import Dict, Any, List, Callable, Awaitable, Optional, Set
 
 from loguru import logger
 
-_HANDLER_TIMEOUT_SECONDS = float(os.getenv("EVENT_BUS_HANDLER_TIMEOUT_SECONDS", "15.0"))
+_HANDLER_TIMEOUT_SECONDS = float(os.getenv("EVENT_BUS_HANDLER_TIMEOUT_SECONDS", "30.0"))
 
 EventHandler = Callable[[str, Dict[str, Any]], Awaitable[None]]
 StrategyHandler = Callable[["MarketEvent"], Awaitable[Optional[dict]]]
