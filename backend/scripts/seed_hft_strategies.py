@@ -69,19 +69,7 @@ HFT_STRATEGIES = [
         "time_horizon": "mid",
         "params": None,
     },
-    {
-        "strategy_name": "unified_arb",
-        "interval_seconds": 300,  # 5 min — unified arb scanning
-        "trading_mode": "paper",
-        "risk_tier": "moderate",
-        "time_horizon": "short",
-        "params": json.dumps(
-            {
-                "min_profit_pct": 0.005,
-                "gas_estimate": 5.0,
-            }
-        ),
-    },
+    # unified_arb entry at line 34 above — no duplicate needed
 ]
 
 
