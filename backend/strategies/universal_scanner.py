@@ -608,7 +608,10 @@ class UniversalScanner(BaseStrategy):
                 model_prob = max(0.01, min(0.99, llm_result.consensus_probability))
             else:
                 model_prob = max(0.01, min(0.99, market.yes_price))
-            edge = model_prob - market.yes_price
+            raw_edge = model_prob - market.yes_price
+            # Deduct platform fees from edge
+            fee_rate = getattr(settings, "PAPER_CLOB_FEE_RATE", 0.02)
+            edge = raw_edge - fee_rate
 
             if abs(edge) < self.default_params["min_edge"]:
                 return None

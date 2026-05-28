@@ -191,7 +191,7 @@ class LongshotBiasStrategy(BaseStrategy):
                         "market_type": "longshot_bias",
                         "reasoning": f"longshot_bias ev={ev:.3f} kelly={kelly:.3f} win_prob={true_win_prob:.3f}",
                     }
-                    result.decisions.append(decision)
+                    decisions.append(decision)
 
                     ctx.logger.info(
                         "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
@@ -230,4 +230,5 @@ class LongshotBiasStrategy(BaseStrategy):
             trades_attempted=trades_attempted,
             trades_placed=trades_placed,
             errors=errors,
+            decisions=decisions,
         )

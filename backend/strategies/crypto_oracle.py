@@ -516,15 +516,15 @@ class CryptoOracleStrategy(BaseStrategy):
             return None
 
         confidence_score = (
-            min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+            min(1.0, max(0.0, edge / min_edge)) if min_edge > 0 else 0.0
         )
         kelly = kelly_fraction(
             get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid
         )
         if kelly > 0:
             suggested_size = min(
-                settings.INITIAL_BANKROLL * kelly,
-                settings.INITIAL_BANKROLL * 0.02,
+                ctx.bankroll * kelly,
+                ctx.bankroll * 0.02,
                 max_position_usd,
             )
         else:
