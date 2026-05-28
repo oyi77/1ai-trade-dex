@@ -86,6 +86,9 @@ class PolymarketProvider(BaseMarketProvider):
         clob_side = "SELL" if order.side == OrderSide.SELL else "BUY"
         try:
             async with clob_from_settings(mode=self._mode) as clob:
+                # Auto-derive API credentials if not set
+                if not clob.api_key:
+                    await clob.create_or_derive_api_key()
                 result = await clob.place_limit_order(
                     token_id=token_id,
                     side=clob_side,

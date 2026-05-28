@@ -179,11 +179,21 @@ class LimitlessClient:
             maker=account.address,
         )
 
+        headers = {"Content-Type": "application/json"}
+        api_key = os.getenv("LIMITLESS_API_KEY", "")
+        api_secret = os.getenv("LIMITLESS_API_SECRET", "")
+        if api_key:
+            headers["X-Api-Key"] = api_key
+        if api_secret:
+            headers["X-Api-Secret"] = api_secret
+        if api_key and api_secret:
+            headers["Authorization"] = f"Bearer {api_key}:{api_secret}"
+
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 f"{self._base_url}/orders",
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             )
             resp.raise_for_status()
             return resp.json()
@@ -224,6 +234,14 @@ class LimitlessClient:
             maker=account.address,
         )
 
+        headers = {"Content-Type": "application/json"}
+        api_key = os.getenv("LIMITLESS_API_KEY", "")
+        api_secret = os.getenv("LIMITLESS_API_SECRET", "")
+        if api_key:
+            headers["X-Api-Key"] = api_key
+        if api_secret:
+            headers["X-Api-Secret"] = api_secret
+
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.request(
                 "DELETE",
@@ -234,7 +252,7 @@ class LimitlessClient:
                     "nonce": nonce,
                     "signature": signature,
                 },
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             )
             return resp.status_code == 200
 
