@@ -394,7 +394,7 @@ async def check_strategy_positions_for_auto_sell(
             for t in trades:
                 _ = t.market_ticker, t.entry_price, t.size, t.direction, t.token_id
                 _ = t.trading_mode, t.strategy, t.platform, t.confidence
-                _ = t.market_type, t.market_end_date, t.slug, t.event_slug
+                _ = t.market_type, t.market_end_date, t.event_slug
             return trades
         finally:
             db.close()
