@@ -717,16 +717,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         logger.info("6. Closing ccxt/aiohttp clients...")
         try:
-            from backend.clients.aster_client import AsterClient
-            # Close any global AsterClient instances
-            for attr_name in dir(AsterClient):
-                attr = getattr(AsterClient, attr_name, None)
-                if hasattr(attr, 'close'):
-                    try:
-                        await attr.close()
-                    except Exception:
-                        pass
-            logger.info("   ✓ Closed ccxt/aiohttp clients")
+            from backend.clients.aster_client import close_all_aster_clients
+            await close_all_aster_clients()
+            logger.info("   ✓ Closed all AsterClient instances")
         except Exception as e:
             logger.debug(f"ccxt client cleanup skipped: {e}")
 

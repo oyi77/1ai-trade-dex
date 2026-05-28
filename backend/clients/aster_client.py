@@ -4,6 +4,9 @@ import os
 
 import ccxt.async_support as ccxt_async
 import ccxt.pro as ccxtpro
+
+# Global registry for cleanup on shutdown
+_all_instances: list = []
 from loguru import logger
 
 
@@ -34,6 +37,7 @@ class AsterClient:
             "walletAddress": _address,
             "options": _opts,
         })
+        _all_instances.append(self)
 
     async def get_markets(self) -> list:
         """Get all available markets."""
@@ -95,6 +99,22 @@ class AsterClient:
         await self._ws_exchange.close()
 
     async def close(self):
-        """Close REST connection."""
+        """Close REST and WS connections."""
+        try:
+            await self._ws_exchange.close()
+        except Exception:
+            pass
         if hasattr(self._exchange, "close"):
             await self._exchange.close()
+        if self in _all_instances:
+            _all_instances.remove(self)
+
+
+async def close_all_aster_clients():
+    """Close all AsterClient instances. Call on shutdown."""
+    for client in list(_all_instances):
+        try:
+            await client.close()
+        except Exception:
+            pass
+    _all_instances.clear()
