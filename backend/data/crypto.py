@@ -55,8 +55,8 @@ def _get_crypto_client() -> httpx.AsyncClient:
     global _crypto_client
     if _crypto_client is None or _crypto_client.is_closed:
         _crypto_client = httpx.AsyncClient(
-            timeout=10.0,
-            limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+            timeout=httpx.Timeout(15.0, connect=5.0),
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=30),
         )
     return _crypto_client
 
