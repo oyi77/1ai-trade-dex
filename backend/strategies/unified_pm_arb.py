@@ -491,6 +491,9 @@ class UnifiedPMArb(BaseStrategy):
         self._breakers: Dict[str, CircuitBreaker] = {}
         self._history: List[dict] = []
         self._dex_feed = DexPriceFeed()
+        self._market_cache: Dict[str, List[dict]] = {}
+        self._cache_time: float = 0.0
+        self._cache_ttl: float = 60.0  # seconds
 
     # ------------------------------------------------------------------
     # Circuit breaker per venue
@@ -512,9 +515,13 @@ class UnifiedPMArb(BaseStrategy):
     async def _fetch_all_pm_markets(
         self, ctx: StrategyContext
     ) -> Dict[str, List[dict]]:
-        """Fetch markets from all PM venues via market_registry providers."""
-        all_markets: Dict[str, List[dict]] = {}
+        """Fetch markets from all PM venues via market_registry providers.
+        Uses 60s cache to avoid redundant fetches."""
+        now = time.monotonic()
+        if self._market_cache and (now - self._cache_time) < self._cache_ttl:
+            return self._market_cache
 
+        all_markets: Dict[str, List[dict]] = {}
         tasks = {}
         for venue in _PM_VENUES:
             provider = ctx.get_market_provider(venue)
@@ -533,6 +540,9 @@ class UnifiedPMArb(BaseStrategy):
                     all_markets[venue] = []
                 else:
                     all_markets[venue] = result
+
+        self._market_cache = all_markets
+        self._cache_time = now
         return all_markets
 
     async def _fetch_venue_markets(
@@ -758,6 +768,21 @@ class UnifiedPMArb(BaseStrategy):
             )
             if total_markets == 0:
                 return CycleResult(0, 0, 0, errors=["No markets available"])
+
+            # 1b. Filter to crypto binaries (higher volume, faster mispricing)
+            crypto_keywords = {"btc", "bitcoin", "eth", "ethereum", "sol", "solana", "crypto", "5min", "5-min"}
+            crypto_markets = {}
+            for venue, markets in all_markets.items():
+                crypto = [
+                    m for m in markets
+                    if any(kw in (m.get("question", "") or "").lower() for kw in crypto_keywords)
+                ]
+                if crypto:
+                    crypto_markets[venue] = crypto
+            if crypto_markets:
+                crypto_total = sum(len(v) for v in crypto_markets.values())
+                logger.info(f"[unified_arb] Crypto filter: {crypto_total} crypto markets from {len(crypto_markets)} venues")
+                all_markets = crypto_markets
 
             # 2. Detect PM opportunities (low-fee pairs only: skip venues with fee > 3%)
             min_edge = self.default_params.get("min_net_edge", 0.01)
