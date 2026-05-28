@@ -105,7 +105,11 @@ class SXBetProvider(BaseMarketProvider):
         """Get available markets from SX.bet."""
         raw = await self._client.get_markets(limit=limit)
         if isinstance(raw, dict):
-            raw = raw.get("data", raw.get("markets", []))
+            data = raw.get("data", raw)
+            if isinstance(data, dict):
+                raw = data.get("markets", [])
+        if not isinstance(raw, list):
+            raw = []
         return [
             MarketInfo(
                 market_id=str(m.get("marketHash", "")),
@@ -114,6 +118,7 @@ class SXBetProvider(BaseMarketProvider):
                 no_price=0.5,
             )
             for m in raw
+            if isinstance(m, dict)
         ]
 
     async def get_balance(self) -> NormalizedBalance:

@@ -23,7 +23,7 @@ from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 
 _AZURO_GRAPH_URL_DEFAULT = (
-    "https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai"
+    "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
 )
 
 _GQL_ACTIVE_MARKETS = """

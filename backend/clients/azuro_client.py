@@ -10,7 +10,7 @@ class AzuroClient:
     """Azuro Protocol client for querying markets and placing bets on Azuro-powered venues."""
 
     DEFAULT_GRAPH_URL = (
-        "https://api.thegraph.com/subgraphs/name/azuro-protocol/azuro-subgraph-xdai"
+        "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
     )
 
     def __init__(
