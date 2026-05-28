@@ -1,8 +1,6 @@
 """Limitless Exchange client using official limitless-sdk."""
 
 import os
-from typing import Optional
-
 from loguru import logger
 
 
@@ -19,7 +17,7 @@ class LimitlessClient:
         if self._sdk is None:
             from limitless_sdk import LimitlessClient as SDKClient
             key = self._private_key
-            if not key.startswith("0x"):
+            if key and not key.startswith("0x"):
                 key = "0x" + key
             self._sdk = SDKClient(
                 private_key=key,
@@ -63,18 +61,16 @@ class LimitlessClient:
         """
         sdk = self._get_sdk()
         try:
-            from limitless_sdk import CreateOrderDto
-            order = sdk._sign_order(
+            await sdk.create_session()
+            outcome_index = 0  # YES
+            side_int = 1 if side.upper() == "BUY" else 0
+            dto = sdk.create_order(
+                market_id=market_id,
                 market_slug=market_id,
-                side=1 if side.upper() == "BUY" else 0,
+                outcome_index=outcome_index,
+                side=side_int,
+                amount=size,
                 price=price,
-                size=size,
-            )
-            dto = CreateOrderDto(
-                order=order,
-                ownerId=0,
-                orderType="GTC",
-                marketSlug=market_id,
             )
             result = await sdk.place_order(dto)
             logger.info(f"[limitless] Order placed: {result}")
@@ -87,7 +83,7 @@ class LimitlessClient:
         """Cancel an open order using official SDK."""
         sdk = self._get_sdk()
         try:
-            result = await sdk.cancel_order(order_id)
+            await sdk.cancel_order(order_id)
             return True
         except Exception as e:
             logger.warning(f"[limitless] cancel_order failed: {e}")
