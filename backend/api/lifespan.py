@@ -929,13 +929,6 @@ async def _seed_strategy_configs() -> None:
             },
         ),
         (
-            "unified_pm_arb",
-            True,
-            60,
-            "paper",
-            {"min_net_edge": 0.02, "max_exposure": 200.0},
-        ),
-        (
             "unified_arb",
             True,
             300,
