@@ -193,6 +193,272 @@ def _kelly_size(
 
 
 # ---------------------------------------------------------------------------
+# DEX Price Feed (inlined from cross_dex_arb.py)
+# ---------------------------------------------------------------------------
+
+class DexPriceFeed:
+    """Fetch prices from all DEX providers using existing clients."""
+
+    DEFAULT_TAKER_FEES = {
+        "hyperliquid": 0.0005,
+        "aster": 0.00035,
+        "lighter": 0.0,
+        "ostium": 0.005,
+    }
+
+    DEFAULT_TIMEOUTS = {
+        "hyperliquid": 15.0,
+        "aster": 20.0,
+        "lighter": 10.0,
+        "ostium": 10.0,
+    }
+
+    def __init__(
+        self,
+        taker_fees: Optional[Dict[str, float]] = None,
+        timeouts: Optional[Dict[str, float]] = None,
+    ):
+        self._taker_fees = taker_fees or dict(self.DEFAULT_TAKER_FEES)
+        self._timeouts = timeouts or dict(self.DEFAULT_TIMEOUTS)
+
+    async def fetch_hyperliquid_prices(self) -> List[PriceQuote]:
+        try:
+            def _sync_fetch():
+                from hyperliquid.info import Info
+                from hyperliquid.utils import constants as hl_constants
+                info = Info(hl_constants.MAINNET_API_URL, skip_ws=True)
+                mids = info.all_mids()
+                books = {}
+                for name in list(mids.keys())[:50]:
+                    if name.startswith("#"):
+                        continue
+                    try:
+                        l2 = info.l2_snapshot(name)
+                        if l2 and "levels" in l2:
+                            levels = l2["levels"]
+                            bids = levels[0] if len(levels) > 0 else []
+                            asks = levels[1] if len(levels) > 1 else []
+                            best_bid = float(bids[0]["px"]) if bids else 0
+                            best_ask = float(asks[0]["px"]) if asks else 0
+                            if best_bid > 0 and best_ask > 0 and best_bid < best_ask:
+                                books[name] = (best_bid, best_ask)
+                    except Exception:
+                        pass
+                return mids, books
+
+            mids, books = await asyncio.to_thread(_sync_fetch)
+            quotes = []
+            for name, mid in mids.items():
+                try:
+                    mid_f = float(mid)
+                    if mid_f <= 0 or name.startswith("#"):
+                        continue
+                    if name in books:
+                        bid, ask = books[name]
+                        spread_pct = (ask - bid) / mid_f
+                        if spread_pct > 0.02:
+                            continue
+                        quotes.append(PriceQuote(exchange="hyperliquid", base=name, bid=bid, ask=ask, mid=mid_f))
+                except (ValueError, TypeError):
+                    continue
+            return quotes
+        except Exception as e:
+            logger.warning(f"dex_feed: Hyperliquid failed: {e}")
+            return []
+
+    async def fetch_aster_prices(self) -> List[PriceQuote]:
+        client = None
+        try:
+            from backend.clients.aster_client import AsterClient
+            client = AsterClient()
+            tickers = await client.get_tickers()
+            quotes = []
+            for symbol, ticker in tickers.items():
+                if not symbol.endswith("/USDC") and not symbol.endswith("/USDT"):
+                    continue
+                try:
+                    bid = float(ticker.get("bid", 0) or 0)
+                    ask = float(ticker.get("ask", 0) or 0)
+                    last = float(ticker.get("last", 0) or 0)
+                    if bid <= 0 and ask <= 0:
+                        continue
+                    base = symbol.split("/")[0]
+                    quotes.append(PriceQuote(exchange="aster", base=base, bid=bid, ask=ask, mid=last or ((bid + ask) / 2 if bid and ask else 0)))
+                except Exception:
+                    continue
+            return quotes
+        except Exception as e:
+            logger.warning(f"dex_feed: Aster failed: {e}")
+            return []
+        finally:
+            if client:
+                await client.close()
+
+    async def fetch_lighter_prices(self) -> List[PriceQuote]:
+        try:
+            from backend.clients.lighter_client import LighterClient
+            client = LighterClient(skip_signer=True)
+            order_books = await client.get_markets()
+            quotes = []
+            for ob in order_books:
+                if hasattr(ob, "__dict__") and not isinstance(ob, dict):
+                    ob = ob.__dict__
+                if not isinstance(ob, dict):
+                    continue
+                base = ob.get("base_symbol") or ob.get("symbol") or ob.get("name") or ob.get("baseAsset", "")
+                if not base:
+                    continue
+                bids = ob.get("bids") or []
+                asks = ob.get("asks") or []
+                best_bid = float(bids[0].get("price", 0)) if bids else 0
+                best_ask = float(asks[0].get("price", 0)) if asks else 0
+                if best_bid <= 0 and best_ask <= 0:
+                    continue
+                quotes.append(PriceQuote(exchange="lighter", base=str(base).split("/")[0].split("-")[0], bid=best_bid, ask=best_ask, mid=(best_bid + best_ask) / 2 if best_bid and best_ask else 0))
+            return quotes
+        except Exception as e:
+            logger.warning(f"dex_feed: Lighter failed: {e}")
+            return []
+
+    async def fetch_ostium_prices(self) -> List[PriceQuote]:
+        try:
+            from backend.clients.ostium_client import OstiumClient
+            client = OstiumClient()
+            markets = await client.get_markets()
+            quotes = []
+            for m in markets:
+                if hasattr(m, "__dict__") and not isinstance(m, dict):
+                    m = m.__dict__
+                if not isinstance(m, dict):
+                    continue
+                base = m.get("base_symbol") or m.get("from") or m.get("name") or m.get("pair", "")
+                if not base:
+                    continue
+                bid_val = 0.0
+                ask_val = 0.0
+                for key in ("best_bid", "bid", "bid_price"):
+                    val = m.get(key)
+                    if val is not None:
+                        try:
+                            bid_val = float(val)
+                            if bid_val > 0:
+                                break
+                        except (ValueError, TypeError):
+                            pass
+                for key in ("best_ask", "ask", "ask_price"):
+                    val = m.get(key)
+                    if val is not None:
+                        try:
+                            ask_val = float(val)
+                            if ask_val > 0:
+                                break
+                        except (ValueError, TypeError):
+                            pass
+                if bid_val > 0 and ask_val > 0 and bid_val < ask_val:
+                    spread_pct = (ask_val - bid_val) / ((bid_val + ask_val) / 2)
+                    if spread_pct > 0.02:
+                        continue
+                    quotes.append(PriceQuote(exchange="ostium", base=str(base).split("/")[0].split("-")[0], bid=bid_val, ask=ask_val, mid=(bid_val + ask_val) / 2))
+                elif m.get("price") or m.get("mark_price"):
+                    continue  # skip assets without real bid/ask
+            return quotes
+        except Exception as e:
+            logger.warning(f"dex_feed: Ostium failed: {e}")
+            return []
+
+    async def fetch_all_prices(self, exchanges: Optional[List[str]] = None) -> Dict[str, List[PriceQuote]]:
+        targets = exchanges or ["hyperliquid", "aster", "lighter", "ostium"]
+        fetchers = {
+            "hyperliquid": (self.fetch_hyperliquid_prices, self._timeouts.get("hyperliquid", 15.0)),
+            "aster": (self.fetch_aster_prices, self._timeouts.get("aster", 20.0)),
+            "lighter": (self.fetch_lighter_prices, self._timeouts.get("lighter", 10.0)),
+            "ostium": (self.fetch_ostium_prices, self._timeouts.get("ostium", 10.0)),
+        }
+        coros = []
+        names = []
+        for ex in targets:
+            if ex in fetchers:
+                fetcher, timeout = fetchers[ex]
+                coros.append(self._wrap(ex, fetcher, timeout))
+                names.append(ex)
+        results_list = await asyncio.gather(*coros, return_exceptions=True)
+        results = {}
+        for i, r in enumerate(results_list):
+            results[names[i]] = [] if isinstance(r, Exception) else (r or [])
+        return results
+
+    async def _wrap(self, name: str, fetcher, timeout: float):
+        try:
+            return await asyncio.wait_for(fetcher(), timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning(f"dex_feed: {name} timeout ({timeout}s)")
+        except Exception as e:
+            logger.warning(f"dex_feed: {name} failed: {e}")
+        return []
+
+
+def _detect_cross_dex_opportunities(
+    all_prices: Dict[str, List[PriceQuote]],
+    min_profit_pct: float = 0.003,
+    gas_estimate: float = 2.0,
+    taker_fees: Optional[Dict[str, float]] = None,
+) -> List[DexArbOpportunity]:
+    """Scan all exchange pairs for arbitrage on same asset."""
+    if taker_fees is None:
+        taker_fees = {}
+
+    asset_map: Dict[str, List[Tuple[str, PriceQuote]]] = {}
+    for exchange, quotes in all_prices.items():
+        for q in quotes:
+            key = q.base.upper()
+            if key not in asset_map:
+                asset_map[key] = []
+            asset_map[key].append((exchange, q))
+
+    opps = []
+    for asset, entries in asset_map.items():
+        if len(entries) < 2:
+            continue
+        for i in range(len(entries)):
+            for j in range(len(entries)):
+                if i == j:
+                    continue
+                ex_i, qi = entries[i]
+                ex_j, qj = entries[j]
+                if qi.ask <= 0 or qj.bid <= 0:
+                    continue
+                buy_price = qi.ask
+                sell_price = qj.bid
+                gross_spread = (sell_price - buy_price) / buy_price
+                if gross_spread <= 0:
+                    continue
+                fee_i = taker_fees.get(ex_i.lower(), 0.005)
+                fee_j = taker_fees.get(ex_j.lower(), 0.005)
+                total_fees = fee_i + fee_j
+                gas_pct = gas_estimate / buy_price if buy_price > 0 else 0
+                net_pct = gross_spread - total_fees - gas_pct
+                if net_pct < min_profit_pct:
+                    continue
+                confidence = min(1.0, (net_pct - min_profit_pct) / (min_profit_pct * 2))
+                opps.append(DexArbOpportunity(
+                    asset=asset, buy_exchange=ex_i, sell_exchange=ex_j,
+                    buy_price=buy_price, sell_price=sell_price,
+                    gross_spread=gross_spread, taker_fees_pct=total_fees,
+                    gas_estimate=gas_estimate, net_profit_pct=net_pct,
+                    confidence=confidence,
+                ))
+
+    seen = set()
+    unique = []
+    for o in sorted(opps, key=lambda o: o.net_profit_pct, reverse=True):
+        key = (o.asset, o.buy_exchange, o.sell_exchange)
+        if key not in seen:
+            seen.add(key)
+            unique.append(o)
+    return unique
+
+
+# ---------------------------------------------------------------------------
 # Unified PM Arbitrage Strategy
 # ---------------------------------------------------------------------------
 
