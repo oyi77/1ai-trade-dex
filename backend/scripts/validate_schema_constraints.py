@@ -55,7 +55,7 @@ VALID_STRATEGY_NAMES = [
     "crypto_oracle",
     "cex_pm_leadlag",
     "copy_trader",
-    "unified_pm_arb",
+    "unified_arb",
     "general_scanner",
     "kalshi_arb",
     "line_movement_detector",

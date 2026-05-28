@@ -31,7 +31,7 @@ HFT_STRATEGIES = [
         ),
     },
     {
-        "strategy_name": "unified_pm_arb",
+        "strategy_name": "unified_arb",
         "interval_seconds": 60,
         "trading_mode": "paper",
         "risk_tier": "moderate",

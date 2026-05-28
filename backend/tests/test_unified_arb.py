@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.strategies.unified_arb.strategy import UnifiedArbStrategy
 from backend.strategies.unified_pm_arb import (
     UnifiedPMArb,
     _kelly_size,
@@ -333,7 +334,7 @@ class TestHistory:
 
 class TestStrategyMeta:
     def test_name(self):
-        assert UnifiedPMArb.name == "unified_pm_arb"
+        assert UnifiedPMArb.name == "unified_arb"
 
     def test_category(self):
         assert UnifiedPMArb.category == "arb"
