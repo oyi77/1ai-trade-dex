@@ -114,7 +114,7 @@ class LimitlessClient:
             await sdk.create_session()
             outcome_index = 0  # YES
             side_int = 1 if side.upper() == "BUY" else 0
-            dto = sdk.create_order(
+            dto = await sdk.create_order(
                 market_id=market_id,
                 market_slug=market_id,
                 outcome_index=outcome_index,
