@@ -70,8 +70,8 @@ HFT_STRATEGIES = [
         "params": None,
     },
     {
-        "strategy_name": "cross_dex_arb",
-        "interval_seconds": 300,  # 5 min — cross-DEX price scanning
+        "strategy_name": "unified_arb",
+        "interval_seconds": 300,  # 5 min — unified arb scanning
         "trading_mode": "paper",
         "risk_tier": "moderate",
         "time_horizon": "short",
