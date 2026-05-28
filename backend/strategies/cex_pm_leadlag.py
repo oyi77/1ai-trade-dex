@@ -203,7 +203,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     raw_prob = max(0.01, min(0.99, 0.5 + 0.49 * sigmoid))
                     # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
                     implied_prob = max(0.40, min(0.75, raw_prob))
-                    total_fees = fee_rate * 2
+                    total_fees = fee_rate  # Polymarket taker fee is per-trade, not double
                     edge = (implied_prob - target_mid) - min_edge - total_fees
 
                     confidence = (
