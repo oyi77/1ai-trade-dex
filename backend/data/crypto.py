@@ -160,6 +160,14 @@ async def fetch_crypto_klines(
         logger.debug(f"kline cache HIT for {pair} ({asset_key}), age={now - cache['ts']:.1f}s")
         return cache["data"]
 
+    # Stale-while-revalidate: if all circuits OPEN, return stale data
+    all_circuits_open = all(
+        b.state == "OPEN" for b in [binance_breaker, kraken_breaker, coinbase_breaker]
+    )
+    if all_circuits_open and cache["data"] is not None:
+        logger.warning(f"All kline circuits OPEN, returning stale cache for {pair} (age={now - cache['ts']:.0f}s)")
+        return cache["data"]
+
     client = _get_crypto_client()
 
     # Resolve Coinbase product and Kraken pair from pair
