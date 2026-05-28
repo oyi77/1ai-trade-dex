@@ -519,15 +519,26 @@ class HFTScalperStrategy(BaseStrategy):
             mode = getattr(self, '_mode', 'paper')
             if clob and mode == "live":
                 try:
-                    order = await clob.place_order(
+                    # Resolve correct token_id for direction
+                    # BUY_YES = buy YES token (clobTokenIds[0])
+                    # BUY_NO = buy NO token (clobTokenIds[1])
+                    # token_id from WS event is already the correct outcome token
+                    side = "BUY"
+                    order = await clob.place_limit_order(
                         token_id=token_id,
-                        side="BUY" if direction == "YES" else "BUY",
+                        side=side,
                         price=price,
                         size=size_usd,
                     )
-                    if order:
-                        position.order_id = str(order.get("id", ""))
-                        logger.info(f"[{self.name}] CLOB order placed: {order.get('id', '')[:20]}")
+                    if order and hasattr(order, 'order_id') and order.order_id:
+                        position.order_id = str(order.order_id)
+                        logger.info(f"[{self.name}] CLOB order placed: {position.order_id[:20]}")
+                    elif order and hasattr(order, 'success') and not order.success:
+                        logger.warning(f"[{self.name}] CLOB order rejected: {getattr(order, 'error', 'unknown')}")
+                        return
+                    else:
+                        logger.warning(f"[{self.name}] CLOB order unclear response: {order}")
+                        return
                 except Exception as e:
                     logger.warning(f"[{self.name}] CLOB order failed: {e}")
                     return  # Don't track position if order failed

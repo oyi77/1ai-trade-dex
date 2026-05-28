@@ -252,7 +252,14 @@ class ProbabilityArb(BaseStrategy):
                             clob_token_ids = _json.loads(clob_token_ids)
                         yes_token_id = clob_token_ids[0]
                         no_token_id = clob_token_ids[1]
-                        opp.market_id = yes_token_id
+                        opp.market_id = m.get("conditionId") or m.get("slug") or yes_token_id
+                        # Validate token_ids before execution
+                        if not yes_token_id or not no_token_id:
+                            logger.debug(f"[prob_arb] Skipping {opp.market_id}: invalid token_ids")
+                            continue
+                        if yes_token_id == no_token_id:
+                            logger.debug(f"[prob_arb] Skipping {opp.market_id}: YES and NO token_ids are identical")
+                            continue
                         result = await execute_arb(opp, yes_token_id, no_token_id, ctx.clob)
                         if result.get("success"):
                             arb_count += 1

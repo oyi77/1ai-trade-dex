@@ -207,6 +207,7 @@ class HFTCrossArbExecutor:
     ) -> Tuple[float, float]:
         """Calculate position sizes for both legs using Kelly criterion.
 
+        Both legs normalized to equal USD exposure to prevent asymmetric risk.
         Returns (poly_size_usdc, kalshi_contracts).
         """
         net_edge = opp.net_profit
@@ -222,21 +223,19 @@ class HFTCrossArbExecutor:
         if base_size < _cfg("MIN_ORDER_USDC", 5.0):
             return 0.0, 0.0
 
-        # Size each leg proportionally to its price so exposure is balanced
-        cheaper = opp.details.get("cheaper", "polymarket")
-        if cheaper == "polymarket":
-            poly_size = base_size
-            # Kalshi contracts = base_size / kalshi_price (contracts are per-unit)
-            kalshi_size = base_size / opp.price_b if opp.price_b > 0 else 0.0
-        else:
-            kalshi_size = base_size / opp.price_a if opp.price_a > 0 else 0.0
-            poly_size = base_size
+        # Equal USD exposure on both legs
+        poly_usd = base_size
+        kalshi_usd = base_size
+
+        # Convert Kalshi USD to contracts: contracts = usd / price
+        kalshi_price = opp.price_b if opp.price_b > 0 else opp.price_a
+        kalshi_contracts = kalshi_usd / kalshi_price if kalshi_price > 0 else 0.0
 
         # Cap both legs at max_exposure
-        poly_size = min(poly_size, self._max_exposure)
-        kalshi_contracts = min(kalshi_size, self._max_exposure)
+        poly_usd = min(poly_usd, self._max_exposure)
+        kalshi_contracts = min(kalshi_contracts, self._max_exposure)
 
-        return round(poly_size, 2), round(kalshi_contracts, 2)
+        return round(poly_usd, 2), round(kalshi_contracts, 2)
 
     # ---- net edge after fees ----
 

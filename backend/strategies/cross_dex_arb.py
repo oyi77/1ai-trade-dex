@@ -100,15 +100,34 @@ class DexPriceFeed:
         return self._taker_fees.get(exchange.lower(), 0.005)
 
     async def fetch_hyperliquid_prices(self) -> List[PriceQuote]:
-        """Fetch Hyperliquid mid prices via Info.all_mids() (sync SDK — runs in thread)."""
+        """Fetch Hyperliquid prices via l2_snapshot for real bid/ask spreads."""
         try:
             def _sync_fetch():
                 from hyperliquid.info import Info
                 from hyperliquid.utils import constants as hl_constants
                 info = Info(hl_constants.MAINNET_API_URL, skip_ws=True)
-                return info.all_mids()
+                # Get all mid prices first
+                mids = info.all_mids()
+                # Then get L2 orderbooks for top assets to get real spreads
+                books = {}
+                for name in list(mids.keys())[:50]:  # cap to avoid rate limits
+                    if name.startswith("#"):
+                        continue
+                    try:
+                        l2 = info.l2_snapshot(name)
+                        if l2 and "levels" in l2:
+                            levels = l2["levels"]
+                            bids = levels[0] if len(levels) > 0 else []
+                            asks = levels[1] if len(levels) > 1 else []
+                            best_bid = float(bids[0]["px"]) if bids else 0
+                            best_ask = float(asks[0]["px"]) if asks else 0
+                            if best_bid > 0 and best_ask > 0 and best_bid < best_ask:
+                                books[name] = (best_bid, best_ask)
+                    except Exception:
+                        pass
+                return mids, books
 
-            mids = await asyncio.to_thread(_sync_fetch)
+            mids, books = await asyncio.to_thread(_sync_fetch)
             quotes = []
             for name, mid in mids.items():
                 try:
@@ -117,16 +136,23 @@ class DexPriceFeed:
                         continue
                     if name.startswith("#"):
                         continue
-                    quotes.append(PriceQuote(
-                        exchange="hyperliquid",
-                        base=name,
-                        bid=mid_f * (1 - self._spread_estimates.get("hyperliquid", 0.0005)),
-                        ask=mid_f * (1 + self._spread_estimates.get("hyperliquid", 0.0005)),
-                        mid=mid_f,
-                    ))
+                    if name in books:
+                        bid, ask = books[name]
+                        # Sanity check: reject if spread > 2% (likely stale)
+                        spread_pct = (ask - bid) / mid_f
+                        if spread_pct > 0.02:
+                            continue
+                        quotes.append(PriceQuote(
+                            exchange="hyperliquid",
+                            base=name,
+                            bid=bid,
+                            ask=ask,
+                            mid=mid_f,
+                        ))
+                    # Skip assets without real orderbook data
                 except (ValueError, TypeError):
                     continue
-            logger.debug(f"dex_feed: Hyperliquid got {len(quotes)} quotes")
+            logger.debug(f"dex_feed: Hyperliquid got {len(quotes)} quotes (real spreads)")
             return quotes
         except Exception as e:
             logger.warning(f"dex_feed: Hyperliquid fetch failed: {e}")
@@ -209,7 +235,7 @@ class DexPriceFeed:
             return []
 
     async def fetch_ostium_prices(self) -> List[PriceQuote]:
-        """Fetch Ostium prices via subgraph pairs."""
+        """Fetch Ostium prices via subgraph — use real bid/ask when available."""
         try:
             from backend.clients.ostium_client import OstiumClient
             client = OstiumClient()
@@ -223,7 +249,28 @@ class DexPriceFeed:
                 base = m.get("base_symbol") or m.get("from") or m.get("name") or m.get("pair", "")
                 if not base:
                     continue
-                # Try to extract price from market data directly
+                # Try to get real bid/ask first
+                bid_val = 0.0
+                ask_val = 0.0
+                for key in ("best_bid", "bid", "bid_price"):
+                    val = m.get(key)
+                    if val is not None:
+                        try:
+                            bid_val = float(val)
+                            if bid_val > 0:
+                                break
+                        except (ValueError, TypeError):
+                            pass
+                for key in ("best_ask", "ask", "ask_price"):
+                    val = m.get(key)
+                    if val is not None:
+                        try:
+                            ask_val = float(val)
+                            if ask_val > 0:
+                                break
+                        except (ValueError, TypeError):
+                            pass
+                # Fallback to mid price with conservative spread
                 price_val = 0.0
                 for key in ("price", "mark_price", "last_price", "index_price", "mid_price"):
                     val = m.get(key)
@@ -234,17 +281,23 @@ class DexPriceFeed:
                                 break
                         except (ValueError, TypeError):
                             pass
-                if price_val <= 0:
+                if bid_val > 0 and ask_val > 0 and bid_val < ask_val:
+                    # Real spread — sanity check
+                    spread_pct = (ask_val - bid_val) / ((bid_val + ask_val) / 2)
+                    if spread_pct > 0.02:
+                        continue  # reject wide spreads
+                    quotes.append(PriceQuote(
+                        exchange="ostium",
+                        base=str(base).split("/")[0].split("-")[0],
+                        bid=bid_val,
+                        ask=ask_val,
+                        mid=(bid_val + ask_val) / 2,
+                    ))
+                elif price_val > 0:
+                    # No real spread available — skip this asset
+                    # (don't use fake spread estimates)
                     continue
-                spread = self._spread_estimates.get("ostium", 0.001)
-                quotes.append(PriceQuote(
-                    exchange="ostium",
-                    base=str(base).split("/")[0].split("-")[0],
-                    bid=price_val * (1 - spread),
-                    ask=price_val * (1 + spread),
-                    mid=price_val,
-                ))
-            logger.debug(f"dex_feed: Ostium got {len(quotes)} quotes")
+            logger.debug(f"dex_feed: Ostium got {len(quotes)} quotes (real spreads only)")
             return quotes
         except Exception as e:
             logger.warning(f"dex_feed: Ostium fetch failed: {e}")

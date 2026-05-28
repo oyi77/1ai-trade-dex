@@ -521,7 +521,7 @@ class MarketMakerStrategy(BaseStrategy):
             self._last_inventory[market_id] = inventory
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """Scheduled fallback: store CLOB context, populate tokens, log metrics."""
+        """Scheduled cycle: store CLOB context, populate tokens, place quotes via polling."""
         # Store CLOB reference so the event-driven path can place real orders
         self._clob = ctx.clob
         self._mode = getattr(ctx, "mode", "paper")
@@ -529,9 +529,70 @@ class MarketMakerStrategy(BaseStrategy):
         if not self._tokens_populated:
             await self._populate_subscribed_tokens()
 
-        result = CycleResult(
-            decisions_recorded=0,
-            trades_attempted=0,
-            trades_placed=0,
+        trades_placed = 0
+
+        # Polling fallback: place quotes on subscribed tokens when no WS events
+        if self._clob and self._mode == "live" and self.subscribed_tokens:
+            for token_id in list(self.subscribed_tokens)[:10]:  # cap to avoid overload
+                try:
+                    # Fetch orderbook
+                    book = await self._clob.get_orderbook(token_id)
+                    if not book:
+                        continue
+                    bids = book.get("bids", [])
+                    asks = book.get("asks", [])
+                    if not bids or not asks:
+                        continue
+                    best_bid = float(bids[0].get("price", 0) if isinstance(bids[0], dict) else bids[0][0])
+                    best_ask = float(asks[0].get("price", 0) if isinstance(asks[0], dict) else asks[0][0])
+                    if best_bid <= 0 or best_ask <= 0 or best_bid >= best_ask:
+                        continue
+
+                    mid = (best_bid + best_ask) / 2.0
+                    spread = best_ask - best_bid
+                    inventory = self._inventory.get(token_id, 0.0)
+
+                    if self._should_refresh_quotes(token_id, spread, inventory, self.default_params):
+                        volatility = self._estimate_volatility(token_id)
+                        time_remaining = self._estimate_time_remaining(token_id)
+                        quote = self.calculate_as_quote(mid, volatility, inventory, time_remaining, self.default_params)
+
+                        # Cancel stale quotes
+                        await self._cancel_stale_quotes(token_id, self._clob)
+
+                        # Place new quotes
+                        for side, price, size in [("BUY", quote.bid_price, quote.bid_size), ("SELL", quote.ask_price, quote.ask_size)]:
+                            if size <= 0 or price <= 0:
+                                continue
+                            try:
+                                order = await self._clob.place_limit_order(
+                                    token_id=token_id,
+                                    side=side,
+                                    price=price,
+                                    size=size,
+                                )
+                                if order and getattr(order, "success", False):
+                                    aq = ActiveQuote(
+                                        quote_id=str(uuid.uuid4()),
+                                        market_id=token_id,
+                                        side=side,
+                                        price=price,
+                                        size=size,
+                                        placed_at=time.monotonic(),
+                                        order_id=str(getattr(order, "order_id", "") or ""),
+                                    )
+                                    self._add_active_quote(aq)
+                                    trades_placed += 1
+                            except Exception as e:
+                                logger.debug(f"[{self.name}] Quote placement failed: {e}")
+
+                        self._last_spread[token_id] = spread
+                        self._last_inventory[token_id] = inventory
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Polling quote failed for {token_id}: {e}")
+
+        return CycleResult(
+            decisions_recorded=trades_placed,
+            trades_attempted=trades_placed,
+            trades_placed=trades_placed,
         )
-        return result

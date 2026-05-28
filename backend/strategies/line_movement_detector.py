@@ -439,12 +439,32 @@ class LineMovementDetectorStrategy(BaseStrategy):
                     movement.ticker,
                 )
 
+        # Mean-reversion on binaries: fade the move (opposite direction).
+        # On 0-1 bounded assets, momentum-following is negative-EV.
+        # If debate says overreaction → trade against the move.
+        # If debate says justified → skip (let the trend run, don't chase).
+        if debate_result and hasattr(debate_result, "consensus_probability"):
+            debate_prob = debate_result.consensus_probability
+            # If debate agrees with move direction → skip (trend, not overreaction)
+            if direction == "up" and debate_prob > movement.current_price:
+                logger.info(f"[{self.name}] Skipping {movement.ticker}: debate confirms upward move (not overreaction)")
+                return None
+            if direction == "down" and debate_prob < movement.current_price:
+                logger.info(f"[{self.name}] Skipping {movement.ticker}: debate confirms downward move (not overreaction)")
+                return None
+
+        # Bounded-price check: don't trade near extremes
+        if movement.current_price > 0.90 or movement.current_price < 0.10:
+            logger.info(f"[{self.name}] Skipping {movement.ticker}: price {movement.current_price:.2f} near boundary")
+            return None
+
+        # Fade the move: buy opposite direction
         action = "BUY"
-        side = "yes" if direction == "up" else "no"
+        side = "no" if direction == "up" else "yes"  # reversed: mean-reversion
         raw_entry_price = (
-            movement.current_price
+            round(1.0 - movement.current_price, 4)
             if direction == "up"
-            else round(1.0 - movement.current_price, 4)
+            else movement.current_price
         )
         entry_price = round(clamp_probability(float(raw_entry_price)), 4)
 

@@ -382,7 +382,9 @@ class UniversalScanner(BaseStrategy):
             db=None,
         )
         if debate_result is not None:
-            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
+            # Conservative shrinkage: discount uncalibrated LLM probability
+            raw_prob = debate_result.consensus_probability
+            model_prob = max(0.01, min(0.99, yes_price + (raw_prob - yes_price) * 0.7))
         else:
             model_prob = max(0.01, min(0.99, yes_price))
         edge = model_prob - yes_price
@@ -446,12 +448,15 @@ class UniversalScanner(BaseStrategy):
         if debate_result is not None and hasattr(
             debate_result, "consensus_probability"
         ):
-            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
+            # Conservative shrinkage: discount uncalibrated LLM probability
+            raw_prob = debate_result.consensus_probability
+            model_prob = max(0.01, min(0.99, price + (raw_prob - price) * 0.7))
         else:
             model_prob = max(0.01, min(0.99, price))
         edge = model_prob - price
 
-        if abs(edge) < self.default_params["min_edge"]:
+        # Edge floor: require 3%+ edge to overcome calibration uncertainty
+        if abs(edge) < max(self.default_params["min_edge"], 0.03):
             return None
 
         volume = data.get("volume", 0)
@@ -605,7 +610,9 @@ class UniversalScanner(BaseStrategy):
                 db=None,
             )
             if llm_result is not None and hasattr(llm_result, "consensus_probability"):
-                model_prob = max(0.01, min(0.99, llm_result.consensus_probability))
+                # Conservative shrinkage: discount uncalibrated LLM probability
+                raw_prob = llm_result.consensus_probability
+                model_prob = max(0.01, min(0.99, market.yes_price + (raw_prob - market.yes_price) * 0.7))
             else:
                 model_prob = max(0.01, min(0.99, market.yes_price))
             raw_edge = model_prob - market.yes_price

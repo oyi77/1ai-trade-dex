@@ -403,23 +403,24 @@ class CrossMarketArb(BaseStrategy):
     def _find_kalshi_match(
         self, poly_market: dict, kalshi_markets: list[dict]
     ) -> Optional[dict]:
-        """Match a Polymarket market to its Kalshi equivalent."""
-        poly_question = poly_market.get("question", "").lower()
-        poly_slug = poly_market.get("slug", "").lower()
+        """Match a Polymarket market to its Kalshi equivalent.
+
+        Uses exact slug match or conditionId match only.
+        Word-overlap matching removed — too unreliable for real arb.
+        """
+        poly_slug = (poly_market.get("slug") or "").lower().strip()
+        poly_condition = (poly_market.get("conditionId") or "").lower().strip()
 
         for k_m in kalshi_markets:
-            k_question = k_m.get("question", "").lower()
-            k_slug = k_m.get("slug", "").lower()
+            k_slug = (k_m.get("slug") or "").lower().strip()
+            k_condition = (k_m.get("conditionId") or "").lower().strip()
 
-            if poly_question and k_question:
-                poly_words = set(poly_question.lower().split())
-                k_words = set(k_question.lower().split())
-                if len(poly_words) >= 3 and len(k_words) >= 3:
-                    overlap = len(poly_words & k_words) / len(poly_words | k_words)
-                    if overlap >= 0.6:
-                        return k_m
-
+            # Exact slug match (highest confidence)
             if poly_slug and k_slug and poly_slug == k_slug:
+                return k_m
+
+            # ConditionId match
+            if poly_condition and k_condition and poly_condition == k_condition:
                 return k_m
 
         return None

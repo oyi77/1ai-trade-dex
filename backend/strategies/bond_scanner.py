@@ -254,22 +254,34 @@ class BondScannerStrategy(BaseStrategy):
             except Exception as e:
                 logger.debug(f"Failed to query open trades: {e}")
 
-            # Conservative edge model:
-            # Assume the market is efficient at pricing probabilities above 0.90.
-            # Our edge comes from the natural bias: markets slightly underprice
-            # high-probability outcomes close to resolution (last 1-10 days)
-            # because liquidity providers want to exit. Cap our assumed boost
-            # conservatively so that a single loss doesn't wipe many wins.
+            # Edge model: require independent signal (debate/LLM) to confirm
+            # probability exceeds market price. No self-referential boost.
+            # Market is assumed efficient unless we have external evidence.
             #
-            # Key constraint: risk/reward ratio.
-            # At price=P, profit_if_win = (1-P)*size, loss_if_lose = P*size
-            # Require: win_prob * (1-P) - (1-win_prob) * P > 0
-            # i.e. win_prob > P  (we need to believe the TRUE prob exceeds market)
-            #
-            # Conservative boost: 1% for markets at 0.92, tapering to 0.5% at 0.98
-            taper = max(0.0, (qualifying_price - 0.92) / 0.06)  # 0 at 0.92, 1 at 0.98
-            proximity_boost = 0.01 * (1.0 - 0.5 * taper)  # 1% at 0.92, 0.5% at 0.98
-            win_prob = min(qualifying_price + proximity_boost, 0.97)
+            # Run debate gate to get independent probability estimate
+            try:
+                from backend.ai.debate_router import run_debate_with_routing
+                debate_result = await run_debate_with_routing(
+                    db=ctx.db,
+                    question=market.get("question", ""),
+                    market_price=qualifying_price,
+                    volume=volume,
+                    category=market.get("category", ""),
+                    context=f"High-probability market near resolution ({days_to_resolution:.1f} days). "
+                            f"Market price: {qualifying_price:.2%}",
+                    max_rounds=1,
+                )
+                if debate_result and hasattr(debate_result, "consensus_probability"):
+                    win_prob = max(0.01, min(0.99, debate_result.consensus_probability))
+                else:
+                    # No debate result → skip (no independent signal)
+                    continue
+            except Exception as e:
+                logger.debug(f"[bond_scanner] Debate gate failed for {slug}: {e}")
+                continue
+
+            # Edge = win_prob * (1-P) - (1-win_prob) * P
+            # Positive only if win_prob > P (independent signal says market underprices)
             edge = round(
                 win_prob * (1.0 - qualifying_price)
                 - (1.0 - win_prob) * qualifying_price,
