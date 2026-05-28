@@ -13,6 +13,7 @@ Safety: Per-venue circuit breakers + atomic 2-leg with emergency cancel
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 import uuid
@@ -665,6 +666,34 @@ class UnifiedPMArb(BaseStrategy):
         size = self._calculate_size(opp, bankroll)
         if size <= 0:
             return {"status": "skipped", "reason": "size_below_minimum"}
+
+        # Paper mode: simulate fills without calling providers
+        if ctx.mode == "paper":
+            profit = opp.net_profit * size
+            arb_id = hashlib.md5(
+                f"{opp.event_id}{opp.platform_a}{opp.platform_b}{time.time()}".encode()
+            ).hexdigest()[:8]
+            self._history.append({
+                "arb_id": arb_id,
+                "event_id": opp.event_id,
+                "kind": opp.kind,
+                "platform_a": opp.platform_a,
+                "platform_b": opp.platform_b,
+                "price_a": opp.price_a,
+                "price_b": opp.price_b,
+                "size": size,
+                "net_profit": opp.net_profit,
+                "profit": profit,
+                "status": "paper_filled",
+                "timestamp": time.time(),
+            })
+            logger.info(
+                f"[unified_arb] PAPER arb={arb_id} "
+                f"{opp.platform_a}@{opp.price_a:.3f} + "
+                f"{opp.platform_b}@{opp.price_b:.3f} "
+                f"profit=${profit:.4f}"
+            )
+            return {"status": "filled", "profit": profit, "arb_id": arb_id, "paper": True}
 
         # Resolve providers
         provider_a = ctx.get_market_provider(opp.platform_a)
