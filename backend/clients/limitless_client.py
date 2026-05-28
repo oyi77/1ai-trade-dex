@@ -39,6 +39,22 @@ class LimitlessClient:
             )
         return self._sdk
 
+    async def get_markets(self, limit: int = 100) -> list:
+        """Get active markets using SDK with 5-minute cache."""
+        now = _time.monotonic()
+        if self._markets_cache and (now - self._markets_cache_time) < self._cache_ttl:
+            return self._markets_cache[:limit]
+        try:
+            sdk = self._get_sdk()
+            markets = await sdk.get_all_active_markets()
+            if markets:
+                self._markets_cache = markets
+                self._markets_cache_time = now
+            return (markets or [])[:limit]
+        except Exception as e:
+            logger.warning(f"[limitless] get_markets failed: {e}")
+            return self._markets_cache[:limit] if self._markets_cache else []
+
     def _auth_headers(self) -> dict:
         """Build auth headers for raw API calls."""
         headers = {"Content-Type": "application/json"}
