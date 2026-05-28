@@ -124,8 +124,12 @@ class LimitlessProvider(BaseMarketProvider):
         result = []
         for m in raw:
             prices = m.get("prices", [])
-            yes_price = Decimal(str(prices[0])) if prices and len(prices) > 0 else Decimal("0.5")
-            no_price = Decimal(str(prices[1])) if prices and len(prices) > 1 else Decimal("1") - yes_price
+            if not prices or len(prices) < 2:
+                continue  # Skip markets with no price data
+            yes_price = Decimal(str(prices[0]))
+            no_price = Decimal(str(prices[1]))
+            if yes_price <= 0 or no_price <= 0:
+                continue  # Skip markets with zero prices
             title = m.get("title") or m.get("proxyTitle") or m.get("question", "")
             result.append(MarketInfo(
                 venue="limitless",
