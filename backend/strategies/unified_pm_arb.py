@@ -708,12 +708,15 @@ class UnifiedPMArb(BaseStrategy):
         token_b = opp.details.get("token_id_b") or opp.market_b_id
 
         arb_id = str(uuid.uuid4())[:8]
+        # Clamp prices to valid range (Polymarket min 0.001, max 0.999)
+        price_a = max(0.001, min(0.999, opp.price_a))
+        price_b = max(0.001, min(0.999, opp.price_b))
         order_a = NormalizedOrder(
             market_id=str(token_a),
             side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             size=Decimal(str(round(size, 2))),
-            price=Decimal(str(round(opp.price_a, 4))),
+            price=Decimal(str(round(price_a, 4))),
             client_order_id=f"arb-{arb_id}-a",
         )
         order_b = NormalizedOrder(
@@ -721,7 +724,7 @@ class UnifiedPMArb(BaseStrategy):
             side=OrderSide.BUY,
             order_type=OrderType.LIMIT,
             size=Decimal(str(round(size, 2))),
-            price=Decimal(str(round(opp.price_b, 4))),
+            price=Decimal(str(round(price_b, 4))),
             client_order_id=f"arb-{arb_id}-b",
         )
 
