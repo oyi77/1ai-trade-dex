@@ -1,162 +1,58 @@
-"""Limitless Exchange REST + EIP-712 client."""
+"""Limitless Exchange client using official limitless-sdk."""
 
-import json
 import os
-import time
-import httpx
-from eth_account import Account
+from typing import Optional
+
 from loguru import logger
-
-from backend.core.eip712_signer import sign_typed_data
-
-# Limitless Exchange EIP-712 domain base. Populated dynamically via _get_domain()
-
-_LIMITLESS_ORDER_TYPES = {
-    "EIP712Domain": [
-        {"name": "name", "type": "string"},
-        {"name": "version", "type": "string"},
-        {"name": "chainId", "type": "uint256"},
-        {"name": "verifyingContract", "type": "address"},
-    ],
-    "Order": [
-        {"name": "marketId", "type": "string"},
-        {"name": "side", "type": "string"},
-        {"name": "size", "type": "uint256"},
-        {"name": "price", "type": "uint256"},
-        {"name": "maker", "type": "address"},
-        {"name": "expiration", "type": "uint256"},
-        {"name": "nonce", "type": "uint256"},
-    ],
-}
-
-_LIMITLESS_CANCEL_TYPES = {
-    "EIP712Domain": [
-        {"name": "name", "type": "string"},
-        {"name": "version", "type": "string"},
-        {"name": "chainId", "type": "uint256"},
-        {"name": "verifyingContract", "type": "address"},
-    ],
-    "Cancel": [
-        {"name": "orderId", "type": "string"},
-        {"name": "maker", "type": "address"},
-        {"name": "nonce", "type": "uint256"},
-    ],
-}
 
 
 class LimitlessClient:
-    """Limitless Exchange API client."""
+    """Limitless Exchange API client using official SDK."""
 
     def __init__(self, base_url: str = None):
-        self._base_url = (
-            base_url or os.getenv("LIMITLESS_API_URL", "https://api.limitless.exchange")
-        ).rstrip("/")
-        self._cached_domain = None
         self._api_key = os.getenv("LIMITLESS_API_KEY", "")
-        self._api_secret = os.getenv("LIMITLESS_API_SECRET", "")
+        self._private_key = os.getenv("LIMITLESS_PRIVATE_KEY", "")
+        self._sdk = None
 
-    def _build_auth(self, method: str, path: str, body: str = "") -> dict:
-        """Build HMAC auth headers per Limitless API spec."""
-        import base64
-        import hashlib
-        import hmac as hmac_mod
-        from datetime import datetime, timezone
-
-        headers = {"Content-Type": "application/json"}
-        if not self._api_key:
-            return headers
-
-        # Legacy key
-        if self._api_key.startswith("lmts_"):
-            headers["X-API-Key"] = self._api_key
-            return headers
-
-        # HMAC scoped token
-        if not self._api_secret:
-            headers["X-API-Key"] = self._api_key
-            return headers
-
-        ts = datetime.now(timezone.utc).isoformat()
-        msg = f"{ts}\n{method.upper()}\n{path}\n{body}"
-        sig = base64.b64encode(
-            hmac_mod.new(base64.b64decode(self._api_secret), msg.encode(), hashlib.sha256).digest()
-        ).decode()
-        headers["lmts-api-key"] = self._api_key
-        headers["lmts-timestamp"] = ts
-        headers["lmts-signature"] = sig
-        return headers
-
-    async def _get_domain(self) -> dict:
-        """Fetch and cache EIP-712 domain parameters dynamically."""
-        if self._cached_domain:
-            return self._cached_domain
-
-        from backend.config import settings
-
-        chain_id = 8453  # Base mainnet
-        version = "1"
-        contract = getattr(settings, "LIMITLESS_EXCHANGE_CONTRACT_ADDRESS", None)
-
-        if not contract or contract == "0x0000000000000000000000000000000000000000":
-            # Dynamically fetch the current active CTF exchange from the market metadata
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                resp = await client.get(f"{self._base_url}/markets/active", params={"limit": 1})
-                resp.raise_for_status()
-                data = resp.json().get("data", [])
-                
-                if data and isinstance(data, list) and len(data) > 0:
-                    venue = data[0].get("venue", {})
-                    contract = venue.get("exchange")
-        
-        if not contract or contract == "0x0000000000000000000000000000000000000000":
-            raise RuntimeError("Limitless exchange contract address could not be fetched dynamically.")
-
-        self._cached_domain = {
-            "name": "Limitless Exchange",
-            "version": version,
-            "chainId": chain_id,
-            "verifyingContract": contract,
-        }
-        return self._cached_domain
+    def _get_sdk(self):
+        """Lazy-init the Limitless SDK client."""
+        if self._sdk is None:
+            from limitless_sdk import LimitlessClient as SDKClient
+            key = self._private_key
+            if not key.startswith("0x"):
+                key = "0x" + key
+            self._sdk = SDKClient(
+                private_key=key,
+                api_key=self._api_key or None,
+            )
+        return self._sdk
 
     async def get_markets(self, limit: int = 100) -> list:
-        """Get active markets from Limitless Exchange with pagination (max 25/page)."""
-        all_markets = []
-        page = 1
-        per_page = min(limit, 25)
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            while len(all_markets) < limit:
-                resp = await client.get(
-                    f"{self._base_url}/markets/active",
-                    params={"limit": per_page, "page": page},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                markets = data.get("data", []) if isinstance(data, dict) else data
-                if not isinstance(markets, list) or not markets:
-                    break
-                all_markets.extend(markets)
-                if len(markets) < per_page:
-                    break
-                page += 1
-        return all_markets[:limit]
+        """Get active markets from Limitless Exchange."""
+        sdk = self._get_sdk()
+        try:
+            markets = await sdk.get_all_active_markets()
+            return markets[:limit] if markets else []
+        except Exception as e:
+            logger.warning(f"[limitless] get_markets failed: {e}")
+            return []
 
     async def get_orderbook(self, market_id: str) -> dict:
         """Get orderbook for a specific market."""
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{self._base_url}/orderbook", params={"marketId": market_id}
-            )
-            resp.raise_for_status()
-            return resp.json()
+        sdk = self._get_sdk()
+        try:
+            return await sdk.get_orderbook(market_id)
+        except Exception as e:
+            logger.warning(f"[limitless] get_orderbook failed: {e}")
+            return {}
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, private_key: str
     ) -> dict:
-        """Place an order with EIP-712 signature.
+        """Place an order using official SDK.
 
         Args:
-            market_id: The market identifier.
+            market_id: The market identifier (slug).
             side: "BUY" or "SELL".
             size: Order size (in outcome token units).
             price: Limit price (0.01 - 0.99).
@@ -165,151 +61,52 @@ class LimitlessClient:
         Returns:
             API response dict with order details.
         """
-        account = Account.from_key(private_key)
-
-        domain = await self._get_domain()
-
-        # Scale price to integer (basis points: 0.50 -> 5000)
-        price_scaled = int(price * 10000)
-        # Scale size to integer (USDC 6 decimals)
-        size_scaled = int(size * 1e6)
-
-        expiration = int(time.time()) + 24 * 60 * 60  # 24h default TTL
-        nonce = int(time.time() * 1000)  # millisecond timestamp as nonce
-
-        message = {
-            "marketId": market_id,
-            "side": side.upper(),
-            "size": size_scaled,
-            "price": price_scaled,
-            "maker": account.address,
-            "expiration": expiration,
-            "nonce": nonce,
-        }
-
-        signature = sign_typed_data(
-            private_key=private_key,
-            domain=domain,
-            types=_LIMITLESS_ORDER_TYPES,
-            primary_type="Order",
-            message=message,
-        )
-
-        payload = {
-            "marketId": market_id,
-            "side": side.upper(),
-            "size": str(size_scaled),
-            "price": str(price_scaled),
-            "maker": account.address,
-            "expiration": expiration,
-            "nonce": nonce,
-            "signature": signature,
-        }
-
-        logger.info(
-            "Limitless placing order",
-            market_id=market_id,
-            side=side.upper(),
-            maker=account.address,
-        )
-
-        body_str = json.dumps(payload)
-        headers = self._build_auth("POST", "/orders", body_str)
-
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{self._base_url}/orders",
-                content=body_str,
-                headers=headers,
+        sdk = self._get_sdk()
+        try:
+            from limitless_sdk import CreateOrderDto
+            order = sdk._sign_order(
+                market_slug=market_id,
+                side=1 if side.upper() == "BUY" else 0,
+                price=price,
+                size=size,
             )
-            resp.raise_for_status()
-            return resp.json()
+            dto = CreateOrderDto(
+                order=order,
+                ownerId=0,
+                orderType="GTC",
+                marketSlug=market_id,
+            )
+            result = await sdk.place_order(dto)
+            logger.info(f"[limitless] Order placed: {result}")
+            return result
+        except Exception as e:
+            logger.warning(f"[limitless] place_order failed: {e}")
+            return {"error": str(e)}
 
     async def cancel_order(self, order_id: str, private_key: str) -> bool:
-        """Cancel an open order with EIP-712 signature.
-
-        Args:
-            order_id: The order identifier to cancel.
-            private_key: Hex private key for signing.
-
-        Returns:
-            True if cancellation succeeded, False otherwise.
-        """
-        account = Account.from_key(private_key)
-
-        domain = await self._get_domain()
-
-        nonce = int(time.time() * 1000)
-
-        message = {
-            "orderId": order_id,
-            "maker": account.address,
-            "nonce": nonce,
-        }
-
-        signature = sign_typed_data(
-            private_key=private_key,
-            domain=domain,
-            types=_LIMITLESS_CANCEL_TYPES,
-            primary_type="Cancel",
-            message=message,
-        )
-
-        logger.info(
-            "Limitless cancelling order",
-            order_id=order_id,
-            maker=account.address,
-        )
-
-        cancel_payload = {
-            "orderId": order_id,
-            "maker": account.address,
-            "nonce": nonce,
-            "signature": signature,
-        }
-        headers = {"Content-Type": "application/json"}
-        if self._api_key:
-            headers["X-API-Key"] = self._api_key
-
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.request(
-                "DELETE",
-                f"{self._base_url}/orders/{order_id}",
-                json=cancel_payload,
-                headers=headers,
-            )
-            return resp.status_code == 200
+        """Cancel an open order using official SDK."""
+        sdk = self._get_sdk()
+        try:
+            result = await sdk.cancel_order(order_id)
+            return True
+        except Exception as e:
+            logger.warning(f"[limitless] cancel_order failed: {e}")
+            return False
 
     async def get_fills(self, wallet_address: str, limit: int = 100) -> list:
-        """Get recent fills/trades for a wallet address.
-
-        Args:
-            wallet_address: The wallet address to query fills for.
-            limit: Maximum number of fills to return.
-
-        Returns:
-            List of fill dicts with id, orderId, side, size, price, fee, pnl, status, etc.
-        """
+        """Get recent fills/trades for a wallet address."""
+        sdk = self._get_sdk()
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self._base_url}/fills",
-                    params={"address": wallet_address, "limit": limit},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return data if isinstance(data, list) else data.get("fills", data.get("data", []))
-        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
-            logger.warning(f"[limitless] get_fills error: {e}")
+            return await sdk.get_user_history()
+        except Exception as e:
+            logger.warning(f"[limitless] get_fills failed: {e}")
             return []
 
     async def health_check(self) -> bool:
         """Check if Limitless Exchange API is available."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(
-                    f"{self._base_url}/markets", params={"limit": 1}
-                )
-                return resp.status_code == 200
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
+            sdk = self._get_sdk()
+            markets = await sdk.get_all_active_markets()
+            return bool(markets)
+        except Exception:
             return False
