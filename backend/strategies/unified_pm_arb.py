@@ -708,9 +708,11 @@ class UnifiedPMArb(BaseStrategy):
         token_b = opp.details.get("token_id_b") or opp.market_b_id
 
         arb_id = str(uuid.uuid4())[:8]
-        # Clamp prices to valid range (Polymarket min 0.001, max 0.999)
-        price_a = max(0.001, min(0.999, opp.price_a))
-        price_b = max(0.001, min(0.999, opp.price_b))
+        # HFT-style: use marketable limit orders that cross the spread
+        # Price = detected price + slippage buffer (ensures fill)
+        slippage = _cfg("ARB_SLIPPAGE_BPS", 50) / 10000  # 50bps default
+        price_a = max(0.001, min(0.999, opp.price_a * (1 + slippage)))
+        price_b = max(0.001, min(0.999, opp.price_b * (1 + slippage)))
         order_a = NormalizedOrder(
             market_id=str(token_a),
             side=OrderSide.BUY,
@@ -728,7 +730,7 @@ class UnifiedPMArb(BaseStrategy):
             client_order_id=f"arb-{arb_id}-b",
         )
 
-        # Atomic execution: both legs in parallel
+        # Atomic execution: both legs in parallel, then monitor fills
         start = time.monotonic()
         result_a, result_b = await asyncio.gather(
             self._place_with_breaker(provider_a, order_a, opp.platform_a),
@@ -736,14 +738,31 @@ class UnifiedPMArb(BaseStrategy):
             return_exceptions=True,
         )
 
-        a_ok = (
-            isinstance(result_a, NormalizedOrderResult)
-            and result_a.status == OrderStatus.FILLED
-        )
-        b_ok = (
-            isinstance(result_b, NormalizedOrderResult)
-            and result_b.status == OrderStatus.FILLED
-        )
+        # HFT: monitor fills with timeout, cancel unfilled leg if other fills
+        fill_timeout = _cfg("ARB_FILL_TIMEOUT_SEC", 10)
+        a_filled = self._is_filled(result_a)
+        b_filled = self._is_filled(result_b)
+
+        if not a_filled and not b_filled:
+            # Both pending — wait for fills with timeout
+            a_filled, b_filled = await self._wait_for_fills(
+                provider_a, result_a, provider_b, result_b, fill_timeout
+            )
+
+        # Cancel unfilled leg if other leg filled (prevent naked exposure)
+        if a_filled and not b_filled:
+            order_id_b = self._get_order_id(result_b)
+            if order_id_b:
+                await self._emergency_cancel(provider_b, order_id_b, arb_id)
+            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: leg A filled, leg B cancelled")
+        elif b_filled and not a_filled:
+            order_id_a = self._get_order_id(result_a)
+            if order_id_a:
+                await self._emergency_cancel(provider_a, order_id_a, arb_id)
+            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: leg B filled, leg A cancelled")
+
+        a_ok = a_filled
+        b_ok = b_filled
 
         elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -819,6 +838,65 @@ class UnifiedPMArb(BaseStrategy):
             logger.error(
                 f"[unified_arb] Cancel failed order={order_id} arb={arb_id}: {exc}"
             )
+
+    # ------------------------------------------------------------------
+    # HFT fill monitoring
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_filled(result: Any) -> bool:
+        """Check if order result indicates a fill."""
+        return (
+            isinstance(result, NormalizedOrderResult)
+            and result.status in (OrderStatus.FILLED, OrderStatus.OPEN)
+        )
+
+    @staticmethod
+    def _get_order_id(result: Any) -> Optional[str]:
+        """Extract order ID from result."""
+        if isinstance(result, NormalizedOrderResult) and result.venue_order_id:
+            return result.venue_order_id
+        return None
+
+    async def _wait_for_fills(
+        self,
+        provider_a: Any,
+        result_a: Any,
+        provider_b: Any,
+        result_b: Any,
+        timeout_sec: float,
+    ) -> Tuple[bool, bool]:
+        """Monitor fill status with timeout. Returns (a_filled, b_filled)."""
+        start = time.monotonic()
+        a_filled = self._is_filled(result_a)
+        b_filled = self._is_filled(result_b)
+
+        while (time.monotonic() - start) < timeout_sec:
+            if a_filled and b_filled:
+                return True, True
+            await asyncio.sleep(0.5)
+
+            # Check order status if provider supports it
+            if not a_filled and hasattr(provider_a, 'get_order_status'):
+                order_id_a = self._get_order_id(result_a)
+                if order_id_a:
+                    try:
+                        status = await provider_a.get_order_status(order_id_a)
+                        if status and status.get('status') == 'FILLED':
+                            a_filled = True
+                    except Exception:
+                        pass
+            if not b_filled and hasattr(provider_b, 'get_order_status'):
+                order_id_b = self._get_order_id(result_b)
+                if order_id_b:
+                    try:
+                        status = await provider_b.get_order_status(order_id_b)
+                        if status and status.get('status') == 'FILLED':
+                            b_filled = True
+                    except Exception:
+                        pass
+
+        return a_filled, b_filled
 
     # ------------------------------------------------------------------
     # Main cycle
