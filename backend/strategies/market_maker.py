@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+import uuid
 from dataclasses import dataclass
 from typing import Optional, Set, List, Dict, Any
 
@@ -113,6 +114,11 @@ class MarketMakerStrategy(BaseStrategy):
         self._consumer_task: Optional[asyncio.Task] = None
         self._tokens_populated: bool = False
         self._halted: bool = False
+        # Stored from run_cycle so event-driven path can place real orders
+        self._clob: Optional[object] = None
+        self._mode: str = "paper"
+        # Per-market inventory tracking (net filled size: +BUY, -SELL)
+        self._inventory: dict[str, float] = {}
 
     def start_consumer(self) -> None:
         """Start the background L2 consumer task if not active."""
@@ -433,8 +439,8 @@ class MarketMakerStrategy(BaseStrategy):
         mid = (best_bid + best_ask) / 2.0
         spread = best_ask - best_bid
 
-        # Inventory management skew (simulated)
-        inventory = 0.0
+        # Inventory management skew (tracked from filled orders)
+        inventory = self._inventory.get(market_id, 0.0)
         params = self.default_params
 
         if self._should_refresh_quotes(market_id, spread, inventory, params):
@@ -447,17 +453,16 @@ class MarketMakerStrategy(BaseStrategy):
             toxicity = 0.2
             quote = self._apply_toxicity_filter(quote, toxicity, params)
             if quote.bid_size <= 0 and quote.ask_size <= 0:
-                await self._cancel_stale_quotes(market_id, None)
+                await self._cancel_stale_quotes(market_id, self._clob)
                 return
 
-            # Cancel stale quotes locally
-            await self._cancel_stale_quotes(market_id, None)
+            # Cancel stale quotes
+            await self._cancel_stale_quotes(market_id, self._clob)
 
-            # Placed quotes recorded locally in simulation
+            # Place new quotes (real CLOB orders in live mode)
             for side, price, size in [("BUY", quote.bid_price, quote.bid_size), ("SELL", quote.ask_price, quote.ask_size)]:
                 if size <= 0 or price <= 0:
                     continue
-                import uuid
                 aq = ActiveQuote(
                     quote_id=str(uuid.uuid4()),
                     market_id=market_id,
@@ -466,6 +471,28 @@ class MarketMakerStrategy(BaseStrategy):
                     size=size,
                     placed_at=time.monotonic(),
                 )
+
+                # Place real CLOB order when available and in live mode
+                if self._clob and self._mode == "live":
+                    try:
+                        order = await self._clob.place_limit_order(
+                            token_id=market_id,
+                            side=side,
+                            price=price,
+                            size=size,
+                        )
+                        if order and getattr(order, "success", False):
+                            aq.order_id = str(getattr(order, "order_id", "") or "")
+                            logger.info(
+                                f"[{self.name}] CLOB {side} order placed: {aq.order_id[:20]}"
+                            )
+                        elif order:
+                            logger.warning(
+                                f"[{self.name}] CLOB {side} order rejected: {getattr(order, 'error', 'unknown')}"
+                            )
+                    except Exception as e:
+                        logger.warning(f"[{self.name}] CLOB {side} order failed: {e}")
+
                 self._add_active_quote(aq)
 
                 # Persist quote decision
@@ -482,6 +509,7 @@ class MarketMakerStrategy(BaseStrategy):
                                 "quote_side": side,
                                 "quote_price": price,
                                 "quote_size": size,
+                                "order_id": aq.order_id or "",
                                 "sources": ["market_maker", "polymarket_websocket"],
                             },
                             reason=f"Quote {side}: {size} @ {price}",
@@ -493,7 +521,11 @@ class MarketMakerStrategy(BaseStrategy):
             self._last_inventory[market_id] = inventory
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """Scheduled fallback: metrics logging only."""
+        """Scheduled fallback: store CLOB context, populate tokens, log metrics."""
+        # Store CLOB reference so the event-driven path can place real orders
+        self._clob = ctx.clob
+        self._mode = getattr(ctx, "mode", "paper")
+
         if not self._tokens_populated:
             await self._populate_subscribed_tokens()
 

@@ -305,6 +305,12 @@ class CrossDexArbStrategy(BaseStrategy):
     name = "cross_dex_arb"
     description = "Cross-DEX real-time arbitrage detection across Hyperliquid, Aster, Lighter, Ostium"
     category = "arbitrage"
+    default_params = {
+        "max_open_positions": 5,
+        "max_per_asset": 1,
+        "stop_loss_pct": 0.10,
+        "profit_target_pct": 0.05,
+    }
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

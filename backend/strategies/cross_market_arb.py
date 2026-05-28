@@ -139,14 +139,32 @@ async def execute_cross_arb(
         except Exception as e:
             logger.warning(f"[cross_market_arb] Polymarket leg failed: {e}")
 
-    # Leg 2: Buy YES on Kalshi (via paper execution — Kalshi SDK not integrated for live)
-    # For now, log as paper trade. Real Kalshi execution needs KalshiClient integration.
+    # Leg 2: Buy YES on Kalshi — use real client if credentials present, otherwise skip
     if kalshi_token_id:
-        logger.info(
-            f"[cross_market_arb] Kalshi leg: BUY {kalshi_token_id} @ {opportunity.kalshi_price:.3f} "
-            f"size=${size:.2f} (paper — Kalshi live execution not yet integrated)"
-        )
-        results["kalshi"] = "paper"
+        try:
+            from backend.data.kalshi_client import KalshiClient, kalshi_credentials_present
+
+            if not kalshi_credentials_present():
+                logger.warning(
+                    f"[cross_market_arb] Kalshi credentials missing — skipping opportunity {event_id} "
+                    f"(one-legged execution is a naked directional bet, not arb)"
+                )
+            else:
+                _k_client = KalshiClient()
+                _k_result = await _k_client.place_order(
+                    market_id=kalshi_token_id,
+                    side="buy",
+                    size=int(size),
+                    price=opportunity.kalshi_price,
+                )
+                order_id = _k_result.get("order_id") or _k_result.get("id")
+                results["kalshi"] = order_id or "placed"
+                logger.info(
+                    f"[cross_market_arb] Kalshi leg executed: {kalshi_token_id} @ "
+                    f"{opportunity.kalshi_price:.3f} size=${size:.2f} order_id={order_id}"
+                )
+        except Exception as e:
+            logger.warning(f"[cross_market_arb] Kalshi leg failed: {e}")
 
     elapsed_ms = (time.monotonic() - start) * 1000
 
@@ -393,12 +411,13 @@ class CrossMarketArb(BaseStrategy):
             k_question = k_m.get("question", "").lower()
             k_slug = k_m.get("slug", "").lower()
 
-            if (
-                poly_question
-                and k_question
-                and (poly_question in k_question or k_question in poly_question)
-            ):
-                return k_m
+            if poly_question and k_question:
+                poly_words = set(poly_question.lower().split())
+                k_words = set(k_question.lower().split())
+                if len(poly_words) >= 3 and len(k_words) >= 3:
+                    overlap = len(poly_words & k_words) / len(poly_words | k_words)
+                    if overlap >= 0.6:
+                        return k_m
 
             if poly_slug and k_slug and poly_slug == k_slug:
                 return k_m

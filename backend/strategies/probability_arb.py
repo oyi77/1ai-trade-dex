@@ -86,7 +86,8 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
 
 async def execute_arb(
     opportunity: ArbOpportunity,
-    market_id: str,
+    yes_token_id: str,
+    no_token_id: str,
     clob: Optional[object] = None,
 ) -> dict:
     """
@@ -100,13 +101,13 @@ async def execute_arb(
     - Race condition: idempotency key per (market_id, timestamp)
     """
     start = time.monotonic()
-    idempotency_key = f"{market_id}-{int(start * 1000)}"
+    idempotency_key = f"{yes_token_id}-{int(start * 1000)}"
 
     async with execution_breaker():
         try:
             arb_size = settings.ARB_EXECUTOR_MAX_SIZE
             order_yes = await _place_order_with_retry(
-                token_id=market_id,
+                token_id=yes_token_id,
                 side="BUY",
                 price=opportunity.yes_price,
                 size=arb_size,
@@ -115,7 +116,7 @@ async def execute_arb(
             )
 
             order_no = await _place_order_with_retry(
-                token_id=market_id,
+                token_id=no_token_id,
                 side="BUY",
                 price=opportunity.no_price,
                 size=arb_size,
@@ -137,7 +138,8 @@ async def execute_arb(
             logger.warning(f"[prob_arb] Execution failed: {exc}")
             _pending_arbs[idempotency_key] = {
                 "opportunity": opportunity,
-                "market_id": market_id,
+                "yes_token_id": yes_token_id,
+                "no_token_id": no_token_id,
                 "queued_at": time.time(),
             }
             return {
@@ -203,9 +205,13 @@ class ProbabilityArb(BaseStrategy):
     )
     category = "arb"
     default_params = {
-        "_force_disabled": True,
+        "_force_disabled": False,
         "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
         "max_position": 100.0,
+        "max_open_positions": 5,
+        "max_per_asset": 1,
+        "stop_loss_pct": 0.10,
+        "profit_target_pct": 0.05,
     }
 
     async def detect(
@@ -238,8 +244,16 @@ class ProbabilityArb(BaseStrategy):
 
                     opp = detect_arb(yes_price, no_price)
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
-                        opp.market_id = m.get("conditionId", "")
-                        result = await execute_arb(opp, opp.market_id, ctx.clob)
+                        clob_token_ids = m.get("clobTokenIds")
+                        if not clob_token_ids or not isinstance(clob_token_ids, (list, str)) or (isinstance(clob_token_ids, list) and len(clob_token_ids) < 2):
+                            continue
+                        if isinstance(clob_token_ids, str):
+                            import json as _json
+                            clob_token_ids = _json.loads(clob_token_ids)
+                        yes_token_id = clob_token_ids[0]
+                        no_token_id = clob_token_ids[1]
+                        opp.market_id = yes_token_id
+                        result = await execute_arb(opp, yes_token_id, no_token_id, ctx.clob)
                         if result.get("success"):
                             arb_count += 1
                         elif result.get("queued"):

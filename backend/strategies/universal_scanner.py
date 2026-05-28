@@ -313,8 +313,8 @@ class UniversalScanner(BaseStrategy):
         "max_decision_size": 10.0,
         "max_open_positions": 5,
         "max_per_asset": 1,
-        "stop_loss_pct": 0.20,
-        "profit_target_pct": 0.08,
+        "stop_loss_pct": 0.10,
+        "profit_target_pct": 0.05,
     }
 
     # ── Event-driven (WS-first) extensions ──

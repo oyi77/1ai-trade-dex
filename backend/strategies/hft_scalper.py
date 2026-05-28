@@ -47,6 +47,7 @@ class ScalpPosition:
     exit_reason: Optional[str] = None
     pnl_pct: float = 0.0
     pnl_usd: float = 0.0
+    order_id: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +110,7 @@ class HFTScalperStrategy(BaseStrategy):
         self._consumer_task: Optional[asyncio.Task] = None
         self._tokens_populated: bool = False
         self._halted: bool = False
+        self._bankroll: float = 100.0
 
     def start_consumer(self) -> None:
         """Start the background consumer task if not active."""
@@ -511,6 +513,25 @@ class HFTScalperStrategy(BaseStrategy):
                 size_usd=size_usd,
                 opened_at=time.monotonic(),
             )
+
+            # Place real CLOB order in live mode
+            clob = getattr(self, '_clob', None)
+            mode = getattr(self, '_mode', 'paper')
+            if clob and mode == "live":
+                try:
+                    order = await clob.place_order(
+                        token_id=token_id,
+                        side="BUY" if direction == "YES" else "BUY",
+                        price=price,
+                        size=size_usd,
+                    )
+                    if order:
+                        position.order_id = str(order.get("id", ""))
+                        logger.info(f"[{self.name}] CLOB order placed: {order.get('id', '')[:20]}")
+                except Exception as e:
+                    logger.warning(f"[{self.name}] CLOB order failed: {e}")
+                    return  # Don't track position if order failed
+
             self._open_positions[token_id] = position
             logger.info(
                 f"[hft_scalper] OPENED {direction} {token_id} @ {price} size=${size_usd:.2f}"
@@ -547,6 +568,10 @@ class HFTScalperStrategy(BaseStrategy):
         if not self._positions_restored:
             self._restore_positions_from_db(ctx)
             self._positions_restored = True
+
+        self._bankroll = ctx.bankroll
+        self._clob = ctx.clob
+        self._mode = getattr(ctx, "mode", "paper")
 
         if not self._tokens_populated:
             await self._populate_subscribed_tokens()
