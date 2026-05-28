@@ -17,7 +17,7 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | universal_scanner | universal_scanner.py | ACTIVE | — | — | Market-wide signals |
 | bond_scanner | bond_scanner.py | ACTIVE | — | — | Bond market alpha |
 | cex_pm_leadlag | cex_pm_leadlag.py | ACTIVE | — | — | CEX/Polymarket lead-lag |
-| cross_market_arb | cross_market_arb.py | ACTIVE | — | — | Cross-exchange arbitrage |
+| unified_pm_arb | unified_pm_arb.py (537 LOC) | ACTIVE | — | — | Unified arb (replaces cross_market_arb + arb_scanner + hft_cross_arb) |
 | line_movement_detector | line_movement_detector.py | ACTIVE | — | — | Order book kinetics |
 | market_maker | market_maker.py | ACTIVE | — | — | Market making, liquidity provision |
 | btc_oracle | btc_oracle.py | DISABLED | 43.9% | -$341 | Auto-killed (low WR) |
@@ -34,7 +34,7 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | general_market_scanner | general_market_scanner.py (41K) | ACTIVE | Market-wide opportunity scanner |
 | longshot_bias | longshot_bias.py | ACTIVE | Longshot bias exploitation |
 | order_executor | order_executor.py (17K) | ACTIVE | Order execution helper |
-| arb_executor | arb_executor.py | ACTIVE | Arbitrage execution |
+| cross_dex_arb | cross_dex_arb.py | ACTIVE | DEX arb detection (Hyperliquid, Ostium, Aster, Lighter) |
 | agi_meta_strategy | agi_meta_strategy.py | ACTIVE | AGI meta-strategy wrapper |
 | template_base | template_base.py | TEMPLATE | Strategy template for new strategies |
 | registry | registry.py | INFRA | Strategy registry and loader |
