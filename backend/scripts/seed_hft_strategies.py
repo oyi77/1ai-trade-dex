@@ -1,6 +1,6 @@
 """Seed HFT strategies into StrategyConfig for paper trading.
 
-Registers market_maker, cross_market_arb, crypto_oracle, and cex_pm_leadlag
+Registers market_maker, unified_pm_arb, crypto_oracle, and cex_pm_leadlag
 as enabled strategies with paper trading mode and HFT-appropriate intervals.
 
 Run: python -m backend.scripts.seed_hft_strategies
@@ -31,18 +31,20 @@ HFT_STRATEGIES = [
         ),
     },
     {
-        "strategy_name": "cross_market_arb",
-        "interval_seconds": 300,  # 5 min — cross-platform arb scanning
+        "strategy_name": "unified_pm_arb",
+        "interval_seconds": 60,
         "trading_mode": "paper",
         "risk_tier": "moderate",
         "time_horizon": "short",
         "params": json.dumps(
             {
-                "min_profit": 0.005,
-                "min_spread_pct": 0.013,
+                "min_net_edge": 0.02,
+                "max_exposure": 200.0,
+                "kelly_fraction": 0.25,
             }
         ),
     },
+    # cross_market_arb removed — consolidated into unified_pm_arb
     {
         "strategy_name": "crypto_oracle",
         "interval_seconds": 60,  # 1 min — latency arb needs fast scanning

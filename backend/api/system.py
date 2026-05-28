@@ -2539,7 +2539,7 @@ async def hft_strategies(db: Session = Depends(get_db)):
     hft_names = {
         "universal_scanner",
         "probability_arb",
-        "cross_market_arb",
+        "unified_pm_arb",
         "whale_frontrun",
     }
     strategies = []
