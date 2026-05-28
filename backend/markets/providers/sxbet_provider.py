@@ -110,16 +110,33 @@ class SXBetProvider(BaseMarketProvider):
                 raw = data.get("markets", [])
         if not isinstance(raw, list):
             raw = []
-        return [
-            MarketInfo(
+        result = []
+        for m in raw:
+            if not isinstance(m, dict):
+                continue
+            title = m.get("title", "")
+            if not title:
+                t1 = m.get("teamOneName", "")
+                t2 = m.get("teamTwoName", "")
+                if t1 and t2:
+                    title = f"{t1} vs {t2}"
+            result.append(MarketInfo(
+                venue="sxbet",
                 market_id=str(m.get("marketHash", "")),
-                question=str(m.get("title", "")),
-                yes_price=0.5,
-                no_price=0.5,
-            )
-            for m in raw
-            if isinstance(m, dict)
-        ]
+                title=title or "unknown",
+                description="",
+                category="sports",
+                yes_price=Decimal("0.5"),
+                no_price=Decimal("0.5"),
+                volume_24h=Decimal("0"),
+                open_interest=Decimal("0"),
+                closes_at=None,
+                is_active=True,
+                min_order_size=Decimal("1"),
+                tick_size=Decimal("0.01"),
+                raw=m,
+            ))
+        return result
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
