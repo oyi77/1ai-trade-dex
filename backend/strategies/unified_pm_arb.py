@@ -84,15 +84,11 @@ def _cfg(name: str, default: Any = None) -> Any:
     return getattr(settings, name, default)
 
 
-# PM-only venues (no DEX)
+# PM-only venues (no DEX) — only venues confirmed working
 _PM_VENUES: List[str] = [
     "polymarket",
     "kalshi",
-    "sxbet",
     "limitless",
-    "myriad",
-    "predict_fun",
-    "bookmaker_xyz",
 ]
 
 # Fee map per venue (fraction)
