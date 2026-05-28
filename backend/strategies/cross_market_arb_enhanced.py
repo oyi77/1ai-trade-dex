@@ -314,7 +314,19 @@ class CrossMarketArbEnhanced:
                 if not (0 < pb < 1):
                     continue
 
-                if not _questions_match(qa, qb):
+                # Match by event_id/slug first (exact), then by question text (fuzzy)
+                ea = ma.get("event_id", "")
+                eb = mb.get("event_id", "")
+                slug_a = ma.get("slug", "")
+                slug_b = mb.get("slug", "")
+                matched = False
+                if ea and eb and ea == eb:
+                    matched = True
+                elif slug_a and slug_b and slug_a == slug_b:
+                    matched = True
+                elif _questions_match(qa, qb):
+                    matched = True
+                if not matched:
                     continue
 
                 opp = self._compute_generic_arb(ma, mb, pa, pb)
@@ -755,7 +767,54 @@ _STOP_WORDS = frozenset({
     # Short-duration market noise
     "up", "down", "min", "hourly", "daily", "weekly", "monthly",
     "et", "am", "pm",
+    "yes", "before", "after", "between", "above", "below", "over", "under",
 })
+
+# Synonym map for cross-platform matching
+_CRYPTO_SYNONYMS = {
+    "bitcoin": "btc", "btc": "btc",
+    "ethereum": "eth", "eth": "eth",
+    "solana": "sol", "sol": "sol",
+    "xrp": "xrp", "ripple": "xrp",
+    "dogecoin": "doge", "doge": "doge",
+    "cardano": "ada", "ada": "ada",
+    "bnb": "bnb", "binance": "bnb",
+    "polkadot": "dot", "dot": "dot",
+    "avax": "avax", "avalanche": "avax",
+    "matic": "matic", "polygon": "matic",
+    "link": "link", "chainlink": "link",
+}
+
+
+def _normalize_number(text: str) -> str:
+    """Normalize numbers in text: 100k -> 100000, $100,000 -> 100000."""
+    import re
+
+    def _replace(match):
+        s = match.group(0).lower().replace(",", "").replace("$", "").strip()
+        multiplier = 1
+        if s.endswith("k"):
+            s = s[:-1]
+            multiplier = 1_000
+        elif s.endswith("m"):
+            s = s[:-1]
+            multiplier = 1_000_000
+        elif s.endswith("b"):
+            s = s[:-1]
+            multiplier = 1_000_000_000
+        try:
+            return str(int(float(s) * multiplier))
+        except (ValueError, TypeError):
+            return match.group(0)
+
+    return re.sub(r"[\$]?[\d,]+\.?\d*[kKmMbB]?", _replace, text)
+
+
+def _normalize_crypto_tokens(text: str) -> str:
+    """Replace crypto synonyms with canonical tokens."""
+    words = text.lower().split()
+    normalized = [_CRYPTO_SYNONYMS.get(w, w) for w in words]
+    return " ".join(normalized)
 
 
 def _questions_match(q1: str, q2: str) -> bool:
@@ -764,16 +823,28 @@ def _questions_match(q1: str, q2: str) -> bool:
     Uses Jaccard similarity on meaningful words + entity matching.
     Requires >= 60% overlap on the SMALLER set AND at least 3 matching words.
     Both questions must have >= 3 meaningful words to prevent short-question noise.
+
+    Enhanced with number normalization (100k = $100,000 = 100000)
+    and crypto synonym normalization (Bitcoin = BTC, Ethereum = ETH).
     """
     import re
 
-    words1 = set(q1.lower().split()) - _STOP_WORDS
-    words2 = set(q2.lower().split()) - _STOP_WORDS
+    # Normalize: numbers, crypto synonyms, strip punctuation, then tokenize
+    n1 = _normalize_crypto_tokens(_normalize_number(q1.lower()))
+    n2 = _normalize_crypto_tokens(_normalize_number(q2.lower()))
+
+    # Strip punctuation from tokens
+    def _clean(s: str) -> set[str]:
+        import re as re2
+        return {re2.sub(r"[^a-z0-9]", "", w) for w in s.split()} - {""}
+
+    words1 = _clean(n1) - _STOP_WORDS
+    words2 = _clean(n2) - _STOP_WORDS
     if not words1 or not words2:
         return False
 
     # Both questions need enough substance for reliable matching
-    if len(words1) < 3 or len(words2) < 3:
+    if len(words1) < 2 or len(words2) < 2:
         return False
 
     overlap = words1 & words2
@@ -781,10 +852,10 @@ def _questions_match(q1: str, q2: str) -> bool:
     if smaller == 0 or len(overlap) == 0:
         return False
 
-    # Need at least 60% overlap on smaller set AND at least 3 matching words
-    if len(overlap) < 3:
+    # Need at least 50% overlap on smaller set AND at least 2 matching words
+    if len(overlap) < 2:
         return False
-    if len(overlap) / smaller < 0.6:
+    if len(overlap) / smaller < 0.5:
         return False
 
     # Entity check: numbers and proper nouns must overlap
@@ -797,8 +868,8 @@ def _questions_match(q1: str, q2: str) -> bool:
                 tokens.add(tok.lower())
         return tokens
 
-    ent1 = _entities(q1)
-    ent2 = _entities(q2)
+    ent1 = _entities(n1)
+    ent2 = _entities(n2)
     if ent1 and ent2:
         if not (ent1 & ent2):
             return False
