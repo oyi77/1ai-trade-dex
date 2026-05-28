@@ -579,7 +579,12 @@ class HFTScalperStrategy(BaseStrategy):
 
         # Scan markets for new opportunities
         try:
-            raw_markets = await ctx.clob.get_markets()
+            if ctx.clob is not None:
+                raw_markets = await ctx.clob.get_markets()
+            else:
+                # Fallback: Gamma API
+                from backend.data.gamma import fetch_markets
+                raw_markets = await fetch_markets(limit=100)
             for raw in raw_markets:
                 token_id = raw.get("conditionId") or raw.get("token_id")
                 if not token_id:
