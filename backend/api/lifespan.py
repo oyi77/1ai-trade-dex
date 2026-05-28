@@ -715,7 +715,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             logger.warning(f"   ⚠ Error shutting down connection limiter: {e}")
 
-        logger.info("6. Shutting down Polymarket WebSocket...")
+        logger.info("6. Closing ccxt/aiohttp clients...")
+        try:
+            from backend.clients.aster_client import AsterClient
+            # Close any global AsterClient instances
+            for attr_name in dir(AsterClient):
+                attr = getattr(AsterClient, attr_name, None)
+                if hasattr(attr, 'close'):
+                    try:
+                        await attr.close()
+                    except Exception:
+                        pass
+            logger.info("   ✓ Closed ccxt/aiohttp clients")
+        except Exception as e:
+            logger.debug(f"ccxt client cleanup skipped: {e}")
+
+        logger.info("7. Shutting down Polymarket WebSocket...")
         # Use local _polymarket_ws_tasks
         if _polymarket_ws_tasks.get("market"):
             try:
