@@ -1,5 +1,6 @@
 """Limitless Exchange REST + EIP-712 client."""
 
+import json
 import os
 import time
 import httpx
@@ -51,6 +52,7 @@ class LimitlessClient:
             base_url or os.getenv("LIMITLESS_API_URL", "https://api.limitless.exchange")
         ).rstrip("/")
         self._cached_domain = None
+        self._api_key = os.getenv("LIMITLESS_API_KEY", "")
 
     async def _get_domain(self) -> dict:
         """Fetch and cache EIP-712 domain parameters dynamically."""
@@ -180,14 +182,8 @@ class LimitlessClient:
         )
 
         headers = {"Content-Type": "application/json"}
-        api_key = os.getenv("LIMITLESS_API_KEY", "")
-        api_secret = os.getenv("LIMITLESS_API_SECRET", "")
-        if api_key:
-            headers["X-Api-Key"] = api_key
-        if api_secret:
-            headers["X-Api-Secret"] = api_secret
-        if api_key and api_secret:
-            headers["Authorization"] = f"Bearer {api_key}:{api_secret}"
+        if self._api_key:
+            headers["X-API-Key"] = self._api_key
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
@@ -234,24 +230,21 @@ class LimitlessClient:
             maker=account.address,
         )
 
+        cancel_payload = {
+            "orderId": order_id,
+            "maker": account.address,
+            "nonce": nonce,
+            "signature": signature,
+        }
         headers = {"Content-Type": "application/json"}
-        api_key = os.getenv("LIMITLESS_API_KEY", "")
-        api_secret = os.getenv("LIMITLESS_API_SECRET", "")
-        if api_key:
-            headers["X-Api-Key"] = api_key
-        if api_secret:
-            headers["X-Api-Secret"] = api_secret
+        if self._api_key:
+            headers["X-API-Key"] = self._api_key
 
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.request(
                 "DELETE",
                 f"{self._base_url}/orders/{order_id}",
-                json={
-                    "orderId": order_id,
-                    "maker": account.address,
-                    "nonce": nonce,
-                    "signature": signature,
-                },
+                json=cancel_payload,
                 headers=headers,
             )
             return resp.status_code == 200
