@@ -739,34 +739,37 @@ class UnifiedPMArb(BaseStrategy):
             client_order_id=f"arb-{arb_id}-b",
         )
 
-        # Sequential execution: place constrained leg (Polymarket/Kalshi) FIRST
-        # to avoid naked exposure when leg A gets rejected
+        # Sequential execution: place Limitless leg FIRST (no balance constraint)
+        # then constrained leg (Polymarket/Kalshi). Cancel Limitless if constrained fails.
         start = time.monotonic()
 
-        # Determine which leg is the constrained venue (Polymarket/Kalshi)
+        # Determine which leg is Limitless (unconstrained) vs constrained
         constrained_platforms = {"polymarket", "kalshi"}
         if opp.platform_a.lower() in constrained_platforms:
-            first_provider, first_order, first_platform = provider_a, order_a, opp.platform_a
-            second_provider, second_order, second_platform = provider_b, order_b, opp.platform_b
-        else:
+            # A is constrained, B is Limitless — place B first
             first_provider, first_order, first_platform = provider_b, order_b, opp.platform_b
             second_provider, second_order, second_platform = provider_a, order_a, opp.platform_a
+            first_is_a = False
+        else:
+            # A is Limitless, B is constrained — place A first
+            first_provider, first_order, first_platform = provider_a, order_a, opp.platform_a
+            second_provider, second_order, second_platform = provider_b, order_b, opp.platform_b
+            first_is_a = True
 
         result_first = await self._place_with_breaker(first_provider, first_order, first_platform)
         first_filled = self._is_filled(result_first)
 
         if not first_filled:
-            # First leg failed — don't place second leg
             elapsed = (time.monotonic() - start) * 1000
             logger.warning(f"[unified_arb] arb={arb_id}: first leg ({first_platform}) failed, skipping second leg")
             return {"success": False, "reason": f"first_leg_failed:{first_platform}", "elapsed_ms": elapsed}
 
-        # First leg filled — place second leg
+        # First leg (Limitless) filled — place second leg (constrained)
         result_second = await self._place_with_breaker(second_provider, second_order, second_platform)
         second_filled = self._is_filled(result_second)
 
         # Map results back to a/b
-        if opp.platform_a.lower() in constrained_platforms:
+        if first_is_a:
             result_a, result_b = result_first, result_second
             a_filled, b_filled = first_filled, second_filled
         else:
@@ -777,22 +780,22 @@ class UnifiedPMArb(BaseStrategy):
 
         if not second_filled:
             # Second leg pending — wait briefly
-            if opp.platform_a.lower() in constrained_platforms:
+            if first_is_a:
                 b_filled = await self._wait_single_fill(provider_b, result_b, fill_timeout)
             else:
                 a_filled = await self._wait_single_fill(provider_a, result_a, fill_timeout)
 
-        # Cancel unfilled leg if other leg filled (prevent naked exposure)
-        if a_filled and not b_filled:
-            order_id_b = self._get_order_id(result_b)
-            if order_id_b:
-                await self._emergency_cancel(provider_b, order_id_b, arb_id)
-            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: leg A filled, leg B cancelled")
-        elif b_filled and not a_filled:
-            order_id_a = self._get_order_id(result_a)
-            if order_id_a:
-                await self._emergency_cancel(provider_a, order_id_a, arb_id)
-            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: leg B filled, leg A cancelled")
+        # If constrained leg failed, cancel Limitless leg to avoid naked exposure
+        if not second_filled:
+            # Cancel the Limitless (first) leg
+            order_id_first = self._get_order_id(result_first)
+            if order_id_first:
+                if first_is_a:
+                    await self._emergency_cancel(provider_a, order_id_first, arb_id)
+                else:
+                    await self._emergency_cancel(provider_b, order_id_first, arb_id)
+            logger.warning(f"[unified_arb] arb={arb_id}: constrained leg failed, cancelled Limitless leg")
+            return {"success": False, "reason": "constrained_leg_failed_cancelled_limitless", "arb_id": arb_id}
 
         a_ok = a_filled
         b_ok = b_filled

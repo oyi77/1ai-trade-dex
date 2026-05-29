@@ -68,13 +68,26 @@ class LimitlessProvider(BaseMarketProvider):
         if not private_key:
             return self._rejected(order, "LIMITLESS_PRIVATE_KEY not set")
         try:
-            result = await self._client.place_order(
-                market_id=order.market_id,
-                side=order.side.value,
-                size=float(order.size),
-                price=float(order.price or Decimal("0.5")),
-                private_key=private_key,
+            # Call SDK directly to avoid wrapper issues
+            from limitless_sdk import LimitlessClient as SDKClient
+            from limitless_sdk.models import CreateOrderDto
+            sdk = SDKClient(
+                private_key=private_key if private_key.startswith("0x") else f"0x{private_key}",
+                api_key=os.getenv("LIMITLESS_API_KEY", None),
             )
+            await sdk.create_session()
+            outcome_index = 0
+            side_int = 1 if order.side.value.upper() == "BUY" else 0
+            dto = await sdk.create_order(
+                market_id=order.market_id,
+                market_slug=order.market_id,
+                outcome_index=outcome_index,
+                side=side_int,
+                amount=float(order.size),
+                price=float(order.price or Decimal("0.5")),
+            )
+            result = await sdk.place_order(dto)
+            logger.info(f"[limitless] Order placed: {result}")
             return NormalizedOrderResult(
                 venue_order_id=result.get("orderId", "unknown"),
                 client_order_id=order.client_order_id,

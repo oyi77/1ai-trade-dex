@@ -114,7 +114,9 @@ class LimitlessClient:
         """Place an order using official SDK (handles EIP-712 signing)."""
         sdk = self._get_sdk()
         try:
+            logger.info(f"[limitless] Creating session...")
             await sdk.create_session()
+            logger.info(f"[limitless] Session created. Creating order for {market_id} side={side} size={size} price={price}")
             outcome_index = 0  # YES
             side_int = 1 if side.upper() == "BUY" else 0
             dto = await sdk.create_order(
@@ -125,11 +127,14 @@ class LimitlessClient:
                 amount=size,
                 price=price,
             )
+            logger.info(f"[limitless] Order DTO created: {dto}")
             result = await sdk.place_order(dto)
             logger.info(f"[limitless] Order placed: {result}")
             return result
         except Exception as e:
             logger.warning(f"[limitless] place_order failed: {e}")
+            import traceback
+            traceback.print_exc()
             return {"error": str(e)}
 
     async def cancel_order(self, order_id: str, private_key: str) -> bool:
