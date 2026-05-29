@@ -311,10 +311,6 @@ class UniversalScanner(BaseStrategy):
         "min_volume": 1000.0,
         "max_signals": 100,
         "max_decision_size": 10.0,
-        "max_open_positions": 5,
-        "max_per_asset": 1,
-        "stop_loss_pct": 0.10,
-        "profit_target_pct": 0.05,
     }
 
     # ── Event-driven (WS-first) extensions ──
@@ -382,11 +378,10 @@ class UniversalScanner(BaseStrategy):
             db=None,
         )
         if debate_result is not None:
-            # Conservative shrinkage: discount uncalibrated LLM probability
-            raw_prob = debate_result.consensus_probability
-            model_prob = max(0.01, min(0.99, yes_price + (raw_prob - yes_price) * 0.7))
+            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
         else:
-            model_prob = max(0.01, min(0.99, yes_price))
+            bias = 0.03 * (0.5 - yes_price)
+            model_prob = max(0.01, min(0.99, yes_price + bias))
         edge = model_prob - yes_price
 
         self._ws_known_tokens.add(token_id)
@@ -405,11 +400,9 @@ class UniversalScanner(BaseStrategy):
             f"[{self.name}] WS new_market edge: token={token_id[:20]}... edge={edge:+.4f} llm_conf={llm_conf:.3f}"
         )
 
-        market_ticker = data.get("condition_id") or data.get("slug") or data.get("question", "")[:80]
         return {
             "decision": "BUY",
             "token_id": token_id,
-            "market_ticker": market_ticker,
             "direction": "YES" if edge > 0 else "NO",
             "confidence": llm_conf,
             "edge": edge,
@@ -448,15 +441,13 @@ class UniversalScanner(BaseStrategy):
         if debate_result is not None and hasattr(
             debate_result, "consensus_probability"
         ):
-            # Conservative shrinkage: discount uncalibrated LLM probability
-            raw_prob = debate_result.consensus_probability
-            model_prob = max(0.01, min(0.99, price + (raw_prob - price) * 0.7))
+            model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
         else:
-            model_prob = max(0.01, min(0.99, price))
+            bias = 0.03 * (0.5 - price)
+            model_prob = max(0.01, min(0.99, price + bias))
         edge = model_prob - price
 
-        # Edge floor: require 3%+ edge to overcome calibration uncertainty
-        if abs(edge) < max(self.default_params["min_edge"], 0.03):
+        if abs(edge) < self.default_params["min_edge"]:
             return None
 
         volume = data.get("volume", 0)
@@ -481,11 +472,9 @@ class UniversalScanner(BaseStrategy):
             f"[{self.name}] WS price edge: token={token_id[:20]}... edge={edge:+.4f} conf={confidence:.3f}"
         )
 
-        market_ticker = data.get("condition_id") or data.get("slug") or data.get("question", "")[:80]
         return {
             "decision": "BUY",
             "token_id": token_id,
-            "market_ticker": market_ticker,
             "direction": "YES" if edge > 0 else "NO",
             "confidence": confidence,
             "edge": edge,
@@ -610,15 +599,15 @@ class UniversalScanner(BaseStrategy):
                 db=None,
             )
             if llm_result is not None and hasattr(llm_result, "consensus_probability"):
-                # Conservative shrinkage: discount uncalibrated LLM probability
-                raw_prob = llm_result.consensus_probability
-                model_prob = max(0.01, min(0.99, market.yes_price + (raw_prob - market.yes_price) * 0.7))
+                model_prob = max(0.01, min(0.99, llm_result.consensus_probability))
             else:
-                model_prob = max(0.01, min(0.99, market.yes_price))
-            raw_edge = model_prob - market.yes_price
-            # Deduct platform fees from edge
-            fee_rate = getattr(settings, "PAPER_CLOB_FEE_RATE", 0.02)
-            edge = raw_edge - fee_rate
+                # Statistical fallback: markets at extremes tend to overshoot.
+                # Assume a small mean-reversion bias proportional to distance from 0.5.
+                # Direction: extreme YES markets are slightly overpriced (bearish),
+                # extreme NO markets are slightly underpriced (bullish).
+                bias = 0.03 * (0.5 - market.yes_price)
+                model_prob = max(0.01, min(0.99, market.yes_price + bias))
+            edge = model_prob - market.yes_price
 
             if abs(edge) < self.default_params["min_edge"]:
                 return None
@@ -655,16 +644,6 @@ class UniversalScanner(BaseStrategy):
                 data_source_count=data_source_count,
             )
 
-            # Extract real clobTokenIds from Gamma metadata (not conditionId ticker)
-            raw_meta = market.metadata if isinstance(market.metadata, dict) else {}
-            clob_token_ids = raw_meta.get("clobTokenIds", [])
-            if isinstance(clob_token_ids, str):
-                import json
-                try:
-                    clob_token_ids = json.loads(clob_token_ids)
-                except Exception:
-                    clob_token_ids = []
-
             return {
                 "ticker": market.ticker,
                 "question": market.question,
@@ -676,7 +655,6 @@ class UniversalScanner(BaseStrategy):
                 "confidence": confidence,
                 "llm_confidence": llm_conf,
                 "debate_confidence": debate_conf,
-                "clobTokenIds": clob_token_ids,
             }
 
     _MAX_DECISION_SIZE = 10.0
@@ -707,20 +685,11 @@ class UniversalScanner(BaseStrategy):
                 size = max(size, 1.0)
                 side = "YES" if edge > 0 else "NO"
 
-                # Resolve real clobTokenIds from Gamma metadata (not the conditionId ticker)
-                raw_token_ids = sig.get("clobTokenIds") or []
-                if side == "YES" and len(raw_token_ids) >= 1:
-                    real_token_id = raw_token_ids[0]
-                elif side == "NO" and len(raw_token_ids) >= 2:
-                    real_token_id = raw_token_ids[1]
-                else:
-                    real_token_id = raw_token_ids[0] if raw_token_ids else sig["ticker"]
-
                 decisions.append(
                     {
                         "decision": "BUY",
                         "market_ticker": sig["ticker"],
-                        "token_id": real_token_id,
+                        "token_id": sig["ticker"],
                         "size": round(size, 2),
                         "confidence": round(confidence, 4),
                         "edge": round(edge, 4),

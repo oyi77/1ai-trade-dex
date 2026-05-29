@@ -35,21 +35,11 @@ class BondScannerStrategy(BaseStrategy):
         "kelly_fraction": settings.BOND_SCANNER_KELLY_FRACTION,
         "min_size_usd": settings.BOND_SCANNER_MIN_SIZE_USD,
         "bankroll_pct": settings.BOND_SCANNER_BANKROLL_PCT,
-        "max_open_positions": 5,
-        "max_per_asset": 1,
-        "stop_loss_pct": 0.15,
-        "profit_target_pct": 0.10,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
-        """Filter to high-probability markets (>90c YES) — buy near-certain outcomes."""
-        min_p = float(self.default_params.get("min_price", 0.90))
-        max_p = float(self.default_params.get("max_price", 0.98))
-        filtered = [
-            m for m in markets
-            if m.yes_price and min_p <= float(m.yes_price) <= max_p
-        ]
-        return filtered
+        """Pass-through: bond_scanner filters by price range in run_cycle."""
+        return markets
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
@@ -87,7 +77,7 @@ class BondScannerStrategy(BaseStrategy):
                     params={
                         "active": "true",
                         "closed": "false",
-                        "limit": 100,
+                        "limit": 500,
                         "order": "volume",
                         "ascending": "false",
                     },
@@ -168,10 +158,8 @@ class BondScannerStrategy(BaseStrategy):
                 except Exception as e:
                     logger.debug(f"Failed to parse clobTokenIds JSON: {e}")
                     clob_token_ids = []
-            # Store all token IDs for later direction-aware selection
-            # clobTokenIds[0] = YES token, clobTokenIds[1] = NO token
             if clob_token_ids and len(clob_token_ids) > 0:
-                clob_token_id = str(clob_token_ids[0])  # Default YES; overridden below if NO direction
+                clob_token_id = str(clob_token_ids[0])
 
             # Price filter — check outcomePrices
             outcome_prices_raw = market.get("outcomePrices") or []
@@ -245,12 +233,22 @@ class BondScannerStrategy(BaseStrategy):
             except Exception as e:
                 logger.debug(f"Failed to query open trades: {e}")
 
-            # For high-probability markets (>90c), assume market is efficient
-            # and the YES outcome is correct. The edge is the spread to $1.00.
-            win_prob = qualifying_price  # Market price = implied probability
-
-            # Edge = win_prob * (1-P) - (1-win_prob) * P
-            # Positive only if win_prob > P (independent signal says market underprices)
+            # Conservative edge model:
+            # Assume the market is efficient at pricing probabilities above 0.90.
+            # Our edge comes from the natural bias: markets slightly underprice
+            # high-probability outcomes close to resolution (last 1-10 days)
+            # because liquidity providers want to exit. Cap our assumed boost
+            # conservatively so that a single loss doesn't wipe many wins.
+            #
+            # Key constraint: risk/reward ratio.
+            # At price=P, profit_if_win = (1-P)*size, loss_if_lose = P*size
+            # Require: win_prob * (1-P) - (1-win_prob) * P > 0
+            # i.e. win_prob > P  (we need to believe the TRUE prob exceeds market)
+            #
+            # Conservative boost: 1% for markets at 0.92, tapering to 0.5% at 0.98
+            taper = max(0.0, (qualifying_price - 0.92) / 0.06)  # 0 at 0.92, 1 at 0.98
+            proximity_boost = 0.01 * (1.0 - 0.5 * taper)  # 1% at 0.92, 0.5% at 0.98
+            win_prob = min(qualifying_price + proximity_boost, 0.97)
             edge = round(
                 win_prob * (1.0 - qualifying_price)
                 - (1.0 - win_prob) * qualifying_price,
@@ -280,9 +278,6 @@ class BondScannerStrategy(BaseStrategy):
             # If betting NO, the share cost is (1 - qualifying_price).
             if trade_direction in ("no", "down"):
                 trade_entry_price = round(1.0 - qualifying_price, 6)
-                # NO token is clobTokenIds[1], YES is [0]
-                if clob_token_ids and len(clob_token_ids) > 1:
-                    clob_token_id = str(clob_token_ids[1])
             else:
                 trade_entry_price = qualifying_price
 
