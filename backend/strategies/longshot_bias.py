@@ -74,8 +74,8 @@ class LongshotBiasStrategy(BaseStrategy):
         decisions: list[dict] = []
 
         try:
-            # Get markets from primary provider
-            provider = ctx.primary_provider
+            # Get markets from provider (use market_registry, not providers dict)
+            provider = ctx.get_market_provider("polymarket") or ctx.primary_provider
             if provider is None:
                 ctx.logger.warning("[longshot_bias] No market provider available")
                 return CycleResult(
