@@ -100,7 +100,12 @@ class KalshiProvider(BaseMarketProvider):
 
         payload = self._to_kalshi_order(order)
         try:
-            response = await self._client.batch_create_orders([payload])
+            response = await self._client.place_order(
+                market_id=payload.get("ticker", order.market_id),
+                side=payload.get("action", "buy"),
+                size=int(float(payload.get("count_fp", str(order.size)))),
+                price=float(order.price or Decimal("0.5")),
+            )
         except Exception as exc:
             logger.exception("Kalshi provider order failed")
             return self._rejected(order, str(exc))

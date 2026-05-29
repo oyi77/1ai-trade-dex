@@ -404,6 +404,12 @@
       "type": "file"
     },
     {
+      "path": "backend/markets/providers/kalshi_provider.py",
+      "accessCount": 6,
+      "lastAccessed": 1780094947344,
+      "type": "directory"
+    },
+    {
       "path": "backend/core/settlement/settlement.py",
       "accessCount": 5,
       "lastAccessed": 1779809974702,
@@ -419,6 +425,12 @@
       "path": "backend/ai/debate_router.py",
       "accessCount": 4,
       "lastAccessed": 1779805627342,
+      "type": "directory"
+    },
+    {
+      "path": "backend/data/kalshi_client.py",
+      "accessCount": 4,
+      "lastAccessed": 1780094903615,
       "type": "directory"
     },
     {
@@ -446,12 +458,6 @@
       "type": "file"
     },
     {
-      "path": "backend/data/kalshi_client.py",
-      "accessCount": 3,
-      "lastAccessed": 1779780817527,
-      "type": "directory"
-    },
-    {
       "path": "backend/core/risk_manager.py",
       "accessCount": 3,
       "lastAccessed": 1779782710900,
@@ -467,12 +473,6 @@
       "path": "backend/core/dynamic_prompt_engine.py",
       "accessCount": 2,
       "lastAccessed": 1779758731441,
-      "type": "directory"
-    },
-    {
-      "path": "backend/markets/providers/kalshi_provider.py",
-      "accessCount": 2,
-      "lastAccessed": 1779759252167,
       "type": "directory"
     },
     {
