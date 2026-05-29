@@ -10,12 +10,13 @@ where the crowd overpays for YES tickets.
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from backend.strategies.base import (
     BaseStrategy,
     CycleResult,
     MarketInfo,
     StrategyContext,
-    MarketEvent,
 )
 
 # Polymarket platform fee (per trade, both entry and settlement)
@@ -42,30 +43,18 @@ class LongshotBiasStrategy(BaseStrategy):
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
         """Filter to only low-price markets (below max_price threshold)."""
         max_price = self.default_params.get("max_price", 0.30)
-        filtered = [m for m in markets if 0 < m.yes_price < max_price]
-        return filtered
+        return [m for m in markets if 0 < m.yes_price < max_price]
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Execute one scan cycle: find longshot markets, evaluate EV, size by Kelly."""
+        import json
+
         params = {**self.default_params, **(ctx.params or {})}
 
-        # Check open positions for auto-sell exits at cycle start
-        try:
-            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
-            await check_strategy_positions_for_auto_sell(
-                self.name,
-                clob_client=ctx.clob,
-                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
-                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
-                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
-            )
-        except Exception as e:
-            ctx.logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
-
-        max_price = params.get("max_price")
-        min_ev = params.get("min_ev")
-        max_position = params.get("max_position_usd")
-        kelly_frac = params.get("kelly_fraction")
+        max_price = float(params.get("max_price", 0.30))
+        min_ev = float(params.get("min_ev", 0.05))
+        max_position = float(params.get("max_position_usd", 20.0))
+        kelly_frac = float(params.get("kelly_fraction", 0.25))
 
         decisions_recorded = 0
         trades_attempted = 0
@@ -74,139 +63,136 @@ class LongshotBiasStrategy(BaseStrategy):
         decisions: list[dict] = []
 
         try:
-            # Get markets from provider (use market_registry, not providers dict)
-            provider = ctx.get_market_provider("polymarket") or ctx.primary_provider
-            if provider is None:
-                ctx.logger.warning("[longshot_bias] No market provider available")
-                return CycleResult(
-                    decisions_recorded=0,
-                    trades_attempted=0,
-                    trades_placed=0,
-                    errors=["No market provider available"],
-                )
+            # Fetch markets directly from Gamma API
+            from backend.data.gamma import fetch_markets
+            raw_markets = await fetch_markets(limit=200)
 
-            # Scan for cheap markets
-            raw_markets = await provider.get_markets(limit=200)
-            candidates = [
-                m
-                for m in raw_markets
-                if hasattr(m, "yes_price") and 0 < m.yes_price < max_price
-            ]
-
-            # Get dynamic longshot bias from actual settled trades
-            from backend.core.longshot_bias import LongshotBiasDetector
-            detector = LongshotBiasDetector()
-            bias_stats = None
-            if ctx.db is not None:
+            # Parse outcomePrices to extract yes/no prices
+            parsed_markets = []
+            for m in raw_markets:
                 try:
+                    prices = m.get("outcomePrices", "")
+                    if isinstance(prices, str):
+                        prices = json.loads(prices)
+                    outcomes = m.get("outcomes", "")
+                    if isinstance(outcomes, str):
+                        outcomes = json.loads(outcomes)
+                    if len(prices) < 2 or len(outcomes) < 2:
+                        continue
+                    yes_idx = outcomes.index("Yes") if "Yes" in outcomes else 0
+                    yes_price = float(prices[yes_idx])
+                    no_price = float(prices[1 - yes_idx])
+                    clob_ids = m.get("clobTokenIds", [])
+                    if isinstance(clob_ids, str):
+                        clob_ids = json.loads(clob_ids)
+                    parsed_markets.append({
+                        "slug": m.get("slug", ""),
+                        "question": m.get("question", ""),
+                        "yes_price": yes_price,
+                        "no_price": no_price,
+                        "clob_ids": clob_ids,
+                    })
+                except Exception:
+                    continue
+
+            candidates = [m for m in parsed_markets if 0 < m["yes_price"] < max_price]
+
+            # Get dynamic longshot bias
+            bias_ratio = 0.59  # fallback: YES trades win rate
+            try:
+                from backend.core.longshot_bias import LongshotBiasDetector
+                detector = LongshotBiasDetector()
+                if ctx.db is not None:
                     bias_stats = detector.compute_longshot_bias_from_trades(
-                        db=ctx.db,
-                        price_threshold=max_price,
-                        window_days=60,
+                        db=ctx.db, price_threshold=max_price, window_days=60,
                         strategy_name=self.name,
                     )
-                except Exception as e:
-                    ctx.logger.warning("[longshot_bias] Failed to compute dynamic longshot bias: {}", e)
+                    if bias_stats is not None:
+                        bias_ratio = bias_stats["bias"]
+            except Exception as e:
+                ctx.logger.warning("[longshot_bias] Bias calc failed: {}", e)
 
-            # Fallback to historical paper average (YES trades win rate is 59% of price)
-            bias_ratio = bias_stats["bias"] if bias_stats is not None else 0.59
             ctx.logger.info(
-                "[longshot_bias] Found {} markets below {}c (using bias ratio: {:.4f})",
-                len(candidates),
-                int(max_price * 100),
-                bias_ratio,
+                "[longshot_bias] Found {} markets below {}c (bias={:.4f})",
+                len(candidates), int(max_price * 100), bias_ratio,
             )
 
             for market in candidates:
                 try:
-                    yes_price = market.yes_price
-                    # Use actual NO price from market/orderbook, not 1-complement.
-                    # The 1-complement assumes perfectly efficient binary pricing,
-                    # which fails during CLOB dislocations or illiquidity.
-                    no_price = getattr(market, "no_price", None)
-                    if no_price is None:
-                        no_price = 1.0 - yes_price
+                    yes_price = market["yes_price"]
+                    no_price = market["no_price"]
+                    slug = market["slug"]
 
-                    # EV calculation for NO token based on YES overpricing bias:
-                    # gross edge of NO is: yes_price * (1.0 - bias_ratio)
                     ev = max(0.0, yes_price * (1.0 - bias_ratio))
-                    # Subtract platform fees (both entry and settlement)
                     ev = max(0.0, ev - 2 * PLATFORM_FEE_PCT * no_price)
-
                     if ev < min_ev:
                         continue
 
-                    # True win probability of NO is: 1.0 - yes_price * bias_ratio
                     true_win_prob = min(0.95, 1.0 - yes_price * bias_ratio)
-                    odds = (1.0 / no_price) - 1.0  # net odds
-                    if odds <= 0.001:  # guard: no_price >= 0.999 → effectively zero odds
+                    odds = (1.0 / no_price) - 1.0
+                    if odds <= 0.001 or true_win_prob <= 0 or true_win_prob >= 1.0:
                         continue
-                    if true_win_prob <= 0 or true_win_prob >= 1.0:
-                        continue
-                    kelly = (true_win_prob * odds - (1.0 - true_win_prob)) / odds
-                    kelly = max(0, kelly * kelly_frac)  # fractional Kelly
-                    position_size = min(kelly * ctx.bankroll, max_position)  # cap at max
 
-                    if position_size < 5.0:  # below min order
+                    kelly = (true_win_prob * odds - (1.0 - true_win_prob)) / odds
+                    kelly = max(0, kelly * kelly_frac)
+                    position_size = min(kelly * ctx.bankroll, max_position)
+
+                    if position_size < 1.0:
                         continue
 
                     decisions_recorded += 1
                     trades_attempted += 1
 
-                    # Place order via CLOB
-                    no_token_id = market.metadata.get("no_token_id")
-                    if not no_token_id:
-                        ctx.logger.warning(
-                            "[longshot_bias] Skipping {} — no no_token_id in metadata",
-                            market.slug,
-                        )
+                    clob_ids = market["clob_ids"]
+                    if len(clob_ids) < 2:
+                        ctx.logger.warning("[longshot_bias] Skipping {} — no clobTokenIds", slug)
                         continue
+                    no_token_id = clob_ids[1]
+
+                    decision = {
+                        "decision": "BUY",
+                        "direction": "NO",
+                        "market_slug": slug,
+                        "token_id": no_token_id,
+                        "side": "BUY",
+                        "price": round(no_price, 3),
+                        "size": round(position_size, 2),
+                        "ev": round(ev, 4),
+                        "confidence": round(true_win_prob, 4),
+                        "edge": round(ev, 4),
+                    }
+                    decisions.append(decision)
 
                     if ctx.mode != "paper":
-                        order = await ctx.clob.place_order(
-                            token_id=no_token_id,
-                            side="BUY",
-                            price=no_price,
-                            size=position_size,
-                        )
-                        if order:
-                            trades_placed += 1
-                            decisions.append({"market": market.slug, "side": "BUY", "price": no_price, "size": position_size, "ev": ev})
+                        provider = ctx.get_market_provider("polymarket")
+                        if provider and hasattr(provider, "place_order"):
+                            from backend.markets.order_types import NormalizedOrder, OrderSide
+                            norm_order = NormalizedOrder(
+                                market_id=slug,
+                                token_id=no_token_id,
+                                side=OrderSide.BUY,
+                                size=Decimal(str(round(position_size, 2))),
+                                price=Decimal(str(round(no_price, 3))),
+                                order_type="LIMIT",
+                            )
+                            result = await provider.place_order(norm_order)
+                            if result and result.status.name == "FILLED":
+                                trades_placed += 1
                     else:
-                        trades_placed += 1  # paper mode auto-fills
-                        decisions.append({"market": market.slug, "side": "BUY", "price": no_price, "size": position_size, "ev": ev})
+                        trades_placed += 1
 
                     ctx.logger.info(
                         "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
-                        market.slug,
-                        no_price * 100,
-                        ev,
-                        kelly,
-                        position_size,
+                        slug, no_price * 100, ev, kelly, position_size,
                     )
 
                 except Exception as exc:
                     errors.append(str(exc))
-                    ctx.logger.error(
-                        "[longshot_bias] Error on {}: {}", market.slug, exc
-                    )
+                    ctx.logger.error("[longshot_bias] Error on {}: {}", market.get("slug", "?"), exc)
 
         except Exception as exc:
             errors.append(str(exc))
             ctx.logger.exception("[longshot_bias] Cycle failed: {}", exc)
-
-        # Check open positions for auto-sell exits at cycle end
-        try:
-            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
-            await check_strategy_positions_for_auto_sell(
-                self.name,
-                clob_client=ctx.clob,
-                profit_target_pct=float(params["auto_sell_profit_target_pct"]) if params.get("auto_sell_profit_target_pct") is not None else None,
-                stop_loss_pct=float(params["auto_sell_stop_loss_pct"]) if params.get("auto_sell_stop_loss_pct") is not None else None,
-                max_hold_seconds=int(params["auto_sell_max_hold_seconds"]) if params.get("auto_sell_max_hold_seconds") is not None else None,
-            )
-        except Exception as e:
-            ctx.logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
 
         return CycleResult(
             decisions_recorded=decisions_recorded,
