@@ -71,6 +71,7 @@ class LongshotBiasStrategy(BaseStrategy):
         trades_attempted = 0
         trades_placed = 0
         errors: list[str] = []
+        decisions: list[dict] = []
 
         try:
             # Get markets from primary provider or fallback to Gamma

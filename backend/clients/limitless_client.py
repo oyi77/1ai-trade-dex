@@ -30,6 +30,9 @@ class LimitlessClient:
         """Lazy-init the Limitless SDK client for order operations."""
         if self._sdk is None:
             from limitless_sdk import LimitlessClient as SDKClient
+            # Patch missing ensure_authenticated (SDK bug)
+            if not hasattr(SDKClient, 'ensure_authenticated'):
+                SDKClient.ensure_authenticated = SDKClient.ensure_session
             key = self._private_key
             if key and not key.startswith("0x"):
                 key = "0x" + key
@@ -133,7 +136,9 @@ class LimitlessClient:
         """Cancel an open order using official SDK."""
         sdk = self._get_sdk()
         try:
-            await sdk.cancel_order(order_id)
+            from limitless_sdk.models import CancelOrderDto
+            dto = CancelOrderDto(order_id=order_id)
+            await sdk.cancel_order(dto)
             return True
         except Exception as e:
             logger.warning(f"[limitless] cancel_order failed: {e}")

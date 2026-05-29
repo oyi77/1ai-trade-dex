@@ -507,14 +507,14 @@ class UnifiedPMArb(BaseStrategy):
     category = "arb"
 
     default_params: dict = {
-        "max_exposure": 200.0,
-        "min_net_edge": 0.02,
-        "kelly_fraction": 0.25,
-        "slippage_bps": 5.0,
+        "max_exposure": 500.0,
+        "min_net_edge": 0.005,
+        "kelly_fraction": 0.35,
+        "slippage_bps": 50.0,
         "max_opportunities_per_cycle": 10,
         "enabled": True,
-        "max_open_positions": 5,
-        "max_per_asset": 1,
+        "max_open_positions": 10,
+        "max_per_asset": 2,
         "stop_loss_pct": 0.10,
         "profit_target_pct": 0.05,
     }
@@ -630,17 +630,14 @@ class UnifiedPMArb(BaseStrategy):
     def _calculate_size(
         self, opp: ArbOpportunityEnhanced, bankroll: float
     ) -> float:
-        """Calculate position size using Kelly criterion."""
-        max_exposure = self.default_params.get("max_exposure", 200.0)
-        kelly_fraction = self.default_params.get("kelly_fraction", 0.25)
-        min_order = _cfg("MIN_ORDER_USDC", 5.0)
+        """Calculate position size for arb.
 
-        size = _kelly_size(
-            edge=opp.net_profit,
-            bankroll=bankroll,
-            max_size=max_exposure,
-            kelly_fraction=kelly_fraction,
-        )
+        For guaranteed-profit arb, use flat 40% of bankroll per trade.
+        Kelly is too conservative for small edges on small bankrolls.
+        """
+        min_order = _cfg("MIN_ORDER_USDC", 1.0)
+        # Use 40% of available bankroll per arb (guaranteed profit, safe)
+        size = bankroll * 0.4
         if size < min_order:
             return 0.0
         return round(size, 2)
@@ -662,6 +659,25 @@ class UnifiedPMArb(BaseStrategy):
         size = self._calculate_size(opp, bankroll)
         if size <= 0:
             return {"status": "skipped", "reason": "size_below_minimum"}
+
+        # Pre-flight dry-run: validate order cost vs available balance
+        slippage = _cfg("ARB_SLIPPAGE_BPS", 50) / 10000
+        price_a = max(0.001, min(0.999, opp.price_a * (1 + slippage)))
+        price_b = max(0.001, min(0.999, opp.price_b * (1 + slippage)))
+        cost_a = size * price_a
+        cost_b = size * price_b
+        total_cost = cost_a + cost_b
+        if total_cost > bankroll:
+            return {
+                "status": "skipped",
+                "reason": f"dry_run_fail: cost ${total_cost:.2f} > bankroll ${bankroll:.2f}",
+            }
+        arb_id = str(uuid.uuid4())[:8]
+        logger.info(
+            f"[unified_arb] DRY-RUN OK arb={arb_id}: "
+            f"cost=${total_cost:.2f} (a=${cost_a:.2f} b=${cost_b:.2f}) "
+            f"bankroll=${bankroll:.2f} edge={opp.net_profit:.4f}"
+        )
 
         # Paper mode: simulate fills without calling providers
         if ctx.mode == "paper":
@@ -704,12 +720,8 @@ class UnifiedPMArb(BaseStrategy):
         token_a = opp.details.get("token_id_a") or opp.token_id or opp.market_a_id
         token_b = opp.details.get("token_id_b") or opp.market_b_id
 
-        arb_id = str(uuid.uuid4())[:8]
         # HFT-style: use marketable limit orders that cross the spread
         # Price = detected price + slippage buffer (ensures fill)
-        slippage = _cfg("ARB_SLIPPAGE_BPS", 50) / 10000  # 50bps default
-        price_a = max(0.001, min(0.999, opp.price_a * (1 + slippage)))
-        price_b = max(0.001, min(0.999, opp.price_b * (1 + slippage)))
         order_a = NormalizedOrder(
             market_id=str(token_a),
             side=OrderSide.BUY,
@@ -727,24 +739,48 @@ class UnifiedPMArb(BaseStrategy):
             client_order_id=f"arb-{arb_id}-b",
         )
 
-        # Atomic execution: both legs in parallel, then monitor fills
+        # Sequential execution: place constrained leg (Polymarket/Kalshi) FIRST
+        # to avoid naked exposure when leg A gets rejected
         start = time.monotonic()
-        result_a, result_b = await asyncio.gather(
-            self._place_with_breaker(provider_a, order_a, opp.platform_a),
-            self._place_with_breaker(provider_b, order_b, opp.platform_b),
-            return_exceptions=True,
-        )
 
-        # HFT: monitor fills with timeout, cancel unfilled leg if other fills
+        # Determine which leg is the constrained venue (Polymarket/Kalshi)
+        constrained_platforms = {"polymarket", "kalshi"}
+        if opp.platform_a.lower() in constrained_platforms:
+            first_provider, first_order, first_platform = provider_a, order_a, opp.platform_a
+            second_provider, second_order, second_platform = provider_b, order_b, opp.platform_b
+        else:
+            first_provider, first_order, first_platform = provider_b, order_b, opp.platform_b
+            second_provider, second_order, second_platform = provider_a, order_a, opp.platform_a
+
+        result_first = await self._place_with_breaker(first_provider, first_order, first_platform)
+        first_filled = self._is_filled(result_first)
+
+        if not first_filled:
+            # First leg failed — don't place second leg
+            elapsed = (time.monotonic() - start) * 1000
+            logger.warning(f"[unified_arb] arb={arb_id}: first leg ({first_platform}) failed, skipping second leg")
+            return {"success": False, "reason": f"first_leg_failed:{first_platform}", "elapsed_ms": elapsed}
+
+        # First leg filled — place second leg
+        result_second = await self._place_with_breaker(second_provider, second_order, second_platform)
+        second_filled = self._is_filled(result_second)
+
+        # Map results back to a/b
+        if opp.platform_a.lower() in constrained_platforms:
+            result_a, result_b = result_first, result_second
+            a_filled, b_filled = first_filled, second_filled
+        else:
+            result_a, result_b = result_second, result_first
+            a_filled, b_filled = second_filled, first_filled
+
         fill_timeout = _cfg("ARB_FILL_TIMEOUT_SEC", 10)
-        a_filled = self._is_filled(result_a)
-        b_filled = self._is_filled(result_b)
 
-        if not a_filled and not b_filled:
-            # Both pending — wait for fills with timeout
-            a_filled, b_filled = await self._wait_for_fills(
-                provider_a, result_a, provider_b, result_b, fill_timeout
-            )
+        if not second_filled:
+            # Second leg pending — wait briefly
+            if opp.platform_a.lower() in constrained_platforms:
+                b_filled = await self._wait_single_fill(provider_b, result_b, fill_timeout)
+            else:
+                a_filled = await self._wait_single_fill(provider_a, result_a, fill_timeout)
 
         # Cancel unfilled leg if other leg filled (prevent naked exposure)
         if a_filled and not b_filled:
@@ -895,6 +931,27 @@ class UnifiedPMArb(BaseStrategy):
 
         return a_filled, b_filled
 
+    async def _wait_single_fill(
+        self,
+        provider: Any,
+        result: Any,
+        timeout_sec: float,
+    ) -> bool:
+        """Monitor single order fill status with timeout."""
+        start = time.monotonic()
+        filled = self._is_filled(result)
+        while not filled and (time.monotonic() - start) < timeout_sec:
+            await asyncio.sleep(0.5)
+            order_id = self._get_order_id(result)
+            if order_id and hasattr(provider, 'get_order_status'):
+                try:
+                    status = await provider.get_order_status(order_id)
+                    if status and status.get('status') == 'FILLED':
+                        return True
+                except Exception:
+                    pass
+        return filled
+
     # ------------------------------------------------------------------
     # Main cycle
     # ------------------------------------------------------------------
@@ -975,8 +1032,21 @@ class UnifiedPMArb(BaseStrategy):
             max_per_cycle = self.default_params.get("max_opportunities_per_cycle", 10)
             opportunities = opportunities[:max_per_cycle]
 
-            # 4. Execute
-            bankroll = ctx.bankroll if ctx.bankroll > 0 else 1000.0
+            # 4. Execute — use actual CLOB balance, not ctx.bankroll
+            bankroll = ctx.bankroll if ctx.bankroll > 0 else 100.0
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=5) as http:
+                    resp = await http.get("https://data-api.polymarket.com/value?user=0xad85c2f3942561afa448cbbd5811a5f7e2e3c6bd")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if data and len(data) > 0:
+                            actual_balance = float(data[0].get("value", 0))
+                            if actual_balance > 0:
+                                bankroll = min(bankroll, actual_balance)
+                                logger.info(f"[unified_arb] Portfolio value: ${actual_balance:.2f}, bankroll=${bankroll:.2f}")
+            except Exception as e:
+                logger.debug(f"[unified_arb] Could not fetch balance: {e}")
             for opp in opportunities:
                 try:
                     result = await self._execute_arb(ctx, opp, bankroll)

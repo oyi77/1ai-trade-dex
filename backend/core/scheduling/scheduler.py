@@ -948,6 +948,9 @@ def start_scheduler():
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
             for mode in settings.active_modes_set:
+                # Only schedule strategy for its configured mode (skip paper if live)
+                if config.mode == "live" and mode != "live":
+                    continue
                 trades = (
                     db.query(Trade)
                     .filter(

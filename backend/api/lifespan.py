@@ -851,8 +851,8 @@ async def _seed_strategy_configs() -> None:
             "weather_emos",
             True,
             300,
-            "paper",
-            {"min_edge": 0.05, "max_position_usd": 100, "calibration_window_days": 40},
+            "live",
+            {"min_edge": 0.03, "max_position_usd": 200, "calibration_window_days": 40},
         ),
         (
             "kalshi_arb",
@@ -915,7 +915,7 @@ async def _seed_strategy_configs() -> None:
         ),
         (
             "cex_pm_leadlag",
-            True,
+            False,
             300,
             "paper",
             {
@@ -931,9 +931,9 @@ async def _seed_strategy_configs() -> None:
         (
             "unified_arb",
             True,
-            300,
-            "paper",
-            {"min_edge": 0.02, "max_exposure": 500.0, "max_batch_arbs": 5},
+            60,
+            "live",
+            {"min_net_edge": 0.005, "max_exposure": 500.0, "kelly_fraction": 0.35, "slippage_bps": 50.0},
         ),
         (
             "hft_scalper",

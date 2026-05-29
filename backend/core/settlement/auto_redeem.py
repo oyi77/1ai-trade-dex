@@ -198,8 +198,9 @@ def _redeem_via_relayer(
     try:
         from py_builder_relayer_client.client import RelayClient
         from py_builder_relayer_client.models import (
-            RelayerTxType,
-            Transaction,
+            TransactionType as RelayerTxType,
+            SafeTransaction as Transaction,
+            OperationType,
         )
         from py_builder_signing_sdk.config import (
             BuilderConfig,
@@ -222,12 +223,10 @@ def _redeem_via_relayer(
             chain_id=137,
             private_key=private_key,
             builder_config=builder_config,
-            relay_tx_type=RelayerTxType.PROXY,
-            rpc_url=POLYGON_RPC,
         )
 
         transactions = [
-            Transaction(to=target_contract, data=calldata, value="0"),
+            Transaction(to=target_contract, operation=OperationType.Call, data=calldata, value="0"),
         ]
 
         response = client.execute(

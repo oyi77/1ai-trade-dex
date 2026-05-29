@@ -1167,6 +1167,15 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             from backend.models.database import BotState
             state = db.query(BotState).first()
             bankroll = _get_bankroll_for_mode(state, effective_mode) if state else 100.0
+            # For live mode, cap bankroll to available CLOB cash (not position value)
+            if effective_mode == "live":
+                try:
+                    from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
+                    actual_equity = await fetch_pm_total_equity()
+                    if actual_equity and actual_equity > 0:
+                        bankroll = min(bankroll, actual_equity * 0.1)  # Use 10% of equity for safety
+                except Exception:
+                    pass
             ctx = StrategyContext(
                 db=db,
                 clob=None,

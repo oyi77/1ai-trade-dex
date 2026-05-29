@@ -647,7 +647,7 @@ class ConfigRegistry:
     POLYMARKET_API_KEY: Optional[str] = None
     POLYMARKET_API_SECRET: Optional[str] = None
     POLYMARKET_API_PASSPHRASE: Optional[str] = None
-    POLYMARKET_SIGNATURE_TYPE: int = 0
+    POLYMARKET_SIGNATURE_TYPE: int = 1
     POLYMARKET_BUILDER_API_KEY: Optional[str] = None
     POLYMARKET_BUILDER_SECRET: Optional[str] = None
     POLYMARKET_BUILDER_PASSPHRASE: Optional[str] = None
