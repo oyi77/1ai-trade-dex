@@ -280,6 +280,12 @@
       "accessCount": 5,
       "lastAccessed": 1780086846054,
       "type": "file"
+    },
+    {
+      "path": "backend/strategies/longshot_bias.py",
+      "accessCount": 2,
+      "lastAccessed": 1780087902788,
+      "type": "file"
     }
   ],
   "userDirectives": []
