@@ -101,24 +101,18 @@ class LimitlessProvider(BaseMarketProvider):
                     if not owner_id:
                         return self._rejected(order, "No ownerId in profile")
 
-                    # Get market data
-                    path = "/markets/active?limit=200"
+                    # Get market data by slug
+                    path = f"/markets/{order.market_id}"
                     h = self._hmac_headers(tid, secret, "GET", path)
                     r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
                     if r.status_code != 200:
-                        return self._rejected(order, f"Markets fetch failed: {r.status_code}")
-                    market = None
-                    for m in r.json().get("data", []):
-                        if m.get("slug") == order.market_id or str(m.get("id")) == str(order.market_id):
-                            market = m
-                            break
-                    if not market:
-                        return self._rejected(order, f"Market {order.market_id} not found")
+                        return self._rejected(order, f"Market fetch failed: {r.status_code} {r.text[:100]}")
+                    market = r.json()
 
-                    position_ids = market.get("positionIds", [])
-                    if not position_ids:
-                        return self._rejected(order, "No positionIds")
-                    token_id = position_ids[0] if order.side.value.upper() == "BUY" else position_ids[1]
+                    tokens = market.get("tokens", {})
+                    token_id = tokens.get("yes") if order.side.value.upper() == "BUY" else tokens.get("no")
+                    if not token_id:
+                        return self._rejected(order, f"No token ID for side {order.side.value}")
 
                     price = float(order.price or Decimal("0.5"))
                     size = float(order.size)
@@ -127,19 +121,21 @@ class LimitlessProvider(BaseMarketProvider):
 
                     exchange_addr = market.get("venue", {}).get("exchange", "0x0000000000000000000000000000000000000000")
                     order_fields = {
-                        "salt": str(random.randint(10**9, 10**10)),
+                        "salt": random.randint(10**9, 10**10),
                         "maker": account.address,
                         "signer": account.address,
                         "taker": "0x0000000000000000000000000000000000000000",
                         "tokenId": str(token_id),
-                        "makerAmount": str(maker_amount),
-                        "takerAmount": str(taker_amount),
+                        "makerAmount": maker_amount,
+                        "takerAmount": taker_amount,
                         "expiration": "0",
-                        "nonce": "0",
-                        "feeRateBps": "0",
+                        "nonce": 0,
+                        "feeRateBps": 0,
                         "side": 0,
                         "signatureType": 0,
                     }
+                    # Deep copy for EIP-712 signing (encode_typed_data may mutate dict)
+                    sign_fields = copy.deepcopy(order_fields)
                     typed_data = {
                         "types": {
                             "EIP712Domain": [
@@ -170,7 +166,7 @@ class LimitlessProvider(BaseMarketProvider):
                             "chainId": 8453,
                             "verifyingContract": exchange_addr,
                         },
-                        "message": order_fields,
+                        "message": sign_fields,
                     }
                     signable = encode_typed_data(full_message=typed_data)
                     signed = account.sign_message(signable)
@@ -183,6 +179,7 @@ class LimitlessProvider(BaseMarketProvider):
                         "ownerId": owner_id,
                     }
                     body = json.dumps(payload)
+                    print(f"[limitless] ORDER payload expiration={payload['order']['expiration']} type={type(payload['order']['expiration']).__name__}", flush=True)
                     path = "/orders"
                     h = self._hmac_headers(tid, secret, "POST", path, body)
                     r = await client.post(f"https://api.limitless.exchange{path}", headers=h, content=body)
