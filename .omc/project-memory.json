@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1780086446964,
+  "lastScanned": 1779749888235,
   "projectRoot": "/home/openclaw/projects/1ai-poly-trader",
   "techStack": {
     "languages": [
@@ -49,7 +49,7 @@
       "path": "alembic",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1780086446887,
+      "lastAccessed": 1779749888201,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -61,7 +61,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1780086446902,
+      "lastAccessed": 1779749888214,
       "keyFiles": [
         "AGENTS.md",
         "__init__.py",
@@ -74,7 +74,7 @@
       "path": "data",
       "purpose": "Data files",
       "fileCount": 1,
-      "lastAccessed": 1780086446903,
+      "lastAccessed": 1779749888219,
       "keyFiles": [
         "crypto_oracle_performance.db"
       ]
@@ -83,7 +83,7 @@
       "path": "deploy",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780086446914,
+      "lastAccessed": 1779749888220,
       "keyFiles": [
         "polyedge-monitor.service"
       ]
@@ -92,7 +92,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 37,
-      "lastAccessed": 1780086446947,
+      "lastAccessed": 1779749888222,
       "keyFiles": [
         "AGENTS.md",
         "ANOMALY_REPORT.md",
@@ -105,7 +105,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 18,
-      "lastAccessed": 1780086446948,
+      "lastAccessed": 1779749888222,
       "keyFiles": [
         "AGENTS.md",
         "Dockerfile",
@@ -118,14 +118,14 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1780086446950,
+      "lastAccessed": 1779749888223,
       "keyFiles": []
     },
     "migrations": {
       "path": "migrations",
       "purpose": "Database migrations",
       "fileCount": 4,
-      "lastAccessed": 1780086446950,
+      "lastAccessed": 1779749888223,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -137,7 +137,7 @@
       "path": "polyedge-docs",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1780086446951,
+      "lastAccessed": 1779749888224,
       "keyFiles": [
         "README.md",
         "docusaurus.config.ts",
@@ -150,7 +150,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 59,
-      "lastAccessed": 1780086446952,
+      "lastAccessed": 1779749888225,
       "keyFiles": [
         "AGENTS.md",
         "FIXES_APPLIED.py",
@@ -163,25 +163,16 @@
       "path": "secrets",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780086446953,
+      "lastAccessed": 1779749888225,
       "keyFiles": [
         "kalshi_private_key.pem"
-      ]
-    },
-    "state": {
-      "path": "state",
-      "purpose": null,
-      "fileCount": 1,
-      "lastAccessed": 1780086446953,
-      "keyFiles": [
-        "cancel-signal-state.json"
       ]
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 41,
-      "lastAccessed": 1780086446955,
+      "fileCount": 35,
+      "lastAccessed": 1779749888226,
       "keyFiles": [
         "AGENTS.md",
         "SHUTDOWN_TEST_RESULTS.md",
@@ -194,23 +185,16 @@
       "path": "venv",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1780086446955,
+      "lastAccessed": 1779749888227,
       "keyFiles": [
         "pyvenv.cfg"
       ]
-    },
-    "walkthrough": {
-      "path": "walkthrough",
-      "purpose": null,
-      "fileCount": 0,
-      "lastAccessed": 1780086446956,
-      "keyFiles": []
     },
     "frontend/dist": {
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 9,
-      "lastAccessed": 1780086446958,
+      "lastAccessed": 1779749888228,
       "keyFiles": [
         "AGENTS.md",
         "favicon.svg",
@@ -221,7 +205,7 @@
       "path": "polyedge-docs/build",
       "purpose": "Build output",
       "fileCount": 5,
-      "lastAccessed": 1780086446958,
+      "lastAccessed": 1779749888229,
       "keyFiles": [
         "404.html",
         "index.html",
@@ -232,7 +216,7 @@
       "path": "polyedge-docs/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1780086446959,
+      "lastAccessed": 1779749888229,
       "keyFiles": [
         "intro.md"
       ]
@@ -241,14 +225,14 @@
       "path": "polyedge-docs/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1780086446962,
+      "lastAccessed": 1779749888232,
       "keyFiles": []
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 5,
-      "lastAccessed": 1780086446963,
+      "lastAccessed": 1779749888234,
       "keyFiles": [
         "AGENTS.md",
         "sample_activity.json",
@@ -258,8 +242,8 @@
     "venv/bin": {
       "path": "venv/bin",
       "purpose": "Executable scripts",
-      "fileCount": 29,
-      "lastAccessed": 1780086446963,
+      "fileCount": 27,
+      "lastAccessed": 1779749888234,
       "keyFiles": [
         "Activate.ps1",
         "activate",
@@ -270,45 +254,309 @@
       "path": "venv/lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1780086446964,
+      "lastAccessed": 1779749888234,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "backend/strategies/longshot_bias.py",
-      "accessCount": 8,
-      "lastAccessed": 1780088835932,
+      "path": "backend/core/strategy_executor.py",
+      "accessCount": 87,
+      "lastAccessed": 1780092273903,
+      "type": "file"
+    },
+    {
+      "path": "backend",
+      "accessCount": 64,
+      "lastAccessed": 1780092351740,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 56,
+      "lastAccessed": 1780092405790,
+      "type": "directory"
+    },
+    {
+      "path": "backend/models/database.py",
+      "accessCount": 51,
+      "lastAccessed": 1779807518985,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_manager.py",
+      "accessCount": 51,
+      "lastAccessed": 1779810881998,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/scheduling/scheduler.py",
+      "accessCount": 49,
+      "lastAccessed": 1779808880668,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/orchestrator.py",
+      "accessCount": 31,
+      "lastAccessed": 1779799058969,
       "type": "file"
     },
     {
       "path": "backend/config.py",
+      "accessCount": 18,
+      "lastAccessed": 1779802500384,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/strategy_gate.py",
+      "accessCount": 13,
+      "lastAccessed": 1779812549635,
+      "type": "file"
+    },
+    {
+      "path": ".env",
+      "accessCount": 11,
+      "lastAccessed": 1779798816826,
+      "type": "file"
+    },
+    {
+      "path": "backend/strategies/base.py",
+      "accessCount": 11,
+      "lastAccessed": 1780092511666,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/plugin_registry.py",
+      "accessCount": 10,
+      "lastAccessed": 1779751447659,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/correlation_monitor.py",
+      "accessCount": 9,
+      "lastAccessed": 1779810544327,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/settlement/settlement_helpers.py",
+      "accessCount": 9,
+      "lastAccessed": 1780091982271,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/crypto_feeds/registry.py",
+      "accessCount": 8,
+      "lastAccessed": 1779751464995,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/source_registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779751446487,
+      "type": "file"
+    },
+    {
+      "path": "backend/monitoring/backends/registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779751447704,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 7,
+      "lastAccessed": 1779795215170,
+      "type": "directory"
+    },
+    {
+      "path": "backend/bot/notification/registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779817863033,
+      "type": "file"
+    },
+    {
+      "path": "backend/core",
+      "accessCount": 7,
+      "lastAccessed": 1780092350143,
+      "type": "directory"
+    },
+    {
+      "path": "backend/application/agi/evolution_jobs.py",
+      "accessCount": 6,
+      "lastAccessed": 1779751205141,
+      "type": "file"
+    },
+    {
+      "path": "backend/markets/provider_registry.py",
+      "accessCount": 6,
+      "lastAccessed": 1779751447452,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_profiles.py",
+      "accessCount": 6,
+      "lastAccessed": 1779780658798,
+      "type": "directory"
+    },
+    {
+      "path": "backend/api/system.py",
+      "accessCount": 6,
+      "lastAccessed": 1780092406227,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/settlement/settlement.py",
       "accessCount": 5,
-      "lastAccessed": 1780086846054,
+      "lastAccessed": 1779809974702,
       "type": "file"
     },
     {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "path": "backend/core/strategy_synthesizer.py",
+      "accessCount": 4,
+      "lastAccessed": 1779789805310,
+      "type": "directory"
+    },
+    {
+      "path": "backend/ai/debate_router.py",
+      "accessCount": 4,
+      "lastAccessed": 1779805627342,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/registry_utils.py",
+      "accessCount": 3,
+      "lastAccessed": 1779751406910,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_audit_integration.py",
+      "accessCount": 3,
+      "lastAccessed": 1779754217346,
+      "type": "file"
+    },
+    {
+      "path": "backend/modules/scanners/weather_emos.py",
+      "accessCount": 3,
+      "lastAccessed": 1779758224271,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/weather_signals.py",
+      "accessCount": 3,
+      "lastAccessed": 1779761182098,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/kalshi_client.py",
+      "accessCount": 3,
+      "lastAccessed": 1779780817527,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/risk_manager.py",
+      "accessCount": 3,
+      "lastAccessed": 1779782710900,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/position_sizer.py",
+      "accessCount": 3,
+      "lastAccessed": 1779789999511,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/dynamic_prompt_engine.py",
       "accessCount": 2,
-      "lastAccessed": 1780088124714,
+      "lastAccessed": 1779758731441,
       "type": "directory"
     },
     {
-      "path": "backend/core/scheduling/scheduler.py",
-      "accessCount": 1,
-      "lastAccessed": 1780088142432,
+      "path": "backend/markets/providers/kalshi_provider.py",
+      "accessCount": 2,
+      "lastAccessed": 1779759252167,
       "type": "directory"
     },
     {
-      "path": "backend/strategies/bond_scanner.py",
+      "path": "backend/core/settlement_helpers.py",
       "accessCount": 1,
-      "lastAccessed": 1780091830115,
+      "lastAccessed": 1779751174123,
       "type": "file"
     },
     {
-      "path": "backend/strategies/universal_scanner.py",
+      "path": "backend/core/scheduling_strategies.py",
       "accessCount": 1,
-      "lastAccessed": 1780091979425,
+      "lastAccessed": 1779751174303,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/auto_improve.py",
+      "accessCount": 1,
+      "lastAccessed": 1779751174957,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/bankroll_reconciliation.py",
+      "accessCount": 1,
+      "lastAccessed": 1779751181985,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk_manager_hft.py",
+      "accessCount": 1,
+      "lastAccessed": 1779751182371,
+      "type": "file"
+    },
+    {
+      "path": "backend/markets",
+      "accessCount": 1,
+      "lastAccessed": 1779756689336,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/trade_attempts.py",
+      "accessCount": 1,
+      "lastAccessed": 1779757184634,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/circuit_breaker.py",
+      "accessCount": 1,
+      "lastAccessed": 1779757822672,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/auto_trader.py",
+      "accessCount": 1,
+      "lastAccessed": 1779758731182,
+      "type": "directory"
+    },
+    {
+      "path": "backend/ai/strategy_composer.py",
+      "accessCount": 1,
+      "lastAccessed": 1779758732440,
+      "type": "directory"
+    },
+    {
+      "path": "backend/api/main.py",
+      "accessCount": 1,
+      "lastAccessed": 1779759456257,
+      "type": "directory"
+    },
+    {
+      "path": "backend/config_hft.py",
+      "accessCount": 1,
+      "lastAccessed": 1779759456588,
+      "type": "directory"
+    },
+    {
+      "path": "backend/data/kalshi_markets.py",
+      "accessCount": 1,
+      "lastAccessed": 1779760702507,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/wallet/bankroll_reconciliation.py",
+      "accessCount": 1,
+      "lastAccessed": 1779760765334,
       "type": "directory"
     }
   ],

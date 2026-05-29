@@ -10,9 +10,7 @@ where the crowd overpays for YES tickets.
 
 from __future__ import annotations
 
-import json
-
-import httpx
+import json as _json
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -21,14 +19,56 @@ from backend.strategies.base import (
     StrategyContext,
     MarketEvent,
 )
-from backend.config import settings
-
-from loguru import logger
 
 # Polymarket platform fee (per trade, both entry and settlement)
 PLATFORM_FEE_PCT = 0.02
 
-GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
+
+def _resolve_yes_no_prices(market_dict: dict) -> tuple[float, float]:
+    """Extract YES and NO prices from a Gamma API market dict.
+
+    The ``outcomes`` array defines the ordering of ``outcomePrices``.
+    For binary Yes/No markets the Gamma API *usually* returns
+    ``["Yes", "No"]`` so that ``outcomePrices[0]`` is the YES price,
+    but some markets (or legacy data) use ``["No", "Yes"]`` which
+    would invert the mapping.  This helper resolves both cases by
+    checking the ``outcomes`` labels when available, falling back to
+    index 0 = YES when the array is missing or unrecognisable.
+    """
+    outcome_prices_raw = market_dict.get("outcomePrices") or []
+    if isinstance(outcome_prices_raw, str):
+        try:
+            outcome_prices_raw = _json.loads(outcome_prices_raw)
+        except Exception:
+            outcome_prices_raw = []
+
+    if not outcome_prices_raw or len(outcome_prices_raw) < 2:
+        return 0.5, 0.5
+
+    # Try to resolve ordering from the outcomes array
+    outcomes_raw = market_dict.get("outcomes") or []
+    if isinstance(outcomes_raw, str):
+        try:
+            outcomes_raw = _json.loads(outcomes_raw)
+        except Exception:
+            outcomes_raw = []
+
+    yes_idx, no_idx = 0, 1  # default assumption: index 0 = YES
+    if len(outcomes_raw) >= 2:
+        first = str(outcomes_raw[0]).strip().lower()
+        second = str(outcomes_raw[1]).strip().lower()
+        # If first outcome is "no" (or "down"), swap
+        if first in ("no", "down") and second in ("yes", "up"):
+            yes_idx, no_idx = 1, 0
+
+    try:
+        yes_price = float(outcome_prices_raw[yes_idx])
+        no_price = float(outcome_prices_raw[no_idx])
+    except (TypeError, ValueError, IndexError):
+        yes_price = float(outcome_prices_raw[0])
+        no_price = float(outcome_prices_raw[1]) if len(outcome_prices_raw) > 1 else 1.0 - yes_price
+
+    return yes_price, no_price
 
 
 class LongshotBiasStrategy(BaseStrategy):
@@ -80,49 +120,45 @@ class LongshotBiasStrategy(BaseStrategy):
         trades_attempted = 0
         trades_placed = 0
         errors: list[str] = []
-        decisions: list[dict] = []
+        result_decisions: list[dict] = []
 
         try:
-            # Fetch markets directly from Gamma API (raw dicts with clobTokenIds)
-            try:
-                async with httpx.AsyncClient(timeout=15.0) as client:
-                    resp = await client.get(
-                        GAMMA_API_URL,
-                        params={
-                            "active": "true",
-                            "closed": "false",
-                            "limit": 500,
-                            "order": "volume",
-                            "ascending": "false",
-                        },
-                    )
-                    resp.raise_for_status()
-                    raw_markets = resp.json()
-            except Exception as e:
-                ctx.logger.warning(f"[longshot_bias] Gamma API fetch failed: {e}")
-                return CycleResult(0, 0, 0, errors=[str(e)])
+            # Get markets from primary provider
+            provider = ctx.primary_provider
+            if provider is None:
+                ctx.logger.warning("[longshot_bias] No market provider available")
+                return CycleResult(
+                    decisions_recorded=0,
+                    trades_attempted=0,
+                    trades_placed=0,
+                    errors=["No market provider available"],
+                )
 
-            if not isinstance(raw_markets, list):
-                ctx.logger.warning("[longshot_bias] Unexpected Gamma API response format")
-                return CycleResult(0, 0, 0)
-
-            # Filter to cheap markets (YES price < max_price)
-            candidates = []
+            # Scan for cheap markets — resolve YES/NO prices using outcomes array
+            raw_markets = await provider.get_markets(limit=200)
+            candidates: list[tuple[object, float, float]] = []  # (market, yes_price, no_price)
             for m in raw_markets:
-                outcome_prices_raw = m.get("outcomePrices") or []
-                if isinstance(outcome_prices_raw, str):
-                    try:
-                        outcome_prices_raw = json.loads(outcome_prices_raw)
-                    except Exception:
-                        continue
-                if not outcome_prices_raw:
+                # Resolve prices from raw market dict if available
+                raw_dict = getattr(m, "metadata", None) or (m if isinstance(m, dict) else None)
+                if raw_dict and isinstance(raw_dict, dict) and "outcomePrices" in raw_dict:
+                    yes_p, no_p = _resolve_yes_no_prices(raw_dict)
+                elif hasattr(m, "yes_price"):
+                    yes_p = float(m.yes_price)
+                    no_p = float(getattr(m, "no_price", 1.0 - yes_p))
+                else:
                     continue
-                try:
-                    yes_price = float(outcome_prices_raw[0])
-                except (TypeError, ValueError):
-                    continue
-                if 0 < yes_price < max_price:
-                    candidates.append((m, yes_price))
+
+                # Debug: log raw outcomePrices for first few markets
+                if len(candidates) < 5:
+                    ctx.logger.debug(
+                        "[longshot_bias] {} yes={:.4f} no={:.4f} raw_outcomePrices={}",
+                        getattr(m, "slug", getattr(m, "ticker", "?")),
+                        yes_p, no_p,
+                        (raw_dict or {}).get("outcomePrices", "N/A"),
+                    )
+
+                if 0 < yes_p < max_price:
+                    candidates.append((m, yes_p, no_p))
 
             # Get dynamic longshot bias from actual settled trades
             from backend.core.longshot_bias import LongshotBiasDetector
@@ -148,10 +184,9 @@ class LongshotBiasStrategy(BaseStrategy):
                 bias_ratio,
             )
 
-            for market, yes_price in candidates:
+            for market, yes_price, no_price in candidates:
                 try:
-                    slug = market.get("slug") or market.get("conditionId") or "unknown"
-                    no_price = 1.0 - yes_price
+                    market_slug = getattr(market, "slug", "") or ""
 
                     # EV calculation for NO token based on YES overpricing bias:
                     # gross edge of NO is: yes_price * (1.0 - bias_ratio)
@@ -173,46 +208,61 @@ class LongshotBiasStrategy(BaseStrategy):
                     kelly = max(0, kelly * kelly_frac)  # fractional Kelly
                     position_size = min(kelly * 100.0, max_position)  # cap at max
 
-                    if position_size < 5.0:  # below min order
-                        continue
-
-                    # Extract NO token ID from clobTokenIds (index 1 = NO)
-                    clob_token_ids = market.get("clobTokenIds") or []
-                    if isinstance(clob_token_ids, str):
-                        try:
-                            clob_token_ids = json.loads(clob_token_ids)
-                        except Exception:
-                            clob_token_ids = []
-                    no_token_id = clob_token_ids[1] if len(clob_token_ids) > 1 else None
-                    if not no_token_id:
-                        ctx.logger.warning(
-                            "[longshot_bias] Skipping {} — no clobTokenIds[1]",
-                            slug,
-                        )
+                    if position_size < 1.0:  # min $1 order (was $5, too high for $1.89 balance)
                         continue
 
                     decisions_recorded += 1
                     trades_attempted += 1
 
+                    # Place order via CLOB
+                    metadata = getattr(market, "metadata", None) or (market if isinstance(market, dict) else {})
+                    if not isinstance(metadata, dict):
+                        metadata = {}
+                    no_token_id = metadata.get("no_token_id")
+                    if not no_token_id:
+                        ctx.logger.warning(
+                            "[longshot_bias] Skipping {} — no no_token_id in metadata",
+                            market_slug,
+                        )
+                        continue
+
+                    # Build decision dict (for shadow trade tracking + trade log)
                     decision = {
-                        "decision": "BUY",
-                        "direction": "NO",
-                        "market_slug": slug,
+                        "market_ticker": market_slug,
+                        "market_slug": market_slug,
                         "token_id": no_token_id,
-                        "side": "BUY",
-                        "price": round(no_price, 3),
+                        "market_question": getattr(market, "question", "") or market_slug,
+                        "direction": "down",
+                        "decision": "BUY",
+                        "entry_price": round(no_price, 4),
                         "size": round(position_size, 2),
-                        "confidence": true_win_prob,
-                        "edge": ev,
-                        "model_probability": true_win_prob,
-                        "market_type": "longshot_bias",
-                        "reasoning": f"longshot_bias ev={ev:.3f} kelly={kelly:.3f} win_prob={true_win_prob:.3f}",
+                        "suggested_size": round(position_size, 2),
+                        "edge": round(ev, 4),
+                        "confidence": round(kelly, 4),
+                        "model_probability": round(true_win_prob, 4),
+                        "market_probability": round(yes_price, 4),
+                        "platform": "polymarket",
+                        "strategy_name": self.name,
+                        "trading_mode": ctx.mode,
                     }
-                    decisions.append(decision)
+
+                    if ctx.mode != "paper":
+                        order = await ctx.clob.place_order(
+                            token_id=no_token_id,
+                            side="BUY",
+                            price=no_price,
+                            size=position_size,
+                        )
+                        if order:
+                            trades_placed += 1
+                    else:
+                        trades_placed += 1  # paper mode auto-fills
+
+                    result_decisions.append(decision)
 
                     ctx.logger.info(
                         "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
-                        slug,
+                        market_slug,
                         no_price * 100,
                         ev,
                         kelly,
@@ -222,7 +272,9 @@ class LongshotBiasStrategy(BaseStrategy):
                 except Exception as exc:
                     errors.append(str(exc))
                     ctx.logger.error(
-                        "[longshot_bias] Error on {}: {}", slug, exc
+                        "[longshot_bias] Error on {}: {}",
+                        getattr(market, "slug", "?"),
+                        exc,
                     )
 
         except Exception as exc:
@@ -247,5 +299,5 @@ class LongshotBiasStrategy(BaseStrategy):
             trades_attempted=trades_attempted,
             trades_placed=trades_placed,
             errors=errors,
-            decisions=decisions,
+            decisions=result_decisions,
         )
