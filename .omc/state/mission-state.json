@@ -1,9 +1,13 @@
 {
 <<<<<<< HEAD
+<<<<<<< HEAD
   "updatedAt": "2026-05-28T21:01:59.285Z",
 =======
   "updatedAt": "2026-05-29T19:49:33.058Z",
 >>>>>>> worktree-agent-aebac5c3
+=======
+  "updatedAt": "2026-05-29T19:49:33.058Z",
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
   "missions": [
     {
       "id": "session:34d6ba8d-0e75-4346-bbfb-485b4b9098f3:none",
@@ -1575,6 +1579,7 @@
     },
     {
 <<<<<<< HEAD
+<<<<<<< HEAD
       "id": "session:128ec536-6cb6-4a07-85f1-8e48426e8492:none",
       "source": "session",
       "name": "none",
@@ -1590,6 +1595,8 @@
         "inProgress": 5,
         "completed": 40,
 =======
+=======
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
       "id": "session:ac10c756-e9ed-4d16-9399-a0c40e6ad0e8:none",
       "source": "session",
       "name": "none",
@@ -1604,11 +1611,15 @@
         "blocked": 0,
         "inProgress": 0,
         "completed": 1,
+<<<<<<< HEAD
 >>>>>>> worktree-agent-aebac5c3
+=======
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
         "failed": 0
       },
       "agents": [
         {
+<<<<<<< HEAD
 <<<<<<< HEAD
           "name": "verification:a004b52",
           "role": "verification",
@@ -1828,10 +1839,16 @@
           "role": "executor",
           "ownership": "aebac5c33d635dbad",
 >>>>>>> worktree-agent-aebac5c3
+=======
+          "name": "executor:aebac5c",
+          "role": "executor",
+          "ownership": "aebac5c33d635dbad",
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
           "status": "done",
           "currentStep": null,
           "latestUpdate": "completed",
           "completedSummary": null,
+<<<<<<< HEAD
 <<<<<<< HEAD
           "updatedAt": "2026-05-28T11:08:56.549Z"
         },
@@ -2067,10 +2084,14 @@
 =======
           "updatedAt": "2026-05-29T19:49:33.058Z"
 >>>>>>> worktree-agent-aebac5c3
+=======
+          "updatedAt": "2026-05-29T19:49:33.058Z"
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
         }
       ],
       "timeline": [
         {
+<<<<<<< HEAD
 <<<<<<< HEAD
           "id": "session-stop:aa6e0025b752c72ca:2026-05-28T17:32:24.054Z",
           "at": "2026-05-28T17:32:24.054Z",
@@ -2207,6 +2228,8 @@
           "detail": "completed",
           "sourceKey": "session-stop:a93a97455123c80ef"
 =======
+=======
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
           "id": "session-start:aebac5c33d635dbad:2026-05-29T19:23:31.535Z",
           "at": "2026-05-29T19:23:31.535Z",
           "kind": "update",
@@ -2413,7 +2436,10 @@
           "agent": "executor:aebac5c",
           "detail": "completed",
           "sourceKey": "session-stop:aebac5c33d635dbad"
+<<<<<<< HEAD
 >>>>>>> worktree-agent-aebac5c3
+=======
+>>>>>>> 51a9a264 (fix: broaden strategy filters — bond_scanner, longshot_bias, universal_scanner)
         }
       ]
     }

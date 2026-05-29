@@ -195,6 +195,7 @@ class LongshotBiasStrategy(BaseStrategy):
                     trades_attempted += 1
 
                     decision = {
+                        "decision": "BUY",
                         "market_slug": slug,
                         "token_id": no_token_id,
                         "side": "BUY",
