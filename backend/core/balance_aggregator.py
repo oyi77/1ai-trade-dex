@@ -241,20 +241,20 @@ class BalanceAggregator:
                 except Exception as e:
                     logger.debug(f"SXBet poll error: {e}")
 
-                # Limitless
-                try:
-                    from backend.clients.limitless_client import LimitlessClient
-                    client = LimitlessClient()
-                    bal = await client.get_balance()
-                    if bal:
-                        self._update("limitless", VenueBalance(
-                            venue="limitless",
-                            cash_balance=float(bal.get("balance", bal.get("value", 0))),
-                            total_equity=float(bal.get("balance", bal.get("value", 0))),
-                            source="poll",
-                        ))
-                except Exception as e:
-                    logger.debug(f"Limitless poll error: {e}")
+                # Limitless — DISABLED (smart wallet not deployed on Base, 2026-05-30)
+                # try:
+                #     from backend.clients.limitless_client import LimitlessClient
+                #     client = LimitlessClient()
+                #     bal = await client.get_balance()
+                #     if bal:
+                #         self._update("limitless", VenueBalance(
+                #             venue="limitless",
+                #             cash_balance=float(bal.get("balance", bal.get("value", 0))),
+                #             total_equity=float(bal.get("balance", bal.get("value", 0))),
+                #             source="poll",
+                #         ))
+                # except Exception as e:
+                #     logger.debug(f"Limitless poll error: {e}")
 
                 # Azuro
                 try:

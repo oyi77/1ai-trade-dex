@@ -15,7 +15,7 @@ class TestActivitySourceInterfaces:
         ("lighter", "backend.core.activity.sources.lighter_source", "LighterActivitySource", {"wallet_address": "0xtest", "ws_client": MagicMock()}),
         ("polymarket", "backend.core.activity.sources.polymarket_source", "PolymarketActivitySource", {"wallet_address": "0xtest", "clob_client": MagicMock()}),
         ("azuro", "backend.core.activity.sources.azuro_source", "AzuroActivitySource", {"wallet_address": "0xtest"}),
-        ("limitless", "backend.core.activity.sources.limitless_source", "LimitlessActivitySource", {"wallet_address": "0xtest"}),
+        # ("limitless", "backend.core.activity.sources.limitless_source", "LimitlessActivitySource", {"wallet_address": "0xtest"}),  # DISABLED
         ("kalshi", "backend.core.activity.sources.kalshi_source", "KalshiActivitySource", {"wallet_address": "0xtest"}),
         ("ostium", "backend.core.activity.sources.ostium_source", "OstiumActivitySource", {"wallet_address": "0xtest"}),
         ("myriad", "backend.core.activity.sources.myriad_source", "MyriadActivitySource", {"wallet_address": "0xtest"}),
@@ -87,7 +87,7 @@ class TestClientMethods:
         ("OstiumClient", "backend.clients.ostium_client", ["get_fills", "get_balance", "get_positions", "health_check"]),
         ("MyriadClient", "backend.clients.myriad_client", ["get_fills", "get_balance", "get_positions", "health_check"]),
         ("SXBetClient", "backend.clients.sxbet_client", ["get_fills", "get_balance", "get_positions", "health_check"]),
-        ("LimitlessClient", "backend.clients.limitless_client", ["get_fills", "health_check"]),
+        # ("LimitlessClient", "backend.clients.limitless_client", ["get_fills", "health_check"]),  # DISABLED
         ("AzuroClient", "backend.clients.azuro_client", ["cached_query", "health_check"]),
     ]
 
@@ -156,7 +156,8 @@ class TestOrchestratorRegistration:
         source = inspect.getsource(Orchestrator._register_activity_sources)
         expected = [
             "aster", "hyperliquid", "lighter", "polymarket",
-            "azuro", "limitless", "kalshi", "ostium", "myriad", "sxbet", "paper",
+            "azuro", "kalshi", "ostium", "myriad", "sxbet", "paper",
+            # "limitless",  # DISABLED — smart wallet not deployed (2026-05-30)
         ]
         for name in expected:
             assert f'register_source("{name}"' in source, \
@@ -168,7 +169,8 @@ class TestOrchestratorRegistration:
         import inspect
 
         source = inspect.getsource(BalanceAggregator)
-        for platform in ["myriad", "sxbet", "limitless", "azuro"]:
+        for platform in ["myriad", "sxbet", "azuro"]:
+            # "limitless" removed — DISABLED (smart wallet not deployed, 2026-05-30)
             assert platform in source.lower()
 
 

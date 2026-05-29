@@ -332,15 +332,14 @@ class Orchestrator:
         except Exception as e:
             logger.warning(f"Azuro activity source skipped: {e}")
 
-        # Limitless — Base CLOB REST fills
-        try:
-            from backend.clients.limitless_client import LimitlessClient
-            from backend.core.activity.sources.limitless_source import LimitlessActivitySource
-
-            limitless_client = LimitlessClient()
-            tracker.register_source("limitless", LimitlessActivitySource(addr, limitless_client))
-        except Exception as e:
-            logger.warning(f"Limitless activity source skipped: {e}")
+        # Limitless — DISABLED (smart wallet not deployed on Base, 2026-05-30)
+        # try:
+        #     from backend.clients.limitless_client import LimitlessClient
+        #     from backend.core.activity.sources.limitless_source import LimitlessActivitySource
+        #     limitless_client = LimitlessClient()
+        #     tracker.register_source("limitless", LimitlessActivitySource(addr, limitless_client))
+        # except Exception as e:
+        #     logger.warning(f"Limitless activity source skipped: {e}")
 
         # Kalshi — REST fills + position polling
         try:
