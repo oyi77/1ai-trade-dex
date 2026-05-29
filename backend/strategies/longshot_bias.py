@@ -80,6 +80,7 @@ class LongshotBiasStrategy(BaseStrategy):
         trades_attempted = 0
         trades_placed = 0
         errors: list[str] = []
+        decisions: list[dict] = []
 
         try:
             # Fetch markets directly from Gamma API (raw dicts with clobTokenIds)
@@ -244,4 +245,5 @@ class LongshotBiasStrategy(BaseStrategy):
             trades_attempted=trades_attempted,
             trades_placed=trades_placed,
             errors=errors,
+            decisions=decisions,
         )
