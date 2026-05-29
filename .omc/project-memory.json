@@ -282,15 +282,132 @@
       "type": "directory"
     },
     {
+<<<<<<< HEAD
+=======
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 54,
+      "lastAccessed": 1779816094996,
+      "type": "directory"
+    },
+    {
+      "path": "backend/models/database.py",
+      "accessCount": 51,
+      "lastAccessed": 1779807518985,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_manager.py",
+      "accessCount": 51,
+      "lastAccessed": 1779810881998,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/scheduling/scheduler.py",
+      "accessCount": 49,
+      "lastAccessed": 1779808880668,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/orchestrator.py",
+      "accessCount": 31,
+      "lastAccessed": 1779799058969,
+      "type": "file"
+    },
+    {
+      "path": "backend/config.py",
+      "accessCount": 21,
+      "lastAccessed": 1780083177834,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/strategy_gate.py",
+      "accessCount": 13,
+      "lastAccessed": 1779812549635,
+      "type": "file"
+    },
+    {
+      "path": ".env",
+      "accessCount": 11,
+      "lastAccessed": 1779798816826,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/plugin_registry.py",
+      "accessCount": 10,
+      "lastAccessed": 1779751447659,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/correlation_monitor.py",
+      "accessCount": 9,
+      "lastAccessed": 1779810544327,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/crypto_feeds/registry.py",
+      "accessCount": 8,
+      "lastAccessed": 1779751464995,
+      "type": "file"
+    },
+    {
+      "path": "backend/data/source_registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779751446487,
+      "type": "file"
+    },
+    {
+      "path": "backend/monitoring/backends/registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779751447704,
+      "type": "file"
+    },
+    {
+>>>>>>> worktree-agent-aebac5c3
       "path": "",
       "accessCount": 109,
       "lastAccessed": 1779999515016,
       "type": "directory"
     },
     {
+<<<<<<< HEAD
       "path": "backend/strategies",
       "accessCount": 73,
       "lastAccessed": 1780034197479,
+=======
+      "path": "backend/bot/notification/registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1779817863033,
+      "type": "file"
+    },
+    {
+      "path": "backend/strategies/base.py",
+      "accessCount": 7,
+      "lastAccessed": 1780083058655,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/settlement/settlement_helpers.py",
+      "accessCount": 6,
+      "lastAccessed": 1779751198584,
+      "type": "file"
+    },
+    {
+      "path": "backend/application/agi/evolution_jobs.py",
+      "accessCount": 6,
+      "lastAccessed": 1779751205141,
+      "type": "file"
+    },
+    {
+      "path": "backend/markets/provider_registry.py",
+      "accessCount": 6,
+      "lastAccessed": 1779751447452,
+      "type": "file"
+    },
+    {
+      "path": "backend/core/risk/risk_profiles.py",
+      "accessCount": 6,
+      "lastAccessed": 1779780658798,
+>>>>>>> worktree-agent-aebac5c3
       "type": "directory"
     },
     {
@@ -306,6 +423,7 @@
       "type": "file"
     },
     {
+<<<<<<< HEAD
       "path": "backend/strategies/hft_cross_arb.py",
       "accessCount": 52,
       "lastAccessed": 1779965443712,
@@ -330,6 +448,8 @@
       "type": "file"
     },
     {
+=======
+>>>>>>> worktree-agent-aebac5c3
       "path": "backend/core/settlement/settlement.py",
       "accessCount": 29,
       "lastAccessed": 1779912299072,
@@ -474,6 +594,7 @@
       "type": "directory"
     },
     {
+<<<<<<< HEAD
       "path": "backend/api/copy_trading.py",
       "accessCount": 2,
       "lastAccessed": 1779891781739,
@@ -489,6 +610,17 @@
       "path": "backend/cache/redis_cache.py",
       "accessCount": 2,
       "lastAccessed": 1779892632996,
+=======
+      "path": "backend/markets",
+      "accessCount": 2,
+      "lastAccessed": 1780082813648,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/settlement_helpers.py",
+      "accessCount": 1,
+      "lastAccessed": 1779751174123,
+>>>>>>> worktree-agent-aebac5c3
       "type": "file"
     },
     {
@@ -534,9 +666,15 @@
       "type": "file"
     },
     {
+<<<<<<< HEAD
       "path": "docs/audit-reports/N1_QUERY_AUDIT.md",
       "accessCount": 1,
       "lastAccessed": 1779890865471,
+=======
+      "path": "backend/core/trade_attempts.py",
+      "accessCount": 1,
+      "lastAccessed": 1779757184634,
+>>>>>>> worktree-agent-aebac5c3
       "type": "file"
     },
     {
