@@ -273,8 +273,8 @@
     },
     {
       "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 56,
-      "lastAccessed": 1780092405790,
+      "accessCount": 58,
+      "lastAccessed": 1780098015685,
       "type": "directory"
     },
     {
@@ -308,16 +308,16 @@
       "type": "file"
     },
     {
+      "path": "backend/strategies/base.py",
+      "accessCount": 15,
+      "lastAccessed": 1780098095181,
+      "type": "directory"
+    },
+    {
       "path": "backend/core/strategy_gate.py",
       "accessCount": 13,
       "lastAccessed": 1779812549635,
       "type": "file"
-    },
-    {
-      "path": "backend/strategies/base.py",
-      "accessCount": 12,
-      "lastAccessed": 1780097137271,
-      "type": "directory"
     },
     {
       "path": ".env",

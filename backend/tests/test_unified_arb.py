@@ -216,7 +216,7 @@ class TestRunCycle:
         ctx.db = MagicMock()
         ctx.bankroll = 100.0
 
-        opps = [_make_opp(event_id=f"evt{i}", net_profit=0.05 - i * 0.001) for i in range(5)]
+        opps = [_make_opp(net_profit=0.05 - i * 0.001) for i in range(5)]
         mock_scan = _make_scan_result(opps=opps)
 
         with patch.object(strategy, "_fetch_polymarket", AsyncMock(return_value=[{"question": "Test", "event_id": "x", "yes_price": 0.55, "no_price": 0.55, "platform": "polymarket"}])), \
