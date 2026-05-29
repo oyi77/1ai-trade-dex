@@ -171,11 +171,13 @@ class TestProviderInstantiation:
         p = BookmakerXyzProvider()
         assert p.platform_name == "bookmaker_xyz"
 
-    def test_limitless_provider(self):
+    def test_limitless_provider_disabled(self):
+        """Limitless DISABLED — smart wallet not deployed on Base (2026-05-30)."""
+        import pytest
         from backend.data.providers.limitless import LimitlessProvider
 
-        p = LimitlessProvider()
-        assert p.platform_name == "limitless"
+        with pytest.raises(RuntimeError, match="Limitless disabled"):
+            LimitlessProvider()
 
     def test_sxbet_provider(self):
         from backend.data.providers.sxbet import SXBetProvider

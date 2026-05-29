@@ -145,7 +145,7 @@ class TestSourceInstantiation:
         ("lighter", "backend.core.activity.sources.lighter_source", "LighterActivitySource", {"wallet_address": WALLET or "0xtest", "ws_client": MagicMock()}),
         ("polymarket", "backend.core.activity.sources.polymarket_source", "PolymarketActivitySource", {"wallet_address": WALLET or "0xtest", "clob_client": MagicMock()}),
         ("azuro", "backend.core.activity.sources.azuro_source", "AzuroActivitySource", {"wallet_address": WALLET or "0xtest"}),
-        ("limitless", "backend.core.activity.sources.limitless_source", "LimitlessActivitySource", {"wallet_address": WALLET or "0xtest"}),
+        # ("limitless", "backend.core.activity.sources.limitless_source", "LimitlessActivitySource", {"wallet_address": WALLET or "0xtest"}),  # DISABLED
         ("kalshi", "backend.core.activity.sources.kalshi_source", "KalshiActivitySource", {"wallet_address": WALLET or "0xtest"}),
         ("ostium", "backend.core.activity.sources.ostium_source", "OstiumActivitySource", {"wallet_address": WALLET or "0xtest"}),
         ("myriad", "backend.core.activity.sources.myriad_source", "MyriadActivitySource", {"wallet_address": WALLET or "0xtest"}),

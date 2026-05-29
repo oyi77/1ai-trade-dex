@@ -314,16 +314,16 @@
       "type": "file"
     },
     {
+      "path": "backend/strategies/base.py",
+      "accessCount": 12,
+      "lastAccessed": 1780097137271,
+      "type": "directory"
+    },
+    {
       "path": ".env",
       "accessCount": 11,
       "lastAccessed": 1779798816826,
       "type": "file"
-    },
-    {
-      "path": "backend/strategies/base.py",
-      "accessCount": 11,
-      "lastAccessed": 1780092511666,
-      "type": "directory"
     },
     {
       "path": "backend/core/plugin_registry.py",
@@ -348,6 +348,12 @@
       "accessCount": 8,
       "lastAccessed": 1779751464995,
       "type": "file"
+    },
+    {
+      "path": "backend/markets/providers/kalshi_provider.py",
+      "accessCount": 8,
+      "lastAccessed": 1780096891037,
+      "type": "directory"
     },
     {
       "path": "backend/data/source_registry.py",
@@ -380,15 +386,15 @@
       "type": "directory"
     },
     {
-      "path": "backend/application/agi/evolution_jobs.py",
-      "accessCount": 6,
-      "lastAccessed": 1779751205141,
+      "path": "backend/markets/provider_registry.py",
+      "accessCount": 7,
+      "lastAccessed": 1780096886670,
       "type": "file"
     },
     {
-      "path": "backend/markets/provider_registry.py",
+      "path": "backend/application/agi/evolution_jobs.py",
       "accessCount": 6,
-      "lastAccessed": 1779751447452,
+      "lastAccessed": 1779751205141,
       "type": "file"
     },
     {
@@ -402,12 +408,6 @@
       "accessCount": 6,
       "lastAccessed": 1780092406227,
       "type": "file"
-    },
-    {
-      "path": "backend/markets/providers/kalshi_provider.py",
-      "accessCount": 6,
-      "lastAccessed": 1780094947344,
-      "type": "directory"
     },
     {
       "path": "backend/core/settlement/settlement.py",

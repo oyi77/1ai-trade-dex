@@ -225,7 +225,8 @@ class PMXTProvider(DataProvider):
     """PMXT multi-platform data provider — secondary provider via pmxt_client."""
 
     def __init__(self) -> None:
-        self._exchanges = ["polymarket", "kalshi", "limitless", "hyperliquid"]
+        # "limitless" removed — smart wallet not deployed on Base (2026-05-30)
+        self._exchanges = ["polymarket", "kalshi", "hyperliquid"]
 
     async def fetch_markets(
         self,

@@ -32,7 +32,7 @@ _PM_PROVIDER_SCANNERS: List[Tuple[str, str]] = [
     ("polymarket", "_scan_polymarket"),
     ("kalshi", "_scan_kalshi"),
     ("sxbet", "_scan_sxbet"),
-    ("limitless", "_scan_limitless"),
+    # ("limitless", "_scan_limitless"),  # DISABLED — smart wallet not deployed (2026-05-30)
 ]
 
 
@@ -195,38 +195,8 @@ class ArbOpportunityScanner:
             return []
 
     async def _scan_limitless(self) -> List[Dict[str, Any]]:
-        """Fetch Limitless Exchange active markets with real prices."""
-        try:
-            from backend.clients.limitless_client import LimitlessClient
-            client = LimitlessClient()
-            markets = await client.get_markets(limit=100)
-            normalized = []
-            for m in markets:
-                if not isinstance(m, dict):
-                    continue
-                prices = m.get("prices", [])
-                if not isinstance(prices, list) or len(prices) < 2:
-                    continue
-                yes_price = float(prices[0]) if prices[0] else None
-                no_price = float(prices[1]) if prices[1] else None
-                if yes_price is None or not (0 < yes_price < 1):
-                    continue
-                title = m.get("title", "") or m.get("proxyTitle", "")
-                normalized.append({
-                    "question": title,
-                    "event_id": str(m.get("conditionId", m.get("id", ""))),
-                    "yes_price": yes_price,
-                    "no_price": no_price if no_price else round(1.0 - yes_price, 4),
-                    "platform": "limitless",
-                    "fee_pct": 0.02,
-                    "liquidity": float(m.get("volume", 0) or 0),
-                    "volume": float(m.get("volume", 0) or 0),
-                    "_raw": m,
-                })
-            return normalized
-        except Exception as e:
-            logger.warning(f"arb_scanner: Limitless fetch failed: {e}")
-            return []
+        """Limitless DISABLED — smart wallet not deployed on Base (2026-05-30)."""
+        return []
 
     # ── Main scan loop ─────────────────────────────────────────────
 

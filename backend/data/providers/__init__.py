@@ -5,7 +5,8 @@ from backend.data.providers.azuro import (
     PredictFunProvider,
     BookmakerXyzProvider,
 )
-from backend.data.providers.limitless import LimitlessProvider
+# LimitlessProvider disabled — smart wallet not deployed (2026-05-30)
+# from backend.data.providers.limitless import LimitlessProvider
 from backend.data.providers.sxbet import SXBetProvider
 
 __all__ = [
@@ -14,6 +15,6 @@ __all__ = [
     "AzuroProvider",
     "PredictFunProvider",
     "BookmakerXyzProvider",
-    "LimitlessProvider",
+    # "LimitlessProvider",  # disabled — smart wallet not deployed
     "SXBetProvider",
 ]

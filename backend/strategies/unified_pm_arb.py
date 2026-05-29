@@ -1,1120 +1,229 @@
 """
-Unified Prediction-Market Arbitrage Strategy.
+Unified PM Arbitrage Strategy — Polymarket + Kalshi cross-platform arb detection.
 
-Replaces cross_market_arb.py, arb_scanner.py, and hft_cross_arb.py with a single
-strategy that uses the market provider registry for all I/O.
+Uses the proven CrossMarketArbEnhanced detector (same engine as arb_scanner.py,
+which has a +$160 / 23-trade track record). Fetches Polymarket + Kalshi markets,
+scans for cross-platform arbitrage opportunities, and returns decisions via
+CycleResult for the strategy executor pipeline.
 
-Detection: CrossMarketArbEnhanced (unchanged)
-Execution: provider.place_order(NormalizedOrder) via market_registry
-Sizing: Kelly criterion (fractional, from hft_cross_arb)
-Safety: Per-venue circuit breakers + atomic 2-leg with emergency cancel
+Does NOT self-execute — the executor handles order placement, sizing, risk gates,
+and position tracking.
 """
 
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import time
-import uuid
-from dataclasses import dataclass, field
-from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
-from backend.markets.order_types import (
-    NormalizedOrder,
-    NormalizedOrderResult,
-    OrderSide,
-    OrderStatus,
-    OrderType,
-)
-from backend.strategies.base import (
-    BaseStrategy,
-    CycleResult,
-    MarketInfo,
-    StrategyContext,
-)
-from backend.strategies.cross_market_arb_enhanced import (
-    ArbOpportunityEnhanced,
-    CrossMarketArbEnhanced,
-)
+from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
+from backend.strategies.cross_market_arb_enhanced import CrossMarketArbEnhanced
 
-
-# ---------------------------------------------------------------------------
-# DEX price types (inlined from cross_dex_arb.py)
-# ---------------------------------------------------------------------------
-
-@dataclass
-class PriceQuote:
-    """Normalized price from a single exchange for one asset."""
-    exchange: str
-    base: str
-    quote: str = "USD"
-    bid: float = 0.0
-    ask: float = 0.0
-    mid: float = 0.0
-    timestamp: float = field(default_factory=time.time)
-
-
-@dataclass
-class DexArbOpportunity:
-    """Cross-DEX arbitrage opportunity."""
-    asset: str
-    buy_exchange: str
-    sell_exchange: str
-    buy_price: float
-    sell_price: float
-    gross_spread: float
-    taker_fees_pct: float
-    gas_estimate: float
-    net_profit_pct: float
-    confidence: float
-    timestamp: float = field(default_factory=time.time)
-
-
-# ---------------------------------------------------------------------------
-# Configuration helpers
-# ---------------------------------------------------------------------------
-
-def _cfg(name: str, default: Any = None) -> Any:
-    return getattr(settings, name, default)
-
-
-# PM-only venues (no DEX) — venues with programmatic order placement
-_PM_VENUES: List[str] = [
-    "polymarket",
-    "kalshi",
-    "limitless",
-]
-
-# Fee map per venue (fraction)
-_FEE_MAP: Dict[str, float] = {
-    "polymarket": 0.02,
-    "kalshi": 0.07,
-    "sxbet": 0.02,
-    "myriad": 0.02,
-    "predict_fun": 0.02,
-    "bookmaker_xyz": 0.02,
-    "limitless": 0.02,
-}
-
-
-# ---------------------------------------------------------------------------
-# MarketInfo-to-dict bridge for CrossMarketArbEnhanced
-# ---------------------------------------------------------------------------
-
-def _normalize_market_info(m: Any, venue: str) -> dict:
-    """Convert a MarketInfo dataclass or raw dict to the dict format
-    expected by CrossMarketArbEnhanced.scan_all_providers()."""
-    # Handle raw dicts (from get_markets fallback)
-    if isinstance(m, dict):
-        raw = m
-        title = m.get("question") or m.get("title") or m.get("proxyTitle") or ""
-        # SXBet: construct title from team names
-        if not title and m.get("teamOneName"):
-            title = f"{m.get('teamOneName', '')} vs {m.get('teamTwoName', '')}"
-        market_id = str(m.get("id", m.get("marketHash", "")))
-        prices = m.get("prices", m.get("outcomePrices", []))
-        yes_price = float(prices[0]) if prices and len(prices) > 0 else None
-        no_price = float(prices[1]) if prices and len(prices) > 1 else None
-        slug = str(m.get("slug", ""))
-        clob_ids = m.get("clobTokenIds") or []
-        if isinstance(clob_ids, str):
-            try:
-                clob_ids = json.loads(clob_ids)
-            except Exception:
-                clob_ids = []
-        return {
-            "question": title,
-            "event_id": market_id,
-            "slug": slug,
-            "yes_price": yes_price,
-            "no_price": no_price,
-            "platform": venue,
-            "fee_pct": _FEE_MAP.get(venue, 0.02),
-            "liquidity": float(m.get("liquidity", m.get("liquidityNum", 0)) or 0),
-            "volume": float(m.get("volume", m.get("volumeNum", 0)) or 0),
-            "clobTokenIds": clob_ids,
-            "_raw": raw,
-        }
-
-    # Handle MarketInfo dataclass
-    raw = m.raw if hasattr(m, "raw") and m.raw else {}
-    if isinstance(raw, str):
-        try:
-            raw = json.loads(raw)
-        except Exception:
-            raw = {}
-
-    # Resolve clobTokenIds from raw
-    clob_ids = raw.get("clobTokenIds") or []
-    if isinstance(clob_ids, str):
-        try:
-            clob_ids = json.loads(clob_ids)
-        except Exception:
-            clob_ids = []
-
-    # Extract prices — MarketInfo uses Decimal
-    yes_price = None
-    no_price = None
-    try:
-        yp = getattr(m, "yes_price", None)
-        if yp is not None:
-            yp_f = float(yp)
-            if 0 < yp_f < 1:
-                yes_price = yp_f
-    except (ValueError, TypeError):
-        pass
-    try:
-        np_ = getattr(m, "no_price", None)
-        if np_ is not None:
-            np_f = float(np_)
-            if 0 < np_f < 1:
-                no_price = np_f
-    except (ValueError, TypeError):
-        pass
-
-    title = getattr(m, "title", "") or ""
-    market_id = str(getattr(m, "market_id", ""))
-    volume_24h = getattr(m, "volume_24h", 0)
-    open_interest = getattr(m, "open_interest", 0)
-
-    slug = str(getattr(m, "slug", "") or raw.get("slug", "") or "")
-
-    return {
-        "question": title,
-        "event_id": market_id,
-        "slug": slug,
-        "yes_price": yes_price,
-        "no_price": no_price,
-        "platform": venue,
-        "fee_pct": _FEE_MAP.get(venue, 0.02),
-        "liquidity": float(open_interest or 0),
-        "volume": float(volume_24h or 0),
-        "clobTokenIds": clob_ids,
-        "_raw": raw,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Kelly criterion sizing (identical to hft_cross_arb._kelly_size)
-# ---------------------------------------------------------------------------
-
-def _kelly_size(
-    edge: float,
-    odds: float = 1.0,
-    bankroll: float = 1000.0,
-    max_size: float = 200.0,
-    kelly_fraction: float = 0.25,
-) -> float:
-    """Calculate Kelly-criterion position size for an arb edge.
-
-    Uses fractional Kelly (default 25%) to reduce variance.
-    For arb: edge is the guaranteed net profit per dollar, odds is 1:1.
-    """
-    if edge <= 0 or bankroll <= 0:
-        return 0.0
-    # Kelly: f* = (bp - q) / b where b=odds, p=prob of win, q=1-p
-    # For arb (guaranteed): p ~= 1, so f* = edge / odds
-    kelly = (edge / odds) * kelly_fraction
-    size = kelly * bankroll
-    return max(0.0, min(size, max_size))
-
-
-# ---------------------------------------------------------------------------
-# DEX Price Feed (inlined from cross_dex_arb.py)
-# ---------------------------------------------------------------------------
-
-class DexPriceFeed:
-    """Fetch prices from all DEX providers using existing clients."""
-
-    DEFAULT_TAKER_FEES = {
-        "hyperliquid": 0.0005,
-        "aster": 0.00035,
-        "lighter": 0.0,
-        "ostium": 0.005,
-    }
-
-    DEFAULT_TIMEOUTS = {
-        "hyperliquid": 15.0,
-        "aster": 20.0,
-        "lighter": 10.0,
-        "ostium": 10.0,
-    }
-
-    def __init__(
-        self,
-        taker_fees: Optional[Dict[str, float]] = None,
-        timeouts: Optional[Dict[str, float]] = None,
-    ):
-        self._taker_fees = taker_fees or dict(self.DEFAULT_TAKER_FEES)
-        self._timeouts = timeouts or dict(self.DEFAULT_TIMEOUTS)
-
-    async def fetch_hyperliquid_prices(self) -> List[PriceQuote]:
-        try:
-            def _sync_fetch():
-                from hyperliquid.info import Info
-                from hyperliquid.utils import constants as hl_constants
-                info = Info(hl_constants.MAINNET_API_URL, skip_ws=True)
-                mids = info.all_mids()
-                books = {}
-                for name in list(mids.keys())[:50]:
-                    if name.startswith("#"):
-                        continue
-                    try:
-                        l2 = info.l2_snapshot(name)
-                        if l2 and "levels" in l2:
-                            levels = l2["levels"]
-                            bids = levels[0] if len(levels) > 0 else []
-                            asks = levels[1] if len(levels) > 1 else []
-                            best_bid = float(bids[0]["px"]) if bids else 0
-                            best_ask = float(asks[0]["px"]) if asks else 0
-                            if best_bid > 0 and best_ask > 0 and best_bid < best_ask:
-                                books[name] = (best_bid, best_ask)
-                    except Exception:
-                        pass
-                return mids, books
-
-            mids, books = await asyncio.to_thread(_sync_fetch)
-            quotes = []
-            for name, mid in mids.items():
-                try:
-                    mid_f = float(mid)
-                    if mid_f <= 0 or name.startswith("#"):
-                        continue
-                    if name in books:
-                        bid, ask = books[name]
-                        spread_pct = (ask - bid) / mid_f
-                        if spread_pct > 0.02:
-                            continue
-                        quotes.append(PriceQuote(exchange="hyperliquid", base=name, bid=bid, ask=ask, mid=mid_f))
-                except (ValueError, TypeError):
-                    continue
-            return quotes
-        except Exception as e:
-            logger.warning(f"dex_feed: Hyperliquid failed: {e}")
-            return []
-
-    async def fetch_aster_prices(self) -> List[PriceQuote]:
-        client = None
-        try:
-            from backend.clients.aster_client import AsterClient
-            client = AsterClient()
-            tickers = await client.get_tickers()
-            quotes = []
-            for symbol, ticker in tickers.items():
-                if not symbol.endswith("/USDC") and not symbol.endswith("/USDT"):
-                    continue
-                try:
-                    bid = float(ticker.get("bid", 0) or 0)
-                    ask = float(ticker.get("ask", 0) or 0)
-                    last = float(ticker.get("last", 0) or 0)
-                    if bid <= 0 and ask <= 0:
-                        continue
-                    base = symbol.split("/")[0]
-                    quotes.append(PriceQuote(exchange="aster", base=base, bid=bid, ask=ask, mid=last or ((bid + ask) / 2 if bid and ask else 0)))
-                except Exception:
-                    continue
-            return quotes
-        except Exception as e:
-            logger.warning(f"dex_feed: Aster failed: {e}")
-            return []
-        finally:
-            if client:
-                await client.close()
-
-    async def fetch_lighter_prices(self) -> List[PriceQuote]:
-        try:
-            from backend.clients.lighter_client import LighterClient
-            client = LighterClient(skip_signer=True)
-            order_books = await client.get_markets()
-            quotes = []
-            for ob in order_books:
-                if hasattr(ob, "__dict__") and not isinstance(ob, dict):
-                    ob = ob.__dict__
-                if not isinstance(ob, dict):
-                    continue
-                base = ob.get("base_symbol") or ob.get("symbol") or ob.get("name") or ob.get("baseAsset", "")
-                if not base:
-                    continue
-                bids = ob.get("bids") or []
-                asks = ob.get("asks") or []
-                best_bid = float(bids[0].get("price", 0)) if bids else 0
-                best_ask = float(asks[0].get("price", 0)) if asks else 0
-                if best_bid <= 0 and best_ask <= 0:
-                    continue
-                quotes.append(PriceQuote(exchange="lighter", base=str(base).split("/")[0].split("-")[0], bid=best_bid, ask=best_ask, mid=(best_bid + best_ask) / 2 if best_bid and best_ask else 0))
-            return quotes
-        except Exception as e:
-            logger.warning(f"dex_feed: Lighter failed: {e}")
-            return []
-
-    async def fetch_ostium_prices(self) -> List[PriceQuote]:
-        try:
-            from backend.clients.ostium_client import OstiumClient
-            client = OstiumClient()
-            markets = await client.get_markets()
-            quotes = []
-            for m in markets:
-                if hasattr(m, "__dict__") and not isinstance(m, dict):
-                    m = m.__dict__
-                if not isinstance(m, dict):
-                    continue
-                base = m.get("base_symbol") or m.get("from") or m.get("name") or m.get("pair", "")
-                if not base:
-                    continue
-                bid_val = 0.0
-                ask_val = 0.0
-                for key in ("best_bid", "bid", "bid_price"):
-                    val = m.get(key)
-                    if val is not None:
-                        try:
-                            bid_val = float(val)
-                            if bid_val > 0:
-                                break
-                        except (ValueError, TypeError):
-                            pass
-                for key in ("best_ask", "ask", "ask_price"):
-                    val = m.get(key)
-                    if val is not None:
-                        try:
-                            ask_val = float(val)
-                            if ask_val > 0:
-                                break
-                        except (ValueError, TypeError):
-                            pass
-                if bid_val > 0 and ask_val > 0 and bid_val < ask_val:
-                    spread_pct = (ask_val - bid_val) / ((bid_val + ask_val) / 2)
-                    if spread_pct > 0.02:
-                        continue
-                    quotes.append(PriceQuote(exchange="ostium", base=str(base).split("/")[0].split("-")[0], bid=bid_val, ask=ask_val, mid=(bid_val + ask_val) / 2))
-                elif m.get("price") or m.get("mark_price"):
-                    continue  # skip assets without real bid/ask
-            return quotes
-        except Exception as e:
-            logger.warning(f"dex_feed: Ostium failed: {e}")
-            return []
-
-    async def fetch_all_prices(self, exchanges: Optional[List[str]] = None) -> Dict[str, List[PriceQuote]]:
-        targets = exchanges or ["hyperliquid", "aster", "lighter", "ostium"]
-        fetchers = {
-            "hyperliquid": (self.fetch_hyperliquid_prices, self._timeouts.get("hyperliquid", 15.0)),
-            "aster": (self.fetch_aster_prices, self._timeouts.get("aster", 20.0)),
-            "lighter": (self.fetch_lighter_prices, self._timeouts.get("lighter", 10.0)),
-            "ostium": (self.fetch_ostium_prices, self._timeouts.get("ostium", 10.0)),
-        }
-        coros = []
-        names = []
-        for ex in targets:
-            if ex in fetchers:
-                fetcher, timeout = fetchers[ex]
-                coros.append(self._wrap(ex, fetcher, timeout))
-                names.append(ex)
-        results_list = await asyncio.gather(*coros, return_exceptions=True)
-        results = {}
-        for i, r in enumerate(results_list):
-            results[names[i]] = [] if isinstance(r, Exception) else (r or [])
-        return results
-
-    async def _wrap(self, name: str, fetcher, timeout: float):
-        try:
-            return await asyncio.wait_for(fetcher(), timeout=timeout)
-        except asyncio.TimeoutError:
-            logger.warning(f"dex_feed: {name} timeout ({timeout}s)")
-        except Exception as e:
-            logger.warning(f"dex_feed: {name} failed: {e}")
-        return []
-
-
-def _detect_cross_dex_opportunities(
-    all_prices: Dict[str, List[PriceQuote]],
-    min_profit_pct: float = 0.003,
-    gas_estimate: float = 2.0,
-    taker_fees: Optional[Dict[str, float]] = None,
-) -> List[DexArbOpportunity]:
-    """Scan all exchange pairs for arbitrage on same asset."""
-    if taker_fees is None:
-        taker_fees = {}
-
-    asset_map: Dict[str, List[Tuple[str, PriceQuote]]] = {}
-    for exchange, quotes in all_prices.items():
-        for q in quotes:
-            key = q.base.upper()
-            if key not in asset_map:
-                asset_map[key] = []
-            asset_map[key].append((exchange, q))
-
-    opps = []
-    for asset, entries in asset_map.items():
-        if len(entries) < 2:
-            continue
-        for i in range(len(entries)):
-            for j in range(len(entries)):
-                if i == j:
-                    continue
-                ex_i, qi = entries[i]
-                ex_j, qj = entries[j]
-                if qi.ask <= 0 or qj.bid <= 0:
-                    continue
-                buy_price = qi.ask
-                sell_price = qj.bid
-                gross_spread = (sell_price - buy_price) / buy_price
-                if gross_spread <= 0:
-                    continue
-                fee_i = taker_fees.get(ex_i.lower(), 0.005)
-                fee_j = taker_fees.get(ex_j.lower(), 0.005)
-                total_fees = fee_i + fee_j
-                gas_pct = gas_estimate / buy_price if buy_price > 0 else 0
-                net_pct = gross_spread - total_fees - gas_pct
-                if net_pct < min_profit_pct:
-                    continue
-                confidence = min(1.0, (net_pct - min_profit_pct) / (min_profit_pct * 2))
-                opps.append(DexArbOpportunity(
-                    asset=asset, buy_exchange=ex_i, sell_exchange=ex_j,
-                    buy_price=buy_price, sell_price=sell_price,
-                    gross_spread=gross_spread, taker_fees_pct=total_fees,
-                    gas_estimate=gas_estimate, net_profit_pct=net_pct,
-                    confidence=confidence,
-                ))
-
-    seen = set()
-    unique = []
-    for o in sorted(opps, key=lambda o: o.net_profit_pct, reverse=True):
-        key = (o.asset, o.buy_exchange, o.sell_exchange)
-        if key not in seen:
-            seen.add(key)
-            unique.append(o)
-    return unique
-
-
-# ---------------------------------------------------------------------------
-# Unified PM Arbitrage Strategy
-# ---------------------------------------------------------------------------
 
 class UnifiedPMArb(BaseStrategy):
-    """Single prediction-market arbitrage strategy.
+    """Polymarket + Kalshi cross-platform arbitrage detection.
 
-    Scans all registered PM venues via market_registry, detects arb using
-    CrossMarketArbEnhanced, and executes atomically via provider.place_order().
+    Fetches markets from both providers, runs CrossMarketArbEnhanced.scan_all_providers(),
+    and returns detected opportunities as decisions for the executor pipeline.
     """
 
     name = "unified_arb"
-    description = "Unified PM arbitrage: multi-venue scan + Kelly sizing + atomic execution"
+    description = "Polymarket + Kalshi cross-platform arb detection via CrossMarketArbEnhanced"
     category = "arb"
 
     default_params: dict = {
-        "max_exposure": 500.0,
         "min_net_edge": 0.005,
-        "kelly_fraction": 0.35,
-        "slippage_bps": 50.0,
         "max_opportunities_per_cycle": 10,
         "enabled": True,
-        "max_open_positions": 10,
-        "max_per_asset": 2,
-        "stop_loss_pct": 0.10,
-        "profit_target_pct": 0.05,
     }
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._breakers: Dict[str, CircuitBreaker] = {}
-        self._history: List[dict] = []
-        self._dex_feed = DexPriceFeed()
-        self._market_cache: Dict[str, List[dict]] = {}
-        self._cache_time: float = 0.0
-        self._cache_ttl: float = 60.0  # seconds
+        self._detector: Optional[CrossMarketArbEnhanced] = None
+        self._history: List[Dict] = []
 
     # ------------------------------------------------------------------
-    # Circuit breaker per venue
-    # ------------------------------------------------------------------
-
-    def _get_breaker(self, venue: str) -> CircuitBreaker:
-        if venue not in self._breakers:
-            self._breakers[venue] = CircuitBreaker(
-                f"pm_arb_{venue}",
-                failure_threshold=_cfg("ARB_CIRCUIT_BREAKER_THRESHOLD", 5),
-                recovery_timeout=_cfg("ARB_CIRCUIT_BREAKER_TIMEOUT", 60.0),
-            )
-        return self._breakers[venue]
-
-    # ------------------------------------------------------------------
-    # Market fetching via providers
-    # ------------------------------------------------------------------
-
-    async def _fetch_all_pm_markets(
-        self, ctx: StrategyContext
-    ) -> Dict[str, List[dict]]:
-        """Fetch markets from all PM venues via market_registry providers.
-        Uses 60s cache to avoid redundant fetches."""
-        now = time.monotonic()
-        if self._market_cache and (now - self._cache_time) < self._cache_ttl:
-            return self._market_cache
-
-        all_markets: Dict[str, List[dict]] = {}
-        tasks = {}
-        for venue in _PM_VENUES:
-            provider = ctx.get_market_provider(venue)
-            if provider is None:
-                all_markets[venue] = []
-                continue
-            tasks[venue] = self._fetch_venue_markets(provider, venue)
-
-        if tasks:
-            results = await asyncio.gather(
-                *tasks.values(), return_exceptions=True
-            )
-            for venue, result in zip(tasks.keys(), results):
-                if isinstance(result, Exception):
-                    logger.warning(f"[unified_arb] {venue} fetch failed: {result}")
-                    all_markets[venue] = []
-                else:
-                    all_markets[venue] = result
-
-        self._market_cache = all_markets
-        self._cache_time = now
-        return all_markets
-
-    async def _fetch_venue_markets(
-        self, provider: Any, venue: str
-    ) -> List[dict]:
-        """Fetch and normalize markets from a single provider."""
-        try:
-            # Try search_markets first, fall back to get_markets
-            raw = await asyncio.wait_for(
-                provider.search_markets(None, category=None, limit=500),
-                timeout=15.0,
-            )
-            if not raw and hasattr(provider, 'get_markets'):
-                raw = await asyncio.wait_for(
-                    provider.get_markets(limit=500),
-                    timeout=15.0,
-                )
-            normalized = [_normalize_market_info(m, venue) for m in (raw or [])]
-            logger.debug(f"[unified_arb] {venue}: {len(normalized)} markets")
-            return normalized
-        except asyncio.TimeoutError:
-            logger.warning(f"[unified_arb] {venue} timed out (15s)")
-            return []
-        except Exception as exc:
-            logger.warning(f"[unified_arb] {venue} fetch failed: {exc}")
-            return []
-
-    # ------------------------------------------------------------------
-    # Detection (delegates to CrossMarketArbEnhanced)
-    # ------------------------------------------------------------------
-
-    def _detect_opportunities(
-        self, all_markets: Dict[str, List[dict]], min_edge: float
-    ) -> List[ArbOpportunityEnhanced]:
-        """Run CrossMarketArbEnhanced scan and filter by min_edge."""
-        detector = CrossMarketArbEnhanced(
-            slippage_bps=self.default_params.get("slippage_bps", 5.0),
-        )
-        scan_result = detector.scan_all_providers(all_markets)
-        opportunities = [
-            opp
-            for opp in scan_result.opportunities
-            if opp.kind in ("cross_platform_arb", "yes_no_sum", "multi_outcome")
-            and opp.net_profit >= min_edge
-        ]
-        return opportunities
-
-    # ------------------------------------------------------------------
-    # Kelly sizing
-    # ------------------------------------------------------------------
-
-    def _calculate_size(
-        self, opp: ArbOpportunityEnhanced, bankroll: float
-    ) -> float:
-        """Calculate position size for arb.
-
-        For guaranteed-profit arb, use flat 40% of bankroll per trade.
-        Kelly is too conservative for small edges on small bankrolls.
-        """
-        min_order = _cfg("MIN_ORDER_USDC", 0.50)
-        # Use 40% of available bankroll per arb (guaranteed profit, safe)
-        size = bankroll * 0.4
-        print(f"[unified_arb] _calculate_size: bankroll={bankroll} min_order={min_order} size={size} round={round(size,2)}", flush=True)
-        if size < min_order:
-            return 0.0
-        return round(size, 2)
-
-    # ------------------------------------------------------------------
-    # Atomic 2-leg execution via providers
-    # ------------------------------------------------------------------
-
-    async def _execute_arb(
-        self,
-        ctx: StrategyContext,
-        opp: ArbOpportunityEnhanced,
-        bankroll: float,
-    ) -> dict:
-        """Execute both legs atomically via provider.place_order().
-
-        Returns status dict: {"status": "filled"|"partial"|"failed"|"skipped", ...}
-        """
-        size = self._calculate_size(opp, bankroll)
-        print(f"[unified_arb] _execute_arb: bankroll=${bankroll:.2f} size=${size:.2f} edge={opp.net_profit:.4f} kind={opp.kind}", flush=True)
-        if size <= 0:
-            print(f"[unified_arb] SKIP: size_below_minimum (size=${size:.2f})", flush=True)
-            return {"status": "skipped", "reason": "size_below_minimum"}
-
-        # Pre-flight dry-run: validate order cost vs available balance
-        slippage = _cfg("ARB_SLIPPAGE_BPS", 50) / 10000
-        price_a = max(0.001, min(0.999, opp.price_a * (1 + slippage)))
-        price_b = max(0.001, min(0.999, opp.price_b * (1 + slippage)))
-        cost_a = size * price_a
-        cost_b = size * price_b
-        total_cost = cost_a + cost_b
-        print(f"[unified_arb] DRY-RUN: cost=${total_cost:.2f} bankroll=${bankroll:.2f} a={opp.platform_a} b={opp.platform_b}", flush=True)
-        if total_cost > bankroll:
-            return {
-                "status": "skipped",
-                "reason": f"dry_run_fail: cost ${total_cost:.2f} > bankroll ${bankroll:.2f}",
-            }
-        arb_id = str(uuid.uuid4())[:8]
-        logger.info(
-            f"[unified_arb] DRY-RUN OK arb={arb_id}: "
-            f"cost=${total_cost:.2f} (a=${cost_a:.2f} b=${cost_b:.2f}) "
-            f"bankroll=${bankroll:.2f} edge={opp.net_profit:.4f}"
-        )
-
-        # Paper mode: simulate fills without calling providers
-        if ctx.mode == "paper":
-            profit = opp.net_profit * size
-            arb_id = hashlib.md5(
-                f"{opp.event_id}{opp.platform_a}{opp.platform_b}{time.time()}".encode()
-            ).hexdigest()[:8]
-            self._history.append({
-                "arb_id": arb_id,
-                "event_id": opp.event_id,
-                "kind": opp.kind,
-                "platform_a": opp.platform_a,
-                "platform_b": opp.platform_b,
-                "price_a": opp.price_a,
-                "price_b": opp.price_b,
-                "size": size,
-                "net_profit": opp.net_profit,
-                "profit": profit,
-                "status": "paper_filled",
-                "timestamp": time.time(),
-            })
-            logger.info(
-                f"[unified_arb] PAPER arb={arb_id} "
-                f"{opp.platform_a}@{opp.price_a:.3f} + "
-                f"{opp.platform_b}@{opp.price_b:.3f} "
-                f"profit=${profit:.4f}"
-            )
-            return {"status": "filled", "profit": profit, "arb_id": arb_id, "paper": True}
-
-        # Resolve providers
-        provider_a = ctx.get_market_provider(opp.platform_a)
-        provider_b = ctx.get_market_provider(opp.platform_b)
-        if provider_a is None or provider_b is None:
-            return {
-                "status": "skipped",
-                "reason": f"provider_missing: a={opp.platform_a} b={opp.platform_b}",
-            }
-
-        # Build normalized orders
-        token_a = opp.details.get("token_id_a") or opp.token_id or opp.market_a_id
-        token_b = opp.details.get("token_id_b") or opp.market_b_id
-
-        # HFT-style: use marketable limit orders that cross the spread
-        # Price = detected price + slippage buffer (ensures fill)
-        order_a = NormalizedOrder(
-            market_id=str(token_a),
-            side=OrderSide.BUY,
-            order_type=OrderType.LIMIT,
-            size=Decimal(str(round(size, 2))),
-            price=Decimal(str(round(price_a, 4))),
-            client_order_id=f"arb-{arb_id}-a",
-        )
-        order_b = NormalizedOrder(
-            market_id=str(token_b),
-            side=OrderSide.BUY,
-            order_type=OrderType.LIMIT,
-            size=Decimal(str(round(size, 2))),
-            price=Decimal(str(round(price_b, 4))),
-            client_order_id=f"arb-{arb_id}-b",
-        )
-
-        # Sequential execution: place Limitless leg FIRST (no balance constraint)
-        # then constrained leg (Polymarket/Kalshi). Cancel Limitless if constrained fails.
-        start = time.monotonic()
-
-        # Determine which leg is Limitless (unconstrained) vs constrained
-        constrained_platforms = {"polymarket", "kalshi"}
-        if opp.platform_a.lower() in constrained_platforms:
-            # A is constrained, B is Limitless — place B first
-            first_provider, first_order, first_platform = provider_b, order_b, opp.platform_b
-            second_provider, second_order, second_platform = provider_a, order_a, opp.platform_a
-            first_is_a = False
-        else:
-            # A is Limitless, B is constrained — place A first
-            first_provider, first_order, first_platform = provider_a, order_a, opp.platform_a
-            second_provider, second_order, second_platform = provider_b, order_b, opp.platform_b
-            first_is_a = True
-
-        result_first = await self._place_with_breaker(first_provider, first_order, first_platform)
-        first_filled = self._is_filled(result_first)
-
-        if not first_filled:
-            elapsed = (time.monotonic() - start) * 1000
-            reason = getattr(result_first, "error", None) or getattr(result_first, "rejection_reason", None) or str(result_first)
-            logger.warning(f"[unified_arb] arb={arb_id}: first leg ({first_platform}) failed: {reason}")
-            return {"success": False, "reason": f"first_leg_failed:{first_platform}: {reason}", "elapsed_ms": elapsed}
-
-        # First leg (Limitless) filled — place second leg (constrained)
-        result_second = await self._place_with_breaker(second_provider, second_order, second_platform)
-        second_filled = self._is_filled(result_second)
-
-        # Map results back to a/b
-        if first_is_a:
-            result_a, result_b = result_first, result_second
-            a_filled, b_filled = first_filled, second_filled
-        else:
-            result_a, result_b = result_second, result_first
-            a_filled, b_filled = second_filled, first_filled
-
-        fill_timeout = _cfg("ARB_FILL_TIMEOUT_SEC", 10)
-
-        if not second_filled:
-            # Second leg pending — wait briefly
-            if first_is_a:
-                b_filled = await self._wait_single_fill(provider_b, result_b, fill_timeout)
-            else:
-                a_filled = await self._wait_single_fill(provider_a, result_a, fill_timeout)
-
-        # If constrained leg failed, cancel Limitless leg to avoid naked exposure
-        if not second_filled:
-            # Cancel the Limitless (first) leg
-            order_id_first = self._get_order_id(result_first)
-            if order_id_first:
-                if first_is_a:
-                    await self._emergency_cancel(provider_a, order_id_first, arb_id)
-                else:
-                    await self._emergency_cancel(provider_b, order_id_first, arb_id)
-            logger.warning(f"[unified_arb] arb={arb_id}: constrained leg failed, cancelled Limitless leg")
-            return {"success": False, "reason": "constrained_leg_failed_cancelled_limitless", "arb_id": arb_id}
-
-        a_ok = a_filled
-        b_ok = b_filled
-
-        elapsed_ms = (time.monotonic() - start) * 1000
-
-        if a_ok and b_ok:
-            profit = opp.net_profit * size
-            logger.info(
-                f"[unified_arb] FILLED arb={arb_id} "
-                f"{opp.platform_a}@{opp.price_a:.3f} + "
-                f"{opp.platform_b}@{opp.price_b:.3f} "
-                f"profit=${profit:.4f} ({elapsed_ms:.0f}ms)"
-            )
-            return {"status": "filled", "profit": profit, "arb_id": arb_id}
-
-        elif a_ok and not b_ok:
-            # Leg A filled, leg B failed — emergency cancel A
-            order_id_a = result_a.venue_order_id if isinstance(result_a, NormalizedOrderResult) else str(result_a)
-            await self._emergency_cancel(provider_a, order_id_a, arb_id)
-            error = f"leg_b_failed: {result_b}"
-            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: {error}")
-            return {"status": "partial", "error": error, "arb_id": arb_id}
-
-        elif not a_ok and b_ok:
-            # Leg B filled, leg A failed — emergency cancel B
-            order_id_b = result_b.venue_order_id if isinstance(result_b, NormalizedOrderResult) else str(result_b)
-            await self._emergency_cancel(provider_b, order_id_b, arb_id)
-            error = f"leg_a_failed: {result_a}"
-            logger.warning(f"[unified_arb] PARTIAL arb={arb_id}: {error}")
-            return {"status": "partial", "error": error, "arb_id": arb_id}
-
-        else:
-            error_a = str(result_a) if isinstance(result_a, Exception) else str(result_a)
-            error_b = str(result_b) if isinstance(result_b, Exception) else str(result_b)
-            logger.warning(
-                f"[unified_arb] FAILED arb={arb_id}: "
-                f"a={error_a} b={error_b}"
-            )
-            return {"status": "failed", "error": f"both_failed: a={error_a}, b={error_b}"}
-
-    # ------------------------------------------------------------------
-    # Order placement with circuit breaker
-    # ------------------------------------------------------------------
-
-    async def _place_with_breaker(
-        self,
-        provider: Any,
-        order: NormalizedOrder,
-        venue: str,
-    ) -> NormalizedOrderResult:
-        """Place order wrapped in venue circuit breaker."""
-        breaker = self._get_breaker(venue)
-        return await breaker.call(provider.place_order, order)
-
-    # ------------------------------------------------------------------
-    # Emergency cancel
-    # ------------------------------------------------------------------
-
-    async def _emergency_cancel(
-        self, provider: Any, order_id: str, arb_id: str
-    ) -> None:
-        """Cancel an order after the other leg failed."""
-        try:
-            if hasattr(provider, "cancel_order"):
-                await provider.cancel_order(order_id)
-                logger.warning(
-                    f"[unified_arb] EMERGENCY CANCEL order={order_id} arb={arb_id}"
-                )
-            else:
-                logger.error(
-                    f"[unified_arb] Cannot cancel order={order_id}: "
-                    f"provider has no cancel_order"
-                )
-        except Exception as exc:
-            logger.error(
-                f"[unified_arb] Cancel failed order={order_id} arb={arb_id}: {exc}"
-            )
-
-    # ------------------------------------------------------------------
-    # HFT fill monitoring
+    # Market filtering (pass-through — we fetch our own markets)
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _is_filled(result: Any) -> bool:
-        """Check if order result indicates a fill."""
-        return (
-            isinstance(result, NormalizedOrderResult)
-            and result.status in (OrderStatus.FILLED, OrderStatus.OPEN)
-        )
+    def market_filter(markets):
+        return markets
 
-    @staticmethod
-    def _get_order_id(result: Any) -> Optional[str]:
-        """Extract order ID from result."""
-        if isinstance(result, NormalizedOrderResult) and result.venue_order_id:
-            return result.venue_order_id
-        return None
+    # ------------------------------------------------------------------
+    # Market fetching
+    # ------------------------------------------------------------------
 
-    async def _wait_for_fills(
-        self,
-        provider_a: Any,
-        result_a: Any,
-        provider_b: Any,
-        result_b: Any,
-        timeout_sec: float,
-    ) -> Tuple[bool, bool]:
-        """Monitor fill status with timeout. Returns (a_filled, b_filled)."""
-        start = time.monotonic()
-        a_filled = self._is_filled(result_a)
-        b_filled = self._is_filled(result_b)
+    async def _fetch_polymarket(self) -> List[Dict[str, Any]]:
+        """Fetch Polymarket markets via Gamma API."""
+        try:
+            from backend.data.gamma import fetch_markets
 
-        while (time.monotonic() - start) < timeout_sec:
-            if a_filled and b_filled:
-                return True, True
-            await asyncio.sleep(0.5)
+            markets = await fetch_markets(limit=200)
+            from backend.data.arb_opportunity_scanner import _normalize_pm_markets
 
-            # Check order status if provider supports it
-            if not a_filled and hasattr(provider_a, 'get_order_status'):
-                order_id_a = self._get_order_id(result_a)
-                if order_id_a:
-                    try:
-                        status = await provider_a.get_order_status(order_id_a)
-                        if status and status.get('status') == 'FILLED':
-                            a_filled = True
-                    except Exception:
-                        pass
-            if not b_filled and hasattr(provider_b, 'get_order_status'):
-                order_id_b = self._get_order_id(result_b)
-                if order_id_b:
-                    try:
-                        status = await provider_b.get_order_status(order_id_b)
-                        if status and status.get('status') == 'FILLED':
-                            b_filled = True
-                    except Exception:
-                        pass
+            return _normalize_pm_markets(markets, "polymarket", fee_pct=0.02)
+        except Exception:
+            logger.warning("[unified_arb] Polymarket fetch failed")
+            return []
 
-        return a_filled, b_filled
+    async def _fetch_kalshi(self) -> List[Dict[str, Any]]:
+        """Fetch Kalshi markets."""
+        try:
+            from backend.data.arb_opportunity_scanner import _normalize_kalshi_markets
+            from backend.data.kalshi_client import KalshiClient
 
-    async def _wait_single_fill(
-        self,
-        provider: Any,
-        result: Any,
-        timeout_sec: float,
-    ) -> bool:
-        """Monitor single order fill status with timeout."""
-        start = time.monotonic()
-        filled = self._is_filled(result)
-        while not filled and (time.monotonic() - start) < timeout_sec:
-            await asyncio.sleep(0.5)
-            order_id = self._get_order_id(result)
-            if order_id and hasattr(provider, 'get_order_status'):
-                try:
-                    status = await provider.get_order_status(order_id)
-                    if status and status.get('status') == 'FILLED':
-                        return True
-                except Exception:
-                    pass
-        return filled
+            client = KalshiClient()
+            response = await client.get_markets(params={"limit": 200, "status": "open"})
+            raw = response.get("markets", []) if isinstance(response, dict) else []
+            return _normalize_kalshi_markets(raw)
+        except Exception:
+            logger.warning("[unified_arb] Kalshi fetch failed")
+            return []
+
+    # ------------------------------------------------------------------
+    # Detection
+    # ------------------------------------------------------------------
+
+    async def _get_detector(self) -> CrossMarketArbEnhanced:
+        if self._detector is None:
+            min_edge = self.default_params.get("min_net_edge", 0.01)
+            self._detector = CrossMarketArbEnhanced(min_net_profit_pct=min_edge)
+        return self._detector
 
     # ------------------------------------------------------------------
     # Main cycle
     # ------------------------------------------------------------------
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
-        """Scan all PM venues, detect arbs, execute atomically."""
         start = time.monotonic()
-        errors: List[str] = []
-        trades_placed = 0
+        decisions: List[Dict] = []
 
-        try:
-            # 1. Fetch markets from all PM venues
-            all_markets = await self._fetch_all_pm_markets(ctx)
-            total_markets = sum(len(v) for v in all_markets.values())
-            venue_counts = {k: len(v) for k, v in all_markets.items() if v}
-            logger.info(
-                f"[unified_arb] Fetched {total_markets} markets from "
-                f"{len(venue_counts)} venues: {venue_counts}"
+        # 1. Fetch markets from Polymarket + Kalshi in parallel
+        pm_markets, kalshi_markets = await asyncio.gather(
+            self._fetch_polymarket(),
+            self._fetch_kalshi(),
+            return_exceptions=True,
+        )
+        if isinstance(pm_markets, Exception):
+            logger.warning(f"[unified_arb] PM fetch exception: {pm_markets}")
+            pm_markets = []
+        if isinstance(kalshi_markets, Exception):
+            logger.warning(f"[unified_arb] Kalshi fetch exception: {kalshi_markets}")
+            kalshi_markets = []
+
+        all_markets: Dict[str, List[Dict]] = {}
+        if pm_markets:
+            all_markets["polymarket"] = pm_markets
+        if kalshi_markets:
+            all_markets["kalshi"] = kalshi_markets
+
+        if not all_markets:
+            return CycleResult(0, 0, 0, errors=["No markets available from Polymarket or Kalshi"])
+
+        # 2. Detect arbitrage opportunities
+        detector = await self._get_detector()
+        result = detector.scan_all_providers(all_markets)
+
+        # 3. Build decisions from opportunities
+        max_per_cycle = self.default_params.get("max_opportunities_per_cycle", 10)
+        for idx, opp in enumerate(result.opportunities[:max_per_cycle]):
+            size_usd = getattr(opp, "size_usd", None) or 10.0
+            _uniq_suffix = (
+                f"{opp.platform_a}:{opp.platform_b}:{opp.price_a:.4f}:"
+                f"{opp.price_b:.4f}:{opp.kind}:{idx}"
             )
-            if total_markets == 0:
-                return CycleResult(0, 0, 0, errors=["No markets available"])
-
-            # 1b. Log top markets per venue for debugging
-            for v, ms in all_markets.items():
-                if ms:
-                    logger.info(f"[unified_arb]   {v}: {len(ms)} markets, top: {ms[0].get('question', '?')[:80]}")
-
-            # 2. Detect PM opportunities (low-fee pairs only: skip venues with fee > 3%)
-            min_edge = self.default_params.get("min_net_edge", 0.01)
-            max_fee = _cfg("ARB_MAX_VENUE_FEE", 0.08)
-            low_fee_markets = {
-                k: v for k, v in all_markets.items()
-                if _FEE_MAP.get(k, 0.02) <= max_fee
+            _cid = opp.event_id or _uniq_suffix
+            decision = {
+                "kind": opp.kind,
+                "decision": "BUY",
+                "direction": "YES",
+                "condition_id": _cid,
+                "market_ticker": _cid,
+                "platform_a": opp.platform_a,
+                "platform_b": opp.platform_b,
+                "price_a": opp.price_a,
+                "price_b": opp.price_b,
+                "net_profit": opp.net_profit,
+                "net_profit_pct": opp.net_profit_pct,
+                "confidence": opp.confidence,
+                "raw_spread": opp.raw_spread,
+                "fees": opp.fees,
+                "slippage_cost": opp.slippage_cost,
+                "execution_risk": opp.execution_risk,
+                "details": opp.details,
+                "size": size_usd,
+                "market_type": "arb",
+                "model_probability": min(1.0, 0.5 + opp.net_profit_pct),
             }
-            if len(low_fee_markets) < 2:
-                low_fee_markets = all_markets  # fallback to all
-            opportunities = self._detect_opportunities(low_fee_markets, min_edge)
+            decisions.append(decision)
 
-            # 2b. Detect DEX cross-exchange opportunities
+            # Record history
+            self._history.append({
+                "event_id": opp.event_id,
+                "kind": opp.kind,
+                "platform_a": opp.platform_a,
+                "platform_b": opp.platform_b,
+                "price_a": opp.price_a,
+                "price_b": opp.price_b,
+                "net_profit": opp.net_profit,
+                "status": "detected",
+                "timestamp": time.time(),
+            })
+
+            # Log to DecisionLog
             try:
-                dex_prices = await self._dex_feed.fetch_all_prices()
-                dex_opps = _detect_cross_dex_opportunities(
-                    dex_prices,
-                    min_profit_pct=min_edge,
-                    gas_estimate=5.0,
-                    taker_fees=self._dex_feed._taker_fees,
+                from backend.models.database import DecisionLog
+
+                log_row = DecisionLog(
+                    strategy=self.name,
+                    market_ticker=(opp.event_id or _uniq_suffix)[:64],
+                    decision="ARB",
+                    confidence=opp.confidence,
+                    signal_data=json.dumps(decision),
+                    reason=(
+                        f"{opp.kind}: {opp.platform_a}@{opp.price_a:.3f} vs "
+                        f"{opp.platform_b}@{opp.price_b:.3f} | "
+                        f"net={opp.net_profit_pct:.2%} edge"
+                    ),
                 )
-                if dex_opps:
-                    logger.info(
-                        f"[unified_arb] DEX: {len(dex_opps)} cross-DEX opportunities "
-                        f"from {sum(len(v) for v in dex_prices.values())} quotes"
-                    )
-                    # Log DEX opportunities as decisions (execution deferred)
-                    for dop in dex_opps:
-                        self._history.append({
-                            "event_id": f"dex:{dop.asset}:{dop.buy_exchange}:{dop.sell_exchange}",
-                            "kind": "cross_dex_arb",
-                            "platform_a": dop.buy_exchange,
-                            "platform_b": dop.sell_exchange,
-                            "price_a": dop.buy_price,
-                            "price_b": dop.sell_price,
-                            "net_profit": dop.net_profit_pct,
-                            "status": "detected",
-                            "timestamp": time.time(),
-                        })
-            except Exception as exc:
-                logger.warning(f"[unified_arb] DEX detection failed: {exc}")
+                ctx.db.add(log_row)
+            except Exception:
+                pass
 
-            if not opportunities:
-                elapsed = (time.monotonic() - start) * 1000
-                return CycleResult(
-                    0, 0, 0,
-                    cycle_duration_ms=elapsed,
-                    markets_scanned=total_markets,
-                )
+        # 4. Commit DB writes
+        try:
+            ctx.db.commit()
+        except Exception:
+            logger.warning("[unified_arb] DB commit failed, rolling back")
+            ctx.db.rollback()
 
-            # 3. Limit per cycle
-            max_per_cycle = self.default_params.get("max_opportunities_per_cycle", 10)
-            opportunities = opportunities[:max_per_cycle]
+        # Trim history
+        if len(self._history) > 500:
+            self._history = self._history[-500:]
 
-            # 4. Execute — use actual CLOB balance, not ctx.bankroll
-            bankroll = ctx.bankroll if ctx.bankroll > 0 else 100.0
-            try:
-                import httpx
-                async with httpx.AsyncClient(timeout=5) as http:
-                    resp = await http.get("https://data-api.polymarket.com/value?user=0xad85c2f3942561afa448cbbd5811a5f7e2e3c6bd")
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        if data and len(data) > 0:
-                            actual_balance = float(data[0].get("value", 0))
-                            if actual_balance > 0:
-                                bankroll = min(bankroll, actual_balance)
-                                logger.info(f"[unified_arb] Portfolio value: ${actual_balance:.2f}, bankroll=${bankroll:.2f}")
-            except Exception as e:
-                logger.debug(f"[unified_arb] Could not fetch balance: {e}")
-            for opp in opportunities:
-                try:
-                    result = await self._execute_arb(ctx, opp, bankroll)
-                    status = result.get("status", "unknown")
-                    if status == "filled":
-                        trades_placed += 1
-                    elif status in ("partial", "failed"):
-                        errors.append(result.get("error", f"arb_{status}"))
+        elapsed = (time.monotonic() - start) * 1000
+        logger.info(
+            f"[unified_arb] {result.markets_scanned} markets, "
+            f"{len(decisions)} opportunities in {elapsed:.0f}ms"
+        )
 
-                    # Record history
-                    self._history.append({
-                        "event_id": opp.event_id,
-                        "kind": opp.kind,
-                        "platform_a": opp.platform_a,
-                        "platform_b": opp.platform_b,
-                        "price_a": opp.price_a,
-                        "price_b": opp.price_b,
-                        "net_profit": opp.net_profit,
-                        "status": status,
-                        "timestamp": time.time(),
-                    })
-                except CircuitOpenError as exc:
-                    logger.warning(f"[unified_arb] Circuit breaker open: {exc}")
-                    errors.append(str(exc))
-                except Exception as exc:
-                    logger.exception(f"[unified_arb] Execution error: {exc}")
-                    errors.append(str(exc))
-
-            # Trim history
-            if len(self._history) > 500:
-                self._history = self._history[-500:]
-
-            elapsed = (time.monotonic() - start) * 1000
-            logger.info(
-                f"[unified_arb] Cycle: {len(opportunities)} detected, "
-                f"{trades_placed} filled, {len(errors)} errors, "
-                f"{total_markets} markets, {elapsed:.0f}ms"
-            )
-
-            return CycleResult(
-                decisions_recorded=len(opportunities),
-                trades_attempted=len(opportunities),
-                trades_placed=trades_placed,
-                errors=errors,
-                cycle_duration_ms=elapsed,
-                markets_scanned=total_markets,
-            )
-
-        except CircuitOpenError as exc:
-            logger.warning(f"[unified_arb] Circuit breaker open: {exc}")
-            return CycleResult(0, 0, 0, errors=[str(exc)])
-
-        except Exception as exc:
-            logger.exception(f"[unified_arb] Cycle failed: {exc}")
-            return CycleResult(0, 0, 0, errors=[str(exc)])
+        return CycleResult(
+            decisions_recorded=len(decisions),
+            trades_attempted=len(decisions),
+            trades_placed=0,
+            decisions=decisions,
+            cycle_duration_ms=elapsed,
+            markets_scanned=result.markets_scanned,
+        )
 
     # ------------------------------------------------------------------
-    # History access (for tests and diagnostics)
+    # History access
     # ------------------------------------------------------------------
 
-    def get_history(self, limit: int = 100) -> List[dict]:
-        """Return recent arb execution history."""
+    def get_history(self, limit: int = 100) -> List[Dict]:
+        """Return recent arb detection history."""
         return self._history[-limit:]
