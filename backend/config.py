@@ -454,8 +454,8 @@ class ConfigRegistry:
     LINE_MOVE_MAX_CONFIDENCE: float = 0.95
 
     # Bond Scanner — tuned for tighter entry criteria (Phase 3)
-    BOND_SCANNER_MIN_PRICE: float = 0.90
-    BOND_SCANNER_MAX_PRICE: float = 0.96
+    BOND_SCANNER_MIN_PRICE: float = 0.85
+    BOND_SCANNER_MAX_PRICE: float = 0.99
     BOND_SCANNER_MIN_DAYS_TO_RESOLUTION: float = 0.5
     BOND_SCANNER_KELLY_FRACTION: float = 0.15
     BOND_SCANNER_BANKROLL_PCT: float = 0.05

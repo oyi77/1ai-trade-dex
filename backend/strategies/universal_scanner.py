@@ -380,7 +380,8 @@ class UniversalScanner(BaseStrategy):
         if debate_result is not None:
             model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
         else:
-            model_prob = max(0.01, min(0.99, yes_price))
+            bias = 0.03 * (0.5 - yes_price)
+            model_prob = max(0.01, min(0.99, yes_price + bias))
         edge = model_prob - yes_price
 
         self._ws_known_tokens.add(token_id)
@@ -442,7 +443,8 @@ class UniversalScanner(BaseStrategy):
         ):
             model_prob = max(0.01, min(0.99, debate_result.consensus_probability))
         else:
-            model_prob = max(0.01, min(0.99, price))
+            bias = 0.03 * (0.5 - price)
+            model_prob = max(0.01, min(0.99, price + bias))
         edge = model_prob - price
 
         if abs(edge) < self.default_params["min_edge"]:
@@ -599,7 +601,12 @@ class UniversalScanner(BaseStrategy):
             if llm_result is not None and hasattr(llm_result, "consensus_probability"):
                 model_prob = max(0.01, min(0.99, llm_result.consensus_probability))
             else:
-                model_prob = max(0.01, min(0.99, market.yes_price))
+                # Statistical fallback: markets at extremes tend to overshoot.
+                # Assume a small mean-reversion bias proportional to distance from 0.5.
+                # Direction: extreme YES markets are slightly overpriced (bearish),
+                # extreme NO markets are slightly underpriced (bullish).
+                bias = 0.03 * (0.5 - market.yes_price)
+                model_prob = max(0.01, min(0.99, market.yes_price + bias))
             edge = model_prob - market.yes_price
 
             if abs(edge) < self.default_params["min_edge"]:

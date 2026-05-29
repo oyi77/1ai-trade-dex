@@ -38,23 +38,8 @@ class BondScannerStrategy(BaseStrategy):
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
-        """Filter to bond-relevant markets (treasury, interest rate, fed, bond keywords)."""
-        bond_keywords = {
-            "bond",
-            "treasury",
-            "interest rate",
-            "fed",
-            "yield",
-            "debt ceiling",
-            "t-bill",
-        }
-        filtered = [
-            m for m in markets if any(kw in m.question.lower() for kw in bond_keywords)
-        ]
-        # If no keyword matches, fall back to base class DB-driven filter
-        if not filtered:
-            return await super().market_filter(markets)
-        return filtered
+        """Pass-through: bond_scanner filters by price range in run_cycle."""
+        return markets
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
@@ -92,7 +77,7 @@ class BondScannerStrategy(BaseStrategy):
                     params={
                         "active": "true",
                         "closed": "false",
-                        "limit": 100,
+                        "limit": 500,
                         "order": "volume",
                         "ascending": "false",
                     },
