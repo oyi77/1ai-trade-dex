@@ -1,5 +1,6 @@
 """Limitless Exchange market provider."""
 
+import copy
 import os
 from decimal import Decimal
 from backend.markets.base_provider import (
