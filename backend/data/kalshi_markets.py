@@ -135,12 +135,12 @@ async def fetch_kalshi_weather_markets(
                     if parsed["target_date"] < today:
                         continue
 
-                    yes_price = (m.get("yes_ask") or 0) / 100.0
-                    no_price = (m.get("no_ask") or 0) / 100.0
+                    yes_price = float(m.get("yes_ask_dollars") or 0)
+                    no_price = float(m.get("no_ask_dollars") or 0)
 
                     # Fallback to last/mid prices
                     if yes_price <= 0:
-                        yes_price = (m.get("last_price") or 50) / 100.0
+                        yes_price = float(m.get("last_price_dollars") or 0.5)
                     if no_price <= 0:
                         no_price = 1.0 - yes_price
 
@@ -148,7 +148,7 @@ async def fetch_kalshi_weather_markets(
                     if yes_price > 0.98 or yes_price < 0.02:
                         continue
 
-                    volume = float(m.get("volume", 0) or 0)
+                    volume = float(m.get("volume_fp", m.get("volume_24h_fp", 0)) or 0)
 
                     markets.append(
                         WeatherMarket(

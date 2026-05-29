@@ -225,15 +225,15 @@ class KalshiProvider(BaseMarketProvider):
                 continue
             if category and m.get("category", "").lower() != category.lower():
                 continue
-            yes_price_raw = m.get("yes_bid", m.get("last_price", 50))
-            yes_price = (
-                Decimal(str(yes_price_raw)) / Decimal("100")
-                if float(yes_price_raw) > 1
-                else Decimal(str(yes_price_raw))
-            )
-            no_price = Decimal("1") - yes_price
-            volume_raw = m.get("volume", m.get("volume_24h", 0))
-            open_interest_raw = m.get("open_interest", 0)
+            yes_price_raw = m.get("yes_bid_dollars", m.get("yes_ask_dollars", "0"))
+            yes_price = Decimal(str(yes_price_raw or "0"))
+            no_price_raw = m.get("no_bid_dollars", m.get("no_ask_dollars", "0"))
+            no_price = Decimal(str(no_price_raw or "0"))
+            # Fallback: compute from yes_price if no separate no_price
+            if no_price <= 0 and yes_price > 0:
+                no_price = Decimal("1") - yes_price
+            volume_raw = m.get("volume_fp", m.get("volume_24h_fp", 0))
+            open_interest_raw = m.get("open_interest_fp", 0)
             results.append(
                 MarketInfo(
                     venue="kalshi",

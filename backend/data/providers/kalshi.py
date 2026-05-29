@@ -25,9 +25,14 @@ async def fetch_kalshi_markets(limit: int = 100) -> list[dict]:
             "ticker": m.get("ticker", ""),
             "question": m.get("title", ""),
             "category": m.get("category", ""),
-            "volume_24h": float(m.get("volume_24h", 0) or 0),
-            "last_price": float(m.get("last_price", 0.5)),
-            "liquidity": 0.0,
+            "volume_24h": float(m.get("volume_24h_fp", 0) or 0),
+            "last_price": float(m.get("last_price_dollars", 0) or 0),
+            "yes_bid": float(m.get("yes_bid_dollars", 0) or 0),
+            "yes_ask": float(m.get("yes_ask_dollars", 0) or 0),
+            "no_bid": float(m.get("no_bid_dollars", 0) or 0),
+            "no_ask": float(m.get("no_ask_dollars", 0) or 0),
+            "liquidity": float(m.get("liquidity_dollars", 0) or 0),
+            "open_interest": float(m.get("open_interest_fp", 0) or 0),
             "created_at": m.get("open_time", ""),
         }
         for m in markets
