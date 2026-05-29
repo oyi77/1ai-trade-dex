@@ -259,7 +259,8 @@ class LimitlessProvider(BaseMarketProvider):
                         raise Exception(f"Order rejected: {r3.status_code} {r3.text[:300]}")
             except Exception as exc:
                 import sys, asyncio
-                print(f"[limitless] ORDER attempt {attempt+1}/3: {exc}", file=sys.stderr, flush=True)
+                sys.stderr.write(f"[limitless] ORDER attempt {attempt+1}/3: {exc}\nBODY_WAS: {body[:300] if 'body' in dir() else 'NO_BODY'}\n")
+                sys.stderr.flush()
                 if attempt < 2:
                     await asyncio.sleep(2 ** attempt)
                 else:
