@@ -52,8 +52,17 @@ class LimitlessProvider(BaseMarketProvider):
             tags=["prediction_market"],
         )
 
+    @staticmethod
+    def _hmac_headers(tid: str, secret: str, method: str, path: str, body: str = "") -> dict:
+        import hmac, hashlib, base64
+        from datetime import datetime, timezone
+        ts = datetime.now(timezone.utc).isoformat()
+        msg = f"{ts}\n{method}\n{path}\n{body}"
+        sig = base64.b64encode(hmac.new(base64.b64decode(secret), msg.encode(), hashlib.sha256).digest()).decode()
+        return {"lmts-api-key": tid, "lmts-timestamp": ts, "lmts-signature": sig, "Content-Type": "application/json"}
+
     async def place_order(self, order: NormalizedOrder) -> NormalizedOrderResult:
-        """Place an order on Limitless Exchange."""
+        """Place order via HMAC-signed direct API calls (no SDK dependency)."""
         if self._paper_mode:
             return NormalizedOrderResult(
                 venue_order_id=f"paper_{order.market_id}",
@@ -64,53 +73,142 @@ class LimitlessProvider(BaseMarketProvider):
                 remaining_size=Decimal("0"),
                 fees_paid=Decimal("0"),
             )
-        private_key = os.getenv("LIMITLESS_PRIVATE_KEY", "")
-        if not private_key:
+        import httpx, json, random
+        from eth_account import Account
+        from eth_account.messages import encode_typed_data
+
+        tid = os.getenv("LIMITLESS_API_KEY", "")
+        secret = os.getenv("LIMITLESS_API_SECRET", "")
+        pk = os.getenv("LIMITLESS_PRIVATE_KEY", "")
+        if not tid or not secret:
+            return self._rejected(order, "LIMITLESS_API_KEY or LIMITLESS_API_SECRET not set")
+        if not pk:
             return self._rejected(order, "LIMITLESS_PRIVATE_KEY not set")
-        try:
-            # Call SDK directly to avoid wrapper issues
-            from limitless_sdk import LimitlessClient as SDKClient
-            from limitless_sdk.models import CreateOrderDto
-            sdk = SDKClient(
-                private_key=private_key if private_key.startswith("0x") else f"0x{private_key}",
-                api_key=os.getenv("LIMITLESS_API_KEY", None),
-            )
-            await sdk.create_session()
-            outcome_index = 0
-            side_int = 1 if order.side.value.upper() == "BUY" else 0
-            dto = await sdk.create_order(
-                market_id=order.market_id,
-                market_slug=order.market_id,
-                outcome_index=outcome_index,
-                side=side_int,
-                amount=float(order.size),
-                price=float(order.price or Decimal("0.5")),
-            )
-            result = await sdk.place_order(dto)
-            logger.info(f"[limitless] Order placed: {result}")
-            return NormalizedOrderResult(
-                venue_order_id=result.get("orderId", "unknown"),
-                client_order_id=order.client_order_id,
-                status=OrderStatus.OPEN,
-                filled_size=Decimal("0"),
-                filled_avg_price=order.price or Decimal("0.5"),
-                remaining_size=order.size,
-                fees_paid=Decimal(
-                    str(
-                        result.get("fee")
-                        or result.get("fees")
-                        or result.get("feePaid")
-                        or result.get("fee_paid")
-                        or "0"
-                    )
-                ),
-            )
-        except Exception as exc:
-            import sys
-            print(f"[limitless] ORDER ERROR: {exc}", file=sys.stderr, flush=True)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-            return self._rejected(order, str(exc))
+
+        pk = pk if pk.startswith("0x") else f"0x{pk}"
+        account = Account.from_key(pk)
+
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    # Get ownerId via /profiles/me (authenticated)
+                    path = "/profiles/me"
+                    h = self._hmac_headers(tid, secret, "GET", path)
+                    r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
+                    if r.status_code != 200:
+                        return self._rejected(order, f"Profile fetch failed: {r.status_code} {r.text[:100]}")
+                    owner_id = r.json().get("id")
+                    if not owner_id:
+                        return self._rejected(order, "No ownerId in profile")
+
+                    # Get market data
+                    path = "/markets/active?limit=200"
+                    h = self._hmac_headers(tid, secret, "GET", path)
+                    r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
+                    if r.status_code != 200:
+                        return self._rejected(order, f"Markets fetch failed: {r.status_code}")
+                    market = None
+                    for m in r.json().get("data", []):
+                        if m.get("slug") == order.market_id or str(m.get("id")) == str(order.market_id):
+                            market = m
+                            break
+                    if not market:
+                        return self._rejected(order, f"Market {order.market_id} not found")
+
+                    position_ids = market.get("positionIds", [])
+                    if not position_ids:
+                        return self._rejected(order, "No positionIds")
+                    token_id = position_ids[0] if order.side.value.upper() == "BUY" else position_ids[1]
+
+                    price = float(order.price or Decimal("0.5"))
+                    size = float(order.size)
+                    maker_amount = int(size * price * 1e6)
+                    taker_amount = int(size * 1e6)
+
+                    exchange_addr = market.get("venue", {}).get("exchange", "0x0000000000000000000000000000000000000000")
+                    order_fields = {
+                        "salt": str(random.randint(10**9, 10**10)),
+                        "maker": account.address,
+                        "signer": account.address,
+                        "taker": "0x0000000000000000000000000000000000000000",
+                        "tokenId": str(token_id),
+                        "makerAmount": str(maker_amount),
+                        "takerAmount": str(taker_amount),
+                        "expiration": "0",
+                        "nonce": "0",
+                        "feeRateBps": "0",
+                        "side": 0,
+                        "signatureType": 0,
+                    }
+                    typed_data = {
+                        "types": {
+                            "EIP712Domain": [
+                                {"name": "name", "type": "string"},
+                                {"name": "version", "type": "string"},
+                                {"name": "chainId", "type": "uint256"},
+                                {"name": "verifyingContract", "type": "address"},
+                            ],
+                            "Order": [
+                                {"name": "salt", "type": "uint256"},
+                                {"name": "maker", "type": "address"},
+                                {"name": "signer", "type": "address"},
+                                {"name": "taker", "type": "address"},
+                                {"name": "tokenId", "type": "uint256"},
+                                {"name": "makerAmount", "type": "uint256"},
+                                {"name": "takerAmount", "type": "uint256"},
+                                {"name": "expiration", "type": "uint256"},
+                                {"name": "nonce", "type": "uint256"},
+                                {"name": "feeRateBps", "type": "uint256"},
+                                {"name": "side", "type": "uint8"},
+                                {"name": "signatureType", "type": "uint8"},
+                            ],
+                        },
+                        "primaryType": "Order",
+                        "domain": {
+                            "name": "Limitless CTF Exchange",
+                            "version": "1",
+                            "chainId": 8453,
+                            "verifyingContract": exchange_addr,
+                        },
+                        "message": order_fields,
+                    }
+                    signable = encode_typed_data(full_message=typed_data)
+                    signed = account.sign_message(signable)
+                    order_fields["signature"] = "0x" + signed.signature.hex()
+
+                    payload = {
+                        "order": order_fields,
+                        "orderType": "GTC",
+                        "marketSlug": market.get("slug", order.market_id),
+                        "ownerId": owner_id,
+                    }
+                    body = json.dumps(payload)
+                    path = "/orders"
+                    h = self._hmac_headers(tid, secret, "POST", path, body)
+                    r = await client.post(f"https://api.limitless.exchange{path}", headers=h, content=body)
+
+                    if r.status_code in (200, 201):
+                        result = r.json()
+                        logger.info(f"[limitless] Order placed: {result}")
+                        return NormalizedOrderResult(
+                            venue_order_id=result.get("orderId", result.get("id", "unknown")),
+                            client_order_id=order.client_order_id,
+                            status=OrderStatus.OPEN,
+                            filled_size=Decimal("0"),
+                            filled_avg_price=order.price or Decimal("0.5"),
+                            remaining_size=order.size,
+                            fees_paid=Decimal("0"),
+                        )
+                    else:
+                        raise Exception(f"Order rejected: {r.status_code} {r.text[:200]}")
+
+            except Exception as exc:
+                import sys, asyncio
+                print(f"[limitless] ORDER attempt {attempt+1}/3: {exc}", file=sys.stderr, flush=True)
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    return self._rejected(order, str(exc))
 
     async def cancel_order(self, venue_order_id: str) -> bool:
         """Cancel an open order."""

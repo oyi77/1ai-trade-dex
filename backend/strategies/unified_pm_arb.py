@@ -635,9 +635,10 @@ class UnifiedPMArb(BaseStrategy):
         For guaranteed-profit arb, use flat 40% of bankroll per trade.
         Kelly is too conservative for small edges on small bankrolls.
         """
-        min_order = _cfg("MIN_ORDER_USDC", 1.0)
+        min_order = _cfg("MIN_ORDER_USDC", 0.50)
         # Use 40% of available bankroll per arb (guaranteed profit, safe)
         size = bankroll * 0.4
+        print(f"[unified_arb] _calculate_size: bankroll={bankroll} min_order={min_order} size={size} round={round(size,2)}", flush=True)
         if size < min_order:
             return 0.0
         return round(size, 2)
@@ -657,7 +658,9 @@ class UnifiedPMArb(BaseStrategy):
         Returns status dict: {"status": "filled"|"partial"|"failed"|"skipped", ...}
         """
         size = self._calculate_size(opp, bankroll)
+        print(f"[unified_arb] _execute_arb: bankroll=${bankroll:.2f} size=${size:.2f} edge={opp.net_profit:.4f} kind={opp.kind}", flush=True)
         if size <= 0:
+            print(f"[unified_arb] SKIP: size_below_minimum (size=${size:.2f})", flush=True)
             return {"status": "skipped", "reason": "size_below_minimum"}
 
         # Pre-flight dry-run: validate order cost vs available balance
@@ -667,6 +670,7 @@ class UnifiedPMArb(BaseStrategy):
         cost_a = size * price_a
         cost_b = size * price_b
         total_cost = cost_a + cost_b
+        print(f"[unified_arb] DRY-RUN: cost=${total_cost:.2f} bankroll=${bankroll:.2f} a={opp.platform_a} b={opp.platform_b}", flush=True)
         if total_cost > bankroll:
             return {
                 "status": "skipped",
@@ -761,8 +765,9 @@ class UnifiedPMArb(BaseStrategy):
 
         if not first_filled:
             elapsed = (time.monotonic() - start) * 1000
-            logger.warning(f"[unified_arb] arb={arb_id}: first leg ({first_platform}) failed, skipping second leg")
-            return {"success": False, "reason": f"first_leg_failed:{first_platform}", "elapsed_ms": elapsed}
+            reason = getattr(result_first, "error", None) or getattr(result_first, "rejection_reason", None) or str(result_first)
+            logger.warning(f"[unified_arb] arb={arb_id}: first leg ({first_platform}) failed: {reason}")
+            return {"success": False, "reason": f"first_leg_failed:{first_platform}: {reason}", "elapsed_ms": elapsed}
 
         # First leg (Limitless) filled — place second leg (constrained)
         result_second = await self._place_with_breaker(second_provider, second_order, second_platform)

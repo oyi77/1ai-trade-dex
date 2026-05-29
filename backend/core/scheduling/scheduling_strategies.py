@@ -1173,7 +1173,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
                     actual_equity = await fetch_pm_total_equity()
                     if actual_equity and actual_equity > 0:
-                        bankroll = min(bankroll, actual_equity * 0.1)  # Use 10% of equity for safety
+                        bankroll = min(bankroll, actual_equity * 0.5)  # Use 50% of equity for arb
                 except Exception:
                     pass
             ctx = StrategyContext(
