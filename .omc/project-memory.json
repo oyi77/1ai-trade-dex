@@ -276,16 +276,40 @@
   },
   "hotPaths": [
     {
+      "path": "backend/strategies/longshot_bias.py",
+      "accessCount": 8,
+      "lastAccessed": 1780088835932,
+      "type": "file"
+    },
+    {
       "path": "backend/config.py",
       "accessCount": 5,
       "lastAccessed": 1780086846054,
       "type": "file"
     },
     {
-      "path": "backend/strategies/longshot_bias.py",
+      "path": "backend/core/scheduling/scheduling_strategies.py",
       "accessCount": 2,
-      "lastAccessed": 1780087902788,
+      "lastAccessed": 1780088124714,
+      "type": "directory"
+    },
+    {
+      "path": "backend/core/scheduling/scheduler.py",
+      "accessCount": 1,
+      "lastAccessed": 1780088142432,
+      "type": "directory"
+    },
+    {
+      "path": "backend/strategies/bond_scanner.py",
+      "accessCount": 1,
+      "lastAccessed": 1780091830115,
       "type": "file"
+    },
+    {
+      "path": "backend/strategies/universal_scanner.py",
+      "accessCount": 1,
+      "lastAccessed": 1780091979425,
+      "type": "directory"
     }
   ],
   "userDirectives": []
