@@ -1,5 +1,6 @@
-"""Limitless Exchange provider v2 — clean implementation based on agents-starter reference."""
+"""Limitless Exchange provider — HMAC auth, EIP-712 signing, tokens-based orders."""
 
+import copy
 import os
 from decimal import Decimal
 
@@ -8,7 +9,6 @@ from backend.markets.order_types import (
     MarketInfo,
     NormalizedOrder,
     NormalizedOrderResult,
-    OrderSide,
     OrderStatus,
 )
 
@@ -34,11 +34,9 @@ class LimitlessProvider(BaseMarketProvider):
         )
 
     @staticmethod
-    def _sign_request(method: str, path: str, body: str = "") -> dict:
+    def _hmac_headers(tid: str, secret: str, method: str, path: str, body: str = "") -> dict:
         import hmac, hashlib, base64
         from datetime import datetime, timezone
-        tid = _env("LIMITLESS_API_KEY")
-        secret = _env("LIMITLESS_API_SECRET")
         ts = datetime.now(timezone.utc).isoformat()
         msg = f"{ts}\n{method}\n{path}\n{body}"
         sig = base64.b64encode(
@@ -57,10 +55,12 @@ class LimitlessProvider(BaseMarketProvider):
 
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         import httpx
-        raw = []
+        tid = _env("LIMITLESS_API_KEY")
+        secret = _env("LIMITLESS_API_SECRET")
+        raw: list[dict] = []
         for page in range(1, 50):
             path = f"/markets/active?limit=25&page={page}"
-            h = self._sign_request("GET", path)
+            h = self._hmac_headers(tid, secret, "GET", path)
             async with httpx.AsyncClient(timeout=15) as client:
                 r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
             if r.status_code != 200:
@@ -72,22 +72,23 @@ class LimitlessProvider(BaseMarketProvider):
             if len(raw) >= limit:
                 break
 
-        markets = []
+        markets: list[MarketInfo] = []
         for m in raw[:limit]:
             slug = m.get("slug", "")
+            market_id = slug or str(m.get("id", ""))
             prices = m.get("prices", [])
             if not prices or len(prices) < 2:
                 continue
-            yp = float(prices[0])
-            np_ = float(prices[1])
-            if yp <= 0 or np_ <= 0:
+            yes_price = float(prices[0])
+            no_price = float(prices[1])
+            if yes_price <= 0 or no_price <= 0:
                 continue
             markets.append(
                 MarketInfo(
-                    market_id=slug,
+                    market_id=market_id,
                     question=m.get("title", ""),
-                    yes_price=Decimal(str(yp)),
-                    no_price=Decimal(str(np_)),
+                    yes_price=Decimal(str(yes_price)),
+                    no_price=Decimal(str(no_price)),
                     platform="limitless",
                     event_id=str(m.get("id", "")),
                     raw=m,
@@ -96,10 +97,11 @@ class LimitlessProvider(BaseMarketProvider):
         return markets
 
     # ------------------------------------------------------------------
-    # Order placement (agents-starter reference: HMAC auth + EIP-712 sign)
+    # Order placement
     # ------------------------------------------------------------------
 
     async def place_order(self, order: NormalizedOrder) -> NormalizedOrderResult:
+        """Place order: HMAC auth, manual EIP-712, tokens-based token IDs."""
         if self._paper_mode:
             return NormalizedOrderResult(
                 venue_order_id=f"paper_{order.market_id}",
@@ -110,106 +112,137 @@ class LimitlessProvider(BaseMarketProvider):
                 remaining_size=Decimal("0"),
                 fees_paid=Decimal("0"),
             )
-        import httpx, json, random, sys, time
+        import httpx, json, random
+        from eth_account import Account
+        from eth_account.messages import encode_typed_data
 
+        tid = _env("LIMITLESS_API_KEY")
+        secret = _env("LIMITLESS_API_SECRET")
         pk = _env("LIMITLESS_PRIVATE_KEY")
-        if not pk:
-            return self._rejected(order, "LIMITLESS_PRIVATE_KEY not set")
+        if not tid or not secret or not pk:
+            return self._rejected(order, "Missing LIMITLESS env vars")
         pk = pk if pk.startswith("0x") else f"0x{pk}"
+        acct = Account.from_key(pk)
 
         for attempt in range(3):
             try:
-                from limitless_sdk import LimitlessClient as SDKClient
-                from limitless_sdk.models import Order as SDKOrder
-
-                sdk = SDKClient(private_key=pk)
-                eoa = sdk.account.address
-
                 async with httpx.AsyncClient(timeout=15) as client:
-                    api_h = {"X-API-Key": _env("LIMITLESS_API_KEY"), "Content-Type": "application/json"}
-
                     # 1. Get profile
-                    r = await client.get(f"https://api.limitless.exchange/profiles/{eoa}", headers=api_h)
+                    path = "/profiles/me"
+                    h = self._hmac_headers(tid, secret, "GET", path)
+                    r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
                     if r.status_code != 200:
                         return self._rejected(order, f"Profile failed: {r.status_code}")
                     profile = r.json()
                     owner_id = profile.get("id")
 
-                    # 2. Get market detail
-                    r = await client.get(f"https://api.limitless.exchange/markets/{order.market_id}", headers=api_h)
+                    # 2. Get market
+                    path = f"/markets/{order.market_id}"
+                    h = self._hmac_headers(tid, secret, "GET", path)
+                    r = await client.get(f"https://api.limitless.exchange{path}", headers=h)
                     if r.status_code != 200:
                         return self._rejected(order, f"Market failed: {r.status_code}")
                     market = r.json()
-                    pos_ids = market.get("positionIds", [])
-                    if not pos_ids or len(pos_ids) < 2:
-                        return self._rejected(order, "No positionIds")
-                    exchange = market.get("venue", {}).get("exchange", "")
-                    if not exchange:
-                        return self._rejected(order, "No exchange address")
+                    tokens = market.get("tokens", {})
+                    exchange_addr = market.get("venue", {}).get("exchange", "")
+                    if not exchange_addr:
+                        return self._rejected(order, "No venue.exchange")
+                    token_id = tokens.get("yes") if order.side.value.upper() == "BUY" else tokens.get("no")
+                    if not token_id:
+                        return self._rejected(order, "No token ID")
 
                     # 3. Build order (tick-aligned, 3 decimal price)
                     price = round(float(order.price or Decimal("0.5")), 3)
                     usd = float(order.size)
                     side_int = 0 if order.side.value.upper() == "BUY" else 1
-                    token_id = pos_ids[0] if side_int == 0 else pos_ids[1]
-
-                    TICK = 1000
                     SCALE = 1_000_000
+                    TICK = 1000
                     raw_contracts = int(usd * SCALE / price)
                     taker_amount = (raw_contracts // TICK) * TICK
-                    price_scaled = int(price * SCALE)
-                    maker_amount = (taker_amount * price_scaled) // SCALE
+                    maker_amount = (taker_amount * int(price * SCALE)) // SCALE
                     if taker_amount < TICK:
                         return self._rejected(order, f"Too small: {taker_amount}")
 
-                    # 4. EIP-712 sign
-                    sdk_order = SDKOrder(
-                        salt=random.randint(10**9, 10**10),
-                        maker=eoa, signer=eoa,
-                        tokenId=str(token_id),
-                        makerAmount=maker_amount, takerAmount=taker_amount,
-                        feeRateBps=300, side=side_int,
-                        signature="0x", signatureType=0,
-                        taker="0x0000000000000000000000000000000000000000",
-                        expiration="0", nonce=0, price=price,
-                    )
-                    is_negrisk = market.get("marketType") == "group"
-                    sig = sdk._sign_order(sdk_order, is_negrisk=is_negrisk)
-                    sdk_order.signature = sig
+                    # 4. EIP-712 sign (all values as strings for uint256)
+                    msg_fields = {
+                        "salt": str(random.randint(10**9, 10**10)),
+                        "maker": acct.address,
+                        "signer": acct.address,
+                        "taker": "0x0000000000000000000000000000000000000000",
+                        "tokenId": str(token_id),
+                        "makerAmount": str(maker_amount),
+                        "takerAmount": str(taker_amount),
+                        "expiration": "0",
+                        "nonce": "0",
+                        "feeRateBps": "300",
+                        "side": "0",
+                        "signatureType": "0",
+                    }
+                    typed_data = {
+                        "types": {
+                            "EIP712Domain": [
+                                {"name": "name", "type": "string"},
+                                {"name": "version", "type": "string"},
+                                {"name": "chainId", "type": "uint256"},
+                                {"name": "verifyingContract", "type": "address"},
+                            ],
+                            "Order": [
+                                {"name": "salt", "type": "uint256"},
+                                {"name": "maker", "type": "address"},
+                                {"name": "signer", "type": "address"},
+                                {"name": "taker", "type": "address"},
+                                {"name": "tokenId", "type": "uint256"},
+                                {"name": "makerAmount", "type": "uint256"},
+                                {"name": "takerAmount", "type": "uint256"},
+                                {"name": "expiration", "type": "uint256"},
+                                {"name": "nonce", "type": "uint256"},
+                                {"name": "feeRateBps", "type": "uint256"},
+                                {"name": "side", "type": "uint8"},
+                                {"name": "signatureType", "type": "uint8"},
+                            ],
+                        },
+                        "primaryType": "Order",
+                        "domain": {
+                            "name": "Limitless CTF Exchange",
+                            "version": "1",
+                            "chainId": 8453,
+                            "verifyingContract": exchange_addr,
+                        },
+                        "message": msg_fields,
+                    }
+                    signable = encode_typed_data(full_message=typed_data)
+                    signed = acct.sign_message(signable)
+                    sig_hex = "0x" + signed.signature.hex()
 
-                    # 5. Build clean payload (ONLY expected fields)
-                    order_dict = {
-                        "salt": str(sdk_order.salt),
-                        "maker": sdk_order.maker,
-                        "signer": sdk_order.signer,
-                        "taker": sdk_order.taker,
-                        "tokenId": sdk_order.tokenId,
-                        "makerAmount": sdk_order.makerAmount,
-                        "takerAmount": sdk_order.takerAmount,
-                        "expiration": str(sdk_order.expiration) if sdk_order.expiration is not None else "0",
-                        "nonce": sdk_order.nonce if sdk_order.nonce is not None else 0,
-                        "feeRateBps": sdk_order.feeRateBps,
-                        "side": sdk_order.side,
-                        "signatureType": sdk_order.signatureType,
-                        "signature": sdk_order.signature,
+                    # 5. Build payload (int types, no extra fields)
+                    order_fields = {
+                        "salt": msg_fields["salt"],
+                        "maker": acct.address,
+                        "signer": acct.address,
+                        "taker": "0x0000000000000000000000000000000000000000",
+                        "tokenId": str(token_id),
+                        "makerAmount": maker_amount,
+                        "takerAmount": taker_amount,
+                        "expiration": "0",
+                        "nonce": 0,
+                        "feeRateBps": 300,
+                        "side": side_int,
+                        "signatureType": 0,
+                        "signature": sig_hex,
                         "price": price,
                     }
                     payload = {
-                        "order": order_dict,
+                        "order": order_fields,
                         "orderType": "FAK",
                         "marketSlug": order.market_id,
                         "ownerId": owner_id,
-                        "clientOrderId": f"{int(time.time()*1000)}-{random.randint(10000000,99999999)}",
                     }
                     body = json.dumps(payload)
-                    sys.stderr.write(f"[limitless] ORDER body_keys={list(payload.keys())} order_keys={list(order_dict.keys())}\n")
-                    sys.stderr.flush()
-
-                    # 6. Submit
-                    r = await client.post("https://api.limitless.exchange/orders", headers=api_h, content=body)
+                    h = self._hmac_headers(tid, secret, "POST", "/orders", body)
+                    r = await client.post("https://api.limitless.exchange/orders", headers=h, content=body)
                     if r.status_code in (200, 201):
                         result = r.json()
-                        print(f"[limitless] Order placed: {result}", flush=True)
+                        logger.info(f"[limitless] Order placed: {result}")
                         return NormalizedOrderResult(
                             venue_order_id=result.get("orderId", result.get("id", "unknown")),
                             client_order_id=order.client_order_id,
@@ -222,10 +255,9 @@ class LimitlessProvider(BaseMarketProvider):
                     else:
                         raise Exception(f"Order rejected: {r.status_code} {r.text[:300]}")
             except Exception as exc:
-                sys.stderr.write(f"[limitless] ORDER attempt {attempt+1}/3: {exc}\n")
-                sys.stderr.flush()
+                import sys, asyncio
+                print(f"[limitless] ORDER attempt {attempt+1}/3: {exc}", file=sys.stderr, flush=True)
                 if attempt < 2:
-                    import asyncio
                     await asyncio.sleep(2 ** attempt)
                 else:
                     return self._rejected(order, str(exc))
@@ -235,6 +267,7 @@ class LimitlessProvider(BaseMarketProvider):
     # ------------------------------------------------------------------
 
     async def cancel_order(self, order_id: str, **kwargs) -> bool:
+        logger.warning(f"[limitless] cancel_order not implemented: {order_id}")
         return False
 
     async def get_balance(self, **kwargs) -> dict:
