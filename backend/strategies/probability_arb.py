@@ -101,7 +101,7 @@ async def execute_arb(
     - Race condition: idempotency key per (market_id, timestamp)
     """
     start = time.monotonic()
-    idempotency_key = f"{yes_token_id}-{int(start * 1000)}"
+    idempotency_key = f"{market_id}-{int(start * 1000)}"
 
     async with execution_breaker():
         try:
@@ -138,8 +138,7 @@ async def execute_arb(
             logger.warning(f"[prob_arb] Execution failed: {exc}")
             _pending_arbs[idempotency_key] = {
                 "opportunity": opportunity,
-                "yes_token_id": yes_token_id,
-                "no_token_id": no_token_id,
+                "market_id": market_id,
                 "queued_at": time.time(),
             }
             return {
@@ -205,13 +204,8 @@ class ProbabilityArb(BaseStrategy):
     )
     category = "arb"
     default_params = {
-        "_force_disabled": False,
         "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
         "max_position": 100.0,
-        "max_open_positions": 5,
-        "max_per_asset": 1,
-        "stop_loss_pct": 0.10,
-        "profit_target_pct": 0.05,
     }
 
     async def detect(
@@ -244,22 +238,16 @@ class ProbabilityArb(BaseStrategy):
 
                     opp = detect_arb(yes_price, no_price)
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
-                        clob_token_ids = m.get("clobTokenIds")
-                        if not clob_token_ids or not isinstance(clob_token_ids, (list, str)) or (isinstance(clob_token_ids, list) and len(clob_token_ids) < 2):
-                            continue
+                        opp.market_id = m.get("conditionId", "")
+                        # YES and NO are different token IDs on Polymarket
+                        clob_token_ids = m.get("clobTokenIds") or []
                         if isinstance(clob_token_ids, str):
-                            import json as _json
-                            clob_token_ids = _json.loads(clob_token_ids)
-                        yes_token_id = clob_token_ids[0]
-                        no_token_id = clob_token_ids[1]
-                        opp.market_id = m.get("conditionId") or m.get("slug") or yes_token_id
-                        # Validate token_ids before execution
-                        if not yes_token_id or not no_token_id:
-                            logger.debug(f"[prob_arb] Skipping {opp.market_id}: invalid token_ids")
+                            import json
+                            clob_token_ids = json.loads(clob_token_ids)
+                        if len(clob_token_ids) < 2:
                             continue
-                        if yes_token_id == no_token_id:
-                            logger.debug(f"[prob_arb] Skipping {opp.market_id}: YES and NO token_ids are identical")
-                            continue
+                        yes_token_id = str(clob_token_ids[0])
+                        no_token_id = str(clob_token_ids[1])
                         result = await execute_arb(opp, yes_token_id, no_token_id, ctx.clob)
                         if result.get("success"):
                             arb_count += 1
