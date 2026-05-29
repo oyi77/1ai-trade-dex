@@ -106,7 +106,10 @@ class LimitlessProvider(BaseMarketProvider):
                 ),
             )
         except Exception as exc:
-            logger.exception("Limitless order failed")
+            import sys
+            print(f"[limitless] ORDER ERROR: {exc}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return self._rejected(order, str(exc))
 
     async def cancel_order(self, venue_order_id: str) -> bool:
@@ -146,7 +149,7 @@ class LimitlessProvider(BaseMarketProvider):
             title = m.get("title") or m.get("proxyTitle") or m.get("question", "")
             result.append(MarketInfo(
                 venue="limitless",
-                market_id=str(m.get("id", "")),
+                market_id=str(m.get("slug", "") or m.get("id", "")),
                 title=title,
                 description="",
                 category="crypto",
