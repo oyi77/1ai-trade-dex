@@ -71,6 +71,7 @@ class LongshotBiasStrategy(BaseStrategy):
         trades_attempted = 0
         trades_placed = 0
         errors: list[str] = []
+        decisions: list[dict] = []
 
         try:
             # Get markets from primary provider
@@ -144,7 +145,7 @@ class LongshotBiasStrategy(BaseStrategy):
                         continue
                     kelly = (true_win_prob * odds - (1.0 - true_win_prob)) / odds
                     kelly = max(0, kelly * kelly_frac)  # fractional Kelly
-                    position_size = min(kelly * 100.0, max_position)  # cap at max
+                    position_size = min(kelly * ctx.bankroll, max_position)  # cap at max
 
                     if position_size < 5.0:  # below min order
                         continue
@@ -170,8 +171,10 @@ class LongshotBiasStrategy(BaseStrategy):
                         )
                         if order:
                             trades_placed += 1
+                            decisions.append({"market": market.slug, "side": "BUY", "price": no_price, "size": position_size, "ev": ev})
                     else:
                         trades_placed += 1  # paper mode auto-fills
+                        decisions.append({"market": market.slug, "side": "BUY", "price": no_price, "size": position_size, "ev": ev})
 
                     ctx.logger.info(
                         "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
@@ -210,4 +213,5 @@ class LongshotBiasStrategy(BaseStrategy):
             trades_attempted=trades_attempted,
             trades_placed=trades_placed,
             errors=errors,
+            decisions=decisions,
         )

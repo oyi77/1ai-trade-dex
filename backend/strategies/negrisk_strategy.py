@@ -411,8 +411,8 @@ class NegRiskStrategy(BaseStrategy):
 
                     decisions_recorded += len(orders)
 
-                    # 5. Execute — all-or-nothing (if any leg fails, report failure)
-                    event_executed = 0
+                    # 5. Execute — all-or-nothing (if any leg fails, cancel all placed)
+                    placed_order_ids: list[str] = []
                     event_errors: list[str] = []
                     try:
                         for order in orders:
@@ -420,23 +420,32 @@ class NegRiskStrategy(BaseStrategy):
                             result = await self._execute_order(ctx, order)
                             if result and result.get("success"):
                                 trades_placed += 1
-                                event_executed += 1
-                            elif result:
-                                event_errors.append(result.get("error", "unknown"))
+                                if result.get("order_id"):
+                                    placed_order_ids.append(result["order_id"])
+                            else:
+                                event_errors.append(result.get("error", "unknown") if result else "null_result")
+                                # Atomicity: cancel all previously placed legs
+                                for oid in placed_order_ids:
+                                    try:
+                                        await ctx.clob.cancel_order(oid)
+                                        ctx.logger.info("[negrisk] Cancelled order %s (leg failed)", oid)
+                                    except Exception as cancel_exc:
+                                        ctx.logger.warning("[negrisk] Failed to cancel order %s: %s", oid, cancel_exc)
+                                break
                     except CircuitOpenError:
                         ctx.logger.warning(
                             "[negrisk] circuit breaker open, skipping %s", event.event_id
                         )
                         errors.append(f"circuit_open:{event.event_id}")
                         continue
-                    if event_executed < len(orders):
+                    if event_errors:
                         ctx.logger.warning(
-                            "[negrisk] partial fill for %s (%d/%d placed), "
-                            "all-or-nothing: %s",
+                            "[negrisk] partial fill for %s (%d placed, %d total), "
+                            "cancelled %d: %s",
                             event.event_id,
-                            event_executed,
+                            len(placed_order_ids),
                             len(orders),
-                            "; ".join(event_errors),
+                            event_errors,
                         )
                         errors.extend(event_errors)
 

@@ -86,7 +86,8 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
 
 async def execute_arb(
     opportunity: ArbOpportunity,
-    market_id: str,
+    yes_token_id: str,
+    no_token_id: str,
     clob: Optional[object] = None,
 ) -> dict:
     """
@@ -106,7 +107,7 @@ async def execute_arb(
         try:
             arb_size = settings.ARB_EXECUTOR_MAX_SIZE
             order_yes = await _place_order_with_retry(
-                token_id=market_id,
+                token_id=yes_token_id,
                 side="BUY",
                 price=opportunity.yes_price,
                 size=arb_size,
@@ -115,7 +116,7 @@ async def execute_arb(
             )
 
             order_no = await _place_order_with_retry(
-                token_id=market_id,
+                token_id=no_token_id,
                 side="BUY",
                 price=opportunity.no_price,
                 size=arb_size,
@@ -203,7 +204,6 @@ class ProbabilityArb(BaseStrategy):
     )
     category = "arb"
     default_params = {
-        "_force_disabled": True,
         "min_profit": _cfg("ARB_MIN_PROFIT", 0.02),
         "max_position": 100.0,
     }
@@ -239,7 +239,16 @@ class ProbabilityArb(BaseStrategy):
                     opp = detect_arb(yes_price, no_price)
                     if opp and opp.net_profit >= self.default_params["min_profit"]:
                         opp.market_id = m.get("conditionId", "")
-                        result = await execute_arb(opp, opp.market_id, ctx.clob)
+                        # YES and NO are different token IDs on Polymarket
+                        clob_token_ids = m.get("clobTokenIds") or []
+                        if isinstance(clob_token_ids, str):
+                            import json
+                            clob_token_ids = json.loads(clob_token_ids)
+                        if len(clob_token_ids) < 2:
+                            continue
+                        yes_token_id = str(clob_token_ids[0])
+                        no_token_id = str(clob_token_ids[1])
+                        result = await execute_arb(opp, yes_token_id, no_token_id, ctx.clob)
                         if result.get("success"):
                             arb_count += 1
                         elif result.get("queued"):
