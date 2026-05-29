@@ -197,6 +197,8 @@ class LimitlessProvider(BaseMarketProvider):
                         "ownerId": owner_id,
                     }
                     body = json.dumps(payload)
+                    print(f"[limitless] PAYLOAD_KEYS={sorted(payload.keys())} ORDER_KEYS={sorted(order_fields.keys())}", flush=True)
+                    print(f"[limitless] BODY_START={body[:200]}", flush=True)
                     h = self._sign_request(tid, secret, "POST", "/orders", body)
                     r = await c.post("https://api.limitless.exchange/orders", headers=h, content=body)
                     if r.status_code in (200, 201):
@@ -209,7 +211,7 @@ class LimitlessProvider(BaseMarketProvider):
                             remaining_size=order.size, fees_paid=Decimal("0"),
                         )
                     else:
-                        raise Exception(f"Order rejected: {r.status_code} {r.text[:300]}")
+                        raise Exception(f"Order rejected: {r.status_code} {r.text[:300]} | BODY_KEYS={sorted(order_fields.keys())}")
             except Exception as exc:
                 import asyncio
                 print(f"[limitless] ORDER attempt {attempt+1}/3: {exc}", file=sys.stderr, flush=True)
