@@ -395,15 +395,19 @@ class CryptoOracleStrategy(BaseStrategy):
     async def _debate_validate(
         self, question: str, market_price: float, context: str = "", db=None
     ) -> tuple[bool, float]:
-        if not self.default_params.get("debate_enabled", True):
+        if not self.default_params.get("debate_enabled", False):
             return True, 0.5
         try:
-            result = await run_debate_with_routing(
-                db=db,
-                question=question,
-                market_price=market_price,
-                context=context,
-                max_rounds=2,
+            import asyncio
+            result = await asyncio.wait_for(
+                run_debate_with_routing(
+                    db=db,
+                    question=question,
+                    market_price=market_price,
+                    context=context,
+                    max_rounds=2,
+                ),
+                timeout=10.0,
             )
             if result and result.confidence > 0:
                 return (
