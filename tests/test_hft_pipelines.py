@@ -106,10 +106,10 @@ async def test_market_maker_queue_processing(mock_db_session):
             "asks": [{"price": 0.52, "size": 100}],
             "timestamp": time.time(),
         }
-        event = MarketEvent("token_mm", "book", event_data)
+        event = MarketEvent("token_mm", "book", event_data, time.time())
         
         await strategy.on_market_event(event)
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.2)
 
         # Verify two-sided quotes placed locally!
         active_quotes = strategy._get_active_quotes("token_mm")

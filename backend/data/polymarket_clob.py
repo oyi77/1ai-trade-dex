@@ -976,6 +976,58 @@ class PolymarketCLOB:
             )
             return {"usdc_balance": 0.0, "token_balances": {}, "error": str(e)}
 
+    async def get_pusd_balance(self) -> float:
+        """
+        Fetch CLOB-internal PUSD balance via py_clob_client.
+
+        PUSD is Polymarket's internal collateral token (not an ERC20 on-chain).
+        This uses the CLOB API's get_balance_allowance endpoint with
+        AssetType.COLLATERAL to check the available trading balance.
+
+        Returns:
+            float: PUSD balance in human-readable units (divided by 1e6).
+                   Returns 0.0 on error or if not authenticated.
+        """
+        if not self._clob_client:
+            logger.debug(
+                "[polymarket_clob.get_pusd_balance] ClobClient not initialised"
+            )
+            return 0.0
+        if not self._clob_client.creds:
+            # Try deriving creds if we have a private key
+            if self.private_key:
+                try:
+                    await self.create_or_derive_api_key()
+                except Exception as e:
+                    logger.debug(
+                        f"[polymarket_clob.get_pusd_balance] Failed to derive creds: {e}"
+                    )
+            if not self._clob_client.creds:
+                logger.debug(
+                    "[polymarket_clob.get_pusd_balance] No API credentials available"
+                )
+                return 0.0
+
+        try:
+            params = BalanceAllowanceParams(
+                asset_type=AssetType.COLLATERAL,
+                signature_type=self.signature_type if self.signature_type else None,
+            )
+            result = await asyncio.to_thread(
+                self._clob_client.get_balance_allowance, params
+            )
+            pusd_balance = int(result.get("balance", 0)) / 1e6
+            logger.debug(
+                f"[polymarket_clob.get_pusd_balance] PUSD balance: {pusd_balance:.4f}"
+            )
+            return pusd_balance
+        except Exception as e:
+            logger.warning(
+                f"[polymarket_clob.get_pusd_balance] {type(e).__name__}: Failed to fetch PUSD balance: {e}",
+                exc_info=True,
+            )
+            return 0.0
+
     async def get_wallet_trades(
         self,
         wallet_address: Optional[str] = None,

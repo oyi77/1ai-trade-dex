@@ -56,7 +56,7 @@ def test_update_and_flush_scan_stats(db_session):
 
     # Update scan stats in memory
     update_scan_stats(
-        strategy_name="btc_oracle",
+        strategy_name="bond_scanner",
         mode="paper",
         markets_scanned=15,
         signals_had_edge=4,
@@ -76,8 +76,8 @@ def test_update_and_flush_scan_stats(db_session):
         assert fresh_state.misc_data is not None
         misc = json.loads(fresh_state.misc_data)
         
-        assert "scan_stats:btc_oracle" in misc
-        stats = misc["scan_stats:btc_oracle"]
+        assert "scan_stats:bond_scanner" in misc
+        stats = misc["scan_stats:bond_scanner"]
         assert stats["markets_scanned"] == 15
         assert stats["signals_had_edge"] == 4
         assert stats["signals_rejected"] == 1
@@ -92,7 +92,7 @@ def test_strategies_health_api_endpoint(test_app, db_session):
     app.dependency_overrides[require_admin] = lambda: None
 
     # Setup database configs and data
-    cfg = StrategyConfig(strategy_name="btc_oracle", enabled=True, trading_mode="paper")
+    cfg = StrategyConfig(strategy_name="bond_scanner", enabled=True, trading_mode="paper")
     db_session.add(cfg)
     
     # Add a mock Signal
@@ -105,7 +105,7 @@ def test_strategies_health_api_endpoint(test_app, db_session):
         market_price=0.55,
         edge=0.10,
         confidence=0.8,
-        track_name="btc_oracle",
+        track_name="bond_scanner",
         execution_mode="paper",
         reasoning="Test signal",
     )
@@ -115,7 +115,7 @@ def test_strategies_health_api_endpoint(test_app, db_session):
     attempt = TradeAttempt(
         attempt_id="test-attempt-id",
         correlation_id="test-correlation-id",
-        strategy="btc_oracle",
+        strategy="bond_scanner",
         mode="paper",
         market_ticker="BTC-20260526-UP",
         status="REJECTED",
@@ -128,8 +128,8 @@ def test_strategies_health_api_endpoint(test_app, db_session):
     # Add some scan stats to BotState
     state = db_session.query(BotState).filter_by(mode="paper").first()
     state.misc_data = json.dumps({
-        "heartbeat:btc_oracle": datetime.now(timezone.utc).isoformat(),
-        "scan_stats:btc_oracle": {
+        "heartbeat:bond_scanner": datetime.now(timezone.utc).isoformat(),
+        "scan_stats:bond_scanner": {
             "last_scan_time": datetime.now(timezone.utc).isoformat(),
             "markets_scanned": 12,
             "signals_had_edge": 2,
@@ -144,8 +144,8 @@ def test_strategies_health_api_endpoint(test_app, db_session):
     assert response.status_code == 200
     data = response.json()
     
-    # Find btc_oracle in results
-    health = next((h for h in data if h["strategy"] == "btc_oracle"), None)
+    # Find bond_scanner in results
+    health = next((h for h in data if h["strategy"] == "bond_scanner"), None)
     assert health is not None
     assert health["enabled"] is True
     assert health["trading_mode"] == "paper"
@@ -168,7 +168,7 @@ def test_strategies_compare_api_endpoint(test_app, db_session):
 
     # Insert a StrategyHealthRecord
     health_rec = StrategyHealthRecord(
-        strategy="btc_oracle",
+        strategy="bond_scanner",
         total_trades=10,
         wins=6,
         losses=4,
@@ -189,7 +189,7 @@ def test_strategies_compare_api_endpoint(test_app, db_session):
         size=10.0,
         market_type="btc",
         trading_mode="paper",
-        strategy="btc_oracle",
+        strategy="bond_scanner",
         status="closed",
         pnl=5.0,
         settled=True,
@@ -203,7 +203,7 @@ def test_strategies_compare_api_endpoint(test_app, db_session):
         size=10.0,
         market_type="btc",
         trading_mode="paper",
-        strategy="btc_oracle",
+        strategy="bond_scanner",
         status="closed",
         pnl=-5.0,
         settled=True,
@@ -219,8 +219,8 @@ def test_strategies_compare_api_endpoint(test_app, db_session):
     assert response.status_code == 200
     data = response.json()
     
-    assert "btc_oracle" in data
-    comparison = data["btc_oracle"]
+    assert "bond_scanner" in data
+    comparison = data["bond_scanner"]
     assert comparison["total_trades"] == 2
     assert comparison["wins"] == 1
     assert comparison["losses"] == 1

@@ -218,7 +218,8 @@ class TestParquetRoleColumn:
                 timestamp TEXT,
                 signal_id INTEGER,
                 strategy TEXT DEFAULT 'test_strategy',
-                role TEXT DEFAULT 'maker'
+                role TEXT DEFAULT 'maker',
+                market_type TEXT DEFAULT 'btc'
             )
         """)
         ts = datetime.now(timezone.utc).isoformat()

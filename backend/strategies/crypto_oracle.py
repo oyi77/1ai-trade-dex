@@ -9,7 +9,7 @@ by > min_edge AND time-to-resolution < max_minutes, fire a trade.
 Starts DISABLED (same as btc_oracle). Enable via StrategyConfig DB table.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from backend.strategies.base import (
@@ -29,6 +29,10 @@ from backend.models.signal_log import SignalLog
 from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
+
+# Hard guard: if model_probability is within this distance of market_price, skip.
+# No real edge exists when the oracle can't distinguish itself from the market.
+_NO_EDGE_THRESHOLD = 0.05
 
 # Supported assets: CoinGecko IDs
 SUPPORTED_ASSETS = [
@@ -343,6 +347,51 @@ class CryptoOracleStrategy(BaseStrategy):
 
     supported_assets = SUPPORTED_ASSETS
 
+    # --- Circuit breaker state (reset daily) ---
+    _cumulative_daily_loss: float = 0.0
+    _daily_loss_date: str = ""
+    _consecutive_losses: int = 0
+    _pause_until: Optional[datetime] = None
+
+    def _check_circuit_breakers(self) -> Optional[str]:
+        """Return a reason string if trading should be blocked, else None."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self._daily_loss_date != today:
+            self._cumulative_daily_loss = 0.0
+            self._consecutive_losses = 0
+            self._daily_loss_date = today
+            self._pause_until = None
+
+        if self._pause_until and datetime.now(timezone.utc) < self._pause_until:
+            return f"consecutive_loss_pause until {self._pause_until.isoformat()}"
+
+        max_daily_loss = getattr(settings, "CRYPTO_ORACLE_MAX_DAILY_LOSS", 50.0)
+        if self._cumulative_daily_loss < -max_daily_loss:
+            return f"daily_loss ${self._cumulative_daily_loss:.2f} exceeds ${max_daily_loss}"
+
+        return None
+
+    def _record_trade_outcome(self, pnl: float) -> None:
+        """Update circuit breaker state after a trade settles."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if self._daily_loss_date != today:
+            self._cumulative_daily_loss = 0.0
+            self._consecutive_losses = 0
+            self._daily_loss_date = today
+            self._pause_until = None
+
+        if pnl < 0:
+            self._cumulative_daily_loss += pnl
+            self._consecutive_losses += 1
+            if self._consecutive_losses >= 5:
+                self._pause_until = datetime.now(timezone.utc) + timedelta(hours=1)
+                logger.warning(
+                    "crypto_oracle: 5 consecutive losses — pausing 1 hour until {}",
+                    self._pause_until.isoformat(),
+                )
+        else:
+            self._consecutive_losses = 0
+
     async def _debate_validate(
         self, question: str, market_price: float, context: str = "", db=None
     ) -> tuple[bool, float]:
@@ -405,6 +454,12 @@ class CryptoOracleStrategy(BaseStrategy):
 
     async def on_market_event(self, event: MarketEvent) -> Optional[dict]:
         """Handle a real-time WS market event for a subscribed crypto token."""
+        # Circuit breaker: daily loss limit + consecutive loss pause
+        blocker = self._check_circuit_breakers()
+        if blocker:
+            logger.debug("crypto_oracle.on_market_event: blocked by circuit breaker: {}", blocker)
+            return None
+
         params = {**self.default_params}
         min_edge = params.get("min_edge", self.default_params["min_edge"])
         max_position_usd = float(
@@ -515,16 +570,25 @@ class CryptoOracleStrategy(BaseStrategy):
         if edge <= 0:
             return None
 
+        # Hard guard: no real edge if oracle can't distinguish from market
+        if abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+            logger.debug(
+                "crypto_oracle.on_market_event: skip — |oracle_implied - market_mid|={:.4f} < {:.2f} (no edge)",
+                abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+            )
+            return None
+
         confidence_score = (
             min(1.0, max(0.0, edge / min_edge)) if min_edge > 0 else 0.0
         )
         kelly = kelly_fraction(
             get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid
         )
+        bankroll = getattr(settings, "INITIAL_BANKROLL", 100.0)
         if kelly > 0:
             suggested_size = min(
-                ctx.bankroll * kelly,
-                ctx.bankroll * 0.02,
+                bankroll * kelly,
+                bankroll * 0.02,
                 max_position_usd,
             )
         else:
@@ -621,6 +685,13 @@ class CryptoOracleStrategy(BaseStrategy):
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
+
+        # Circuit breaker: daily loss limit + consecutive loss pause
+        blocker = self._check_circuit_breakers()
+        if blocker:
+            logger.info("crypto_oracle.run_cycle: blocked by circuit breaker: {}", blocker)
+            return result
+
         min_edge = params.get("min_edge", self.default_params["min_edge"])
         max_minutes = params.get(
             "max_minutes_to_resolution",
@@ -769,6 +840,14 @@ class CryptoOracleStrategy(BaseStrategy):
                 edge = abs(oracle_implied - market_mid) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"
+
+                # Hard guard: no real edge if oracle can't distinguish from market
+                if decision == "BUY" and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+                    logger.debug(
+                        "crypto_oracle: skip {} — |oracle - market|={:.4f} < {:.2f}",
+                        market.slug, abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+                    )
+                    decision = "SKIP"
                 confidence_score = (
                     min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
                 )
@@ -947,14 +1026,25 @@ class CryptoOracleStrategy(BaseStrategy):
                         else:
                             oracle_implied = max(0.05, min(0.95, 0.5 - pct_diff * 5.0))
                     else:
-                        # Fallback: use moderate edge from market_mid
-                        oracle_implied = market_mid + (
-                            min_edge * 2 if direction == "yes" else -min_edge * 2
+                        # Cannot extract strike price from question — no oracle edge possible.
+                        # Previously fabricated edge with min_edge*2 offset (caused $616+ losses).
+                        logger.debug(
+                            "crypto_oracle: skip {} — no threshold parseable from question",
+                            market.ticker,
                         )
-                        oracle_implied = max(0.05, min(0.95, oracle_implied))
+                        continue
                     edge = oracle_implied - market_mid
 
                     decision = "BUY" if edge > 0 else "SKIP"
+
+                    # Hard guard: no real edge if oracle can't distinguish from market
+                    if decision == "BUY" and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+                        logger.debug(
+                            "crypto_oracle: skip {} — |oracle - market|={:.4f} < {:.2f}",
+                            market.ticker, abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+                        )
+                        decision = "SKIP"
+
                     confidence_score = (
                         min(1.0, abs(edge + min_edge) / min_edge)
                         if min_edge > 0

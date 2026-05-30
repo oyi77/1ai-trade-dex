@@ -269,11 +269,8 @@ async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
     mock_db = MagicMock()
     mock_db.query.return_value.filter.return_value.filter.return_value.all.return_value = [mock_trade]
 
-    # Mock the DB session helper
-    mock_ctx = MagicMock()
-    mock_ctx.__enter__.return_value = mock_db
-    mock_get_session = MagicMock(return_value=mock_ctx)
-    monkeypatch.setattr("backend.db.utils.get_db_session", mock_get_session)
+    # Mock SessionLocal (imported inside _load from backend.models.database)
+    monkeypatch.setattr("backend.models.database.SessionLocal", lambda: mock_db)
 
     # Mock fetch_prices_bulk
     monkeypatch.setattr("backend.core.position_monitor._fetch_prices_bulk", lambda x: {"test-market": 0.505})

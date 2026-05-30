@@ -131,7 +131,10 @@ async def test_cex_pm_leadlag_run_cycle(
     result = await strategy.run_cycle(ctx)
 
     # Verify auto-sell was checked
-    mock_auto_sell.assert_called_once_with("cex_pm_leadlag", clob_client=ctx.clob)
+    mock_auto_sell.assert_called_once_with(
+        "cex_pm_leadlag", clob_client=ctx.clob,
+        profit_target_pct=0.08, stop_loss_pct=0.20, max_hold_seconds=240,
+    )
 
     # Verify microstructure and markets were fetched for all three assets
     assert mock_microstructure.call_count == 3

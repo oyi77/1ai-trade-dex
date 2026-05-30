@@ -26,11 +26,13 @@ def strategy():
 def mock_ctx():
     ctx = MagicMock(spec=StrategyContext)
     ctx.db = MagicMock()
+    ctx.db.query.return_value.filter.return_value.count.return_value = 0
     ctx.clob = AsyncMock()
     ctx.settings = MagicMock()
     ctx.logger = MagicMock()
     ctx.params = {}
     ctx.mode = "paper"
+    ctx.bankroll = 100.0
     ctx.clob.get_markets = AsyncMock(return_value=[])
     ctx.clob.get_usdc_balance = AsyncMock(return_value=1000.0)
     ctx.clob.place_limit_order = AsyncMock(

@@ -230,7 +230,8 @@ def test_hive_partitioned_parquet_archiving(tmp_path):
             timestamp TEXT,
             signal_id INTEGER,
             strategy TEXT,
-            role TEXT DEFAULT 'unknown'
+            role TEXT DEFAULT 'unknown',
+            market_type TEXT DEFAULT 'btc'
         )
     """)
 

@@ -22,6 +22,14 @@ from backend.core.plugin_errors import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _reset_registry():
+    """Reset singleton registry before each test to prevent cross-test pollution."""
+    MarketProviderRegistry.reset()
+    yield
+    MarketProviderRegistry.reset()
+
+
 class MockMarketProvider(BaseMarketProvider):
     """Test market provider with no required env vars."""
 
@@ -342,8 +350,8 @@ async def test_kalshi_search_markets():
                 "ticker": "FED-26MAY",
                 "title": "Fed rate cut",
                 "category": "economics",
-                "yes_bid": 65,
-                "volume": 1000,
+                "yes_bid_dollars": 0.65,
+                "volume_fp": 1000,
                 "open_interest": 500,
                 "status": "open",
             },
@@ -351,8 +359,8 @@ async def test_kalshi_search_markets():
                 "ticker": "BTC-100K",
                 "title": "Bitcoin 100k",
                 "category": "crypto",
-                "yes_bid": 30,
-                "volume": 5000,
+                "yes_bid_dollars": 0.30,
+                "volume_fp": 5000,
                 "open_interest": 2000,
                 "status": "open",
             },

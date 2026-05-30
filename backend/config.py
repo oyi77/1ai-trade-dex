@@ -287,7 +287,7 @@ class ConfigRegistry:
     MIN_WHALE_TRADE_USD: float = 1000.0  # minimum whale trade size
 
     # Strategy governance thresholds
-    KILL_WIN_RATE: float = 0.05  # win rate below which strategy is auto-killed
+    KILL_WIN_RATE: float = 0.30  # win rate below which strategy is auto-killed (was 0.05 — crypto_oracle disaster)
     KILL_SHARPE: float = -2.0  # Sharpe ratio below which strategy is auto-killed
     KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
@@ -304,6 +304,9 @@ class ConfigRegistry:
     STRATEGY_PNL_LOOKBACK_DAYS: int = 30  # day lookback for PnL evaluation
     RISK_MAX_DAILY_LOSS_PER_STRATEGY_USD: float = 50.0  # hard-dollar daily stop per strategy
     RISK_MAX_TOTAL_DRAWDOWN_PCT: float = 10.0  # % of total balance drawdown limit
+    PER_TRADE_MAX_LOSS_PCT: float = 0.05  # no single trade > 5% of bankroll
+    MAX_DAILY_TRADES_PER_STRATEGY: int = 50  # max trades per strategy per day
+    PORTFOLIO_CIRCUIT_BREAKER_PCT: float = 0.20  # disable ALL if portfolio down >20% from peak
     PROPOSAL_ROLLBACK_THRESHOLD: float = -0.1  # Sharpe rollback trigger
     PROPOSAL_IMPACT_WINDOW_HOURS: int = 48  # hours to monitor after proposal exec
     PROPOSAL_MIN_TRADES_FOR_IMPACT: int = 5  # min trades for impact measurement
@@ -580,6 +583,9 @@ class ConfigRegistry:
     )
     CRYPTO_ORACLE_MAX_PRICE_BUCKET: float = (
         0.65  # reject trades above 65c (negative EV territory)
+    )
+    CRYPTO_ORACLE_MAX_DAILY_LOSS: float = (
+        50.0  # cumulative daily loss in USD — stop trading if exceeded
     )
 
     # Crypto Oracle — dynamic allocation & time-of-day optimization

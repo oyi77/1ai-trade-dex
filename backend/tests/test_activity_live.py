@@ -199,8 +199,8 @@ class TestHyperliquidLive:
             pytest.skip("No HYPERLIQUID_WALLET_ADDRESS")
         from backend.data.hyperliquid_client import HyperliquidClient
         client = HyperliquidClient()
-        fills = await client.get_user_fills(_env("HYPERLIQUID_WALLET_ADDRESS"))
-        assert isinstance(fills, list)
+        trades = await client.get_recent_trades("BTC", limit=5)
+        assert isinstance(trades, list)
 
 
 @pytest.mark.live

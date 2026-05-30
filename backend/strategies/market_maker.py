@@ -119,6 +119,8 @@ class MarketMakerStrategy(BaseStrategy):
         self._mode: str = "paper"
         # Per-market inventory tracking (net filled size: +BUY, -SELL)
         self._inventory: dict[str, float] = {}
+        # Per-market price history for volatility estimation
+        self._price_history: dict[str, list] = {}
 
     def start_consumer(self) -> None:
         """Start the background L2 consumer task if not active."""

@@ -332,8 +332,8 @@ def _execute_decision_paper_or_kalshi(
                 return None
 
             # --- G-16: Cooldown after consecutive losses ---
-            cooldown_losses = getattr(settings, "COOLDOWN_CONSECUTIVE_LOSSES", 3)
-            cooldown_minutes = getattr(settings, "COOLDOWN_MINUTES", 60)
+            cooldown_losses = int(_cfg("COOLDOWN_CONSECUTIVE_LOSSES", 3) or 3)
+            cooldown_minutes = int(_cfg("COOLDOWN_MINUTES", 60) or 60)
             if cooldown_losses > 0:
                 from datetime import timedelta as _td
 
@@ -386,7 +386,7 @@ def _execute_decision_paper_or_kalshi(
                 bankroll = (
                     state.bankroll
                     if state.bankroll is not None
-                    else settings.INITIAL_BANKROLL
+                    else _cfg("INITIAL_BANKROLL", 1000.0)
                 )
 
             # Bankroll reconciliation is async — skip in thread path, log warning
@@ -398,6 +398,18 @@ def _execute_decision_paper_or_kalshi(
                     bankroll,
                 )
                 bankroll = 0.0
+
+            # --- Hard safety guards: per-trade max loss, daily cap, portfolio breaker ---
+            safety_block = _pre_trade_safety_checks(db, strategy_name, mode, bankroll, size)
+            if safety_block is not None:
+                logger.warning(f"[{strategy_name}] Safety guard blocked: {safety_block}")
+                attempt_recorder.record_blocked(
+                    safety_block,
+                    phase="safety_guard",
+                    reason_code="BLOCKED_SAFETY_GUARD",
+                )
+                db.commit()
+                return None
 
             current_exposure = _get_current_exposure(db, trading_mode=mode)
             attempt_recorder.update(
@@ -504,7 +516,7 @@ def _execute_decision_paper_or_kalshi(
                     return None
 
             # --- Duplicate market guard: block if same strategy+ticker traded recently (same mode only) ---
-            _cooldown_sec = settings.DUPLICATE_TRADE_COOLDOWN_SEC
+            _cooldown_sec = _cfg("DUPLICATE_TRADE_COOLDOWN_SEC", 60)
             _cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cooldown_sec)
             _dup_query = (
                 db.query(Trade)
@@ -1285,8 +1297,8 @@ async def _execute_decision_live_clob(
                 return None
 
             # --- G-16: Cooldown after consecutive losses (live CLOB path) ---
-            cooldown_losses = getattr(settings, "COOLDOWN_CONSECUTIVE_LOSSES", 3)
-            cooldown_minutes = getattr(settings, "COOLDOWN_MINUTES", 60)
+            cooldown_losses = int(_cfg("COOLDOWN_CONSECUTIVE_LOSSES", 3) or 3)
+            cooldown_minutes = int(_cfg("COOLDOWN_MINUTES", 60) or 60)
             if cooldown_losses > 0:
                 from datetime import timedelta as _td
 
@@ -1339,7 +1351,7 @@ async def _execute_decision_live_clob(
                 bankroll = (
                     state.bankroll
                     if state.bankroll is not None
-                    else settings.INITIAL_BANKROLL
+                    else _cfg("INITIAL_BANKROLL", 1000.0)
                 )
 
             # Skip async bankroll reconciliation in this path —
@@ -1351,6 +1363,18 @@ async def _execute_decision_live_clob(
                     bankroll,
                 )
                 bankroll = 0.0
+
+            # --- Hard safety guards: per-trade max loss, daily cap, portfolio breaker ---
+            safety_block = _pre_trade_safety_checks(db, strategy_name, mode, bankroll, size)
+            if safety_block is not None:
+                logger.warning(f"[{strategy_name}] Safety guard blocked: {safety_block}")
+                attempt_recorder.record_blocked(
+                    safety_block,
+                    phase="safety_guard",
+                    reason_code="BLOCKED_SAFETY_GUARD",
+                )
+                db.commit()
+                return None
 
             current_exposure = _get_current_exposure(db, trading_mode=mode)
             attempt_recorder.update(
@@ -1457,7 +1481,7 @@ async def _execute_decision_live_clob(
                     return None
 
             # --- Duplicate market guard: block if same strategy+ticker traded recently (same mode only) ---
-            _cooldown_sec = settings.DUPLICATE_TRADE_COOLDOWN_SEC
+            _cooldown_sec = _cfg("DUPLICATE_TRADE_COOLDOWN_SEC", 60)
             _cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cooldown_sec)
             _dup_query = (
                 db.query(Trade)
@@ -1969,11 +1993,90 @@ async def _execute_decision_live_clob(
             return None
 
 
+def _pre_trade_safety_checks(
+    db, strategy_name: str, mode: str, bankroll: float, size: float
+) -> Optional[str]:
+    """Run hard safety guards before any trade executes.
+
+    Returns None if all checks pass, or a rejection reason string.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    # 1. Per-trade max loss: no single trade > 5% of bankroll
+    max_trade_pct = float(_cfg("PER_TRADE_MAX_LOSS_PCT", 0.05))
+    if bankroll > 0 and size > bankroll * max_trade_pct:
+        return (
+            f"per-trade size ${size:.2f} > {max_trade_pct:.0%} of bankroll "
+            f"(${bankroll * max_trade_pct:.2f})"
+        )
+
+    # 2. Daily max trades per strategy: no more than 50
+    max_daily_trades = int(_cfg("MAX_DAILY_TRADES_PER_STRATEGY", 50))
+    if max_daily_trades > 0:
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        daily_count = (
+            db.query(func.count(Trade.id))
+            .filter(
+                Trade.strategy == strategy_name,
+                Trade.trading_mode == mode,
+                Trade.timestamp >= today_start,
+            )
+            .scalar()
+            or 0
+        )
+        if daily_count >= max_daily_trades:
+            return (
+                f"daily trade limit reached: {daily_count}/{max_daily_trades} "
+                f"trades today for {strategy_name}"
+            )
+
+    # 3. Portfolio circuit breaker: if total portfolio down > 20% from peak, disable ALL
+    max_portfolio_dd = float(_cfg("PORTFOLIO_CIRCUIT_BREAKER_PCT", 0.20))
+    if max_portfolio_dd > 0:
+        state = db.query(BotState).filter_by(mode=mode).first()
+        if state:
+            try:
+                initial = (
+                    getattr(state, f"{mode}_initial_bankroll", None)
+                    or getattr(state, "paper_initial_bankroll", None)
+                    or float(_cfg("INITIAL_BANKROLL", 1000.0))
+                )
+            except (TypeError, ValueError):
+                initial = bankroll  # fallback: no drawdown detected
+            current = bankroll
+            if initial and initial > 0:
+                dd_pct = (initial - current) / initial
+                if dd_pct > max_portfolio_dd:
+                    # Emergency: disable ALL strategies for this mode
+                    logger.critical(
+                        "[CIRCUIT BREAKER] Portfolio down %.1f%% from initial $%.2f "
+                        "(current $%.2f). Disabling ALL %s strategies.",
+                        dd_pct * 100, initial, current, mode,
+                    )
+                    from backend.core.strategy_health import disable_for_rehab
+                    all_configs = (
+                        db.query(StrategyConfig)
+                        .filter(StrategyConfig.enabled.is_(True))
+                        .all()
+                    )
+                    for cfg in all_configs:
+                        disable_for_rehab(cfg)
+                    db.commit()
+                    return (
+                        f"PORTFOLIO CIRCUIT BREAKER: down {dd_pct:.1%} from "
+                        f"${initial:.2f} (current ${current:.2f}) — all strategies disabled"
+                    )
+
+    return None
+
+
 def _get_current_exposure(db, trading_mode: str = None) -> float:
     """Sum of open (unsettled) trade sizes for current trading mode."""
     from sqlalchemy import func
 
-    mode = trading_mode or settings.TRADING_MODE
+    mode = trading_mode or _cfg("TRADING_MODE", "paper")
 
     result = (
         db.query(func.coalesce(func.sum(Trade.size), 0.0))

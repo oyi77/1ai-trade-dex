@@ -16,6 +16,8 @@ sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
 sys.modules.setdefault("apscheduler.events", MagicMock())
 sys.modules.setdefault("apscheduler.triggers", MagicMock())
 sys.modules.setdefault("apscheduler.triggers.interval", MagicMock())
+sys.modules.setdefault("apscheduler.triggers.cron", MagicMock())
+sys.modules.setdefault("apscheduler.triggers.date", MagicMock())
 sys.modules.setdefault("apscheduler.jobstores", MagicMock())
 sys.modules.setdefault("apscheduler.jobstores.base", MagicMock())
 sys.modules["backend.core.scheduler"] = _sched_stub
@@ -40,6 +42,10 @@ try:
     )  # noqa: F401
 except Exception:
     pass
+try:
+    from backend.models.database import Trade, ShadowTrade  # noqa: F401
+except Exception:
+    pass
 
 _db_mod.engine = test_engine
 _db_mod.SessionLocal = TestSessionLocal
@@ -51,7 +57,8 @@ try:
 except Exception:
     pass
 
-# Create all tables
+# Create all tables (drop first to ensure schema is fresh)
+Base.metadata.drop_all(bind=test_engine)
 Base.metadata.create_all(bind=test_engine)
 try:
     _db_mod.ensure_schema()

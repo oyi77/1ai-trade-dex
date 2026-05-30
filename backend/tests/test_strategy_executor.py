@@ -485,10 +485,16 @@ class TestAttemptSizingRejection:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
+
+            mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
+            mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
+            mock_settings.MAX_CONCURRENT_TRADES = 10
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision
@@ -554,6 +560,7 @@ class TestAttemptUnexpectedFailure:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
             patch(
@@ -561,6 +568,11 @@ class TestAttemptUnexpectedFailure:
             ) as validate_trade,
         ):
             mock_settings.TRADING_MODE = "paper"
+
+            mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
+            mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
+            mock_settings.MAX_CONCURRENT_TRADES = 10
             validate_trade.side_effect = RuntimeError("validator exploded")
 
             _reload_executor()
@@ -625,10 +637,16 @@ class TestUpdatesBankroll:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
+
+            mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
+            mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
+            mock_settings.MAX_CONCURRENT_TRADES = 10
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision
@@ -683,11 +701,17 @@ class TestUpdatesBankroll:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.models.database.for_update", side_effect=fail_if_called),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
+
+            mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
+            mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
+            mock_settings.MAX_CONCURRENT_TRADES = 10
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision
@@ -1227,10 +1251,16 @@ class TestLiveModeCallsCLOB:
 
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.core.strategy_executor._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "testnet"
+            mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0
+            mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0
+            mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0
+            mock_settings.MAX_CONCURRENT_TRADES = 10
+            mock_settings.INITIAL_BANKROLL = 1000.0
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision

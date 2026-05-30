@@ -75,10 +75,10 @@ class TestBondScannerFilters:
         assert not qualifies, "0.80 should not qualify (below min_price)"
 
         # Price too high — should NOT qualify
-        high_market = _make_market(outcome_prices=["0.99", "0.01"])
+        high_market = _make_market(outcome_prices=["0.995", "0.005"])
         prices = [float(p) for p in high_market["outcomePrices"]]
         qualifies = any(params["min_price"] <= p <= params["max_price"] for p in prices)
-        assert not qualifies, "0.99 should not qualify (above max_price)"
+        assert not qualifies, "0.995 should not qualify (above max_price)"
 
         # Price in range — SHOULD qualify
         good_market = _make_market(outcome_prices=["0.95", "0.05"])

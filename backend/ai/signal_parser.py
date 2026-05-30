@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from backend.core.config_service import get_setting
 from backend.models.database import MiroFishSignal
-from backend.models.database import get_db_session
+from backend.db.utils import get_db_session
 
 
 @dataclass
@@ -253,7 +253,7 @@ class SignalParser:
                 f"Failed to store signal {signal.market_id} in database: {e}",
                 exc_info=True,
             )
-            if session:
+            if session and hasattr(session, 'rollback'):
                 session.rollback()
             return False
 

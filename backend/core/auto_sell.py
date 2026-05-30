@@ -107,6 +107,7 @@ class AutoSellManager:
         profit_target_pct: Optional[float] = None,
         stop_loss_pct: Optional[float] = None,
         max_hold_seconds: Optional[int] = None,
+        trailing_stop_activation_pct: Optional[float] = None,
     ) -> None:
         cfg = _get_auto_sell_config()
         self.profit_target = (
@@ -122,6 +123,9 @@ class AutoSellManager:
             if max_hold_seconds is not None
             else cfg["max_hold_seconds"]
         )
+        # Trailing stop: once pnl >= this threshold, move stop to breakeven (0%).
+        # Set to None to disable trailing stops (default behaviour).
+        self.trailing_stop_activation = trailing_stop_activation_pct
 
     # ------------------------------------------------------------------
     # Public API
@@ -165,9 +169,22 @@ class AutoSellManager:
 
         trigger: Optional[str] = None
 
+        # Effective stop-loss: if trailing stop is active (pnl exceeded activation
+        # threshold), tighten stop to breakeven (0%) to lock in gains.
+        effective_stop_loss = self.stop_loss
+        if (
+            self.trailing_stop_activation is not None
+            and pnl_pct >= self.trailing_stop_activation
+        ):
+            effective_stop_loss = 0.0  # breakeven stop
+            logger.debug(
+                "[auto_sell] Trailing stop activated for trade_id={} pnl={:.4f}% >= {:.4f}%, stop moved to breakeven",
+                trade_id, pnl_pct * 100, self.trailing_stop_activation * 100,
+            )
+
         if pnl_pct >= self.profit_target:
             trigger = "TAKE_PROFIT"
-        elif pnl_pct <= -self.stop_loss:
+        elif pnl_pct <= -effective_stop_loss:
             trigger = "STOP_LOSS"
         elif elapsed >= self.max_hold:
             trigger = "TIME_EXIT"
@@ -369,6 +386,7 @@ async def check_strategy_positions_for_auto_sell(
     profit_target_pct: Optional[float] = None,
     stop_loss_pct: Optional[float] = None,
     max_hold_seconds: Optional[int] = None,
+    trailing_stop_activation_pct: Optional[float] = None,
 ) -> List[AutoSellResult]:
     """Check all open positions belonging to *strategy_name* for auto-sell.
 
@@ -410,6 +428,7 @@ async def check_strategy_positions_for_auto_sell(
         profit_target_pct=profit_target_pct,
         stop_loss_pct=stop_loss_pct,
         max_hold_seconds=max_hold_seconds,
+        trailing_stop_activation_pct=trailing_stop_activation_pct,
     )
     return await manager.scan_and_sell_all(trades, prices, clob_client)
 

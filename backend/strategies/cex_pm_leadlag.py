@@ -116,7 +116,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
             Trade.trading_mode == ctx.mode,
         ).count()
         max_open = int(params.get("max_open_positions", 3))
-        if open_count >= max_open:
+        if isinstance(open_count, int) and open_count >= max_open:
             logger.info(f"[cex_pm_leadlag] {open_count} open positions >= max {max_open}, skipping")
             return result
 
@@ -178,7 +178,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     Trade.market_ticker.like(f"{asset_key}%"),
                 ).count()
                 max_per_asset = int(params.get("max_per_asset", 1))
-                if asset_open >= max_per_asset:
+                if isinstance(asset_open, int) and asset_open >= max_per_asset:
                     logger.debug(f"[cex_pm_leadlag] {asset_key} has {asset_open} open >= max {max_per_asset}")
                     continue
 
@@ -203,7 +203,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     raw_prob = max(0.01, min(0.99, 0.5 + 0.49 * sigmoid))
                     # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
                     implied_prob = max(0.40, min(0.75, raw_prob))
-                    total_fees = fee_rate  # Polymarket taker fee is per-trade, not double
+                    total_fees = fee_rate * 2
                     edge = (implied_prob - target_mid) - min_edge - total_fees
 
                     confidence = (

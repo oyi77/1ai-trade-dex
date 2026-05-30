@@ -60,6 +60,21 @@ class LineMovementDetectorStrategy(BaseStrategy):
     name = "line_movement_detector"
     description = "Detect sharp price movements (5%+ in 1 hour) and research cause"
     category = "edge_discovery"
+    # ── Risk management constants ──
+    # 1:1.33 risk/reward minimum (profit target >= stop loss)
+    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.04   # 4% take-profit
+    AUTO_SELL_STOP_LOSS_PCT: float = 0.03       # 3% stop-loss
+    AUTO_SELL_MAX_HOLD_SECONDS: int = 300        # 5 min
+    # Trailing stop: once position is +8% in profit, move stop to breakeven
+    TRAILING_STOP_ACTIVATION_PCT: float = 0.08
+    # Max risk per trade as fraction of bankroll
+    MAX_RISK_PER_TRADE_PCT: float = 0.02  # 2% of bankroll
+    # Kelly defaults for sizing (historical: 53.6% WR, small wins)
+    HISTORICAL_WIN_RATE: float = 0.536
+    HISTORICAL_AVG_WIN: float = 1.0     # normalized
+    HISTORICAL_AVG_LOSS: float = 1.0    # normalized
+    KELLY_FRACTION: float = 0.25        # quarter-Kelly
+
     default_params = {
         "min_price_change_pct": settings.LINE_MOVE_MIN_PRICE_CHANGE_PCT,
         "min_volume_24h": settings.LINE_MOVE_MIN_VOLUME_24H,
@@ -71,10 +86,6 @@ class LineMovementDetectorStrategy(BaseStrategy):
         "max_spread_pct": 0.05,
         "min_imbalance_ratio": -0.6,
         "min_top_size": 5.0,
-        "max_open_positions": 5,
-        "max_per_asset": 1,
-        "stop_loss_pct": 0.20,
-        "profit_target_pct": 0.08,
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
@@ -105,6 +116,10 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 sell_results = await check_strategy_positions_for_auto_sell(
                     strategy_name=self.name,
                     clob_client=ctx.clob,
+                    profit_target_pct=self.AUTO_SELL_PROFIT_TARGET_PCT,
+                    stop_loss_pct=self.AUTO_SELL_STOP_LOSS_PCT,
+                    max_hold_seconds=self.AUTO_SELL_MAX_HOLD_SECONDS,
+                    trailing_stop_activation_pct=self.TRAILING_STOP_ACTIVATION_PCT,
                 )
                 if sell_results:
                     logger.info(
@@ -439,32 +454,12 @@ class LineMovementDetectorStrategy(BaseStrategy):
                     movement.ticker,
                 )
 
-        # Mean-reversion on binaries: fade the move (opposite direction).
-        # On 0-1 bounded assets, momentum-following is negative-EV.
-        # If debate says overreaction → trade against the move.
-        # If debate says justified → skip (let the trend run, don't chase).
-        if debate_result and hasattr(debate_result, "consensus_probability"):
-            debate_prob = debate_result.consensus_probability
-            # If debate agrees with move direction → skip (trend, not overreaction)
-            if direction == "up" and debate_prob > movement.current_price:
-                logger.info(f"[{self.name}] Skipping {movement.ticker}: debate confirms upward move (not overreaction)")
-                return None
-            if direction == "down" and debate_prob < movement.current_price:
-                logger.info(f"[{self.name}] Skipping {movement.ticker}: debate confirms downward move (not overreaction)")
-                return None
-
-        # Bounded-price check: don't trade near extremes
-        if movement.current_price > 0.90 or movement.current_price < 0.10:
-            logger.info(f"[{self.name}] Skipping {movement.ticker}: price {movement.current_price:.2f} near boundary")
-            return None
-
-        # Fade the move: buy opposite direction
         action = "BUY"
-        side = "no" if direction == "up" else "yes"  # reversed: mean-reversion
+        side = "yes" if direction == "up" else "no"
         raw_entry_price = (
-            round(1.0 - movement.current_price, 4)
+            movement.current_price
             if direction == "up"
-            else movement.current_price
+            else round(1.0 - movement.current_price, 4)
         )
         entry_price = round(clamp_probability(float(raw_entry_price)), 4)
 
@@ -503,22 +498,35 @@ class LineMovementDetectorStrategy(BaseStrategy):
                 f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker if movement.ticker else ''}",
             )
 
-        # Size: scale with edge (price_change_pct) and volume confidence.
-        # Stronger moves + higher volume → larger position.
-        move_magnitude = abs(movement.price_change_pct)
-        base_size = min(
-            move_magnitude * _cfg("LINE_MOVE_SIZE_PER_PCT", 5.0),
-            _cfg("LINE_MOVE_MAX_SIGNAL_SIZE", 100.0),
+        # ── Position sizing: Kelly-based with 2% bankroll risk cap ──
+        from backend.core.risk.position_sizer import kelly_criterion
+        kelly_frac = kelly_criterion(
+            win_rate=self.HISTORICAL_WIN_RATE,
+            avg_win=self.HISTORICAL_AVG_WIN,
+            avg_loss=self.HISTORICAL_AVG_LOSS,
+            kelly_fraction=self.KELLY_FRACTION,
         )
-        # Volume boost: scale up to 2x for high-volume moves
+        # Scale Kelly by confidence (lower confidence → smaller size)
+        kelly_size = ctx.bankroll * kelly_frac * min(confidence, 1.0)
+
+        # Edge-scaled component: bigger moves warrant bigger positions
+        move_magnitude = abs(movement.price_change_pct)
+        edge_factor = min(2.0, max(0.5, move_magnitude / 5.0))
+        # Volume boost: scale up to 1.5x for high-volume moves
         vol_factor = min(
-            2.0,
+            1.5,
             max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)),
         )
-        size = round(base_size * vol_factor * confidence, 2)
-        # Cap to bankroll fraction to avoid concentration rejections
+        size = round(kelly_size * edge_factor * vol_factor, 2)
+
+        # Hard floor: 2% of bankroll max risk per trade
+        max_risk = ctx.bankroll * self.MAX_RISK_PER_TRADE_PCT
+        size = min(size, max_risk)
+        # Also respect global position fraction cap
         max_position_frac = getattr(ctx.settings, "MAX_POSITION_FRACTION", 0.30)
         size = min(size, ctx.bankroll * max_position_frac)
+        # Ensure positive
+        size = max(size, 0.0)
 
         return {
             "decision": action,
@@ -534,6 +542,10 @@ class LineMovementDetectorStrategy(BaseStrategy):
             "strategy_name": self.name,
             "token_id": movement.token_id,
             "condition_id": movement.condition_id,
+            "stop_loss_pct": self.AUTO_SELL_STOP_LOSS_PCT,
+            "profit_target_pct": self.AUTO_SELL_PROFIT_TARGET_PCT,
+            "trailing_stop_activation_pct": self.TRAILING_STOP_ACTIVATION_PCT,
+            "max_risk_per_trade_pct": self.MAX_RISK_PER_TRADE_PCT,
             "reasoning": f"Line moved {movement.price_change_pct:+.1f}% in 1h",
             "news_context": news_context[:200] if news_context else "",
         }

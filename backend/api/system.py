@@ -120,6 +120,7 @@ class BotStats(BaseModel):
     unrealized_pnl: float = 0.0
     position_cost: float = 0.0
     position_market_value: float = 0.0
+    pusd_balance: float = 0.0
     sync_metadata: Optional[SyncMetadata] = None
 
 
@@ -246,6 +247,18 @@ async def get_stats(db: Session = Depends(get_db), mode: Optional[str] = Query(N
     # End the read transaction before network I/O so stats polling does not sit
     # idle-in-transaction while waiting on Polymarket profile calls.
     db.rollback()
+
+    # Fetch PUSD balance from CLOB (async, non-blocking)
+    pusd_balance = 0.0
+    if settings.POLYMARKET_PRIVATE_KEY:
+        try:
+            from backend.data.polymarket_clob import clob_from_settings
+
+            async with clob_from_settings(mode="live") as clob:
+                pusd_balance = await clob.get_pusd_balance()
+        except Exception as e:
+            logger.debug(f"Failed to fetch PUSD balance: {e}")
+
     if effective_mode == "live" or mode is None:
         live_profile_pnl, live_profile_trade_stats = await asyncio.gather(
             fetch_pm_profile_pnl(),
@@ -731,6 +744,7 @@ async def get_stats(db: Session = Depends(get_db), mode: Optional[str] = Query(N
         unrealized_pnl=unrealized_pnl,
         position_cost=position_cost,
         position_market_value=position_market_value,
+        pusd_balance=round(pusd_balance, 4),
         sync_metadata=sync_metadata,
     )
 

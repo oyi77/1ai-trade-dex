@@ -169,9 +169,22 @@ class BalanceAggregator:
                 try:
                     from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
                     equity = await fetch_pm_total_equity()
+                    cash_balance = 0.0
+                    # Fetch CLOB-internal PUSD balance
+                    try:
+                        from backend.config import settings as _cfg
+                        if _cfg.POLYMARKET_PRIVATE_KEY:
+                            from backend.data.polymarket_clob import clob_from_settings
+                            async with clob_from_settings(mode="live") as clob:
+                                pusd = await clob.get_pusd_balance()
+                                if pusd > 0:
+                                    cash_balance = pusd
+                    except Exception as pusd_err:
+                        logger.debug(f"PUSD balance fetch error: {pusd_err}")
                     if equity is not None:
                         self._update("polymarket", VenueBalance(
                             venue="polymarket",
+                            cash_balance=cash_balance,
                             total_equity=float(equity),
                             source="poll",
                         ))
