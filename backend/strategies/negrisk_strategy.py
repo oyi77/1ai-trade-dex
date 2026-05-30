@@ -368,7 +368,7 @@ class NegRiskStrategy(BaseStrategy):
                 min_outcomes=min_outcomes,
                 min_sum_deviation=min_sum_deviation,
             )
-            ctx.logger.info("[negrisk] Found %d neg-risk events", len(events))
+            ctx.logger.info(f"[negrisk] Found {len(events)} neg-risk events")
 
             # 3. Bankroll for Kelly sizing
             bankroll = await self._get_bankroll(ctx)
@@ -475,11 +475,36 @@ class NegRiskStrategy(BaseStrategy):
     # ------------------------------------------------------------------
 
     async def _fetch_markets(self, ctx: StrategyContext) -> list[dict]:
-        """Fetch markets via Gamma API, falling back to MarketUniverseScanner."""
+        """Fetch markets via Gamma API, parse outcomePrices into yes_price/no_price."""
+        import json as _json
         try:
             from backend.data.gamma import fetch_markets
-
-            return await fetch_markets(limit=2000)
+            raw = await fetch_markets(limit=2000)
+            parsed = []
+            for m in raw:
+                try:
+                    prices = m.get("outcomePrices", "")
+                    if isinstance(prices, str):
+                        prices = _json.loads(prices)
+                    outcomes = m.get("outcomes", "")
+                    if isinstance(outcomes, str):
+                        outcomes = _json.loads(outcomes)
+                    if len(prices) < 2 or len(outcomes) < 2:
+                        continue
+                    yes_idx = outcomes.index("Yes") if "Yes" in outcomes else 0
+                    clob_ids = m.get("clobTokenIds", [])
+                    if isinstance(clob_ids, str):
+                        clob_ids = _json.loads(clob_ids)
+                    parsed.append({
+                        **m,
+                        "yes_price": float(prices[yes_idx]),
+                        "no_price": float(prices[1 - yes_idx]),
+                        "token_id": clob_ids[yes_idx] if yes_idx < len(clob_ids) else "",
+                        "condition_id": m.get("conditionId", ""),
+                    })
+                except Exception:
+                    continue
+            return parsed
         except Exception as exc:
             ctx.logger.warning("[negrisk] Gamma fetch failed, trying scanner: %s", exc)
 
