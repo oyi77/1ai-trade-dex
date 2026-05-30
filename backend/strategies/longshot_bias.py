@@ -177,8 +177,12 @@ class LongshotBiasStrategy(BaseStrategy):
                                 metadata={"token_id": no_token_id},
                             )
                             result = await provider.place_order(norm_order)
-                            if result and result.status.name == "FILLED":
-                                trades_placed += 1
+                            if result:
+                                ctx.logger.info(f"[longshot_bias] LIVE order: {result.status} id={result.venue_order_id}")
+                                if result.status.name == "FILLED":
+                                    trades_placed += 1
+                            else:
+                                ctx.logger.warning(f"[longshot_bias] LIVE order None for {slug}")
                     else:
                         trades_placed += 1
 
