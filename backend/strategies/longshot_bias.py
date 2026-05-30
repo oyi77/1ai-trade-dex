@@ -113,8 +113,7 @@ class LongshotBiasStrategy(BaseStrategy):
                 ctx.logger.warning("[longshot_bias] Bias calc failed: {}", e)
 
             ctx.logger.info(
-                "[longshot_bias] Found {} markets below {}c (bias={:.4f})",
-                len(candidates), int(max_price * 100), bias_ratio,
+                f"[longshot_bias] Found {len(candidates)} markets below {int(max_price*100)}c (bias={bias_ratio:.4f}) parsed={len(parsed_markets)} raw={len(raw_markets)}"
             )
 
             for market in candidates:
@@ -126,6 +125,8 @@ class LongshotBiasStrategy(BaseStrategy):
                     ev = max(0.0, yes_price * (1.0 - bias_ratio))
                     ev = max(0.0, ev - 2 * PLATFORM_FEE_PCT * no_price)
                     if ev < min_ev:
+                        if slug == candidates[0]["slug"]:  # debug first market
+                            ctx.logger.info(f"[longshot_bias] SKIP ev: {slug} yes={yes_price:.3f} no={no_price:.3f} ev={ev:.4f} < min_ev={min_ev}")
                         continue
 
                     true_win_prob = min(0.95, 1.0 - yes_price * bias_ratio)
@@ -137,7 +138,7 @@ class LongshotBiasStrategy(BaseStrategy):
                     kelly = max(0, kelly * kelly_frac)
                     position_size = min(kelly * ctx.bankroll, max_position)
 
-                    if position_size < 1.0:
+                    if position_size < 0.50:
                         continue
 
                     decisions_recorded += 1
@@ -166,14 +167,14 @@ class LongshotBiasStrategy(BaseStrategy):
                     if ctx.mode != "paper":
                         provider = ctx.get_market_provider("polymarket")
                         if provider and hasattr(provider, "place_order"):
-                            from backend.markets.order_types import NormalizedOrder, OrderSide
+                            from backend.markets.order_types import NormalizedOrder, OrderSide, OrderType
                             norm_order = NormalizedOrder(
                                 market_id=slug,
-                                token_id=no_token_id,
                                 side=OrderSide.BUY,
+                                order_type=OrderType.LIMIT,
                                 size=Decimal(str(round(position_size, 2))),
                                 price=Decimal(str(round(no_price, 3))),
-                                order_type="LIMIT",
+                                metadata={"token_id": no_token_id},
                             )
                             result = await provider.place_order(norm_order)
                             if result and result.status.name == "FILLED":
