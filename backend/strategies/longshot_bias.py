@@ -166,6 +166,8 @@ class LongshotBiasStrategy(BaseStrategy):
                     decisions.append(decision)
 
                     if ctx.mode != "paper":
+                        ctx.logger.info(f"[longshot_bias] LIVE path: ctx.mode={ctx.mode} slug={slug}")
+
                         provider = ctx.get_market_provider("polymarket")
                         if provider and hasattr(provider, "place_order"):
                             from backend.markets.order_types import NormalizedOrder, OrderSide, OrderType

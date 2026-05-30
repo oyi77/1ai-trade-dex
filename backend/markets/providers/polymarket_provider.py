@@ -96,7 +96,8 @@ class PolymarketProvider(BaseMarketProvider):
                     size=float(order.size),
                 )
         except Exception as exc:
-            logger.exception("Polymarket provider order failed")
+            import sys, traceback
+            traceback.print_exc(file=sys.stderr)
             return self._rejected(order, str(exc))
 
         if not result.success:

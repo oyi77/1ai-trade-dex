@@ -649,10 +649,8 @@ class PolymarketCLOB:
 
         except Exception as e:
             error_msg = str(e)
-            logger.error(
-                f"[polymarket_clob.place_limit_order] {type(e).__name__}: Order failed: {error_msg}",
-                exc_info=True,
-            )
+            import traceback
+            print(f"[CLOB ERROR] {type(e).__name__}: {error_msg}\n{traceback.format_exc()}", flush=True)
             await clob_breaker._on_failure()
             return OrderResult(success=False, error=error_msg)
         finally:
