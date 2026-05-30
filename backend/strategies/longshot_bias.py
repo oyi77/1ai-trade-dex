@@ -178,7 +178,8 @@ class LongshotBiasStrategy(BaseStrategy):
                             )
                             result = await provider.place_order(norm_order)
                             if result:
-                                ctx.logger.info(f"[longshot_bias] LIVE order: {result.status} id={result.venue_order_id}")
+                                reason = (result.raw or {}).get("error", "")
+                                ctx.logger.info(f"[longshot_bias] LIVE order: {result.status} reason={reason}")
                                 if result.status.name == "FILLED":
                                     trades_placed += 1
                             else:

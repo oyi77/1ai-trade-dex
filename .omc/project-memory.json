@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1779749888235,
+  "lastScanned": 1780116266249,
   "projectRoot": "/home/openclaw/projects/1ai-poly-trader",
   "techStack": {
     "languages": [
@@ -49,7 +49,7 @@
       "path": "alembic",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1779749888201,
+      "lastAccessed": 1780116266214,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -61,7 +61,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1779749888214,
+      "lastAccessed": 1780116266215,
       "keyFiles": [
         "AGENTS.md",
         "__init__.py",
@@ -74,7 +74,7 @@
       "path": "data",
       "purpose": "Data files",
       "fileCount": 1,
-      "lastAccessed": 1779749888219,
+      "lastAccessed": 1780116266216,
       "keyFiles": [
         "crypto_oracle_performance.db"
       ]
@@ -83,7 +83,7 @@
       "path": "deploy",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779749888220,
+      "lastAccessed": 1780116266217,
       "keyFiles": [
         "polyedge-monitor.service"
       ]
@@ -92,7 +92,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 37,
-      "lastAccessed": 1779749888222,
+      "lastAccessed": 1780116266218,
       "keyFiles": [
         "AGENTS.md",
         "ANOMALY_REPORT.md",
@@ -105,7 +105,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 18,
-      "lastAccessed": 1779749888222,
+      "lastAccessed": 1780116266219,
       "keyFiles": [
         "AGENTS.md",
         "Dockerfile",
@@ -118,14 +118,14 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1779749888223,
+      "lastAccessed": 1780116266225,
       "keyFiles": []
     },
     "migrations": {
       "path": "migrations",
       "purpose": "Database migrations",
       "fileCount": 4,
-      "lastAccessed": 1779749888223,
+      "lastAccessed": 1780116266225,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -137,7 +137,7 @@
       "path": "polyedge-docs",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1779749888224,
+      "lastAccessed": 1780116266226,
       "keyFiles": [
         "README.md",
         "docusaurus.config.ts",
@@ -150,7 +150,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 59,
-      "lastAccessed": 1779749888225,
+      "lastAccessed": 1780116266227,
       "keyFiles": [
         "AGENTS.md",
         "FIXES_APPLIED.py",
@@ -163,16 +163,25 @@
       "path": "secrets",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1779749888225,
+      "lastAccessed": 1780116266228,
       "keyFiles": [
         "kalshi_private_key.pem"
+      ]
+    },
+    "state": {
+      "path": "state",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1780116266229,
+      "keyFiles": [
+        "cancel-signal-state.json"
       ]
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 35,
-      "lastAccessed": 1779749888226,
+      "fileCount": 41,
+      "lastAccessed": 1780116266230,
       "keyFiles": [
         "AGENTS.md",
         "SHUTDOWN_TEST_RESULTS.md",
@@ -185,16 +194,23 @@
       "path": "venv",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1779749888227,
+      "lastAccessed": 1780116266230,
       "keyFiles": [
         "pyvenv.cfg"
       ]
+    },
+    "walkthrough": {
+      "path": "walkthrough",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1780116266230,
+      "keyFiles": []
     },
     "frontend/dist": {
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 9,
-      "lastAccessed": 1779749888228,
+      "lastAccessed": 1780116266233,
       "keyFiles": [
         "AGENTS.md",
         "favicon.svg",
@@ -205,7 +221,7 @@
       "path": "polyedge-docs/build",
       "purpose": "Build output",
       "fileCount": 5,
-      "lastAccessed": 1779749888229,
+      "lastAccessed": 1780116266234,
       "keyFiles": [
         "404.html",
         "index.html",
@@ -216,7 +232,7 @@
       "path": "polyedge-docs/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1779749888229,
+      "lastAccessed": 1780116266234,
       "keyFiles": [
         "intro.md"
       ]
@@ -225,14 +241,14 @@
       "path": "polyedge-docs/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1779749888232,
+      "lastAccessed": 1780116266242,
       "keyFiles": []
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 5,
-      "lastAccessed": 1779749888234,
+      "lastAccessed": 1780116266246,
       "keyFiles": [
         "AGENTS.md",
         "sample_activity.json",
@@ -242,8 +258,8 @@
     "venv/bin": {
       "path": "venv/bin",
       "purpose": "Executable scripts",
-      "fileCount": 27,
-      "lastAccessed": 1779749888234,
+      "fileCount": 29,
+      "lastAccessed": 1780116266248,
       "keyFiles": [
         "Activate.ps1",
         "activate",
@@ -254,7 +270,7 @@
       "path": "venv/lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1779749888234,
+      "lastAccessed": 1780116266249,
       "keyFiles": []
     }
   },
