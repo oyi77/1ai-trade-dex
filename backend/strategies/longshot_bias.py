@@ -153,11 +153,11 @@ class LongshotBiasStrategy(BaseStrategy):
 
                     decision = {
                         "decision": "BUY",
-                        "direction": "NO",
-                        "market_slug": slug,
+                        "direction": "no",
+                        "market_ticker": slug,
                         "token_id": no_token_id,
                         "side": "BUY",
-                        "price": round(no_price, 3),
+                        "entry_price": round(no_price, 3),
                         "size": round(position_size, 2),
                         "ev": round(ev, 4),
                         "confidence": round(true_win_prob, 4),
