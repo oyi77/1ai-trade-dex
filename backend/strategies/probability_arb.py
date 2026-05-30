@@ -101,11 +101,11 @@ async def execute_arb(
     - Race condition: idempotency key per (market_id, timestamp)
     """
     start = time.monotonic()
-    idempotency_key = f"{market_id}-{int(start * 1000)}"
+    idempotency_key = f"{getattr(opportunity, 'market_id', 'unknown')}-{int(start * 1000)}"
 
     async with execution_breaker():
         try:
-            arb_size = settings.ARB_EXECUTOR_MAX_SIZE
+            arb_size = _cfg("ARB_EXECUTOR_MAX_SIZE", 50)
             order_yes = await _place_order_with_retry(
                 token_id=yes_token_id,
                 side="BUY",
