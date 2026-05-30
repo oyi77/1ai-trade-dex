@@ -70,9 +70,9 @@ class MarketMakerStrategy(BaseStrategy):
     category = "market_making"
     default_params = {
         "base_spread": settings.MARKET_MAKER_BASE_SPREAD,
-        "max_inventory": settings.MARKET_MAKER_MAX_INVENTORY,
+        "max_inventory": 50.0,  # per-side limit (was 250)
         "inventory_skew_factor": settings.MARKET_MAKER_INVENTORY_SKEW_FACTOR,
-        "min_spread": settings.MARKET_MAKER_MIN_SPREAD,
+        "min_spread": settings.MARKET_MAKER_MIN_SPREAD,  # 0.03 (3%)
         "max_spread": settings.MARKET_MAKER_MAX_SPREAD,
         "quote_size": settings.MARKET_MAKER_QUOTE_SIZE,
         "spread_mode": "static",
@@ -80,10 +80,10 @@ class MarketMakerStrategy(BaseStrategy):
         # Active quoting params
         "risk_aversion": 0.5,
         "kappa": 100.0,
-        "quote_max_age_seconds": 30.0,
+        "quote_max_age_seconds": 30.0,  # cancel stale after 30s
         "spread_change_threshold": 0.01,
         "inventory_change_threshold": 10.0,
-        "max_total_exposure": 3000.0,
+        "max_total_exposure_usd": 100.0,  # $100 max (was 3000)
         "max_open_positions": 10,
         "max_per_asset": 2,
         "stop_loss_pct": 0.10,
@@ -91,6 +91,8 @@ class MarketMakerStrategy(BaseStrategy):
         "toxicity_kill_threshold": 0.8,
         "toxicity_widen_threshold": 0.5,
         "quote_refresh_interval": 5.0,
+        # Adverse selection protection
+        "max_adverse_streak": 3,  # halt after 3 consecutive adverse fills
     }
 
     # -- Event-driven (WebSocket) subscription config --
@@ -121,6 +123,58 @@ class MarketMakerStrategy(BaseStrategy):
         self._inventory: dict[str, float] = {}
         # Per-market price history for volatility estimation
         self._price_history: dict[str, list] = {}
+        # Adverse selection tracking (consecutive bad fills)
+        self._adverse_streak: int = 0
+        self._last_fill_price: dict[str, float] = {}  # market_id -> last fill price
+        # Total exposure tracking
+        self._total_exposure_usd: float = 0.0
+
+    # ------------------------------------------------------------------
+    # Risk controls: adverse selection + exposure limits
+    # ------------------------------------------------------------------
+
+    def record_fill(self, market_id: str, side: str, price: float, size: float, current_mid: float) -> None:
+        """Record a fill and check for adverse selection.
+
+        Adverse = buy fill above mid or sell fill below mid (picked off by informed flow).
+        Halts quoting after max_adverse_streak consecutive adverse fills.
+        """
+        self._total_exposure_usd += price * size
+
+        is_adverse = (side == "BUY" and price > current_mid) or (side == "SELL" and price < current_mid)
+        if is_adverse:
+            self._adverse_streak += 1
+            logger.warning(
+                f"[{self.name}] Adverse fill #{self._adverse_streak}: {side} {size}@{price:.4f} (mid={current_mid:.4f})"
+            )
+            max_streak = self.default_params.get("max_adverse_streak", 3)
+            if self._adverse_streak >= max_streak:
+                self._halted = True
+                logger.error(
+                    f"[{self.name}] HALTED: {self._adverse_streak} consecutive adverse fills. Pulling all quotes."
+                )
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._cancel_all_quotes())
+                except RuntimeError:
+                    pass  # no event loop running (e.g. test)
+        else:
+            self._adverse_streak = 0
+
+    def _check_exposure_limit(self) -> bool:
+        """Returns True if exposure is within limits, False if we should stop quoting."""
+        max_exposure = self.default_params.get("max_total_exposure_usd", 100.0)
+        if self._total_exposure_usd >= max_exposure:
+            logger.warning(f"[{self.name}] Exposure limit reached: ${self._total_exposure_usd:.2f} >= ${max_exposure:.2f}")
+            return False
+        return True
+
+    async def _cancel_all_quotes(self) -> int:
+        """Cancel all active quotes across all markets. Returns count cancelled."""
+        total = 0
+        for market_id in list(self._active_quotes.keys()):
+            total += await self._cancel_stale_quotes(market_id, self._clob)
+        return total
 
     def start_consumer(self) -> None:
         """Start the background L2 consumer task if not active."""
@@ -441,6 +495,16 @@ class MarketMakerStrategy(BaseStrategy):
         mid = (best_bid + best_ask) / 2.0
         spread = best_ask - best_bid
 
+        # Spread threshold check: only quote if spread is wide enough to profit
+        min_spread = self.default_params.get("min_spread", 0.03)
+        if spread < min_spread:
+            return  # spread too narrow, skip
+
+        # Exposure limit check
+        if not self._check_exposure_limit():
+            await self._cancel_stale_quotes(market_id, self._clob)
+            return
+
         # Inventory management skew (tracked from filled orders)
         inventory = self._inventory.get(market_id, 0.0)
         params = self.default_params
@@ -552,6 +616,17 @@ class MarketMakerStrategy(BaseStrategy):
 
                     mid = (best_bid + best_ask) / 2.0
                     spread = best_ask - best_bid
+
+                    # Spread threshold check
+                    min_spread = self.default_params.get("min_spread", 0.03)
+                    if spread < min_spread:
+                        continue
+
+                    # Exposure limit check
+                    if not self._check_exposure_limit():
+                        await self._cancel_stale_quotes(token_id, self._clob)
+                        continue
+
                     inventory = self._inventory.get(token_id, 0.0)
 
                     if self._should_refresh_quotes(token_id, spread, inventory, self.default_params):
