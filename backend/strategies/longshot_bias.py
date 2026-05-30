@@ -141,7 +141,6 @@ class LongshotBiasStrategy(BaseStrategy):
                     if position_size < 0.50:
                         continue
                     position_size = max(position_size, 1.0)  # CLOB minimum $1.0
-                        continue
 
                     decisions_recorded += 1
                     trades_attempted += 1
