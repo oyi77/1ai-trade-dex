@@ -665,6 +665,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"[LIFESPAN] BalanceAggregator failed to start: {e}")
         app.state.balance_aggregator = None
 
+    # Start Binance WebSocket feed for real-time crypto klines
+    try:
+        from backend.data.crypto_ws import start_crypto_ws_feed
+        await start_crypto_ws_feed(symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+        logger.info("[LIFESPAN] Binance WS feed started (BTC, ETH, SOL)")
+    except Exception as e:
+        logger.warning(f"[LIFESPAN] Binance WS feed failed to start: {e}")
+
     yield
 
     # --- Shutdown ---
