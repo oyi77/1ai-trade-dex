@@ -1180,10 +1180,10 @@ def _preflight_checks(
         db.commit()
         return None
 
-    # 1b. Emergency kill switch check
+    # 1b. Emergency kill switch check (blocks LIVE only, paper continues for 48h trial)
     from pathlib import Path
     kill_switch_path = Path(__file__).parent.parent.parent / ".kill_switch"
-    if kill_switch_path.exists():
+    if kill_switch_path.exists() and mode == "live":
         logger.critical(f"[KILL SWITCH] Emergency stop active - .kill_switch file found")
         attempt_recorder.record_blocked(
             "Emergency kill switch active (.kill_switch file exists)",

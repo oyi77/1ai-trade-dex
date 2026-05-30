@@ -277,20 +277,26 @@
   "hotPaths": [
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 215,
-      "lastAccessed": 1780173970968,
+      "accessCount": 227,
+      "lastAccessed": 1780177993430,
       "type": "file"
     },
     {
       "path": "backend",
-      "accessCount": 85,
-      "lastAccessed": 1780173899854,
+      "accessCount": 87,
+      "lastAccessed": 1780176854618,
       "type": "directory"
     },
     {
+      "path": "backend/core/scheduling/scheduler.py",
+      "accessCount": 62,
+      "lastAccessed": 1780176902323,
+      "type": "file"
+    },
+    {
       "path": "backend/models/database.py",
-      "accessCount": 59,
-      "lastAccessed": 1780174001467,
+      "accessCount": 60,
+      "lastAccessed": 1780176838866,
       "type": "file"
     },
     {
@@ -300,12 +306,6 @@
       "type": "directory"
     },
     {
-      "path": "backend/core/scheduling/scheduler.py",
-      "accessCount": 58,
-      "lastAccessed": 1780172961776,
-      "type": "file"
-    },
-    {
       "path": "backend/core/risk/risk_manager.py",
       "accessCount": 53,
       "lastAccessed": 1780163516606,
@@ -313,14 +313,14 @@
     },
     {
       "path": "backend/config.py",
-      "accessCount": 42,
-      "lastAccessed": 1780173905331,
+      "accessCount": 44,
+      "lastAccessed": 1780176733412,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 36,
-      "lastAccessed": 1780173789830,
+      "accessCount": 39,
+      "lastAccessed": 1780176622725,
       "type": "directory"
     },
     {
@@ -331,8 +331,8 @@
     },
     {
       "path": "backend/strategies/base.py",
-      "accessCount": 23,
-      "lastAccessed": 1780166752845,
+      "accessCount": 24,
+      "lastAccessed": 1780176643123,
       "type": "directory"
     },
     {
@@ -355,9 +355,15 @@
     },
     {
       "path": "backend/core",
-      "accessCount": 11,
-      "lastAccessed": 1780164756164,
+      "accessCount": 12,
+      "lastAccessed": 1780176657965,
       "type": "directory"
+    },
+    {
+      "path": "backend/core/settlement/settlement.py",
+      "accessCount": 11,
+      "lastAccessed": 1780176829084,
+      "type": "file"
     },
     {
       "path": "backend/core/plugin_registry.py",
@@ -372,15 +378,15 @@
       "type": "directory"
     },
     {
-      "path": "backend/core/risk/correlation_monitor.py",
-      "accessCount": 9,
-      "lastAccessed": 1779810544327,
+      "path": "backend/core/settlement/settlement_helpers.py",
+      "accessCount": 10,
+      "lastAccessed": 1780176633643,
       "type": "file"
     },
     {
-      "path": "backend/core/settlement/settlement_helpers.py",
+      "path": "backend/core/risk/correlation_monitor.py",
       "accessCount": 9,
-      "lastAccessed": 1780091982271,
+      "lastAccessed": 1779810544327,
       "type": "file"
     },
     {
@@ -424,12 +430,6 @@
       "accessCount": 6,
       "lastAccessed": 1779780658798,
       "type": "directory"
-    },
-    {
-      "path": "backend/core/settlement/settlement.py",
-      "accessCount": 5,
-      "lastAccessed": 1779809974702,
-      "type": "file"
     },
     {
       "path": "backend/core/risk_manager.py",
@@ -499,8 +499,8 @@
     },
     {
       "path": "backend/core/settlement_helpers.py",
-      "accessCount": 1,
-      "lastAccessed": 1779751174123,
+      "accessCount": 2,
+      "lastAccessed": 1780176621246,
       "type": "file"
     },
     {
