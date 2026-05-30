@@ -55,8 +55,8 @@ def _get_crypto_client() -> httpx.AsyncClient:
     global _crypto_client
     if _crypto_client is None or _crypto_client.is_closed:
         _crypto_client = httpx.AsyncClient(
-            timeout=httpx.Timeout(15.0, connect=5.0),
-            limits=httpx.Limits(max_connections=100, max_keepalive_connections=30),
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(max_connections=200, max_keepalive_connections=50),
         )
     return _crypto_client
 
@@ -70,7 +70,7 @@ async def close_crypto_client() -> None:
 
 
 # E-98: Removed dead _kline_cache — use _kline_caches (per-asset) below instead
-_CACHE_TTL = 30.0
+_CACHE_TTL = 120.0
 
 # Feed health tracking: source_name -> last_successful_fetch_timestamp
 _feed_health: dict[str, float] = {}
@@ -155,6 +155,27 @@ async def fetch_crypto_klines(
     asset_key = pair_to_asset.get(pair, pair.lower())
 
     now = time.time()
+
+    # Try WebSocket data first (real-time, no HTTP overhead)
+    try:
+        from backend.data.crypto_ws import get_latest_kline
+        ws_data = get_latest_kline(pair)
+        if ws_data and ws_data.get("close", 0) > 0:
+            logger.debug(f"kline WS HIT for {pair}: close={ws_data['close']}")
+            # Convert WS format to kline list format for compatibility
+            kline_row = [
+                ws_data["timestamp"],
+                str(ws_data["open"]),
+                str(ws_data["high"]),
+                str(ws_data["low"]),
+                str(ws_data["close"]),
+                str(ws_data["volume"]),
+                0, 0, 0, 0, 0, 0,
+            ]
+            return [kline_row]
+    except Exception:
+        pass  # WS not available, fall through to cache/REST
+
     cache = _get_kline_cache(asset_key)
     if cache["data"] is not None and (now - cache["ts"]) < _CACHE_TTL:
         logger.debug(f"kline cache HIT for {pair} ({asset_key}), age={now - cache['ts']:.1f}s")
