@@ -254,9 +254,9 @@ class ConfigRegistry:
         0.80  # max correlation-adjusted exposure % of bankroll
     )
     MAX_TRADE_SIZE: float = 100.0  # max single trade size in USD
-    MIN_ORDER_USDC: float = 1.0  # minimum order size (live)
+    MIN_ORDER_USDC: float = 5.0  # minimum order size (CLOB minimum)
     PAPER_MIN_ORDER_USDC: float = (
-        1.0  # minimum order size (paper — matches live to prevent hallucination)
+        5.0  # minimum order size (paper — matches CLOB $5 minimum)
     )
 
     # Confidence and signal weights
@@ -716,7 +716,7 @@ class ConfigRegistry:
     DAILY_LOSS_LIMIT_ENABLED: bool = True
     DAILY_LOSS_LIMIT: float = 100.0  # max daily loss in USD
     DRAWDOWN_BREAKER_ENABLED_PER_MODE: Dict[str, bool] = field(
-        default_factory=lambda: {"paper": False, "testnet": True, "live": True}
+        default_factory=lambda: {"paper": True, "testnet": True, "live": True}
     )
     DAILY_LOSS_LIMIT_ENABLED_PER_MODE: Dict[str, bool] = field(
         default_factory=lambda: {"paper": False, "testnet": True, "live": True}

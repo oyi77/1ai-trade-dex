@@ -277,27 +277,27 @@
   "hotPaths": [
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 199,
-      "lastAccessed": 1780170182331,
+      "accessCount": 215,
+      "lastAccessed": 1780173970968,
       "type": "file"
     },
     {
       "path": "backend",
-      "accessCount": 82,
-      "lastAccessed": 1780166818788,
+      "accessCount": 85,
+      "lastAccessed": 1780173899854,
       "type": "directory"
+    },
+    {
+      "path": "backend/models/database.py",
+      "accessCount": 59,
+      "lastAccessed": 1780174001467,
+      "type": "file"
     },
     {
       "path": "backend/core/scheduling/scheduling_strategies.py",
       "accessCount": 58,
       "lastAccessed": 1780098015685,
       "type": "directory"
-    },
-    {
-      "path": "backend/models/database.py",
-      "accessCount": 58,
-      "lastAccessed": 1780165892229,
-      "type": "file"
     },
     {
       "path": "backend/core/scheduling/scheduler.py",
@@ -313,14 +313,14 @@
     },
     {
       "path": "backend/config.py",
-      "accessCount": 35,
-      "lastAccessed": 1780166812795,
+      "accessCount": 42,
+      "lastAccessed": 1780173905331,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 35,
-      "lastAccessed": 1780166985353,
+      "accessCount": 36,
+      "lastAccessed": 1780173789830,
       "type": "directory"
     },
     {

@@ -1106,6 +1106,38 @@ class _PreflightResult:
     attempt_recorder: object  # TradeAttemptRecorder
 
 
+def _fetch_live_pusd_balance_sync() -> float:
+    """Fetch real PUSD balance from Polymarket CLOB for live mode.
+
+    Runs the async get_pusd_balance() call synchronously.
+    Returns 0.0 on error.
+    """
+    try:
+        from backend.data.polymarket_clob import clob_from_settings
+        import asyncio
+
+        async def _get_balance():
+            async with clob_from_settings(mode="live") as clob:
+                return await clob.get_pusd_balance()
+
+        # Use asyncio.run() to create a new event loop for the async call
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Already in an async context - use nest_asyncio or fallback
+            import nest_asyncio
+            nest_asyncio.apply()
+            return loop.run_until_complete(_get_balance())
+        else:
+            return asyncio.run(_get_balance())
+    except Exception as e:
+        logger.warning(f"[strategy_executor] Failed to fetch live PUSD balance: {e}")
+        return 0.0
+
+
 def _preflight_checks(
     db,
     decision: dict,
@@ -1144,6 +1176,19 @@ def _preflight_checks(
             f"No execution context for mode: {mode}",
             phase="context",
             reason_code="BLOCKED_NO_EXECUTION_CONTEXT",
+        )
+        db.commit()
+        return None
+
+    # 1b. Emergency kill switch check
+    from pathlib import Path
+    kill_switch_path = Path(__file__).parent.parent.parent / ".kill_switch"
+    if kill_switch_path.exists():
+        logger.critical(f"[KILL SWITCH] Emergency stop active - .kill_switch file found")
+        attempt_recorder.record_blocked(
+            "Emergency kill switch active (.kill_switch file exists)",
+            phase="preflight",
+            reason_code="BLOCKED_KILL_SWITCH",
         )
         db.commit()
         return None
@@ -1260,11 +1305,17 @@ def _preflight_checks(
             else 0.0
         )
     else:
-        bankroll = (
-            state.bankroll
-            if state.bankroll is not None
-            else _cfg("INITIAL_BANKROLL", 1000.0)
-        )
+        # Live mode: use real PUSD balance from CLOB
+        pusd_balance = _fetch_live_pusd_balance_sync()
+        if pusd_balance > 0:
+            bankroll = pusd_balance
+            logger.debug(f"[LIVE] Using real PUSD balance: ${pusd_balance:.2f}")
+        else:
+            bankroll = (
+                state.bankroll
+                if state.bankroll is not None
+                else _cfg("INITIAL_BANKROLL", 1000.0)
+            )
     if bankroll < 0:
         logger.warning(
             "[%s] Negative bankroll ($%.2f) detected; flooring to $0.00",
@@ -1272,6 +1323,19 @@ def _preflight_checks(
             bankroll,
         )
         bankroll = 0.0
+
+    # 5b. Live mode minimum balance check (CLOB requires $5 minimum)
+    if mode == "live" and bankroll < 5.0:
+        logger.warning(
+            f"[{strategy_name}] Live trade rejected: bankroll ${bankroll:.2f} below CLOB $5 minimum"
+        )
+        attempt_recorder.record_blocked(
+            f"Bankroll ${bankroll:.2f} below CLOB $5 minimum",
+            phase="preflight",
+            reason_code="BLOCKED_INSUFFICIENT_BALANCE",
+        )
+        db.commit()
+        return None
 
     # 6. Hard safety guards
     safety_block = _pre_trade_safety_checks(db, strategy_name, mode, bankroll, size)
