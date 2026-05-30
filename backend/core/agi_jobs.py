@@ -112,6 +112,55 @@ async def agi_health_check_job() -> None:
     except Exception as exc:
         logger.exception("agi_health_check_job risk disable failed: %s", exc)
 
+    # Run 48-hour paper trial gate
+    try:
+        import os
+        from datetime import datetime, timezone, timedelta
+        from sqlalchemy import text
+
+        with get_db_session() as db:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+            rows = db.execute(text("""
+                SELECT strategy, COUNT(*) as n,
+                       SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END) as wins,
+                       SUM(pnl) as total_pnl
+                FROM trades WHERE settled = true AND trading_mode = 'paper'
+                  AND timestamp >= :cutoff GROUP BY strategy
+            """), {"cutoff": cutoff}).fetchall()
+
+            total_trades = sum(r[1] for r in rows)
+            total_wins = sum(r[2] for r in rows)
+            total_pnl = sum(r[3] or 0 for r in rows)
+            overall_wr = (total_wins / total_trades * 100) if total_trades > 0 else 0
+            all_profitable = all((r[3] or 0) > 0 for r in rows) if rows else False
+
+            gate_pass = total_trades >= 50 and overall_wr > 55 and total_pnl > 0 and all_profitable
+
+            if gate_pass:
+                logger.info("[AGI Health] 48h trial gate: GO — %d trades, %.1f%% WR, $%.2f P&L", total_trades, overall_wr, total_pnl)
+                log_event("success", f"48h trial gate: GO — {total_trades} trades, {overall_wr:.1f}% WR, ${total_pnl:.2f}")
+                # Remove kill switch if gate passes
+                kill_path = os.path.join(os.path.dirname(__file__), '..', '..', '.kill_switch')
+                if os.path.exists(kill_path):
+                    os.remove(kill_path)
+                    logger.info("[AGI Health] Kill switch removed — gate passed")
+                    log_event("success", "Kill switch removed — 48h gate passed")
+            else:
+                reasons = []
+                if total_trades < 50:
+                    reasons.append(f"need {50 - total_trades} more trades")
+                if overall_wr <= 55:
+                    reasons.append(f"WR {overall_wr:.1f}% < 55%")
+                if total_pnl <= 0:
+                    reasons.append(f"P&L ${total_pnl:.2f} <= 0")
+                if not all_profitable:
+                    losers = [r[0] for r in rows if (r[3] or 0) <= 0]
+                    reasons.append(f"losing: {', '.join(losers)}")
+                logger.info("[AGI Health] 48h trial gate: NO-GO — %s", '; '.join(reasons))
+                log_event("info", f"48h trial gate: NO-GO — {'; '.join(reasons)}")
+    except Exception as exc:
+        logger.exception("agi_health_check_job 48h gate failed: %s", exc)
+
 
 async def nightly_review_job() -> None:
     from backend.core.scheduler import log_event
