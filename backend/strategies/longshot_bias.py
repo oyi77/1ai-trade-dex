@@ -138,7 +138,7 @@ class LongshotBiasStrategy(BaseStrategy):
                     kelly = max(0, kelly * kelly_frac)
                     position_size = min(kelly * ctx.bankroll, max_position)
 
-                    if position_size < 0.50:
+                    if position_size < 1.01:
                         continue
 
                     decisions_recorded += 1
