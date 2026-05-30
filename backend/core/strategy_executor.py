@@ -1,6 +1,7 @@
 """Execute strategy decisions — create trades in paper mode, place orders in live mode."""
 
 import asyncio
+import json as _json
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -372,17 +373,17 @@ def _execute_decision_paper_or_kalshi(
                 db_session=db,
             )
 
-            # --- Shared recording ---
-            def _update_botstate_sync(db, mode, size):
-                with _botstate_threading_lock:
-                    _update_botstate_after_trade(db, mode, size)
-                    db.commit()
+            # --- BotState update (thread lock for sync path) ---
+            with _botstate_threading_lock:
+                _update_botstate_after_trade(db, mode, adjusted_size)
+                db.commit()
 
+            # --- Shared recording ---
             return _record_trade(
                 db, decision, strategy_name, mode, pf,
                 clob_order_id, fill_price, entry_price, filled_size,
                 fee, role, maker_size, taker_size,
-                attempt_recorder, _update_botstate_sync,
+                attempt_recorder,
             )
 
         except OperationalError as exc:
@@ -705,16 +706,9 @@ async def _execute_decision_live_clob(
     """Live CLOB execution path — stays on event loop for async HTTP calls."""
     market_ticker = decision.get("market_ticker", "")
     direction = decision.get("direction", "")
-    size = float(decision.get("size", 0.0))
     entry_price = float(decision.get("entry_price", 0.5))
-    edge = float(decision.get("edge", 0.0))
-    confidence = float(decision.get("confidence", 0.0))
-    model_probability = float(decision.get("model_probability", confidence))
     token_id = decision.get("token_id")
     platform = decision.get("platform", "polymarket")
-    reasoning = decision.get("reasoning", "")
-    market_type = decision.get("market_type", "btc")
-    market_end_date_str = decision.get("market_end_date")
 
     from backend.db.utils import get_db_session
     from contextlib import nullcontext
@@ -726,313 +720,14 @@ async def _execute_decision_live_clob(
         try:
             attempt_recorder = TradeAttemptRecorder(db, decision, strategy_name, mode)
 
-            try:
-                context = get_context(mode)
-            except KeyError:
-                logger.error(f"[{strategy_name}] No execution context for mode: {mode}")
-                attempt_recorder.record_blocked(
-                    f"No execution context for mode: {mode}",
-                    phase="context",
-                    reason_code="BLOCKED_NO_EXECUTION_CONTEXT",
-                )
-                db.commit()
+            # --- Shared preflight checks ---
+            pf = _preflight_checks(db, decision, strategy_name, mode, attempt_recorder)
+            if pf is None:
                 return None
+            adjusted_size = pf.adjusted_size
+            context = pf.context
 
-            event_slug = decision.get("slug") or decision.get("event_slug")
-            filters = [
-                Trade.settled.is_(False),
-                Trade.trading_mode == mode,
-            ]
-            if event_slug:
-                filters.append(
-                    and_(
-                        Trade.market_ticker == market_ticker,
-                        Trade.event_slug == event_slug,
-                    )
-                )
-            else:
-                filters.append(Trade.market_ticker == market_ticker)
-            existing = db.query(Trade).filter(*filters, Trade.strategy != strategy_name).first()
-            if existing:
-                logger.info(
-                    f"[{strategy_name}] Duplicate execution blocked for {market_ticker}/{event_slug}"
-                )
-                attempt_recorder.record_blocked(
-                    "Duplicate open position for market",
-                    phase="preflight",
-                    reason_code="BLOCKED_DUPLICATE_OPEN_POSITION",
-                    trade_id=existing.id,
-                )
-                db.commit()
-                return None
-
-            state = db.query(BotState).filter_by(mode=mode).first()
-            if not state or not state.is_running:
-                logger.info(
-                    f"[{strategy_name}] Bot not running, skipping decision for {market_ticker}"
-                )
-
-                strategy_config = (
-                    db.query(StrategyConfig)
-                    .filter_by(strategy_name=strategy_name)
-                    .first()
-                )
-                if not strategy_config or not strategy_config.enabled:
-                    logger.warning(
-                        f"[{strategy_name}] Skipping execution as strategy is disabled or missing in config"
-                    )
-                    attempt_recorder.record_blocked(
-                        "Strategy disabled or missing",
-                        phase="preflight",
-                        reason_code="BLOCKED_STRATEGY_DISABLED",
-                    )
-                    db.commit()
-                    return None
-                attempt_recorder.record_blocked(
-                    "Bot not running for selected mode",
-                    phase="preflight",
-                    reason_code="BLOCKED_BOT_NOT_RUNNING",
-                )
-                db.commit()
-                return None
-
-            # --- G-16: Cooldown after consecutive losses (live CLOB path) ---
-            cooldown_losses = int(_cfg("COOLDOWN_CONSECUTIVE_LOSSES", 3) or 3)
-            cooldown_minutes = int(_cfg("COOLDOWN_MINUTES", 60) or 60)
-            if cooldown_losses > 0:
-                from datetime import timedelta as _td
-
-                recent_trades = (
-                    db.query(Trade)
-                    .filter(
-                        Trade.strategy == strategy_name,
-                        Trade.settled.is_(True),
-                        Trade.trading_mode == mode,
-                    )
-                    .order_by(Trade.settlement_time.desc())
-                    .limit(cooldown_losses)
-                    .all()
-                )
-                if len(recent_trades) >= cooldown_losses:
-                    all_losses = all(t.result == "loss" for t in recent_trades)
-                    if all_losses:
-                        last_loss_time = recent_trades[0].settlement_time
-                        if last_loss_time and last_loss_time.tzinfo is None:
-                            last_loss_time = last_loss_time.replace(tzinfo=timezone.utc)
-                        cooldown_until = last_loss_time + _td(minutes=cooldown_minutes)
-                        now_utc = datetime.now(timezone.utc)
-                        if now_utc < cooldown_until:
-                            remaining = (
-                                cooldown_until - now_utc
-                            ).total_seconds() / 60.0
-                            logger.info(
-                                f"[{strategy_name}] Cooldown active: {cooldown_losses} consecutive losses, "
-                                f"pausing for {remaining:.1f} more minutes"
-                            )
-                            attempt_recorder.record_blocked(
-                                f"Cooldown: {cooldown_losses} consecutive losses, {remaining:.1f}min remaining",
-                                phase="cooldown",
-                                reason_code="BLOCKED_COOLDOWN",
-                            )
-                            db.commit()
-                            return None
-
-            if mode == "paper":
-                bankroll = (
-                    state.paper_bankroll if state.paper_bankroll is not None else 0.0
-                )
-            elif mode == "testnet":
-                bankroll = (
-                    state.testnet_bankroll
-                    if state.testnet_bankroll is not None
-                    else 0.0
-                )
-            else:
-                bankroll = (
-                    state.bankroll
-                    if state.bankroll is not None
-                    else _cfg("INITIAL_BANKROLL", 1000.0)
-                )
-
-            # Skip async bankroll reconciliation in this path —
-            # floor negative bankroll to $0 to avoid blocking event loop
-            if bankroll < 0:
-                logger.warning(
-                    "[%s] Negative bankroll ($%.2f) detected; flooring to $0.00",
-                    mode.upper(),
-                    bankroll,
-                )
-                bankroll = 0.0
-
-            # --- Hard safety guards: per-trade max loss, daily cap, portfolio breaker ---
-            safety_block = _pre_trade_safety_checks(db, strategy_name, mode, bankroll, size)
-            if safety_block is not None:
-                logger.warning(f"[{strategy_name}] Safety guard blocked: {safety_block}")
-                attempt_recorder.record_blocked(
-                    safety_block,
-                    phase="safety_guard",
-                    reason_code="BLOCKED_SAFETY_GUARD",
-                )
-                db.commit()
-                return None
-
-            current_exposure = _get_current_exposure(db, trading_mode=mode)
-            attempt_recorder.update(
-                phase="risk_gate",
-                status="RISK_EVALUATING",
-                reason_code="RISK_EVALUATING",
-                reason="Risk manager evaluating trade",
-                bankroll=bankroll,
-                current_exposure=current_exposure,
-                factors_json={
-                    "bankroll": bankroll,
-                    "current_exposure": current_exposure,
-                    "requested_size": size,
-                    "confidence": confidence,
-                    "market_ticker": market_ticker,
-                    "mode": mode,
-                },
-            )
-
-            risk = context.risk_manager.validate_trade(
-                size=size,
-                current_exposure=current_exposure,
-                bankroll=bankroll,
-                confidence=confidence,
-                market_ticker=market_ticker,
-                db=db,
-                mode=mode,
-                strategy_name=strategy_name,
-                direction=direction if direction else None,
-            )
-            if not risk.allowed:
-                logger.info(
-                    f"[{strategy_name}] Risk rejected {market_ticker}: {risk.reason}"
-                )
-                attempt_recorder.record_rejected(
-                    risk.reason,
-                    phase="risk_gate",
-                    risk_allowed=False,
-                    risk_reason=risk.reason,
-                    adjusted_size=risk.adjusted_size,
-                )
-                db.commit()
-                return None
-
-            adjusted_size = risk.adjusted_size
-            attempt_recorder.update(
-                status="RISK_APPROVED",
-                phase="risk_gate",
-                reason_code="RISK_APPROVED",
-                reason="Risk gate approved trade",
-                risk_allowed=True,
-                risk_reason=risk.reason,
-                adjusted_size=adjusted_size,
-            )
-
-            min_size = _cfg("MIN_ORDER_USDC", 5.0)
-            if adjusted_size < min_size:
-                logger.info(
-                    f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
-                    f"Size ${adjusted_size:.2f} below minimum ${min_size}"
-                )
-                attempt_recorder.record_rejected(
-                    f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f}",
-                    phase="sizing",
-                    reason_code="REJECTED_ORDER_TOO_SMALL",
-                    adjusted_size=adjusted_size,
-                )
-                db.commit()
-                return None
-
-            # --- Stale-market filter: dynamic threshold based on market lifetime ---
-            from datetime import timedelta
-
-            market_end_date = None
-            if market_end_date_str:
-                try:
-                    market_end_date = datetime.fromisoformat(
-                        market_end_date_str.replace("Z", "+00:00")
-                    )
-                except (ValueError, TypeError):
-                    logger.exception(
-                        f"[{strategy_name}] failed to parse market_end_date for stale check: {market_ticker}"
-                    )
-            if market_end_date is not None:
-                _now = datetime.now(timezone.utc)
-                _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
-                # Dynamic threshold: 2 min for short-lived (5m/15m) markets, 60 min otherwise
-                _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(
-                    market_ticker
-                )
-                _stale_threshold = 2.0 if _is_short_lived else 60.0
-                if _time_to_resolution < _stale_threshold:
-                    logger.info(
-                        f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "
-                        f"{_time_to_resolution:.1f} min (< {_stale_threshold:.0f} min threshold)"
-                    )
-                    attempt_recorder.record_rejected(
-                        f"Stale market: {market_ticker} resolves in {_time_to_resolution:.1f} min",
-                        phase="stale_market",
-                        reason_code="REJECTED_STALE_MARKET",
-                        adjusted_size=adjusted_size,
-                    )
-                    db.commit()
-                    return None
-
-            # --- Duplicate market guard: block if same strategy+ticker traded recently (same mode only) ---
-            _cooldown_sec = _cfg("DUPLICATE_TRADE_COOLDOWN_SEC", 60)
-            _cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cooldown_sec)
-            _dup_query = (
-                db.query(Trade)
-                .filter(
-                    Trade.strategy == strategy_name,
-                    Trade.market_ticker == market_ticker,
-                    Trade.timestamp >= _cutoff,
-                )
-            )
-            if mode:
-                _dup_query = _dup_query.filter(Trade.trading_mode == mode)
-            _recent_dup = _dup_query.first()
-            if _recent_dup is not None:
-                logger.warning(
-                    f"[{strategy_name}] Duplicate blocked: already traded {market_ticker} "
-                    f"(any direction) within {_cooldown_sec} sec (trade #{_recent_dup.id})"
-                )
-                attempt_recorder.record_rejected(
-                    f"Duplicate: {market_ticker} already traded in last {_cooldown_sec} sec (any direction)",
-                    phase="duplicate_guard",
-                    reason_code="REJECTED_DUPLICATE_MARKET",
-                    adjusted_size=adjusted_size,
-                )
-                db.commit()
-                return None
-
-            # --- Per-market position cap: max 1 open position per event per mode ---
-            _existing_open = (
-                db.query(Trade)
-                .filter(
-                    Trade.market_ticker == market_ticker,
-                    Trade.settled == False,  # noqa: E712
-                    Trade.trading_mode == mode,
-                    Trade.strategy != strategy_name,
-                )
-                .first()
-            )
-            if _existing_open is not None:
-                logger.warning(
-                    f"[{strategy_name}] Position cap blocked: already have open position "
-                    f"on {market_ticker} (trade #{_existing_open.id})"
-                )
-                attempt_recorder.record_rejected(
-                    f"Position cap: already have open position on {market_ticker}",
-                    phase="position_cap",
-                    reason_code="REJECTED_POSITION_CAP",
-                    adjusted_size=adjusted_size,
-                )
-                db.commit()
-                return None
-
+            # --- Live CLOB-specific execution ---
             clob_order_id = None
             fill_price = entry_price
             filled_size = None
@@ -1249,214 +944,19 @@ async def _execute_decision_live_clob(
                 db.commit()
                 return None
 
-            market_end_date = None
-            if market_end_date_str:
-                try:
-                    market_end_date = datetime.fromisoformat(
-                        market_end_date_str.replace("Z", "+00:00")
-                    )
-                except (ValueError, TypeError):
-                    logger.exception(
-                        "[strategy_executor] failed to parse market_end_date for trade recording"
-                    )
-
-            slippage = (
-                abs(fill_price - entry_price) / entry_price if entry_price > 0 else 0.0
-            )
-            fee = None
-
-            trade_data = {
-                "market_ticker": market_ticker,
-                "platform": platform,
-                "direction": direction,
-                "entry_price": fill_price,
-                "size": adjusted_size,
-                "model_probability": model_probability,
-                "market_price_at_entry": entry_price,
-                "edge_at_entry": edge,
-                "trading_mode": mode,
-                "confidence": confidence,
-                "result": "pending",
-            }
-
-            try:
-                TradeValidator.validate_trade_data(trade_data)
-            except ValidationError as e:
-                log_validation_error(e, context=f"execute_decision:{strategy_name}")
-                logger.error(f"[{strategy_name}] Trade validation failed: {e.message}")
-                attempt_recorder.record_rejected(
-                    f"Trade validation failed: {e.message}",
-                    phase="validation",
-                    reason_code="REJECTED_TRADE_VALIDATION",
-                    adjusted_size=adjusted_size,
-                )
-                db.commit()
-                return None
-
-            trade = Trade(
-                market_ticker=market_ticker,
-                platform=platform,
-                direction=direction,
-                entry_price=fill_price,
-                size=adjusted_size,
-                model_probability=model_probability,
-                market_price_at_entry=entry_price,
-                edge_at_entry=edge,
-                trading_mode=mode,
-                strategy=strategy_name,
-                confidence=confidence,
-                clob_order_id=clob_order_id,
-                filled_size=filled_size,
-                fee=fee,
-                slippage=slippage,
-                market_type=market_type,
-                market_end_date=market_end_date,
-                token_id=token_id,
-                condition_id=decision.get("condition_id") or decision.get("slug"),
-                role=role,
-                maker_size=maker_size,
-                taker_size=taker_size,
-            )
-
-            db.add(trade)
-            db.flush()
-
-            from backend.models.audit_logger import log_trade_created
-
-            log_trade_created(
-                db=db,
-                trade_id=trade.id,
-                trade_data={
-                    "market_ticker": market_ticker,
-                    "direction": direction,
-                    "entry_price": fill_price,
-                    "size": adjusted_size,
-                    "trading_mode": mode,
-                    "strategy": strategy_name,
-                    "confidence": confidence,
-                    "edge": edge,
-                    "clob_order_id": clob_order_id,
-                },
-                user_id=f"strategy:{strategy_name}",
-            )
-
+            # --- BotState update (async mutex for live path) ---
             async with botstate_mutex:
                 _update_botstate_after_trade(db, mode, adjusted_size)
                 db.commit()
 
-            signal_data = {
-                "direction": direction,
-                "model_probability": model_probability,
-                "market_price": entry_price,
-                "edge": edge,
-                "confidence": confidence,
-                "kelly_fraction": 0.0,
-                "suggested_size": adjusted_size,
-            }
-
-            try:
-                SignalValidator.validate_signal_data(signal_data)
-            except ValidationError as e:
-                log_validation_error(
-                    e, context=f"execute_decision:signal:{strategy_name}"
-                )
-                logger.error(f"[{strategy_name}] Signal validation failed: {e.message}")
-                attempt_recorder.record_rejected(
-                    f"Signal validation failed: {e.message}",
-                    phase="validation",
-                    reason_code="REJECTED_SIGNAL_VALIDATION",
-                    trade_id=trade.id,
-                    adjusted_size=adjusted_size,
-                )
-                db.commit()
-                return None
-
-            signal_record = Signal(
-                market_ticker=market_ticker,
-                platform=platform,
-                direction=direction,
-                model_probability=model_probability,
-                market_price=entry_price,
-                edge=edge,
-                confidence=confidence,
-                kelly_fraction=0.0,
-                suggested_size=adjusted_size,
-                reasoning=reasoning,
-                track_name=strategy_name,
-                execution_mode=mode,
-                token_id=token_id,
-                executed=True,
+            # --- Shared recording ---
+            return _record_trade(
+                db, decision, strategy_name, mode, pf,
+                clob_order_id, fill_price, entry_price, filled_size,
+                None,  # fee = None for live CLOB
+                role, maker_size, taker_size,
+                attempt_recorder,
             )
-            db.add(signal_record)
-            db.flush()
-            trade.signal_id = signal_record.id
-            attempt_recorder.record_executed(
-                trade.id,
-                adjusted_size=adjusted_size,
-                order_id=clob_order_id,
-                risk_allowed=True,
-                risk_reason=risk.reason,
-            )
-
-            _commit_with_retry(db)
-
-            trade_dict = {
-                "id": trade.id,
-                "market_ticker": market_ticker,
-                "direction": direction,
-                "fill_price": fill_price,
-                "size": adjusted_size,
-                "edge": edge,
-                "confidence": confidence,
-                "trading_mode": mode,
-                "clob_order_id": clob_order_id,
-                "strategy": strategy_name,
-            }
-
-            try:
-                _broadcast_event(
-                    "trade_opened",
-                    {
-                        **trade_dict,
-                        "trade_id": trade.id,
-                        "entry_price": fill_price,
-                        "mode": mode,
-                    },
-                )
-            except Exception as e:
-                logger.opt(exception=True).warning(
-                    f"[strategy_executor.execute_decision] {type(e).__name__}: event broadcast failed (non-fatal): {e}",
-                )
-
-            try:
-                from backend.core.event_bus import publish_event
-
-                publish_event(
-                    "trade_executed",
-                    {
-                        "trade_id": trade.id,
-                        "market_ticker": market_ticker,
-                        "direction": direction,
-                        "fill_price": fill_price,
-                        "size": adjusted_size,
-                        "confidence": confidence,
-                        "edge": edge,
-                        "strategy_name": strategy_name,
-                        "genome_id": decision.get("genome_id"),
-                        "trading_mode": mode,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    },
-                )
-            except Exception as e:
-                logger.warning(
-                    f"[strategy_executor.execute_decision] publish_event trade_executed failed (non-fatal): {e}"
-                )
-
-            logger.info(
-                f"[{strategy_name}] Trade created: {direction.upper()} {market_ticker} "
-                f"${adjusted_size:.2f} @ {fill_price:.3f} (mode={mode})"
-            )
-            return trade_dict
 
         except OperationalError as exc:
             logger.opt(exception=True).error(
@@ -1961,9 +1461,12 @@ def _record_trade(
     maker_size,
     taker_size,
     attempt_recorder,
-    update_botstate,
 ) -> Optional[dict]:
-    """Create Trade + Signal + broadcast events. Shared by paper and live paths."""
+    """Create Trade + Signal + broadcast events. Shared by paper and live paths.
+
+    Callers MUST update BotState BEFORE calling this function, since paper
+    uses a threading lock and live uses an async mutex.
+    """
     market_ticker = decision.get("market_ticker", "")
     direction = decision.get("direction", "")
     confidence = float(decision.get("confidence", 0.0))
@@ -2055,8 +1558,6 @@ def _record_trade(
         },
         user_id=f"strategy:{strategy_name}",
     )
-
-    update_botstate(db, mode, adjusted_size)
 
     signal_data = {
         "direction": direction,

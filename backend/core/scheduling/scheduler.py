@@ -433,6 +433,7 @@ async def _cleanup_stale_trades() -> None:
 
 def _load_strategy_jobs() -> None:
     """Read StrategyConfig table and schedule enabled strategies for all modes."""
+    import backend.strategies  # noqa: F401 — triggers __init__.py auto-registration
     from backend.models.database import SessionLocal, StrategyConfig  # noqa: F401
     from backend.db.utils import get_db_session
     from backend.core.mode_context import list_contexts
@@ -470,6 +471,7 @@ def _load_strategy_jobs() -> None:
 
 def _register_event_driven_strategies() -> None:
     """Register strategies that support WS events with the event bus."""
+    import backend.strategies  # noqa: F401 — triggers __init__.py auto-registration
     from backend.strategies.registry import STRATEGY_REGISTRY
     from backend.core.event_bus import event_bus
     from backend.core.ws_fallback import WsFirstExecutor

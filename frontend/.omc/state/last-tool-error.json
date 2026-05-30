@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd frontend && npx vitest run src/hooks/useSSEEvents.test.tsx 2>&1 | grep -A 10 \\\"FAIL\\\\|Error\\\\|mockInstances\\\" | head -30\",\"description\":\"Get test error details\"}",
-  "error": "Exit code 1",
-  "timestamp": "2026-05-19T11:00:17.488Z",
-  "retry_count": 2
+  "tool_input_preview": "{\"command\":\"git add backend/strategies/__init__.py backend/strategies/crypto_oracle.py && git commit -m \\\"$(cat <<'EOF'\\nfix: strategy auto-registration + crypto_oracle debate timeout\\n\\n- Added __ini...",
+  "error": "Exit code 128",
+  "timestamp": "2026-05-30T20:27:02.056Z",
+  "retry_count": 1
 }

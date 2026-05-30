@@ -277,8 +277,8 @@
   "hotPaths": [
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 173,
-      "lastAccessed": 1780169550471,
+      "accessCount": 199,
+      "lastAccessed": 1780170182331,
       "type": "file"
     },
     {
@@ -301,8 +301,8 @@
     },
     {
       "path": "backend/core/scheduling/scheduler.py",
-      "accessCount": 55,
-      "lastAccessed": 1780156228879,
+      "accessCount": 58,
+      "lastAccessed": 1780172961776,
       "type": "file"
     },
     {
