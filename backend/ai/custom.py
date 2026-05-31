@@ -77,7 +77,7 @@ class CustomAIClient(BaseAIClient):
                 try:
                     confidence = int(parts[1].strip()) / 100
                 except ValueError:
-                    pass
+                    logger.debug("custom_model: invalid confidence value in classification response")
             valid = ["weather", "crypto", "politics", "economics", "sports", "other"]
             if category not in valid:
                 for c in valid:

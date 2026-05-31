@@ -129,7 +129,7 @@ class LifecycleManager:
                     if time_in_stage >= timedelta(days=14):
                         return "BREEDING"
                 except (TypeError, AttributeError):
-                    pass
+                    logger.debug("lifecycle_manager: failed to compute time_in_stage for genome")
 
         if self._check_auto_kill(genome):
             return "GRAVEYARD"

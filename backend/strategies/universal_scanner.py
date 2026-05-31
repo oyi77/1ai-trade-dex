@@ -30,13 +30,9 @@ from backend.strategies.base import (
     MarketEvent,
 )
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
-from backend.config import settings
+from backend.config import settings, _cfg
 
 from loguru import logger
-
-
-def _cfg(name, default):
-    return getattr(settings, name, default)
 
 
 GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
@@ -75,7 +71,7 @@ def _is_market_stale(m: dict) -> bool:
             if age > _cfg("SCANNER_STALE_THRESHOLD_SECONDS", 5.0):
                 return True
         except (ValueError, TypeError):
-            pass
+            logger.debug("universal_scanner: failed to parse market updated_at timestamp")
     return False
 
 

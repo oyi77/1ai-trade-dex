@@ -386,7 +386,7 @@ class CodeGenerator:
             GeneratedCode if successful, None on failure
         """
         self._generation_count += 1
-        
+
         from backend.ai.llm_router import LLMRouter
         import re
 
@@ -435,7 +435,9 @@ class CodeGenerator:
             elif provider_config["type"] == "groq":
                 response_text, _ = await router._call_groq(provider_config, messages)
             else:
-                raise ValueError(f"Unsupported LLM provider type: {provider_config['type']}")
+                raise ValueError(
+                    f"Unsupported LLM provider type: {provider_config['type']}"
+                )
 
             # Extract code from markdown block if present
             code = response_text
@@ -483,7 +485,7 @@ class ChangeTracker:
                 data = json.loads(self._file.read_text())
                 self._changes = data.get("changes", {})
             except (json.JSONDecodeError, KeyError):
-                pass
+                logger.debug(f"modification_engine: failed to load changes from {self._file}")
 
     def _save(self) -> None:
         self._file.write_text(

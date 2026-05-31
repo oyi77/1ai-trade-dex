@@ -31,7 +31,9 @@ class UnifiedPMArb(BaseStrategy):
     """
 
     name = "unified_arb"
-    description = "Polymarket + Kalshi cross-platform arb detection via CrossMarketArbEnhanced"
+    description = (
+        "Polymarket + Kalshi cross-platform arb detection via CrossMarketArbEnhanced"
+    )
     category = "arb"
 
     default_params: dict = {
@@ -122,7 +124,9 @@ class UnifiedPMArb(BaseStrategy):
             all_markets["kalshi"] = kalshi_markets
 
         if not all_markets:
-            return CycleResult(0, 0, 0, errors=["No markets available from Polymarket or Kalshi"])
+            return CycleResult(
+                0, 0, 0, errors=["No markets available from Polymarket or Kalshi"]
+            )
 
         # 2. Detect arbitrage opportunities
         detector = await self._get_detector()
@@ -162,17 +166,19 @@ class UnifiedPMArb(BaseStrategy):
             decisions.append(decision)
 
             # Record history
-            self._history.append({
-                "event_id": opp.event_id,
-                "kind": opp.kind,
-                "platform_a": opp.platform_a,
-                "platform_b": opp.platform_b,
-                "price_a": opp.price_a,
-                "price_b": opp.price_b,
-                "net_profit": opp.net_profit,
-                "status": "detected",
-                "timestamp": time.time(),
-            })
+            self._history.append(
+                {
+                    "event_id": opp.event_id,
+                    "kind": opp.kind,
+                    "platform_a": opp.platform_a,
+                    "platform_b": opp.platform_b,
+                    "price_a": opp.price_a,
+                    "price_b": opp.price_b,
+                    "net_profit": opp.net_profit,
+                    "status": "detected",
+                    "timestamp": time.time(),
+                }
+            )
 
             # Log to DecisionLog
             try:
@@ -192,7 +198,7 @@ class UnifiedPMArb(BaseStrategy):
                 )
                 ctx.db.add(log_row)
             except Exception:
-                pass
+                logger.warning("unified_arb: failed to log arbitrage opportunity to DB")
 
         # 4. Commit DB writes
         try:

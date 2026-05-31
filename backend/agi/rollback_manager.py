@@ -61,7 +61,7 @@ class RollbackManager:
                 data = json.loads(self._log_file.read_text())
                 self._events = [RollbackEvent(**e) for e in data.get("events", [])]
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.debug(f"rollback_manager: failed to load events from {self._log_file}")
 
     def _save(self) -> None:
         self._log_file.write_text(

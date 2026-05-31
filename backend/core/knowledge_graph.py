@@ -650,7 +650,7 @@ class KnowledgeGraph:
                         "relation_type": rel.relation_type,
                     }
                 except ValueError:
-                    pass
+                    logger.debug("knowledge_graph: failed to parse regime relationship")
         return result
 
     def query_best_strategies(

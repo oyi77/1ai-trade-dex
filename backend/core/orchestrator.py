@@ -51,6 +51,7 @@ class Orchestrator:
         # Start BalanceAggregator (real-time multi-venue balance tracking)
         try:
             from backend.core.balance_aggregator import BalanceAggregator
+
             self._balance_aggregator = BalanceAggregator()
             asyncio.create_task(self._balance_aggregator.start())
             logger.info("BalanceAggregator started (WS + polling)")
@@ -64,10 +65,13 @@ class Orchestrator:
             from backend.core.activity import set_tracker
             from backend.core.activity.event_handler import ActivityHandler
             from backend.db.utils import get_db_session
+
             self._activity_tracker = ActivityTracker()
             set_tracker(self._activity_tracker)
             # Register ActivityHandler to process events into DB
-            self._activity_handler = ActivityHandler(self._activity_tracker, get_db_session)
+            self._activity_handler = ActivityHandler(
+                self._activity_tracker, get_db_session
+            )
             # Register platform sources
             await self._register_activity_sources()
             asyncio.create_task(self._activity_tracker.start_all())
@@ -243,17 +247,18 @@ class Orchestrator:
         # Cancel all strategy background tasks (e.g. MarketMaker queue loop)
         try:
             from backend.strategies.registry import STRATEGY_REGISTRY
+
             for name, cls in STRATEGY_REGISTRY.items():
                 try:
-                    instances = getattr(cls, '_instances', [])
+                    instances = getattr(cls, "_instances", [])
                     for inst in instances:
-                        stop = getattr(inst, 'stop_consumer', None)
+                        stop = getattr(inst, "stop_consumer", None)
                         if stop:
                             await stop()
                 except Exception:
-                    pass
+                    logger.debug("orchestrator: failed to stop market_maker consumer instances")
         except Exception:
-            pass
+            logger.debug("orchestrator: failed during market_maker consumer cleanup")
 
         if self._bot:
             await self._bot.stop()
@@ -266,9 +271,10 @@ class Orchestrator:
         # Close shared httpx/crypto clients to prevent resource leaks
         try:
             from backend.data.crypto import close_crypto_client
+
             await close_crypto_client()
         except Exception:
-            pass
+            logger.debug("orchestrator: failed to close crypto client on shutdown")
 
         for mode, clob_client in self._clob_clients.items():
             if not clob_client:
@@ -299,11 +305,16 @@ class Orchestrator:
         addr = settings.WALLET_ADDRESS or settings.POLYMARKET_WALLET_ADDRESS or "0x0"
         tracker = self._activity_tracker
         skip_raw = os.environ.get("SKIP_ACTIVITY_SOURCES", "").strip().lower()
-        skip_sources = set(s.strip() for s in skip_raw.split(",") if s.strip()) if skip_raw else set()
+        skip_sources = (
+            set(s.strip() for s in skip_raw.split(",") if s.strip())
+            if skip_raw
+            else set()
+        )
 
         # Aster — WebSocket fills + balance + positions
         try:
-            if "aster" in skip_sources: raise RuntimeError("SKIP_ACTIVITY_SOURCES")
+            if "aster" in skip_sources:
+                raise RuntimeError("SKIP_ACTIVITY_SOURCES")
             from backend.markets.providers.aster_provider import AsterProvider
             from backend.core.activity.sources.aster_source import AsterActivitySource
 
@@ -315,8 +326,12 @@ class Orchestrator:
 
         # Hyperliquid — WebSocket user_fills
         try:
-            from backend.markets.providers.hyperliquid_provider import HyperliquidProvider
-            from backend.core.activity.sources.hyperliquid_source import HyperliquidActivitySource
+            from backend.markets.providers.hyperliquid_provider import (
+                HyperliquidProvider,
+            )
+            from backend.core.activity.sources.hyperliquid_source import (
+                HyperliquidActivitySource,
+            )
 
             hl = HyperliquidProvider()
             await hl.connect()
@@ -327,7 +342,9 @@ class Orchestrator:
         # Lighter — WebSocket balance + fills
         try:
             from backend.markets.providers.lighter_provider import LighterProvider
-            from backend.core.activity.sources.lighter_source import LighterActivitySource
+            from backend.core.activity.sources.lighter_source import (
+                LighterActivitySource,
+            )
 
             lighter = LighterProvider()
             await lighter.connect()
@@ -337,7 +354,9 @@ class Orchestrator:
 
         # Polymarket — CLOB fills (REST) + Polygon on-chain
         try:
-            from backend.core.activity.sources.polymarket_source import PolymarketActivitySource
+            from backend.core.activity.sources.polymarket_source import (
+                PolymarketActivitySource,
+            )
 
             clob = clob_from_settings()
             tracker.register_source("polymarket", PolymarketActivitySource(addr, clob))
@@ -520,7 +539,11 @@ class Orchestrator:
                     )
                     for sig in signals
                 ]
-                source_name = getattr(signals[0], "source_name", "orchestrator") if signals else "orchestrator"
+                source_name = (
+                    getattr(signals[0], "source_name", "orchestrator")
+                    if signals
+                    else "orchestrator"
+                )
                 accepted = await copy_engine.process(policy_signals, source_name)
                 if not accepted:
                     logger.info("[orchestrator] CopyPolicyEngine filtered all signals")
@@ -528,8 +551,13 @@ class Orchestrator:
                 # Map back: keep only signals whose (condition_id, side) survived policy
                 accepted_keys = {(s.condition_id, s.side) for s in accepted}
                 signals = [
-                    sig for sig in signals
-                    if (getattr(getattr(sig, "source_trade", None), "condition_id", ""), getattr(sig, "our_side", "")) in accepted_keys
+                    sig
+                    for sig in signals
+                    if (
+                        getattr(getattr(sig, "source_trade", None), "condition_id", ""),
+                        getattr(sig, "our_side", ""),
+                    )
+                    in accepted_keys
                 ]
             except Exception as e:
                 logger.warning(f"CopyPolicyEngine filtering failed (non-fatal): {e}")
@@ -696,23 +724,30 @@ async def main() -> None:
         import traceback
         import sys
         import asyncio
+
         try:
             with open("/tmp/orchestrator_stack.txt", "w") as f:
                 f.write("=== Thread Stacks ===\n")
                 for thread_id, stack in sys._current_frames().items():
                     f.write(f"\n--- Thread {thread_id} ---\n")
                     traceback.print_stack(stack, file=f)
-                
+
                 f.write("\n=== Async Tasks ===\n")
                 try:
                     loop = asyncio.get_event_loop()
                     for task in asyncio.all_tasks(loop):
-                        f.write(f"\n--- Task {task.get_name()} ({task.get_coro()}) ---\n")
+                        f.write(
+                            f"\n--- Task {task.get_name()} ({task.get_coro()}) ---\n"
+                        )
                         for task_frame in task.get_stack():
                             traceback.print_stack(task_frame, file=f)
                 except Exception as e:
                     f.write(f"Failed to dump async tasks: {e}\n")
-            print("Dumped stack traces to /tmp/orchestrator_stack.txt", file=sys.stderr, flush=True)
+            print(
+                "Dumped stack traces to /tmp/orchestrator_stack.txt",
+                file=sys.stderr,
+                flush=True,
+            )
         except Exception as err:
             print(f"Error in signal handler: {err}", file=sys.stderr, flush=True)
 

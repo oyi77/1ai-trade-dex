@@ -91,7 +91,7 @@ class SelfHealingWatchdog:
                     RecoveryAction(**a) for a in data.get("actions", [])
                 ]
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.debug(f"self_healing: failed to load history from {self._history_file}")
 
     def _save(self) -> None:
         self._history_file.write_text(

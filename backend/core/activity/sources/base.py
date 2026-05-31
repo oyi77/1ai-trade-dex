@@ -63,11 +63,13 @@ class BaseActivitySource(ABC):
         """Create a tracked sub-task that is cancelled on stop()."""
         t = asyncio.create_task(coro)
         self._subtasks.append(t)
+
         def _cleanup(task):
             try:
                 self._subtasks.remove(task)
             except ValueError:
-                pass
+                logger.debug("base_source: subtask already removed from tracking list")
+
         t.add_done_callback(_cleanup)
         return t
 
@@ -87,7 +89,9 @@ class BaseActivitySource(ABC):
             try:
                 await asyncio.wait_for(coro_func(*args, **kwargs), timeout=30)
             except asyncio.TimeoutError:
-                logger.warning(f"[{self.platform}] {coro_func.__name__} timed out (30s)")
+                logger.warning(
+                    f"[{self.platform}] {coro_func.__name__} timed out (30s)"
+                )
             except asyncio.CancelledError:
                 raise
             except Exception as e:

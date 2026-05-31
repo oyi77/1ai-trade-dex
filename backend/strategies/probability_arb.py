@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
-from backend.config import settings
+from backend.config import settings, _cfg
 
 from loguru import logger
 
@@ -30,10 +30,6 @@ async def execution_breaker() -> AsyncIterator[None]:
         yield
     finally:
         _execution_breaker_active.release()
-
-
-def _cfg(name, default):
-    return getattr(settings, name, default)
 
 
 @dataclass
@@ -101,7 +97,9 @@ async def execute_arb(
     - Race condition: idempotency key per (market_id, timestamp)
     """
     start = time.monotonic()
-    idempotency_key = f"{getattr(opportunity, 'market_id', 'unknown')}-{int(start * 1000)}"
+    idempotency_key = (
+        f"{getattr(opportunity, 'market_id', 'unknown')}-{int(start * 1000)}"
+    )
 
     async with execution_breaker():
         try:
@@ -243,12 +241,15 @@ class ProbabilityArb(BaseStrategy):
                         clob_token_ids = m.get("clobTokenIds") or []
                         if isinstance(clob_token_ids, str):
                             import json
+
                             clob_token_ids = json.loads(clob_token_ids)
                         if len(clob_token_ids) < 2:
                             continue
                         yes_token_id = str(clob_token_ids[0])
                         no_token_id = str(clob_token_ids[1])
-                        result = await execute_arb(opp, yes_token_id, no_token_id, ctx.clob)
+                        result = await execute_arb(
+                            opp, yes_token_id, no_token_id, ctx.clob
+                        )
                         if result.get("success"):
                             arb_count += 1
                         elif result.get("queued"):
@@ -305,7 +306,7 @@ def process_pending_arbs() -> int:
                             reattempted += 1
                             continue
                     except RuntimeError:
-                        pass
+                        logger.debug("probability_arb: CLOB execution failed during reattempt")
             # Expired and max retries exhausted — remove
             del _pending_arbs[key]
 

@@ -21,6 +21,7 @@ from backend.core.strategy_gate import StrategyGate
 @dataclass
 class ArbOpportunityEnhanced:
     """An enhanced arbitrage opportunity with full cost modeling."""
+
     event_id: str
     kind: str  # "cross_platform" | "complementary" | "yes_no_sum"
     platform_a: str
@@ -44,6 +45,7 @@ class ArbOpportunityEnhanced:
 @dataclass
 class ScanResult:
     """Result of an arbitrage scan."""
+
     opportunities: List[ArbOpportunityEnhanced]
     markets_scanned: int
     scan_duration_ms: float
@@ -228,7 +230,7 @@ class CrossMarketArbEnhanced:
                     if p is not None and 0 < p < 1:
                         prices.append((m, p))
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("cross_market_arb: failed to parse yes_price")
 
             if len(prices) < 2:
                 continue
@@ -466,24 +468,26 @@ class CrossMarketArbEnhanced:
                                 net = 1.0 - yes_sum - 0.04  # 2% each
                                 if net <= self.min_net_profit_pct:
                                     continue
-                                opps.append(ArbOpportunityEnhanced(
-                                    event_id=game_key,
-                                    kind="same_game_ml",
-                                    platform_a=ma.get("platform", "unknown"),
-                                    platform_b=mb.get("platform", "unknown"),
-                                    market_a_id=str(ma.get("event_id", "")),
-                                    market_b_id=str(mb.get("event_id", "")),
-                                    price_a=yes_a,
-                                    price_b=yes_b,
-                                    raw_spread=1.0 - yes_sum,
-                                    fees=0.04,
-                                    slippage_cost=0.002,
-                                    execution_risk=0.3,
-                                    net_profit=net,
-                                    net_profit_pct=net,
-                                    confidence=min(1.0, net / max(yes_sum, 0.01)),
-                                    details={"game": game_key, "yes_sum": yes_sum},
-                                ))
+                                opps.append(
+                                    ArbOpportunityEnhanced(
+                                        event_id=game_key,
+                                        kind="same_game_ml",
+                                        platform_a=ma.get("platform", "unknown"),
+                                        platform_b=mb.get("platform", "unknown"),
+                                        market_a_id=str(ma.get("event_id", "")),
+                                        market_b_id=str(mb.get("event_id", "")),
+                                        price_a=yes_a,
+                                        price_b=yes_b,
+                                        raw_spread=1.0 - yes_sum,
+                                        fees=0.04,
+                                        slippage_cost=0.002,
+                                        execution_risk=0.3,
+                                        net_profit=net,
+                                        net_profit_pct=net,
+                                        confidence=min(1.0, net / max(yes_sum, 0.01)),
+                                        details={"game": game_key, "yes_sum": yes_sum},
+                                    )
+                                )
 
             # Cross-type: Moneyline YES + opposite side spread/total NO
             # e.g. Giants win YES + opponent spread cover NO = coverage
@@ -497,25 +501,34 @@ class CrossMarketArbEnhanced:
                     total_cost = ml_yes + ab_no
                     net = 1.0 - total_cost - 0.04
                     if net > self.min_net_profit_pct:
-                        opps.append(ArbOpportunityEnhanced(
-                            event_id=game_key,
-                            kind="same_game_cross",
-                            platform_a=ml.get("platform", "unknown"),
-                            platform_b=ab.get("platform", "unknown"),
-                            market_a_id=str(ml.get("event_id", "")),
-                            market_b_id=str(ab.get("event_id", "")),
-                            price_a=ml_yes,
-                            price_b=ab_no,
-                            raw_spread=1.0 - total_cost,
-                            fees=0.04,
-                            slippage_cost=0.002,
-                            execution_risk=0.3,
-                            net_profit=net,
-                            net_profit_pct=net,
-                            confidence=min(1.0, net / 0.03),
-                            details={"game": game_key, "ml_side": ml.get("_raw", {}).get("outcomeOneName", ""),
-                                     "other_side": ab.get("_raw", {}).get("outcomeOneName", "")},
-                        ))
+                        opps.append(
+                            ArbOpportunityEnhanced(
+                                event_id=game_key,
+                                kind="same_game_cross",
+                                platform_a=ml.get("platform", "unknown"),
+                                platform_b=ab.get("platform", "unknown"),
+                                market_a_id=str(ml.get("event_id", "")),
+                                market_b_id=str(ab.get("event_id", "")),
+                                price_a=ml_yes,
+                                price_b=ab_no,
+                                raw_spread=1.0 - total_cost,
+                                fees=0.04,
+                                slippage_cost=0.002,
+                                execution_risk=0.3,
+                                net_profit=net,
+                                net_profit_pct=net,
+                                confidence=min(1.0, net / 0.03),
+                                details={
+                                    "game": game_key,
+                                    "ml_side": ml.get("_raw", {}).get(
+                                        "outcomeOneName", ""
+                                    ),
+                                    "other_side": ab.get("_raw", {}).get(
+                                        "outcomeOneName", ""
+                                    ),
+                                },
+                            )
+                        )
 
             # Spread + Total arb: over/under pairs
             for bet_type, items in [("spread", spreads), ("total", totals)]:
@@ -539,24 +552,29 @@ class CrossMarketArbEnhanced:
                                     net = 1.0 - yes_sum - 0.04
                                     if net <= self.min_net_profit_pct:
                                         continue
-                                    opps.append(ArbOpportunityEnhanced(
-                                        event_id=game_key,
-                                        kind=f"same_game_{bet_type}",
-                                        platform_a=a.get("platform", "unknown"),
-                                        platform_b=b.get("platform", "unknown"),
-                                        market_a_id=str(a.get("event_id", "")),
-                                        market_b_id=str(b.get("event_id", "")),
-                                        price_a=yes_a,
-                                        price_b=yes_b,
-                                        raw_spread=1.0 - yes_sum,
-                                        fees=0.04,
-                                        slippage_cost=0.002,
-                                        execution_risk=0.3,
-                                        net_profit=net,
-                                        net_profit_pct=net,
-                                        confidence=min(1.0, net / 0.03),
-                                        details={"game": game_key, "yes_sum": yes_sum},
-                                    ))
+                                    opps.append(
+                                        ArbOpportunityEnhanced(
+                                            event_id=game_key,
+                                            kind=f"same_game_{bet_type}",
+                                            platform_a=a.get("platform", "unknown"),
+                                            platform_b=b.get("platform", "unknown"),
+                                            market_a_id=str(a.get("event_id", "")),
+                                            market_b_id=str(b.get("event_id", "")),
+                                            price_a=yes_a,
+                                            price_b=yes_b,
+                                            raw_spread=1.0 - yes_sum,
+                                            fees=0.04,
+                                            slippage_cost=0.002,
+                                            execution_risk=0.3,
+                                            net_profit=net,
+                                            net_profit_pct=net,
+                                            confidence=min(1.0, net / 0.03),
+                                            details={
+                                                "game": game_key,
+                                                "yes_sum": yes_sum,
+                                            },
+                                        )
+                                    )
 
         return opps
 
@@ -573,14 +591,18 @@ class CrossMarketArbEnhanced:
 
         # Group by asset (extract ticker from question)
         import re as _re
+
         asset_groups: Dict[str, List[Dict]] = {}
         for m in markets:
             q = m.get("question", "")
-            match = _re.search(r'\b(BTC|ETH|SOL|XRP|DOGE|BNB|HYPE|AAPL|NVDA|TSLA|META|AMZN|GOOG)\b', q.upper())
+            match = _re.search(
+                r"\b(BTC|ETH|SOL|XRP|DOGE|BNB|HYPE|AAPL|NVDA|TSLA|META|AMZN|GOOG)\b",
+                q.upper(),
+            )
             if match:
                 asset = match.group(0)
                 # Extract timeframe
-                tf_match = _re.search(r'(\d+)\s*min', q.lower())
+                tf_match = _re.search(r"(\d+)\s*min", q.lower())
                 tf = int(tf_match.group(1)) if tf_match else None
                 if tf is not None:
                     if asset not in asset_groups:
@@ -615,46 +637,62 @@ class CrossMarketArbEnhanced:
                     if cost1 < 0.96 and 1.0 - cost1 > self.min_net_profit_pct:
                         net = 1.0 - cost1 - 0.04
                         if net > self.min_net_profit_pct:
-                            opps.append(ArbOpportunityEnhanced(
-                                event_id=f"{asset}_{tf_a}_{tf_b}",
-                                kind="cross_timeframe",
-                                platform_a=a.get("platform", "unknown"),
-                                platform_b=b.get("platform", "unknown"),
-                                market_a_id=str(a.get("event_id", "")),
-                                market_b_id=str(b.get("event_id", "")),
-                                price_a=yes_a, price_b=no_b,
-                                raw_spread=1.0 - cost1,
-                                fees=0.04,
-                                slippage_cost=0.003,
-                                execution_risk=0.4,
-                                net_profit=net,
-                                net_profit_pct=net,
-                                confidence=min(1.0, net / 0.03),
-                                details={"asset": asset, "tf_a": tf_a, "tf_b": tf_b, "strategy": "buy_tfa_yes_tfb_no"},
-                            ))
+                            opps.append(
+                                ArbOpportunityEnhanced(
+                                    event_id=f"{asset}_{tf_a}_{tf_b}",
+                                    kind="cross_timeframe",
+                                    platform_a=a.get("platform", "unknown"),
+                                    platform_b=b.get("platform", "unknown"),
+                                    market_a_id=str(a.get("event_id", "")),
+                                    market_b_id=str(b.get("event_id", "")),
+                                    price_a=yes_a,
+                                    price_b=no_b,
+                                    raw_spread=1.0 - cost1,
+                                    fees=0.04,
+                                    slippage_cost=0.003,
+                                    execution_risk=0.4,
+                                    net_profit=net,
+                                    net_profit_pct=net,
+                                    confidence=min(1.0, net / 0.03),
+                                    details={
+                                        "asset": asset,
+                                        "tf_a": tf_a,
+                                        "tf_b": tf_b,
+                                        "strategy": "buy_tfa_yes_tfb_no",
+                                    },
+                                )
+                            )
 
                     # Option B: buy tf_a NO + tf_b YES
                     cost2 = no_a + yes_b
                     if cost2 < 0.96 and 1.0 - cost2 > self.min_net_profit_pct:
                         net = 1.0 - cost2 - 0.04
                         if net > self.min_net_profit_pct:
-                            opps.append(ArbOpportunityEnhanced(
-                                event_id=f"{asset}_{tf_a}_{tf_b}",
-                                kind="cross_timeframe",
-                                platform_a=a.get("platform", "unknown"),
-                                platform_b=b.get("platform", "unknown"),
-                                market_a_id=str(a.get("event_id", "")),
-                                market_b_id=str(b.get("event_id", "")),
-                                price_a=no_a, price_b=yes_b,
-                                raw_spread=1.0 - cost2,
-                                fees=0.04,
-                                slippage_cost=0.003,
-                                execution_risk=0.4,
-                                net_profit=net,
-                                net_profit_pct=net,
-                                confidence=min(1.0, net / 0.03),
-                                details={"asset": asset, "tf_a": tf_a, "tf_b": tf_b, "strategy": "buy_tfa_no_tfb_yes"},
-                            ))
+                            opps.append(
+                                ArbOpportunityEnhanced(
+                                    event_id=f"{asset}_{tf_a}_{tf_b}",
+                                    kind="cross_timeframe",
+                                    platform_a=a.get("platform", "unknown"),
+                                    platform_b=b.get("platform", "unknown"),
+                                    market_a_id=str(a.get("event_id", "")),
+                                    market_b_id=str(b.get("event_id", "")),
+                                    price_a=no_a,
+                                    price_b=yes_b,
+                                    raw_spread=1.0 - cost2,
+                                    fees=0.04,
+                                    slippage_cost=0.003,
+                                    execution_risk=0.4,
+                                    net_profit=net,
+                                    net_profit_pct=net,
+                                    confidence=min(1.0, net / 0.03),
+                                    details={
+                                        "asset": asset,
+                                        "tf_a": tf_a,
+                                        "tf_b": tf_b,
+                                        "strategy": "buy_tfa_no_tfb_yes",
+                                    },
+                                )
+                            )
 
         return opps
 
@@ -685,8 +723,8 @@ class CrossMarketArbEnhanced:
         # Over vs Under
         if "over" in o1l and "under" in o2l:
             # Must be SAME line (e.g., Over 48.5 vs Under 48.5)
-            nums1 = ''.join(c for c in o1 if c.isdigit() or c == '.')
-            nums2 = ''.join(c for c in o2 if c.isdigit() or c == '.')
+            nums1 = "".join(c for c in o1 if c.isdigit() or c == ".")
+            nums2 = "".join(c for c in o2 if c.isdigit() or c == ".")
             return nums1 == nums2
         # Team+spread vs Team-spread (opposite signs)
         if "+" in o1 and "-" in o2:
@@ -711,6 +749,7 @@ class CrossMarketArbEnhanced:
 
 # ── Market Helpers ────────────────────────────────────────────────
 
+
 def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
     """Extract YES price from a market dict (legacy, use market['yes_price'] directly)."""
     # First check normalized fields
@@ -721,7 +760,7 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
             if 0 < p < 1:
                 return p
         except (ValueError, TypeError):
-            pass
+            logger.debug("cross_market_arb: failed to parse yes_price from market")
 
     for key in ("yesPrice", "price"):
         val = market.get(key)
@@ -731,12 +770,13 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
             except (ValueError, TypeError):
-                pass
+                logger.debug("cross_market_arb: failed to parse price from market key")
 
     op = market.get("outcomePrices")
     if op:
         try:
             import json as _json
+
             if isinstance(op, str):
                 op = _json.loads(op)
             if isinstance(op, list) and len(op) >= 1:
@@ -744,7 +784,9 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
         except Exception:
-            logger.warning("cross_market_arb_enhanced: failed to parse Kalshi orderbook price")
+            logger.warning(
+                "cross_market_arb_enhanced: failed to parse Kalshi orderbook price"
+            )
 
     kalshi_ask = market.get("yes_ask_dollars")
     if kalshi_ask is not None:
@@ -753,36 +795,96 @@ def _extract_yes_price(market: Dict[str, Any]) -> Optional[float]:
             if 0 < p < 1:
                 return p
         except (ValueError, TypeError):
-            pass
+            logger.debug("cross_market_arb: failed to parse kalshi yes_ask_dollars")
     return None
 
 
 # ── Question Matching ─────────────────────────────────────────────
 
-_STOP_WORDS = frozenset({
-    "will", "the", "be", "in", "a", "an", "on", "at", "to", "for",
-    "of", "and", "or", "is", "it", "by", "as", "do", "does", "did",
-    "has", "have", "had", "was", "were", "are", "this", "that",
-    "with", "from", "but", "not", "no", "if", "so", "than",
-    # Short-duration market noise
-    "up", "down", "min", "hourly", "daily", "weekly", "monthly",
-    "et", "am", "pm",
-    "yes", "before", "after", "between", "above", "below", "over", "under",
-})
+_STOP_WORDS = frozenset(
+    {
+        "will",
+        "the",
+        "be",
+        "in",
+        "a",
+        "an",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "and",
+        "or",
+        "is",
+        "it",
+        "by",
+        "as",
+        "do",
+        "does",
+        "did",
+        "has",
+        "have",
+        "had",
+        "was",
+        "were",
+        "are",
+        "this",
+        "that",
+        "with",
+        "from",
+        "but",
+        "not",
+        "no",
+        "if",
+        "so",
+        "than",
+        # Short-duration market noise
+        "up",
+        "down",
+        "min",
+        "hourly",
+        "daily",
+        "weekly",
+        "monthly",
+        "et",
+        "am",
+        "pm",
+        "yes",
+        "before",
+        "after",
+        "between",
+        "above",
+        "below",
+        "over",
+        "under",
+    }
+)
 
 # Synonym map for cross-platform matching
 _CRYPTO_SYNONYMS = {
-    "bitcoin": "btc", "btc": "btc",
-    "ethereum": "eth", "eth": "eth",
-    "solana": "sol", "sol": "sol",
-    "xrp": "xrp", "ripple": "xrp",
-    "dogecoin": "doge", "doge": "doge",
-    "cardano": "ada", "ada": "ada",
-    "bnb": "bnb", "binance": "bnb",
-    "polkadot": "dot", "dot": "dot",
-    "avax": "avax", "avalanche": "avax",
-    "matic": "matic", "polygon": "matic",
-    "link": "link", "chainlink": "link",
+    "bitcoin": "btc",
+    "btc": "btc",
+    "ethereum": "eth",
+    "eth": "eth",
+    "solana": "sol",
+    "sol": "sol",
+    "xrp": "xrp",
+    "ripple": "xrp",
+    "dogecoin": "doge",
+    "doge": "doge",
+    "cardano": "ada",
+    "ada": "ada",
+    "bnb": "bnb",
+    "binance": "bnb",
+    "polkadot": "dot",
+    "dot": "dot",
+    "avax": "avax",
+    "avalanche": "avax",
+    "matic": "matic",
+    "polygon": "matic",
+    "link": "link",
+    "chainlink": "link",
 }
 
 
@@ -836,6 +938,7 @@ def _questions_match(q1: str, q2: str) -> bool:
     # Strip punctuation from tokens
     def _clean(s: str) -> set[str]:
         import re as re2
+
         return {re2.sub(r"[^a-z0-9]", "", w) for w in s.split()} - {""}
 
     words1 = _clean(n1) - _STOP_WORDS

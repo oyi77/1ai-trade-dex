@@ -20,6 +20,7 @@ class RegimeAwareAllocator:
     def _get_current_hour_et(self) -> int:
         try:
             import zoneinfo
+
             et_tz = zoneinfo.ZoneInfo("US/Eastern")
             return datetime.now(et_tz).hour
         except Exception:
@@ -36,7 +37,9 @@ class RegimeAwareAllocator:
             return 0.70 if is_maker else 1.30
         return 1.0
 
-    def _get_category_edge_multiplier(self, category: Optional[str], strategy: str) -> float:
+    def _get_category_edge_multiplier(
+        self, category: Optional[str], strategy: str
+    ) -> float:
         if not category:
             return 1.0
 
@@ -58,17 +61,22 @@ class RegimeAwareAllocator:
                     elif win_rate <= 0.4:
                         return 0.8
             except Exception:
-                pass
+                logger.debug(f"strategy_allocator: failed to get historical win_rate for {strategy}/{category}")
 
         try:
             from backend.db.utils import get_db_session
             from backend.models.database import Trade
+
             with get_db_session() as db:
-                recent = db.query(Trade).filter(
-                    Trade.strategy == strategy,
-                    Trade.market_type == category,
-                    Trade.settled.is_(True)
-                ).all()
+                recent = (
+                    db.query(Trade)
+                    .filter(
+                        Trade.strategy == strategy,
+                        Trade.market_type == category,
+                        Trade.settled.is_(True),
+                    )
+                    .all()
+                )
                 if recent:
                     wins = sum(1.0 for t in recent if t.result == "win")
                     win_rate = wins / len(recent)
@@ -77,7 +85,7 @@ class RegimeAwareAllocator:
                     elif win_rate <= 0.4:
                         return 0.8
         except Exception:
-            pass
+            logger.debug(f"strategy_allocator: failed to compute win_rate for {strategy}/{category}")
 
         return 1.0
 
@@ -87,7 +95,7 @@ class RegimeAwareAllocator:
         regime: MarketRegime,
         capital: float,
         hour_et: Optional[int] = None,
-        category: Optional[str] = None
+        category: Optional[str] = None,
     ) -> dict[str, float]:
         if not strategies or capital <= 0:
             return {s: 0.0 for s in strategies}
@@ -112,7 +120,9 @@ class RegimeAwareAllocator:
 
         total_weight = sum(scaled_weights.values())
         if total_weight > 0:
-            allocations = {s: (w / total_weight) * capital for s, w in scaled_weights.items()}
+            allocations = {
+                s: (w / total_weight) * capital for s, w in scaled_weights.items()
+            }
         else:
             allocations = {s: 0.0 for s in strategies}
 

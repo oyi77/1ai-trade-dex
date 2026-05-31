@@ -464,7 +464,7 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
             except (ValueError, TypeError):
-                pass
+                logger.debug(f"arb_opp_scanner: could not parse price from key={key}")
 
     op = m.get("outcomePrices")
     if op:
@@ -494,7 +494,7 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
                         if 0 < pp < 1:
                             return pp
                     except (ValueError, TypeError):
-                        pass
+                        logger.debug("arb_opp_scanner: could not parse outcome price")
     return None
 
 
