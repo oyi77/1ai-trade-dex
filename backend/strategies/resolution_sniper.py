@@ -248,6 +248,10 @@ class ResolutionSniperStrategy(BaseStrategy):
             if slug in existing_tickers:
                 continue
 
+            # Only crypto 5-min binaries (slug contains "up-or-down")
+            if "up-or-down" not in slug.lower():
+                continue
+
             # Volume filter
             volume = float(market.get("volume", 0) or 0)
             if volume < min_volume:
