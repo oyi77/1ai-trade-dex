@@ -44,7 +44,11 @@ GAMMA_API_URL = f"{settings.GAMMA_API_URL}/markets"
 PAGE_SIZE = _cfg("SCANNER_PAGE_SIZE", 500)
 MAX_MARKETS = _cfg("SCANNER_MAX_MARKETS", 10000)
 
-_gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+_gamma_breaker = CircuitBreaker(
+    "gamma_api",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+)
 _market_locks: dict[str, asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()
 _MAX_MARKET_LOCKS = 500  # E-105: prevent unbounded memory growth
@@ -509,69 +513,69 @@ class UniversalScanner(BaseStrategy):
         start = time.monotonic()
         semaphore = asyncio.Semaphore(_cfg("SCANNER_SEMAPHORE_LIMIT", 5))
 
-        async with httpx.AsyncClient() as client:
-            # Step 1: Fetch first page to determine market availability
-            first_page, success = await _fetch_page_with_retry(client, 0, semaphore)
-            if not success or not first_page:
-                logger.warning(
-                    "[universal_scanner] First page fetch failed — graceful degradation"
-                )
-                return []
-
-            # Step 2: Parse first page
-            markets: list[MarketInfo] = []
-            for m in first_page:
-                parsed = _parse_market(m)
-                if parsed:
-                    markets.append(parsed)
-
-            # Step 3: If first page is full, paginate in parallel
-            ps = _cfg("SCANNER_PAGE_SIZE", 500)
-            mm = _cfg("SCANNER_MAX_MARKETS", 10000)
-            if len(first_page) >= ps and len(markets) < mm:
-                initial_batch = list(range(ps, ps * 11, ps))
-
-                results = await asyncio.gather(
-                    *[
-                        _fetch_page_with_retry(client, offset, semaphore)
-                        for offset in initial_batch
-                    ],
-                    return_exceptions=True,
-                )
-
-                for result in results:
-                    if isinstance(result, Exception):
-                        continue
-                    page_markets, ok = result
-                    if ok:
-                        for m in page_markets:
-                            parsed = _parse_market(m)
-                            if parsed:
-                                markets.append(parsed)
-                                if len(markets) >= mm:
-                                    break
-
-                if len(markets) >= mm - ps:
-                    offset = len(markets)
-                    while offset < 50000:
-                        page, ok = await _fetch_page_with_retry(
-                            client, offset, semaphore
-                        )
-                        if not ok or not page or len(page) < ps:
-                            break
-                        for m in page:
-                            parsed = _parse_market(m)
-                            if parsed:
-                                markets.append(parsed)
-                                if len(markets) >= mm:
-                                    break
-                        offset += ps
-
-            elapsed = time.monotonic() - start
-            logger.info(
-                f"[universal_scanner] Scanned {len(markets)} markets in {elapsed:.3f}s"
+        client = get_shared_client()
+        # Step 1: Fetch first page to determine market availability
+        first_page, success = await _fetch_page_with_retry(client, 0, semaphore)
+        if not success or not first_page:
+            logger.warning(
+                "[universal_scanner] First page fetch failed — graceful degradation"
             )
-            return markets
+            return []
+
+        # Step 2: Parse first page
+        markets: list[MarketInfo] = []
+        for m in first_page:
+            parsed = _parse_market(m)
+            if parsed:
+                markets.append(parsed)
+
+        # Step 3: If first page is full, paginate in parallel
+        ps = _cfg("SCANNER_PAGE_SIZE", 500)
+        mm = _cfg("SCANNER_MAX_MARKETS", 10000)
+        if len(first_page) >= ps and len(markets) < mm:
+            initial_batch = list(range(ps, ps * 11, ps))
+
+            results = await asyncio.gather(
+                *[
+                    _fetch_page_with_retry(client, offset, semaphore)
+                    for offset in initial_batch
+                ],
+                return_exceptions=True,
+            )
+
+            for result in results:
+                if isinstance(result, Exception):
+                    continue
+                page_markets, ok = result
+                if ok:
+                    for m in page_markets:
+                        parsed = _parse_market(m)
+                        if parsed:
+                            markets.append(parsed)
+                            if len(markets) >= mm:
+                                break
+
+            if len(markets) >= mm - ps:
+                offset = len(markets)
+                while offset < 50000:
+                    page, ok = await _fetch_page_with_retry(
+                        client, offset, semaphore
+                    )
+                    if not ok or not page or len(page) < ps:
+                        break
+                    for m in page:
+                        parsed = _parse_market(m)
+                        if parsed:
+                            markets.append(parsed)
+                            if len(markets) >= mm:
+                                break
+                    offset += ps
+
+        elapsed = time.monotonic() - start
+        logger.info(
+            f"[universal_scanner] Scanned {len(markets)} markets in {elapsed:.3f}s"
+        )
+        return markets
 
     async def analyze_market(
         self, market: MarketInfo, db=None, ctx: StrategyContext | None = None

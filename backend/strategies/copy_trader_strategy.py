@@ -16,7 +16,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-import httpx
 from loguru import logger
 
 from backend.strategies.base import (
@@ -141,9 +140,7 @@ class WalletSelector:
             for t in traders:
                 if t.win_rate < min_win_rate or t.pnl <= 0:
                     continue
-                score = _compute_copy_score(
-                    t.pnl, t.win_rate, t.total_trades, t.sharpe
-                )
+                score = _compute_copy_score(t.pnl, t.win_rate, t.total_trades, t.sharpe)
                 results.append(
                     ProfitableWallet(
                         address=t.wallet,
@@ -163,14 +160,14 @@ class WalletSelector:
         """Fetch recent activity and analyze top traders."""
         results: list[ProfitableWallet] = []
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(
-                    f"{self._api}/activity",
-                    params={"limit": 100},
-                )
-                if resp.status_code != 200:
-                    return results
-                activity = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self._api}/activity",
+                params={"limit": 100},
+            )
+            if resp.status_code != 200:
+                return results
+            activity = resp.json()
 
             # Collect unique wallets from recent activity
             wallet_set: set[str] = set()
@@ -270,31 +267,29 @@ class TradeDetector:
                     if signal.condition_id and signal.price > 0:
                         signals.append(signal)
             except Exception as e:
-                logger.debug(
-                    "[copy_trader] Failed polling {}: {}", addr[:10], e
-                )
+                logger.debug("[copy_trader] Failed polling {}: {}", addr[:10], e)
         return signals
 
-    async def _fetch_new_trades(
-        self, wallet: str, max_delay: int
-    ) -> list[dict]:
+    async def _fetch_new_trades(self, wallet: str, max_delay: int) -> list[dict]:
         """Fetch recent trades for wallet, filter to unseen."""
         if wallet not in self._seen:
             self._seen[wallet] = set()
 
         all_trades: list[dict] = []
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(
-                    f"{self._api}/activity",
-                    params={"user": wallet, "limit": 50},
-                )
-                if resp.status_code == 200:
-                    all_trades = resp.json()
-                    if isinstance(all_trades, dict):
-                        all_trades = all_trades.get("data", [])
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self._api}/activity",
+                params={"user": wallet, "limit": 50},
+            )
+            if resp.status_code == 200:
+                all_trades = resp.json()
+                if isinstance(all_trades, dict):
+                    all_trades = all_trades.get("data", [])
         except Exception as e:
-            logger.debug("[copy_trader] Activity fetch failed for {}: {}", wallet[:10], e)
+            logger.debug(
+                "[copy_trader] Activity fetch failed for {}: {}", wallet[:10], e
+            )
             return []
 
         seen = self._seen[wallet]
@@ -318,7 +313,9 @@ class TradeDetector:
                     if age > max_delay:
                         continue
             except Exception:
-                logger.debug("Silenced error", exc_info=True)  # include if timestamp parsing fails
+                logger.debug(
+                    "Silenced error", exc_info=True
+                )  # include if timestamp parsing fails
 
             new.append(t)
 
@@ -464,11 +461,13 @@ class CopyTraderStrategy(BaseStrategy):
 
                     size = self._copier.compute_size(signal, ctx.bankroll)
                     if size <= 0:
-                        decisions.append({
-                            "decision": "SKIP",
-                            "condition_id": signal.condition_id,
-                            "reason": "size too small",
-                        })
+                        decisions.append(
+                            {
+                                "decision": "SKIP",
+                                "condition_id": signal.condition_id,
+                                "reason": "size too small",
+                            }
+                        )
                         continue
 
                     decision = {
@@ -534,7 +533,9 @@ class CopyTraderStrategy(BaseStrategy):
                                 signal.wallet[:10],
                             )
                         else:
-                            ctx.logger.warning("[copy_trader] No polymarket provider available")
+                            ctx.logger.warning(
+                                "[copy_trader] No polymarket provider available"
+                            )
                     else:
                         trades_placed += 1
                         ctx.logger.info(

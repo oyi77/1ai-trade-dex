@@ -261,9 +261,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 trade_map: dict = {}
                 for chunk_start in range(0, len(trades_to_close), 500):
                     chunk = trades_to_close[chunk_start : chunk_start + 500]
-                    for t in (
-                        db.query(Trade).filter(Trade.id.in_(chunk)).all()
-                    ):
+                    for t in db.query(Trade).filter(Trade.id.in_(chunk)).all():
                         trade_map[t.id] = t
 
                 for trade_id in trades_to_close:
@@ -548,7 +546,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
                     # Short grace for 5-min binaries (1h), long for others (72h)
                     market_type = getattr(trade, "market_type", "btc") or "btc"
-                    if "5m" in (trade.market_ticker or "") or "5-min" in (trade.market_ticker or ""):
+                    if "5m" in (trade.market_ticker or "") or "5-min" in (
+                        trade.market_ticker or ""
+                    ):
                         expired_resolution_grace_hours = 1
                     else:
                         expired_resolution_grace_hours = getattr(
@@ -601,15 +601,13 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
                 _still_open = False
                 try:
-                    import httpx
-
                     _wallet = settings.POLYMARKET_BUILDER_ADDRESS
                     if _wallet:
-                        async with httpx.AsyncClient(timeout=8.0) as _client:
-                            _resp = await _client.get(
-                                f"{settings.DATA_API_URL}/positions",
-                                params={"user": _wallet},
-                            )
+                        _client = get_shared_client()
+                        _resp = await _client.get(
+                            f"{settings.DATA_API_URL}/positions",
+                            params={"user": _wallet},
+                        )
                         if _resp.status_code == 200:
                             _positions = _resp.json()
                             _ticker = trade.market_ticker or ""
@@ -855,7 +853,9 @@ async def update_bot_state_with_settlements(
                 if trading_mode == "paper":
                     if is_real_trade:
                         state.paper_pnl = (state.paper_pnl or 0.0) + trade.pnl
-                        state.paper_bankroll = max(0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl)
+                        state.paper_bankroll = max(
+                            0.0, (state.paper_bankroll or 0.0) + trade.size + trade.pnl
+                        )
                         state.paper_trades = (state.paper_trades or 0) + 1
                         if trade.result == "win":
                             state.paper_wins = (state.paper_wins or 0) + 1

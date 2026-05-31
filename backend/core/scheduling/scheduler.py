@@ -94,10 +94,12 @@ task_manager: Optional[TaskManager] = None
 # Concurrency guard for scheduler state mutations (threading.Lock since start_scheduler is sync)
 _scheduler_state_lock = threading.Lock()
 
+
 def _get_scheduler() -> Optional[AsyncIOScheduler]:
     """Thread-safe accessor for the module-level scheduler."""
     with _scheduler_state_lock:
         return scheduler
+
 
 def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
     """Thread-safe setter for the module-level scheduler."""
@@ -105,10 +107,12 @@ def _set_scheduler(value: Optional[AsyncIOScheduler]) -> None:
     with _scheduler_state_lock:
         scheduler = value
 
+
 # Event log for terminal display (in-memory, last 200 events)
 event_log: List[dict] = []
 MAX_LOG_SIZE = 200
 _event_log_lock = threading.Lock()
+
 
 def _register_evolution_jobs(target_scheduler) -> None:
     """Register evolution scheduler jobs using config-driven intervals."""
@@ -157,6 +161,7 @@ def _register_evolution_jobs(target_scheduler) -> None:
         settings.AGI_MUTATION_INTERVAL_HOURS,
     )
 
+
 def log_event(event_type: str, message: str, data: dict = None):
     """Log an event for terminal display."""
     event = {
@@ -182,10 +187,12 @@ def log_event(event_type: str, message: str, data: dict = None):
 
     log_func(f"[{event_type.upper()}] {message}")
 
+
 def get_recent_events(limit: int = 50) -> List[dict]:
     """Get recent events for terminal display."""
     with _event_log_lock:
         return list(event_log[-limit:])
+
 
 JOB_FUNCTION_REGISTRY = {
     "settlement_job": settlement_job,
@@ -207,12 +214,14 @@ JOB_FUNCTION_REGISTRY = {
     "wallet_reconciler_job": wallet_reconciler_job,
 }
 
+
 def _serialize_trigger(trigger) -> dict:
     if isinstance(trigger, IntervalTrigger):
         interval = getattr(trigger, "interval", None)
         seconds = int(interval.total_seconds()) if interval is not None else None
         return {"type": "interval", "seconds": seconds}
     return {"type": "unknown", "repr": repr(trigger)}
+
 
 def save_scheduler_state(
     job_id: str,
@@ -251,6 +260,7 @@ def save_scheduler_state(
     except Exception as exc:
         logger.warning(f"Failed to persist scheduled job '{job_id}': {exc}")
 
+
 def _persist_and_add_job(
     sched: AsyncIOScheduler,
     func,
@@ -282,6 +292,7 @@ def _persist_and_add_job(
     if misfire_grace_time is not None:
         add_kwargs["misfire_grace_time"] = misfire_grace_time
     return sched.add_job(func, trigger, **add_kwargs)
+
 
 def load_scheduler_state(sched: AsyncIOScheduler) -> int:
     """Reload all enabled persisted jobs into the scheduler. Returns count restored."""
@@ -330,6 +341,7 @@ def load_scheduler_state(sched: AsyncIOScheduler) -> int:
         logger.warning(f"load_scheduler_state failed: {exc}")
     return restored
 
+
 def schedule_strategy(
     strategy_name: str, interval_seconds: int, mode: str = "paper"
 ) -> None:
@@ -347,13 +359,23 @@ def schedule_strategy(
         return
 
     from backend.config import settings
+
+    # Floor: strategies don't need sub-30s reaction (market data changes slowly)
+    MIN_STRATEGY_INTERVAL = 30
+    if interval_seconds < MIN_STRATEGY_INTERVAL:
+        logger.warning(
+            f"Strategy {strategy_name} interval {interval_seconds}s below floor "
+            f"{MIN_STRATEGY_INTERVAL}s — clamping"
+        )
+        interval_seconds = MIN_STRATEGY_INTERVAL
+
     profile_interval = getattr(settings, "ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS", None)
     if profile_interval is not None and profile_interval < interval_seconds:
         logger.warning(
             f"Risk profile overriding strategy {strategy_name} interval: "
             f"{interval_seconds}s → {profile_interval}s"
         )
-        interval_seconds = profile_interval
+        interval_seconds = max(profile_interval, MIN_STRATEGY_INTERVAL)
 
     job_id = f"{mode}_{strategy_name}_{interval_seconds}"
     # misfire_grace_time must be generous for long-interval strategies (e.g. 300s, 600s)
@@ -368,13 +390,14 @@ def schedule_strategy(
         kwargs={"strategy_name": strategy_name, "mode": mode},
         id=job_id,
         replace_existing=True,
-        max_instances=3,
+        max_instances=5,
         misfire_grace_time=grace,
         next_run_time=next_run,
     )
     logger.info(
         f"Scheduled strategy {strategy_name} for mode {mode} every {interval_seconds}s (job_id={job_id})"
     )
+
 
 def unschedule_strategy(
     strategy_name: str, mode: str = "paper", interval_seconds: int = 60
@@ -392,6 +415,7 @@ def unschedule_strategy(
             f"Failed to unschedule strategy {strategy_name} for mode {mode}"
         )
 
+
 def get_scheduler_jobs() -> list[dict]:
     """Return current scheduled jobs info."""
     sched = _get_scheduler()
@@ -406,6 +430,7 @@ def get_scheduler_jobs() -> list[dict]:
         for job in sched.get_jobs()
     ]
 
+
 async def _cleanup_stale_trades() -> None:
     """Settle trades older than 24h that are still open."""
     from backend.db.utils import get_db_session
@@ -415,10 +440,14 @@ async def _cleanup_stale_trades() -> None:
     try:
         with get_db_session() as db:
             cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-            stale = db.query(Trade).filter(
-                Trade.settled == False,  # noqa: E712
-                Trade.created_at < cutoff,
-            ).all()
+            stale = (
+                db.query(Trade)
+                .filter(
+                    Trade.settled == False,  # noqa: E712
+                    Trade.created_at < cutoff,
+                )
+                .all()
+            )
             if stale:
                 for t in stale:
                     t.settled = True
@@ -426,7 +455,9 @@ async def _cleanup_stale_trades() -> None:
                     t.settlement_value = 0.5
                     t.resolved_at = datetime.now(timezone.utc)
                 db.commit()
-                logger.info(f"[scheduler] Auto-settled {len(stale)} stale trades (>24h)")
+                logger.info(
+                    f"[scheduler] Auto-settled {len(stale)} stale trades (>24h)"
+                )
     except Exception as e:
         logger.warning(f"[scheduler] Stale trade cleanup failed: {e}")
 
@@ -469,6 +500,7 @@ def _load_strategy_jobs() -> None:
     except Exception as e:
         logger.warning(f"Failed to schedule stale trade cleanup: {e}")
 
+
 def _register_event_driven_strategies() -> None:
     """Register strategies that support WS events with the event bus."""
     import backend.strategies  # noqa: F401 — triggers __init__.py auto-registration
@@ -497,9 +529,8 @@ def _register_event_driven_strategies() -> None:
                 f"EventBus: registered '{name}' with {len(tokens)} tokens, {len(events)} event types"
             )
         except Exception as e:
-            logger.warning(
-                f"Failed to register strategy {name} for event bus: {e}"
-            )
+            logger.warning(f"Failed to register strategy {name} for event bus: {e}")
+
 
 def _job_executed_listener(event):
     """Update ScheduledJob.last_run after each job completes."""
@@ -520,6 +551,7 @@ def _job_executed_listener(event):
     except Exception as exc:
         logger.debug(f"Failed to update last_run for job '{job_id}': {exc}")
 
+
 def auto_disable_losing_strategies():
     """Audit strategy performance and disable/throttle losers. Module-level so it can be tested."""
     from backend.models.database import Trade, StrategyConfig
@@ -533,17 +565,23 @@ def auto_disable_losing_strategies():
         since = datetime.now(timezone.utc) - timedelta(hours=24)
         with get_db_session() as db:
             # Batch fetch enabled configs and active modes
-            enabled_configs = db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
+            enabled_configs = (
+                db.query(StrategyConfig).filter(StrategyConfig.enabled).all()
+            )
             strategy_names = [c.strategy_name for c in enabled_configs]
             active_modes = list(settings.active_modes_set)
 
             # Single batch query grouped by (strategy_name, trading_mode)
-            all_trades = db.query(Trade).filter(
-                Trade.strategy.in_(strategy_names),
-                Trade.settled,
-                Trade.timestamp >= since,
-                Trade.trading_mode.in_(active_modes),
-            ).all()
+            all_trades = (
+                db.query(Trade)
+                .filter(
+                    Trade.strategy.in_(strategy_names),
+                    Trade.settled,
+                    Trade.timestamp >= since,
+                    Trade.trading_mode.in_(active_modes),
+                )
+                .all()
+            )
 
             trades_by_key: dict[tuple[str, str], list] = {}
             for t in all_trades:
@@ -551,6 +589,7 @@ def auto_disable_losing_strategies():
 
             # Fetch maker/taker stats once before the loop
             from backend.core.maker_taker_analytics import maker_taker_analytics
+
             mt_stats = maker_taker_analytics.get_stats(db)
 
             for config in enabled_configs:
@@ -585,26 +624,36 @@ def auto_disable_losing_strategies():
 
                     if win_rate < 0.30 or pnl < -50.0 or consecutive_losses >= 10:
                         from backend.core.strategy_health import disable_for_rehab
+
                         reason_parts = []
                         if win_rate < 0.30:
                             reason_parts.append(f"win_rate={win_rate:.0%}")
                         if pnl < -50.0:
                             reason_parts.append(f"pnl=${pnl:.0f}")
                         if consecutive_losses >= 10:
-                            reason_parts.append(f"{consecutive_losses}+ consecutive losses")
+                            reason_parts.append(
+                                f"{consecutive_losses}+ consecutive losses"
+                            )
                         reason_str = ", ".join(reason_parts)
                         disable_for_rehab(config)
-                        disabled.append(f"{config.strategy_name} ({mode}): {reason_str}")
-                        logger.warning(f"Auto-disabled {config.strategy_name} ({mode}): {reason_str}")
+                        disabled.append(
+                            f"{config.strategy_name} ({mode}): {reason_str}"
+                        )
+                        logger.warning(
+                            f"Auto-disabled {config.strategy_name} ({mode}): {reason_str}"
+                        )
                         break
                     else:
                         # Maker/Taker ROI audit — uses pre-fetched stats
-                        recommendation = mt_stats.get("recommendation", "insufficient_data")
+                        recommendation = mt_stats.get(
+                            "recommendation", "insufficient_data"
+                        )
                         maker_info = mt_stats.get("maker", {})
                         taker_info = mt_stats.get("taker", {})
 
                         if recommendation in ("reduce_taker", "prefer_maker"):
                             import json as _json
+
                             should_throttle = True
                             if recommendation == "reduce_taker":
                                 reason = (
@@ -621,7 +670,11 @@ def auto_disable_losing_strategies():
                             if should_throttle:
                                 config.rehab_allocation_pct = 0.50
                                 try:
-                                    params = _json.loads(config.params) if config.params else {}
+                                    params = (
+                                        _json.loads(config.params)
+                                        if config.params
+                                        else {}
+                                    )
                                 except Exception:
                                     params = {}
                                 params["force_maker_only"] = True
@@ -634,6 +687,7 @@ def auto_disable_losing_strategies():
 
         # 2. Cumulative 7-day loss check (catches slow bleed not visible in 24h)
         from sqlalchemy import func as _func
+
         week_ago = datetime.now(timezone.utc) - timedelta(days=7)
         for config in enabled_configs:
             if not config.enabled:
@@ -652,6 +706,7 @@ def auto_disable_losing_strategies():
                 )
                 if cum_pnl < -100.0:
                     from backend.core.strategy_health import disable_for_rehab
+
                     disable_for_rehab(config)
                     disabled.append(
                         f"{config.strategy_name} ({mode}): 7d cumulative loss ${abs(cum_pnl):.0f}"
@@ -662,15 +717,19 @@ def auto_disable_losing_strategies():
                     break
 
         if disabled:
-            logger.info(
-                f"Auto-disabled {len(disabled)} losing strategies: {disabled}"
-            )
+            logger.info(f"Auto-disabled {len(disabled)} losing strategies: {disabled}")
     except Exception as e:
         logger.warning(f"Auto-disable check failed: {e}")
 
 
 async def _cleanup_stale_trades_job():
-    """Settle trades older than 12h that are still open. Prevents stale accumulation."""
+    """Settle trades older than 12h that are still open. Prevents stale accumulation.
+
+    Also aggressively cleans up 5-min binary trades older than 1 hour.
+    These trades (crypto_oracle, cex_pm_leadlag, btc_momentum, etc.) expire in
+    5 minutes but can accumulate as unsettled, blocking new entries via the
+    duplicate guard.
+    """
     from backend.db.utils import get_db_session
     from backend.models.database import Trade
 
@@ -694,6 +753,45 @@ async def _cleanup_stale_trades_job():
                 )
     except Exception as e:
         logger.warning(f"[stale_trade_cleanup] Failed: {e}")
+
+    # --- 5-min binary trade cleanup (1h threshold) ---
+    # These strategies trade short-duration binaries (5-min windows) but the
+    # main settlement loop waits 12-72h before force-settling. The duplicate
+    # guard blocks new entries until old ones are settled.
+    _BINARY_5M_STRATEGIES = frozenset({
+        "crypto_oracle", "cex_pm_leadlag", "btc_momentum",
+        "crypto_micro", "hft_scalper", "probability_arb",
+    })
+    try:
+        with get_db_session() as db:
+            now = datetime.now(timezone.utc)
+            cutoff_1h = now - timedelta(hours=1)
+            stale_binaries = (
+                db.query(Trade)
+                .filter(
+                    Trade.settled.is_(False),
+                    Trade.timestamp < cutoff_1h,
+                    Trade.strategy.in_(list(_BINARY_5M_STRATEGIES)),
+                )
+                .all()
+            )
+            if stale_binaries:
+                for t in stale_binaries:
+                    t.settled = True
+                    t.result = "expired_unresolved"
+                    t.pnl = 0.0
+                    t.settlement_value = 0.0
+                    t.settlement_time = now
+                    t.settlement_source = "5min_binary_cleanup"
+                db.commit()
+                logger.warning(
+                    "[stale_trade_cleanup] Auto-settled {} stale 5-min binary trades (>1h) "
+                    "from strategies: {}",
+                    len(stale_binaries),
+                    {t.strategy for t in stale_binaries},
+                )
+    except Exception as e:
+        logger.warning(f"[stale_trade_cleanup] 5-min binary cleanup failed: {e}")
 
 
 def start_scheduler():
@@ -1712,6 +1810,7 @@ def start_scheduler():
     except Exception as e:
         logger.warning("Could not register research event triggers: %s", e)
 
+
 def stop_scheduler():
     """Stop the background scheduler."""
     global worker, queue, worker_task
@@ -1747,6 +1846,7 @@ def stop_scheduler():
     # Stop WSDispatcher if active
     try:
         from backend.core.ws_dispatcher import ws_dispatcher
+
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(ws_dispatcher.stop())
@@ -1760,10 +1860,12 @@ def stop_scheduler():
     _set_scheduler(None)
     log_event("info", "Scheduler stopped")
 
+
 def is_scheduler_running() -> bool:
     """Check if scheduler is currently running."""
     sched = _get_scheduler()
     return sched is not None and sched.running
+
 
 def reschedule_jobs() -> list[dict]:
     """Reschedule jobs with current settings values. Call after settings update."""
@@ -1833,15 +1935,18 @@ def reschedule_jobs() -> list[dict]:
     log_event("info", f"Scheduler jobs rescheduled: {[r['job_id'] for r in results]}")
     return results
 
+
 async def run_manual_scan(mode: str = "paper"):
     """Trigger a manual market scan."""
     log_event("info", f"Manual scan triggered for mode: {mode}")
     await scan_and_trade_job(mode)
 
+
 async def run_manual_settlement():
     """Trigger a manual settlement check."""
     log_event("info", "Manual settlement triggered")
     await settlement_job()
+
 
 # Add monitoring job
 async def monitoring_job():
@@ -1858,6 +1963,7 @@ async def monitoring_job():
         logger.error(f"❌ Monitoring check failed: {e}")
     finally:
         db.close()
+
 
 def performance_decay_check_job():
     """G-09: Detect strategy performance decay by comparing 24h vs 7d win rates.

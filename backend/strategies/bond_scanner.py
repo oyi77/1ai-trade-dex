@@ -2,7 +2,6 @@
 
 from datetime import datetime, timezone
 
-import httpx
 import json
 
 from backend.strategies.base import (
@@ -11,6 +10,7 @@ from backend.strategies.base import (
     MarketInfo,
     StrategyContext,
 )
+from backend.data.shared_client import get_shared_client
 from backend.config import settings
 
 from loguru import logger
@@ -49,12 +49,27 @@ class BondScannerStrategy(BaseStrategy):
         # Check open positions for auto-sell exits at cycle start
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
@@ -71,19 +86,19 @@ class BondScannerStrategy(BaseStrategy):
 
         # Fetch active markets sorted by volume
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    GAMMA_API_URL,
-                    params={
-                        "active": "true",
-                        "closed": "false",
-                        "limit": 500,
-                        "order": "volume",
-                        "ascending": "false",
-                    },
-                )
-                resp.raise_for_status()
-                markets = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                GAMMA_API_URL,
+                params={
+                    "active": "true",
+                    "closed": "false",
+                    "limit": 500,
+                    "order": "volume",
+                    "ascending": "false",
+                },
+            )
+            resp.raise_for_status()
+            markets = resp.json()
         except Exception as e:
             ctx.logger.warning(f"[bond_scanner] Gamma API fetch failed: {e}")
             result.errors.append(str(e))
@@ -344,12 +359,27 @@ class BondScannerStrategy(BaseStrategy):
         # Check open positions for auto-sell exits at cycle end
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")

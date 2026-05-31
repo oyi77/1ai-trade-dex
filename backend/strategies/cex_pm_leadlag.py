@@ -19,6 +19,7 @@ from loguru import logger
 from backend.strategies.base import BaseStrategy, StrategyContext, CycleResult
 from backend.core.decisions import record_decision_standalone
 from backend.core.activity_logger import activity_logger
+from backend.data.shared_client import get_shared_client
 from backend.data.crypto import compute_crypto_microstructure
 from backend.data.btc_markets import CryptoMarket, fetch_active_crypto_markets
 from backend.ai.debate_router import run_debate_with_routing
@@ -89,7 +90,9 @@ class CexPmLeadLagStrategy(BaseStrategy):
         hard_cap = float(params.get("max_position_usd", 5.0))
         dynamic_cap = ctx.bankroll * max_position_frac
         max_size = max(hard_cap, dynamic_cap)
-        max_size = min(max_size, ctx.bankroll * 0.15)  # never more than 15% of bankroll per trade
+        max_size = min(
+            max_size, ctx.bankroll * 0.15
+        )  # never more than 15% of bankroll per trade
         max_size = max(max_size, float(getattr(settings, "MIN_ORDER_USDC", 1.0)))
         fee_rate = float(params.get("fee_rate", settings.PAPER_CLOB_FEE_RATE))
         min_volatility = float(params.get("min_volatility", 0.001))
@@ -98,6 +101,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         # Check open positions for auto-sell exits (profit-taking before settlement)
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
@@ -111,14 +115,21 @@ class CexPmLeadLagStrategy(BaseStrategy):
         # Max open positions gate
         db = ctx.db
         from backend.models.database import Trade
-        open_count = db.query(Trade).filter(
-            Trade.strategy == self.name,
-            Trade.settled.is_(False),
-            Trade.trading_mode == ctx.mode,
-        ).count()
+
+        open_count = (
+            db.query(Trade)
+            .filter(
+                Trade.strategy == self.name,
+                Trade.settled.is_(False),
+                Trade.trading_mode == ctx.mode,
+            )
+            .count()
+        )
         max_open = int(params.get("max_open_positions", 3))
         if isinstance(open_count, int) and open_count >= max_open:
-            logger.info(f"[cex_pm_leadlag] {open_count} open positions >= max {max_open}, skipping")
+            logger.info(
+                f"[cex_pm_leadlag] {open_count} open positions >= max {max_open}, skipping"
+            )
             return result
 
         # Supported assets mapping to CoinGecko IDs
@@ -128,226 +139,247 @@ class CexPmLeadLagStrategy(BaseStrategy):
             "sol": "solana",
         }
 
-        async with httpx.AsyncClient() as http:
-            for asset_key, asset_cg_id in asset_map.items():
-                try:
-                    micro = await compute_crypto_microstructure(asset_cg_id)
-                except Exception as e:
-                    result.errors.append(f"{asset_key} microstructure fetch failed: {e}")
-                    continue
+        http = get_shared_client()
+        for asset_key, asset_cg_id in asset_map.items():
+            try:
+                micro = await compute_crypto_microstructure(asset_cg_id)
+            except Exception as e:
+                result.errors.append(
+                    f"{asset_key} microstructure fetch failed: {e}"
+                )
+                continue
 
-                if micro is None or micro.price <= 0 or micro.momentum_1m is None:
-                    continue
+            if micro is None or micro.price <= 0 or micro.momentum_1m is None:
+                continue
 
-                momentum_norm = float(params.get("momentum_norm", 0.006))
+            momentum_norm = float(params.get("momentum_norm", 0.006))
 
-                if abs(micro.momentum_1m) < min_momentum:
+            if abs(micro.momentum_1m) < min_momentum:
+                logger.debug(
+                    f"[cex_pm_leadlag] {asset_key} momentum {abs(micro.momentum_1m):.4f} "
+                    f"< min_momentum {min_momentum}"
+                )
+                continue
+
+            # Volatility regime filter
+            if micro.volatility is not None:
+                if (
+                    micro.volatility < min_volatility
+                    or micro.volatility > max_volatility
+                ):
                     logger.debug(
-                        f"[cex_pm_leadlag] {asset_key} momentum {abs(micro.momentum_1m):.4f} "
-                        f"< min_momentum {min_momentum}"
+                        f"[cex_pm_leadlag] {asset_key} volatility {micro.volatility:.4f} "
+                        f"out of bounds [{min_volatility}, {max_volatility}]"
                     )
                     continue
 
-                # Volatility regime filter
-                if micro.volatility is not None:
-                    if micro.volatility < min_volatility or micro.volatility > max_volatility:
-                        logger.debug(
-                            f"[cex_pm_leadlag] {asset_key} volatility {micro.volatility:.4f} "
-                            f"out of bounds [{min_volatility}, {max_volatility}]"
-                        )
-                        continue
+            momentum_positive = micro.momentum_1m > 0
+            direction = "up" if momentum_positive else "down"
 
-                momentum_positive = micro.momentum_1m > 0
-                direction = "up" if momentum_positive else "down"
+            try:
+                all_markets = await fetch_active_crypto_markets(asset=asset_key)
+            except Exception as e:
+                result.errors.append(f"{asset_key} market discovery failed: {e}")
+                continue
 
-                try:
-                    all_markets = await fetch_active_crypto_markets(asset=asset_key)
-                except Exception as e:
-                    result.errors.append(f"{asset_key} market discovery failed: {e}")
-                    continue
+            candidates = await self.market_filter(all_markets)
+            if not candidates:
+                logger.debug(
+                    f"[cex_pm_leadlag] {asset_key}: 0 qualifying markets from {len(all_markets)} fetched"
+                )
+                continue
 
-                candidates = await self.market_filter(all_markets)
-                if not candidates:
-                    logger.debug(f"[cex_pm_leadlag] {asset_key}: 0 qualifying markets from {len(all_markets)} fetched")
-                    continue
-
-                # Per-asset open positions cap
-                asset_open = db.query(Trade).filter(
+            # Per-asset open positions cap
+            asset_open = (
+                db.query(Trade)
+                .filter(
                     Trade.strategy == self.name,
                     Trade.settled.is_(False),
                     Trade.trading_mode == ctx.mode,
                     Trade.market_ticker.like(f"{asset_key}%"),
-                ).count()
-                max_per_asset = int(params.get("max_per_asset", 1))
-                if isinstance(asset_open, int) and asset_open >= max_per_asset:
-                    logger.debug(f"[cex_pm_leadlag] {asset_key} has {asset_open} open >= max {max_per_asset}")
+                )
+                .count()
+            )
+            max_per_asset = int(params.get("max_per_asset", 1))
+            if isinstance(asset_open, int) and asset_open >= max_per_asset:
+                logger.debug(
+                    f"[cex_pm_leadlag] {asset_key} has {asset_open} open >= max {max_per_asset}"
+                )
+                continue
+
+            for market in candidates:
+                minutes_remaining = market.time_until_end / 60.0
+                if minutes_remaining <= 0 or minutes_remaining > max_minutes:
                     continue
 
-                for market in candidates:
-                    minutes_remaining = market.time_until_end / 60.0
-                    if minutes_remaining <= 0 or minutes_remaining > max_minutes:
-                        continue
+                pm_up_mid = await _fetch_pm_mid(http, market.up_token_id)
+                if pm_up_mid is None:
+                    continue
 
-                    pm_up_mid = await _fetch_pm_mid(http, market.up_token_id)
-                    if pm_up_mid is None:
-                        continue
+                if direction == "up":
+                    target_mid = pm_up_mid
+                else:
+                    target_mid = 1.0 - pm_up_mid
 
-                    if direction == "up":
-                        target_mid = pm_up_mid
-                    else:
-                        target_mid = 1.0 - pm_up_mid
+                # Convert micro.momentum_1m (percentage, e.g. 0.2 for 0.2%) to decimal to align with momentum_norm (decimal, e.g. 0.006)
+                momentum_decimal = abs(micro.momentum_1m) / 100.0
+                strength = momentum_decimal / momentum_norm
+                sigmoid = 2.0 / (1.0 + math.exp(-3.0 * strength)) - 1.0
+                raw_prob = max(0.01, min(0.99, 0.5 + 0.49 * sigmoid))
+                # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
+                implied_prob = max(0.40, min(0.75, raw_prob))
+                total_fees = fee_rate * 2
+                directional_edge = implied_prob - target_mid
+                raw_divergence = abs(directional_edge)
+                fee_adjusted_edge = (
+                    directional_edge - total_fees
+                )  # subtract fees from directional edge
+                edge = (
+                    fee_adjusted_edge - min_edge
+                )  # positive only if divergence exceeds min_edge + fees
 
-                    # Convert micro.momentum_1m (percentage, e.g. 0.2 for 0.2%) to decimal to align with momentum_norm (decimal, e.g. 0.006)
-                    momentum_decimal = abs(micro.momentum_1m) / 100.0
-                    strength = momentum_decimal / momentum_norm
-                    sigmoid = 2.0 / (1.0 + math.exp(-3.0 * strength)) - 1.0
-                    raw_prob = max(0.01, min(0.99, 0.5 + 0.49 * sigmoid))
-                    # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
-                    implied_prob = max(0.40, min(0.75, raw_prob))
-                    total_fees = fee_rate * 2
-                    directional_edge = implied_prob - target_mid
-                    raw_divergence = abs(directional_edge)
-                    fee_adjusted_edge = directional_edge - total_fees  # subtract fees from directional edge
-                    edge = fee_adjusted_edge - min_edge  # positive only if divergence exceeds min_edge + fees
+                # Confidence: how much the raw divergence exceeds the minimum threshold
+                confidence = (
+                    min(1.0, raw_divergence / min_edge) if min_edge > 0 else 0.0
+                )
 
-                    # Confidence: how much the raw divergence exceeds the minimum threshold
-                    confidence = (
-                        min(1.0, raw_divergence / min_edge) if min_edge > 0 else 0.0
-                    )
+                # Minimum confidence gate: reject low-conviction signals
+                min_confidence = float(params.get("min_confidence", 0.7))
 
-                    # Minimum confidence gate: reject low-conviction signals
-                    min_confidence = float(params.get("min_confidence", 0.7))
-
-                    decision = "BUY" if (edge > 0 and confidence >= min_confidence) else "SKIP"
-                    if decision == "BUY" and params.get("debate_enabled", True):
-                        try:
-                            question = (
-                                f"{asset_key.upper()} price {micro.price:.0f} with {abs(micro.momentum_1m):.4f} 1-min momentum. "
-                                f"Will {asset_key.upper()} be {'UP' if direction == 'up' else 'DOWN'} in the next 5-minute window? "
-                                f"Polymarket UP mid={pm_up_mid:.3f}, implied edge={edge:.4f}. Trade or skip?"
-                            )
-                            debate_result = await run_debate_with_routing(
-                                db=ctx.db,
-                                question=question,
-                                market_price=target_mid,
-                                context=(
-                                    f"signal_data={{\"momentum_1m\":{micro.momentum_1m:.4f},"
-                                    f"\"momentum_5m\":{micro.momentum_5m},"
-                                    f"\"volatility\":{micro.volatility:.4f},"
-                                    f"\"{asset_key}_price\":{micro.price:.0f}}}"
-                                ),
-                                max_rounds=2,
-                            )
-                            if debate_result and debate_result.confidence > 0:
-                                debate_min_conf = float(
-                                    params.get("debate_min_confidence", 0.55)
-                                )
-                                if debate_result.confidence < debate_min_conf:
-                                    logger.info(
-                                        "[cex_pm_leadlag] debate rejected %s for %s (confidence=%.2f < %.2f)",
-                                        decision,
-                                        market.slug,
-                                        debate_result.confidence,
-                                        debate_min_conf,
-                                    )
-                                    continue
-                                confidence = max(confidence, debate_result.confidence)
-                        except Exception:
-                            logger.debug("[cex_pm_leadlag] debate validation failed, allowing trade")
-
-                    projected_price = micro.price * (1.0 + micro.momentum_1m)
-
-                    signal_data = {
-                        "asset": asset_key,
-                        "price": micro.price,
-                        "momentum_1m": micro.momentum_1m,
-                        "momentum_5m": micro.momentum_5m,
-                        "projected_price": projected_price,
-                        "pm_up_mid": pm_up_mid,
-                        "target_mid": target_mid,
-                        "direction": direction,
-                        "edge": edge,
-                        "minutes_remaining": round(minutes_remaining, 2),
-                        "source": micro.source,
-                        "sources": ["cex_pm_leadlag"]
-                        + (
-                            micro.source
-                            if isinstance(micro.source, list)
-                            else [micro.source]
-                        ),
-                        "slug": market.slug,
-                        "up_price": market.up_price,
-                        "down_price": market.down_price,
-                        "spread": market.spread,
-                        "window_end": market.window_end.isoformat(),
-                    }
-
-                    record_decision_standalone(
-                        self.name,
-                        market.slug,
-                        decision,
-                        confidence=confidence,
-                        signal_data=signal_data,
-                        reason=(
-                            f"leadlag {asset_key} mom1m={micro.momentum_1m:+.4f} "
-                            f"dir={direction} pm_mid={target_mid:.3f} "
-                            f"edge={edge:+.3f} t={minutes_remaining:.1f}min "
-                            f"slug={market.slug}"
-                        ),
-                    )
-                    result.decisions_recorded += 1
-
+                decision = (
+                    "BUY" if (edge > 0 and confidence >= min_confidence) else "SKIP"
+                )
+                if decision == "BUY" and params.get("debate_enabled", True):
                     try:
-                        activity_logger.log_entry(
-                            strategy_name=self.name,
-                            decision_type="entry" if decision == "BUY" else "hold",
-                            data=signal_data,
-                            confidence=confidence,
-                            mode=ctx.mode,
-                            db=ctx.db,
+                        question = (
+                            f"{asset_key.upper()} price {micro.price:.0f} with {abs(micro.momentum_1m):.4f} 1-min momentum. "
+                            f"Will {asset_key.upper()} be {'UP' if direction == 'up' else 'DOWN'} in the next 5-minute window? "
+                            f"Polymarket UP mid={pm_up_mid:.3f}, implied edge={edge:.4f}. Trade or skip?"
                         )
+                        debate_result = await run_debate_with_routing(
+                            db=ctx.db,
+                            question=question,
+                            market_price=target_mid,
+                            context=(
+                                f'signal_data={{"momentum_1m":{micro.momentum_1m:.4f},'
+                                f'"momentum_5m":{micro.momentum_5m},'
+                                f'"volatility":{micro.volatility:.4f},'
+                                f'"{asset_key}_price":{micro.price:.0f}}}'
+                            ),
+                            max_rounds=2,
+                        )
+                        if debate_result and debate_result.confidence > 0:
+                            debate_min_conf = float(
+                                params.get("debate_min_confidence", 0.55)
+                            )
+                            if debate_result.confidence < debate_min_conf:
+                                logger.info(
+                                    "[cex_pm_leadlag] debate rejected %s for %s (confidence=%.2f < %.2f)",
+                                    decision,
+                                    market.slug,
+                                    debate_result.confidence,
+                                    debate_min_conf,
+                                )
+                                continue
+                            confidence = max(confidence, debate_result.confidence)
                     except Exception:
-                        logger.exception(
-                            f"Failed to record CEX-PM lead-lag decision for {asset_key}"
+                        logger.debug(
+                            "[cex_pm_leadlag] debate validation failed, allowing trade"
                         )
 
-                    if decision == "BUY":
-                        result.trades_attempted += 1
-                        chosen_token = (
-                            market.up_token_id
-                            if direction == "up"
-                            else market.down_token_id
-                        )
-                        entry_price = target_mid
-                        size_scalar = (
-                            min(1.0, (edge + min_edge) / (min_edge * 2))
-                            if min_edge > 0
-                            else 0.5
-                        )
-                        suggested_size = round(max_size * max(0.25, size_scalar), 2)
-                        result.decisions.append(
-                            {
-                                "decision": "BUY",
-                                "market_ticker": market.slug,
-                                "token_id": chosen_token,
-                                "direction": direction,
-                                "confidence": confidence,
-                                "edge": edge,
-                                "size": suggested_size,
-                                "entry_price": entry_price,
-                                "suggested_size": suggested_size,
-                                "model_probability": implied_prob,
-                                "market_probability": target_mid,
-                                "platform": settings.DEFAULT_VENUE,
-                                "strategy_name": self.name,
-                                "reasoning": (
-                                    f"CEX {asset_key} 1m momentum {micro.momentum_1m:+.4f} → "
-                                    f"direction={direction}, PM mid {target_mid:.3f}, "
-                                    f"edge {edge:+.3f}"
-                                ),
-                                "slug": market.slug,
-                                "market_end_date": market.window_end.isoformat(),
-                            }
-                        )
+                projected_price = micro.price * (1.0 + micro.momentum_1m)
+
+                signal_data = {
+                    "asset": asset_key,
+                    "price": micro.price,
+                    "momentum_1m": micro.momentum_1m,
+                    "momentum_5m": micro.momentum_5m,
+                    "projected_price": projected_price,
+                    "pm_up_mid": pm_up_mid,
+                    "target_mid": target_mid,
+                    "direction": direction,
+                    "edge": edge,
+                    "minutes_remaining": round(minutes_remaining, 2),
+                    "source": micro.source,
+                    "sources": ["cex_pm_leadlag"]
+                    + (
+                        micro.source
+                        if isinstance(micro.source, list)
+                        else [micro.source]
+                    ),
+                    "slug": market.slug,
+                    "up_price": market.up_price,
+                    "down_price": market.down_price,
+                    "spread": market.spread,
+                    "window_end": market.window_end.isoformat(),
+                }
+
+                record_decision_standalone(
+                    self.name,
+                    market.slug,
+                    decision,
+                    confidence=confidence,
+                    signal_data=signal_data,
+                    reason=(
+                        f"leadlag {asset_key} mom1m={micro.momentum_1m:+.4f} "
+                        f"dir={direction} pm_mid={target_mid:.3f} "
+                        f"edge={edge:+.3f} t={minutes_remaining:.1f}min "
+                        f"slug={market.slug}"
+                    ),
+                )
+                result.decisions_recorded += 1
+
+                try:
+                    activity_logger.log_entry(
+                        strategy_name=self.name,
+                        decision_type="entry" if decision == "BUY" else "hold",
+                        data=signal_data,
+                        confidence=confidence,
+                        mode=ctx.mode,
+                        db=ctx.db,
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to record CEX-PM lead-lag decision for {asset_key}"
+                    )
+
+                if decision == "BUY":
+                    result.trades_attempted += 1
+                    chosen_token = (
+                        market.up_token_id
+                        if direction == "up"
+                        else market.down_token_id
+                    )
+                    entry_price = target_mid
+                    size_scalar = (
+                        min(1.0, (edge + min_edge) / (min_edge * 2))
+                        if min_edge > 0
+                        else 0.5
+                    )
+                    suggested_size = round(max_size * max(0.25, size_scalar), 2)
+                    result.decisions.append(
+                        {
+                            "decision": "BUY",
+                            "market_ticker": market.slug,
+                            "token_id": chosen_token,
+                            "direction": direction,
+                            "confidence": confidence,
+                            "edge": edge,
+                            "size": suggested_size,
+                            "entry_price": entry_price,
+                            "suggested_size": suggested_size,
+                            "model_probability": implied_prob,
+                            "market_probability": target_mid,
+                            "platform": settings.DEFAULT_VENUE,
+                            "strategy_name": self.name,
+                            "reasoning": (
+                                f"CEX {asset_key} 1m momentum {micro.momentum_1m:+.4f} → "
+                                f"direction={direction}, PM mid {target_mid:.3f}, "
+                                f"edge {edge:+.3f}"
+                            ),
+                            "slug": market.slug,
+                            "market_end_date": market.window_end.isoformat(),
+                        }
+                    )
 
         return result
