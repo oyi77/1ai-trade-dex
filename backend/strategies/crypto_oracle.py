@@ -29,6 +29,8 @@ from backend.db.utils import get_db_session
 from backend.models.signal_log import SignalLog
 from backend.ai.debate_router import run_debate_with_routing
 
+import math
+
 from loguru import logger
 
 # Hard guard: if model_probability is within this distance of market_price, skip.
@@ -399,6 +401,7 @@ class CryptoOracleStrategy(BaseStrategy):
             return True, 0.5
         try:
             import asyncio
+
             result = await asyncio.wait_for(
                 run_debate_with_routing(
                     db=db,
@@ -461,7 +464,9 @@ class CryptoOracleStrategy(BaseStrategy):
         # Circuit breaker: daily loss limit + consecutive loss pause
         blocker = self._check_circuit_breakers()
         if blocker:
-            logger.debug("crypto_oracle.on_market_event: blocked by circuit breaker: {}", blocker)
+            logger.debug(
+                "crypto_oracle.on_market_event: blocked by circuit breaker: {}", blocker
+            )
             return None
 
         params = {**self.default_params}
@@ -509,7 +514,6 @@ class CryptoOracleStrategy(BaseStrategy):
 
         market_mid = trade_price
 
-
         # Price bucket filter: reject negative-EV territory
         min_price_bucket = params.get(
             "min_price_bucket",
@@ -536,7 +540,6 @@ class CryptoOracleStrategy(BaseStrategy):
             )
             return None
 
-
         try:
             micro = await compute_crypto_microstructure(asset)
         except Exception:
@@ -546,44 +549,59 @@ class CryptoOracleStrategy(BaseStrategy):
             micro = None
 
         if micro:
-            rsi_norm = (micro.rsi - 50.0) / 50.0
-            mom_signal = max(-1.0, min(1.0, micro.momentum_5m * 10.0))
-            vwap_signal = max(-1.0, min(1.0, micro.vwap_deviation * 100.0))
-            sma_signal = max(-1.0, min(1.0, micro.sma_crossover * 100.0))
-            composite = (
-                rsi_norm * 0.25
-                + mom_signal * 0.30
-                + vwap_signal * 0.25
-                + sma_signal * 0.20
-            )
-            oracle_base = params.get(
-                "oracle_implied_base", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_BASE
-            )
-            oracle_scale = params.get(
+            # Use real 1-min momentum from Binance — same signal as cex_pm_leadlag
+            # Sigmoid mapping: momentum → probability adjustment
+            # Positive momentum → higher probability for "up", lower for "down"
+            strength = micro.momentum_1m * 10.0  # scale % change
+            sigmoid_adj = 2.0 / (1.0 + math.exp(-3.0 * strength)) - 1.0  # [-1, 1]
+
+            # Map to probability: 0.5 is neutral, adjust toward 0.5±scale
+            momentum_scale = params.get(
                 "oracle_implied_scale", settings.CRYPTO_ORACLE_ORACLE_IMPLIED_SCALE
             )
-            oracle_implied = oracle_base + composite * oracle_scale
+            oracle_implied = 0.5 + sigmoid_adj * momentum_scale
+            oracle_implied = max(0.35, min(0.75, oracle_implied))
+
+            # Volatility filter: skip if too calm (no signal) or too wild (unreliable)
+            if micro.volatility < 0.001:
+                logger.debug("crypto_oracle: volatility %.4f too low, skipping", micro.volatility)
+                return None
+            if micro.volatility > 0.10:
+                logger.debug("crypto_oracle: volatility %.4f too high, skipping", micro.volatility)
+                return None
+
             if direction == "down":
                 oracle_implied = 1.0 - oracle_implied
         else:
             oracle_implied = market_mid
 
-        edge = abs(oracle_implied - market_mid) - min_edge
+        # Fee-adjusted edge: deduct 2% round-trip fee (1% buy + 1% sell)
+        raw_edge = abs(oracle_implied - market_mid)
+        fee_adjusted_edge = raw_edge - 0.02  # Polymarket round-trip fee
+        edge = fee_adjusted_edge - min_edge
 
         if edge <= 0:
             return None
 
         # Hard guard: no real edge if oracle can't distinguish from market
-        if abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+        if raw_edge < _NO_EDGE_THRESHOLD:
             logger.debug(
                 "crypto_oracle.on_market_event: skip — |oracle_implied - market_mid|={:.4f} < {:.2f} (no edge)",
-                abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+                abs(oracle_implied - market_mid),
+                _NO_EDGE_THRESHOLD,
             )
             return None
 
-        confidence_score = (
-            min(1.0, max(0.0, edge / min_edge)) if min_edge > 0 else 0.0
-        )
+        confidence_score = min(1.0, max(0.0, edge / min_edge)) if min_edge > 0 else 0.0
+
+        # Confidence gate: reject low-conviction signals (like cex_pm_leadlag)
+        min_confidence = params.get("min_confidence", 0.7)
+        if confidence_score < min_confidence:
+            logger.debug(
+                "crypto_oracle: confidence %.2f < %.2f min, skipping",
+                confidence_score, min_confidence,
+            )
+            return None
         kelly = kelly_fraction(
             get_bucket_win_rate(market_mid, "crypto_oracle") or 0, market_mid
         )
@@ -679,12 +697,27 @@ class CryptoOracleStrategy(BaseStrategy):
         # Check open positions for auto-sell exits at cycle start
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
@@ -692,7 +725,9 @@ class CryptoOracleStrategy(BaseStrategy):
         # Circuit breaker: daily loss limit + consecutive loss pause
         blocker = self._check_circuit_breakers()
         if blocker:
-            logger.info("crypto_oracle.run_cycle: blocked by circuit breaker: {}", blocker)
+            logger.info(
+                "crypto_oracle.run_cycle: blocked by circuit breaker: {}", blocker
+            )
             return result
 
         min_edge = params.get("min_edge", self.default_params["min_edge"])
@@ -743,7 +778,9 @@ class CryptoOracleStrategy(BaseStrategy):
 
             # Retrieve configured parameters or fallbacks
             block_down = params.get("block_direction_down", True if is_btc else False)
-            blocked_hours = params.get("blocked_hours_utc", [23, 0, 1] if is_btc else [])
+            blocked_hours = params.get(
+                "blocked_hours_utc", [23, 0, 1] if is_btc else []
+            )
 
             # Session filter check per asset
             if now.hour in blocked_hours:
@@ -776,7 +813,6 @@ class CryptoOracleStrategy(BaseStrategy):
                 if minutes_remaining < 0 or minutes_remaining > max_minutes:
                     continue
 
-    
                 try:
                     micro = await compute_crypto_microstructure(coingecko_id)
                 except Exception as e:
@@ -844,10 +880,15 @@ class CryptoOracleStrategy(BaseStrategy):
                 decision = "BUY" if edge > 0 else "SKIP"
 
                 # Hard guard: no real edge if oracle can't distinguish from market
-                if decision == "BUY" and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+                if (
+                    decision == "BUY"
+                    and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD
+                ):
                     logger.debug(
                         "crypto_oracle: skip {} — |oracle - market|={:.4f} < {:.2f}",
-                        market.slug, abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+                        market.slug,
+                        abs(oracle_implied - market_mid),
+                        _NO_EDGE_THRESHOLD,
                     )
                     decision = "SKIP"
                 confidence_score = (
@@ -1040,10 +1081,15 @@ class CryptoOracleStrategy(BaseStrategy):
                     decision = "BUY" if edge > 0 else "SKIP"
 
                     # Hard guard: no real edge if oracle can't distinguish from market
-                    if decision == "BUY" and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD:
+                    if (
+                        decision == "BUY"
+                        and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD
+                    ):
                         logger.debug(
                             "crypto_oracle: skip {} — |oracle - market|={:.4f} < {:.2f}",
-                            market.ticker, abs(oracle_implied - market_mid), _NO_EDGE_THRESHOLD,
+                            market.ticker,
+                            abs(oracle_implied - market_mid),
+                            _NO_EDGE_THRESHOLD,
                         )
                         decision = "SKIP"
 
@@ -1204,12 +1250,27 @@ class CryptoOracleStrategy(BaseStrategy):
         # Check open positions for auto-sell exits at cycle end
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
