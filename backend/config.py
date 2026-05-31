@@ -496,7 +496,7 @@ class ConfigRegistry:
     # CEX PM Lead-Lag
     CEX_PM_LEADLAG_MIN_MOMENTUM: float = 0.001
     CEX_PM_LEADLAG_MIN_EDGE: float = (
-        0.05  # 5% minimum raw divergence (fee-aware: exceeds 2% taker + 2% maker fees)
+        0.10  # 10% minimum raw divergence (was 5% — too low for 50/50 markets)
     )
     CEX_PM_LEADLAG_MAX_MINUTES_TO_RESOLUTION: int = 90
     CEX_PM_LEADLAG_MAX_POSITION_USD: float = 20.0

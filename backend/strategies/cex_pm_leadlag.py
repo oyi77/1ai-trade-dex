@@ -69,7 +69,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "max_hold_seconds": 240,
         "profit_target_pct": 0.08,
         "trailing_stop_activation_pct": 0.06,
-        "min_confidence": 0.7,
+        "min_confidence": 0.85,
     }
 
     async def market_filter(self, markets: list[CryptoMarket]) -> list[CryptoMarket]:
