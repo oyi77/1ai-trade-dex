@@ -7,6 +7,8 @@ from typing import Optional
 import httpx
 from sqlalchemy import not_
 
+from backend.data.shared_client import get_shared_client
+
 import json
 
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
@@ -240,12 +242,27 @@ class GeneralMarketScanner(BaseStrategy):
         # Check open positions for auto-sell exits at cycle start
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell start check failed: {e}")
@@ -301,19 +318,19 @@ class GeneralMarketScanner(BaseStrategy):
 
         # Fetch top markets by volume
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    GAMMA_API_URL,
-                    params={
-                        "active": "true",
-                        "closed": "false",
-                        "limit": scan_limit,
-                        "order": "volume",
-                        "ascending": "false",
-                    },
-                )
-                resp.raise_for_status()
-                markets = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                GAMMA_API_URL,
+                params={
+                    "active": "true",
+                    "closed": "false",
+                    "limit": scan_limit,
+                    "order": "volume",
+                    "ascending": "false",
+                },
+            )
+            resp.raise_for_status()
+            markets = resp.json()
         except Exception as e:
             ctx.logger.warning(f"[general_scanner] Gamma API fetch failed: {e}")
             result.errors.append(str(e))
@@ -514,51 +531,51 @@ class GeneralMarketScanner(BaseStrategy):
 
             if clob_token_id:
                 try:
-                    async with httpx.AsyncClient(timeout=10.0) as clob_client:
-                        book_resp = await clob_client.get(
-                            f"{settings.CLOB_API_URL}/book",
-                            params={"token_id": clob_token_id},
+                    clob_client = get_shared_client()
+                    book_resp = await clob_client.get(
+                        f"{settings.CLOB_API_URL}/book",
+                        params={"token_id": clob_token_id},
+                    )
+                    if book_resp.status_code == 200:
+                        book_data = book_resp.json()
+                        bids_raw = book_data.get("bids", [])
+                        asks_raw = book_data.get("asks", [])
+                        # Parse bids [[price, size], ...]
+                        bids = [
+                            [float(b["price"]), float(b["size"])]
+                            for b in bids_raw
+                            if b.get("price") and b.get("size")
+                        ]
+                        asks = [
+                            [float(a["price"]), float(a["size"])]
+                            for a in asks_raw
+                            if a.get("price") and a.get("size")
+                        ]
+                        bid_depth = sum(s for _, s in bids)
+                        ask_depth = sum(s for _, s in asks)
+                        total_depth = bid_depth + ask_depth
+                        imbalance = (
+                            (bid_depth - ask_depth) / total_depth
+                            if total_depth > 0
+                            else 0.0
                         )
-                        if book_resp.status_code == 200:
-                            book_data = book_resp.json()
-                            bids_raw = book_data.get("bids", [])
-                            asks_raw = book_data.get("asks", [])
-                            # Parse bids [[price, size], ...]
-                            bids = [
-                                [float(b["price"]), float(b["size"])]
-                                for b in bids_raw
-                                if b.get("price") and b.get("size")
-                            ]
-                            asks = [
-                                [float(a["price"]), float(a["size"])]
-                                for a in asks_raw
-                                if a.get("price") and a.get("size")
-                            ]
-                            bid_depth = sum(s for _, s in bids)
-                            ask_depth = sum(s for _, s in asks)
-                            total_depth = bid_depth + ask_depth
-                            imbalance = (
-                                (bid_depth - ask_depth) / total_depth
-                                if total_depth > 0
-                                else 0.0
-                            )
-                            # Top-of-book
-                            top_bid = bids[0][0] if bids else 0.0
-                            top_ask = asks[0][0] if asks else 0.0
-                            book_spread = (
-                                top_ask - top_bid if top_bid and top_ask else 0.0
-                            )
-                            # Large orders (>5x avg size)
-                            avg_bid_size = bid_depth / len(bids) if bids else 1.0
-                            avg_ask_size = ask_depth / len(asks) if asks else 1.0
-                            large_bids = sum(1 for _, s in bids if s > 5 * avg_bid_size)
-                            large_asks = sum(1 for _, s in asks if s > 5 * avg_ask_size)
-                            context_parts.append(
-                                f"CLOB_ORDER_BOOK: spread={book_spread:.4f}, "
-                                f"bid_depth=${bid_depth:.0f}, ask_depth=${ask_depth:.0f}, "
-                                f"imbalance={imbalance:+.2f}, "
-                                f"large_bids={large_bids}, large_asks={large_asks}"
-                            )
+                        # Top-of-book
+                        top_bid = bids[0][0] if bids else 0.0
+                        top_ask = asks[0][0] if asks else 0.0
+                        book_spread = (
+                            top_ask - top_bid if top_bid and top_ask else 0.0
+                        )
+                        # Large orders (>5x avg size)
+                        avg_bid_size = bid_depth / len(bids) if bids else 1.0
+                        avg_ask_size = ask_depth / len(asks) if asks else 1.0
+                        large_bids = sum(1 for _, s in bids if s > 5 * avg_bid_size)
+                        large_asks = sum(1 for _, s in asks if s > 5 * avg_ask_size)
+                        context_parts.append(
+                            f"CLOB_ORDER_BOOK: spread={book_spread:.4f}, "
+                            f"bid_depth=${bid_depth:.0f}, ask_depth=${ask_depth:.0f}, "
+                            f"imbalance={imbalance:+.2f}, "
+                            f"large_bids={large_bids}, large_asks={large_asks}"
+                        )
                 except Exception as e:
                     ctx.logger.error(f"[general_scanner] CLOB fetch failed: {e}")
 
@@ -970,12 +987,27 @@ class GeneralMarketScanner(BaseStrategy):
         # Check open positions for auto-sell exits at cycle end
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
             await check_strategy_positions_for_auto_sell(
                 self.name,
                 clob_client=ctx.clob,
-                profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
-                max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
+                profit_target_pct=float(
+                    params.get(
+                        "auto_sell_profit_target_pct",
+                        params.get("profit_target_pct", 0.08),
+                    )
+                ),
+                stop_loss_pct=float(
+                    params.get(
+                        "auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05)
+                    )
+                ),
+                max_hold_seconds=int(
+                    params.get(
+                        "auto_sell_max_hold_seconds",
+                        params.get("max_hold_seconds", 3600),
+                    )
+                ),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Auto-sell end check failed: {e}")
