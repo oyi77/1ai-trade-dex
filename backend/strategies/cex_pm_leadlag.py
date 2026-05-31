@@ -67,6 +67,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "stop_loss_pct": 0.20,
         "max_hold_seconds": 240,
         "profit_target_pct": 0.08,
+        "min_confidence": 0.7,
     }
 
     async def market_filter(self, markets: list[CryptoMarket]) -> list[CryptoMarket]:
@@ -204,13 +205,20 @@ class CexPmLeadLagStrategy(BaseStrategy):
                     # Cap probability at 0.75 (75%) instead of 0.65 to allow high-conviction trades to scale
                     implied_prob = max(0.40, min(0.75, raw_prob))
                     total_fees = fee_rate * 2
-                    edge = (implied_prob - target_mid) - min_edge - total_fees
+                    directional_edge = implied_prob - target_mid
+                    raw_divergence = abs(directional_edge)
+                    fee_adjusted_edge = directional_edge - total_fees  # subtract fees from directional edge
+                    edge = fee_adjusted_edge - min_edge  # positive only if divergence exceeds min_edge + fees
 
+                    # Confidence: how much the raw divergence exceeds the minimum threshold
                     confidence = (
-                        min(1.0, abs(edge + min_edge) / min_edge) if min_edge > 0 else 0.0
+                        min(1.0, raw_divergence / min_edge) if min_edge > 0 else 0.0
                     )
 
-                    decision = "BUY" if edge > 0 else "SKIP"
+                    # Minimum confidence gate: reject low-conviction signals
+                    min_confidence = float(params.get("min_confidence", 0.7))
+
+                    decision = "BUY" if (edge > 0 and confidence >= min_confidence) else "SKIP"
                     if decision == "BUY" and params.get("debate_enabled", True):
                         try:
                             question = (
