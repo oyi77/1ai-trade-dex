@@ -157,7 +157,7 @@ class ResolutionSniperStrategy(BaseStrategy):
                             "no_price": m.no_price,
                         })
                 except Exception as e:
-                    ctx.logger.debug(f"[{self.name}] fetch_active_crypto_markets({asset_prefix}) failed: {e}")
+                    ctx.logger.warning(f"[{self.name}] fetch_active_crypto_markets({asset_prefix}) failed: {e}")
         except Exception as e:
             ctx.logger.warning(f"[{self.name}] Gamma API fetch failed: {e}")
             result.errors.append(str(e))
