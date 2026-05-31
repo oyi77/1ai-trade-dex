@@ -240,6 +240,21 @@ class Orchestrator:
         self._running = False
         self._condition_cache.clear()
 
+        # Cancel all strategy background tasks (e.g. MarketMaker queue loop)
+        try:
+            from backend.strategies.registry import STRATEGY_REGISTRY
+            for name, cls in STRATEGY_REGISTRY.items():
+                try:
+                    instances = getattr(cls, '_instances', [])
+                    for inst in instances:
+                        stop = getattr(inst, 'stop_consumer', None)
+                        if stop:
+                            await stop()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         if self._bot:
             await self._bot.stop()
 

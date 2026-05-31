@@ -182,6 +182,17 @@ class MarketMakerStrategy(BaseStrategy):
             self._consumer_task = asyncio.create_task(self._process_queue_loop())
             logger.info(f"[{self.name}] Async L2 queue consumer loop started.")
 
+    async def stop_consumer(self) -> None:
+        """Cancel the background L2 consumer task on shutdown."""
+        if self._consumer_task and not self._consumer_task.done():
+            self._consumer_task.cancel()
+            try:
+                await self._consumer_task
+            except asyncio.CancelledError:
+                pass
+            self._consumer_task = None
+            logger.info(f"[{self.name}] L2 queue consumer stopped.")
+
     async def _populate_subscribed_tokens(self) -> None:
         """Discover active short-duration markets and map outcome token IDs."""
         try:
