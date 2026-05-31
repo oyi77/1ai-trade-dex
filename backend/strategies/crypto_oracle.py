@@ -395,7 +395,7 @@ class CryptoOracleStrategy(BaseStrategy):
     async def _debate_validate(
         self, question: str, market_price: float, context: str = "", db=None
     ) -> tuple[bool, float]:
-        if not self.default_params.get("debate_enabled", False):
+        if not self.default_params.get("debate_enabled", True):
             return True, 0.5
         try:
             import asyncio
