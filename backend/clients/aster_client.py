@@ -14,10 +14,15 @@ class AsterClient:
     """Aster perpetuals DEX client (Binance-compatible, ECDSA auth)."""
 
     def __init__(self, private_key: str = None):
-        self._private_key = private_key or os.getenv("ASTER_PRIVATE_KEY") or os.getenv("WALLET_PRIVATE_KEY", "")
+        self._private_key = (
+            private_key
+            or os.getenv("ASTER_PRIVATE_KEY")
+            or os.getenv("WALLET_PRIVATE_KEY", "")
+        )
 
         # Derive address from private key — Aster AGENT must be registered at asterdex.com/en/api-wallet
         from eth_account import Account as EthAccount
+
         _account = EthAccount.from_key(self._private_key) if self._private_key else None
         _address = _account.address if _account else ""
 
@@ -26,17 +31,21 @@ class AsterClient:
             "signerAddress": _address,
         }
 
-        self._exchange = ccxt_async.aster({
-            "privateKey": self._private_key,
-            "walletAddress": _address,
-            "options": _opts,
-        })
+        self._exchange = ccxt_async.aster(
+            {
+                "privateKey": self._private_key,
+                "walletAddress": _address,
+                "options": _opts,
+            }
+        )
 
-        self._ws_exchange = ccxtpro.aster({
-            "privateKey": self._private_key,
-            "walletAddress": _address,
-            "options": _opts,
-        })
+        self._ws_exchange = ccxtpro.aster(
+            {
+                "privateKey": self._private_key,
+                "walletAddress": _address,
+                "options": _opts,
+            }
+        )
         _all_instances.append(self)
 
     async def get_markets(self) -> list:
@@ -60,7 +69,9 @@ class AsterClient:
         order_type: str = "limit",
     ) -> dict:
         """Place an order."""
-        return await self._exchange.create_order(symbol, order_type, side, amount, price)
+        return await self._exchange.create_order(
+            symbol, order_type, side, amount, price
+        )
 
     async def cancel_order(self, order_id: str, symbol: str) -> dict:
         """Cancel an order."""
@@ -103,7 +114,7 @@ class AsterClient:
         try:
             await self._ws_exchange.close()
         except Exception:
-            pass
+            logger.debug("aster_client: failed to close WS exchange on shutdown")
         if hasattr(self._exchange, "close"):
             await self._exchange.close()
         if self in _all_instances:
@@ -116,5 +127,5 @@ async def close_all_aster_clients():
         try:
             await client.close()
         except Exception:
-            pass
+            logger.debug("aster_client: failed to close client instance during bulk shutdown")
     _all_instances.clear()

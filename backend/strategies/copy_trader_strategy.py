@@ -497,7 +497,7 @@ class CopyTraderStrategy(BaseStrategy):
                             reason=f"Copy from {signal.wallet[:10]} @ {signal.price:.3f}",
                         )
                     except Exception:
-                        pass
+                        logger.warning(f"copy_trader: failed to log decision for wallet copy")
 
                     # Execute trade
                     if ctx.mode != "paper":

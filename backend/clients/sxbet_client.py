@@ -54,10 +54,10 @@ class SXBetClient:
                 resp = await client.get(f"{self._base_url}/metadata")
                 resp.raise_for_status()
                 data = resp.json().get("data", {})
-                
+
                 contract = data.get("EIP712FillHasher")
                 version = data.get("domainVersion", version)
-                
+
                 # Extract chain ID if available (from addresses keys)
                 addresses = data.get("addresses", {})
                 if addresses:
@@ -65,10 +65,12 @@ class SXBetClient:
                     try:
                         chain_id = int(chain_id_str)
                     except ValueError:
-                        pass
-        
+                        logger.debug(f"sxbet_client: invalid chain_id '{chain_id_str}', using default")
+
         if not contract or contract == "0x0000000000000000000000000000000000000000":
-            raise RuntimeError("SX.bet EIP712FillHasher contract address could not be fetched from metadata.")
+            raise RuntimeError(
+                "SX.bet EIP712FillHasher contract address could not be fetched from metadata."
+            )
 
         self._cached_domain = {
             "name": "SX Bet",

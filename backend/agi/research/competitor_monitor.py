@@ -192,7 +192,7 @@ class CompetitorMonitor:
                 if resp.status_code == 200:
                     return resp.json()
             except Exception:
-                pass
+                logger.debug(f"competitor_monitor: failed to fetch repo info for {name}")
 
         # Search by name
         try:
@@ -293,7 +293,7 @@ class CompetitorMonitor:
                         )
                     )
         except Exception:
-            pass
+            logger.debug("competitor_monitor: failed to scan repo content for changes")
 
         return changes
 

@@ -101,7 +101,7 @@ class GroqClassifier(BaseAIClient):
                 try:
                     confidence = int(parts[1].strip()) / 100
                 except ValueError:
-                    pass
+                    logger.debug(f"groq: invalid confidence value in classification response")
 
             # Validate category
             valid_categories = [
@@ -188,7 +188,7 @@ timeframe: <date/period or N/A>"""
                                         num_match.group().replace(",", "")
                                     )
                                 except ValueError:
-                                    pass
+                                    logger.debug(f"groq: invalid threshold value in extraction: {value}")
                         elif key == "direction":
                             if "above" in value.lower():
                                 details["direction"] = "above"

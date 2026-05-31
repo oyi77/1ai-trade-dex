@@ -5,8 +5,6 @@ Background job functions scheduled by APScheduler.
 This module will be removed in a future release.
 """
 
-
-
 import asyncio
 import gc
 from datetime import datetime, timezone
@@ -175,7 +173,11 @@ async def _process_signal_with_approval(
                     "market_probability": signal.market_probability,
                     "edge": signal.edge,
                     "btc_price": getattr(signal, "btc_price", None),
-                    "sources": ["crypto_oracle_scanner", "market_maker", "whale_tracker"],
+                    "sources": [
+                        "crypto_oracle_scanner",
+                        "market_maker",
+                        "whale_tracker",
+                    ],
                 },
                 reason=f"auto-approve: confidence {signal.confidence:.2f} below threshold {min_confidence}",
             )
@@ -368,7 +370,9 @@ async def scan_and_trade_job(mode: str):
                     try:
                         params = _json.loads(cfg.params)
                     except Exception:
-                        logger.warning("scheduling_strategies: failed to parse strategy config params")
+                        logger.warning(
+                            "scheduling_strategies: failed to parse strategy config params"
+                        )
                 config_data.append(
                     {"strategy_name": cfg.strategy_name, "params": params}
                 )
@@ -398,6 +402,7 @@ async def scan_and_trade_job(mode: str):
                 if strategy_cls is None:
                     continue
                 from backend.models.database import BotState
+
                 state = db.query(BotState).first()
                 bankroll = _get_bankroll_for_mode(state, mode) if state else 100.0
                 strategy_ctx = StrategyContext(
@@ -412,19 +417,30 @@ async def scan_and_trade_job(mode: str):
                 )
                 strategy = strategy_cls()
                 try:
-                    result = await asyncio.wait_for(strategy.run(strategy_ctx), timeout=30.0)
+                    result = await asyncio.wait_for(
+                        strategy.run(strategy_ctx), timeout=30.0
+                    )
                 except asyncio.TimeoutError:
-                    logger.error(f"[{mode.upper()}] Strategy {cfg['strategy_name']} timed out after 30 seconds.")
+                    logger.error(
+                        f"[{mode.upper()}] Strategy {cfg['strategy_name']} timed out after 30 seconds."
+                    )
                     continue
                 except Exception as e:
-                    logger.error(f"[{mode.upper()}] Strategy {cfg['strategy_name']} failed with error: {e}", exc_info=True)
+                    logger.error(
+                        f"[{mode.upper()}] Strategy {cfg['strategy_name']} failed with error: {e}",
+                        exc_info=True,
+                    )
                     continue
 
                 if not result:
                     continue
                 # Record shadow trades in paper/testnet modes so AGI health check
                 # can read win rate from ShadowTrade table.
-                if mode in ("paper", "testnet") and hasattr(result, "decisions") and result.decisions:
+                if (
+                    mode in ("paper", "testnet")
+                    and hasattr(result, "decisions")
+                    and result.decisions
+                ):
                     try:
                         from backend.application.strategy.shadow_runner import (
                             DBSessionShadowRunner,
@@ -666,7 +682,9 @@ async def weather_scan_and_trade_job(mode: str):
                         state.last_run = datetime.now(timezone.utc)
                         db.commit()
             except Exception:
-                logger.debug("scheduling_strategies: last_run update failed in weather scheduler")
+                logger.debug(
+                    "scheduling_strategies: last_run update failed in weather scheduler"
+                )
 
         await asyncio.to_thread(_update_weather_last_run)
 
@@ -688,14 +706,18 @@ async def weather_scan_and_trade_job(mode: str):
 async def settlement_job():
     """Check and settle pending trades. Runs every 2 minutes."""
     import asyncio as _aio
+
     try:
         await _aio.wait_for(_settlement_job_inner(), timeout=120)
     except _aio.TimeoutError:
         from backend.core.scheduling.scheduler import log_event
+
         log_event("error", "Settlement job timed out after 120s")
     except Exception as e:
         from backend.core.scheduling.scheduler import log_event
+
         log_event("error", f"Settlement job failed: {e}")
+
 
 async def _settlement_job_inner():
     """Actual settlement logic wrapped with timeout."""
@@ -884,7 +906,9 @@ async def auto_trader_job(mode: str):
         from backend.core.wallet.registry import get_wallet_router
 
         trader = AutoTrader(
-            RiskManager(), clob_factory=clob_from_settings, wallet_router=get_wallet_router()
+            RiskManager(),
+            clob_factory=clob_from_settings,
+            wallet_router=get_wallet_router(),
         )
         data = await asyncio.to_thread(_read_auto_trader_signals)
         if data is None:
@@ -1172,6 +1196,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         # so open the session in a thread to avoid blocking the event loop.
         def _open_db_session():
             from backend.db.utils import get_db_session
+
             ctx = get_db_session()
             return ctx, ctx.__enter__()
 
@@ -1179,17 +1204,23 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         try:
             # Read bankroll for dynamic position sizing
             from backend.models.database import BotState
+
             state = db.query(BotState).first()
             bankroll = _get_bankroll_for_mode(state, effective_mode) if state else 100.0
             # For live mode, cap bankroll to available CLOB cash (not position value)
             if effective_mode == "live":
                 try:
-                    from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
+                    from backend.core.wallet.bankroll_reconciliation import (
+                        fetch_pm_total_equity,
+                    )
+
                     actual_equity = await fetch_pm_total_equity()
                     if actual_equity and actual_equity > 0:
-                        bankroll = min(bankroll, actual_equity * 0.5)  # Use 50% of equity for arb
+                        bankroll = min(
+                            bankroll, actual_equity * 0.5
+                        )  # Use 50% of equity for arb
                 except Exception:
-                    pass
+                    logger.warning("scheduling_strategies: failed to fetch PM equity for arb sizing")
             ctx = StrategyContext(
                 db=db,
                 clob=None,
@@ -1206,7 +1237,11 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
             # Record shadow trades in paper/testnet modes so AGI health check
             # can read win rate from ShadowTrade table.
-            if effective_mode in ("paper", "testnet") and hasattr(result, "decisions") and result.decisions:
+            if (
+                effective_mode in ("paper", "testnet")
+                and hasattr(result, "decisions")
+                and result.decisions
+            ):
                 try:
                     from backend.application.strategy.shadow_runner import (
                         DBSessionShadowRunner,
@@ -1299,6 +1334,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
 
                 # Update in-memory scan stats
                 from backend.core.heartbeat import update_scan_stats
+
                 try:
                     update_scan_stats(
                         strategy_name=strategy_name,
@@ -1309,7 +1345,9 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                         trades_executed=trades_executed,
                     )
                 except Exception as stats_err:
-                    logger.warning(f"Failed to update scan stats for {strategy_name} ({mode}): {stats_err}")
+                    logger.warning(
+                        f"Failed to update scan stats for {strategy_name} ({mode}): {stats_err}"
+                    )
 
             _update_heartbeat(strategy_name)
 

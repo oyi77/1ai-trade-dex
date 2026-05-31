@@ -432,7 +432,7 @@ class StrategyPerformanceTracker:
                             try:
                                 heartbeats[strategy_name] = datetime.fromisoformat(val)
                             except (ValueError, TypeError):
-                                pass
+                                logger.debug(f"[StrategyTracker] invalid heartbeat timestamp: {val}")
         except Exception as exc:
             logger.debug(f"[StrategyTracker] Heartbeat extraction error: {exc}")
 

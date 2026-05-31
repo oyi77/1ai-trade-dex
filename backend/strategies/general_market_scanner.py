@@ -4,7 +4,6 @@ import math
 from datetime import datetime, timezone
 from typing import Optional
 
-import httpx
 from sqlalchemy import not_
 
 from backend.data.shared_client import get_shared_client
@@ -471,7 +470,7 @@ class GeneralMarketScanner(BaseStrategy):
                     if days_until > max_days_to_end:
                         continue
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("general_scanner: failed to parse market expiry dates")
 
             # In-loop concurrent check: stop placing if we hit the limit
             trades_placed_this_cycle = result.decisions_recorded
@@ -513,7 +512,7 @@ class GeneralMarketScanner(BaseStrategy):
                             f"imbalance={ob_imbalance:+.2f}"
                         )
                 except (ValueError, TypeError):
-                    pass
+                    logger.debug("general_scanner: failed to parse order book bid/ask prices")
 
             # --- 2. CLOB REST order book (one call per candidate, only for AI markets) ---
             clob_token_id = None

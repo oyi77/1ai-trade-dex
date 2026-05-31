@@ -99,7 +99,7 @@ def ingest_blocked_attempts(db: Session) -> int:
             try:
                 signal_data = json.loads(attempt.signal_data)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.debug(f"counterfactual_scorer: failed to parse signal_data for attempt {attempt.id}")
 
         entry_price = attempt.entry_price or signal_data.get("market_price")
         model_prob = signal_data.get("model_probability")
@@ -157,7 +157,7 @@ def ingest_skipped_decisions(db: Session) -> int:
             try:
                 signal_data = json.loads(dl.signal_data)
             except (json.JSONDecodeError, TypeError):
-                pass
+                logger.debug(f"counterfactual_scorer: failed to parse signal_data for decision {dl.id}")
 
         direction = signal_data.get("direction")
         edge = signal_data.get("edge")

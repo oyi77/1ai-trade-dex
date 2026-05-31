@@ -1,6 +1,9 @@
 import random
 from typing import Tuple, List, Dict, Any
 from uuid import uuid4
+
+from loguru import logger
+
 from backend.domain.genome.models import StrategyGenome, FitnessMetrics
 from pydantic import BaseModel
 
@@ -287,7 +290,7 @@ def apply_mutations(genome: StrategyGenome, mutations: List[dict]) -> StrategyGe
                 elif isinstance(obj, dict) and final_field in obj:
                     obj[final_field] = new_value
             except (KeyError, IndexError, AttributeError):
-                pass
+                logger.debug("mutation_engine: failed to apply hyperparameter tweak")
 
         elif mut_type == "indicator_swap":
             if "cognition" in new_genome.chromosomes:

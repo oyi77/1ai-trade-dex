@@ -221,12 +221,12 @@ class ExtendedSandbox:
                             try:
                                 tests_passed = int(parts[i - 1])
                             except (ValueError, IndexError):
-                                pass
+                                logger.debug("extended_sandbox: failed to parse passed test count")
                         elif p == "failed":
                             try:
                                 tests_failed = int(parts[i - 1])
                             except (ValueError, IndexError):
-                                pass
+                                logger.debug("extended_sandbox: failed to parse failed test count")
                     break
                 elif "passed" in line and "failed" not in line:
                     parts = line.split()
@@ -309,7 +309,7 @@ class ExtendedSandbox:
             try:
                 os.unlink(test_file)
             except OSError:
-                pass
+                logger.debug("extended_sandbox: failed to unlink temp test file")
             return test_result
 
         if test_paths:

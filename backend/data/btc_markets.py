@@ -1,6 +1,5 @@
 """Crypto 5-minute market fetcher for Polymarket (generalized from BTC-only)."""
 
-import httpx
 import json
 import re
 import time
@@ -173,7 +172,7 @@ def _parse_event_to_crypto_market(
                 up_price = float(prices[0])
                 down_price = float(prices[1])
         except (json.JSONDecodeError, ValueError, TypeError):
-            pass
+            logger.debug("btc_markets: failed to parse outcome prices from market data")
 
     # Parse timestamps
     slug = event.get("slug", "")
@@ -187,13 +186,13 @@ def _parse_event_to_crypto_market(
         try:
             window_start = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            pass
+            logger.debug(f"btc_markets: invalid startDate format: {start_str}")
 
     if end_str:
         try:
             window_end = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            pass
+            logger.debug(f"btc_markets: invalid endDate format: {end_str}")
 
     # Parse CLOB token IDs for order placement (testnet/live modes)
     up_token_id = ""

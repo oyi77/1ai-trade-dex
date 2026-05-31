@@ -5,6 +5,7 @@ from typing import Dict
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
 from backend.monitoring.backends.registry import plugin
 
+
 @plugin
 class CloudWatchBackend(BaseMetricsBackend):
     def __init__(self):
@@ -78,7 +79,7 @@ class CloudWatchBackend(BaseMetricsBackend):
                 ],
             )
         except Exception:
-            pass
+            logger.debug("cloudwatch: failed to send metric")
 
     async def health_check(self) -> bool:
         return self._boto3_available

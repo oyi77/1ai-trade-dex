@@ -259,7 +259,6 @@ def _build_judge_prompt(
         default=0,
     )
 
-
     for r in range(1, max_rounds + 1):
         prompt += f"\n=== ROUND {r} ===\n"
         round_args = []
@@ -324,7 +323,7 @@ def _parse_agent_response(response: str) -> tuple[float, float, str] | None:
                 conf = max(0.0, min(1.0, conf)) if conf >= 0 else 0.5
                 return (prob, conf, reasoning)
         except (ValueError, KeyError, TypeError):
-            pass
+            logger.debug("debate_engine: failed to parse LLM JSON response, falling back to keyword extraction")
 
     # Strategy 2: Keyword extraction
     prob = _extract_number(

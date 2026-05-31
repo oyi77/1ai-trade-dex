@@ -10,7 +10,7 @@ from typing import Optional
 import httpx
 
 from backend.strategies.wallet_sync import WalletTrade
-from backend.config import settings
+from backend.config import settings, _cfg
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.monitoring.hft_metrics import record_execution, order_placement_latency
 from backend.utils.redaction import redact_sensitive
@@ -18,17 +18,15 @@ from backend.utils.redaction import redact_sensitive
 from loguru import logger
 
 data_api_breaker = CircuitBreaker(
-    "data_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
+    "data_api",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
 )
 
 DATA_HOST = settings.DATA_API_URL
 GAMMA_HOST = settings.GAMMA_API_URL
 
 BTC_5M_SLUG_PATTERN = "btc-updown-5m"
-
-
-def _cfg(name, default):
-    return getattr(settings, name, default)
 
 
 @dataclass
@@ -134,7 +132,7 @@ class LeaderboardScorer:
                     try:
                         total_value += abs(float(value))
                     except (ValueError, TypeError):
-                        pass
+                        logger.debug("order_executor: invalid assetValue in position data")
 
             realized_pnl = 0.0
             if positions and len(positions) > 0:
@@ -148,7 +146,7 @@ class LeaderboardScorer:
                         try:
                             realized_pnl += float(pnl)
                         except (ValueError, TypeError):
-                            pass
+                            logger.debug("order_executor: invalid realizedPnl in position data")
 
             return total_value + realized_pnl
 
