@@ -150,12 +150,12 @@ class ResolutionSniperStrategy(BaseStrategy):
                         markets.append({
                             "slug": m.slug,
                             "question": m.slug,
-                            "endDate": m.end_date.isoformat() if m.end_date else None,
-                            "outcomePrices": [str(m.yes_price), str(m.no_price)] if m.yes_price else [],
-                            "outcomes": ["Yes", "No"],
-                            "volume": m.volume_24h if hasattr(m, "volume_24h") else 0,
-                            "yes_price": m.yes_price,
-                            "no_price": m.no_price,
+                            "endDate": m.window_end.isoformat() if m.window_end else None,
+                            "outcomePrices": [str(m.up_price or 0), str(m.down_price or 0)],
+                            "outcomes": ["Up", "Down"],
+                            "volume": float(m.volume or 0),
+                            "yes_price": float(m.up_price or 0),
+                            "no_price": float(m.down_price or 0),
                         })
                 except Exception as e:
                     ctx.logger.warning(f"[{self.name}] fetch_active_crypto_markets({asset_prefix}) failed: {e}")
