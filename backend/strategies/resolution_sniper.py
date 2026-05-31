@@ -162,6 +162,15 @@ class ResolutionSniperStrategy(BaseStrategy):
             ctx.logger.warning(f"[{self.name}] Unexpected Gamma API response format")
             return result
 
+        ctx.logger.info(f"[{self.name}] Fetched {len(markets)} markets from Gamma")
+
+        # Debug: count filter stages
+        _n_total = len(markets)
+        _n_asset = 0
+        _n_strike = 0
+        _n_time = 0
+        _n_dist = 0
+
         # --- query existing open positions for dedup ---
         existing_tickers: set[str] = set()
         open_count = 0
@@ -187,6 +196,14 @@ class ResolutionSniperStrategy(BaseStrategy):
             return result
 
         # --- scan markets for resolution snipes ---
+        total_markets = len(markets)
+        skip_no_asset = 0
+        skip_no_strike = 0
+        skip_time = 0
+        skip_price_dist = 0
+        skip_price_range = 0
+        skip_volume = 0
+        skip_existing = 0
         min_price_dist = float(params["min_price_distance_pct"]) / 100.0
         min_sec = float(params["min_seconds_to_resolution"])
         max_sec = float(params["max_seconds_to_resolution"])
@@ -228,12 +245,14 @@ class ResolutionSniperStrategy(BaseStrategy):
             # Volume filter
             volume = float(market.get("volume", 0) or 0)
             if volume < min_volume:
+                skip_volume += 1
                 continue
 
             # Must be a crypto 5-min binary
             question = market.get("question") or market.get("title") or ""
             asset_ids = _detect_asset(question)
             if asset_ids is None:
+                skip_no_asset += 1
                 continue
 
             coingecko_id, _binance_pair = asset_ids
@@ -252,6 +271,7 @@ class ResolutionSniperStrategy(BaseStrategy):
             # Parse strike from question
             strike = _parse_strike(question)
             if strike is None or strike <= 0:
+                skip_no_strike += 1
                 continue
 
             # Time to resolution
@@ -267,12 +287,14 @@ class ResolutionSniperStrategy(BaseStrategy):
             if secs_left is None:
                 continue
             if secs_left < min_sec or secs_left > max_sec:
+                skip_time += 1
                 continue
 
             # Price distance from strike
             price_distance = (current_price - strike) / strike
 
             if abs(price_distance) < min_price_dist:
+                skip_price_dist += 1
                 continue  # Not far enough from strike
 
             # Determine direction: above strike = YES, below = NO
@@ -435,7 +457,9 @@ class ResolutionSniperStrategy(BaseStrategy):
             ctx.db.rollback()
 
         ctx.logger.info(
-            f"[{self.name}] Cycle done: {result.decisions_recorded} snipe opportunities"
+            f"[{self.name}] Cycle done: {result.decisions_recorded} snipe opportunities "
+            f"(markets={total_markets}, skip: vol={skip_volume} asset={skip_no_asset} "
+            f"strike={skip_no_strike} time={skip_time} dist={skip_price_dist} exist={skip_existing})"
         )
 
         # --- auto-sell exits at cycle end ---
