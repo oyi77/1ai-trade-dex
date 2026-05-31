@@ -68,6 +68,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "stop_loss_pct": 0.10,
         "max_hold_seconds": 240,
         "profit_target_pct": 0.08,
+        "trailing_stop_activation_pct": 0.06,
         "min_confidence": 0.7,
     }
 

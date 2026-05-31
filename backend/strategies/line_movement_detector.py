@@ -66,8 +66,9 @@ class LineMovementDetectorStrategy(BaseStrategy):
     TRAILING_STOP_ACTIVATION_PCT: float = 0.06
     # Max risk per trade as fraction of bankroll
     MAX_RISK_PER_TRADE_PCT: float = 0.02  # 2% of bankroll
-    # Kelly defaults for sizing (historical: 79% WR, small wins)
-    HISTORICAL_WIN_RATE: float = 0.79
+    # Kelly defaults for sizing — use calibration bucket data at runtime,
+    # these are conservative fallbacks only
+    HISTORICAL_WIN_RATE: float = 0.50  # conservative default (not 0.79 — was misleading)
     HISTORICAL_AVG_WIN: float = 1.0  # normalized
     HISTORICAL_AVG_LOSS: float = 1.0  # normalized
     KELLY_FRACTION: float = 0.25  # quarter-Kelly

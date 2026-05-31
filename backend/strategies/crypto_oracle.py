@@ -345,6 +345,7 @@ class CryptoOracleStrategy(BaseStrategy):
         "max_per_asset": 1,
         "stop_loss_pct": 0.10,
         "profit_target_pct": 0.08,
+        "trailing_stop_activation_pct": 0.06,
     }
 
     supported_assets = SUPPORTED_ASSETS
@@ -564,10 +565,15 @@ class CryptoOracleStrategy(BaseStrategy):
 
             # Volatility filter: skip if too calm (no signal) or too wild (unreliable)
             if micro.volatility < 0.001:
-                logger.debug("crypto_oracle: volatility %.4f too low, skipping", micro.volatility)
+                logger.debug(
+                    "crypto_oracle: volatility %.4f too low, skipping", micro.volatility
+                )
                 return None
             if micro.volatility > 0.10:
-                logger.debug("crypto_oracle: volatility %.4f too high, skipping", micro.volatility)
+                logger.debug(
+                    "crypto_oracle: volatility %.4f too high, skipping",
+                    micro.volatility,
+                )
                 return None
 
             if direction == "down":
@@ -599,7 +605,8 @@ class CryptoOracleStrategy(BaseStrategy):
         if confidence_score < min_confidence:
             logger.debug(
                 "crypto_oracle: confidence %.2f < %.2f min, skipping",
-                confidence_score, min_confidence,
+                confidence_score,
+                min_confidence,
             )
             return None
         kelly = kelly_fraction(
