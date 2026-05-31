@@ -1,5 +1,6 @@
 """Crypto price data fetcher using CoinGecko + Binance APIs."""
 
+import asyncio
 import httpx
 import math
 import time
