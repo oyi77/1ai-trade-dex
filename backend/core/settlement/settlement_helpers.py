@@ -110,7 +110,12 @@ async def _resolve_pm_by_token_id(token_id: str) -> Tuple[bool, Optional[float]]
                     try:
                         outcome_prices = json.loads(outcome_prices)
                     except (ValueError, TypeError):
-                        outcome_prices = []
+                        # Handle non-JSON strings like '[0.5, 0.5]'
+                        try:
+                            cleaned = outcome_prices.strip("[] ")
+                            outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
+                        except (ValueError, TypeError):
+                            outcome_prices = []
 
                 if not clob_token_ids or not outcome_prices:
                     continue
@@ -301,7 +306,11 @@ def _has_invalid_prices(market: dict) -> bool:
         return True
     try:
         if isinstance(outcome_prices, str):
-            outcome_prices = json.loads(outcome_prices)
+            try:
+                outcome_prices = json.loads(outcome_prices)
+            except (ValueError, TypeError):
+                cleaned = outcome_prices.strip("[] ")
+                outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
         prices = [float(p) for p in outcome_prices if p]
         if not prices or all(p == 0 for p in prices):
             return True
@@ -381,7 +390,11 @@ def _parse_market_resolution(market: dict) -> Tuple[bool, Optional[float]]:
 
     try:
         if isinstance(outcome_prices, str):
-            outcome_prices = json.loads(outcome_prices)
+            try:
+                outcome_prices = json.loads(outcome_prices)
+            except (ValueError, TypeError):
+                cleaned = outcome_prices.strip("[] ")
+                outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
 
         first_price = float(outcome_prices[0]) if outcome_prices else 0.5
 
