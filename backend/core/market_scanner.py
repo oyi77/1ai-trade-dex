@@ -3,6 +3,7 @@
 import asyncio
 import math
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -13,6 +14,10 @@ from backend.config import settings
 from backend.core.retry import retry
 
 from loguru import logger
+
+# Cache for market fetches to reduce Gamma API pressure
+_market_cache: dict[str, Any] = {}
+_MARKET_CACHE_TTL = 30.0  # seconds
 
 GAMMA_HOST = settings.GAMMA_API_URL
 _SCAN_SEMAPHORE = asyncio.Semaphore(5)  # max 5 concurrent Gamma requests
@@ -38,6 +43,12 @@ async def fetch_all_active_markets(
     timeout: float = 30.0,
 ) -> list[MarketInfo]:
     """Fetch all active markets from Gamma API with pagination and retry."""
+    # Check cache to reduce Gamma API pressure
+    cache_key = f"{category}:{limit}"
+    cached = _market_cache.get(cache_key)
+    if cached and (time.monotonic() - cached["ts"]) < _MARKET_CACHE_TTL:
+        return cached["data"]
+
     results: list[MarketInfo] = []
     offset = 0
     page_size = max(1, int(getattr(settings, "SCANNER_PAGE_SIZE", 500)))
@@ -127,7 +138,9 @@ async def fetch_all_active_markets(
             pages_fetched += 1
 
     logger.info(f"market_scanner: fetched {len(results)} active markets")
-    return results[:max_markets]
+    result = results[:max_markets]
+    _market_cache[cache_key] = {"ts": time.monotonic(), "data": result}
+    return result
 
 
 async def fetch_markets_by_keywords(
