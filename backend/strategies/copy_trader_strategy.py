@@ -24,6 +24,7 @@ from backend.strategies.base import (
     MarketInfo,
     StrategyContext,
 )
+from backend.data.shared_client import get_shared_client
 
 # ---------------------------------------------------------------------------
 # Config

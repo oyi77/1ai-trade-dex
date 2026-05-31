@@ -110,7 +110,6 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
     )
     grouped["trading_mode"] = s.TRADING_MODE
     grouped["strategies"] = {
-        "btc_momentum": getattr(s, "BTC_MOMENTUM_ENABLED", False),
         "crypto_oracle": getattr(s, "CRYPTO_ORACLE_ENABLED", False),
         "weather_emos": s.WEATHER_ENABLED,
         "copy_trader": getattr(s, "COPY_TRADER_ENABLED", False),
@@ -118,7 +117,6 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
         "kalshi_arb": s.KALSHI_ENABLED,
         "bond_scanner": getattr(s, "BOND_SCANNER_ENABLED", False),
         "whale_pnl": getattr(s, "WHALE_PNL_ENABLED", False),
-        "realtime_scanner": getattr(s, "REALTIME_SCANNER_ENABLED", False),
     }
     grouped["risk"] = {
         "max_position_size": s.MAX_TRADE_SIZE,

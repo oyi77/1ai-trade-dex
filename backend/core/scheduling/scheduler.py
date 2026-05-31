@@ -759,7 +759,7 @@ async def _cleanup_stale_trades_job():
     # main settlement loop waits 12-72h before force-settling. The duplicate
     # guard blocks new entries until old ones are settled.
     _BINARY_5M_STRATEGIES = frozenset({
-        "crypto_oracle", "cex_pm_leadlag", "btc_momentum",
+        "crypto_oracle", "cex_pm_leadlag",
         "crypto_micro", "hft_scalper", "probability_arb",
     })
     try:

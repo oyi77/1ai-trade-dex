@@ -21,9 +21,7 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | line_movement_detector | line_movement_detector.py | ACTIVE | — | — | Order book kinetics |
 | market_maker | market_maker.py | ACTIVE | — | — | Market making, liquidity provision |
 | btc_oracle | btc_oracle.py | DISABLED | 43.9% | -$341 | Auto-killed (low WR) |
-| general_scanner | general_scanner.py | DISABLED | 10% | — | Auto-killed (critically low WR) |
-| btc_momentum | btc_momentum.py | DEPRECATED | — | — | Legacy; don't use |
-| realtime_scanner | realtime_scanner.py | DISABLED | — | — | Unstable; disabled |
+| general_scanner | general_market_scanner.py | ACTIVE | — | — | Market-wide opportunity scanner (name=general_scanner) |
 | probability_arb | probability_arb.py | DISABLED | — | — | Research-phase; disabled |
 
 ### Additional Active Strategies
@@ -42,10 +40,9 @@ Independent strategy implementations: market analysis, signal generation, trade 
 
 | Strategy | File | Status | Notes |
 |----------|------|--------|-------|
-| general_scanner | general_scanner.py | DISABLED | Auto-killed (10% WR) |
-| btc_momentum | btc_momentum.py | DEPRECATED | Legacy; don't use |
-| realtime_scanner | realtime_scanner.py | DISABLED | Unstable |
 | probability_arb | probability_arb.py | DISABLED | Research-phase |
+
+**Deleted 2026-06-01:** `btc_momentum.py` (DEPRECATED, -49.5% ROI), `realtime_scanner.py` (DISABLED, unstable)
 
 ### Signal Infrastructure (backend/modules/)
 
@@ -83,9 +80,7 @@ backend/strategies/
 ├── line_movement_detector.py  # Order book kinetics
 ├── market_maker.py         # Market making
 ├── btc_oracle.py           # DISABLED: 43.9% WR, -$341 PnL
-├── general_scanner.py      # DISABLED: 10% WR (auto-killed)
-├── btc_momentum.py         # DEPRECATED
-├── realtime_scanner.py     # DISABLED
+├── general_market_scanner.py  # ACTIVE: name=general_scanner
 └── probability_arb.py      # DISABLED
 ```
 
