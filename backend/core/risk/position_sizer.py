@@ -12,14 +12,18 @@ MIN_POSITION_USD = settings.POSITION_MIN_USD
 MAX_POSITION_USD = settings.POSITION_MAX_USD
 
 
-def kelly_criterion(win_rate: float, avg_win: float, avg_loss: float, kelly_fraction: float = 0.25) -> float:
+def kelly_criterion(
+    win_rate: float, avg_win: float, avg_loss: float, kelly_fraction: float = None
+) -> float:
     """
     Calculate optimal Kelly fraction.
     f* = (p * b - q) / b
     where p = win_rate, q = 1-p, b = avg_win/avg_loss
 
-    Returns quarter-Kelly fraction (0-1).
+    Returns Kelly fraction (0-1). Uses settings.KELLY_FRACTION by default.
     """
+    if kelly_fraction is None:
+        kelly_fraction = getattr(settings, "KELLY_FRACTION", 0.25)
     if avg_loss == 0 or win_rate <= 0 or win_rate >= 1:
         return 0.0
 
@@ -43,7 +47,7 @@ def calculate_position_size(
     win_rate: float = 0.5,
     avg_win: float = 1.0,
     avg_loss: float = 1.0,
-    kelly_fraction: float = 0.25,
+    kelly_fraction: float = None,
 ) -> float:
     """
     Position sizing accounting for Kelly, confidence, liquidity, and hard limits.
@@ -88,4 +92,3 @@ def calculate_position_size(
     size = min(size, MAX_POSITION_USD)
 
     return round(size, 2)
-
