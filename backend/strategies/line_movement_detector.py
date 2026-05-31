@@ -26,15 +26,11 @@ from backend.strategies.base import (
     MarketInfo,
 )
 from backend.core.decisions import record_decision_standalone
-from backend.config import settings
+from backend.config import settings, _cfg
 from backend.ai.probability_utils import clamp_probability
 from backend.ai.debate_router import run_debate_with_routing
 
 from loguru import logger
-
-
-def _cfg(name, default):
-    return getattr(settings, name, default)
 
 
 GAMMA_EVENTS_URL = f"{settings.GAMMA_API_URL}/events"
@@ -433,17 +429,21 @@ class LineMovementDetectorStrategy(BaseStrategy):
         debate_enabled = params.get("debate_enabled", True)
         if debate_enabled:
             try:
-                debate_result = await run_debate_with_routing(
-                    db=getattr(ctx, "db", None),
-                    question=movement.question or movement.ticker,
-                    market_price=movement.current_price,
-                    context=(
-                        f"Price move: {movement.price_change_pct:+.1f}% in 1h. "
-                        f"Volume 24h: ${movement.volume_24h:,.0f}. "
-                        f"Liquidity: ${movement.liquidity:,.0f}. "
-                        f"Web news context: {news_context[:1000] if news_context else 'No breaking news found.'}"
+                import asyncio as _asyncio
+                debate_result = await _asyncio.wait_for(
+                    run_debate_with_routing(
+                        db=getattr(ctx, "db", None),
+                        question=movement.question or movement.ticker,
+                        market_price=movement.current_price,
+                        context=(
+                            f"Price move: {movement.price_change_pct:+.1f}% in 1h. "
+                            f"Volume 24h: ${movement.volume_24h:,.0f}. "
+                            f"Liquidity: ${movement.liquidity:,.0f}. "
+                            f"Web news context: {news_context[:1000] if news_context else 'No breaking news found.'}"
+                        ),
+                        max_rounds=2,
                     ),
-                    max_rounds=2,
+                    timeout=15.0,
                 )
                 if debate_result and debate_result.confidence > 0:
                     if debate_result.confidence < 0.55:
@@ -457,10 +457,11 @@ class LineMovementDetectorStrategy(BaseStrategy):
                     confidence = max(confidence, debate_result.confidence)
             except Exception:
                 logger.warning(
-                    "[%s] debate validation failed for %s, allowing trade",
+                    "[%s] debate validation failed for %s, REJECTING trade",
                     self.name,
                     movement.ticker,
                 )
+                return None
 
         action = "BUY"
         side = "yes" if direction == "up" else "no"

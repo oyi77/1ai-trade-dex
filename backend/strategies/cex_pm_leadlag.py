@@ -256,17 +256,21 @@ class CexPmLeadLagStrategy(BaseStrategy):
                             f"Will {asset_key.upper()} be {'UP' if direction == 'up' else 'DOWN'} in the next 5-minute window? "
                             f"Polymarket UP mid={pm_up_mid:.3f}, implied edge={edge:.4f}. Trade or skip?"
                         )
-                        debate_result = await run_debate_with_routing(
-                            db=ctx.db,
-                            question=question,
-                            market_price=target_mid,
-                            context=(
-                                f'signal_data={{"momentum_1m":{micro.momentum_1m:.4f},'
-                                f'"momentum_5m":{micro.momentum_5m},'
-                                f'"volatility":{micro.volatility:.4f},'
-                                f'"{asset_key}_price":{micro.price:.0f}}}'
+                        import asyncio as _asyncio
+                        debate_result = await _asyncio.wait_for(
+                            run_debate_with_routing(
+                                db=ctx.db,
+                                question=question,
+                                market_price=target_mid,
+                                context=(
+                                    f'signal_data={{"momentum_1m":{micro.momentum_1m:.4f},'
+                                    f'"momentum_5m":{micro.momentum_5m},'
+                                    f'"volatility":{micro.volatility:.4f},'
+                                    f'"{asset_key}_price":{micro.price:.0f}}}'
+                                ),
+                                max_rounds=2,
                             ),
-                            max_rounds=2,
+                            timeout=15.0,
                         )
                         if debate_result and debate_result.confidence > 0:
                             debate_min_conf = float(
@@ -283,9 +287,10 @@ class CexPmLeadLagStrategy(BaseStrategy):
                                 continue
                             confidence = max(confidence, debate_result.confidence)
                     except Exception:
-                        logger.debug(
-                            "[cex_pm_leadlag] debate validation failed, allowing trade"
+                        logger.warning(
+                            "[cex_pm_leadlag] debate validation failed, REJECTING trade"
                         )
+                        continue
 
                 projected_price = micro.price * (1.0 + micro.momentum_1m)
 

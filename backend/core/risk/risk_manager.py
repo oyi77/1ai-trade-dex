@@ -5,8 +5,6 @@ Risk manager — validates trades against position size, exposure, drawdown, and
 This module will be removed in a future release.
 """
 
-
-
 import json
 import time
 from dataclasses import dataclass
@@ -121,7 +119,7 @@ class RiskManager:
         self.s = settings_obj or settings
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
-        self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 5.0))
+        self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 2.0))
         self._correlation_monitor = CorrelationMonitor(settings_obj)
         self._calibration_cache = None
         self._calibration_cache_time = None
@@ -247,17 +245,21 @@ class RiskManager:
                         adjustment = bucket["error"] * bucket["confidence"]
                         adjustment = max(-0.05, min(0.05, adjustment))
                         pre_adj = signal_win_rate
-                        signal_win_rate = max(0.01, min(0.99, signal_win_rate + adjustment))
+                        signal_win_rate = max(
+                            0.01, min(0.99, signal_win_rate + adjustment)
+                        )
                         logger.info(
                             "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
                             bucket_start,
                             pre_adj,
                             signal_win_rate,
                             bucket["error"],
-                            bucket["confidence"]
+                            bucket["confidence"],
                         )
             except Exception as e:
-                logger.error(f"[RiskManager] Failed to apply calibration adjustment: {e}")
+                logger.error(
+                    f"[RiskManager] Failed to apply calibration adjustment: {e}"
+                )
 
         if (
             db is not None
@@ -282,7 +284,8 @@ class RiskManager:
                             signal_type="blocked_longshot_yes_bias",
                         )
                         increment_risk_rejection(
-                            strategy=strategy_name or "unknown", reason="longshot_yes_bias"
+                            strategy=strategy_name or "unknown",
+                            reason="longshot_yes_bias",
                         )
                         return RiskDecision(
                             False,
@@ -321,7 +324,11 @@ class RiskManager:
 
         if market_price is not None and direction:
             longshot_yes_reject = getattr(self.s, "LONGSHOT_YES_REJECT_PRICE", 0.30)
-            if self._longshot_bias_cache is None and direction.upper() == "YES" and market_price < longshot_yes_reject:
+            if (
+                self._longshot_bias_cache is None
+                and direction.upper() == "YES"
+                and market_price < longshot_yes_reject
+            ):
                 record_signal(
                     strategy=strategy_name or "unknown",
                     signal_type="rejected_longshot_yes",
@@ -516,7 +523,8 @@ class RiskManager:
             strat_dd = self._check_strategy_drawdown(strategy_name, db, effective_mode)
             if strat_dd is None:
                 record_signal(
-                    strategy=strategy_name, signal_type="rejected_strategy_drawdown_db_error"
+                    strategy=strategy_name,
+                    signal_type="rejected_strategy_drawdown_db_error",
                 )
                 increment_risk_rejection(
                     strategy=strategy_name, reason="strategy_drawdown_db_error"
@@ -751,7 +759,9 @@ class RiskManager:
         """Return cached calibration and longshot bias, updating if stale (> 5 minutes)."""
         import time
         from datetime import datetime, timezone
-        from backend.core.learning.calibration_tracker import compute_price_bucket_calibration
+        from backend.core.learning.calibration_tracker import (
+            compute_price_bucket_calibration,
+        )
         from backend.core.longshot_bias import LongshotBiasDetector
 
         now_ts = time.time()
@@ -790,7 +800,6 @@ class RiskManager:
                 logger.error(f"[RiskManager] Failed to update longshot bias cache: {e}")
 
         return self._calibration_cache, self._longshot_bias_cache
-
 
     def check_drawdown(
         self, bankroll: float, db=None, mode: Optional[str] = None
