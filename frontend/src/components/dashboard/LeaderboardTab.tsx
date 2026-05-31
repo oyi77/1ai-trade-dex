@@ -99,6 +99,31 @@ export function LeaderboardTab() {
     }
   }
 
+  // ⚡ Bolt: Memoize footer metrics calculation to prevent O(N) recalculations on every render
+  // and avoid "Maximum call stack size exceeded" on Math.max(...array) for large datasets
+  const metrics = useMemo(() => {
+    if (filtered.length === 0) return { avgProfit: 0, avgWr: 0, topScore: 0 }
+
+    let totalProfit = 0
+    let totalWr = 0
+    let topScore = -Infinity
+
+    for (const t of filtered) {
+      totalProfit += (t.profit_30d ?? 0)
+      totalWr += (t.win_rate ?? 0)
+      const score = t.score ?? 0
+      if (score > topScore) {
+        topScore = score
+      }
+    }
+
+    return {
+      avgProfit: totalProfit / filtered.length,
+      avgWr: (totalWr / filtered.length) * 100,
+      topScore: topScore === -Infinity ? 0 : topScore
+    }
+  }, [filtered])
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
@@ -253,9 +278,9 @@ export function LeaderboardTab() {
       {/* Footer summary */}
       {filtered.length > 0 && (
         <div className="shrink-0 px-3 py-1.5 border-t border-neutral-800 flex items-center gap-4 text-[9px] text-neutral-600">
-          <span>Avg profit: <span className="text-neutral-400 tabular-nums">${(filtered.reduce((s, t) => s + (t.profit_30d ?? 0), 0) / filtered.length).toFixed(0)}</span></span>
-          <span>Avg WR: <span className="text-neutral-400 tabular-nums">{(filtered.reduce((s, t) => s + (t.win_rate ?? 0), 0) / filtered.length * 100).toFixed(1)}%</span></span>
-          <span>Top score: <span className="text-amber-400 tabular-nums">{filtered.length > 0 ? Math.max(...filtered.map(t => t.score ?? 0)).toFixed(2) : '0.00'}</span></span>
+          <span>Avg profit: <span className="text-neutral-400 tabular-nums">${metrics.avgProfit.toFixed(0)}</span></span>
+          <span>Avg WR: <span className="text-neutral-400 tabular-nums">{metrics.avgWr.toFixed(1)}%</span></span>
+          <span>Top score: <span className="text-amber-400 tabular-nums">{metrics.topScore.toFixed(2)}</span></span>
         </div>
       )}
     </div>
