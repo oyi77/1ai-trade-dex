@@ -16,7 +16,7 @@ from backend.strategies.base import (
     CycleResult,
     MarketInfo,
 )
-from backend.config import settings
+from backend.config import settings, _cfg
 
 
 def _cfg(name, default):
