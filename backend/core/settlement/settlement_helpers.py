@@ -223,7 +223,7 @@ async def fetch_polymarket_resolution(
                 slug_response = await client.get(
                     f"{settings.GAMMA_API_URL}/markets",
                     params={"slug": market_id},
-                    timeout=5.0,
+                    timeout=15.0,
                 )
                 if slug_response.status_code == 200:
                     slug_results = slug_response.json()
@@ -250,7 +250,7 @@ async def fetch_polymarket_resolution(
                         event_response = await client.get(
                             f"{settings.GAMMA_API_URL}/events",
                             params={"slug": event_slug},
-                            timeout=5.0,
+                            timeout=15.0,
                         )
                         if event_response.status_code == 200:
                             events = event_response.json()
