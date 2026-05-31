@@ -546,9 +546,14 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 if market_end < now:
                     expired_ago = (now - market_end).total_seconds()
 
-                    expired_resolution_grace_hours = getattr(
-                        settings, "SETTLEMENT_GRACE_HOURS", 72
-                    )
+                    # Short grace for 5-min binaries (1h), long for others (72h)
+                    market_type = getattr(trade, "market_type", "btc") or "btc"
+                    if "5m" in (trade.market_ticker or "") or "5-min" in (trade.market_ticker or ""):
+                        expired_resolution_grace_hours = 1
+                    else:
+                        expired_resolution_grace_hours = getattr(
+                            settings, "SETTLEMENT_GRACE_HOURS", 72
+                        )
                     if expired_ago < expired_resolution_grace_hours * 3600:
                         logger.info(
                             f"Trade {trade.id}: market expired {expired_ago/3600:.1f}h ago, "
