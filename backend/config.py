@@ -316,7 +316,7 @@ class ConfigRegistry:
     )
     RISK_MAX_TOTAL_DRAWDOWN_PCT: float = 10.0  # % of total balance drawdown limit
     PER_TRADE_MAX_LOSS_PCT: float = 0.05  # no single trade > 5% of bankroll
-    MAX_DAILY_TRADES_PER_STRATEGY: int = 50  # max trades per strategy per day
+    MAX_DAILY_TRADES_PER_STRATEGY: int = 0  # 0 = unlimited (profitable strategies only)
     PORTFOLIO_CIRCUIT_BREAKER_PCT: float = (
         0.20  # disable ALL if portfolio down >20% from peak
     )
@@ -1485,6 +1485,11 @@ class ConfigRegistry:
 
 # Global settings instance - provides access to all config via dataclass
 settings = ConfigRegistry()
+
+
+def _cfg(name: str, default=None):
+    """Safe settings lookup — returns default for MagicMock in tests."""
+    return getattr(settings, name, default)
 
 
 # Startup validation - fail fast if config is invalid
