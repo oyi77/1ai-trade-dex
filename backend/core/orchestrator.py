@@ -263,6 +263,13 @@ class Orchestrator:
                 await self._clob.cancel_all_orders()
             await self._clob.__aexit__(None, None, None)
 
+        # Close shared httpx/crypto clients to prevent resource leaks
+        try:
+            from backend.data.crypto import close_crypto_client
+            await close_crypto_client()
+        except Exception:
+            pass
+
         for mode, clob_client in self._clob_clients.items():
             if not clob_client:
                 continue
