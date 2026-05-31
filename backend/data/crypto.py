@@ -49,6 +49,9 @@ KRAKEN_API = settings.KRAKEN_API_URL
 # Module-level persistent HTTP client to avoid creating a new one per call
 _crypto_client: httpx.AsyncClient | None = None
 
+# Semaphore to limit concurrent kline fetches and prevent PoolTimeout
+_kline_semaphore = asyncio.Semaphore(5)
+
 
 def _get_crypto_client() -> httpx.AsyncClient:
     """Lazily create and reuse a single httpx.AsyncClient for all crypto feed calls."""
@@ -159,6 +162,7 @@ async def fetch_crypto_klines(
     # Try WebSocket data first (real-time, no HTTP overhead)
     try:
         from backend.data.crypto_ws import get_latest_kline
+
         ws_data = get_latest_kline(pair)
         if ws_data and ws_data.get("close", 0) > 0:
             logger.debug(f"kline WS HIT for {pair}: close={ws_data['close']}")
@@ -170,7 +174,12 @@ async def fetch_crypto_klines(
                 str(ws_data["low"]),
                 str(ws_data["close"]),
                 str(ws_data["volume"]),
-                0, 0, 0, 0, 0, 0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
             ]
             return [kline_row]
     except Exception:
@@ -178,7 +187,9 @@ async def fetch_crypto_klines(
 
     cache = _get_kline_cache(asset_key)
     if cache["data"] is not None and (now - cache["ts"]) < _CACHE_TTL:
-        logger.debug(f"kline cache HIT for {pair} ({asset_key}), age={now - cache['ts']:.1f}s")
+        logger.debug(
+            f"kline cache HIT for {pair} ({asset_key}), age={now - cache['ts']:.1f}s"
+        )
         return cache["data"]
 
     # Stale-while-revalidate: return stale cache if available to avoid blocking strategies
@@ -189,7 +200,9 @@ async def fetch_crypto_klines(
             logger.debug(f"kline stale cache for {pair} (age={cache_age:.0f}s)")
             return cache["data"]
         else:
-            logger.warning(f"kline cache too stale for {pair} (age={cache_age:.0f}s), fetching fresh")
+            logger.warning(
+                f"kline cache too stale for {pair} (age={cache_age:.0f}s), fetching fresh"
+            )
 
     client = _get_crypto_client()
 
@@ -201,6 +214,22 @@ async def fetch_crypto_klines(
             coinbase_product = _COINGECKO_TO_COINBASE_PRODUCT.get(cg_id, "BTC-USD")
             kraken_pair = _COINGECKO_TO_KRAKEN_PAIR.get(cg_id, "XBTUSD")
             break
+
+    # Limit concurrent HTTP fetches to prevent PoolTimeout
+    async with _kline_semaphore:
+        return await _fetch_klines_with_fallback(client, pair, limit, cache, now, coinbase_product, kraken_pair)
+
+
+async def _fetch_klines_with_fallback(
+    client: httpx.AsyncClient,
+    pair: str,
+    limit: int,
+    cache: dict,
+    now: float,
+    coinbase_product: str,
+    kraken_pair: str,
+) -> Optional[List[list]]:
+    """Fetch klines with exchange fallback chain. Called under _kline_semaphore."""
 
     # Try Binance first (free, no key, fastest, most reliable)
     if binance_breaker.state != "OPEN":
@@ -614,9 +643,7 @@ async def fetch_crypto_price(symbol: str) -> Optional[CryptoPrice]:
         )
 
     except httpx.HTTPStatusError as e:
-        logger.warning(
-            f"CoinGecko API error for {symbol}: {e.response.status_code}"
-        )
+        logger.warning(f"CoinGecko API error for {symbol}: {e.response.status_code}")
         return None
     except Exception as e:
         logger.error(f"Error fetching crypto price for {symbol}: {e}")
@@ -655,9 +682,7 @@ async def fetch_multiple_prices(symbols: List[str]) -> Dict[str, CryptoPrice]:
             change_7d = coin.get("price_change_percentage_7d_in_currency", 0) or 0
 
             price_24h_ago = (
-                current_price / (1 + change_24h / 100)
-                if change_24h
-                else current_price
+                current_price / (1 + change_24h / 100) if change_24h else current_price
             )
 
             results[symbol] = CryptoPrice(
