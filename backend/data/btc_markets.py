@@ -19,6 +19,9 @@ GAMMA_API = settings.GAMMA_API_URL
 
 gamma_breaker = CircuitBreaker("gamma_api")
 
+# Cache for slug-based market fetches (30s TTL)
+_market_slug_cache: dict[str, Any] = {}
+
 # Slug patterns per asset: maps asset prefix to regex for 5-min window slugs
 _SLUG_PATTERNS = {
     "btc": re.compile(r"^btc-updown-5m-\d{10}$"),
@@ -235,6 +238,13 @@ async def fetch_crypto_market_by_slug(
         logger.debug(f"Rejected invalid {asset} slug: {slug}")
         return None
 
+    # Cache check to reduce Gamma API pressure
+    cache_key = f"slug:{slug}"
+    if cache_key in _market_slug_cache:
+        cached = _market_slug_cache[cache_key]
+        if (time.monotonic() - cached["ts"]) < 30.0:
+            return cached["data"]
+
     url = f"{GAMMA_API}/events"
     params = {"slug": slug}
 
@@ -252,7 +262,9 @@ async def fetch_crypto_market_by_slug(
             return None
 
         event = events[0] if isinstance(events, list) else events
-        return _parse_event_to_crypto_market(event, asset=asset)
+        result = _parse_event_to_crypto_market(event, asset=asset)
+        _market_slug_cache[cache_key] = {"ts": time.monotonic(), "data": result}
+        return result
 
     except CircuitOpenError:
         logger.warning("Gamma API circuit open, skipping %s market fetch", asset)
