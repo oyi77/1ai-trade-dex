@@ -58,9 +58,10 @@ def _parse_strike(question: str) -> float | None:
 def _detect_asset(question: str) -> tuple[str, str] | None:
     """Return (coingecko_id, binance_pair) if the question mentions a supported asset."""
     q = (question or "").lower()
-    for prefix, ids in _ASSET_PAIRS.items():
-        if prefix in q:
-            return ids
+    for prefix, (cg_id, bn_pair) in _ASSET_PAIRS.items():
+        # Match short prefix (btc) or full name (bitcoin)
+        if prefix in q or cg_id in q:
+            return (cg_id, bn_pair)
     return None
 
 
@@ -148,7 +149,6 @@ class ResolutionSniperStrategy(BaseStrategy):
                     "limit": 500,
                     "order": "volume",
                     "ascending": "false",
-                    "tag": "crypto",
                 },
             )
             resp.raise_for_status()
