@@ -33,6 +33,7 @@ from py_clob_client_v2 import (
 from backend.core.circuit_breaker import CircuitBreaker
 from backend.core.circuit_breaker_pybreaker import polymarket_breaker
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 
 from loguru import logger
 from backend.monitoring.hft_metrics import record_maker_fill_rate
@@ -650,7 +651,11 @@ class PolymarketCLOB:
         except Exception as e:
             error_msg = str(e)
             import traceback
-            print(f"[CLOB ERROR] {type(e).__name__}: {error_msg}\n{traceback.format_exc()}", flush=True)
+
+            print(
+                f"[CLOB ERROR] {type(e).__name__}: {error_msg}\n{traceback.format_exc()}",
+                flush=True,
+            )
             await clob_breaker._on_failure()
             return OrderResult(success=False, error=error_msg)
         finally:
@@ -913,31 +918,31 @@ class PolymarketCLOB:
             rpc_url = settings.POLYGON_RPC_URL
             total_balance = 0.0
 
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                for name, addr in tokens.items():
-                    data = (
-                        "0x70a08231000000000000000000000000"
-                        + wallet_address.lower()[2:]
+            client = get_shared_client()
+            for name, addr in tokens.items():
+                data = (
+                    "0x70a08231000000000000000000000000"
+                    + wallet_address.lower()[2:]
+                )
+                try:
+                    res = await client.post(
+                        rpc_url,
+                        json={
+                            "jsonrpc": "2.0",
+                            "method": "eth_call",
+                            "params": [{"to": addr, "data": data}, "latest"],
+                            "id": 1,
+                        },
+                        headers={"User-Agent": "polyedge-finance"},
                     )
-                    try:
-                        res = await client.post(
-                            rpc_url,
-                            json={
-                                "jsonrpc": "2.0",
-                                "method": "eth_call",
-                                "params": [{"to": addr, "data": data}, "latest"],
-                                "id": 1,
-                            },
-                            headers={"User-Agent": "polyedge-finance"},
-                        )
-                        res_data = res.json()
-                        if res.status_code == 200 and "result" in res_data:
-                            hex_val = res_data["result"]
-                            if hex_val == "0x" or not hex_val:
-                                hex_val = "0x0"
-                            total_balance += int(hex_val, 16) / 1e6
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch {name} balance: {e}")
+                    res_data = res.json()
+                    if res.status_code == 200 and "result" in res_data:
+                        hex_val = res_data["result"]
+                        if hex_val == "0x" or not hex_val:
+                            hex_val = "0x0"
+                        total_balance += int(hex_val, 16) / 1e6
+                except Exception as e:
+                    logger.warning(f"Failed to fetch {name} balance: {e}")
 
             return {"usdc_balance": total_balance, "token_balances": {}, "error": None}
         except Exception as e:

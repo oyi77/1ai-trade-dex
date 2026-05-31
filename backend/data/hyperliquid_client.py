@@ -13,6 +13,7 @@ from typing import Any, Optional
 import httpx
 
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
@@ -95,10 +96,10 @@ class HyperliquidClient:
         """Make a POST request to the Hyperliquid API."""
 
         async def _do_post() -> dict:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(f"{self.api_url}{endpoint}", json=payload)
-                resp.raise_for_status()
-                return resp.json()
+            client = get_shared_client()
+            resp = await client.post(f"{self.api_url}{endpoint}", json=payload)
+            resp.raise_for_status()
+            return resp.json()
 
         try:
             return await hl_breaker.call(_do_post)
@@ -113,10 +114,10 @@ class HyperliquidClient:
         """Make a GET request to the Hyperliquid API."""
 
         async def _do_get() -> Any:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(f"{self.api_url}{endpoint}", params=params)
-                resp.raise_for_status()
-                return resp.json()
+            client = get_shared_client()
+            resp = await client.get(f"{self.api_url}{endpoint}", params=params)
+            resp.raise_for_status()
+            return resp.json()
 
         try:
             return await hl_breaker.call(_do_get)

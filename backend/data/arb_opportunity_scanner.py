@@ -21,6 +21,7 @@ from backend.strategies.cross_market_arb_enhanced import (
     ScanResult,
 )
 
+from backend.data.shared_client import get_shared_client
 from loguru import logger
 
 # Timeout per provider scan in seconds
@@ -66,24 +67,32 @@ class ArbOpportunityScanner:
         """Fetch Polymarket markets via gamma API with pagination."""
         try:
             import httpx
+
             all_markets = []
             offset = 0
             page_size = 100
             max_pages = 5  # Up to 500 markets
-            async with httpx.AsyncClient(timeout=10) as client:
-                for _ in range(max_pages):
-                    resp = await client.get(
-                        "https://gamma-api.polymarket.com/markets",
-                        params={"active": "true", "closed": "false", "limit": page_size, "offset": offset, "order": "volume", "ascending": "false"},
-                    )
-                    resp.raise_for_status()
-                    page = resp.json()
-                    if not page:
-                        break
-                    all_markets.extend(page)
-                    if len(page) < page_size:
-                        break
-                    offset += page_size
+            client = get_shared_client()
+            for _ in range(max_pages):
+                resp = await client.get(
+                    "https://gamma-api.polymarket.com/markets",
+                    params={
+                        "active": "true",
+                        "closed": "false",
+                        "limit": page_size,
+                        "offset": offset,
+                        "order": "volume",
+                        "ascending": "false",
+                    },
+                )
+                resp.raise_for_status()
+                page = resp.json()
+                if not page:
+                    break
+                all_markets.extend(page)
+                if len(page) < page_size:
+                    break
+                offset += page_size
             return _normalize_pm_markets(all_markets, "polymarket", fee_pct=0.02)
         except Exception as e:
             logger.warning(f"arb_scanner: Polymarket fetch failed: {e}")
@@ -93,6 +102,7 @@ class ArbOpportunityScanner:
         """Fetch Kalshi markets."""
         try:
             from backend.data.kalshi_client import KalshiClient
+
             client = KalshiClient()
             response = await client.get_markets(params={"limit": 200, "status": "open"})
             raw = response.get("markets", []) if isinstance(response, dict) else []
@@ -109,7 +119,9 @@ class ArbOpportunityScanner:
 
             client = SXBetClient()
             raw = await client.get_markets(limit=100)
-            markets = raw.get("data", {}).get("markets", []) if isinstance(raw, dict) else []
+            markets = (
+                raw.get("data", {}).get("markets", []) if isinstance(raw, dict) else []
+            )
 
             # Batch fetch orders via /orders?marketHashes=X,Y,Z
             import httpx as _httpx
@@ -118,20 +130,20 @@ class ArbOpportunityScanner:
             hashes = [m.get("marketHash", "") for m in markets if m.get("marketHash")]
             all_orders: list = []
             chunk_size = 50
-            async with _httpx.AsyncClient(timeout=15.0, follow_redirects=True) as _c:
-                for i in range(0, len(hashes), chunk_size):
-                    chunk = hashes[i:i + chunk_size]
-                    try:
-                        _r = await _c.get(
-                            f"{client._base_url}/orders",
-                            params={"marketHashes": ",".join(chunk)},
-                        )
-                        _data = _r.json() if _r.status_code == 200 else {}
-                        _orders = _data.get("data", [])
-                        if isinstance(_orders, list):
-                            all_orders.extend(_orders)
-                    except Exception:
-                        continue
+            _c = get_shared_client()
+            for i in range(0, len(hashes), chunk_size):
+                chunk = hashes[i : i + chunk_size]
+                try:
+                    _r = await _c.get(
+                        f"{client._base_url}/orders",
+                        params={"marketHashes": ",".join(chunk)},
+                    )
+                    _data = _r.json() if _r.status_code == 200 else {}
+                    _orders = _data.get("data", [])
+                    if isinstance(_orders, list):
+                        all_orders.extend(_orders)
+                except Exception:
+                    continue
 
             # Group best prices per outcome
             by_market: dict = _defaultdict(lambda: {"yes_orders": [], "no_orders": []})
@@ -154,22 +166,30 @@ class ArbOpportunityScanner:
                 yes_prices = sorted(prices.get("yes_orders", []), reverse=True)
                 no_prices = sorted(prices.get("no_orders", []), reverse=True)
                 yes_price = yes_prices[0] if yes_prices else None
-                no_price = no_prices[0] if no_prices else (1.0 - yes_price if yes_price else 0.5)
+                no_price = (
+                    no_prices[0]
+                    if no_prices
+                    else (1.0 - yes_price if yes_price else 0.5)
+                )
 
                 if yes_price is None or not (0 < yes_price < 1):
                     continue
 
-                normalized.append({
-                    "question": _sxbet_question(m),
-                    "event_id": mh,
-                    "yes_price": yes_price,
-                    "no_price": no_price if 0 < no_price < 1 else round(1.0 - yes_price, 4),
-                    "platform": "sxbet",
-                    "fee_pct": 0.02,
-                    "liquidity": float(m.get("liquidity", 0) or 0),
-                    "volume": float(m.get("volume", 0) or 0),
-                    "_raw": m,
-                })
+                normalized.append(
+                    {
+                        "question": _sxbet_question(m),
+                        "event_id": mh,
+                        "yes_price": yes_price,
+                        "no_price": (
+                            no_price if 0 < no_price < 1 else round(1.0 - yes_price, 4)
+                        ),
+                        "platform": "sxbet",
+                        "fee_pct": 0.02,
+                        "liquidity": float(m.get("liquidity", 0) or 0),
+                        "volume": float(m.get("volume", 0) or 0),
+                        "_raw": m,
+                    }
+                )
             return normalized
         except Exception as e:
             logger.warning(f"arb_scanner: SXBet fetch failed: {e}")
@@ -186,7 +206,10 @@ class ArbOpportunityScanner:
     async def _scan_bookmaker(self) -> List[Dict[str, Any]]:
         """Fetch Bookmaker.xyz markets."""
         try:
-            from backend.markets.providers.bookmaker_xyz_provider import BookmakerXYZProvider
+            from backend.markets.providers.bookmaker_xyz_provider import (
+                BookmakerXYZProvider,
+            )
+
             provider = BookmakerXYZProvider()
             markets = await provider.get_markets(limit=100)
             return _normalize_provider_markets(markets, "bookmaker_xyz", fee_pct=0.02)
@@ -214,7 +237,9 @@ class ArbOpportunityScanner:
             try:
                 return await asyncio.wait_for(method(), timeout=_SCAN_TIMEOUT)
             except asyncio.TimeoutError:
-                logger.warning(f"arb_scanner: {method.__self__.__class__.__name__} timed out after {_SCAN_TIMEOUT}s")
+                logger.warning(
+                    f"arb_scanner: {method.__self__.__class__.__name__} timed out after {_SCAN_TIMEOUT}s"
+                )
                 return []
             except Exception as e:
                 logger.warning(f"arb_scanner: scan failed: {e}")
@@ -288,6 +313,7 @@ class ArbOpportunityScanner:
 
 # ── Market normalization helpers ────────────────────────────────────
 
+
 def _normalize_pm_markets(
     raw: List[Dict[str, Any]], platform: str, fee_pct: float = 0.02
 ) -> List[Dict[str, Any]]:
@@ -303,23 +329,26 @@ def _normalize_pm_markets(
         clob_token_ids = m.get("clobTokenIds") or []
         if isinstance(clob_token_ids, str):
             import json as _json
+
             try:
                 clob_token_ids = _json.loads(clob_token_ids)
             except Exception:
                 clob_token_ids = []
 
-        normalized.append({
-            "question": m.get("question", ""),
-            "event_id": str(m.get("conditionId", m.get("id", ""))),
-            "yes_price": yes_price,
-            "no_price": no_price,
-            "platform": platform,
-            "fee_pct": fee_pct,
-            "liquidity": float(m.get("liquidity", 0) or 0),
-            "volume": float(m.get("volume", 0) or 0),
-            "clobTokenIds": clob_token_ids,
-            "_raw": m,
-        })
+        normalized.append(
+            {
+                "question": m.get("question", ""),
+                "event_id": str(m.get("conditionId", m.get("id", ""))),
+                "yes_price": yes_price,
+                "no_price": no_price,
+                "platform": platform,
+                "fee_pct": fee_pct,
+                "liquidity": float(m.get("liquidity", 0) or 0),
+                "volume": float(m.get("volume", 0) or 0),
+                "clobTokenIds": clob_token_ids,
+                "_raw": m,
+            }
+        )
     return normalized
 
 
@@ -337,20 +366,26 @@ def _normalize_kalshi_markets(raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]
         bid = float(m.get("yes_bid_dollars", 0) or 0)
         last = float(m.get("last_price_dollars", 0) or 0)
         # Use mid or last as YES price, (1 - yes) as NO price
-        yes_price = last if 0 < last < 1 else (ask if 0 < ask < 1 else (bid if 0 < bid < 1 else None))
+        yes_price = (
+            last
+            if 0 < last < 1
+            else (ask if 0 < ask < 1 else (bid if 0 < bid < 1 else None))
+        )
         if yes_price is None:
             continue
-        normalized.append({
-            "question": title,  # Kalshi uses 'title' as question text
-            "event_id": str(m.get("ticker", m.get("event_ticker", ""))),
-            "yes_price": yes_price,
-            "no_price": round(1.0 - yes_price, 4),
-            "platform": "kalshi",
-            "fee_pct": 0.07,
-            "liquidity": float(m.get("liquidity_dollars", 0) or 0),
-            "volume": float(m.get("volume_24h_fp", 0) or 0),
-            "_raw": m,
-        })
+        normalized.append(
+            {
+                "question": title,  # Kalshi uses 'title' as question text
+                "event_id": str(m.get("ticker", m.get("event_ticker", ""))),
+                "yes_price": yes_price,
+                "no_price": round(1.0 - yes_price, 4),
+                "platform": "kalshi",
+                "fee_pct": 0.07,
+                "liquidity": float(m.get("liquidity_dollars", 0) or 0),
+                "volume": float(m.get("volume_24h_fp", 0) or 0),
+                "_raw": m,
+            }
+        )
     return normalized
 
 
@@ -369,41 +404,59 @@ def _normalize_provider_markets(
     """Normalize markets from provider MarketInfo objects or raw dicts."""
     normalized = []
     for m in raw:
-        if hasattr(m, '__dict__'):
+        if hasattr(m, "__dict__"):
             # MarketInfo / dataclass
-            d = m.__dict__ if hasattr(m, '__dict__') else {}
-            question = d.get("question", "") or d.get("title", "") or d.get("description", "")
+            d = m.__dict__ if hasattr(m, "__dict__") else {}
+            question = (
+                d.get("question", "") or d.get("title", "") or d.get("description", "")
+            )
             yes_price = float(d.get("yes_price", 0) or 0)
             no_price = float(d.get("no_price", 0) or 0)
             event_id = str(d.get("market_id", d.get("id", d.get("conditionId", ""))))
         elif isinstance(m, dict):
-            question = m.get("question", "") or m.get("title", "") or m.get("description", "")
+            question = (
+                m.get("question", "") or m.get("title", "") or m.get("description", "")
+            )
             yes_price = _extract_yes_price_from_dict(m)
             no_price = 1.0 - yes_price if yes_price else 0.5
-            event_id = str(m.get("market_id") or m.get("id") or m.get("conditionId") or m.get("marketHash") or "")
+            event_id = str(
+                m.get("market_id")
+                or m.get("id")
+                or m.get("conditionId")
+                or m.get("marketHash")
+                or ""
+            )
         else:
             continue
 
         if not question or yes_price is None or not (0 < yes_price < 1):
             continue
 
-        normalized.append({
-            "question": question,
-            "event_id": event_id,
-            "yes_price": yes_price,
-            "no_price": no_price,
-            "platform": platform,
-            "fee_pct": fee_pct,
-            "liquidity": 0.0,
-            "volume": 0.0,
-            "_raw": m,
-        })
+        normalized.append(
+            {
+                "question": question,
+                "event_id": event_id,
+                "yes_price": yes_price,
+                "no_price": no_price,
+                "platform": platform,
+                "fee_pct": fee_pct,
+                "liquidity": 0.0,
+                "volume": 0.0,
+                "_raw": m,
+            }
+        )
     return normalized
 
 
 def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
     """Extract YES price from various market dict formats."""
-    for key in ("yes_price", "yesPrice", "price", "last_price_dollars", "yes_ask_dollars"):
+    for key in (
+        "yes_price",
+        "yesPrice",
+        "price",
+        "last_price_dollars",
+        "yes_ask_dollars",
+    ):
         val = m.get(key)
         if val is not None:
             try:
@@ -417,6 +470,7 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
     if op:
         try:
             import json as _json
+
             if isinstance(op, str):
                 op = _json.loads(op)
             if isinstance(op, list) and len(op) >= 1:
@@ -424,7 +478,9 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
                 if 0 < p < 1:
                     return p
         except Exception:
-            logger.warning("arb_opp_scanner: failed to extract price from outcomePrices")
+            logger.warning(
+                "arb_opp_scanner: failed to extract price from outcomePrices"
+            )
 
     # Check for yes_sub_title / no_sub_title (Kalshi multi-outcome)
     outcomes = m.get("outcomes")
@@ -442,13 +498,16 @@ def _extract_yes_price_from_dict(m: Dict[str, Any]) -> Optional[float]:
     return None
 
 
-def _extract_yes_no_from_outcome_prices(m: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
+def _extract_yes_no_from_outcome_prices(
+    m: Dict[str, Any],
+) -> Tuple[Optional[float], Optional[float]]:
     """Extract YES and NO prices from outcomePrices array."""
     op = m.get("outcomePrices")
     if not op:
         return (None, None)
     try:
         import json as _json
+
         if isinstance(op, str):
             op = _json.loads(op)
         if isinstance(op, list) and len(op) >= 2:

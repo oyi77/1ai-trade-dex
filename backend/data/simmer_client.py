@@ -19,8 +19,7 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional
 
-import httpx
-
+from backend.data.shared_client import get_shared_client
 from loguru import logger
 
 # Default config — read at call time so env changes during runtime are honored
@@ -78,10 +77,10 @@ async def fetch_weather_markets_via_simmer(
     headers = _build_headers(api_key)
 
     try:
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            response = await client.get(url, params=params or None, headers=headers)
-            response.raise_for_status()
-            data: Any = response.json()
+        client = get_shared_client()
+        response = await client.get(url, params=params or None, headers=headers)
+        response.raise_for_status()
+        data: Any = response.json()
     except httpx.HTTPStatusError as exc:
         logger.warning(
             "Simmer weather markets request failed: status=%s body=%s",
@@ -131,10 +130,10 @@ async def fetch_weather_portfolio_simmer(address: str) -> dict:
     headers = _build_headers(api_key)
 
     try:
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-            data: Any = response.json()
+        client = get_shared_client()
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        data: Any = response.json()
     except httpx.HTTPStatusError as exc:
         logger.warning(
             "Simmer portfolio request failed for %s: status=%s body=%s",

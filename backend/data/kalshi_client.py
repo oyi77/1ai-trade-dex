@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
+from backend.data.shared_client import get_shared_client
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from backend.config import settings
@@ -17,7 +18,9 @@ BASE_URL = settings.KALSHI_API_URL
 
 # Circuit breaker for Kalshi API
 kalshi_breaker = CircuitBreaker(
-    "kalshi_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
+    "kalshi_api",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
 )
 
 # Rate limiter for Kalshi API (configurable requests per minute)
@@ -86,10 +89,10 @@ class KalshiClient:
         url = f"{BASE_URL}{path}"
         headers = self._sign_request("GET", full_path)
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            response = await client.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            return response.json()
+        client = get_shared_client()
+        response = await client.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
 
     async def get_markets(self, params: Optional[Dict[str, Any]] = None) -> dict:
         """Fetch markets with optional filters."""
@@ -123,11 +126,14 @@ class KalshiClient:
             List of fill dicts with order_id, side, size, price, fee, etc.
         """
         try:
-            response = await self.get("/portfolio/fills", params={"limit": limit, "count": limit})
+            response = await self.get(
+                "/portfolio/fills", params={"limit": limit, "count": limit}
+            )
             fills = response.get("fills", response.get("data", []))
             return fills if isinstance(fills, list) else []
         except Exception as e:
             from loguru import logger
+
             logger.warning(f"[kalshi] get_fills error: {e}")
             return []
 
@@ -140,10 +146,10 @@ class KalshiClient:
         headers = self._sign_request(method.upper(), full_path)
 
         async def _fetch():
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.request(method, url, headers=headers, json=json)
-                response.raise_for_status()
-                return response.json()
+            client = get_shared_client()
+            response = await client.request(method, url, headers=headers, json=json)
+            response.raise_for_status()
+            return response.json()
 
         return await _kalshi_rate_limiter.call(_fetch)
 
