@@ -8,8 +8,9 @@ Consider removing or integrating before use.
 """
 
 import os
-import httpx
 from typing import List
+
+from backend.data.shared_client import get_shared_client
 
 from loguru import logger
 
@@ -177,20 +178,20 @@ async def fetch_polynimbus_markets(tags: List[str] = ["weather"]) -> List[dict]:
     headers = {"Authorization": f"Bearer {api_key}"}
     params = {"tags": ",".join(tags)} if tags else {}
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(api_url, params=params, headers=headers)
-            resp.raise_for_status()
-            # Accepts "markets" OR direct list
-            data = (
-                resp.json()
-                if callable(getattr(resp, "json", None))
-                else await resp.json()
-            )
-            if isinstance(data, dict) and "markets" in data:
-                return data["markets"]
-            if isinstance(data, list):
-                return data
-            return []
+        client = get_shared_client()
+        resp = await client.get(api_url, params=params, headers=headers)
+        resp.raise_for_status()
+        # Accepts "markets" OR direct list
+        data = (
+            resp.json()
+            if callable(getattr(resp, "json", None))
+            else await resp.json()
+        )
+        if isinstance(data, dict) and "markets" in data:
+            return data["markets"]
+        if isinstance(data, list):
+            return data
+        return []
     except Exception:
         logger.exception("polynimbus market fetch failed")
         return []

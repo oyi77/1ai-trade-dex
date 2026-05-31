@@ -16,9 +16,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-import httpx
-
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 
 logger = logging.getLogger(__name__)
 
@@ -69,31 +68,31 @@ async def get_all_closed_positions(
     offset = 0
     limit = 50
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        while True:
-            try:
-                resp = await client.get(
-                    f"{settings.DATA_API_URL}/closed-positions",
-                    params={"user": proxy_wallet, "limit": limit, "offset": offset},
+    client = get_shared_client()
+    while True:
+        try:
+            resp = await client.get(
+                f"{settings.DATA_API_URL}/closed-positions",
+                params={"user": proxy_wallet, "limit": limit, "offset": offset},
+            )
+            if resp.status_code != 200:
+                logger.warning(
+                    "Data API returned %d for %s", resp.status_code, proxy_wallet
                 )
-                if resp.status_code != 200:
-                    logger.warning(
-                        "Data API returned %d for %s", resp.status_code, proxy_wallet
-                    )
-                    break
-
-                data = resp.json()
-                if not data:
-                    break
-
-                all_positions.extend(data)
-                offset += limit
-
-                await asyncio.sleep(0.1)
-
-            except Exception as e:
-                logger.error("Error fetching positions for %s: %s", proxy_wallet, e)
                 break
+
+            data = resp.json()
+            if not data:
+                break
+
+            all_positions.extend(data)
+            offset += limit
+
+            await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error("Error fetching positions for %s: %s", proxy_wallet, e)
+            break
 
     _save_cache(proxy_wallet, "positions", all_positions)
     return all_positions
@@ -102,14 +101,14 @@ async def get_all_closed_positions(
 async def get_open_positions(proxy_wallet: str) -> list[dict]:
     """Fetch current open positions."""
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{settings.DATA_API_URL}/positions",
-                params={"user": proxy_wallet},
-            )
-            if resp.status_code == 200:
-                return resp.json()
-            return []
+        client = get_shared_client()
+        resp = await client.get(
+            f"{settings.DATA_API_URL}/positions",
+            params={"user": proxy_wallet},
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return []
     except Exception as e:
         logger.error("Error fetching open positions: %s", e)
         return []

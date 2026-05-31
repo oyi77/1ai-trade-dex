@@ -13,6 +13,7 @@ from typing import Any, Optional
 import httpx
 
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
@@ -109,47 +110,43 @@ class DuneAnalyticsClient:
             return cached
 
         async def _run_query() -> list[dict]:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                # Step 1: Execute query
-                exec_resp = await client.post(
-                    f"{DUNE_API_URL}/query/{query_id}/execute",
+            client = get_shared_client()
+            # Step 1: Execute query
+            exec_resp = await client.post(
+                f"{DUNE_API_URL}/query/{query_id}/execute",
+                headers=self._headers(),
+            )
+            exec_resp.raise_for_status()
+            execution_id = exec_resp.json().get("execution_id")
+            if not execution_id:
+                logger.error(
+                    "Dune execute returned no execution_id for query %d", query_id
+                )
+                return []
+
+            # Step 2: Poll for results (max 60s)
+            for _ in range(30):
+                result_resp = await client.get(
+                    f"{DUNE_API_URL}/execution/{execution_id}/results",
                     headers=self._headers(),
                 )
-                exec_resp.raise_for_status()
-                execution_id = exec_resp.json().get("execution_id")
-                if not execution_id:
-                    logger.error(
-                        "Dune execute returned no execution_id for query %d", query_id
-                    )
+                result_resp.raise_for_status()
+                result_data = result_resp.json()
+                state = result_data.get("state", "")
+                if state == "QUERY_STATE_COMPLETED":
+                    rows = result_data.get("result", {}).get("rows", [])
+                    logger.info("Dune query %d returned %d rows", query_id, len(rows))
+                    return rows
+                elif state in ("QUERY_STATE_FAILED", "QUERY_STATE_CANCELLED"):
+                    logger.error("Dune query %d failed with state: %s", query_id, state)
                     return []
+                # Still running — wait and retry
+                import asyncio
 
-                # Step 2: Poll for results (max 60s)
-                for _ in range(30):
-                    result_resp = await client.get(
-                        f"{DUNE_API_URL}/execution/{execution_id}/results",
-                        headers=self._headers(),
-                    )
-                    result_resp.raise_for_status()
-                    result_data = result_resp.json()
-                    state = result_data.get("state", "")
-                    if state == "QUERY_STATE_COMPLETED":
-                        rows = result_data.get("result", {}).get("rows", [])
-                        logger.info(
-                            "Dune query %d returned %d rows", query_id, len(rows)
-                        )
-                        return rows
-                    elif state in ("QUERY_STATE_FAILED", "QUERY_STATE_CANCELLED"):
-                        logger.error(
-                            "Dune query %d failed with state: %s", query_id, state
-                        )
-                        return []
-                    # Still running — wait and retry
-                    import asyncio
+                await asyncio.sleep(2)
 
-                    await asyncio.sleep(2)
-
-                logger.warning("Dune query %d timed out waiting for results", query_id)
-                return []
+            logger.warning("Dune query %d timed out waiting for results", query_id)
+            return []
 
         try:
             result = await dune_breaker.call(_run_query)
@@ -216,12 +213,12 @@ class DuneAnalyticsClient:
         if not self.api_key:
             return False
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{DUNE_API_URL}/auth/validate",
-                    headers=self._headers(),
-                )
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(
+                f"{DUNE_API_URL}/auth/validate",
+                headers=self._headers(),
+            )
+            return resp.status_code == 200
         except Exception as e:
             logger.debug("[dune] Health check failed: %s", e)
             return False
