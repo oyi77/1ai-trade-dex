@@ -28,8 +28,8 @@ from backend.core.market_making_analyzer import (
     LiquidityMetrics,
 )
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 from loguru import logger
-
 
 # ---------------------------------------------------------------------------
 # Quote state tracking
@@ -64,9 +64,7 @@ class ActiveQuote:
 
 class MarketMakerStrategy(BaseStrategy):
     name = "market_maker"
-    description = (
-        "Two-sided quoting with dynamic spread, inventory control, and live WS execution"
-    )
+    description = "Two-sided quoting with dynamic spread, inventory control, and live WS execution"
     category = "market_making"
     default_params = {
         "base_spread": settings.MARKET_MAKER_BASE_SPREAD,
@@ -133,7 +131,9 @@ class MarketMakerStrategy(BaseStrategy):
     # Risk controls: adverse selection + exposure limits
     # ------------------------------------------------------------------
 
-    def record_fill(self, market_id: str, side: str, price: float, size: float, current_mid: float) -> None:
+    def record_fill(
+        self, market_id: str, side: str, price: float, size: float, current_mid: float
+    ) -> None:
         """Record a fill and check for adverse selection.
 
         Adverse = buy fill above mid or sell fill below mid (picked off by informed flow).
@@ -141,7 +141,9 @@ class MarketMakerStrategy(BaseStrategy):
         """
         self._total_exposure_usd += price * size
 
-        is_adverse = (side == "BUY" and price > current_mid) or (side == "SELL" and price < current_mid)
+        is_adverse = (side == "BUY" and price > current_mid) or (
+            side == "SELL" and price < current_mid
+        )
         if is_adverse:
             self._adverse_streak += 1
             logger.warning(
@@ -165,7 +167,9 @@ class MarketMakerStrategy(BaseStrategy):
         """Returns True if exposure is within limits, False if we should stop quoting."""
         max_exposure = self.default_params.get("max_total_exposure_usd", 100.0)
         if self._total_exposure_usd >= max_exposure:
-            logger.warning(f"[{self.name}] Exposure limit reached: ${self._total_exposure_usd:.2f} >= ${max_exposure:.2f}")
+            logger.warning(
+                f"[{self.name}] Exposure limit reached: ${self._total_exposure_usd:.2f} >= ${max_exposure:.2f}"
+            )
             return False
         return True
 
@@ -197,12 +201,12 @@ class MarketMakerStrategy(BaseStrategy):
         """Discover active short-duration markets and map outcome token IDs."""
         try:
             from backend.core.market_scanner import fetch_short_duration_token_ids
-            
+
             # MarketMaker subscribes to the top highly liquid short-duration tokens for quoting
             short_tokens = await fetch_short_duration_token_ids(limit=30)
             self.subscribed_tokens = set(short_tokens)
             self._tokens_populated = True
-            
+
             self.start_consumer()
             logger.info(
                 f"[{self.name}] Subscribed tokens populated with {len(self.subscribed_tokens)} active tokens."
@@ -213,7 +217,9 @@ class MarketMakerStrategy(BaseStrategy):
     async def on_ws_disconnected(self) -> None:
         """Safety Safeguard: Disconnection cancels all quotes and halts quoting."""
         self._halted = True
-        logger.warning(f"[{self.name}] WebSocket telemetry lost! Halting quoting and canceling all orders.")
+        logger.warning(
+            f"[{self.name}] WebSocket telemetry lost! Halting quoting and canceling all orders."
+        )
         for market_id in list(self._active_quotes.keys()):
             await self._cancel_stale_quotes(market_id, None)
 
@@ -254,12 +260,12 @@ class MarketMakerStrategy(BaseStrategy):
 
         gamma = p.get("risk_aversion", 0.3)
         skew_factor = p.get("inventory_skew_factor", 0.7)
-        
+
         reservation = mid_price - inventory_pct * skew_factor * spread
-        
+
         bid = max(0.01, reservation - spread / 2.0)
         ask = min(0.99, reservation + spread / 2.0)
-        
+
         return Quote(
             bid_price=round(bid, 4),
             ask_price=round(ask, 4),
@@ -276,11 +282,11 @@ class MarketMakerStrategy(BaseStrategy):
         """Calculate yes/no pricing based on LMSR model for backward-compatibility with tests."""
         b = liquidity_param or self.default_params.get("lmsr_liquidity_param", 10.0)
         b = max(b, 0.001)  # prevent division by zero
-        
+
         e_yes = math.exp(yes_shares / b)
         e_no = math.exp(no_shares / b)
         denom = e_yes + e_no
-        
+
         return {
             "yes_price": e_yes / denom,
             "no_price": e_no / denom,
@@ -352,12 +358,16 @@ class MarketMakerStrategy(BaseStrategy):
         if len(prices) < 2:
             return 0.05  # default fallback
         recent = [p[1] for p in prices[-50:]]
-        returns = [(recent[i] - recent[i-1]) / recent[i-1] for i in range(1, len(recent)) if recent[i-1] > 0]
+        returns = [
+            (recent[i] - recent[i - 1]) / recent[i - 1]
+            for i in range(1, len(recent))
+            if recent[i - 1] > 0
+        ]
         if not returns:
             return 0.05
         mean_r = sum(returns) / len(returns)
         variance = sum((r - mean_r) ** 2 for r in returns) / len(returns)
-        return max(0.001, variance ** 0.5)
+        return max(0.001, variance**0.5)
 
     def _estimate_time_remaining(self, market_id: str) -> float:
         """Estimate seconds to market resolution. Default 1h if unknown."""
@@ -433,20 +443,30 @@ class MarketMakerStrategy(BaseStrategy):
         kill_thresh = params.get("toxicity_kill_threshold", 0.8)
 
         if toxicity >= kill_thresh:
-            logger.warning("[market_maker] High flow toxicity ({:.2f}). Pulling all quotes.", toxicity)
+            logger.warning(
+                "[market_maker] High flow toxicity ({:.2f}). Pulling all quotes.",
+                toxicity,
+            )
             return Quote(0.0, 0.0, 0.0, 0.0)
 
         if toxicity >= widen_thresh:
             # Scale spread widening up to 3x based on toxicity level
-            scaling = 1.0 + (toxicity - widen_thresh) / (kill_thresh - widen_thresh) * 2.0
+            scaling = (
+                1.0 + (toxicity - widen_thresh) / (kill_thresh - widen_thresh) * 2.0
+            )
             bid_dist = abs(quote.bid_price - (quote.bid_price + quote.ask_price) / 2.0)
             ask_dist = abs(quote.ask_price - (quote.bid_price + quote.ask_price) / 2.0)
 
             new_bid = quote.bid_price - bid_dist * (scaling - 1.0)
             new_ask = quote.ask_price + ask_dist * (scaling - 1.0)
 
-            logger.info("[market_maker] Toxic flow widening: bid={:.4f} -> {:.4f}, ask={:.4f} -> {:.4f}",
-                        quote.bid_price, new_bid, quote.ask_price, new_ask)
+            logger.info(
+                "[market_maker] Toxic flow widening: bid={:.4f} -> {:.4f}, ask={:.4f} -> {:.4f}",
+                quote.bid_price,
+                new_bid,
+                quote.ask_price,
+                new_ask,
+            )
 
             quote.bid_price = round(max(0.01, new_bid), 4)
             quote.ask_price = round(min(0.99, new_ask), 4)
@@ -524,7 +544,9 @@ class MarketMakerStrategy(BaseStrategy):
             # Calculate new reservation and AS optimal quoting spread
             volatility = self._estimate_volatility(market_id)
             time_remaining = self._estimate_time_remaining(market_id)
-            quote = self.calculate_as_quote(mid, volatility, inventory, time_remaining, params)
+            quote = self.calculate_as_quote(
+                mid, volatility, inventory, time_remaining, params
+            )
 
             # Microstructure toxic flow safety
             toxicity = 0.2
@@ -537,7 +559,10 @@ class MarketMakerStrategy(BaseStrategy):
             await self._cancel_stale_quotes(market_id, self._clob)
 
             # Place new quotes (real CLOB orders in live mode)
-            for side, price, size in [("BUY", quote.bid_price, quote.bid_size), ("SELL", quote.ask_price, quote.ask_size)]:
+            for side, price, size in [
+                ("BUY", quote.bid_price, quote.bid_size),
+                ("SELL", quote.ask_price, quote.ask_size),
+            ]:
                 if size <= 0 or price <= 0:
                     continue
                 aq = ActiveQuote(
@@ -574,6 +599,7 @@ class MarketMakerStrategy(BaseStrategy):
 
                 # Persist quote decision
                 from backend.db.utils import get_db_session
+
                 try:
                     with get_db_session() as db:
                         record_decision(
@@ -620,8 +646,16 @@ class MarketMakerStrategy(BaseStrategy):
                     asks = book.get("asks", [])
                     if not bids or not asks:
                         continue
-                    best_bid = float(bids[0].get("price", 0) if isinstance(bids[0], dict) else bids[0][0])
-                    best_ask = float(asks[0].get("price", 0) if isinstance(asks[0], dict) else asks[0][0])
+                    best_bid = float(
+                        bids[0].get("price", 0)
+                        if isinstance(bids[0], dict)
+                        else bids[0][0]
+                    )
+                    best_ask = float(
+                        asks[0].get("price", 0)
+                        if isinstance(asks[0], dict)
+                        else asks[0][0]
+                    )
                     if best_bid <= 0 or best_ask <= 0 or best_bid >= best_ask:
                         continue
 
@@ -640,16 +674,27 @@ class MarketMakerStrategy(BaseStrategy):
 
                     inventory = self._inventory.get(token_id, 0.0)
 
-                    if self._should_refresh_quotes(token_id, spread, inventory, self.default_params):
+                    if self._should_refresh_quotes(
+                        token_id, spread, inventory, self.default_params
+                    ):
                         volatility = self._estimate_volatility(token_id)
                         time_remaining = self._estimate_time_remaining(token_id)
-                        quote = self.calculate_as_quote(mid, volatility, inventory, time_remaining, self.default_params)
+                        quote = self.calculate_as_quote(
+                            mid,
+                            volatility,
+                            inventory,
+                            time_remaining,
+                            self.default_params,
+                        )
 
                         # Cancel stale quotes
                         await self._cancel_stale_quotes(token_id, self._clob)
 
                         # Place new quotes
-                        for side, price, size in [("BUY", quote.bid_price, quote.bid_size), ("SELL", quote.ask_price, quote.ask_size)]:
+                        for side, price, size in [
+                            ("BUY", quote.bid_price, quote.bid_size),
+                            ("SELL", quote.ask_price, quote.ask_size),
+                        ]:
                             if size <= 0 or price <= 0:
                                 continue
                             try:
@@ -667,17 +712,23 @@ class MarketMakerStrategy(BaseStrategy):
                                         price=price,
                                         size=size,
                                         placed_at=time.monotonic(),
-                                        order_id=str(getattr(order, "order_id", "") or ""),
+                                        order_id=str(
+                                            getattr(order, "order_id", "") or ""
+                                        ),
                                     )
                                     self._add_active_quote(aq)
                                     trades_placed += 1
                             except Exception as e:
-                                logger.debug(f"[{self.name}] Quote placement failed: {e}")
+                                logger.debug(
+                                    f"[{self.name}] Quote placement failed: {e}"
+                                )
 
                         self._last_spread[token_id] = spread
                         self._last_inventory[token_id] = inventory
                 except Exception as e:
-                    logger.debug(f"[{self.name}] Polling quote failed for {token_id}: {e}")
+                    logger.debug(
+                        f"[{self.name}] Polling quote failed for {token_id}: {e}"
+                    )
 
         return CycleResult(
             decisions_recorded=trades_placed,

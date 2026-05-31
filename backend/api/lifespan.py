@@ -31,6 +31,7 @@ from backend.core.bankroll_reconciliation import reconcile_bot_state
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.db.utils import get_db_session
 
+
 def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
     """Keep best-effort startup writes from blocking API availability."""
 
@@ -43,6 +44,7 @@ def _set_startup_sqlite_busy_timeout(db, timeout_ms: int) -> None:
         db.execute(text(f"PRAGMA busy_timeout={int(timeout_ms)}"))
     except Exception as exc:
         logger.debug(f"Failed to set startup SQLite busy_timeout={timeout_ms}: {exc}")
+
 
 class GracefulShutdownHandler:
     """Handles graceful shutdown on SIGTERM/SIGINT with timeout."""
@@ -81,6 +83,7 @@ class GracefulShutdownHandler:
             return 0.0
         return time.time() - self.start_time
 
+
 async def _refresh_balance_cache():
     """Refresh the cached wallet balance from CLOB."""
     if not any(m in ("live", "testnet") for m in settings.active_modes_set):
@@ -104,6 +107,7 @@ async def _refresh_balance_cache():
             f"[api.main.refresh_balance_cache] {type(e).__name__}: Failed to refresh balance cache: {e}",
             exc_info=True,
         )
+
 
 async def _stats_broadcaster():
     """Background task that periodically broadcasts stats to WebSocket subscribers."""
@@ -146,6 +150,7 @@ async def _stats_broadcaster():
                 exc_info=True,
             )
         await asyncio.sleep(1)
+
 
 async def _startup_polymarket_websocket():
     """Initialize and start Polymarket WebSocket connections."""
@@ -345,6 +350,7 @@ async def _startup_polymarket_websocket():
     _polymarket_ws_tasks["market"] = market_ws_task
     _polymarket_ws_tasks["user"] = user_ws_task
 
+
 async def _startup_bankroll_reconciliation():
     """Perform bankroll reconciliation at startup."""
     try:
@@ -364,16 +370,20 @@ async def _startup_bankroll_reconciliation():
             exc_info=True,
         )
 
+
 # Global reference to app (for use in inner functions)
 _app_ref = None
+
 
 def _get_app():
     """Get the FastAPI app reference."""
     return _app_ref
 
+
 # Global state for background tasks and caches
 _balance_cache = {"balance": None, "timestamp": 0, "mode": settings.TRADING_MODE}
 _polymarket_ws_tasks = {"market": None, "user": None}
+
 
 async def _redis_log_bridge():
     """Background task that bridges logs from Redis to the internal EventBus."""
@@ -405,12 +415,15 @@ async def _redis_log_bridge():
                                 log_data = json.loads(message["data"])
                                 event_bus.publish("system_log", log_data)
                             except Exception:
-                                logger.warning("lifespan: failed to parse log bridge JSON")
+                                logger.warning(
+                                    "lifespan: failed to parse log bridge JSON"
+                                )
         except Exception as e:
             bridge_logger.debug(f"Redis log bridge reconnecting: {e}")
             import asyncio
 
             await asyncio.sleep(5)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -538,9 +551,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             from backend.core.wallet_router import WalletRouter
 
             with get_db_session() as db:
-                wallet_router = WalletRouter(
-                    db, fernet_key=encryption_key.encode()
-                )
+                wallet_router = WalletRouter(db, fernet_key=encryption_key.encode())
             app.state.wallet_router = wallet_router
             from backend.core.wallet.registry import set_wallet_router
 
@@ -579,7 +590,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from backend.markets.provider_registry import market_registry
 
         market_registry.auto_discover("backend.markets.providers")
-        logger.info(f"[LIFESPAN] Market providers discovered: {list(market_registry._plugins.keys())}")
+        logger.info(
+            f"[LIFESPAN] Market providers discovered: {list(market_registry._plugins.keys())}"
+        )
     except Exception as e:
         logger.warning(f"[LIFESPAN] Market provider discovery failed: {e}")
 
@@ -629,6 +642,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         import backend.data.providers  # triggers provider auto-registration
         import backend.data.crypto_feeds  # triggers crypto feed auto-registration
+
         logger.info("[LIFESPAN] Data providers and crypto feeds loaded")
     except Exception as e:
         logger.warning(f"[LIFESPAN] Data feed discovery failed: {e}")
@@ -640,23 +654,33 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         _notify_providers = []
         if _os.environ.get("SLACK_WEBHOOK_URL"):
             from backend.bot.notification.providers.slack import SlackProvider
+
             _notify_providers.append("slack")
         if _os.environ.get("DISCORD_WEBHOOK_URL"):
             from backend.bot.notification.providers.discord import DiscordProvider
+
             _notify_providers.append("discord")
         if _os.environ.get("WEBHOOK_URL"):
-            from backend.bot.notification.providers.webhook import GenericWebhookProvider
+            from backend.bot.notification.providers.webhook import (
+                GenericWebhookProvider,
+            )
+
             _notify_providers.append("webhook")
         if _notify_providers:
-            logger.info(f"[LIFESPAN] Notification providers registered: {_notify_providers}")
+            logger.info(
+                f"[LIFESPAN] Notification providers registered: {_notify_providers}"
+            )
         else:
-            logger.info("[LIFESPAN] No notification providers configured (set SLACK_WEBHOOK_URL / DISCORD_WEBHOOK_URL / WEBHOOK_URL)")
+            logger.info(
+                "[LIFESPAN] No notification providers configured (set SLACK_WEBHOOK_URL / DISCORD_WEBHOOK_URL / WEBHOOK_URL)"
+            )
     except Exception as e:
         logger.warning(f"[LIFESPAN] Notification provider registration failed: {e}")
 
     # --- Balance Aggregator (real-time multi-venue balance tracking) ---
     try:
         from backend.core.balance_aggregator import BalanceAggregator
+
         balance_agg = BalanceAggregator()
         app.state.balance_aggregator = balance_agg
         asyncio.create_task(balance_agg.start())
@@ -668,6 +692,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Start Binance WebSocket feed for real-time crypto klines
     try:
         from backend.data.crypto_ws import start_crypto_ws_feed
+
         await start_crypto_ws_feed(symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT"])
         logger.info("[LIFESPAN] Binance WS feed started (BTC, ETH, SOL)")
     except Exception as e:
@@ -735,6 +760,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("6. Closing ccxt/aiohttp clients...")
         try:
             from backend.clients.aster_client import close_all_aster_clients
+
             await close_all_aster_clients()
             logger.info("   ✓ Closed all AsterClient instances")
         except Exception as e:
@@ -807,6 +833,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"SHUTDOWN COMPLETE (took {elapsed:.1f}s)")
     logger.info("=" * 60)
 
+
 async def _startup_wallet_sync():
     """Perform wallet sync during startup."""
     try:
@@ -837,6 +864,7 @@ async def _startup_wallet_sync():
                     )
     except Exception as e:
         logger.warning(f"Wallet sync failed: {e}", exc_info=True)
+
 
 async def _seed_strategy_configs() -> None:
     """Seed default strategy configurations into the database.
@@ -885,8 +913,6 @@ async def _seed_strategy_configs() -> None:
             "live",
             {"min_edge": 0.02, "max_minutes_to_resolution": 30},
         ),
-        ("crypto_oracle_legacy", False, 300, "live", {}),
-        ("btc_momentum", False, 300, "live", {"max_trade_fraction": 0.03}),
         (
             "general_scanner",
             False,
@@ -900,13 +926,6 @@ async def _seed_strategy_configs() -> None:
             600,
             "paper",
             {"min_price": 0.92, "max_price": 0.98, "max_position_usd": 200},
-        ),
-        (
-            "realtime_scanner",
-            False,
-            60,
-            "paper",
-            {"min_edge": 0.03, "max_position_usd": 100},
         ),
         (
             "whale_pnl_tracker",
@@ -950,7 +969,12 @@ async def _seed_strategy_configs() -> None:
             True,
             60,
             "live",
-            {"min_net_edge": 0.005, "max_exposure": 500.0, "kelly_fraction": 0.35, "slippage_bps": 50.0},
+            {
+                "min_net_edge": 0.005,
+                "max_exposure": 500.0,
+                "kelly_fraction": 0.35,
+                "slippage_bps": 50.0,
+            },
         ),
         (
             "hft_scalper",

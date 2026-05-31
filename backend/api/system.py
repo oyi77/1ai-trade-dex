@@ -1657,10 +1657,8 @@ async def list_strategies(
         "kalshi_arb": ["KALSHI_API_KEY"],
         "copy_trader": ["POLYMARKET_PRIVATE_KEY"],
         "crypto_oracle": [],  # uses public data only
-        "btc_momentum": [],  # uses public data only
         "weather_emos": [],  # uses public weather data
         "general_market_scanner": [],
-        "realtime_scanner": [],
         "whale_pnl_tracker": [],
         "bond_scanner": [],
         "market_maker": ["POLYMARKET_PRIVATE_KEY"],
@@ -1705,7 +1703,9 @@ async def get_strategies_health(db: Session = Depends(get_db)):
     for name, cls in STRATEGY_REGISTRY.items():
         cfg = db_configs.get(name)
         enabled = cfg.enabled if cfg else False
-        effective_mode = cfg.trading_mode or settings.TRADING_MODE if cfg else settings.TRADING_MODE
+        effective_mode = (
+            cfg.trading_mode or settings.TRADING_MODE if cfg else settings.TRADING_MODE
+        )
 
         bot_state = bot_states.get(effective_mode)
         last_heartbeat = None
@@ -1795,7 +1795,11 @@ async def compare_strategies(db: Session = Depends(get_db)):
     from backend.models.outcome_tables import StrategyHealthRecord
     from sqlalchemy import case
 
-    all_health = db.query(StrategyHealthRecord).order_by(StrategyHealthRecord.last_updated.desc()).all()
+    all_health = (
+        db.query(StrategyHealthRecord)
+        .order_by(StrategyHealthRecord.last_updated.desc())
+        .all()
+    )
     latest_health = {}
     for h in all_health:
         if h.strategy not in latest_health:
@@ -1835,7 +1839,11 @@ async def compare_strategies(db: Session = Depends(get_db)):
             "total_trades": r.total_trades,
             "wins": r.wins,
             "losses": r.losses,
-            "win_rate": r.wins / total_wr_trades if total_wr_trades > 0 else (h.win_rate if h else 0.0),
+            "win_rate": (
+                r.wins / total_wr_trades
+                if total_wr_trades > 0
+                else (h.win_rate if h else 0.0)
+            ),
             "total_pnl": round(r.total_pnl or 0, 2),
             "avg_edge": round(r.avg_edge or 0, 4),
             "avg_size": round(r.avg_size or 0, 2),

@@ -51,7 +51,6 @@ from backend.models.kg_models import (
 VALID_STRATEGY_NAMES = [
     "agi_orchestrator",
     "bond_scanner",
-    "btc_momentum",
     "crypto_oracle",
     "cex_pm_leadlag",
     "copy_trader",
@@ -61,7 +60,6 @@ VALID_STRATEGY_NAMES = [
     "line_movement_detector",
     "market_maker",
     "probability_arb",
-    "realtime_scanner",
     "universal_scanner",
     "weather_emos",
     "whale_frontrun",

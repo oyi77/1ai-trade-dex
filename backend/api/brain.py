@@ -106,7 +106,6 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
 
     # --- Strategies (9 total) ---
     strategies = [
-        "btc_momentum",
         "crypto_oracle",
         "weather_emos",
         "copy_trader",
@@ -114,7 +113,6 @@ def _build_graph_structure(db: Session) -> Dict[str, Any]:
         "kalshi_arb",
         "bond_scanner",
         "whale_pnl_tracker",
-        "realtime_scanner",
     ]
 
     for strategy in strategies:
