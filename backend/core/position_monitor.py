@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import concurrent.futures
 from dataclasses import dataclass
+
+import httpx
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional
 

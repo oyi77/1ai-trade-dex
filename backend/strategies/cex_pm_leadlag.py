@@ -64,7 +64,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         "debate_min_confidence": 0.52,
         "max_open_positions": 3,
         "max_per_asset": 1,
-        "stop_loss_pct": 0.20,
+        "stop_loss_pct": 0.10,
         "max_hold_seconds": 240,
         "profit_target_pct": 0.08,
         "min_confidence": 0.7,
@@ -102,7 +102,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 self.name,
                 clob_client=ctx.clob,
                 profit_target_pct=float(params.get("profit_target_pct", 0.08)),
-                stop_loss_pct=float(params.get("stop_loss_pct", 0.20)),
+                stop_loss_pct=float(params.get("stop_loss_pct", 0.10)),
                 max_hold_seconds=int(params.get("max_hold_seconds", 240)),
             )
         except Exception as e:

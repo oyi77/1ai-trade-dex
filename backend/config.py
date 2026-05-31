@@ -766,10 +766,10 @@ class ConfigRegistry:
     # AUTO-SELL — Pre-settlement profit-taking
     # --------------------------------------------------------------------------
     AUTO_SELL_PROFIT_TARGET_PCT: float = (
-        0.03  # 3% profit target (must cover ~1% PM fee + 0.5% slippage)
+        0.06  # 6% profit target (net ~4% after 2% round-trip PM fee)
     )
-    AUTO_SELL_STOP_LOSS_PCT: float = 0.03  # 3% stop-loss
-    AUTO_SELL_MAX_HOLD_SECONDS: int = 300  # 5 min max hold
+    AUTO_SELL_STOP_LOSS_PCT: float = 0.04  # 4% stop-loss
+    AUTO_SELL_MAX_HOLD_SECONDS: int = 600  # 10 min max hold
     AUTO_SELL_INTERVAL_SECONDS: int = 30  # Check every 30s
 
     # --------------------------------------------------------------------------

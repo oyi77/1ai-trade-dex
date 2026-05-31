@@ -341,7 +341,7 @@ class CryptoOracleStrategy(BaseStrategy):
         "debate_min_confidence": 0.55,
         "max_open_positions": 3,
         "max_per_asset": 1,
-        "stop_loss_pct": 0.20,
+        "stop_loss_pct": 0.10,
         "profit_target_pct": 0.08,
     }
 
@@ -407,7 +407,7 @@ class CryptoOracleStrategy(BaseStrategy):
                     context=context,
                     max_rounds=2,
                 ),
-                timeout=10.0,
+                timeout=15.0,
             )
             if result and result.confidence > 0:
                 return (
@@ -417,9 +417,9 @@ class CryptoOracleStrategy(BaseStrategy):
                 )
         except Exception:
             logger.warning(
-                "CryptoOracleStrategy: debate validation failed, allowing trade"
+                "CryptoOracleStrategy: debate validation failed, REJECTING trade"
             )
-        return True, 0.5
+        return False, 0.0
 
     # -- Event-driven (WebSocket) subscription config --
     subscribed_tokens: set[str] = set()
@@ -683,7 +683,7 @@ class CryptoOracleStrategy(BaseStrategy):
                 self.name,
                 clob_client=ctx.clob,
                 profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
+                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10))),
                 max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
             )
         except Exception as e:
@@ -1208,7 +1208,7 @@ class CryptoOracleStrategy(BaseStrategy):
                 self.name,
                 clob_client=ctx.clob,
                 profit_target_pct=float(params.get("auto_sell_profit_target_pct", params.get("profit_target_pct", 0.08))),
-                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.05))),
+                stop_loss_pct=float(params.get("auto_sell_stop_loss_pct", params.get("stop_loss_pct", 0.10))),
                 max_hold_seconds=int(params.get("auto_sell_max_hold_seconds", params.get("max_hold_seconds", 3600))),
             )
         except Exception as e:

@@ -1154,6 +1154,8 @@ def _preflight_checks(
     size = float(decision.get("size", 0.0))
     confidence = float(decision.get("confidence", 0.0))
     market_end_date_str = decision.get("market_end_date")
+    entry_price = float(decision.get("entry_price", 0.5))
+    model_probability = float(decision.get("model_probability", confidence))
 
     # Parse market_end_date once for reuse
     market_end_date = None
@@ -1378,6 +1380,8 @@ def _preflight_checks(
         mode=mode,
         strategy_name=strategy_name,
         direction=direction if direction else None,
+        market_price=entry_price,
+        signal_win_rate=model_probability,
     )
     if not risk.allowed:
         logger.info(

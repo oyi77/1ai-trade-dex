@@ -19,11 +19,17 @@ from loguru import logger
 from backend.config import settings
 
 # ---------------------------------------------------------------------------
+# Fee constants (Polymarket CLOB: 1% taker per side)
+# ---------------------------------------------------------------------------
+POLYMARKET_TAKER_FEE: float = 0.01  # 1% per side
+ROUND_TRIP_FEE: float = POLYMARKET_TAKER_FEE * 2  # 2% buy + sell
+
+# ---------------------------------------------------------------------------
 # Defaults (overridable via settings / env)
 # ---------------------------------------------------------------------------
-
-_DEFAULT_PROFIT_TARGET_PCT: float = 0.03  # 3 % (must cover ~1% PM fee + 0.5% slippage)
-_DEFAULT_STOP_LOSS_PCT: float = 0.03  # 3 %
+# Minimum profit target must exceed round-trip fee to be profitable
+_DEFAULT_PROFIT_TARGET_PCT: float = 0.06  # 6% (net ~4% after 2% round-trip fee)
+_DEFAULT_STOP_LOSS_PCT: float = 0.04  # 4%
 _DEFAULT_MAX_HOLD_SECONDS: int = 300  # 5 min
 
 
@@ -158,10 +164,12 @@ class AutoSellManager:
         token_id = getattr(trade, "token_id", None)
 
         # PnL calculation depends on direction
+        # Deduct round-trip fee (1% taker on buy + 1% taker on sell)
         if direction == "yes":
-            pnl_pct = (current_price - entry) / entry
+            gross_pnl_pct = (current_price - entry) / entry
         else:  # "no"
-            pnl_pct = (entry - current_price) / entry
+            gross_pnl_pct = (entry - current_price) / entry
+        pnl_pct = gross_pnl_pct - ROUND_TRIP_FEE
 
         # Time elapsed since entry
         ts = _as_aware(getattr(trade, "timestamp", None))

@@ -61,16 +61,18 @@ class LineMovementDetectorStrategy(BaseStrategy):
     description = "Detect sharp price movements (5%+ in 1 hour) and research cause"
     category = "edge_discovery"
     # ── Risk management constants ──
-    # 1:1.33 risk/reward minimum (profit target >= stop loss)
-    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.04   # 4% take-profit
-    AUTO_SELL_STOP_LOSS_PCT: float = 0.03       # 3% stop-loss
-    AUTO_SELL_MAX_HOLD_SECONDS: int = 300        # 5 min
-    # Trailing stop: once position is +8% in profit, move stop to breakeven
-    TRAILING_STOP_ACTIVATION_PCT: float = 0.08
+    # Polymarket round-trip fee ~2% (1% taker buy + 1% taker sell).
+    # Net R:R after fees: (8%-2%) vs (5%+2%) → 6% net win vs 7% net loss → R:R ~0.86:1
+    # With trailing stop at +6%, winners that run get breakeven floor → effective R:R > 1:1
+    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.08   # 8% take-profit (net ~6% after fees)
+    AUTO_SELL_STOP_LOSS_PCT: float = 0.05       # 5% stop-loss
+    AUTO_SELL_MAX_HOLD_SECONDS: int = 600        # 10 min (was 5 — give moves room)
+    # Trailing stop: once position is +6% in profit, move stop to breakeven
+    TRAILING_STOP_ACTIVATION_PCT: float = 0.06
     # Max risk per trade as fraction of bankroll
     MAX_RISK_PER_TRADE_PCT: float = 0.02  # 2% of bankroll
-    # Kelly defaults for sizing (historical: 53.6% WR, small wins)
-    HISTORICAL_WIN_RATE: float = 0.536
+    # Kelly defaults for sizing (historical: 79% WR, small wins)
+    HISTORICAL_WIN_RATE: float = 0.79
     HISTORICAL_AVG_WIN: float = 1.0     # normalized
     HISTORICAL_AVG_LOSS: float = 1.0    # normalized
     KELLY_FRACTION: float = 0.25        # quarter-Kelly
