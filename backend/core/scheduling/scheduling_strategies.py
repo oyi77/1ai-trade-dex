@@ -749,7 +749,9 @@ async def settlement_job():
             else:
                 log_event("info", "No trades ready for settlement")
 
-            await reconcile_bot_state(db)
+        # Reconcile in separate session to avoid corruption spreading
+        with get_db_session() as recon_db:
+            await reconcile_bot_state(recon_db)
 
     except Exception as e:
         log_event("error", f"Settlement error: {str(e)}")
