@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 from backend.core.retry import retry
 
 from loguru import logger

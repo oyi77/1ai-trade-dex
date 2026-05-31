@@ -26,7 +26,8 @@ from backend.strategies.base import (
     MarketInfo,
 )
 from backend.core.decisions import record_decision_standalone
-from backend.config import settings, _cfg
+from backend.config import settings
+from backend.data.shared_client import get_shared_client, _cfg
 from backend.ai.probability_utils import clamp_probability
 from backend.ai.debate_router import run_debate_with_routing
 

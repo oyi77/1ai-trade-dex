@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 import re as _re
 
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 from backend.models.database import Trade, BotState, botstate_mutex
 from backend.core.alert_manager import AlertManager
 from backend.monitoring.hft_metrics import record_execution, db_query_duration

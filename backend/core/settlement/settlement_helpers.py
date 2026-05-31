@@ -17,6 +17,7 @@ from cachetools import TTLCache
 
 from backend.models.database import Trade, Signal, SettlementEvent, TradeContext
 from backend.config import settings
+from backend.data.shared_client import get_shared_client
 
 from loguru import logger
 

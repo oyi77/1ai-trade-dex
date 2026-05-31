@@ -30,7 +30,8 @@ from backend.strategies.base import (
     MarketEvent,
 )
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
-from backend.config import settings, _cfg
+from backend.config import settings
+from backend.data.shared_client import get_shared_client, _cfg
 
 from loguru import logger
 
