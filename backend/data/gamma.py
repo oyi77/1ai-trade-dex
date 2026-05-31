@@ -12,6 +12,7 @@ from typing import Any, Optional
 import httpx
 
 from backend.config import settings
+from backend.data.shared_client import get_shared_client, get_semaphore
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.errors import ExternalAPIError
 from backend.core.external_rate_limiter import ExternalRateLimiter
@@ -20,7 +21,11 @@ from backend.core.retry import retry
 from loguru import logger
 
 # Circuit breaker for transient failures
-gamma_breaker = CircuitBreaker("gamma_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+gamma_breaker = CircuitBreaker(
+    "gamma_api",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+)
 
 # Rate limiter for Gamma API (configurable requests per minute)
 _gamma_rate_limiter = ExternalRateLimiter(
@@ -57,7 +62,27 @@ async def fetch_markets(
     """
 
     async def _fetch_single_page() -> list[dict[str, Any]]:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        client = get_shared_client()
+        resp = await client.get(
+            GAMMA_API_URL,
+            params={
+                "active": str(active).lower(),
+                "closed": str(not active).lower(),
+                "limit": limit,
+                "order": order,
+                "ascending": str(ascending).lower(),
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, list):
+            return data
+        return []
+
+    if limit <= 100:
+
+        async def _fetch_single_page_limited() -> list[dict[str, Any]]:
+            client = get_shared_client()
             resp = await client.get(
                 GAMMA_API_URL,
                 params={
@@ -73,26 +98,6 @@ async def fetch_markets(
             if isinstance(data, list):
                 return data
             return []
-
-    if limit <= 100:
-
-        async def _fetch_single_page_limited() -> list[dict[str, Any]]:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    GAMMA_API_URL,
-                    params={
-                        "active": str(active).lower(),
-                        "closed": str(not active).lower(),
-                        "limit": limit,
-                        "order": order,
-                        "ascending": str(ascending).lower(),
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                if isinstance(data, list):
-                    return data
-                return []
 
         try:
             return await _gamma_rate_limiter.call(_fetch_single_page_limited)
@@ -153,28 +158,28 @@ async def fetch_markets(
     cursor: Optional[str] = None
     page_size = 100
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            while len(all_markets) < limit:
-                try:
-                    page = await _gamma_rate_limiter.call(_fetch_page, client, cursor)
-                except CircuitOpenError:
-                    logger.warning(
-                        "[gamma] Gamma API circuit open during pagination at cursor %s",
-                        cursor,
-                    )
-                    break
-                if page is None or not isinstance(page, list) or not page:
-                    break
-                all_markets.extend(page)
-                if len(page) < page_size:
-                    break
-                # Extract cursor from last item for next page
-                last_item = page[-1] if page else None
-                cursor = (
-                    last_item.get("cursor") if isinstance(last_item, dict) else None
+        client = get_shared_client()
+        while len(all_markets) < limit:
+            try:
+                page = await _gamma_rate_limiter.call(_fetch_page, client, cursor)
+            except CircuitOpenError:
+                logger.warning(
+                    "[gamma] Gamma API circuit open during pagination at cursor %s",
+                    cursor,
                 )
-                if not cursor:
-                    break
+                break
+            if page is None or not isinstance(page, list) or not page:
+                break
+            all_markets.extend(page)
+            if len(page) < page_size:
+                break
+            # Extract cursor from last item for next page
+            last_item = page[-1] if page else None
+            cursor = (
+                last_item.get("cursor") if isinstance(last_item, dict) else None
+            )
+            if not cursor:
+                break
         return all_markets[:limit]
     except Exception as e:
         logger.warning("[gamma] Paginated fetch failed: %s", e)
@@ -210,54 +215,54 @@ async def fetch_resolved_markets(
     page_size = min(limit, 100)
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            while len(all_markets) < limit:
-                params: dict[str, Any] = {
-                    "active": "false",
-                    "closed": "true",
-                    "limit": page_size,
-                    "order": "endDate",
-                    "ascending": "false",
-                }
-                if tag:
-                    params["tag"] = tag
-                if cursor:
-                    params["after_cursor"] = cursor
+        client = get_shared_client()
+        while len(all_markets) < limit:
+            params: dict[str, Any] = {
+                "active": "false",
+                "closed": "true",
+                "limit": page_size,
+                "order": "endDate",
+                "ascending": "false",
+            }
+            if tag:
+                params["tag"] = tag
+            if cursor:
+                params["after_cursor"] = cursor
 
-                try:
-                    page = await _gamma_rate_limiter.call(
-                        _fetch_resolved_page, client, params
-                    )
-                except CircuitOpenError:
-                    logger.warning(
-                        "[gamma] Gamma API circuit open during resolved markets fetch at cursor %s",
-                        cursor,
-                    )
-                    break
-
-                if page is None:
-                    logger.warning(
-                        "[gamma] Rate limited after %d retries at cursor %s",
-                        _RATE_LIMIT_MAX_RETRIES,
-                        cursor,
-                    )
-                    break
-
-                if not isinstance(page, list) or not page:
-                    break
-
-                for m in page:
-                    if not m.get("resolved"):
-                        continue
-                    all_markets.append(m)
-
-                if len(page) < page_size:
-                    break
-                last_item = page[-1] if page else None
-                cursor = (
-                    last_item.get("cursor") if isinstance(last_item, dict) else None
+            try:
+                page = await _gamma_rate_limiter.call(
+                    _fetch_resolved_page, client, params
                 )
-                if not cursor:
+            except CircuitOpenError:
+                logger.warning(
+                    "[gamma] Gamma API circuit open during resolved markets fetch at cursor %s",
+                    cursor,
+                )
+                break
+
+            if page is None:
+                logger.warning(
+                    "[gamma] Rate limited after %d retries at cursor %s",
+                    _RATE_LIMIT_MAX_RETRIES,
+                    cursor,
+                )
+                break
+
+            if not isinstance(page, list) or not page:
+                break
+
+            for m in page:
+                if not m.get("resolved"):
+                    continue
+                all_markets.append(m)
+
+            if len(page) < page_size:
+                break
+            last_item = page[-1] if page else None
+            cursor = (
+                last_item.get("cursor") if isinstance(last_item, dict) else None
+            )
+            if not cursor:
                     break
 
         logger.info(

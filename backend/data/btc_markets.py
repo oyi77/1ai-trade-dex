@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from backend.core.market_scanner import fetch_markets_by_keywords
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.data.market_types import UnifiedMarketView
+from backend.data.shared_client import get_shared_client
 from backend.config import settings
 
 from loguru import logger
@@ -251,10 +252,10 @@ async def fetch_crypto_market_by_slug(
     try:
 
         async def _do_fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                return response.json()
+            client = get_shared_client()
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
 
         events = await gamma_breaker.call(_do_fetch)
 
@@ -358,10 +359,10 @@ async def fetch_crypto_market_for_settlement(
     try:
 
         async def _do_fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                return response.json()
+            client = get_shared_client()
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            return response.json()
 
         events = await gamma_breaker.call(_do_fetch)
 
