@@ -236,6 +236,7 @@ class ConfigRegistry:
     # Trading parameters
     MIN_DEBATE_EDGE: float = 0.04  # debate threshold
     MIN_EDGE_THRESHOLD: float = 0.03  # minimum edge for signals
+    MIN_EDGE_PP: float = 2.0  # minimum edge in percentage points for risk_manager
     MAX_ENTRY_PRICE: float = 0.80  # maximum entry price
     MAX_TRADES_PER_WINDOW: int = 20  # trades per scheduling window
     MAX_TRADES_PER_SCAN: int = 10  # trades per scan cycle
@@ -287,26 +288,38 @@ class ConfigRegistry:
     MIN_WHALE_TRADE_USD: float = 1000.0  # minimum whale trade size
 
     # Strategy governance thresholds
-    KILL_WIN_RATE: float = 0.30  # win rate below which strategy is auto-killed (was 0.05 — crypto_oracle disaster)
+    KILL_WIN_RATE: float = (
+        0.30  # win rate below which strategy is auto-killed (was 0.05 — crypto_oracle disaster)
+    )
     KILL_SHARPE: float = -2.0  # Sharpe ratio below which strategy is auto-killed
     KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
     WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
     MIN_WARMUP_TRADES: int = 30  # trades before strategy governance activates
-    DEGRADATION_WR_THRESHOLD: float = 0.35  # win rate drop triggering degradation review
-    DEGRADATION_SHARPE_THRESHOLD: float = -0.5  # Sharpe drop triggering degradation review
-    MAX_DEGRADATIONS_BEFORE_REVIEW: int = 2  # consecutive degradations before forced review
+    DEGRADATION_WR_THRESHOLD: float = (
+        0.35  # win rate drop triggering degradation review
+    )
+    DEGRADATION_SHARPE_THRESHOLD: float = (
+        -0.5
+    )  # Sharpe drop triggering degradation review
+    MAX_DEGRADATIONS_BEFORE_REVIEW: int = (
+        2  # consecutive degradations before forced review
+    )
     REHAB_CATASTROPHIC_WR_FLOOR: float = 0.05  # min WR to enter strategy rehabilitation
     REHAB_CATASTROPHIC_MIN_TRADES: int = 30  # min trades before rehab evaluation
     STRATEGY_MIN_WIN_RATE: float = 0.45  # circuit breaker kill threshold per strategy
     STRATEGY_MIN_PNL_RATIO: float = 0.05  # circuit breaker PnL kill threshold
     STRATEGY_WINRATE_LOOKBACK_TRADES: int = 20  # trade lookback for WR calculation
     STRATEGY_PNL_LOOKBACK_DAYS: int = 30  # day lookback for PnL evaluation
-    RISK_MAX_DAILY_LOSS_PER_STRATEGY_USD: float = 50.0  # hard-dollar daily stop per strategy
+    RISK_MAX_DAILY_LOSS_PER_STRATEGY_USD: float = (
+        50.0  # hard-dollar daily stop per strategy
+    )
     RISK_MAX_TOTAL_DRAWDOWN_PCT: float = 10.0  # % of total balance drawdown limit
     PER_TRADE_MAX_LOSS_PCT: float = 0.05  # no single trade > 5% of bankroll
     MAX_DAILY_TRADES_PER_STRATEGY: int = 50  # max trades per strategy per day
-    PORTFOLIO_CIRCUIT_BREAKER_PCT: float = 0.20  # disable ALL if portfolio down >20% from peak
+    PORTFOLIO_CIRCUIT_BREAKER_PCT: float = (
+        0.20  # disable ALL if portfolio down >20% from peak
+    )
     PROPOSAL_ROLLBACK_THRESHOLD: float = -0.1  # Sharpe rollback trigger
     PROPOSAL_IMPACT_WINDOW_HOURS: int = 48  # hours to monitor after proposal exec
     PROPOSAL_MIN_TRADES_FOR_IMPACT: int = 5  # min trades for impact measurement
@@ -474,13 +487,17 @@ class ConfigRegistry:
     BTC_ORACLE_MIN_POSITION_USD: float = 1.0
     BTC_ORACLE_MAX_POSITION_USD: float = 50.0
     BTC_ORACLE_EDGE_SCALE_THRESHOLD: float = 0.10
-    BTC_ORACLE_MIN_EDGE: float = 0.08  # raised from 0.03 — WR 40.7% loss-making, need stronger conviction
+    BTC_ORACLE_MIN_EDGE: float = (
+        0.08  # raised from 0.03 — WR 40.7% loss-making, need stronger conviction
+    )
     BTC_ORACLE_INTERVAL_SECONDS: int = 30
     BTC_ORACLE_MAX_MINUTES_TO_RESOLUTION: int = 5
 
     # CEX PM Lead-Lag
     CEX_PM_LEADLAG_MIN_MOMENTUM: float = 0.001
-    CEX_PM_LEADLAG_MIN_EDGE: float = 0.05  # 5% minimum raw divergence (fee-aware: exceeds 2% taker + 2% maker fees)
+    CEX_PM_LEADLAG_MIN_EDGE: float = (
+        0.05  # 5% minimum raw divergence (fee-aware: exceeds 2% taker + 2% maker fees)
+    )
     CEX_PM_LEADLAG_MAX_MINUTES_TO_RESOLUTION: int = 90
     CEX_PM_LEADLAG_MAX_POSITION_USD: float = 20.0
     CEX_PM_LEADLAG_INTERVAL_SECONDS: int = 15
@@ -1456,7 +1473,9 @@ class ConfigRegistry:
     KALSHI_API_KEY: str = ""
     KALSHI_API_SECRET: str = ""
     RISK_PROFILE: str = "default"
-    ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS: Optional[int] = None  # set by apply_profile()
+    ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS: Optional[int] = (
+        None  # set by apply_profile()
+    )
     WALLET_PRIVATE_KEY: str = ""
     WALLET_ADDRESS: str = ""
     SAFETY_MAX_POSITION_SIZE: float = 0.1
