@@ -18,7 +18,6 @@ import time
 from dataclasses import dataclass
 from typing import Optional
 
-import httpx
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -64,18 +63,18 @@ class LineMovementDetectorStrategy(BaseStrategy):
     # Polymarket round-trip fee ~2% (1% taker buy + 1% taker sell).
     # Net R:R after fees: (8%-2%) vs (5%+2%) → 6% net win vs 7% net loss → R:R ~0.86:1
     # With trailing stop at +6%, winners that run get breakeven floor → effective R:R > 1:1
-    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.08   # 8% take-profit (net ~6% after fees)
-    AUTO_SELL_STOP_LOSS_PCT: float = 0.05       # 5% stop-loss
-    AUTO_SELL_MAX_HOLD_SECONDS: int = 600        # 10 min (was 5 — give moves room)
+    AUTO_SELL_PROFIT_TARGET_PCT: float = 0.08  # 8% take-profit (net ~6% after fees)
+    AUTO_SELL_STOP_LOSS_PCT: float = 0.05  # 5% stop-loss
+    AUTO_SELL_MAX_HOLD_SECONDS: int = 600  # 10 min (was 5 — give moves room)
     # Trailing stop: once position is +6% in profit, move stop to breakeven
     TRAILING_STOP_ACTIVATION_PCT: float = 0.06
     # Max risk per trade as fraction of bankroll
     MAX_RISK_PER_TRADE_PCT: float = 0.02  # 2% of bankroll
     # Kelly defaults for sizing (historical: 79% WR, small wins)
     HISTORICAL_WIN_RATE: float = 0.79
-    HISTORICAL_AVG_WIN: float = 1.0     # normalized
-    HISTORICAL_AVG_LOSS: float = 1.0    # normalized
-    KELLY_FRACTION: float = 0.25        # quarter-Kelly
+    HISTORICAL_AVG_WIN: float = 1.0  # normalized
+    HISTORICAL_AVG_LOSS: float = 1.0  # normalized
+    KELLY_FRACTION: float = 0.25  # quarter-Kelly
 
     default_params = {
         "min_price_change_pct": settings.LINE_MOVE_MIN_PRICE_CHANGE_PCT,
@@ -145,6 +144,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
             # Parallelize market analysis — debate + websearch per market is I/O-bound,
             # running sequentially wastes 10× the wall-clock time and congests the event loop.
             import asyncio
+
             sem = asyncio.Semaphore(3)  # cap concurrent LLM calls to avoid rate limits
 
             async def _analyze_one(mv):
@@ -152,10 +152,14 @@ class LineMovementDetectorStrategy(BaseStrategy):
                     try:
                         return await self._analyze_movement(mv, params, ctx)
                     except Exception as e:
-                        logger.warning(f"[{self.name}] Error analyzing {mv.ticker}: {e}")
+                        logger.warning(
+                            f"[{self.name}] Error analyzing {mv.ticker}: {e}"
+                        )
                         return None
 
-            tasks = [_analyze_one(m) for m in movements[: params["max_markets_per_cycle"]]]
+            tasks = [
+                _analyze_one(m) for m in movements[: params["max_markets_per_cycle"]]
+            ]
             signals = await asyncio.gather(*tasks)
             for signal in signals:
                 if signal:
@@ -173,25 +177,25 @@ class LineMovementDetectorStrategy(BaseStrategy):
         movements = []
 
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    GAMMA_EVENTS_URL,
-                    params={
-                        "active": "true",
-                        "closed": "false",
-                        "limit": 100,
-                        "order": "volume24hr",
-                        "ascending": "false",
-                    },
-                )
-                resp.raise_for_status()
-                events = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                GAMMA_EVENTS_URL,
+                params={
+                    "active": "true",
+                    "closed": "false",
+                    "limit": 100,
+                    "order": "volume24hr",
+                    "ascending": "false",
+                },
+            )
+            resp.raise_for_status()
+            events = resp.json()
 
-                for event in events:
-                    for market in event.get("markets", []):
-                        movement = self._check_market_movement(market, params)
-                        if movement:
-                            movements.append(movement)
+            for event in events:
+                for market in event.get("markets", []):
+                    movement = self._check_market_movement(market, params)
+                    if movement:
+                        movements.append(movement)
 
         except Exception as e:
             logger.warning(f"[{self.name}] Failed to fetch events: {e}")
@@ -332,37 +336,39 @@ class LineMovementDetectorStrategy(BaseStrategy):
 
         if movement.token_id:
             try:
-                async with httpx.AsyncClient(timeout=5.0) as clob_client:
-                    book_resp = await clob_client.get(
-                        f"{settings.CLOB_API_URL}/book",
-                        params={"token_id": movement.token_id},
-                    )
-                    if book_resp.status_code == 200:
-                        book_data = book_resp.json()
-                        bids = [
-                            [float(b["price"]), float(b["size"])]
-                            for b in book_data.get("bids", [])
-                            if b.get("price") and b.get("size")
-                        ]
-                        asks = [
-                            [float(a["price"]), float(a["size"])]
-                            for a in book_data.get("asks", [])
-                            if a.get("price") and a.get("size")
-                        ]
-                        bid_depth = sum(s for _, s in bids)
-                        ask_depth = sum(s for _, s in asks)
-                        total_depth = bid_depth + ask_depth
-                        if total_depth > 0:
-                            imbalance = (bid_depth - ask_depth) / total_depth
+                clob_client = get_shared_client()
+                book_resp = await clob_client.get(
+                    f"{settings.CLOB_API_URL}/book",
+                    params={"token_id": movement.token_id},
+                )
+                if book_resp.status_code == 200:
+                    book_data = book_resp.json()
+                    bids = [
+                        [float(b["price"]), float(b["size"])]
+                        for b in book_data.get("bids", [])
+                        if b.get("price") and b.get("size")
+                    ]
+                    asks = [
+                        [float(a["price"]), float(a["size"])]
+                        for a in book_data.get("asks", [])
+                        if a.get("price") and a.get("size")
+                    ]
+                    bid_depth = sum(s for _, s in bids)
+                    ask_depth = sum(s for _, s in asks)
+                    total_depth = bid_depth + ask_depth
+                    if total_depth > 0:
+                        imbalance = (bid_depth - ask_depth) / total_depth
 
-                        top_bid = bids[0][0] if bids else 0.0
-                        top_ask = asks[0][0] if asks else 0.0
-                        top_bid_size = bids[0][1] if bids else 0.0
-                        top_ask_size = asks[0][1] if asks else 0.0
-                        if top_bid and top_ask:
-                            book_spread = top_ask - top_bid
+                    top_bid = bids[0][0] if bids else 0.0
+                    top_ask = asks[0][0] if asks else 0.0
+                    top_bid_size = bids[0][1] if bids else 0.0
+                    top_ask_size = asks[0][1] if asks else 0.0
+                    if top_bid and top_ask:
+                        book_spread = top_ask - top_bid
             except Exception as e:
-                logger.warning(f"[{self.name}] CLOB order book fetch failed for {movement.ticker}: {e}")
+                logger.warning(
+                    f"[{self.name}] CLOB order book fetch failed for {movement.ticker}: {e}"
+                )
 
         # 3. Volatility spread validation
         if top_bid > 0 and top_ask > 0:
@@ -494,7 +500,8 @@ class LineMovementDetectorStrategy(BaseStrategy):
             from backend.bot.notification.registry import registry
 
             await registry.send_to(
-                "telegram", "high_confidence_signal",
+                "telegram",
+                "high_confidence_signal",
                 f"{self.name}|{movement.question[:80]}|{side}|{confidence}|{abs(movement.price_change_pct) / 100}|"
                 f"Sharp {direction} move: {movement.price_change_pct:+.1f}% in 1h. Vol: ${movement.volume_24h:,.0f}|"
                 f"{settings.POLYMARKET_BASE_URL}/event/{movement.ticker if movement.ticker else ''}",
@@ -502,6 +509,7 @@ class LineMovementDetectorStrategy(BaseStrategy):
 
         # ── Position sizing: Kelly-based with 2% bankroll risk cap ──
         from backend.core.risk.position_sizer import kelly_criterion
+
         kelly_frac = kelly_criterion(
             win_rate=self.HISTORICAL_WIN_RATE,
             avg_win=self.HISTORICAL_AVG_WIN,

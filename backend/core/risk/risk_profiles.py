@@ -10,8 +10,6 @@ Profiles are fully editable at runtime via REST API — no code changes needed.
 This module will be removed in a future release.
 """
 
-
-
 from __future__ import annotations
 import os
 from dataclasses import dataclass
@@ -66,7 +64,9 @@ class RiskProfile:
     max_concentration_pct: float = 0.30
     max_correlated_exposure_pct: float = 0.80
     longshot_no_bias_weight: float = 0.10
-    orchestrator_interval_seconds: int = 300  # how often each strategy is polled (default 5 min)
+    orchestrator_interval_seconds: int = (
+        300  # how often each strategy is polled (default 5 min)
+    )
     is_preset: bool = False
 
     def to_row(self) -> RiskProfileRow:
@@ -218,7 +218,7 @@ PRESETS: Dict[str, RiskProfile] = {
         max_concentration_pct=1.00,
         max_correlated_exposure_pct=2.00,
         longshot_no_bias_weight=0.20,
-        orchestrator_interval_seconds=15,  # 15 sec — crazy fast
+        orchestrator_interval_seconds=30,  # 30 sec — fast (was 15s, caused scheduler congestion)
     ),
     "maximum_overdrive": RiskProfile(
         name="maximum_overdrive",
@@ -240,7 +240,7 @@ PRESETS: Dict[str, RiskProfile] = {
         max_concentration_pct=1.00,
         max_correlated_exposure_pct=5.00,
         longshot_no_bias_weight=0.20,
-        orchestrator_interval_seconds=5,  # 5 sec — maximum aggression
+        orchestrator_interval_seconds=30,  # 30 sec — floor (was 5s, caused scheduler congestion)
     ),
 }
 
@@ -439,7 +439,9 @@ def apply_profile(
     settings.MAX_CORRELATED_EXPOSURE_PCT = profile.max_correlated_exposure_pct
     settings.LONGSHOT_NO_BIAS_WEIGHT = profile.longshot_no_bias_weight
     # Expose the profile's preferred strategy poll interval for the scheduler
-    settings.ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS = profile.orchestrator_interval_seconds
+    settings.ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS = (
+        profile.orchestrator_interval_seconds
+    )
 
     _persist_profile_name(profile.name)
 

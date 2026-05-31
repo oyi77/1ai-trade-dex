@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import httpx
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -24,13 +23,13 @@ class LeaderboardCopySource(CopySource):
         now = datetime.now(timezone.utc)
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{settings.DATA_API_URL}/data-api/v2/activity",
-                    params={"limit": 50},
-                )
-                resp.raise_for_status()
-                activity = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                f"{settings.DATA_API_URL}/data-api/v2/activity",
+                params={"limit": 50},
+            )
+            resp.raise_for_status()
+            activity = resp.json()
         except Exception as exc:
             logger.warning("leaderboard fetch failed: {}", exc)
             return []
@@ -83,10 +82,10 @@ class LeaderboardCopySource(CopySource):
 
     async def is_healthy(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(
-                    f"{settings.DATA_API_URL}/data-api/v2/activity", params={"limit": 1}
-                )
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(
+                f"{settings.DATA_API_URL}/data-api/v2/activity", params={"limit": 1}
+            )
+            return resp.status_code == 200
         except Exception:
             return False

@@ -5,8 +5,6 @@ Settlement helper functions - API resolution, P&L calculation, weather calibrati
 This module will be removed in a future release.
 """
 
-
-
 import asyncio
 import json
 import re
@@ -75,88 +73,92 @@ async def _resolve_pm_by_token_id(token_id: str) -> Tuple[bool, Optional[float]]
     direction='up' simply means "the token we bought".
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            for closed_flag in ("true", "false"):
+        client = get_shared_client()
+        for closed_flag in ("true", "false"):
+            try:
+                resp = await client.get(
+                    f"{settings.GAMMA_API_URL}/markets",
+                    params={
+                        "clob_token_ids": token_id,
+                        "closed": closed_flag,
+                        "limit": 1,
+                    },
+                    timeout=10.0,
+                )
+            except (httpx.TimeoutException, httpx.ConnectTimeout):
+                continue
+
+            if resp.status_code != 200:
+                continue
+
+            data = resp.json()
+            if not data or not isinstance(data, list):
+                continue
+
+            market = data[0]
+            clob_token_ids = market.get("clobTokenIds", [])
+            outcome_prices = market.get("outcomePrices", [])
+
+            if isinstance(clob_token_ids, str):
                 try:
-                    resp = await client.get(
-                        f"{settings.GAMMA_API_URL}/markets",
-                        params={
-                            "clob_token_ids": token_id,
-                            "closed": closed_flag,
-                            "limit": 1,
-                        },
-                        timeout=10.0,
-                    )
-                except (httpx.TimeoutException, httpx.ConnectTimeout):
-                    continue
-
-                if resp.status_code != 200:
-                    continue
-
-                data = resp.json()
-                if not data or not isinstance(data, list):
-                    continue
-
-                market = data[0]
-                clob_token_ids = market.get("clobTokenIds", [])
-                outcome_prices = market.get("outcomePrices", [])
-
-                if isinstance(clob_token_ids, str):
-                    try:
-                        clob_token_ids = json.loads(clob_token_ids)
-                    except (ValueError, TypeError):
-                        clob_token_ids = []
-                if isinstance(outcome_prices, str):
-                    try:
-                        outcome_prices = json.loads(outcome_prices)
-                    except (ValueError, TypeError):
-                        # Handle non-JSON strings like '[0.5, 0.5]'
-                        try:
-                            cleaned = outcome_prices.strip("[] ")
-                            outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
-                        except (ValueError, TypeError):
-                            outcome_prices = []
-
-                if not clob_token_ids or not outcome_prices:
-                    continue
-                if len(clob_token_ids) != len(outcome_prices):
-                    continue
-
-                idx = None
-                for i, tid in enumerate(clob_token_ids):
-                    if str(tid) == str(token_id):
-                        idx = i
-                        break
-                if idx is None:
-                    continue
-
-                is_closed = bool(market.get("closed", False))
-                uma_status = (market.get("umaResolutionStatus") or "").lower()
-                resolved = is_closed or uma_status == "resolved"
-                if not resolved:
-                    continue
-
-                try:
-                    our_price = float(outcome_prices[idx])
+                    clob_token_ids = json.loads(clob_token_ids)
                 except (ValueError, TypeError):
-                    continue
+                    clob_token_ids = []
+            if isinstance(outcome_prices, str):
+                try:
+                    outcome_prices = json.loads(outcome_prices)
+                except (ValueError, TypeError):
+                    # Handle non-JSON strings like '[0.5, 0.5]'
+                    try:
+                        cleaned = outcome_prices.strip("[] ")
+                        outcome_prices = [
+                            float(x.strip())
+                            for x in cleaned.split(",")
+                            if x.strip()
+                        ]
+                    except (ValueError, TypeError):
+                        outcome_prices = []
 
-                if our_price >= 0.99:
-                    logger.info(
-                        f"PM token-id {token_id[:16]}... resolved: WON "
-                        f"(idx={idx}, price={our_price})"
-                    )
-                    return True, 1.0
-                if our_price <= 0.01:
-                    logger.info(
-                        f"PM token-id {token_id[:16]}... resolved: LOST "
-                        f"(idx={idx}, price={our_price})"
-                    )
-                    return True, 0.0
+            if not clob_token_ids or not outcome_prices:
+                continue
+            if len(clob_token_ids) != len(outcome_prices):
+                continue
 
-                return False, None
+            idx = None
+            for i, tid in enumerate(clob_token_ids):
+                if str(tid) == str(token_id):
+                    idx = i
+                    break
+            if idx is None:
+                continue
+
+            is_closed = bool(market.get("closed", False))
+            uma_status = (market.get("umaResolutionStatus") or "").lower()
+            resolved = is_closed or uma_status == "resolved"
+            if not resolved:
+                continue
+
+            try:
+                our_price = float(outcome_prices[idx])
+            except (ValueError, TypeError):
+                continue
+
+            if our_price >= 0.99:
+                logger.info(
+                    f"PM token-id {token_id[:16]}... resolved: WON "
+                    f"(idx={idx}, price={our_price})"
+                )
+                return True, 1.0
+            if our_price <= 0.01:
+                logger.info(
+                    f"PM token-id {token_id[:16]}... resolved: LOST "
+                    f"(idx={idx}, price={our_price})"
+                )
+                return True, 0.0
 
             return False, None
+
+        return False, None
 
     except Exception as e:
         logger.warning(
@@ -185,17 +187,17 @@ async def fetch_polymarket_resolution(
     # New: try condition_id first (most reliable for settlement)
     if condition_id:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{settings.GAMMA_API_URL}/markets",
-                    params={"condition_id": condition_id},
-                )
-                if resp.status_code == 200:
-                    markets = resp.json()
-                    if isinstance(markets, list) and markets:
-                        result = _parse_market_resolution(markets[0])
-                        if result[0]:
-                            return result
+            client = get_shared_client()
+            resp = await client.get(
+                f"{settings.GAMMA_API_URL}/markets",
+                params={"condition_id": condition_id},
+            )
+            if resp.status_code == 200:
+                markets = resp.json()
+                if isinstance(markets, list) and markets:
+                    result = _parse_market_resolution(markets[0])
+                    if result[0]:
+                        return result
         except Exception:
             logger.exception(
                 f"[settlement] Gamma API resolution failed for market {market_id}"
@@ -207,90 +209,90 @@ async def fetch_polymarket_resolution(
             return resolved, value
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            # Try event slug first (more reliable for BTC 5-min markets)
-            if event_slug:
-                response = await client.get(
-                    f"{settings.GAMMA_API_URL}/events",
-                    params={"slug": event_slug},
-                )
-                response.raise_for_status()
-                events = response.json()
-
-                if events:
-                    event = events[0] if isinstance(events, list) else events
-                    markets = event.get("markets", [])
-                    if markets:
-                        return _parse_market_resolution(markets[0])
-
-            # Try slug-based query first (market_id may be a slug, not numeric ID)
-            try:
-                slug_response = await client.get(
-                    f"{settings.GAMMA_API_URL}/markets",
-                    params={"slug": market_id},
-                    timeout=15.0,
-                )
-                if slug_response.status_code == 200:
-                    slug_results = slug_response.json()
-                    if isinstance(slug_results, list) and slug_results:
-                        result = _parse_market_resolution(slug_results[0])
-                        # If Gamma says unresolved but prices are 0/null, check CLOB
-                        if not result[0] and _has_invalid_prices(slug_results[0]):
-                            clob_result = await _check_clob_resolution(market_id)
-                            if clob_result[0]:
-                                return clob_result
-                        return result
-            except (httpx.TimeoutException, httpx.ConnectTimeout):
-                logger.debug(
-                    f"Market query timeout for {market_id}, trying event query"
-                )
-
-            # If market query times out, try querying by event slug
-            # Extract event slug by removing the last suffix (e.g., -scf, -cel4, -draw)
-            if "-" in market_id:
-                parts = market_id.rsplit("-", 1)
-                if len(parts) == 2 and len(parts[1]) <= 5:
-                    event_slug = parts[0]
-                    try:
-                        event_response = await client.get(
-                            f"{settings.GAMMA_API_URL}/events",
-                            params={"slug": event_slug},
-                            timeout=15.0,
-                        )
-                        if event_response.status_code == 200:
-                            events = event_response.json()
-                            if events and isinstance(events, list):
-                                event = events[0]
-                                markets = event.get("markets", [])
-                                for market in markets:
-                                    if market.get("slug") == market_id:
-                                        return _parse_market_resolution(market)
-                    except Exception as e:
-                        logger.debug(
-                            f"[settlement_helpers.fetch_polymarket_resolution] {type(e).__name__}: Event query failed for {event_slug}: {e}",
-                            exc_info=True,
-                        )
-
-            # Fallback: try market ID directly (works for numeric IDs)
-            url = f"{settings.GAMMA_API_URL}/markets/{market_id}"
-            response = await client.get(url)
-
-            if response.status_code in (404, 422):
-                _market_404_counts[market_id] = _market_404_counts.get(market_id, 0) + 1
-                if _market_404_counts[market_id] >= 3:
-                    logger.debug(
-                        f"Skipping market {market_id} — 3+ consecutive 404/422s"
-                    )
-                    # Try CLOB as last resort before giving up
-                    clob_result = await _check_clob_resolution(market_id)
-                    if clob_result[0]:
-                        return clob_result
-                    return False, None
-                return await _search_market_in_events(market_id)
-
+        client = get_shared_client()
+        # Try event slug first (more reliable for BTC 5-min markets)
+        if event_slug:
+            response = await client.get(
+                f"{settings.GAMMA_API_URL}/events",
+                params={"slug": event_slug},
+            )
             response.raise_for_status()
-            market = response.json()
-            return _parse_market_resolution(market)
+            events = response.json()
+
+            if events:
+                event = events[0] if isinstance(events, list) else events
+                markets = event.get("markets", [])
+                if markets:
+                    return _parse_market_resolution(markets[0])
+
+        # Try slug-based query first (market_id may be a slug, not numeric ID)
+        try:
+            slug_response = await client.get(
+                f"{settings.GAMMA_API_URL}/markets",
+                params={"slug": market_id},
+                timeout=15.0,
+            )
+            if slug_response.status_code == 200:
+                slug_results = slug_response.json()
+                if isinstance(slug_results, list) and slug_results:
+                    result = _parse_market_resolution(slug_results[0])
+                    # If Gamma says unresolved but prices are 0/null, check CLOB
+                    if not result[0] and _has_invalid_prices(slug_results[0]):
+                        clob_result = await _check_clob_resolution(market_id)
+                        if clob_result[0]:
+                            return clob_result
+                    return result
+        except (httpx.TimeoutException, httpx.ConnectTimeout):
+            logger.debug(
+                f"Market query timeout for {market_id}, trying event query"
+            )
+
+        # If market query times out, try querying by event slug
+        # Extract event slug by removing the last suffix (e.g., -scf, -cel4, -draw)
+        if "-" in market_id:
+            parts = market_id.rsplit("-", 1)
+            if len(parts) == 2 and len(parts[1]) <= 5:
+                event_slug = parts[0]
+                try:
+                    event_response = await client.get(
+                        f"{settings.GAMMA_API_URL}/events",
+                        params={"slug": event_slug},
+                        timeout=15.0,
+                    )
+                    if event_response.status_code == 200:
+                        events = event_response.json()
+                        if events and isinstance(events, list):
+                            event = events[0]
+                            markets = event.get("markets", [])
+                            for market in markets:
+                                if market.get("slug") == market_id:
+                                    return _parse_market_resolution(market)
+                except Exception as e:
+                    logger.debug(
+                        f"[settlement_helpers.fetch_polymarket_resolution] {type(e).__name__}: Event query failed for {event_slug}: {e}",
+                        exc_info=True,
+                    )
+
+        # Fallback: try market ID directly (works for numeric IDs)
+        url = f"{settings.GAMMA_API_URL}/markets/{market_id}"
+        response = await client.get(url)
+
+        if response.status_code in (404, 422):
+            _market_404_counts[market_id] = _market_404_counts.get(market_id, 0) + 1
+            if _market_404_counts[market_id] >= 3:
+                logger.debug(
+                    f"Skipping market {market_id} — 3+ consecutive 404/422s"
+                )
+                # Try CLOB as last resort before giving up
+                clob_result = await _check_clob_resolution(market_id)
+                if clob_result[0]:
+                    return clob_result
+                return False, None
+            return await _search_market_in_events(market_id)
+
+        response.raise_for_status()
+        market = response.json()
+        return _parse_market_resolution(market)
 
     except Exception as e:
         logger.warning(
@@ -310,7 +312,9 @@ def _has_invalid_prices(market: dict) -> bool:
                 outcome_prices = json.loads(outcome_prices)
             except (ValueError, TypeError):
                 cleaned = outcome_prices.strip("[] ")
-                outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
+                outcome_prices = [
+                    float(x.strip()) for x in cleaned.split(",") if x.strip()
+                ]
         prices = [float(p) for p in outcome_prices if p]
         if not prices or all(p == 0 for p in prices):
             return True
@@ -322,19 +326,19 @@ def _has_invalid_prices(market: dict) -> bool:
 async def _check_clob_resolution(market_id: str) -> Tuple[bool, Optional[float]]:
     """Check CLOB API for market closed status."""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"{settings.CLOB_API_URL}/markets?slug={market_id}"
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data and isinstance(data, dict) and "data" in data:
-                    markets = data["data"]
-                    if markets and isinstance(markets, list):
-                        market = markets[0]
-                        if market.get("closed"):
-                            logger.info(f"CLOB confirms market {market_id} is closed")
-                            return True, None
+        client = get_shared_client()
+        response = await client.get(
+            f"{settings.CLOB_API_URL}/markets?slug={market_id}"
+        )
+        if response.status_code == 200:
+            data = response.json()
+            if data and isinstance(data, dict) and "data" in data:
+                markets = data["data"]
+                if markets and isinstance(markets, list):
+                    market = markets[0]
+                    if market.get("closed"):
+                        logger.info(f"CLOB confirms market {market_id} is closed")
+                        return True, None
     except Exception as e:
         logger.debug(
             f"[settlement_helpers._check_clob_resolution] {type(e).__name__}: CLOB resolution check failed for {market_id}: {e}",
@@ -346,19 +350,19 @@ async def _check_clob_resolution(market_id: str) -> Tuple[bool, Optional[float]]
 async def _search_market_in_events(market_id: str) -> Tuple[bool, Optional[float]]:
     """Search for market in events (both active and closed)."""
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            for closed in [True, False]:
-                params = {"closed": str(closed).lower(), "limit": 200}
-                response = await client.get(
-                    f"{settings.GAMMA_API_URL}/events", params=params
-                )
-                response.raise_for_status()
-                events = response.json()
+        client = get_shared_client()
+        for closed in [True, False]:
+            params = {"closed": str(closed).lower(), "limit": 200}
+            response = await client.get(
+                f"{settings.GAMMA_API_URL}/events", params=params
+            )
+            response.raise_for_status()
+            events = response.json()
 
-                for event in events:
-                    for market in event.get("markets", []):
-                        if str(market.get("id")) == str(market_id):
-                            return _parse_market_resolution(market)
+            for event in events:
+                for market in event.get("markets", []):
+                    if str(market.get("id")) == str(market_id):
+                        return _parse_market_resolution(market)
 
         return False, None
 
@@ -394,7 +398,9 @@ def _parse_market_resolution(market: dict) -> Tuple[bool, Optional[float]]:
                 outcome_prices = json.loads(outcome_prices)
             except (ValueError, TypeError):
                 cleaned = outcome_prices.strip("[] ")
-                outcome_prices = [float(x.strip()) for x in cleaned.split(",") if x.strip()]
+                outcome_prices = [
+                    float(x.strip()) for x in cleaned.split(",") if x.strip()
+                ]
 
         first_price = float(outcome_prices[0]) if outcome_prices else 0.5
 
@@ -630,8 +636,6 @@ async def _resolve_btc_updown_via_binance(ticker: str) -> Optional[float]:
     Slug format: btc-updown-5m-TIMESTAMP
     Returns 1.0 if BTC went up, 0.0 if down. None if unable to determine.
     """
-    import httpx
-
     parts = ticker.split("-")
     if len(parts) < 4:
         return None
@@ -644,18 +648,18 @@ async def _resolve_btc_updown_via_binance(ticker: str) -> Optional[float]:
     end_ms = (market_ts + 300) * 1000
     url = f"https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime={start_ms}&endTime={end_ms}&limit=5"
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, timeout=10.0)
-        data = resp.json()
-        if not data:
-            return None
-        open_price = float(data[0][1])
-        close_price = float(data[-1][4])
-        result = 1.0 if close_price > open_price else 0.0
-        logger.info(
-            f"[settlement] BTC Binance fallback: {ticker} open=${open_price:.2f} close=${close_price:.2f} -> {'up' if result == 1.0 else 'down'}"
-        )
-        return result
+    client = get_shared_client()
+    resp = await client.get(url, timeout=10.0)
+    data = resp.json()
+    if not data:
+        return None
+    open_price = float(data[0][1])
+    close_price = float(data[-1][4])
+    result = 1.0 if close_price > open_price else 0.0
+    logger.info(
+        f"[settlement] BTC Binance fallback: {ticker} open=${open_price:.2f} close=${close_price:.2f} -> {'up' if result == 1.0 else 'down'}"
+    )
+    return result
 
 
 async def _fetch_kalshi_resolution(ticker: str) -> Tuple[bool, Optional[float]]:
@@ -736,9 +740,7 @@ async def fetch_resolution_for_trade(trade: Trade) -> Tuple[bool, Optional[float
             if result is not None:
                 return True, result
         except Exception:
-            logger.exception(
-                f"[settlement] BTC Binance fallback failed for {ticker}"
-            )
+            logger.exception(f"[settlement] BTC Binance fallback failed for {ticker}")
 
     # Return unresolved status — trade will be marked as expired_unresolved to avoid PnL misreports
     return False, None
@@ -782,6 +784,7 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     # Exact formula: (fee_bps / 10000) * min(price, 1-price) * size
     # Fee is proportional to uncertainty — max at 0.50, near zero at extremes
     from backend.fee_config import TAKER_FEE_BPS
+
     fee_bps = TAKER_FEE_BPS
     uncertainty = min(entry_price, 1.0 - entry_price) if 0 < entry_price < 1.0 else 0.0
     fee = (fee_bps / 10000.0) * uncertainty * size
@@ -827,9 +830,11 @@ async def check_market_settlement(
     Returns: (is_settled, settlement_value, pnl)
     """
     platform = getattr(trade, "platform", "polymarket") or "polymarket"
-    
+
     if platform == "kalshi":
-        is_resolved, settlement_value = await _fetch_kalshi_resolution(trade.market_ticker)
+        is_resolved, settlement_value = await _fetch_kalshi_resolution(
+            trade.market_ticker
+        )
     elif platform == "lighter":
         is_resolved, settlement_value = False, None
     else:
@@ -997,28 +1002,28 @@ async def _get_actual_temp_from_openmeteo(
         if not lat or not lon:
             return None
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                settings.OPEN_METEO_ARCHIVE_URL,
-                params={
-                    "latitude": lat,
-                    "longitude": lon,
-                    "start_date": target_date,
-                    "end_date": target_date,
-                    "daily": (
-                        "temperature_2m_max"
-                        if cfg.get("metric") != "low"
-                        else "temperature_2m_min"
-                    ),
-                },
-            )
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            daily = data.get("daily", {})
-            temps = daily.get("temperature_2m_max") or daily.get("temperature_2m_min")
-            if temps and len(temps) > 0:
-                return float(temps[0])
+        client = get_shared_client()
+        resp = await client.get(
+            settings.OPEN_METEO_ARCHIVE_URL,
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "start_date": target_date,
+                "end_date": target_date,
+                "daily": (
+                    "temperature_2m_max"
+                    if cfg.get("metric") != "low"
+                    else "temperature_2m_min"
+                ),
+            },
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        daily = data.get("daily", {})
+        temps = daily.get("temperature_2m_max") or daily.get("temperature_2m_min")
+        if temps and len(temps) > 0:
+            return float(temps[0])
     except Exception as e:
         logger.debug(
             f"[settlement_helpers._get_actual_temp_from_openmeteo] {type(e).__name__}: Failed to fetch temperature for {city_key} on {target_date}: {e}",
@@ -1514,7 +1519,6 @@ async def resolve_paper_trades(db) -> List[Trade]:
     """
     from backend.models.database import Trade
     from datetime import datetime, timezone
-    import httpx
 
     # Find paper trades still pending resolution
     pending = (
@@ -1558,67 +1562,67 @@ async def resolve_paper_trades(db) -> List[Trade]:
     # Deduplicate by market_ticker
     tickers = list(set(t.market_ticker for t in pending))
 
-    async with httpx.AsyncClient(timeout=10) as client:
-        for ticker in tickers:
-            try:
-                r = await client.get(
-                    f"{settings.GAMMA_API_URL}/markets",
-                    params={"slug": ticker},
-                )
-                if r.status_code != 200:
-                    continue
-                data = r.json()
-                if not isinstance(data, list) or not data:
-                    continue
-
-                market = data[0]
-                prices = market.get("outcomePrices", [])
-                if not prices:
-                    continue
-
-                p0 = float(prices[0]) if prices[0] is not None else None
-                p1 = (
-                    float(prices[1])
-                    if len(prices) > 1 and prices[1] is not None
-                    else None
-                )
-
-                if p0 is None or p1 is None:
-                    continue
-
-                # Determine settlement value from extreme prices
-                threshold = 0.005
-                if p0 <= threshold and p1 >= (1.0 - threshold):
-                    settlement_value = 0.0  # outcome index 0 won (NO)
-                elif p1 <= threshold and p0 >= (1.0 - threshold):
-                    settlement_value = 1.0  # outcome index 1 won (YES)
-                else:
-                    continue  # market still open
-
-                condition_id = market.get("conditionId", "")
-
-                # Update all trades for this ticker
-                for trade in pending:
-                    if trade.market_ticker == ticker:
-                        dir_yes = trade.direction in ("yes", "up")
-                        is_win = (dir_yes and settlement_value == 1.0) or (
-                            not dir_yes and settlement_value == 0.0
-                        )
-
-                        trade.result = "win" if is_win else "loss"
-                        trade.settlement_value = settlement_value
-                        trade.settlement_time = now
-                        trade.settlement_source = "gamma_outcome"
-
-                        trade.pnl = calculate_pnl(trade, settlement_value)
-
-                        if condition_id:
-                            trade.condition_id = condition_id
-
-                        settled.append(trade)
-            except Exception as e:
-                logger.warning(f"Paper settlement failed for {ticker}: {e}")
+    client = get_shared_client()
+    for ticker in tickers:
+        try:
+            r = await client.get(
+                f"{settings.GAMMA_API_URL}/markets",
+                params={"slug": ticker},
+            )
+            if r.status_code != 200:
                 continue
+            data = r.json()
+            if not isinstance(data, list) or not data:
+                continue
+
+            market = data[0]
+            prices = market.get("outcomePrices", [])
+            if not prices:
+                continue
+
+            p0 = float(prices[0]) if prices[0] is not None else None
+            p1 = (
+                float(prices[1])
+                if len(prices) > 1 and prices[1] is not None
+                else None
+            )
+
+            if p0 is None or p1 is None:
+                continue
+
+            # Determine settlement value from extreme prices
+            threshold = 0.005
+            if p0 <= threshold and p1 >= (1.0 - threshold):
+                settlement_value = 0.0  # outcome index 0 won (NO)
+            elif p1 <= threshold and p0 >= (1.0 - threshold):
+                settlement_value = 1.0  # outcome index 1 won (YES)
+            else:
+                continue  # market still open
+
+            condition_id = market.get("conditionId", "")
+
+            # Update all trades for this ticker
+            for trade in pending:
+                if trade.market_ticker == ticker:
+                    dir_yes = trade.direction in ("yes", "up")
+                    is_win = (dir_yes and settlement_value == 1.0) or (
+                        not dir_yes and settlement_value == 0.0
+                    )
+
+                    trade.result = "win" if is_win else "loss"
+                    trade.settlement_value = settlement_value
+                    trade.settlement_time = now
+                    trade.settlement_source = "gamma_outcome"
+
+                    trade.pnl = calculate_pnl(trade, settlement_value)
+
+                    if condition_id:
+                        trade.condition_id = condition_id
+
+                    settled.append(trade)
+        except Exception as e:
+            logger.warning(f"Paper settlement failed for {ticker}: {e}")
+            continue
 
     if settled:
         try:
