@@ -149,7 +149,7 @@ class MLTrainer:
     def _synthetic_examples(self, n: int) -> List[TrainingExample]:
         """Generate synthetic training examples for fallback."""
 
-        rng = _random.Random(42)
+        rng = random.Random(42)
         out: List[TrainingExample] = []
         for _ in range(n):
             edge = rng.uniform(-0.2, 0.2)

@@ -233,6 +233,7 @@ Provide specific numerical suggestions in JSON format:
                         getattr(self.settings, "AI_MODEL", None)
                         or "llama-3.1-70b-versatile"
                     )
+                    from groq import AsyncGroq
                     client = AsyncGroq(api_key=groq_key)
                     prompt = self.build_prompt(analysis)
                     response = await client.chat.completions.create(
@@ -276,6 +277,7 @@ Provide specific numerical suggestions in JSON format:
                         getattr(self.settings, "AI_MODEL", None)
                         or "claude-3-5-haiku-20241022"
                     )
+                    from anthropic import AsyncAnthropic
                     client = AsyncAnthropic(api_key=claude_key)
                     prompt = self.build_prompt(analysis)
                     message = await client.messages.create(

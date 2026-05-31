@@ -32,7 +32,7 @@ class CloudWatchBackend(BaseMetricsBackend):
         if not self._boto3_available:
             return None
         if self._client is None:
-
+            import boto3
             self._client = boto3.client("cloudwatch")
         return self._client
 

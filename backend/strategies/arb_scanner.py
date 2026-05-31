@@ -2,7 +2,7 @@
 Arb Scanner Strategy — cross-platform arbitrage opportunity scanner.
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from backend.strategies.base import (
     BaseStrategy,
@@ -27,7 +27,7 @@ class ArbScannerStrategy(BaseStrategy):
     def market_filter(markets: List[MarketInfo]) -> List[MarketInfo]:
         return markets
 
-    def _get_scanner(self, ctx: StrategyContext) -> "ArbOpportunityScanner":
+    def _get_scanner(self, ctx: StrategyContext) -> Any:
         if not hasattr(self, "_scanner") or self._scanner is None:
             from backend.data.arb_opportunity_scanner import ArbOpportunityScanner
 

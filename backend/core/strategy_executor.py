@@ -1548,7 +1548,8 @@ async def _execute_decision_live_clob(
                 cfg = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
                 if cfg and cfg.params:
                     try:
-                        params = _json.loads(cfg.params) if isinstance(cfg.params, str) else cfg.params
+                        import json
+                        params = json.loads(cfg.params) if isinstance(cfg.params, str) else cfg.params
                         if params.get("force_maker_only") or params.get("maker_only"):
                             force_maker_only = True
                     except Exception:

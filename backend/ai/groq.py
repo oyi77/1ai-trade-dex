@@ -36,7 +36,7 @@ class GroqClassifier(BaseAIClient):
                 raise ValueError("GROQ_API_KEY not configured")
 
             try:
-
+                from groq import AsyncGroq
                 self._client = AsyncGroq(api_key=self.api_key)
             except ImportError:
                 raise ImportError("groq package not installed. Run: pip install groq")

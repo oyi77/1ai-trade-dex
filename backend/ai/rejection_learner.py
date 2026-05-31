@@ -115,7 +115,8 @@ def detect_root_causes(strategy_name: str) -> list[dict]:
                 if isinstance(data, str):
 
                     try:
-                        data = _json.loads(data)
+                        import json
+                        data = json.loads(data)
                     except (ValueError, TypeError):
                         logger.exception("Failed to parse signal data JSON")
                         data = {}
@@ -305,8 +306,9 @@ def generate_rejection_proposals(min_rejections: int = MIN_REJECTIONS) -> List[s
                     raw_params = cfg.params if cfg and cfg.params else "{}"
                     try:
 
+                        import json
                         current_params = (
-                            _json.loads(raw_params)
+                            json.loads(raw_params)
                             if isinstance(raw_params, str)
                             else (raw_params or {})
                         )

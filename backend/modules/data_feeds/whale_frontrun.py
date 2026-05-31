@@ -314,7 +314,8 @@ class WhaleFrontrun(BaseStrategy):
         for activity in buffered:
             try:
                 # Dynamic whale checks
-                min_whale_notional = params.get("min_whale_notional", 10000.0)
+                current_params = getattr(ctx, "params", {}) if ctx else {}
+                min_whale_notional = current_params.get("min_whale_notional", 10000.0)
                 if activity.size < min_whale_notional:
                     logger.debug(f"WhaleFrontrun: activity size ${activity.size:.0f} < threshold ${min_whale_notional:.0f}")
                     continue

@@ -274,6 +274,7 @@ class Orchestrator:
         """Register platform activity sources with ActivityTracker."""
         from backend.config import settings
 
+        import os
         addr = settings.WALLET_ADDRESS or settings.POLYMARKET_WALLET_ADDRESS or "0x0"
         tracker = self._activity_tracker
         skip_raw = os.environ.get("SKIP_ACTIVITY_SOURCES", "").strip().lower()
@@ -281,7 +282,8 @@ class Orchestrator:
 
         # Aster — WebSocket fills + balance + positions
         try:
-            if "aster" in skip_sources: raise RuntimeError("SKIP_ACTIVITY_SOURCES")
+            if "aster" in skip_sources:
+                raise RuntimeError("SKIP_ACTIVITY_SOURCES")
             from backend.markets.providers.aster_provider import AsterProvider
             from backend.core.activity.sources.aster_source import AsterActivitySource
 
