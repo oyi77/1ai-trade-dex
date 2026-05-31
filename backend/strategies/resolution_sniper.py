@@ -138,27 +138,26 @@ class ResolutionSniperStrategy(BaseStrategy):
             ctx.logger.warning(f"[{self.name}] No crypto prices available, skipping cycle")
             return result
 
-        # --- fetch active markets from Gamma (no tag filter — tag=crypto broken) ---
+        # --- fetch active crypto 5-min binary markets ---
         try:
-            client = get_shared_client()
-            resp = await client.get(
-                GAMMA_API_URL,
-                params={
-                    "active": "true",
-                    "closed": "false",
-                    "limit": 500,
-                    "order": "volume",
-                    "ascending": "false",
-                },
-            )
-            resp.raise_for_status()
-            all_markets = resp.json()
-            # Filter to crypto markets by slug/question (tag=crypto returns garbage)
-            _CRYPTO_KW = ("btc", "eth", "sol", "bitcoin", "ethereum", "solana")
-            markets = [
-                m for m in all_markets
-                if any(k in (m.get("slug", "") + m.get("question", "")).lower() for k in _CRYPTO_KW)
-            ]
+            from backend.data.btc_markets import fetch_active_crypto_markets
+            markets = []
+            for asset_prefix in _ASSET_PAIRS:
+                try:
+                    asset_markets = await fetch_active_crypto_markets(asset=asset_prefix)
+                    for m in asset_markets:
+                        markets.append({
+                            "slug": m.slug,
+                            "question": m.slug,
+                            "endDate": m.end_date.isoformat() if m.end_date else None,
+                            "outcomePrices": [str(m.yes_price), str(m.no_price)] if m.yes_price else [],
+                            "outcomes": ["Yes", "No"],
+                            "volume": m.volume_24h if hasattr(m, "volume_24h") else 0,
+                            "yes_price": m.yes_price,
+                            "no_price": m.no_price,
+                        })
+                except Exception as e:
+                    ctx.logger.debug(f"[{self.name}] fetch_active_crypto_markets({asset_prefix}) failed: {e}")
         except Exception as e:
             ctx.logger.warning(f"[{self.name}] Gamma API fetch failed: {e}")
             result.errors.append(str(e))
@@ -258,16 +257,15 @@ class ResolutionSniperStrategy(BaseStrategy):
                 skip_volume += 1
                 continue
 
-            # Must be a crypto 5-min binary
-            question = market.get("question") or market.get("title") or ""
-            asset_ids = _detect_asset(question)
+            # Already filtered to crypto markets in fetch — detect asset from slug
+            slug = market.get("slug", "")
+            question = market.get("question") or slug
+            asset_ids = _detect_asset(slug + " " + question)
             if asset_ids is None:
                 skip_no_asset += 1
                 continue
 
             coingecko_id, _binance_pair = asset_ids
-            prefix = coingecko_id[:3]  # "bitcoin" -> "bin", but use mapping
-            # Reverse lookup: coingecko_id -> prefix
             asset_prefix = None
             for pfx, (cg_id, _) in _ASSET_PAIRS.items():
                 if cg_id == coingecko_id:
@@ -278,10 +276,24 @@ class ResolutionSniperStrategy(BaseStrategy):
 
             current_price = price_cache[asset_prefix]
 
-            # Parse strike from question
-            strike = _parse_strike(question)
-            if strike is None or strike <= 0:
+            # Use market prices directly (from fetch_active_crypto_markets)
+            yes_price = float(market.get("yes_price", 0) or 0)
+            no_price = float(market.get("no_price", 0) or 0)
+            if yes_price <= 0 or no_price <= 0:
                 skip_no_strike += 1
+                continue
+
+            # Determine which side is near-certain (>0.90)
+            # If yes_price > 0.90 → market thinks UP is likely → verify with spot price
+            # If no_price > 0.90 → market thinks DOWN is likely → verify with spot price
+            if yes_price >= min_mkt_price:
+                buy_side = "yes"
+                market_price = yes_price
+            elif no_price >= min_mkt_price:
+                buy_side = "no"
+                market_price = no_price
+            else:
+                skip_price_range += 1
                 continue
 
             # Time to resolution
@@ -300,81 +312,16 @@ class ResolutionSniperStrategy(BaseStrategy):
                 skip_time += 1
                 continue
 
-            # Price distance from strike
-            price_distance = (current_price - strike) / strike
-
-            if abs(price_distance) < min_price_dist:
-                skip_price_dist += 1
-                continue  # Not far enough from strike
-
-            # Determine direction: above strike = YES, below = NO
-            if price_distance > 0:
-                buy_side = "yes"
-            else:
-                buy_side = "no"
-
-            # Parse outcome prices
-            outcome_prices_raw = market.get("outcomePrices") or []
-            outcomes = market.get("outcomes") or []
-
-            if isinstance(outcome_prices_raw, str):
-                try:
-                    outcome_prices_raw = json.loads(outcome_prices_raw)
-                except Exception:
-                    continue
-            if isinstance(outcomes, str):
-                try:
-                    outcomes = json.loads(outcomes)
-                except Exception:
-                    outcomes = []
-
-            if not outcome_prices_raw or len(outcome_prices_raw) < 2:
-                continue
-
-            # Find the price for our side
-            yes_price = None
-            no_price = None
-            for i, op in enumerate(outcome_prices_raw):
-                try:
-                    p = float(op)
-                except (TypeError, ValueError):
-                    continue
-                outcome_name = (outcomes[i] if i < len(outcomes) else "").lower()
-                if outcome_name in ("yes", "up", "above"):
-                    yes_price = p
-                elif outcome_name in ("no", "down", "below"):
-                    no_price = p
-
-            if yes_price is None:
-                # Assume first is YES, second is NO
-                try:
-                    yes_price = float(outcome_prices_raw[0])
-                    no_price = float(outcome_prices_raw[1])
-                except (IndexError, TypeError, ValueError):
-                    continue
-
-            if no_price is None:
-                no_price = 1.0 - yes_price
-
-            market_price = yes_price if buy_side == "yes" else no_price
-
-            # Price range filter
-            if market_price < min_mkt_price or market_price > max_mkt_price:
-                continue
-
             # --- Edge model ---
-            # With price_distance above threshold and 2+ min left,
-            # true probability of being right is high.  Conservative estimate:
-            #   base_prob = 0.95 for 0.5% distance, scaling up to 0.99 for 2%+
-            dist_pct = abs(price_distance) * 100.0
-            true_prob = min(0.99, 0.93 + dist_pct * 0.03)
-
-            # Time bonus: closer to resolution = more certain
+            # Market already prices this outcome at 90-97c (near-certain).
+            # We're buying because the market is slow to reprice near resolution.
+            # Conservative true_prob: market_price + small buffer for time decay
             time_factor = max(0.0, 1.0 - (secs_left - min_sec) / (max_sec - min_sec))
-            true_prob = min(0.99, true_prob + time_factor * 0.02)
+            true_prob = min(0.99, market_price + 0.02 + time_factor * 0.02)
 
             edge = true_prob - market_price - fee_pct
             if edge < 0.005:
+                skip_price_dist += 1
                 continue
 
             confidence = true_prob
