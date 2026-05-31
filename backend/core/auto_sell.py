@@ -419,11 +419,13 @@ async def check_strategy_positions_for_auto_sell(
 
     trades = await asyncio.to_thread(_load)
     if not trades:
+        logger.debug("[auto_sell] {} — no open trades", strategy_name)
         return []
 
     # Use token_id (digits) for CLOB midpoint price lookup, not market_ticker (slug)
     token_ids = list({t.token_id for t in trades if t.token_id})
     prices = await asyncio.to_thread(_fetch_prices_bulk, token_ids)
+    logger.info("[auto_sell] {} — {} open trades, {} prices fetched", strategy_name, len(trades), len(prices))
 
     manager = AutoSellManager(
         profit_target_pct=profit_target_pct,
