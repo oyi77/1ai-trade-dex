@@ -1,5 +1,5 @@
-import httpx
 import logging
+from backend.data.shared_client import get_shared_client
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
 from backend.data.crypto_feeds.registry import get_registry
 from backend.config import settings
@@ -32,13 +32,14 @@ class KrakenFeed(BaseExchangeFeed):
 
     async def get_btc_price(self) -> float:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/Ticker", params={"pair": "XXBTZUSD"}
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return float(data["result"]["XXBTZUSD"]["c"][0])
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/Ticker", params={"pair": "XXBTZUSD"}
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return float(data["result"]["XXBTZUSD"]["c"][0])
 
         return await _kraken_breaker.call(_fetch)
 
@@ -46,25 +47,26 @@ class KrakenFeed(BaseExchangeFeed):
         import datetime as _dt
 
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                end = _dt.datetime.now(_dt.timezone.utc)
-                start = end - _dt.timedelta(minutes=limit * 15)
-                from_ts = int(start.timestamp())
-                pair_map = {
-                    "XBTUSD": "XXBTZUSD",
-                    "ETHUSD": "XETHZUSD",
-                    "SOLUSD": "XSOLZUSD",
-                }
-                kraken_symbol = pair_map.get(symbol, symbol)
-                resp = await client.get(
-                    f"{self.manifest().base_url}/OHLC",
-                    params={"pair": kraken_symbol, "interval": 15, "since": from_ts},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                rows = data.get("result", {}).get(kraken_symbol, [])
-                return [
-                    [int(r[0]), r[1], r[2], r[3], r[4], r[6]] for r in rows[-limit:]
-                ]
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            end = _dt.datetime.now(_dt.timezone.utc)
+            start = end - _dt.timedelta(minutes=limit * 15)
+            from_ts = int(start.timestamp())
+            pair_map = {
+                "XBTUSD": "XXBTZUSD",
+                "ETHUSD": "XETHZUSD",
+                "SOLUSD": "XSOLZUSD",
+            }
+            kraken_symbol = pair_map.get(symbol, symbol)
+            resp = await client.get(
+                f"{self.manifest().base_url}/OHLC",
+                params={"pair": kraken_symbol, "interval": 15, "since": from_ts},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            rows = data.get("result", {}).get(kraken_symbol, [])
+            return [
+                [int(r[0]), r[1], r[2], r[3], r[4], r[6]] for r in rows[-limit:]
+            ]
 
         return await _kraken_breaker.call(_fetch)

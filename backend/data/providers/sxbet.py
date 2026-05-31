@@ -20,6 +20,7 @@ from loguru import logger
 
 from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
+from backend.data.shared_client import get_shared_client
 
 _SXBET_API_DEFAULT = "https://api.sx.bet"
 
@@ -38,9 +39,9 @@ class SXBetProvider(DataProvider):
 
     async def health_check(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base_url}/sports")
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(f"{self._base_url}/sports")
+            return resp.status_code == 200
         except Exception:
             logger.debug("SXBet health check failed")
             return False
@@ -49,14 +50,14 @@ class SXBetProvider(DataProvider):
         self, category: Optional[str] = None, limit: int = 200
     ) -> list[MarketEntry]:
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                params: dict = {}
-                resp = await client.get(
-                    f"{self._base_url}/markets/active",
-                    params=params,
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            params: dict = {}
+            resp = await client.get(
+                f"{self._base_url}/markets/active",
+                params=params,
+            )
+            resp.raise_for_status()
+            data = resp.json()
         except Exception as exc:
             logger.warning("SXBetProvider.get_markets failed: {}", exc)
             return []
@@ -95,13 +96,13 @@ class SXBetProvider(DataProvider):
     async def get_orderbook(self, market_id: str) -> dict:
         """Fetch active maker orders for a given market hash."""
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    f"{self._base_url}/orders",
-                    params={"marketHashes": market_id},
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self._base_url}/orders",
+                params={"marketHashes": market_id},
+            )
+            resp.raise_for_status()
+            data = resp.json()
         except Exception as exc:
             logger.warning("SXBetProvider.get_orderbook failed: {}", exc)
             return {"bids": [], "asks": [], "market_id": market_id}
@@ -117,13 +118,13 @@ class SXBetProvider(DataProvider):
         if not wallet:
             return []
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(
-                    f"{self._base_url}/orders",
-                    params={"maker": wallet},
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self._base_url}/orders",
+                params={"maker": wallet},
+            )
+            resp.raise_for_status()
+            data = resp.json()
         except Exception as exc:
             logger.warning("SXBetProvider.get_positions failed: {}", exc)
             return []

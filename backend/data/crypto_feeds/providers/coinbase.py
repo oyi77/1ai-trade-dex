@@ -1,5 +1,5 @@
-import httpx
 import logging
+from backend.data.shared_client import get_shared_client
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
 from backend.data.crypto_feeds.registry import get_registry
 from backend.config import settings
@@ -32,12 +32,13 @@ class CoinbaseFeed(BaseExchangeFeed):
 
     async def get_btc_price(self) -> float:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/products/BTC-USD/ticker"
-                )
-                resp.raise_for_status()
-                return float(resp.json()["price"])
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/products/BTC-USD/ticker"
+            )
+            resp.raise_for_status()
+            return float(resp.json()["price"])
 
         return await _coinbase_breaker.call(_fetch)
 
@@ -45,30 +46,31 @@ class CoinbaseFeed(BaseExchangeFeed):
         import datetime as _dt
 
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                end = _dt.datetime.now(_dt.timezone.utc)
-                start = end - _dt.timedelta(minutes=limit)
-                resp = await client.get(
-                    f"{self.manifest().base_url}/products/{symbol}/candles",
-                    params={
-                        "start": start.isoformat(),
-                        "end": end.isoformat(),
-                        "granularity": 60 if interval == "1m" else 300,
-                    },
-                )
-                resp.raise_for_status()
-                rows = resp.json()
-                rows = list(reversed(rows))
-                return [
-                    [
-                        int(r[0]) * 1000,
-                        str(r[3]),
-                        str(r[2]),
-                        str(r[1]),
-                        str(r[4]),
-                        str(r[5]),
-                    ]
-                    for r in rows
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            end = _dt.datetime.now(_dt.timezone.utc)
+            start = end - _dt.timedelta(minutes=limit)
+            resp = await client.get(
+                f"{self.manifest().base_url}/products/{symbol}/candles",
+                params={
+                    "start": start.isoformat(),
+                    "end": end.isoformat(),
+                    "granularity": 60 if interval == "1m" else 300,
+                },
+            )
+            resp.raise_for_status()
+            rows = resp.json()
+            rows = list(reversed(rows))
+            return [
+                [
+                    int(r[0]) * 1000,
+                    str(r[3]),
+                    str(r[2]),
+                    str(r[1]),
+                    str(r[4]),
+                    str(r[5]),
                 ]
+                for r in rows
+            ]
 
         return await _coinbase_breaker.call(_fetch)

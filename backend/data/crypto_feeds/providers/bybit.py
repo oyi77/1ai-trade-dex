@@ -1,5 +1,5 @@
-import httpx
 import logging
+from backend.data.shared_client import get_shared_client
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
 from backend.data.crypto_feeds.registry import get_registry
 from backend.config import settings
@@ -32,33 +32,35 @@ class BybitFeed(BaseExchangeFeed):
 
     async def get_btc_price(self) -> float:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/tickers",
-                    params={"category": "spot", "symbol": "BTCUSDT"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                return float(data["result"]["list"][0]["lastPrice"])
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/tickers",
+                params={"category": "spot", "symbol": "BTCUSDT"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return float(data["result"]["list"][0]["lastPrice"])
 
         return await _bybit_breaker.call(_fetch)
 
     async def get_klines(self, symbol: str, interval: str, limit: int) -> list:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/kline",
-                    params={
-                        "category": "spot",
-                        "symbol": symbol,
-                        "interval": interval.replace("m", ""),
-                        "limit": limit,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                rows = data.get("result", {}).get("list", [])
-                rows = list(reversed(rows))
-                return [[int(r[0]), r[1], r[2], r[3], r[4], r[5]] for r in rows]
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/kline",
+                params={
+                    "category": "spot",
+                    "symbol": symbol,
+                    "interval": interval.replace("m", ""),
+                    "limit": limit,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            rows = data.get("result", {}).get("list", [])
+            rows = list(reversed(rows))
+            return [[int(r[0]), r[1], r[2], r[3], r[4], r[5]] for r in rows]
 
         return await _bybit_breaker.call(_fetch)

@@ -1,5 +1,5 @@
-import httpx
 import logging
+from backend.data.shared_client import get_shared_client
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
 from backend.data.crypto_feeds.registry import get_registry
 from backend.config import settings
@@ -32,24 +32,26 @@ class BinanceFeed(BaseExchangeFeed):
 
     async def get_btc_price(self) -> float:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/ticker/price",
-                    params={"symbol": "BTCUSDT"},
-                )
-                resp.raise_for_status()
-                return float(resp.json()["price"])
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/ticker/price",
+                params={"symbol": "BTCUSDT"},
+            )
+            resp.raise_for_status()
+            return float(resp.json()["price"])
 
         return await _binance_breaker.call(_fetch)
 
     async def get_klines(self, symbol: str, interval: str, limit: int) -> list:
         async def _fetch():
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(
-                    f"{self.manifest().base_url}/klines",
-                    params={"symbol": symbol, "interval": interval, "limit": limit},
-                )
-                resp.raise_for_status()
-                return resp.json()
+            # timeout=10.0 (handled by shared_client)
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.manifest().base_url}/klines",
+                params={"symbol": symbol, "interval": interval, "limit": limit},
+            )
+            resp.raise_for_status()
+            return resp.json()
 
         return await _binance_breaker.call(_fetch)

@@ -3,6 +3,8 @@
 import httpx
 import re
 import unicodedata
+
+from backend.data.shared_client import get_shared_client
 from dataclasses import dataclass, field
 from datetime import datetime, date, timedelta, timezone
 from typing import Dict, List, Optional
@@ -17,9 +19,15 @@ from loguru import logger
 
 # Circuit breakers for weather API calls
 openmeteo_breaker = CircuitBreaker("open_meteo")
-nws_breaker = CircuitBreaker("nws_api", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT)
+nws_breaker = CircuitBreaker(
+    "nws_api",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
+)
 noaa_metar_breaker = CircuitBreaker(
-    "noaa_metar", failure_threshold=settings.CB_FAILURE_THRESHOLD, recovery_timeout=settings.CB_RECOVERY_TIMEOUT
+    "noaa_metar",
+    failure_threshold=settings.CB_FAILURE_THRESHOLD,
+    recovery_timeout=settings.CB_RECOVERY_TIMEOUT,
 )
 
 # Rate limiter for weather API calls (30 requests/min default)
@@ -231,28 +239,28 @@ async def geocode_city(city_name: str) -> Optional[dict]:
         return _geocode_cache[city_name]
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                settings.OPEN_METEO_GEOCODING_URL,
-                params={
-                    "name": city_name,
-                    "count": 1,
-                    "language": "en",
-                    "format": "json",
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            results = data.get("results", [])
-            if not results:
-                _geocode_cache[city_name] = None
-                logger.debug(f"Geocoding returned no results for '{city_name}'")
-                return None
-            top = results[0]
-            result = {"lat": float(top["latitude"]), "lon": float(top["longitude"])}
-            _geocode_cache[city_name] = result
-            logger.info(f"Geocoded '{city_name}' -> ({result['lat']}, {result['lon']})")
-            return result
+        client = get_shared_client()
+        resp = await client.get(
+            settings.OPEN_METEO_GEOCODING_URL,
+            params={
+                "name": city_name,
+                "count": 1,
+                "language": "en",
+                "format": "json",
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            _geocode_cache[city_name] = None
+            logger.debug(f"Geocoding returned no results for '{city_name}'")
+            return None
+        top = results[0]
+        result = {"lat": float(top["latitude"]), "lon": float(top["longitude"])}
+        _geocode_cache[city_name] = result
+        logger.info(f"Geocoded '{city_name}' -> ({result['lat']}, {result['lon']})")
+        return result
     except Exception as e:
         logger.warning(f"Geocoding failed for '{city_name}': {e}")
         _geocode_cache[city_name] = None
@@ -397,15 +405,15 @@ async def fetch_ensemble_forecast(
             req_params["temperature_unit"] = "fahrenheit"
 
         async def _do_fetch():
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                # Open-Meteo Ensemble API — GFS ensemble with 31 members
-                # For non-US cities (unit="C"), fetch Celsius and convert to Fahrenheit locally
-                response = await client.get(
-                    settings.OPEN_METEO_ENSEMBLE_URL,
-                    params=req_params,
-                )
-                response.raise_for_status()
-                return response.json()
+            client = get_shared_client()
+            # Open-Meteo Ensemble API — GFS ensemble with 31 members
+            # For non-US cities (unit="C"), fetch Celsius and convert to Fahrenheit locally
+            response = await client.get(
+                settings.OPEN_METEO_ENSEMBLE_URL,
+                params=req_params,
+            )
+            response.raise_for_status()
+            return response.json()
 
         data = await openmeteo_breaker.call(_do_fetch)
 
@@ -484,26 +492,26 @@ async def fetch_nws_observed_temperature(
         target_date = date.today()
 
     async def _fetch_nws():
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # NWS observations endpoint
-            station = city["nws_station"]
-            url = f"{settings.NWS_BASE_URL}/stations/{station}/observations"
-            headers = {"User-Agent": "(trading-bot, contact@example.com)"}
+        client = get_shared_client()
+        # NWS observations endpoint
+        station = city["nws_station"]
+        url = f"{settings.NWS_BASE_URL}/stations/{station}/observations"
+        headers = {"User-Agent": "(trading-bot, contact@example.com)"}
 
-            # Get observations for the target date
-            start = datetime.combine(target_date, datetime.min.time()).isoformat() + "Z"
-            end = (
-                datetime.combine(
-                    target_date + timedelta(days=1), datetime.min.time()
-                ).isoformat()
-                + "Z"
-            )
+        # Get observations for the target date
+        start = datetime.combine(target_date, datetime.min.time()).isoformat() + "Z"
+        end = (
+            datetime.combine(
+                target_date + timedelta(days=1), datetime.min.time()
+            ).isoformat()
+            + "Z"
+        )
 
-            response = await client.get(
-                url, params={"start": start, "end": end}, headers=headers
-            )
-            response.raise_for_status()
-            return response.json()
+        response = await client.get(
+            url, params={"start": start, "end": end}, headers=headers
+        )
+        response.raise_for_status()
+        return response.json()
 
     try:
         data = await _weather_rate_limiter.call(nws_breaker.call, _fetch_nws)
@@ -560,15 +568,15 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
     }
 
     async def _fetch_metar():
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(NOAA_METAR_URL, params=params)
-            if resp.status_code != 200:
-                raise httpx.HTTPStatusError(
-                    f"METAR HTTP {resp.status_code}",
-                    request=resp.request,
-                    response=resp,
-                )
-            return resp.json()
+        client = get_shared_client()
+        resp = await client.get(NOAA_METAR_URL, params=params)
+        if resp.status_code != 200:
+            raise httpx.HTTPStatusError(
+                f"METAR HTTP {resp.status_code}",
+                request=resp.request,
+                response=resp,
+            )
+        return resp.json()
 
     try:
         data = await _weather_rate_limiter.call(noaa_metar_breaker.call, _fetch_metar)

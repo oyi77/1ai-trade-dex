@@ -21,6 +21,7 @@ from loguru import logger
 
 from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
+from backend.data.shared_client import get_shared_client
 
 _AZURO_GRAPH_URL_DEFAULT = (
     "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
@@ -80,12 +81,12 @@ class AzuroProvider(DataProvider):
 
     async def health_check(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(
-                    self._graph_url,
-                    json={"query": "{ __typename }"},
-                )
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.post(
+                self._graph_url,
+                json={"query": "{ __typename }"},
+            )
+            return resp.status_code == 200
         except (ConnectionError, TimeoutError, OSError):
             logger.debug("Azuro health check failed for platform={}", self._platform)
             return False
@@ -97,10 +98,10 @@ class AzuroProvider(DataProvider):
         if cache_key in self._cache and (now - self._cache_ts) < self._cache_ttl:
             return self._cache[cache_key]
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(self._graph_url, json={"query": query})
-            resp.raise_for_status()
-            result = resp.json()
+        client = get_shared_client()
+        resp = await client.post(self._graph_url, json={"query": query})
+        resp.raise_for_status()
+        result = resp.json()
 
         self._cache[cache_key] = result
         self._cache_ts = now
