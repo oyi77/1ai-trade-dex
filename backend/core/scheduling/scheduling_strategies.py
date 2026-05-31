@@ -687,6 +687,18 @@ async def weather_scan_and_trade_job(mode: str):
 
 async def settlement_job():
     """Check and settle pending trades. Runs every 2 minutes."""
+    import asyncio as _aio
+    try:
+        await _aio.wait_for(_settlement_job_inner(), timeout=120)
+    except _aio.TimeoutError:
+        from backend.core.scheduling.scheduler import log_event
+        log_event("error", "Settlement job timed out after 120s")
+    except Exception as e:
+        from backend.core.scheduling.scheduler import log_event
+        log_event("error", f"Settlement job failed: {e}")
+
+async def _settlement_job_inner():
+    """Actual settlement logic wrapped with timeout."""
     await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
 
