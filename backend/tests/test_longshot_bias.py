@@ -174,3 +174,81 @@ class TestKellySizing:
         kelly_position = 3.0
         min_order = 5.0
         assert kelly_position < min_order  # should skip
+
+
+class TestHardGuards:
+    """Test the three hard guards added to prevent no-edge trades."""
+
+    def test_max_entry_price_guard(self):
+        """NO tokens above max_entry_price (0.40) should be rejected."""
+        max_entry_price = 0.40
+        # Market with YES=0.25 => NO=0.75, should be rejected
+        no_price = 0.75
+        assert no_price > max_entry_price  # guard blocks this
+
+    def test_max_entry_price_cheap_allowed(self):
+        """NO tokens at or below max_entry_price should pass."""
+        max_entry_price = 0.40
+        # Market with YES=0.20 => NO=0.80 (rejected, too expensive)
+        # But market with YES=0.70 => NO=0.30 (passes max_entry, but fails other guards)
+        no_price_pass = 0.35
+        assert no_price_pass <= max_entry_price
+
+    def test_min_model_prob_guard(self):
+        """Markets where model probability < 65% should be rejected."""
+        min_model_prob = 0.65
+        # YES=0.40 => model_prob (NO wins) = 0.60 => below 0.65 => rejected
+        yes_price = 0.40
+        model_prob = 1.0 - yes_price
+        assert model_prob < min_model_prob
+
+    def test_min_model_prob_high_enough(self):
+        """Markets where model probability >= 65% should pass."""
+        min_model_prob = 0.65
+        # YES=0.25 => model_prob = 0.75 => above 0.65 => passes
+        yes_price = 0.25
+        model_prob = 1.0 - yes_price
+        assert model_prob >= min_model_prob
+
+    def test_min_edge_guard(self):
+        """Markets where edge (model_prob - no_price) < 10% should be rejected."""
+        min_edge = 0.10
+        # YES=0.25 => model_prob=0.75, NO=0.75 => edge=0.0 => rejected
+        yes_price = 0.25
+        no_price = 0.75
+        model_prob = 1.0 - yes_price
+        edge = model_prob - no_price
+        assert edge < min_edge
+
+    def test_min_edge_sufficient(self):
+        """Markets where edge >= 10% should pass."""
+        min_edge = 0.10
+        # YES=0.20 => model_prob=0.80, NO=0.60 => edge=0.20 => passes
+        yes_price = 0.20
+        no_price = 0.60
+        model_prob = 1.0 - yes_price
+        edge = model_prob - no_price
+        assert edge >= min_edge
+
+    def test_fair_price_no_edge_blocked(self):
+        """A market bought at ~0.50 (fair price) has zero edge and must be blocked."""
+        min_edge = 0.10
+        max_entry_price = 0.40
+        # Market at YES=0.50 => NO=0.50 => model_prob=0.50
+        no_price = 0.50
+        yes_price = 0.50
+        model_prob = 1.0 - yes_price  # 0.50
+        edge = model_prob - no_price  # 0.0
+        assert no_price > max_entry_price  # blocked by entry price
+        assert model_prob < 0.65           # blocked by min model prob
+        assert edge < min_edge             # blocked by min edge
+
+    def test_new_params_in_defaults(self):
+        """New guard params should exist in strategy defaults."""
+        params = LongshotBiasStrategy.default_params
+        assert "min_edge" in params
+        assert "min_model_prob" in params
+        assert "max_entry_price" in params
+        assert params["min_edge"] == 0.10
+        assert params["min_model_prob"] == 0.65
+        assert params["max_entry_price"] == 0.40

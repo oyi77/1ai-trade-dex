@@ -36,6 +36,9 @@ class LongshotBiasStrategy(BaseStrategy):
     default_params: dict = {
         "max_price": 0.30,
         "min_ev": 0.05,
+        "min_edge": 0.10,          # need 10%+ edge (model vs market) to trade
+        "min_model_prob": 0.65,    # model must say >65% likely to win
+        "max_entry_price": 0.40,   # don't buy NO above 40c (longshots must be cheap)
         "max_position_usd": 20.0,
         "kelly_fraction": 0.25,
     }
@@ -53,6 +56,9 @@ class LongshotBiasStrategy(BaseStrategy):
 
         max_price = float(params.get("max_price", 0.30))
         min_ev = float(params.get("min_ev", 0.05))
+        min_edge = float(params.get("min_edge", 0.10))
+        min_model_prob = float(params.get("min_model_prob", 0.65))
+        max_entry_price = float(params.get("max_entry_price", 0.40))
         max_position = float(params.get("max_position_usd", 20.0))
         kelly_frac = float(params.get("kelly_fraction", 0.25))
 
@@ -122,6 +128,22 @@ class LongshotBiasStrategy(BaseStrategy):
                     no_price = market["no_price"]
                     slug = market["slug"]
 
+                    # --- HARD GUARD: max entry price (longshots must be cheap) ---
+                    if no_price > max_entry_price:
+                        continue
+
+                    # --- HARD GUARD: minimum model probability ---
+                    # Model probability = 1 - yes_price (NO wins when YES loses)
+                    model_prob = 1.0 - yes_price
+                    if model_prob < min_model_prob:
+                        continue
+
+                    # --- HARD GUARD: minimum edge (model vs market) ---
+                    # Edge = model_prob - market_implied_prob (no_price)
+                    edge = model_prob - no_price
+                    if edge < min_edge:
+                        continue
+
                     ev = max(0.0, yes_price * (1.0 - bias_ratio))
                     ev = max(0.0, ev - 2 * PLATFORM_FEE_PCT * no_price)
                     if ev < min_ev:
@@ -161,7 +183,7 @@ class LongshotBiasStrategy(BaseStrategy):
                         "size": round(position_size, 2),
                         "ev": round(ev, 4),
                         "confidence": round(true_win_prob, 4),
-                        "edge": round(ev, 4),
+                        "edge": round(edge, 4),
                     }
                     decisions.append(decision)
 
@@ -191,8 +213,8 @@ class LongshotBiasStrategy(BaseStrategy):
                         trades_placed += 1
 
                     ctx.logger.info(
-                        "[longshot_bias] {} NO @ {:.2f}c | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
-                        slug, no_price * 100, ev, kelly, position_size,
+                        "[longshot_bias] {} NO @ {:.2f}c | edge: {:.1%} | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
+                        slug, no_price * 100, edge, ev, kelly, position_size,
                     )
 
                 except Exception as exc:
