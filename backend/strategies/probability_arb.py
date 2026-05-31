@@ -64,7 +64,7 @@ def detect_arb(yes_price: float, no_price: float) -> Optional[ArbOpportunity]:
     if sum_price >= 1.0:
         return None
 
-    fees = settings.ARB_POLYMARKET_FEE
+    fees = settings.ARB_POLYMARKET_FEE * 2  # round-trip: buy YES + buy NO
     profit = (1.0 - sum_price) - fees
 
     if profit < settings.ARB_MIN_PROFIT:

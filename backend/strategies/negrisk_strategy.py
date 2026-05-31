@@ -246,7 +246,7 @@ def detect_neg_risk_events(
 def construct_orders(
     event: NegRiskEvent,
     fair_result: FairProbResult,
-    min_edge: float = 0.02,
+    min_edge: float = 0.05,
     max_position_usd: float = 50.0,
 ) -> list[NegRiskOrder]:
     """
