@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 import random
 import time
+
+from backend.data.shared_client import get_shared_client
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -54,82 +56,82 @@ class PolymarketProvider(DataProvider):
         page_offset = offset
         remaining = limit
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            while remaining > 0:
-                page_limit = min(self._page_size, remaining)
-                params: Dict[str, Any] = {
-                    "limit": page_limit,
-                    "offset": page_offset,
-                    "active": "true" if active_only else "false",
-                    "closed": "false",
-                }
-                max_retries = 3
-                retry_delay = 1.0
-                batch = []
-                for attempt in range(max_retries):
-                    try:
-                        resp = await client.get(
-                            f"{self._base_url}/markets",
-                            params=params,
-                        )
-                        if resp.status_code == 429:
-                            logger.warning(
-                                "[PolymarketProvider] 429 Rate Limit hit at offset=%d. Retrying in %ss...",
-                                page_offset,
-                                retry_delay,
-                            )
-                            await asyncio.sleep(retry_delay)
-                            retry_delay *= 2
-                            continue
-                        resp.raise_for_status()
-                        batch = resp.json()
-                        break
-                    except Exception as e:
+        client = get_shared_client()
+        while remaining > 0:
+            page_limit = min(self._page_size, remaining)
+            params: Dict[str, Any] = {
+                "limit": page_limit,
+                "offset": page_offset,
+                "active": "true" if active_only else "false",
+                "closed": "false",
+            }
+            max_retries = 3
+            retry_delay = 1.0
+            batch = []
+            for attempt in range(max_retries):
+                try:
+                    resp = await client.get(
+                        f"{self._base_url}/markets",
+                        params=params,
+                    )
+                    if resp.status_code == 429:
                         logger.warning(
-                            "[PolymarketProvider] fetch error at offset=%d: %s",
+                            "[PolymarketProvider] 429 Rate Limit hit at offset=%d. Retrying in %ss...",
                             page_offset,
-                            e,
+                            retry_delay,
                         )
-                        break
-                else:
-                    logger.error(
-                        "[PolymarketProvider] Max retries exceeded at offset=%d",
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    resp.raise_for_status()
+                    batch = resp.json()
+                    break
+                except Exception as e:
+                    logger.warning(
+                        "[PolymarketProvider] fetch error at offset=%d: %s",
                         page_offset,
+                        e,
                     )
                     break
+            else:
+                logger.error(
+                    "[PolymarketProvider] Max retries exceeded at offset=%d",
+                    page_offset,
+                )
+                break
 
-                if not batch:
-                    break
+            if not batch:
+                break
 
-                for raw in batch:
-                    market = {
-                        "market_id": raw.get("id", raw.get("condition_id", "")),
-                        "question": raw.get("question", ""),
-                        "end_date": raw.get("end_date_iso", raw.get("endDate", "")),
-                        "category": raw.get("category", ""),
-                        "volume_24h": float(raw.get("volume24hr", 0) or 0),
-                        "status": raw.get("active", "unknown"),
-                        "yes_price": (
-                            float(json.loads(raw["outcomePrices"])[0])
-                            if "outcomePrices" in raw
-                            else 0.5
-                        ),
-                        "no_price": (
-                            float(json.loads(raw["outcomePrices"])[1])
-                            if "outcomePrices" in raw
-                            else 0.5
-                        ),
-                        "slug": raw.get("slug", ""),
-                        "platform": "polymarket",
-                    }
-                    markets.append(market)
+            for raw in batch:
+                market = {
+                    "market_id": raw.get("id", raw.get("condition_id", "")),
+                    "question": raw.get("question", ""),
+                    "end_date": raw.get("end_date_iso", raw.get("endDate", "")),
+                    "category": raw.get("category", ""),
+                    "volume_24h": float(raw.get("volume24hr", 0) or 0),
+                    "status": raw.get("active", "unknown"),
+                    "yes_price": (
+                        float(json.loads(raw["outcomePrices"])[0])
+                        if "outcomePrices" in raw
+                        else 0.5
+                    ),
+                    "no_price": (
+                        float(json.loads(raw["outcomePrices"])[1])
+                        if "outcomePrices" in raw
+                        else 0.5
+                    ),
+                    "slug": raw.get("slug", ""),
+                    "platform": "polymarket",
+                }
+                markets.append(market)
 
-                page_offset += len(batch)
-                remaining -= len(batch)
+            page_offset += len(batch)
+            remaining -= len(batch)
 
-                if len(batch) < page_limit:
-                    break
-                await asyncio.sleep(0.5)  # respect rate limits
+            if len(batch) < page_limit:
+                break
+            await asyncio.sleep(0.5)  # respect rate limits
 
         logger.info("[PolymarketProvider] fetched %d markets", len(markets))
         return markets
@@ -157,65 +159,65 @@ class KalshiProvider(DataProvider):
 
         markets: List[Dict[str, Any]] = []
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            cursor = None
-            remaining = limit
-            while remaining > 0:
-                params: Dict[str, Any] = {
-                    "limit": min(500, remaining),
-                    "status": "open" if active_only else "all",
-                }
-                if cursor:
-                    params["cursor"] = cursor
-                max_retries = 3
-                retry_delay = 1.0
-                data = {}
-                batch = []
-                for attempt in range(max_retries):
-                    try:
-                        resp = await client.get(
-                            f"{self._base_url}/markets",
-                            params=params,
+        client = get_shared_client()
+        cursor = None
+        remaining = limit
+        while remaining > 0:
+            params: Dict[str, Any] = {
+                "limit": min(500, remaining),
+                "status": "open" if active_only else "all",
+            }
+            if cursor:
+                params["cursor"] = cursor
+            max_retries = 3
+            retry_delay = 1.0
+            data = {}
+            batch = []
+            for attempt in range(max_retries):
+                try:
+                    resp = await client.get(
+                        f"{self._base_url}/markets",
+                        params=params,
+                    )
+                    if resp.status_code == 429:
+                        logger.warning(
+                            "[KalshiProvider] 429 Rate Limit hit. Retrying in %ss...",
+                            retry_delay,
                         )
-                        if resp.status_code == 429:
-                            logger.warning(
-                                "[KalshiProvider] 429 Rate Limit hit. Retrying in %ss...",
-                                retry_delay,
-                            )
-                            await asyncio.sleep(retry_delay)
-                            retry_delay *= 2
-                            continue
-                        resp.raise_for_status()
-                        data = resp.json()
-                        batch = data.get("markets", [])
-                        break
-                    except Exception as e:
-                        logger.warning("[KalshiProvider] fetch error: %s", e)
-                        break
-                else:
-                    logger.error("[KalshiProvider] Max retries exceeded")
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2
+                        continue
+                    resp.raise_for_status()
+                    data = resp.json()
+                    batch = data.get("markets", [])
                     break
-
-                for raw in batch:
-                    market = {
-                        "market_id": raw.get("ticker", ""),
-                        "question": raw.get("title", ""),
-                        "end_date": raw.get("close_time", ""),
-                        "category": raw.get("category", ""),
-                        "volume_24h": float(raw.get("volume_24h", 0) or 0),
-                        "status": "active" if raw.get("active") else "closed",
-                        "yes_price": float(raw.get("yes_price", 0.5)),
-                        "no_price": float(raw.get("no_price", 0.5)),
-                        "slug": raw.get("slug", raw.get("ticker", "")),
-                        "platform": "kalshi",
-                    }
-                    markets.append(market)
-
-                remaining -= len(batch)
-                cursor = data.get("cursor_next")
-                if not cursor or len(batch) < 500:
+                except Exception as e:
+                    logger.warning("[KalshiProvider] fetch error: %s", e)
                     break
-                await asyncio.sleep(0.5)
+            else:
+                logger.error("[KalshiProvider] Max retries exceeded")
+                break
+
+            for raw in batch:
+                market = {
+                    "market_id": raw.get("ticker", ""),
+                    "question": raw.get("title", ""),
+                    "end_date": raw.get("close_time", ""),
+                    "category": raw.get("category", ""),
+                    "volume_24h": float(raw.get("volume_24h", 0) or 0),
+                    "status": "active" if raw.get("active") else "closed",
+                    "yes_price": float(raw.get("yes_price", 0.5)),
+                    "no_price": float(raw.get("no_price", 0.5)),
+                    "slug": raw.get("slug", raw.get("ticker", "")),
+                    "platform": "kalshi",
+                }
+                markets.append(market)
+
+            remaining -= len(batch)
+            cursor = data.get("cursor_next")
+            if not cursor or len(batch) < 500:
+                break
+            await asyncio.sleep(0.5)
 
         logger.info("[KalshiProvider] fetched %d markets", len(markets))
         return markets
