@@ -33,7 +33,7 @@ from loguru import logger
 
 # Hard guard: if model_probability is within this distance of market_price, skip.
 # No real edge exists when the oracle can't distinguish itself from the market.
-_NO_EDGE_THRESHOLD = 0.05
+_NO_EDGE_THRESHOLD = 0.15
 
 # Supported assets: CoinGecko IDs
 SUPPORTED_ASSETS = [
