@@ -136,7 +136,7 @@ async def execute_arb(
             logger.warning(f"[prob_arb] Execution failed: {exc}")
             _pending_arbs[idempotency_key] = {
                 "opportunity": opportunity,
-                "market_id": market_id,
+                "market_id": getattr(opportunity, "market_id", ""),
                 "queued_at": time.time(),
             }
             return {
