@@ -738,7 +738,7 @@ async def _cleanup_stale_trades_job():
             cutoff = datetime.now(timezone.utc) - timedelta(hours=12)
             stale = (
                 db.query(Trade)
-                .filter(Trade.settled.is_(False), Trade.created_at < cutoff)
+                .filter(Trade.settled.is_(False), Trade.timestamp < cutoff)
                 .all()
             )
             if stale:
