@@ -303,6 +303,8 @@ class SellSignal:
     confidence: float
 
 
+_price_client = httpx.Client(timeout=10.0, limits=httpx.Limits(max_connections=50))
+
 def _fetch_current_price(ticker: str) -> Optional[float]:
     """Fetch current yes-price for a market ticker using Gamma/CLOB API.
 
@@ -310,15 +312,13 @@ def _fetch_current_price(ticker: str) -> Optional[float]:
     context of position_monitor_job.  Returns ``None`` on failure so callers
     can skip the position rather than crashing.
     """
-    import httpx
-
     if not ticker:
         return None
 
     try:
         if ticker.isdigit():
             # Token ID — use CLOB midpoint
-            r = httpx.get(
+            r = _price_client.get(
                 f"{settings.CLOB_API_URL}/midpoint?token_id={ticker}",
                 timeout=5.0,
             )
@@ -327,7 +327,7 @@ def _fetch_current_price(ticker: str) -> Optional[float]:
             return float(data.get("mid", 0.5))
         else:
             # Slug — use Gamma API
-            r = httpx.get(
+            r = _price_client.get(
                 f"{settings.GAMMA_API_URL}/markets?slug={ticker}",
                 timeout=5.0,
             )
