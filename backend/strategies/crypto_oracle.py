@@ -719,6 +719,7 @@ class CryptoOracleStrategy(BaseStrategy):
             logger.debug(f"[crypto_oracle] {open_count} open >= max {max_open}, skip")
             return result
         decisions_this_cycle = 0  # track in-cycle to prevent accumulation
+        max_reached = False
 
         # Check open positions for auto-sell exits at cycle start
         try:
@@ -832,6 +833,8 @@ class CryptoOracleStrategy(BaseStrategy):
                 continue
 
             for market in asset_markets:
+                if max_reached:
+                    break
                 end_dt = market.window_end
                 if end_dt.tzinfo is None:
                     end_dt = end_dt.replace(tzinfo=timezone.utc)
@@ -1048,6 +1051,8 @@ class CryptoOracleStrategy(BaseStrategy):
                 filtered_markets = await self.market_filter(kw_markets)
 
                 for market in filtered_markets:
+                    if max_reached:
+                        break
                     end_dt = parse_end_date(market.end_date)
                     if end_dt is None:
                         continue
