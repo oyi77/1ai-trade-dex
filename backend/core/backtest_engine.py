@@ -174,7 +174,7 @@ class EnhancedBacktestEngine:
         drawdowns: list[float] = []
 
         for _ in range(self.config.monte_carlo_sims):
-            shuffled = random.sample(pnls, len(pnls))
+            shuffled = random.choices(pnls, k=len(pnls))
             cumulative = 0.0
             peak = 0.0
             max_dd = 0.0
