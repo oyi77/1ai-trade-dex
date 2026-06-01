@@ -133,6 +133,16 @@ class BondScannerStrategy(BaseStrategy):
         decisions = []
 
         for market in markets:
+            # Skip risky markets (oil, crypto, stocks) — only weather/sports/politics
+            q = (market.get("question") or "").lower()
+            RISKY_KEYWORDS = [
+                "wti", "oil", "crude", "brent", "solana", "sol ", "bitcoin", "btc",
+                "ethereum", "eth ", "crypto", "xrp", "doge", "stock", "earnings",
+                "macy", "tesla", "apple", "nvidia", "market cap", "price of",
+            ]
+            if any(k in q for k in RISKY_KEYWORDS):
+                continue
+
             # Volume filter
             volume = float(market.get("volume", 0) or 0)
             if volume < min_volume:
