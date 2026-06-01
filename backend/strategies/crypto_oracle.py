@@ -346,6 +346,7 @@ class CryptoOracleStrategy(BaseStrategy):
         "stop_loss_pct": 0.10,
         "profit_target_pct": 0.08,
         "trailing_stop_activation_pct": 0.06,
+        "max_hold_seconds": 300,
     }
 
     supported_assets = SUPPORTED_ASSETS
@@ -722,7 +723,7 @@ class CryptoOracleStrategy(BaseStrategy):
                 max_hold_seconds=int(
                     params.get(
                         "auto_sell_max_hold_seconds",
-                        params.get("max_hold_seconds", 3600),
+                        params.get("max_hold_seconds", 300),
                     )
                 ),
             )
@@ -1282,7 +1283,7 @@ class CryptoOracleStrategy(BaseStrategy):
                 max_hold_seconds=int(
                     params.get(
                         "auto_sell_max_hold_seconds",
-                        params.get("max_hold_seconds", 3600),
+                        params.get("max_hold_seconds", 300),
                     )
                 ),
             )
