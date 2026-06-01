@@ -52,24 +52,25 @@ class CexPmLeadLagStrategy(BaseStrategy):
     )
     category = "crypto"
     default_params = {
-        "min_momentum": settings.CEX_PM_LEADLAG_MIN_MOMENTUM,
-        "min_edge": settings.CEX_PM_LEADLAG_MIN_EDGE,
-        "max_minutes_to_resolution": 10,
+        "min_momentum": 0.003,  # higher threshold for meaningful momentum
+        "min_edge": 0.08,  # need 8%+ edge after fees
+        "max_minutes_to_resolution": 8,
         "max_position_usd": settings.CEX_PM_LEADLAG_MAX_POSITION_USD,
-        "interval_seconds": 5,  # HFT optimized interval
+        "interval_seconds": 5,
         "fee_rate": settings.PAPER_CLOB_FEE_RATE,
-        "min_volatility": 0.001,
-        "max_volatility": 0.10,
+        "min_volatility": 0.002,
+        "max_volatility": 0.08,
         "momentum_norm": 0.006,
         "debate_enabled": True,
-        "debate_min_confidence": 0.52,
-        "max_open_positions": 3,
+        "debate_min_confidence": 0.55,
+        "max_open_positions": 2,
         "max_per_asset": 1,
-        "stop_loss_pct": 0.10,
-        "max_hold_seconds": 240,
-        "profit_target_pct": 0.08,
-        "trailing_stop_activation_pct": 0.06,
-        "min_confidence": 0.85,
+        "stop_loss_pct": 0.08,
+        "max_hold_seconds": 180,
+        "profit_target_pct": 0.10,
+        "trailing_stop_activation_pct": 0.07,
+        "min_confidence": 0.90,
+        "min_market_distance": 0.10,  # skip 40-60c markets (no edge on coinflips)
     }
 
     async def market_filter(self, markets: list[CryptoMarket]) -> list[CryptoMarket]:
@@ -215,6 +216,14 @@ class CexPmLeadLagStrategy(BaseStrategy):
 
                 pm_up_mid = await _fetch_pm_mid(http, market.up_token_id)
                 if pm_up_mid is None:
+                    continue
+
+                # Skip 50/50 coinflip markets — no edge when market is efficient
+                min_distance = float(params.get("min_market_distance", 0.10))
+                if abs(pm_up_mid - 0.50) < min_distance:
+                    logger.debug(
+                        f"[cex_pm_leadlag] {market.slug}: mid={pm_up_mid:.3f} too close to 50c, skip"
+                    )
                     continue
 
                 if direction == "up":
