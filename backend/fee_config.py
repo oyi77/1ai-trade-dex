@@ -17,13 +17,13 @@ TAKER_FEE_BPS = 30  # 30 basis points
 def polymarket_fee(qty: float, price: float, fee_rate_bps: float = 30.0) -> float:
     """Calculate Polymarket taker fee using exact formula.
 
-    fee = qty × (fee_rate_bps / 10000) × p × (1-p)
+    fee = qty × (fee_rate_bps / 10000) × min(p, 1-p)
 
     Fee is proportional to uncertainty: highest at 0.50, near zero at extremes.
-    At 0.95: p×(1-p) = 0.0475 (5x lower than at 0.50).
+    At 0.95: min(0.95, 0.05) = 0.05 (10x lower than at 0.50).
     """
     fee_rate = fee_rate_bps / 10_000
-    return qty * fee_rate * price * (1.0 - price)
+    return qty * fee_rate * min(price, 1.0 - price)
 
 
 def polymarket_maker_rebate(qty: float, price: float, fee_rate_bps: float = 30.0, rebate_pct: float = 0.25) -> float:

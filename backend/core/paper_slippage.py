@@ -152,12 +152,12 @@ class PaperSlippageSimulator:
         # Clamp price to Polymarket bounds [0.01, 0.99]
         fill_price = max(0.01, min(0.99, fill_price))
 
-        # Polymarket fee formula: fee = qty × feeRate × p × (1-p)
+        # Polymarket fee formula: fee = qty × feeRate × min(p, 1-p)
         # Fee is highest at 0.50, near zero at extremes (0.90+)
-        # For bond_scanner at 0.95: p×(1-p) = 0.0475 (5x lower than 0.50)
-        fee_rate_bps = float(self._get_setting("PAPER_CLOB_FEE_RATE", 0.02, db)) * 10000
+        # For bond_scanner at 0.95: min(0.95, 0.05) = 0.05 (10x lower than 0.50)
+        fee_rate_bps = float(self._get_setting("PAPER_CLOB_FEE_RATE", 0.003, db)) * 10000
         fee_rate = fee_rate_bps / 10000
-        fee_usd = size * fee_rate * fill_price * (1 - fill_price)
+        fee_usd = size * fee_rate * min(fill_price, 1.0 - fill_price)
 
         return {
             "fill_price": fill_price,
