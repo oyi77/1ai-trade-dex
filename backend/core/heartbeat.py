@@ -117,7 +117,7 @@ def _flush_heartbeats() -> bool:
                     "SET misc_data = COALESCE(misc_data::jsonb, '{}'::jsonb) || CAST(:heartbeat_patch AS jsonb) "
                     "WHERE mode = :mode"
                 )
-                
+
                 hb_patch = {
                     f"{HEARTBEAT_PREFIX}{strategy_name}": ts
                     for strategy_name, ts in snapshot_hb.items()
@@ -153,10 +153,10 @@ def _flush_heartbeats() -> bool:
                                 f"heartbeat: failed to parse misc_data JSON for mode {state.mode}"
                             )
                             data = {}
-                    
+
                     for strategy_name, ts in snapshot_hb.items():
                         data[f"{HEARTBEAT_PREFIX}{strategy_name}"] = ts
-                    
+
                     for key, stats in snapshot_stats.items():
                         m, strategy_name = key.split(":", 1)
                         if m == state.mode:

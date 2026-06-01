@@ -582,7 +582,7 @@ async def get_performance_attribution(db: Session = Depends(get_db)):
         "Momentum": "Claude-3.5",
         "Mean Reversion": "GPT-4o",
     }
-    
+
     provider_data = {}
     for strat in strategies:
         prov = provider_map.get(strat["name"], "GPT-4o")
@@ -611,13 +611,13 @@ async def get_sandbox_logs(db: Session = Depends(get_db)):
             c_time = change.get("created_at") or time.time()
             time_str = datetime.fromtimestamp(c_time, timezone.utc).strftime("%H:%M:%S")
             c_title = change.get("title", "Optimization run")
-            
+
             logs.append({
                 "time": time_str,
                 "level": "INFO",
                 "msg": f"[CodeGenerator] Synthesizing improvement for: {c_title}"
             })
-            
+
             passed = change.get("status") == "merged"
             val_log = change.get("validation_log", [])
             for line in val_log:

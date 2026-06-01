@@ -346,7 +346,7 @@ class TestCryptoOracleFilters:
         mock_datetime.now.return_value = mock_now
 
         mock_price.return_value = 95000.0
-        
+
         from backend.data.btc_markets import CryptoMarket
         from backend.strategies.base import MarketInfo
         mock_active_markets.return_value = [
@@ -384,7 +384,7 @@ class TestCryptoOracleFilters:
         # Now test run_cycle with direction block
         mock_now = datetime(2026, 5, 27, 10, 0, 0, tzinfo=timezone.utc)
         mock_datetime.now.return_value = mock_now
-        
+
         # Scenario: Down direction ("Will BTC exceed 96k?" -> price 95k is < 96k, contract direction is "no", physical direction is "down")
         mock_active_markets.return_value = []
         mock_kw_markets.return_value = [
@@ -400,7 +400,7 @@ class TestCryptoOracleFilters:
                 question="Will BTC exceed $96,000?",
             )
         ]
-        
+
         with patch("backend.strategies.crypto_oracle._get_time_multiplier", return_value=1.0):
             result = await strategy.run_cycle(ctx)
             # Physical direction down is blocked -> decisions_recorded should be 0

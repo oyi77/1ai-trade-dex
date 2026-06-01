@@ -27,7 +27,7 @@ class TestLineMovementDetectorHardened:
     @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
     async def test_volume_liquidity_thresholds(self, mock_client_class):
         strategy = LineMovementDetectorStrategy()
-        
+
         # Test 1: Volatility magnitude scale increases min_volume and min_liquidity
         strategy.default_params["min_volume_24h"] = 1000
         strategy.default_params["min_liquidity"] = 1000
@@ -98,7 +98,7 @@ class TestLineMovementDetectorHardened:
             "bids": [{"price": "0.40", "size": "100"}],
             "asks": [{"price": "0.60", "size": "100"}]
         }
-        
+
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
         mock_client_class.return_value.__aenter__.return_value = mock_client

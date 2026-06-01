@@ -132,7 +132,7 @@ class TestTemporalAndCategoryRouting:
     def test_temporal_multiplier_scaling(self):
         kg = KnowledgeGraph()
         allocator = RegimeAwareAllocator(kg)
-        
+
         # High retail hours (9, 10): maker strategies scaled up, taker scaled down
         assert allocator._get_hourly_edge_multiplier(9, "market_maker") == 1.25
         assert allocator._get_hourly_edge_multiplier(9, "hft_taker") == 0.85
@@ -148,7 +148,7 @@ class TestTemporalAndCategoryRouting:
     def test_temporal_allocation_shift(self):
         kg = _kg_with_regime_data()
         allocator = RegimeAwareAllocator(kg, max_per_strategy=0.8)
-        
+
         # At hour 9 (high retail), maker strategy (e.g. weather_emos, let's treat it as maker by aliasing it)
         # Wait, weather_emos does not have "maker" in name. Let's register "weather_maker"
         kg.add_entity("strategy", "weather_maker", {"win_rate": 0.55})

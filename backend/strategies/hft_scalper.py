@@ -122,12 +122,12 @@ class HFTScalperStrategy(BaseStrategy):
         """Discover active short-duration markets and map outcome token IDs."""
         try:
             from backend.core.market_scanner import fetch_short_duration_token_ids
-            
+
             # Subscribe to the top highly liquid short-duration tokens
             short_tokens = await fetch_short_duration_token_ids(limit=50)
             self.subscribed_tokens = set(short_tokens)
             self._tokens_populated = True
-            
+
             self.start_consumer()
             logger.info(
                 f"[{self.name}] Subscribed tokens populated with {len(self.subscribed_tokens)} active tokens."
@@ -139,7 +139,7 @@ class HFTScalperStrategy(BaseStrategy):
         """Safety Safeguard: Disconnection halts execution and flushes exposure."""
         self._halted = True
         logger.warning(f"[{self.name}] WebSocket telemetry lost! Activating safety halt.")
-        
+
         # Safe positions cancel
         to_exit = list(self._open_positions.values())
         for pos in to_exit:
@@ -433,7 +433,7 @@ class HFTScalperStrategy(BaseStrategy):
         if position:
             params = self.default_params
             exit_reason, pnl_pct = self.check_exit(position, price, params)
-            
+
             # Check maximum hold safeguard
             now = time.monotonic()
             if not exit_reason and (now - position.opened_at) > params.get("max_hold_seconds", 15):
@@ -441,7 +441,7 @@ class HFTScalperStrategy(BaseStrategy):
 
             if exit_reason:
                 closed = self._close_position(position, price, exit_reason)
-                
+
                 # Persist exit decision immediately
                 from backend.db.utils import get_db_session
                 try:
@@ -603,12 +603,12 @@ class HFTScalperStrategy(BaseStrategy):
             prices = self._price_history.get(ticker, [])
             current_price = prices[-1][1] if prices else pos.entry_price
             signal, _pnl = self.check_exit(pos, current_price, self.default_params)
-            
+
             # Check maximum hold safeguard
             now = time.monotonic()
             if not signal and (now - pos.opened_at) > self.default_params.get("max_hold_seconds", 15):
                 signal = "TIME_EXIT"
-                
+
             if signal:
                 self._close_position(pos, current_price, signal)
                 trades += 1

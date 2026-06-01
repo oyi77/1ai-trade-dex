@@ -194,7 +194,7 @@ class DBSessionShadowRunner:
                     if predicted is not None and actual_outcome is not None:
                         meta["accuracy_score"] = abs(predicted - actual_outcome)
                     trade.metadata_json = json.dumps(meta)
-                except Exception as e:
+                except Exception:
                     logger.exception(f"Failed to update metadata_json during settle for {trade.market_id}")
 
                 # Use real settlement helpers for PnL calculation (mirrors live trade)

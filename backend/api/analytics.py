@@ -122,14 +122,14 @@ def get_role_breakdown(
                 "GROUP BY role"
             )
             rows = query_parquet_analytics(parquet_dir, sql)
-            
+
             result = {}
             for row in rows:
                 role = str(row.get("role", "unknown")).lower()
                 count = int(row.get("count", 0))
                 wins = float(row.get("wins", 0.0) or 0.0)
                 total_pnl = float(row.get("total_pnl", 0.0) or 0.0)
-                
+
                 result[role] = {
                     "count": count,
                     "win_rate": round(wins / count, 4) if count > 0 else 0,

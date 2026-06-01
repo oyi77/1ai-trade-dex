@@ -86,13 +86,13 @@ async def classify_trade_role(
         else:
             best_ask = decision.get("best_ask")
             best_bid = decision.get("best_bid")
-            
+
             is_taker = False
             if best_ask is not None and direction.lower() == "up" and price >= best_ask:
                 is_taker = True
             elif best_bid is not None and direction.lower() == "down" and price <= best_bid:
                 is_taker = True
-            
+
             if is_taker:
                 role = TradeRole.TAKER.value
                 taker_size = size
@@ -136,13 +136,13 @@ async def classify_trade_role(
     else:
         best_ask = decision.get("best_ask")
         best_bid = decision.get("best_bid")
-        
+
         is_taker = False
         if best_ask is not None and direction.lower() == "up" and price >= best_ask:
             is_taker = True
         elif best_bid is not None and direction.lower() == "down" and price <= best_bid:
             is_taker = True
-        
+
         if is_taker:
             role = TradeRole.TAKER.value
             taker_size = size

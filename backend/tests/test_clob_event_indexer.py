@@ -142,7 +142,7 @@ def test_fetch_events_integration():
     indexer = CLOBEventIndexer(rpc_url="http://mock-rpc")
     mock_w3 = MagicMock()
     mock_w3.eth.block_number = 5000
-    
+
     # Setup mock logs
     maker_topic = HexBytes("0x0000000000000000000000001111111111111111111111111111111111111111")
     taker_topic = HexBytes("0x0000000000000000000000002222222222222222222222222222222222222222")
