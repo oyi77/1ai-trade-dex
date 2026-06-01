@@ -322,10 +322,10 @@ class EnhancedBacktestEngine:
             pnl = sig.get("pnl")
 
             # Transaction costs — Polymarket fee formula
-            # fee = qty × feeRate × p × (1-p)
+            # fee = qty × feeRate × min(p, 1-p)
             price = sig.get("price", 0.5)
             fee_rate = self.config.fee_rate_bps / 10_000
-            fee = size * fee_rate * price * (1 - price)
+            fee = size * fee_rate * min(price, 1.0 - price)
             # Slippage: additive bps (half_spread + impact)
             slippage = size * (self.config.slippage_bps / 10_000)
             cost = fee + slippage
