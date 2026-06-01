@@ -1010,7 +1010,7 @@ class CryptoOracleStrategy(BaseStrategy):
                     # In-cycle max_open check to prevent accumulation
                     if open_count + decisions_this_cycle >= max_open:
                         logger.debug(f"[crypto_oracle] in-cycle limit ({open_count}+{decisions_this_cycle}), skip")
-                        break
+                        break  # break inner token loop
                     decisions_this_cycle += 1
                     result.decisions.append(
                         {
