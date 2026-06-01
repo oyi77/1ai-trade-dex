@@ -35,7 +35,7 @@ from loguru import logger
 
 # Hard guard: if model_probability is within this distance of market_price, skip.
 # No real edge exists when the oracle can't distinguish itself from the market.
-_NO_EDGE_THRESHOLD = 0.15
+_NO_EDGE_THRESHOLD = 0.03
 
 # Supported assets: CoinGecko IDs
 SUPPORTED_ASSETS = [
@@ -882,14 +882,21 @@ class CryptoOracleStrategy(BaseStrategy):
                 else:
                     oracle_implied = market_mid
 
-                edge = abs(oracle_implied - market_mid) - min_edge
+                # Direction: buy YES if oracle > market, buy NO if oracle < market
+                oracle_diff = oracle_implied - market_mid
+                if oracle_diff > 0:
+                    direction = "up"
+                else:
+                    direction = "down"
+
+                edge = abs(oracle_diff) - min_edge
 
                 decision = "BUY" if edge > 0 else "SKIP"
 
                 # Hard guard: no real edge if oracle can't distinguish from market
                 if (
                     decision == "BUY"
-                    and abs(oracle_implied - market_mid) < _NO_EDGE_THRESHOLD
+                    and abs(oracle_diff) < _NO_EDGE_THRESHOLD
                 ):
                     logger.debug(
                         "crypto_oracle: skip {} — |oracle - market|={:.4f} < {:.2f}",
@@ -992,7 +999,7 @@ class CryptoOracleStrategy(BaseStrategy):
                             "size": suggested_size,
                             "entry_price": entry_price,
                             "suggested_size": suggested_size,
-                            "model_probability": oracle_implied,
+                            "model_probability": oracle_implied if direction == "up" else 1.0 - oracle_implied,
                             "market_probability": market_mid,
                             "platform": settings.DEFAULT_VENUE,
                             "strategy_name": self.name,
