@@ -702,6 +702,23 @@ class CryptoOracleStrategy(BaseStrategy):
         result = CycleResult(decisions_recorded=0, trades_attempted=0, trades_placed=0)
         params = {**self.default_params, **(ctx.params or {})}
 
+        # Check open positions limit
+        max_open = int(params.get("max_open_positions", 1))
+        from backend.models.database import Trade
+
+        open_count = (
+            ctx.db.query(Trade)
+            .filter(
+                Trade.strategy == self.name,
+                Trade.settled.is_(False),
+                Trade.trading_mode == ctx.mode,
+            )
+            .count()
+        )
+        if open_count >= max_open:
+            logger.debug(f"[crypto_oracle] {open_count} open >= max {max_open}, skip")
+            return result
+
         # Check open positions for auto-sell exits at cycle start
         try:
             from backend.core.auto_sell import check_strategy_positions_for_auto_sell
