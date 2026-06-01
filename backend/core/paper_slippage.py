@@ -141,18 +141,23 @@ class PaperSlippageSimulator:
             jitter = random.uniform(0.8, 1.2)  # ±20% variation
             slippage_bps *= jitter
 
-        # Apply slippage based on direction
-        slippage_factor = slippage_bps / 10000  # Convert bps to decimal
+        # Apply slippage: fill_price = mid ± slippage
+        # oscarc17 model: slippage = half_spread + impact
+        slippage_decimal = slippage_bps / 10000
         if direction == "BUY":
-            fill_price = entry_price * (1 + slippage_factor)
+            fill_price = entry_price + slippage_decimal
         else:  # SELL
-            fill_price = entry_price * (1 - slippage_factor)
+            fill_price = entry_price - slippage_decimal
 
         # Clamp price to Polymarket bounds [0.01, 0.99]
         fill_price = max(0.01, min(0.99, fill_price))
 
-        # No fees charged at entry. Fees are handled separately at settlement.
-        fee_usd = 0.0
+        # Polymarket fee formula: fee = qty × feeRate × p × (1-p)
+        # Fee is highest at 0.50, near zero at extremes (0.90+)
+        # For bond_scanner at 0.95: p×(1-p) = 0.0475 (5x lower than 0.50)
+        fee_rate_bps = float(self._get_setting("PAPER_CLOB_FEE_RATE", 0.02, db)) * 10000
+        fee_rate = fee_rate_bps / 10000
+        fee_usd = size * fee_rate * fill_price * (1 - fill_price)
 
         return {
             "fill_price": fill_price,
