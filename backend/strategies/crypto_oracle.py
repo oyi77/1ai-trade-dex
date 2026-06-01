@@ -343,9 +343,9 @@ class CryptoOracleStrategy(BaseStrategy):
         "debate_min_confidence": 0.55,
         "max_open_positions": 3,
         "max_per_asset": 1,
-        "stop_loss_pct": 0.10,
-        "profit_target_pct": 0.08,
-        "trailing_stop_activation_pct": 0.06,
+        "stop_loss_pct": 0.04,
+        "profit_target_pct": 0.04,
+        "trailing_stop_activation_pct": 0.03,
         "max_hold_seconds": 300,
     }
 
