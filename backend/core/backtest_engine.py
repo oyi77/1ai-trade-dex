@@ -76,8 +76,9 @@ class EnhancedBacktestConfig:
     initial_bankroll: float = 100.0
     kelly_fraction: float = 0.0625
     max_trade_size: float = 10.0
-    slippage_pct: float = 0.01
-    platform_fee_pct: float = 0.01
+    slippage_bps: float = 10.0  # 10 basis points (half spread + impact)
+    fee_rate_bps: float = 30.0  # 30 basis points (Polymarket non-crypto taker)
+    maker_rebate_pct: float = 0.25  # 25% maker rebate (non-crypto)
     walk_forward_folds: int = 5
     train_ratio: float = 0.7
     monte_carlo_sims: int = 1000
@@ -320,10 +321,14 @@ class EnhancedBacktestEngine:
             edge = sig.get("edge", 0.0)
             pnl = sig.get("pnl")
 
-            # Transaction costs
-            fee = size * self.config.platform_fee_pct
-            slip = size * self.config.slippage_pct
-            cost = fee + slip
+            # Transaction costs — Polymarket fee formula
+            # fee = qty × feeRate × p × (1-p)
+            price = sig.get("price", 0.5)
+            fee_rate = self.config.fee_rate_bps / 10_000
+            fee = size * fee_rate * price * (1 - price)
+            # Slippage: additive bps (half_spread + impact)
+            slippage = size * (self.config.slippage_bps / 10_000)
+            cost = fee + slippage
             total_costs += cost
 
             if pnl is None:
