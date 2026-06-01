@@ -277,8 +277,8 @@
   "hotPaths": [
     {
       "path": "backend/strategies/crypto_oracle.py",
-      "accessCount": 51,
-      "lastAccessed": 1780267694907,
+      "accessCount": 75,
+      "lastAccessed": 1780284696883,
       "type": "file"
     },
     {
@@ -295,8 +295,8 @@
     },
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 39,
-      "lastAccessed": 1780272431145,
+      "accessCount": 43,
+      "lastAccessed": 1780283427962,
       "type": "directory"
     },
     {
@@ -343,8 +343,8 @@
     },
     {
       "path": "backend/core/auto_sell.py",
-      "accessCount": 22,
-      "lastAccessed": 1780258145750,
+      "accessCount": 23,
+      "lastAccessed": 1780284263696,
       "type": "file"
     },
     {
@@ -360,15 +360,21 @@
       "type": "file"
     },
     {
+      "path": "backend/core",
+      "accessCount": 17,
+      "lastAccessed": 1780283308241,
+      "type": "directory"
+    },
+    {
       "path": "backend/core/risk/risk_manager.py",
       "accessCount": 16,
       "lastAccessed": 1780271972328,
       "type": "file"
     },
     {
-      "path": "backend/core",
-      "accessCount": 15,
-      "lastAccessed": 1780258079028,
+      "path": "backend/core/scheduling/scheduling_strategies.py",
+      "accessCount": 16,
+      "lastAccessed": 1780282995311,
       "type": "directory"
     },
     {
@@ -394,12 +400,6 @@
       "accessCount": 12,
       "lastAccessed": 1780258952759,
       "type": "file"
-    },
-    {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 10,
-      "lastAccessed": 1780263623582,
-      "type": "directory"
     },
     {
       "path": "backend/core/position_monitor.py",

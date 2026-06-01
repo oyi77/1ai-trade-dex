@@ -262,14 +262,14 @@ class BondScannerStrategy(BaseStrategy):
             #
             # Conservative boost: 1% for markets at 0.92, tapering to 0.5% at 0.98
             taper = max(0.0, (qualifying_price - 0.92) / 0.06)  # 0 at 0.92, 1 at 0.98
-            proximity_boost = 0.01 * (1.0 - 0.5 * taper)  # 1% at 0.92, 0.5% at 0.98
+            proximity_boost = 0.03 * (1.0 - 0.5 * taper)  # 3% at 0.92, 1.5% at 0.98
             win_prob = min(qualifying_price + proximity_boost, 0.97)
             # Fee-adjusted edge: deduct 2% round-trip fee (1% taker per side)
             raw_edge = (
                 win_prob * (1.0 - qualifying_price)
                 - (1.0 - win_prob) * qualifying_price
             )
-            edge = round(raw_edge - 0.02, 4)  # deduct round-trip fee
+            edge = round(raw_edge - 0.005, 4)  # deduct maker fee (0% maker + 0.5% slippage)
             # Reject if estimated edge is below min_edge from config
             if edge < 0.005:
                 continue
