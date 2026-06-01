@@ -1452,8 +1452,12 @@ def _preflight_checks(
 
         _now = datetime.now(timezone.utc)
         _time_to_resolution = (market_end_date - _now).total_seconds() / 60.0
-        _is_short_lived = "-5m-" in str(market_ticker) or "-15m-" in str(market_ticker)
-        _stale_threshold = 2.0 if _is_short_lived else 60.0
+        _is_short_lived = (
+            "-5m-" in str(market_ticker)
+            or "-15m-" in str(market_ticker)
+            or _time_to_resolution < 30.0  # short-lived by time (< 30 min)
+        )
+        _stale_threshold = 1.0 if _is_short_lived else 60.0
         if _time_to_resolution < _stale_threshold:
             logger.info(
                 f"[{strategy_name}] Stale market blocked: {market_ticker} resolves in "

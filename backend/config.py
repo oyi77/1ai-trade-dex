@@ -587,7 +587,7 @@ class ConfigRegistry:
     CRYPTO_ORACLE_ASSETS: str = (
         "bitcoin,ethereum,solana"  # comma-separated CoinGecko IDs
     )
-    CRYPTO_ORACLE_MIN_EDGE: float = 0.05
+    CRYPTO_ORACLE_MIN_EDGE: float = 0.02
     CRYPTO_ORACLE_MAX_MINUTES_TO_RESOLUTION: float = 10.0
     CRYPTO_ORACLE_INTERVAL_SECONDS: int = 15
     CRYPTO_ORACLE_MAX_POSITION_USD: float = 50.0
