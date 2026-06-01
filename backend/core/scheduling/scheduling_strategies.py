@@ -1233,7 +1233,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
             )
 
             strategy = strategy_cls()
-            result = await asyncio.wait_for(strategy.run(ctx), timeout=60)
+            result = await asyncio.wait_for(strategy.run(ctx), timeout=120)
 
             # Record shadow trades in paper/testnet modes so AGI health check
             # can read win rate from ShadowTrade table.
