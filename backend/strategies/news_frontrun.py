@@ -210,8 +210,8 @@ class NewsFrontrunStrategy(BaseStrategy):
         "max_open_positions": 2,
         "max_per_asset": 1,
         "cooldown_seconds": 300,  # don't re-trade same asset within 5min
-        "profit_target_pct": 0.12,
-        "stop_loss_pct": 0.08,
+        "profit_target_pct": 0.05,
+        "stop_loss_pct": 0.04,
         "max_hold_seconds": 240,
         "min_seconds_to_resolution": 60,  # at least 1 min left
         "max_minutes_to_resolution": 25,  # news effects last longer than momentum
@@ -245,6 +245,20 @@ class NewsFrontrunStrategy(BaseStrategy):
         if open_count >= max_open:
             logger.debug(f"[news_frontrun] {open_count} open >= max {max_open}, skip")
             return result
+
+        # Auto-sell check (always run, even if no signals)
+        try:
+            from backend.core.auto_sell import check_strategy_positions_for_auto_sell
+
+            await check_strategy_positions_for_auto_sell(
+                self.name,
+                clob_client=ctx.clob,
+                profit_target_pct=float(params.get("profit_target_pct", 0.12)),
+                stop_loss_pct=float(params.get("stop_loss_pct", 0.08)),
+                max_hold_seconds=int(params.get("max_hold_seconds", 240)),
+            )
+        except Exception as e:
+            logger.warning(f"[news_frontrun] auto-sell check failed: {e}")
 
         # Fetch all RSS feeds in parallel
         http = get_shared_client()
