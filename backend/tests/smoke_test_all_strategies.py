@@ -146,7 +146,7 @@ async def test_strategy(class_name: str, module_path: str, display_name: str) ->
     if class_name in UTILITY_CLASSES:
         # Utility class: verify instantiation only
         result["status"] = "PASS"
-        result["error"] = f"Utility class instantiated OK (no run_cycle)"
+        result["error"] = "Utility class instantiated OK (no run_cycle)"
     else:
         ctx, sample_markets = make_mock_ctx()
         try:

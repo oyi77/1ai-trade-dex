@@ -2505,7 +2505,7 @@ def ensure_schema():
                             )
                         )
                 logger.info("Added 'max_concentration_pct' column to risk_profiles")
-            
+
             if "max_correlated_exposure_pct" not in rp_columns:
                 with engine.connect() as conn:
                     with conn.begin():

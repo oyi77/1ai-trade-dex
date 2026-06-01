@@ -1186,7 +1186,7 @@ def _preflight_checks(
     from pathlib import Path
     kill_switch_path = Path(__file__).parent.parent.parent / ".kill_switch"
     if kill_switch_path.exists() and mode == "live":
-        logger.critical(f"[KILL SWITCH] Emergency stop active - .kill_switch file found")
+        logger.critical("[KILL SWITCH] Emergency stop active - .kill_switch file found")
         attempt_recorder.record_blocked(
             "Emergency kill switch active (.kill_switch file exists)",
             phase="preflight",

@@ -111,7 +111,9 @@ class LimitlessClient:
     @staticmethod
     def _sign_request(token_id: str, secret: str, method: str, path: str, body: str = "") -> dict:
         """Generate HMAC-SHA256 signed headers for Limitless API."""
-        import hmac, hashlib, base64
+        import hmac
+        import hashlib
+        import base64
         from datetime import datetime, timezone
         timestamp = datetime.now(timezone.utc).isoformat()
         message = f"{timestamp}\n{method}\n{path}\n{body}"
@@ -169,7 +171,7 @@ class LimitlessClient:
                 return {"error": f"No Limitless profile for {account.address}. Create one at limitless.exchange"}
 
             # Get market data
-            resp = await self._hmac_request("GET", f"/markets/active?limit=200")
+            resp = await self._hmac_request("GET", "/markets/active?limit=200")
             if resp.status_code != 200:
                 return {"error": f"Market fetch failed: {resp.status_code}"}
             markets = resp.json().get("data", [])

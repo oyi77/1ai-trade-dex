@@ -26,11 +26,11 @@ def setup_test_db():
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from backend.models.database import Base
-    
+
     engine = create_engine(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
-    
+
     with Session() as session:
         t1 = Trade(
             strategy="crypto_oracle",
@@ -61,7 +61,7 @@ def setup_test_db():
         session.add(t1)
         session.add(t2)
         session.commit()
-        
+
     yield db_path
     if os.path.exists(db_path):
         os.remove(db_path)
@@ -70,10 +70,10 @@ def setup_test_db():
 def test_archive_trades_to_parquet(setup_test_db, temp_dir):
     db_path = setup_test_db
     parquet_dir = os.path.join(temp_dir, "trades")
-    
+
     count = archive_trades_to_parquet(db_path, parquet_dir, days_back=1)
     assert count == 2
-    
+
     assert os.path.exists(parquet_dir)
     sql = "SELECT COUNT(*) as cnt, MAX(category) as cat FROM {table}"
     res = query_parquet_analytics(parquet_dir, sql)
@@ -85,7 +85,7 @@ def test_archive_trades_to_parquet(setup_test_db, temp_dir):
 def test_analytics_role_breakdown_endpoint(setup_test_db, temp_dir, monkeypatch):
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
+
     engine = create_engine(f"sqlite:///{setup_test_db}")
     TestingSessionLocal = sessionmaker(bind=engine)
 
@@ -97,13 +97,13 @@ def test_analytics_role_breakdown_endpoint(setup_test_db, temp_dir, monkeypatch)
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    
+
     try:
         client = TestClient(app)
-        
+
         from backend.config import settings
         monkeypatch.setattr(settings, "PARQUET_DIR", temp_dir)
-        
+
         response = client.get("/api/v1/analytics/stats/role-breakdown?days=1")
         assert response.status_code == 200
         data = response.json()
@@ -112,11 +112,11 @@ def test_analytics_role_breakdown_endpoint(setup_test_db, temp_dir, monkeypatch)
         assert "taker" in data["roles"]
         assert data["roles"]["maker"]["count"] == 1
         assert data["roles"]["taker"]["count"] == 1
-        
+
         # 2. Test Parquet path
         parquet_dir = os.path.join(temp_dir, "trades")
         archive_trades_to_parquet(setup_test_db, parquet_dir, days_back=1)
-        
+
         response = client.get("/api/v1/analytics/stats/role-breakdown?days=1")
         assert response.status_code == 200
         data = response.json()
