@@ -444,7 +444,16 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
 
         for trade in pending:
             market_type = getattr(trade, "market_type", "btc") or "btc"
-            ticker = trade.market_ticker
+            ticker = trade.market_ticker or ""
+            # Auto-detect weather/sports/politics from ticker slug
+            ticker_lower = ticker.lower()
+            WEATHER_KEYWORDS = ["temperature", "weather", "rain", "snow", "wind", "hurricane", "typhoon"]
+            SPORTS_KEYWORDS = ["fifa", "nba", "nfl", "mlb", "soccer", "football", "tennis", "golf", "dota", "esports", "esp-irq", "eng-", "match"]
+            POLITICAL_KEYWORDS = ["election", "president", "congress", "senate", "governor", "nominee", "maguire"]
+            if market_type != "weather" and any(k in ticker_lower for k in WEATHER_KEYWORDS):
+                market_type = "weather"
+            elif any(k in ticker_lower for k in SPORTS_KEYWORDS + POLITICAL_KEYWORDS):
+                market_type = "event"
             trade_slugs[ticker] = getattr(trade, "event_slug", None)
             trade_platforms[ticker] = (
                 getattr(trade, "platform", "polymarket") or "polymarket"
@@ -545,12 +554,14 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 if market_end < now:
                     expired_ago = (now - market_end).total_seconds()
 
-                    # Short grace for 5-min binaries (1h), long for others (72h)
+                    # Grace period by market type
                     market_type = getattr(trade, "market_type", "btc") or "btc"
-                    if "5m" in (trade.market_ticker or "") or "5-min" in (
-                        trade.market_ticker or ""
-                    ):
+                    ticker = (trade.market_ticker or "").lower()
+                    if "5m" in ticker or "5-min" in ticker:
                         expired_resolution_grace_hours = 1
+                    elif any(k in ticker for k in ["temperature", "weather", "soccer", "football", "tennis", "dota", "nba", "nfl", "election", "senate", "governor"]):
+                        # Weather/sports/politics: settle within 6 hours
+                        expired_resolution_grace_hours = 6
                     else:
                         expired_resolution_grace_hours = getattr(
                             settings, "SETTLEMENT_GRACE_HOURS", 72
