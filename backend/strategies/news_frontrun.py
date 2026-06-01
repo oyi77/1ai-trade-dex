@@ -213,8 +213,8 @@ class NewsFrontrunStrategy(BaseStrategy):
         "profit_target_pct": 0.12,
         "stop_loss_pct": 0.08,
         "max_hold_seconds": 240,
-        "min_seconds_to_resolution": 120,  # at least 2 min left
-        "max_minutes_to_resolution": 8,
+        "min_seconds_to_resolution": 60,  # at least 1 min left
+        "max_minutes_to_resolution": 25,  # news effects last longer than momentum
     }
 
     # Track last trade time per asset to avoid overtrading
