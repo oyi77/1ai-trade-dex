@@ -213,6 +213,7 @@ class BondScannerStrategy(BaseStrategy):
                     break
 
             if qualifying_price is None:
+                logger.debug(f"[bond_scanner] No qualifying price for {market.get('question','')[:40]} prices={outcome_prices_raw}")
                 continue
 
             # We have a qualifying market
