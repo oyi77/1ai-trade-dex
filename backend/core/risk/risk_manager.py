@@ -758,7 +758,6 @@ class RiskManager:
     def _get_or_update_calibration_and_bias(self, db) -> tuple[dict, Optional[dict]]:
         """Return cached calibration and longshot bias, updating if stale (> 5 minutes)."""
         import time
-        from datetime import datetime, timezone
         from backend.core.learning.calibration_tracker import (
             compute_price_bucket_calibration,
         )

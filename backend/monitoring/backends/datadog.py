@@ -77,7 +77,8 @@ class DatadogBackend(BaseMetricsBackend):
                 ) as response:
                     response.raise_for_status()
         except Exception:
-            logger.debug("datadog: failed to send metric")
+            import logging
+            logging.getLogger(__name__).debug("datadog: failed to send metric")
 
     async def health_check(self) -> bool:
         return self.enabled

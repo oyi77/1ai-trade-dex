@@ -7,7 +7,6 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 from backend.markets.order_types import (
     NormalizedOrder,
-    NormalizedOrderResult,
     OrderSide,
     OrderType,
     OrderStatus,

@@ -3,7 +3,7 @@
 import os
 import pytest
 from decimal import Decimal
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, AsyncMock
 
 from backend.markets.order_types import (
     NormalizedOrder,

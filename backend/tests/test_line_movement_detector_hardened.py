@@ -2,14 +2,12 @@
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
-from datetime import datetime, timezone
 
 from backend.strategies.line_movement_detector import (
     LineMovementDetectorStrategy,
     LineMovement,
 )
-from backend.strategies.base import StrategyContext, MarketInfo
+from backend.strategies.base import StrategyContext
 
 
 class TestLineMovementDetectorHardened:

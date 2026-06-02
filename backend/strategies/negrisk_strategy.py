@@ -26,7 +26,7 @@ from backend.strategies.base import (
 )
 from backend.core.strategy_gate import StrategyGate
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
-from backend.config import settings, _cfg
+from backend.config import _cfg
 
 # Circuit breaker for negrisk orders — trips on 3 consecutive failures, resets after 120s
 _negrisk_breaker = CircuitBreaker(

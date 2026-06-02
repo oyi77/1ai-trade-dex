@@ -50,7 +50,8 @@ class MetricsBackendRegistry(
             self._enabled[name] = True
             self._health_status[name] = True
         except Exception:
-            logger.debug(f"metrics_registry: failed to register backend '{name}'")
+            import logging
+            logging.getLogger(__name__).debug(f"metrics_registry: failed to register backend '{name}'")
 
     def get(self, name: str) -> BaseMetricsBackend:
         if name not in self._plugins:
@@ -109,7 +110,8 @@ class MetricsBackendRegistry(
                     try:
                         importlib.import_module(full_module)
                     except Exception:
-                        logger.debug(f"metrics_registry: failed to auto-discover module '{full_module}'")
+                        import logging
+                        logging.getLogger(__name__).debug(f"metrics_registry: failed to auto-discover module '{full_module}'")
 
 
 registry = MetricsBackendRegistry()

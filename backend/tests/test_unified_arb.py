@@ -80,7 +80,7 @@ class TestStrategyMeta:
 class TestDecisionBuilding:
     def test_builds_decision_from_opportunity(self):
         opp = _make_opp()
-        strategy = UnifiedPMArb()
+        UnifiedPMArb()
 
         # Simulate what run_cycle does internally on the detected opportunities
         decisions = []

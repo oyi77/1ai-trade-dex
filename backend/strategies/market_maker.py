@@ -13,22 +13,19 @@ import math
 import time
 import uuid
 from dataclasses import dataclass
-from typing import Optional, Set, List, Dict, Any
+from typing import Optional, Set
 
 from backend.strategies.base import (
     BaseStrategy,
     StrategyContext,
     CycleResult,
-    MarketInfo,
 )
 from backend.core.event_bus import MarketEvent
 from backend.core.decisions import record_decision
 from backend.core.market_making_analyzer import (
     MarketMakingAnalyzer,
-    LiquidityMetrics,
 )
 from backend.config import settings
-from backend.data.shared_client import get_shared_client
 from loguru import logger
 
 # ---------------------------------------------------------------------------
@@ -258,7 +255,7 @@ class MarketMakerStrategy(BaseStrategy):
         if quote_size <= 0:
             raise ValueError("quote_size must be > 0")
 
-        gamma = p.get("risk_aversion", 0.3)
+        p.get("risk_aversion", 0.3)
         skew_factor = p.get("inventory_skew_factor", 0.7)
 
         reservation = mid_price - inventory_pct * skew_factor * spread

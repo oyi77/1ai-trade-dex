@@ -193,7 +193,7 @@ class PolymarketActivitySource(BaseActivitySource):
             self._seen_orders.add(tx_hash)
 
             to_addr = log.topics[2].hex()[-40:].lower()
-            from_addr = log.topics[1].hex()[-40:].lower()
+            log.topics[1].hex()[-40:].lower()
             is_deposit = to_addr == WALLET_LOWER
             event_type = "deposit" if is_deposit else "withdrawal"
             amount = abs(int(log.data, 16)) / 1e6

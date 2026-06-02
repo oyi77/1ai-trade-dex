@@ -3,7 +3,7 @@
 from __future__ import annotations
 import asyncio
 import random
-from typing import Callable, Optional
+from typing import Callable
 
 from backend.core.activity.models import ActivityEvent
 from loguru import logger

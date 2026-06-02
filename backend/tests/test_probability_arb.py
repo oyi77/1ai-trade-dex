@@ -2,7 +2,6 @@
 Tests for probability_arb strategy: detect_arb, ProbabilityArb class, execute_arb bugs.
 """
 
-import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -186,8 +185,8 @@ class TestExecuteArbBug:
             confidence=1.0,
         )
 
-        with pytest.raises(NameError, match="market_id"):
-            await execute_arb(opp, "yes_tok", "no_tok", clob=None)
+        res = await execute_arb(opp, "yes_tok", "no_tok", clob=None)
+        assert res["success"] is True
 
     @pytest.mark.asyncio
     async def test_execute_arb_with_clob_also_raises(self):
@@ -207,8 +206,8 @@ class TestExecuteArbBug:
             return_value=MagicMock(order_id="ord_123")
         )
 
-        with pytest.raises(NameError, match="market_id"):
-            await execute_arb(opp, "yes_tok", "no_tok", clob=mock_clob)
+        res = await execute_arb(opp, "yes_tok", "no_tok", clob=mock_clob)
+        assert res["success"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -293,7 +292,7 @@ class TestProcessPendingArbs:
             "queued_at": 0,  # ancient
             "retries": 5,  # over max
         }
-        count = process_pending_arbs()
+        process_pending_arbs()
         assert "old-key" not in _pending_arbs
 
 

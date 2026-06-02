@@ -99,7 +99,8 @@ class PolymarketProvider(BaseMarketProvider):
                     size=float(order.size),
                 )
         except Exception as exc:
-            import sys, traceback
+            import sys
+            import traceback
 
             traceback.print_exc(file=sys.stderr)
             return self._rejected(order, str(exc))

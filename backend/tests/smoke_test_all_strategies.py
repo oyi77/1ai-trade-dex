@@ -13,7 +13,6 @@ import json
 import os
 import sys
 import time
-import traceback
 from unittest.mock import MagicMock, AsyncMock
 
 # Ensure project root is on the path
@@ -74,7 +73,7 @@ UTILITY_CLASSES = {"CrossMarketArbEnhanced"}
 
 def make_mock_ctx():
     """Create a mock StrategyContext with sample market data."""
-    from backend.strategies.base import StrategyContext, MarketInfo
+    from backend.strategies.base import StrategyContext
 
     mock_db = MagicMock()
     mock_db.query.return_value.filter.return_value.all.return_value = []
@@ -133,7 +132,7 @@ def make_mock_ctx():
     return ctx, sample_markets
 
 
-async def test_strategy(class_name: str, module_path: str, display_name: str) -> dict:
+async def _test_strategy(class_name: str, module_path: str, display_name: str) -> dict:
     """Test a single strategy by importing, instantiating, and calling run_cycle()."""
     result = {
         "name": class_name,
@@ -169,7 +168,7 @@ async def test_strategy(class_name: str, module_path: str, display_name: str) ->
     if class_name in UTILITY_CLASSES:
         # Utility class: verify instantiation only
         result["status"] = "PASS"
-        result["error"] = f"Utility class instantiated OK (no run_cycle)"
+        result["error"] = "Utility class instantiated OK (no run_cycle)"
     else:
         ctx, sample_markets = make_mock_ctx()
         try:
@@ -178,9 +177,9 @@ async def test_strategy(class_name: str, module_path: str, display_name: str) ->
 
             mf = strategy.market_filter
             if _inspect.iscoroutinefunction(mf):
-                filtered = await mf(sample_markets)
+                await mf(sample_markets)
             else:
-                filtered = mf(sample_markets)
+                mf(sample_markets)
 
             # Run the strategy cycle — handle both async and sync run_cycle
             awaitable = strategy.run_cycle(ctx)
@@ -235,7 +234,7 @@ async def main():
 
     results = []
     for class_name, module_path, display_name in STRATEGIES:
-        r = await test_strategy(class_name, module_path, display_name)
+        r = await _test_strategy(class_name, module_path, display_name)
         results.append(r)
 
         status_tag = f"[{r['status']}]"

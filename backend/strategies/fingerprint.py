@@ -237,7 +237,8 @@ def strategy_fingerprint(positions: list[dict]) -> StrategyFingerprint:
                 hour_counts[dt.hour] += 1
                 dow_counts[dt.weekday()] += 1
             except (OSError, ValueError):
-                logger.debug("fingerprint: invalid timestamp in trade data")
+                import logging
+                logging.getLogger(__name__).debug("fingerprint: invalid timestamp in trade data")
     fp.timing_analysis = {
         "hour_distribution": dict(hour_counts),
         "dow_distribution": dict(dow_counts),

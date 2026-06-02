@@ -8,7 +8,7 @@ sys.path.insert(0, "/Users/paijo/1ai-poly-trader")
 
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.bot.notification.registry import registry
-from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
+from backend.core.plugin_errors import PluginNotFound
 
 
 class MockProvider(BaseNotificationProvider):
