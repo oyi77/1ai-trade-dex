@@ -211,12 +211,14 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                     )
                     if won:
                         trade.result = "win"
-                        trade.pnl = calculate_pnl(trade, 1.0)
-                        trade.settlement_value = 1.0
+                        sv = 0.0 if direction == "down" else 1.0
+                        trade.pnl = calculate_pnl(trade, sv)
+                        trade.settlement_value = sv
                     else:
                         trade.result = "loss"
-                        trade.pnl = calculate_pnl(trade, 0.0)
-                        trade.settlement_value = 0.0
+                        sv = 1.0 if direction == "down" else 0.0
+                        trade.pnl = calculate_pnl(trade, sv)
+                        trade.settlement_value = sv
                     trade.settled = True
                     trade.settlement_time = now
                     trade.settlement_source = "btc_5min_cex_fallback_scan"
