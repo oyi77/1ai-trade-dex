@@ -75,6 +75,7 @@ class StrategyGate:
     def can_execute_live(strategy_name: str, db: Session) -> tuple[bool, str]:
         """Can this strategy execute live trades RIGHT NOW?"""
         stage = StrategyGate.get_stage(strategy_name, db)
+        logger.info(f"[StrategyGate] {strategy_name}: stage={stage}")
 
         if stage == "live":
             return True, "live mode active"

@@ -300,6 +300,9 @@ def _execute_decision_paper_or_kalshi(
             # Warn when live/testnet mode but token_id is missing — silently broken strategies
             if mode in ("testnet", "live") and not is_kalshi and not token_id:
                 logger.warning(
+                    f"[{mode.upper()}][{strategy_name}] DEBUG: token_id={token_id}, market_ticker={market_ticker}, decision_keys={list(decision.keys())}"
+                )
+                logger.warning(
                     f"[{mode.upper()}][{strategy_name}] No token_id for {market_ticker} — "
                     f"CLOB order will be skipped; strategy may be producing incomplete decisions"
                 )
@@ -811,6 +814,7 @@ async def _execute_decision_live_clob(
 
                 for clob_attempt in range(2):
                     try:
+                        logger.info(f"[LIVE][{strategy_name}] CLOB attempt {clob_attempt}: token_id={token_id[:20] if token_id else None}... price={entry_price} size={adjusted_size}")
                         async with context.clob_client as clob:
                             await clob.create_or_derive_api_key()
                             if MAKER_FIRST_ENABLED or force_maker_only:
@@ -832,6 +836,7 @@ async def _execute_decision_live_clob(
                                     price=entry_price,
                                     size=adjusted_size,
                                 )
+                        logger.info(f"[LIVE][{strategy_name}] CLOB result: success={result.success} order_id={getattr(result,'order_id',None)} error={getattr(result,'error',None)}")
                         if result.success:
                             clob_order_id = result.order_id
                             fill_price = result.fill_price or fill_price

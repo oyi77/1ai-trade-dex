@@ -255,7 +255,7 @@ class ConfigRegistry:
         0.80  # max correlation-adjusted exposure % of bankroll
     )
     MAX_TRADE_SIZE: float = 100.0  # max single trade size in USD
-    MIN_ORDER_USDC: float = 5.0  # minimum order size (CLOB minimum)
+    MIN_ORDER_USDC: float = 1.0  # minimum order size (CLOB minimum)
     PAPER_MIN_ORDER_USDC: float = (
         5.0  # minimum order size (paper — matches CLOB $5 minimum)
     )

@@ -282,9 +282,15 @@
       "type": "file"
     },
     {
+      "path": "backend/core/strategy_executor.py",
+      "accessCount": 67,
+      "lastAccessed": 1780368869065,
+      "type": "directory"
+    },
+    {
       "path": "backend",
-      "accessCount": 53,
-      "lastAccessed": 1780304154310,
+      "accessCount": 55,
+      "lastAccessed": 1780367623754,
       "type": "directory"
     },
     {
@@ -292,12 +298,6 @@
       "accessCount": 43,
       "lastAccessed": 1780278470499,
       "type": "file"
-    },
-    {
-      "path": "backend/core/strategy_executor.py",
-      "accessCount": 43,
-      "lastAccessed": 1780283427962,
-      "type": "directory"
     },
     {
       "path": "backend/data/crypto.py",
@@ -366,6 +366,12 @@
       "type": "file"
     },
     {
+      "path": "backend/core/risk/risk_manager.py",
+      "accessCount": 22,
+      "lastAccessed": 1780367691850,
+      "type": "file"
+    },
+    {
       "path": "backend/core",
       "accessCount": 20,
       "lastAccessed": 1780307538627,
@@ -373,15 +379,9 @@
     },
     {
       "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 17,
-      "lastAccessed": 1780305483448,
+      "accessCount": 19,
+      "lastAccessed": 1780367835648,
       "type": "directory"
-    },
-    {
-      "path": "backend/core/risk/risk_manager.py",
-      "accessCount": 16,
-      "lastAccessed": 1780271972328,
-      "type": "file"
     },
     {
       "path": "backend/core/paper_slippage.py",
