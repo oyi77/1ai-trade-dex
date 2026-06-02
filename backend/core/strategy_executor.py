@@ -1092,7 +1092,6 @@ def _pre_trade_safety_checks(
                         f"[CIRCUIT BREAKER] Portfolio down {dd_pct * 100:.1f}% from initial ${initial:.2f} "
                         f"(current ${current:.2f}). Disabling ALL {mode} strategies."
                     )
-                    )
                     from backend.core.strategy_health import disable_for_rehab
 
                     all_configs = (
