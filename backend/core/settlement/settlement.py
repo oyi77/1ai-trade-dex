@@ -849,6 +849,8 @@ async def update_bot_state_with_settlements(
 
     try:
         async with botstate_mutex:
+            # Allow live bankroll/pnl updates from settlement
+            db.info["allow_live_financial_update"] = True
             for trade in settled_trades:
                 if trade.pnl is None:
                     continue
@@ -903,6 +905,8 @@ async def update_bot_state_with_settlements(
                 elif trading_mode == "live":
                     if is_real_trade:
                         state.total_trades = (state.total_trades or 0) + 1
+                        state.bankroll = (state.bankroll or 0.0) + (trade.pnl or 0.0)
+                        state.total_pnl = (state.total_pnl or 0.0) + (trade.pnl or 0.0)
                         if trade.result == "win":
                             state.winning_trades = (state.winning_trades or 0) + 1
 
@@ -936,9 +940,8 @@ async def update_bot_state_with_settlements(
                         report.source,
                     )
             except Exception as exc:
-                db.rollback()
                 logger.warning(
-                    "Live bankroll reconciliation after settlement failed: %s", exc
+                    "Live bankroll reconciliation after settlement failed: %s — keeping additive PnL in bankroll", exc
                 )
 
         # Log stats for ALL modes that had settlements

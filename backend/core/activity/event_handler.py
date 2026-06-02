@@ -87,9 +87,8 @@ class ActivityHandler:
                 old_bankroll = state.bankroll or 0.0
 
                 if event.event_type == "deposit":
-                    state.live_initial_bankroll = (
-                        state.live_initial_bankroll or 0.0
-                    ) + event.amount
+                    if state.live_initial_bankroll is None:
+                        state.live_initial_bankroll = event.amount
                     state.bankroll = old_bankroll + event.amount
                 elif event.event_type == "withdrawal":
                     state.live_initial_bankroll = max(
