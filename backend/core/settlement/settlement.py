@@ -107,10 +107,17 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
             else:
                 won = False
 
+            # For Polymarket binary markets: up=YES, down=NO
+            # settlement_value=1.0 means YES won, 0.0 means NO won
+            # direction=up wins when settlement_value=1.0 (YES)
+            # direction=down wins when settlement_value=0.0 (NO)
             if won:
                 trade.result = "win"
-                trade.pnl = calculate_pnl(trade, 1.0)
-                trade.settlement_value = 1.0
+                # down wins → NO won → settlement_value=0.0
+                # up wins → YES won → settlement_value=1.0
+                sv = 0.0 if direction == "down" else 1.0
+                trade.pnl = calculate_pnl(trade, sv)
+                trade.settlement_value = sv
                 record_execution(
                     strategy=trade.strategy or "btc_5min",
                     side=trade.direction or "up",
@@ -119,8 +126,11 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
                 )
             else:
                 trade.result = "loss"
-                trade.pnl = calculate_pnl(trade, 0.0)
-                trade.settlement_value = 0.0
+                # down loses → YES won → settlement_value=1.0
+                # up loses → NO won → settlement_value=0.0
+                sv = 1.0 if direction == "down" else 0.0
+                trade.pnl = calculate_pnl(trade, sv)
+                trade.settlement_value = sv
                 record_execution(
                     strategy=trade.strategy or "btc_5min",
                     side=trade.direction or "down",
@@ -166,12 +176,14 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
 
                 if won:
                     trade.result = "win"
-                    trade.pnl = calculate_pnl(trade, 1.0)
-                    trade.settlement_value = 1.0
+                    sv = 0.0 if direction == "down" else 1.0
+                    trade.pnl = calculate_pnl(trade, sv)
+                    trade.settlement_value = sv
                 else:
                     trade.result = "loss"
-                    trade.pnl = calculate_pnl(trade, 0.0)
-                    trade.settlement_value = 0.0
+                    sv = 1.0 if direction == "down" else 0.0
+                    trade.pnl = calculate_pnl(trade, sv)
+                    trade.settlement_value = sv
 
                 trade.settled = True
                 trade.settlement_time = now
