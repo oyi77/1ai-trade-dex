@@ -253,7 +253,6 @@ def _execute_decision_paper_or_kalshi(
             if pf is None:
                 return None
             adjusted_size = pf.adjusted_size
-            context = pf.context
 
             # --- Paper/Kalshi-specific execution ---
             clob_order_id = None
@@ -1031,7 +1030,7 @@ def _pre_trade_safety_checks(
 
     Returns None if all checks pass, or a rejection reason string.
     """
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
 
     # 1. Per-trade max loss: no single trade > 5% of bankroll
     max_trade_pct = float(_cfg("PER_TRADE_MAX_LOSS_PCT", 0.05))
@@ -1224,7 +1223,7 @@ def _preflight_checks(
     kill_switch_path = Path(__file__).parent.parent.parent / ".kill_switch"
     if kill_switch_path.exists() and mode == "live":
         logger.critical(
-            f"[KILL SWITCH] Emergency stop active - .kill_switch file found"
+            "[KILL SWITCH] Emergency stop active - .kill_switch file found"
         )
         attempt_recorder.record_blocked(
             "Emergency kill switch active (.kill_switch file exists)",

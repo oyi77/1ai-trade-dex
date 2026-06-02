@@ -79,7 +79,8 @@ class CloudWatchBackend(BaseMetricsBackend):
                 ],
             )
         except Exception:
-            logger.debug("cloudwatch: failed to send metric")
+            import logging
+            logging.getLogger(__name__).debug("cloudwatch: failed to send metric")
 
     async def health_check(self) -> bool:
         return self._boto3_available

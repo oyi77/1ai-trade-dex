@@ -8,7 +8,7 @@ This module will be removed in a future release.
 from typing import Optional
 
 from backend.strategies.types_hft import HFTSignal, HFTStrategyConfig
-from backend.config import settings, _cfg
+from backend.config import _cfg
 
 
 POSITION_SIZE_PCT = _cfg("HFT_POSITION_SIZE_PCT", 0.25)

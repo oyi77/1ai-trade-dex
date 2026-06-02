@@ -1,8 +1,8 @@
 """Tests verifying that target strategies call check_strategy_positions_for_auto_sell twice per cycle with overrides."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from backend.strategies.base import StrategyContext, CycleResult
+from unittest.mock import AsyncMock, MagicMock
+from backend.strategies.base import StrategyContext
 from backend.strategies.crypto_oracle import CryptoOracleStrategy
 from backend.strategies.general_market_scanner import GeneralMarketScanner
 from backend.strategies.bond_scanner import BondScannerStrategy

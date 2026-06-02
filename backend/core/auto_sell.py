@@ -406,7 +406,6 @@ async def check_strategy_positions_for_auto_sell(
     Convenience function for strategies (e.g. line_movement_detector) that
     want to integrate auto-sell into their own run_cycle.
     """
-    from backend.db.utils import get_db_session
     from backend.models.database import Trade
     from backend.core.position_monitor import _fetch_prices_bulk
 

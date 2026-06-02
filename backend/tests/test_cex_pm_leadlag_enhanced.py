@@ -1,6 +1,6 @@
 """Tests for backend/strategies/cex_pm_leadlag.py."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import pytest
 from datetime import datetime, timezone
 

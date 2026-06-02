@@ -45,9 +45,9 @@ def _make_trade(
 
 def test_get_auto_sell_config_defaults():
     cfg = _get_auto_sell_config()
-    assert cfg["profit_target_pct"] == 0.03
-    assert cfg["stop_loss_pct"] == 0.03
-    assert cfg["max_hold_seconds"] == 300
+    assert cfg["profit_target_pct"] == 0.06
+    assert cfg["stop_loss_pct"] == 0.04
+    assert cfg["max_hold_seconds"] == 600
 
 
 # ---------------------------------------------------------------------------
@@ -57,13 +57,13 @@ def test_get_auto_sell_config_defaults():
 
 @pytest.mark.asyncio
 async def test_profit_target_triggers_sell():
-    """YES position with price up 1% should trigger TAKE_PROFIT (target=0.8%)."""
+    """YES position with price up 3% should trigger TAKE_PROFIT (target=0.8%, adjusting for 2% fee)."""
     manager = AutoSellManager(
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    # 0.50 -> 0.505 = +1% PnL > 0.8% target
-    result = await manager.check_and_sell(trade, current_price=0.505)
+    # 0.50 -> 0.515 = +3% PnL gross, 1% net > 0.8% target
+    result = await manager.check_and_sell(trade, current_price=0.515)
     assert result is not None
     assert result.triggered is True
     assert result.trigger_reason == "TAKE_PROFIT"
@@ -74,11 +74,11 @@ async def test_profit_target_triggers_sell():
 async def test_no_sell_within_bounds():
     """Price within +/- 0.8% should NOT trigger any sell."""
     manager = AutoSellManager(
-        profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=9999
+        profit_target_pct=0.05, stop_loss_pct=0.05, max_hold_seconds=9999
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    # 0.50 -> 0.502 = +0.4% PnL < 0.8% target
-    result = await manager.check_and_sell(trade, current_price=0.502)
+    # 0.50 -> 0.505 = +1% PnL gross, -1% net -> not triggering target (+5%) or stop loss (-5%)
+    result = await manager.check_and_sell(trade, current_price=0.505)
     assert result is None
 
 
@@ -129,13 +129,13 @@ async def test_time_exit_triggers_sell():
 
 @pytest.mark.asyncio
 async def test_no_direction_profit():
-    """NO position: entry=0.50, current=0.49 means NO side gained (price dropped = YES lost = NO won)."""
+    """NO position: entry=0.50, current=0.485 means NO side gained (price dropped = YES lost = NO won)."""
     manager = AutoSellManager(
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="no")
-    # For NO: pnl = (entry - current) / entry = (0.50 - 0.49) / 0.50 = 0.02 = 2%
-    result = await manager.check_and_sell(trade, current_price=0.49)
+    # For NO: pnl_gross = (0.50 - 0.485) / 0.50 = 0.03 = +3%. pnl_net = +1%
+    result = await manager.check_and_sell(trade, current_price=0.485)
     assert result is not None
     assert result.trigger_reason == "TAKE_PROFIT"
 
@@ -185,14 +185,15 @@ async def test_sell_order_placed_with_clob_client():
     mock_order_result.order_id = "order-42"
     clob.place_limit_order.return_value = mock_order_result
 
-    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=clob)
+    # +0.015 gives 3% gross, 1% net (over 0.8% target)
+    result = await manager.check_and_sell(trade, current_price=0.515, clob_client=clob)
     assert result is not None
     assert result.triggered is True
     assert result.order_id == "order-42"
     clob.place_limit_order.assert_awaited_once_with(
         token_id="tok_abc",
         side="SELL",
-        price=0.51,
+        price=0.515,
         size=20.0,
     )
 
@@ -204,7 +205,7 @@ async def test_no_order_when_clob_is_none():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=None)
+    result = await manager.check_and_sell(trade, current_price=0.515, clob_client=None)
     assert result is not None
     assert result.triggered is True
     assert result.order_id is None
@@ -219,7 +220,7 @@ async def test_no_order_when_clob_is_none():
 async def test_scan_and_sell_all():
     """Bulk scan should evaluate all trades and return only triggered ones."""
     manager = AutoSellManager(
-        profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
+        profit_target_pct=0.008, stop_loss_pct=0.05, max_hold_seconds=300
     )
     t1 = _make_trade(
         trade_id=1, entry_price=0.50, direction="yes"
@@ -227,7 +228,7 @@ async def test_scan_and_sell_all():
     t2 = _make_trade(
         trade_id=2, entry_price=0.50, direction="yes"
     )  # won't trigger (price same)
-    prices = {"test-market": 0.51}  # 2% up for t1
+    prices = {"test-market": 0.515}  # 3% gross up for t1
 
     # Give t2 a different ticker so it gets no price
     t2.market_ticker = "other-market"
@@ -262,7 +263,6 @@ def test_auto_sell_result_to_dict():
 @pytest.mark.asyncio
 async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
     """Verify check_strategy_positions_for_auto_sell passes kwargs to AutoSellManager."""
-    from unittest.mock import AsyncMock, patch
     from backend.core.auto_sell import check_strategy_positions_for_auto_sell
 
     mock_trade = _make_trade(trade_id=1, entry_price=0.50, direction="yes")
@@ -281,7 +281,6 @@ async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
     )
 
     # Mock scan_and_sell_all to check manager configuration
-    original_scan = AutoSellManager.scan_and_sell_all
     call_params = {}
 
     async def mock_scan(self, trades, prices, clob_client=None):
@@ -306,6 +305,6 @@ async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
 
     # Invoke without overrides to ensure global defaults are used
     await check_strategy_positions_for_auto_sell("test_strat")
-    assert call_params["profit_target"] == 0.03
-    assert call_params["stop_loss"] == 0.03
-    assert call_params["max_hold"] == 300
+    assert call_params["profit_target"] == 0.06
+    assert call_params["stop_loss"] == 0.04
+    assert call_params["max_hold"] == 600

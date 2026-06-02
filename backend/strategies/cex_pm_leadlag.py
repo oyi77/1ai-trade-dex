@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import httpx
 import math
-from typing import Optional, List, Any
 
 from loguru import logger
 

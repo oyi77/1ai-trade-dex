@@ -288,7 +288,6 @@ class CopyTrader:
                 # Dynamic wallet scoring checks
                 win_rate = trader.win_rate
                 sample_size = trader.total_trades
-                roi = 0.0
 
                 if db is not None:
                     db_win_rate, db_roi, db_sample_size = get_target_wallet_db_stats(
@@ -296,7 +295,6 @@ class CopyTrader:
                     )
                     if db_sample_size >= 5:
                         win_rate = db_win_rate
-                        roi = db_roi
                         sample_size = db_sample_size
 
                 if win_rate < 0.45:

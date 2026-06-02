@@ -15,11 +15,9 @@ import hashlib
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 
 from backend.strategies.base import BaseStrategy, CycleResult, StrategyContext
 from backend.data.shared_client import get_shared_client
-from backend.data.crypto import compute_crypto_microstructure
 from backend.data.btc_markets import fetch_active_crypto_markets
 from backend.config import settings
 
@@ -228,7 +226,7 @@ class NewsFrontrunStrategy(BaseStrategy):
         max_position = float(params.get("max_position_usd", 5.0))
         cooldown = float(params.get("cooldown_seconds", 300))
         max_open = int(params.get("max_open_positions", 2))
-        max_per_asset = int(params.get("max_per_asset", 1))
+        int(params.get("max_per_asset", 1))
 
         # Check open positions
         from backend.models.database import Trade
@@ -407,7 +405,6 @@ class NewsFrontrunStrategy(BaseStrategy):
 
         # Record decision log
         try:
-            from backend.models.database import DecisionLog
             from backend.core.decisions import record_decision_standalone
 
             record_decision_standalone(

@@ -1,7 +1,7 @@
 """Tests for HyperliquidStrategy — Hyperliquid prediction market strategy."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from dataclasses import dataclass, field
 from typing import List
 

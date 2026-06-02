@@ -9,12 +9,11 @@ from backend.modules.execution.copy_trader import get_target_wallet_db_stats, Co
 from backend.modules.data_feeds.whale_frontrun import WhalePnLTracker, WhaleFrontrun
 from backend.modules.scanners.weather_emos import (
     CATEGORY_WEATHER_WEIGHTS,
-    CalibrationState,
 )
-from backend.strategies.base import MarketEvent, StrategyContext
+from backend.strategies.base import MarketEvent
 
 # Database models if needed
-from backend.models.database import Trade, CopyTraderEntry
+from backend.models.database import Trade
 
 
 class TestCopyTraderGating:

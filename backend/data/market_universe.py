@@ -49,7 +49,6 @@ class PolymarketProvider(DataProvider):
         offset: int = 0,
         active_only: bool = True,
     ) -> List[Dict[str, Any]]:
-        import httpx
         import asyncio
 
         markets: List[Dict[str, Any]] = []
@@ -154,7 +153,6 @@ class KalshiProvider(DataProvider):
         if not getattr(settings, "KALSHI_ENABLED", False):
             return []
 
-        import httpx
         import asyncio
 
         markets: List[Dict[str, Any]] = []

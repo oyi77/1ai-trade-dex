@@ -640,8 +640,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # --- Data Feed Discovery ---
     try:
-        import backend.data.providers  # triggers provider auto-registration
-        import backend.data.crypto_feeds  # triggers crypto feed auto-registration
 
         logger.info("[LIFESPAN] Data providers and crypto feeds loaded")
     except Exception as e:
@@ -653,17 +651,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         _notify_providers = []
         if _os.environ.get("SLACK_WEBHOOK_URL"):
-            from backend.bot.notification.providers.slack import SlackProvider
 
             _notify_providers.append("slack")
         if _os.environ.get("DISCORD_WEBHOOK_URL"):
-            from backend.bot.notification.providers.discord import DiscordProvider
 
             _notify_providers.append("discord")
         if _os.environ.get("WEBHOOK_URL"):
-            from backend.bot.notification.providers.webhook import (
-                GenericWebhookProvider,
-            )
 
             _notify_providers.append("webhook")
         if _notify_providers:
