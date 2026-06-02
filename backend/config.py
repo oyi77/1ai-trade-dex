@@ -318,7 +318,7 @@ class ConfigRegistry:
     PER_TRADE_MAX_LOSS_PCT: float = 0.05  # no single trade > 5% of bankroll
     MAX_DAILY_TRADES_PER_STRATEGY: int = 0  # 0 = unlimited (profitable strategies only)
     PORTFOLIO_CIRCUIT_BREAKER_PCT: float = (
-        0.20  # disable ALL if portfolio down >20% from peak
+        0.50  # disable ALL if portfolio down >50% from peak
     )
     PROPOSAL_ROLLBACK_THRESHOLD: float = -0.1  # Sharpe rollback trigger
     PROPOSAL_IMPACT_WINDOW_HOURS: int = 48  # hours to monitor after proposal exec
