@@ -1446,18 +1446,27 @@ def _preflight_checks(
         clob_min_usdc = min_shares * entry_price * 1.05  # 5% buffer for tick rounding
         min_size = max(min_size, clob_min_usdc)
     if adjusted_size < min_size:
-        logger.info(
-            f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
-            f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f} (entry_price={entry_price})"
-        )
-        attempt_recorder.record_rejected(
-            f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f}",
-            phase="sizing",
-            reason_code="REJECTED_ORDER_TOO_SMALL",
-            adjusted_size=adjusted_size,
-        )
-        db.commit()
-        return None
+        # If close enough (within 50% of bankroll), bump up to minimum
+        # instead of rejecting — CLOB requires value >= $1 after share rounding.
+        if bankroll > 0 and min_size <= bankroll * 0.5:
+            logger.info(
+                f"[{mode.upper()}][{strategy_name}] Bumping {market_ticker} "
+                f"size ${adjusted_size:.2f} → ${min_size:.2f} to meet CLOB min"
+            )
+            adjusted_size = min_size
+        else:
+            logger.info(
+                f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
+                f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f} (entry_price={entry_price})"
+            )
+            attempt_recorder.record_rejected(
+                f"Size ${adjusted_size:.2f} below minimum ${min_size:.2f}",
+                phase="sizing",
+                reason_code="REJECTED_ORDER_TOO_SMALL",
+                adjusted_size=adjusted_size,
+            )
+            db.commit()
+            return None
 
     # 9. Stale market filter
     if market_end_date is not None:
