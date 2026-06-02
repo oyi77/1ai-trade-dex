@@ -2,6 +2,7 @@
 
 import asyncio
 import json as _json
+import math
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -1435,16 +1436,15 @@ def _preflight_checks(
         adjusted_size=adjusted_size,
     )
 
-    # 8. Min size
+    # 8. Min size — CLOB requires order value >= $1.
+    # adjusted_size is USDC; shares = adjusted_size / price (rounded down by CLOB).
+    # Ensure floor(adjusted_size / price) * price >= 1.0 after rounding.
     min_size = _cfg("MIN_ORDER_USDC", 5.0)
-    # CLOB requires order value >= $1. For low-price markets, ensure
-    # adjusted_size >= $1 after USDC→shares conversion (shares rounded down).
-    if entry_price > 0:
-        clob_min_value = 1.0
-        min_for_clob = clob_min_value / entry_price  # shares needed, then * price
-        # Add 10% buffer to survive tick-size rounding
-        min_for_clob = min_for_clob * 1.1
-        min_size = max(min_size, min_for_clob)
+    if entry_price > 0 and entry_price < 1.0:
+        # Minimum USDC so that CLOB-rounded shares * price >= $1
+        min_shares = math.ceil(1.0 / entry_price)
+        clob_min_usdc = min_shares * entry_price * 1.05  # 5% buffer for tick rounding
+        min_size = max(min_size, clob_min_usdc)
     if adjusted_size < min_size:
         logger.info(
             f"[{mode.upper()}][{strategy_name}] Order rejected for {market_ticker}: "
