@@ -241,14 +241,11 @@ class PolymarketCLOB:
                         builder_code=builder_code,
                     )
                     logger.info(
-                        "[polymarket_clob.__init__] Builder Program configured for address: %s",
-                        builder_address or "default",
+                        f"[polymarket_clob.__init__] Builder Program configured for address: {builder_address or 'default'}"
                     )
                 except Exception as e:
                     logger.warning(
-                        "[polymarket_clob.__init__] Failed to configure Builder Program: %s: %s",
-                        type(e).__name__,
-                        e,
+                        f"[polymarket_clob.__init__] Failed to configure Builder Program: {type(e).__name__}: {e}"
                     )
             # For POLY_PROXY (sig_type=1), do NOT pass builder_config —
             # it conflicts with proxy wallet and causes "maker address not allowed".

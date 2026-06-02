@@ -1089,12 +1089,9 @@ def _pre_trade_safety_checks(
                 if dd_pct > max_portfolio_dd:
                     # Emergency: disable ALL strategies for this mode
                     logger.critical(
-                        "[CIRCUIT BREAKER] Portfolio down %.1f%% from initial $%.2f "
-                        "(current $%.2f). Disabling ALL %s strategies.",
-                        dd_pct * 100,
-                        initial,
-                        current,
-                        mode,
+                        f"[CIRCUIT BREAKER] Portfolio down {dd_pct * 100:.1f}% from initial ${initial:.2f} "
+                        f"(current ${current:.2f}). Disabling ALL {mode} strategies."
+                    )
                     )
                     from backend.core.strategy_health import disable_for_rehab
 
