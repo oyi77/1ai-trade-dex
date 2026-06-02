@@ -1034,11 +1034,17 @@ def _pre_trade_safety_checks(
     from datetime import datetime, timedelta, timezone
 
     # 1. Per-trade max loss: no single trade > 5% of bankroll
+    #    Small bankroll override: if 5% < CLOB min ($5), allow up to CLOB min
+    #    so small accounts can still place valid orders.
     max_trade_pct = float(_cfg("PER_TRADE_MAX_LOSS_PCT", 0.05))
-    if bankroll > 0 and size > bankroll * max_trade_pct:
+    clob_min_order = float(_cfg("MIN_ORDER_USDC", 5.0))
+    pct_limit = bankroll * max_trade_pct
+    effective_limit = max(pct_limit, clob_min_order) if bankroll > 0 else pct_limit
+    if bankroll > 0 and size > effective_limit:
         return (
-            f"per-trade size ${size:.2f} > {max_trade_pct:.0%} of bankroll "
-            f"(${bankroll * max_trade_pct:.2f})"
+            f"per-trade size ${size:.2f} > limit ${effective_limit:.2f} "
+            f"({max_trade_pct:.0%} of ${bankroll:.2f} = ${pct_limit:.2f}, "
+            f"CLOB min = ${clob_min_order:.2f})"
         )
 
     # 2. Daily max trades per strategy: no more than 50
@@ -1144,31 +1150,25 @@ class _PreflightResult:
 def _fetch_live_pusd_balance_sync() -> float:
     """Fetch real PUSD balance from Polymarket CLOB for live mode.
 
-    Runs the async get_pusd_balance() call synchronously.
+    Uses the synchronous ClobClient directly (no async/await needed).
     Returns 0.0 on error.
     """
     try:
+        from py_clob_client_v2 import BalanceAllowanceParams, AssetType
         from backend.data.polymarket_clob import clob_from_settings
-        import asyncio
 
-        async def _get_balance():
-            async with clob_from_settings(mode="live") as clob:
-                return await clob.get_pusd_balance()
-
-        # Use asyncio.run() to create a new event loop for the async call
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            # Already in an async context - use nest_asyncio or fallback
-            import nest_asyncio
-
-            nest_asyncio.apply()
-            return loop.run_until_complete(_get_balance())
-        else:
-            return asyncio.run(_get_balance())
+        clob = clob_from_settings(mode="live")
+        if not clob._clob_client:
+            logger.warning("[strategy_executor] _fetch_live_pusd_balance_sync: ClobClient not initialised")
+            return 0.0
+        params = BalanceAllowanceParams(
+            asset_type=AssetType.COLLATERAL,
+            signature_type=clob.signature_type if clob.signature_type else None,
+        )
+        result = clob._clob_client.get_balance_allowance(params)
+        pusd_balance = int(result.get("balance", 0)) / 1e6
+        logger.debug(f"[strategy_executor] Live PUSD balance: ${pusd_balance:.2f}")
+        return pusd_balance
     except Exception as e:
         logger.warning(f"[strategy_executor] Failed to fetch live PUSD balance: {e}")
         return 0.0
