@@ -51,6 +51,17 @@ module.exports = {
       restart_delay: 3000,
     },
     {
+      name: 'polyedge-guardian',
+      script: 'venv/bin/python',
+      args: '-m backend.monitoring.production_guardian',
+      cwd: '/home/openclaw/projects/1ai-poly-trader',
+      env: {
+        PYTHONDONTWRITEBYTECODE: '1',
+      },
+      autorestart: false,
+      cron_restart: '*/10 * * * *',
+    },
+    {
       name: 'mirofish-backend',
       script: '/home/openclaw/projects/mirofish/backend/venv/bin/python',
       args: '/home/openclaw/projects/mirofish/backend/run.py',
