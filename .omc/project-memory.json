@@ -283,14 +283,14 @@
     },
     {
       "path": "backend/core/strategy_executor.py",
-      "accessCount": 67,
-      "lastAccessed": 1780368869065,
+      "accessCount": 105,
+      "lastAccessed": 1780397338492,
       "type": "directory"
     },
     {
       "path": "backend",
-      "accessCount": 55,
-      "lastAccessed": 1780367623754,
+      "accessCount": 66,
+      "lastAccessed": 1780399556904,
       "type": "directory"
     },
     {
@@ -306,15 +306,15 @@
       "type": "file"
     },
     {
-      "path": "backend/config.py",
-      "accessCount": 29,
-      "lastAccessed": 1780295800697,
+      "path": "",
+      "accessCount": 34,
+      "lastAccessed": 1780394077461,
       "type": "directory"
     },
     {
-      "path": "",
-      "accessCount": 27,
-      "lastAccessed": 1780258896253,
+      "path": "backend/config.py",
+      "accessCount": 29,
+      "lastAccessed": 1780295800697,
       "type": "directory"
     },
     {
@@ -328,6 +328,12 @@
       "accessCount": 27,
       "lastAccessed": 1780307535181,
       "type": "directory"
+    },
+    {
+      "path": "backend/core/auto_sell.py",
+      "accessCount": 26,
+      "lastAccessed": 1780389331046,
+      "type": "file"
     },
     {
       "path": "backend/strategies",
@@ -354,9 +360,9 @@
       "type": "directory"
     },
     {
-      "path": "backend/core/auto_sell.py",
+      "path": "backend/core/risk/risk_manager.py",
       "accessCount": 23,
-      "lastAccessed": 1780284263696,
+      "lastAccessed": 1780394590565,
       "type": "file"
     },
     {
@@ -366,21 +372,15 @@
       "type": "file"
     },
     {
-      "path": "backend/core/risk/risk_manager.py",
+      "path": "backend/core/scheduling/scheduling_strategies.py",
       "accessCount": 22,
-      "lastAccessed": 1780367691850,
-      "type": "file"
+      "lastAccessed": 1780399226608,
+      "type": "directory"
     },
     {
       "path": "backend/core",
       "accessCount": 20,
       "lastAccessed": 1780307538627,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 19,
-      "lastAccessed": 1780367835648,
       "type": "directory"
     },
     {
@@ -409,8 +409,8 @@
     },
     {
       "path": "backend/core/position_monitor.py",
-      "accessCount": 9,
-      "lastAccessed": 1780239450773,
+      "accessCount": 11,
+      "lastAccessed": 1780389329040,
       "type": "file"
     },
     {
@@ -438,6 +438,12 @@
       "type": "file"
     },
     {
+      "path": "backend/core/risk/circuit_breaker.py",
+      "accessCount": 6,
+      "lastAccessed": 1780397562702,
+      "type": "file"
+    },
+    {
       "path": "backend/tests/test_cex_pm_leadlag_enhanced.py",
       "accessCount": 5,
       "lastAccessed": 1780218719651,
@@ -447,6 +453,12 @@
       "path": "backend/ai/debate_router.py",
       "accessCount": 5,
       "lastAccessed": 1780240549202,
+      "type": "file"
+    },
+    {
+      "path": "backend/models/database.py",
+      "accessCount": 5,
+      "lastAccessed": 1780389341345,
       "type": "file"
     },
     {
@@ -480,12 +492,6 @@
       "type": "file"
     },
     {
-      "path": "backend/core/risk/circuit_breaker.py",
-      "accessCount": 4,
-      "lastAccessed": 1780269086117,
-      "type": "file"
-    },
-    {
       "path": "backend/fee_config.py",
       "accessCount": 4,
       "lastAccessed": 1780304283843,
@@ -502,12 +508,6 @@
       "accessCount": 3,
       "lastAccessed": 1780241281042,
       "type": "directory"
-    },
-    {
-      "path": "backend/models/database.py",
-      "accessCount": 3,
-      "lastAccessed": 1780254175111,
-      "type": "file"
     },
     {
       "path": "backend/monitoring/backends/datadog.py",
