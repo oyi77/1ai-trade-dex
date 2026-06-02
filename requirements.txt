@@ -24,6 +24,7 @@ cryptography>=42.0.0
 
 # Weather data (using Open-Meteo API)
 numpy==1.26.4  # was 1.26.3, updated patch
+nest_asyncio==1.6.0  # required for sync balance fetch in async orchestrator
 pandas==2.2.3  # was 2.1.4, updated minor for security
 scipy==1.14.1  # was 1.12.0, updated minor for security
 
