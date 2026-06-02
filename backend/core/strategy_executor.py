@@ -1084,6 +1084,14 @@ def _pre_trade_safety_checks(
             except (TypeError, ValueError):
                 initial = bankroll  # fallback: no drawdown detected
             current = bankroll
+            # For live mode, use CLOB PUSD balance as the actual portfolio value.
+            # RPC bankroll reflects main wallet (0xaaE4), but CLOB trades use
+            # proxy wallet (0xAd85). Comparing proxy PUSD vs main RPC triggers
+            # false drawdown alarms.
+            if mode == "live":
+                pusd = _fetch_live_pusd_balance_sync()
+                if pusd > 0:
+                    current = pusd
             if initial and initial > 0:
                 dd_pct = (initial - current) / initial
                 if dd_pct > max_portfolio_dd:
