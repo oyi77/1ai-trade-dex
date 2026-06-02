@@ -349,10 +349,10 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             trade.result = "loss"
                             trade.settlement_time = now
                             trade.settlement_source = "closed_unresolved"
-                            if trade.pnl is None:
-                                trade.pnl = calculate_pnl(trade, 0.0)
-                            if trade.settlement_value is None:
-                                trade.settlement_value = 0.0
+                            # Always recalculate — pre-set pnl may be wrong
+                            # closed_unresolved = position gone, settle as loss
+                            trade.pnl = calculate_pnl(trade, 0.0)
+                            trade.settlement_value = 0.0
                             logger.warning(
                                 "Position reconciliation: trade {} position gone, "
                                 "resolution unavailable after {}h grace — "

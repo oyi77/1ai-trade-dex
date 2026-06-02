@@ -770,9 +770,14 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
         direction = "yes"
     elif direction == "down":
         direction = "no"
+    # Normalize case: YES→yes, NO→no, UP→up, DOWN→down, BUY→buy
+    direction = direction.lower()
 
     _filled = getattr(trade, "filled_size", None)
     size = float(_filled) if isinstance(_filled, (int, float)) else trade.size
+
+    # Normalize direction — Polymarket stores YES/NO uppercase
+    direction = (trade.direction or "yes").lower()
 
     _fill_price = getattr(trade, "fill_price", None)
     entry_price = (
