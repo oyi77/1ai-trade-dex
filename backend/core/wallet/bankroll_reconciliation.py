@@ -675,11 +675,9 @@ def _build_report(
             )
         else:
             new_bankroll = round(float(pm_portfolio_value), 2)
-            # For live mode, total_pnl must equal bankroll - initial_bankroll
-            # so the dashboard shows real wallet performance, not simulated
-            # trade.pnl sums which use incorrect fee models.
-            initial = _initial_bankroll_for_mode("live", state=state)
-            new_total_pnl = round(new_bankroll - initial, 2)
+            # Live total_pnl uses realized PnL from settled trades,
+            # not bankroll delta (CLOB balance excludes open positions)
+            new_total_pnl = realized_pnl
     else:
         derived_bankroll = round(
             _initial_bankroll_for_mode(mode, state=state)
