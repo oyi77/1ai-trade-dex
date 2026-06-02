@@ -250,6 +250,11 @@ class PolymarketCLOB:
                         type(e).__name__,
                         e,
                     )
+            # For POLY_PROXY (sig_type=1), do NOT pass builder_config —
+            # it conflicts with proxy wallet and causes "maker address not allowed".
+            # Only use builder_config for EOA (sig_type=0).
+            effective_builder = builder_config if signature_type == 0 else None
+            effective_funder = builder_address if builder_address else None
             try:
                 self._clob_client = ClobClient(
                     host=self._clob_host,
@@ -257,8 +262,8 @@ class PolymarketCLOB:
                     key=private_key,
                     creds=creds,
                     signature_type=signature_type,
-                    builder_config=builder_config,
-                    funder=builder_address if builder_address else None,
+                    builder_config=effective_builder,
+                    funder=effective_funder,
                 )
             except Exception as e:
                 logger.warning(
