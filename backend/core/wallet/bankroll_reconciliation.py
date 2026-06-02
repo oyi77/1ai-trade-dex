@@ -188,7 +188,7 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
                         f"Failed to fetch {name} balance in reconciliation: {e}"
                     )
 
-        logger.info("Total cash balance from RPC: %.2f", cash)
+        logger.info(f"Total cash balance from RPC: ${cash:.2f}")
     except Exception as exc:
         logger.warning("Polygon RPC cash fetch failed, falling back to CLOB: %s", exc)
         # 2. Fallback to CLOB API if RPC fails
