@@ -1403,7 +1403,8 @@ async def process_settled_trade(
         from backend.models.database import TransactionEvent, BotState
 
         event_type = "settlement_win" if trade.result == "win" else "settlement_loss"
-        bot = db.query(BotState).first()
+        trade_mode = getattr(trade, "trading_mode", "paper") or "paper"
+        bot = db.query(BotState).filter_by(mode=trade_mode).first()
         prior_balance = bot.bankroll if bot else 0.0
         estimated_balance = prior_balance + pnl
         event = TransactionEvent(
@@ -1591,13 +1592,21 @@ async def resolve_paper_trades(db) -> List[Trade]:
             if not prices:
                 continue
 
-            p0 = float(prices[0]) if prices[0] is not None else None
-            p1 = (
-                float(prices[1])
-                if len(prices) > 1 and prices[1] is not None
-                else None
-            )
+            try:
+                p0 = float(prices[0]) if prices[0] is not None else None
+            except (ValueError, TypeError):
+                p0 = None
+            try:
+                p1 = (
+                    float(prices[1])
+                    if len(prices) > 1 and prices[1] is not None
+                    else None
+                )
+            except (ValueError, TypeError):
+                p1 = None
 
+            # If prices are non-numeric (e.g. "[" from unresolved markets),
+            # skip — will be force-settled by stale cleanup job after max age
             if p0 is None or p1 is None:
                 continue
 

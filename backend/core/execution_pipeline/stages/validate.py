@@ -14,11 +14,11 @@ class ValidationStage(BaseExecutionStage):
         return ExecutionStageManifest(
             name="validation",
             display_name="Risk Validation",
-            version="1.0.0",
+            version="1.1.0",
             mode="*",
             order=1,
             required_env_vars=[],
-            tags=["validation", "risk"],
+            tags=["validation", "risk", "dedup"],
         )
 
     def __init__(self):
@@ -33,6 +33,29 @@ class ValidationStage(BaseExecutionStage):
         mode = ctx.get("mode", "paper")
         strategy_name = ctx.get("strategy_name", "unknown")
         direction = decision.get("direction")
+        token_id = decision.get("token_id")
+        db = ctx.get("db")
+
+        # ── Permanent Fix: prevent duplicate trades on same token_id ──
+        if db is not None and token_id:
+            try:
+                from sqlalchemy import text as _sql_text
+                existing = db.execute(
+                    _sql_text(
+                        "SELECT id FROM trades "
+                        "WHERE token_id = :tid AND trading_mode = :mode "
+                        "AND status NOT IN ('closed', 'SETTLED', 'cancelled', 'error', 'closed_errored')"
+                    ),
+                    {"tid": token_id, "mode": mode},
+                ).fetchone()
+                if existing:
+                    logger.warning(
+                        f"[ValidationStage] DUPLICATE BLOCKED: token_id={token_id} "
+                        f"mode={mode} already has open trade id={existing[0]}"
+                    )
+                    return False
+            except Exception as e:
+                logger.debug(f"[ValidationStage] dedup check failed (non-fatal): {e}")
 
         risk_decision = self.risk_manager.validate_trade(
             size=size,
