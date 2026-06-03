@@ -443,6 +443,16 @@ async def execute_decision(
     asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
     market_id = str(asset_key)
 
+    # LIVE_STRATEGY_ALLOWLIST gate — block live execution for non-allowlisted strategies
+    if mode == "live":
+        allowed = _cfg("LIVE_STRATEGY_ALLOWLIST", [])
+        if allowed and strategy_name not in allowed:
+            logger.warning(
+                f"[execute_decision] {strategy_name} NOT in LIVE_STRATEGY_ALLOWLIST, "
+                f"blocking live execution (paper mode continues)"
+            )
+            return None
+
     # Rate limit check: smoothly wait for tokens instead of skipping
     await _get_rate_limiter().wait_and_acquire(market_id)
 
