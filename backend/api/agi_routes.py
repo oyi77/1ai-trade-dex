@@ -715,3 +715,44 @@ async def get_sandbox_logs(db: Session = Depends(get_db)):
             "details": "Subprocess isolation enabled. No dangerous code detected in last 24h.",
         },
     }
+
+
+# ── AGI Infrastructure Monitoring Stubs ────────────────────────────────────
+# These endpoints match the frontend api.ts expectations. They return empty
+# datasets until full implementations are built.
+
+
+@router.get("/plugins/status")
+async def get_plugin_status():
+    """Return plugin health status (stub — full implementation pending)."""
+    return {"plugins": []}
+
+
+@router.get("/venue/status")
+async def get_venue_status():
+    """Return venue operational metrics (stub — full implementation pending)."""
+    return {"venues": []}
+
+
+@router.get("/sandbox/scenarios")
+async def get_sandbox_scenarios():
+    """Return sandbox test scenarios (stub — full implementation pending)."""
+    return {"scenarios": [], "results": []}
+
+
+@router.get("/sandbox/results")
+async def get_sandbox_results():
+    """Return sandbox validation results (stub — full implementation pending)."""
+    return {"scenarios": [], "results": []}
+
+
+@router.get("/graphs")
+async def get_agi_graphs():
+    """Return AGI execution graphs (stub — full implementation pending)."""
+    return {"graphs": []}
+
+
+@router.get("/graphs/runs")
+async def get_agi_run_results():
+    """Return AGI graph run history (stub — full implementation pending)."""
+    return {"results": []}

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { adminApi } from "../../api"
+import { api } from "../../api"
 
 interface Provider {
   name: string
@@ -18,7 +18,7 @@ export function ProviderStatusPanel() {
   const { data: providers, isLoading } = useQuery<Provider[]>({
     queryKey: ["market-providers"],
     queryFn: async () => {
-      const res = await adminApi.get("/api/v1/market-providers")
+      const res = await api.get("/providers")
       return res.data?.providers ?? []
     },
     refetchInterval: 30000,

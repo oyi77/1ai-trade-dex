@@ -635,7 +635,7 @@ class ConfigRegistry:
     POSTGRES_POOL_SIZE: int = 20
     POSTGRES_MAX_OVERFLOW: int = 20
     POSTGRES_POOL_TIMEOUT: int = 30
-    POSTGRES_POOL_RECYCLE: int = 3600
+    POSTGRES_POOL_RECYCLE: int = 300  # recycle connections every 5min to prevent idle-in-transaction leaks
     POSTGRES_SSL_MODE: str = "prefer"
 
     @property
