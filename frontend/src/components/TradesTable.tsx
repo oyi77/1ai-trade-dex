@@ -67,6 +67,20 @@ export function TradesTable({ trades }: Props) {
     })
   }, [filteredTrades, sortKey, sortDir])
 
+  // ⚡ Bolt: Consolidated multiple .filter().length calls into a single O(N) pass
+  // to avoid main thread blocking on render loops for large trade lists
+  const tradeCounts = useMemo(() => {
+    let wins = 0, losses = 0, pending = 0, settled = 0
+    for (let i = 0; i < trades.length; i++) {
+      const t = trades[i]
+      if (t.result === 'win') wins++
+      else if (t.result === 'loss') losses++
+      else if (t.result === 'pending') pending++
+      if (t.settled && t.result !== 'expired') settled++
+    }
+    return { wins, losses, pending, settled }
+  }, [trades])
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column) return <ArrowUpDown className="w-2.5 h-2.5 text-neutral-600" />
     return sortDir === 'asc'
@@ -85,10 +99,10 @@ export function TradesTable({ trades }: Props) {
 
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: trades.length },
-    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
-    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
-    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
-    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
+    { key: 'wins', label: 'Wins', count: tradeCounts.wins },
+    { key: 'losses', label: 'Losses', count: tradeCounts.losses },
+    { key: 'pending', label: 'Pending', count: tradeCounts.pending },
+    { key: 'settled', label: 'Settled', count: tradeCounts.settled },
   ]
 
   return (
