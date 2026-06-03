@@ -593,7 +593,12 @@ def auto_disable_losing_strategies():
             mt_stats = maker_taker_analytics.get_stats(db)
 
             for config in enabled_configs:
+                config_mode = getattr(config, "mode", None) or "paper"
                 for mode in active_modes:
+                    # Only evaluate performance for the strategy's own trading mode.
+                    # If config is "live", don't kill it because "paper" stats look bad.
+                    if config_mode != mode:
+                        continue
                     trades = trades_by_key.get((config.strategy_name, mode), [])
 
                     if len(trades) < min_trades:
