@@ -63,13 +63,3 @@ export const dataSourcesAPI = {
   enable: (name: string) => api.post<{ status: string; name: string }>(`/sources/${name}/enable`).then(r => r.data),
   disable: (name: string) => api.post<{ status: string; name: string }>(`/sources/${name}/disable`).then(r => r.data),
 }
-
-export const marketVenuesAPI = {
-  list: () => api.get<{ providers: MarketVenue[] }>('/providers').then(r => r.data.providers),
-  get: (name: string) => api.get<MarketVenueDetails>(`/providers/${name}`).then(r => r.data),
-  getBalance: (name: string) => api.get<VenueBalance>(`/providers/${name}/balance`).then(r => r.data),
-  getPositions: (name: string) => api.get<VenuePosition[]>(`/providers/${name}/positions`).then(r => r.data),
-  enable: (name: string) => api.post<{ status: string; name: string }>(`/providers/${name}/enable`).then(r => r.data),
-  disable: (name: string) => api.post<{ status: string; name: string }>(`/providers/${name}/disable`).then(r => r.data),
-  getMarkets: (name: string) => api.get<unknown>(`/providers/${name}/markets`).then(r => r.data),
-}
