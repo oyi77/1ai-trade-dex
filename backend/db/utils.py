@@ -43,3 +43,32 @@ def get_db_session():
         raise
     finally:
         db.close()
+
+
+@contextmanager
+def get_db_read_session():
+    """Read-only session: yields session, then commits (no-op for reads) to
+    ensure the transaction is closed and the connection is returned to the pool.
+
+    This prevents idle-in-transaction leaks from read-only queries that never
+    explicitly commit, leaving the connection stuck in a transaction state.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        # Commit even for read-only to close the transaction and release the connection
+        try:
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        db.close()

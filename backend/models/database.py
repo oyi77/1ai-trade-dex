@@ -51,7 +51,9 @@ if _is_postgres:
         {
             "pool_size": settings.POSTGRES_POOL_SIZE,
             "max_overflow": settings.POSTGRES_MAX_OVERFLOW,
-            "connect_args": {},
+            "connect_args": {
+                "options": "-c idle_in_transaction_session_timeout=30000",
+            },
         }
     )
 else:

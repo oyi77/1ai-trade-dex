@@ -12,7 +12,8 @@ import asyncio
 from typing import Optional, Set
 
 from backend.data.ws_client import CLOBWebSocket, SettlementEvent
-from backend.models.database import SessionLocal, Trade
+from backend.models.database import Trade
+from backend.db.utils import get_db_session
 from backend.core.task_manager import TaskManager
 
 from loguru import logger
@@ -63,8 +64,7 @@ class SettlementWebSocketHandler:
 
     async def _load_subscriptions(self) -> None:
         """Load all open trade token_ids to subscribe to."""
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             trades = db.query(Trade).filter(Trade.settled.is_(False)).all()
             for trade in trades:
                 if hasattr(trade, "token_id") and trade.token_id:
@@ -74,8 +74,6 @@ class SettlementWebSocketHandler:
             logger.info(
                 f"[SettlementWS] Subscribing to {len(self._token_id_to_ticker)} open markets"
             )
-        finally:
-            db.close()
 
     def subscribe_to_market(self, token_id: str, market_ticker: str) -> None:
         """Subscribe to a new market's settlement events."""
@@ -129,56 +127,54 @@ class SettlementWebSocketHandler:
         self, token_id: str, market_ticker: str, outcome: str
     ) -> None:
         """Settle all open trades for a market."""
-        db = SessionLocal()
-        try:
-            trades = (
-                db.query(Trade)
-                .filter(Trade.settled.is_(False))
-                .filter(
-                    (Trade.market_ticker == market_ticker)
-                    | (Trade.market_ticker == token_id)
+        with get_db_session() as db:
+            try:
+                trades = (
+                    db.query(Trade)
+                    .filter(Trade.settled.is_(False))
+                    .filter(
+                        (Trade.market_ticker == market_ticker)
+                        | (Trade.market_ticker == token_id)
+                    )
+                    .all()
                 )
-                .all()
-            )
 
-            if not trades:
-                logger.debug(f"[SettlementWS] No open trades found for {market_ticker}")
-                return
+                if not trades:
+                    logger.debug(f"[SettlementWS] No open trades found for {market_ticker}")
+                    return
 
-            # Parse outcome: "YES" or "NO", convert to settlement value
-            settlement_value = 1.0 if outcome.upper() in ("YES", "UP") else 0.0
+                # Parse outcome: "YES" or "NO", convert to settlement value
+                settlement_value = 1.0 if outcome.upper() in ("YES", "UP") else 0.0
 
-            from backend.core.settlement.settlement_helpers import (
-                calculate_pnl,
-                process_settled_trade,
-            )
+                from backend.core.settlement.settlement_helpers import (
+                    calculate_pnl,
+                    process_settled_trade,
+                )
 
-            settled_count = 0
-            for trade in trades:
-                pnl = calculate_pnl(trade, settlement_value)
-                if await process_settled_trade(trade, True, settlement_value, pnl, db):
-                    settled_count += 1
+                settled_count = 0
+                for trade in trades:
+                    pnl = calculate_pnl(trade, settlement_value)
+                    if await process_settled_trade(trade, True, settlement_value, pnl, db):
+                        settled_count += 1
+                        logger.info(
+                            f"[SettlementWS] Settled trade {trade.id}: "
+                            f"{trade.direction} @ {trade.entry_price:.0%} -> "
+                            f"{'WIN' if pnl > 0 else 'LOSS' if pnl < 0 else 'PUSH'} "
+                            f"P&L: ${pnl:+.2f}"
+                        )
+
+                if settled_count > 0:
+                    db.commit()
                     logger.info(
-                        f"[SettlementWS] Settled trade {trade.id}: "
-                        f"{trade.direction} @ {trade.entry_price:.0%} -> "
-                        f"{'WIN' if pnl > 0 else 'LOSS' if pnl < 0 else 'PUSH'} "
-                        f"P&L: ${pnl:+.2f}"
+                        f"[SettlementWS] Settled {settled_count} trades for {market_ticker}"
                     )
 
-            if settled_count > 0:
-                db.commit()
-                logger.info(
-                    f"[SettlementWS] Settled {settled_count} trades for {market_ticker}"
+            except Exception as e:
+                logger.error(
+                    f"[SettlementWS] Error settling trades for {market_ticker}: {e}",
+                    exc_info=True,
                 )
-
-        except Exception as e:
-            logger.error(
-                f"[SettlementWS] Error settling trades for {market_ticker}: {e}",
-                exc_info=True,
-            )
-            db.rollback()
-        finally:
-            db.close()
+                db.rollback()
 
 
 # Global handler instance
