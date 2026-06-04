@@ -117,6 +117,7 @@ async function handleApproveSignal(signalContext: SignalContext) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function handleSkipSignal(_signalContext: SignalContext) {
   // Skipped signal tracked server-side
 }
