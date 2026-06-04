@@ -21,8 +21,9 @@ export function ProfitCurveChart({ data }: ProfitCurveChartProps) {
     }))
   }, [data])
 
-  const maxPnl = useMemo(() => Math.max(...chartData.map(d => d.pnl), 0), [chartData])
-  const minPnl = useMemo(() => Math.min(...chartData.map(d => d.pnl), 0), [chartData])
+  // ⚡ Bolt: Replace spread operator with reduce to avoid "Maximum call stack size exceeded" on large arrays
+  const maxPnl = useMemo(() => chartData.reduce((max, d) => Math.max(max, d.pnl), 0), [chartData])
+  const minPnl = useMemo(() => chartData.reduce((min, d) => Math.min(min, d.pnl), 0), [chartData])
 
   if (chartData.length === 0) {
     return (
