@@ -266,12 +266,14 @@ class BalanceAggregator:
                     provider = KalshiProvider()
                     bal = await provider.get_balance()
                     if bal:
+                        cash = float(getattr(bal, "available_cash", 0) or 0)
+                        equity = float(getattr(bal, "total_equity", 0) or 0)
                         self._update(
                             "kalshi",
                             VenueBalance(
                                 venue="kalshi",
-                                cash_balance=float(bal.get("cash", 0)),
-                                total_equity=float(bal.get("equity", 0)),
+                                cash_balance=cash,
+                                total_equity=equity,
                                 source="poll",
                             ),
                         )
@@ -280,17 +282,19 @@ class BalanceAggregator:
 
                 # Ostium
                 try:
-                    from backend.clients.ostium_client import OstiumClient
+                    from backend.markets.providers.ostium_provider import OstiumProvider
 
-                    client = OstiumClient()
-                    bal = await client.get_balance()
+                    provider = OstiumProvider()
+                    bal = await provider.get_balance()
                     if bal:
+                        cash = float(getattr(bal, "available_cash", 0) or 0)
+                        equity = float(getattr(bal, "total_equity", 0) or 0)
                         self._update(
                             "ostium",
                             VenueBalance(
                                 venue="ostium",
-                                cash_balance=float(bal.get("usdc", 0)),
-                                total_equity=float(bal.get("total", 0)),
+                                cash_balance=cash,
+                                total_equity=equity,
                                 source="poll",
                             ),
                         )
@@ -299,17 +303,19 @@ class BalanceAggregator:
 
                 # Myriad
                 try:
-                    from backend.clients.myriad_client import MyriadClient
+                    from backend.markets.providers.myriad_provider import MyriadProvider
 
-                    client = MyriadClient()
-                    bal = await client.get_balance()
+                    provider = MyriadProvider()
+                    bal = await provider.get_balance()
                     if bal:
+                        cash = float(getattr(bal, "available_cash", 0) or 0)
+                        equity = float(getattr(bal, "total_equity", 0) or 0)
                         self._update(
                             "myriad",
                             VenueBalance(
                                 venue="myriad",
-                                cash_balance=float(bal),
-                                total_equity=float(bal),
+                                cash_balance=cash,
+                                total_equity=equity,
                                 source="poll",
                             ),
                         )
@@ -318,20 +324,19 @@ class BalanceAggregator:
 
                 # SXBet
                 try:
-                    from backend.clients.sxbet_client import SXBetClient
+                    from backend.markets.providers.sxbet_provider import SXBetProvider
 
-                    client = SXBetClient()
-                    bal = await client.get_balance()
+                    provider = SXBetProvider()
+                    bal = await provider.get_balance()
                     if bal:
-                        val = float(bal.get("balance", bal.get("value", 0)))
-                        if val > 1e6:
-                            val = val / 1e6  # Wei to USDC
+                        cash = float(getattr(bal, "available_cash", 0) or 0)
+                        equity = float(getattr(bal, "total_equity", 0) or 0)
                         self._update(
                             "sxbet",
                             VenueBalance(
                                 venue="sxbet",
-                                cash_balance=val,
-                                total_equity=val,
+                                cash_balance=cash,
+                                total_equity=equity,
                                 source="poll",
                             ),
                         )
@@ -371,7 +376,6 @@ class BalanceAggregator:
             await asyncio.sleep(getattr(settings, "BALANCE_POLL_INTERVAL_SECONDS", 30))
 
     def _update(self, venue: str, balance: VenueBalance):
-        """Update balance and notify callbacks."""
         balance.last_updated = time.time()
         self._balances[venue] = balance
         self._notify()
