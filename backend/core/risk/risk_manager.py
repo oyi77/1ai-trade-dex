@@ -739,6 +739,18 @@ class RiskManager:
                     adjusted,
                     adjusted,
                 )
+            elif bankroll > 0 and min_order_usdc <= bankroll * 0.5:
+                # Small bankroll: bump to min even if cap says no.
+                # CLOB requires >= $1. Rejecting every trade starves the strategy.
+                adjusted = min_order_usdc
+                logger.info(
+                    "[risk_manager] Bumped %s trade to CLOB minimum despite cap: "
+                    "$%.2f -> $%.2f (bankroll=%.2f)",
+                    effective_mode,
+                    min_order_usdc - (adjusted - min_order_usdc),
+                    adjusted,
+                    bankroll,
+                )
             else:
                 record_signal(
                     strategy=strategy_name or "unknown",

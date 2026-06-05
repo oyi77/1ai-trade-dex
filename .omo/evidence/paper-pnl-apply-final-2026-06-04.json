@@ -1,0 +1,21 @@
+{
+  "backup_path": ".omo/evidence/polyedge-before-paper-pnl-apply-20260604.dump",
+  "backup_size_bytes": 185930057,
+  "paper_bot_state": {
+    "open_exposure": 235.0,
+    "paper_bankroll": 2901.96,
+    "paper_pnl": 2136.96,
+    "paper_trades": 2222,
+    "paper_wins": 506
+  },
+  "post_apply_audit": {
+    "current_total_pnl": 2136.96,
+    "delta_total_pnl": -0.22,
+    "largest_outlier_pnl": 1904.01,
+    "mismatch_count": 0,
+    "recomputed_total_pnl": 2136.74,
+    "top_outlier_share": 0.034313,
+    "trade_count": 2222
+  },
+  "verification": "82 passed, 1 websockets deprecation warning"
+}

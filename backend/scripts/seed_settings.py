@@ -58,6 +58,18 @@ DEFAULT_SETTINGS = {
         "100.0",
         "Minimum orderbook depth in USD for trade to pass (0=no check)",
     ),
+    "PAPER_MAX_DEPTH_CONSUMPTION_PCT": (
+        "0.20",
+        "Reject paper orders consuming more than this fraction of known depth",
+    ),
+    "PAPER_LONGSHOT_SLIPPAGE_MULTIPLIER": (
+        "2.0",
+        "Extra slippage multiplier for prices near 0 or 1",
+    ),
+    "PAPER_LONGSHOT_PRICE_THRESHOLD": (
+        "0.10",
+        "Price distance from 0/1 that activates longshot slippage multiplier",
+    ),
     "PAPER_RANDOM_SLIPPAGE": ("true", "Add random slippage jitter to each trade fill"),
 }
 
@@ -95,6 +107,9 @@ def seed_settings():
                 "PAPER_SIZE_IMPACT_FACTOR",
                 "PAPER_CLOB_FEE_RATE",
                 "PAPER_MIN_DEPTH_USD",
+                "PAPER_MAX_DEPTH_CONSUMPTION_PCT",
+                "PAPER_LONGSHOT_SLIPPAGE_MULTIPLIER",
+                "PAPER_LONGSHOT_PRICE_THRESHOLD",
             ]:
                 setting_type = "float"
             elif key in ["WEBSEARCH_MAX_RESULTS"]:

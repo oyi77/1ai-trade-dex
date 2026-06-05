@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1780308144678,
+  "lastScanned": 1780517716729,
   "projectRoot": "/home/openclaw/projects/1ai-poly-trader",
   "techStack": {
     "languages": [
@@ -49,7 +49,7 @@
       "path": "alembic",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1780308144371,
+      "lastAccessed": 1780517716697,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -61,7 +61,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 11,
-      "lastAccessed": 1780308144420,
+      "lastAccessed": 1780517716710,
       "keyFiles": [
         "AGENTS.md",
         "__init__.py",
@@ -74,7 +74,7 @@
       "path": "data",
       "purpose": "Data files",
       "fileCount": 1,
-      "lastAccessed": 1780308144475,
+      "lastAccessed": 1780517716712,
       "keyFiles": [
         "crypto_oracle_performance.db"
       ]
@@ -83,7 +83,7 @@
       "path": "deploy",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780308144478,
+      "lastAccessed": 1780517716713,
       "keyFiles": [
         "polyedge-monitor.service"
       ]
@@ -92,7 +92,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 37,
-      "lastAccessed": 1780308144481,
+      "lastAccessed": 1780517716714,
       "keyFiles": [
         "AGENTS.md",
         "ANOMALY_REPORT.md",
@@ -105,7 +105,7 @@
       "path": "frontend",
       "purpose": null,
       "fileCount": 18,
-      "lastAccessed": 1780308144481,
+      "lastAccessed": 1780517716715,
       "keyFiles": [
         "AGENTS.md",
         "Dockerfile",
@@ -118,14 +118,14 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1780308144501,
+      "lastAccessed": 1780517716716,
       "keyFiles": []
     },
     "migrations": {
       "path": "migrations",
       "purpose": "Database migrations",
       "fileCount": 4,
-      "lastAccessed": 1780308144504,
+      "lastAccessed": 1780517716717,
       "keyFiles": [
         "AGENTS.md",
         "README",
@@ -137,7 +137,7 @@
       "path": "polyedge-docs",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1780308144562,
+      "lastAccessed": 1780517716718,
       "keyFiles": [
         "README.md",
         "docusaurus.config.ts",
@@ -149,21 +149,21 @@
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 62,
-      "lastAccessed": 1780308144563,
+      "fileCount": 70,
+      "lastAccessed": 1780517716720,
       "keyFiles": [
         "48h_trial_gate.py",
         "AGENTS.md",
         "FIXES_APPLIED.py",
         "README_ENGINE.md",
-        "analyze_trades.py"
+        "analyze_live_vs_paper.py"
       ]
     },
     "secrets": {
       "path": "secrets",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780308144571,
+      "lastAccessed": 1780517716721,
       "keyFiles": [
         "kalshi_private_key.pem"
       ]
@@ -172,7 +172,7 @@
       "path": "state",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780308144580,
+      "lastAccessed": 1780517716721,
       "keyFiles": [
         "cancel-signal-state.json"
       ]
@@ -181,7 +181,7 @@
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 43,
-      "lastAccessed": 1780308144602,
+      "lastAccessed": 1780517716722,
       "keyFiles": [
         "AGENTS.md",
         "SHUTDOWN_TEST_RESULTS.md",
@@ -194,7 +194,7 @@
       "path": "venv",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1780308144610,
+      "lastAccessed": 1780517716723,
       "keyFiles": [
         "pyvenv.cfg"
       ]
@@ -203,14 +203,14 @@
       "path": "walkthrough",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1780308144613,
+      "lastAccessed": 1780517716724,
       "keyFiles": []
     },
     "frontend/dist": {
       "path": "frontend/dist",
       "purpose": "Distribution/build output",
       "fileCount": 9,
-      "lastAccessed": 1780308144640,
+      "lastAccessed": 1780517716725,
       "keyFiles": [
         "AGENTS.md",
         "favicon.svg",
@@ -221,7 +221,7 @@
       "path": "polyedge-docs/build",
       "purpose": "Build output",
       "fileCount": 5,
-      "lastAccessed": 1780308144651,
+      "lastAccessed": 1780517716726,
       "keyFiles": [
         "404.html",
         "index.html",
@@ -232,7 +232,7 @@
       "path": "polyedge-docs/docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1780308144662,
+      "lastAccessed": 1780517716726,
       "keyFiles": [
         "intro.md"
       ]
@@ -241,14 +241,14 @@
       "path": "polyedge-docs/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1780308144672,
+      "lastAccessed": 1780517716728,
       "keyFiles": []
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 5,
-      "lastAccessed": 1780308144673,
+      "lastAccessed": 1780517716729,
       "keyFiles": [
         "AGENTS.md",
         "sample_activity.json",
@@ -259,7 +259,7 @@
       "path": "venv/bin",
       "purpose": "Executable scripts",
       "fileCount": 29,
-      "lastAccessed": 1780308144673,
+      "lastAccessed": 1780517716729,
       "keyFiles": [
         "Activate.ps1",
         "activate",
@@ -270,309 +270,135 @@
       "path": "venv/lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1780308144678,
+      "lastAccessed": 1780517716729,
       "keyFiles": []
     }
   },
   "hotPaths": [
     {
-      "path": "backend/strategies/crypto_oracle.py",
-      "accessCount": 108,
-      "lastAccessed": 1780290769893,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/core/agi_promotion_pipeline.py",
+      "accessCount": 13,
+      "lastAccessed": 1780597075303,
       "type": "file"
     },
     {
-      "path": "backend/core/strategy_executor.py",
-      "accessCount": 105,
-      "lastAccessed": 1780397338492,
-      "type": "directory"
-    },
-    {
-      "path": "backend",
-      "accessCount": 66,
-      "lastAccessed": 1780399556904,
-      "type": "directory"
-    },
-    {
-      "path": "backend/strategies/cex_pm_leadlag.py",
-      "accessCount": 43,
-      "lastAccessed": 1780278470499,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/core/profitability_gates.py",
+      "accessCount": 10,
+      "lastAccessed": 1780597008654,
       "type": "file"
     },
     {
-      "path": "backend/data/crypto.py",
-      "accessCount": 36,
-      "lastAccessed": 1780261592054,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/tests/test_agi_promotion_pipeline.py",
+      "accessCount": 7,
+      "lastAccessed": 1780597175456,
       "type": "file"
     },
     {
       "path": "",
-      "accessCount": 34,
-      "lastAccessed": 1780394077461,
+      "accessCount": 4,
+      "lastAccessed": 1780596773216,
       "type": "directory"
     },
     {
-      "path": "backend/config.py",
-      "accessCount": 29,
-      "lastAccessed": 1780295800697,
+      "path": ".claude/worktrees/agent-ac1caf41",
+      "accessCount": 3,
+      "lastAccessed": 1780595315506,
       "type": "directory"
     },
     {
-      "path": "backend/core/scheduling/scheduler.py",
-      "accessCount": 27,
-      "lastAccessed": 1780305378122,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/models/database.py",
+      "accessCount": 3,
+      "lastAccessed": 1780595580195,
       "type": "directory"
     },
     {
-      "path": "backend/core/settlement/settlement.py",
-      "accessCount": 27,
-      "lastAccessed": 1780307535181,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/auto_sell.py",
-      "accessCount": 26,
-      "lastAccessed": 1780389331046,
+      "path": "backend/core/paper_pnl_audit.py",
+      "accessCount": 3,
+      "lastAccessed": 1780596770161,
       "type": "file"
     },
     {
-      "path": "backend/strategies",
-      "accessCount": 25,
-      "lastAccessed": 1780277210039,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/settlement/settlement_helpers.py",
-      "accessCount": 25,
-      "lastAccessed": 1780306438566,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/core/experiment_runner.py",
+      "accessCount": 2,
+      "lastAccessed": 1780596753385,
       "type": "file"
     },
     {
-      "path": "backend/strategies/line_movement_detector.py",
-      "accessCount": 24,
-      "lastAccessed": 1780265909382,
-      "type": "directory"
-    },
-    {
-      "path": "backend/data/btc_markets.py",
-      "accessCount": 23,
-      "lastAccessed": 1780268233926,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/risk/risk_manager.py",
-      "accessCount": 23,
-      "lastAccessed": 1780394590565,
+      "path": "backend/tests/test_profitability_gates.py",
+      "accessCount": 2,
+      "lastAccessed": 1780596781444,
       "type": "file"
     },
     {
-      "path": "backend/strategies/longshot_bias.py",
-      "accessCount": 22,
-      "lastAccessed": 1780277537856,
+      "path": ".claude/worktrees/agent-ac1caf41/backend/tests",
+      "accessCount": 2,
+      "lastAccessed": 1780596912765,
+      "type": "directory"
+    },
+    {
+      "path": ".omo/plans/profitability-foundation.md",
+      "accessCount": 1,
+      "lastAccessed": 1780585332287,
       "type": "file"
-    },
-    {
-      "path": "backend/core/scheduling/scheduling_strategies.py",
-      "accessCount": 22,
-      "lastAccessed": 1780399226608,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core",
-      "accessCount": 20,
-      "lastAccessed": 1780307538627,
-      "type": "directory"
     },
     {
       "path": "backend/core/paper_slippage.py",
-      "accessCount": 13,
-      "lastAccessed": 1780304507747,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/market_scanner.py",
-      "accessCount": 12,
-      "lastAccessed": 1780254366586,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/market_maker.py",
-      "accessCount": 12,
-      "lastAccessed": 1780258276663,
-      "type": "directory"
-    },
-    {
-      "path": "backend/strategies/copy_trader_strategy.py",
-      "accessCount": 12,
-      "lastAccessed": 1780258952759,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/position_monitor.py",
-      "accessCount": 11,
-      "lastAccessed": 1780389329040,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/orchestrator.py",
-      "accessCount": 8,
-      "lastAccessed": 1780256388392,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/debate_engine.py",
-      "accessCount": 8,
-      "lastAccessed": 1780258062356,
-      "type": "file"
-    },
-    {
-      "path": "backend/strategies/negrisk_strategy.py",
-      "accessCount": 8,
-      "lastAccessed": 1780258934544,
-      "type": "directory"
-    },
-    {
-      "path": "backend/strategies/base.py",
-      "accessCount": 6,
-      "lastAccessed": 1780261591551,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/risk/circuit_breaker.py",
-      "accessCount": 6,
-      "lastAccessed": 1780397562702,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_cex_pm_leadlag_enhanced.py",
-      "accessCount": 5,
-      "lastAccessed": 1780218719651,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/debate_router.py",
-      "accessCount": 5,
-      "lastAccessed": 1780240549202,
-      "type": "file"
-    },
-    {
-      "path": "backend/models/database.py",
-      "accessCount": 5,
-      "lastAccessed": 1780389341345,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai",
-      "accessCount": 4,
-      "lastAccessed": 1780240549132,
-      "type": "directory"
-    },
-    {
-      "path": ".env",
-      "accessCount": 4,
-      "lastAccessed": 1780241216256,
-      "type": "directory"
-    },
-    {
-      "path": "backend/ai/groq.py",
-      "accessCount": 4,
-      "lastAccessed": 1780256629891,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/custom.py",
-      "accessCount": 4,
-      "lastAccessed": 1780256637689,
-      "type": "file"
-    },
-    {
-      "path": "backend/ai/llm_router.py",
-      "accessCount": 4,
-      "lastAccessed": 1780258109073,
-      "type": "file"
-    },
-    {
-      "path": "backend/fee_config.py",
-      "accessCount": 4,
-      "lastAccessed": 1780304283843,
-      "type": "file"
-    },
-    {
-      "path": "backend/application/strategy/shadow_runner.py",
-      "accessCount": 3,
-      "lastAccessed": 1780214697807,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/risk_manager.py",
-      "accessCount": 3,
-      "lastAccessed": 1780241281042,
-      "type": "directory"
-    },
-    {
-      "path": "backend/monitoring/backends/datadog.py",
-      "accessCount": 3,
-      "lastAccessed": 1780256440200,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_longshot_bias.py",
-      "accessCount": 2,
-      "lastAccessed": 1780218646551,
-      "type": "file"
-    },
-    {
-      "path": "backend/core/circuit_breaker.py",
-      "accessCount": 2,
-      "lastAccessed": 1780243129135,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/event_bus.py",
-      "accessCount": 2,
-      "lastAccessed": 1780256018597,
-      "type": "directory"
-    },
-    {
-      "path": "backend/core/shadow_mode.py",
       "accessCount": 1,
-      "lastAccessed": 1780214755524,
+      "lastAccessed": 1780586343322,
       "type": "file"
     },
     {
-      "path": "backend/ai/base.py",
+      "path": "backend/tests/test_paper_slippage.py",
       "accessCount": 1,
-      "lastAccessed": 1780239076269,
+      "lastAccessed": 1780586343365,
       "type": "file"
     },
     {
-      "path": "backend/core/market_making_analyzer.py",
+      "path": "backend/tests/test_paper_pnl_audit.py",
       "accessCount": 1,
-      "lastAccessed": 1780239103533,
+      "lastAccessed": 1780586594874,
       "type": "file"
     },
     {
-      "path": "backend/tests/test_crypto_oracle_integration.py",
+      "path": "backend/scripts/audit_paper_pnl.py",
       "accessCount": 1,
-      "lastAccessed": 1780239142644,
+      "lastAccessed": 1780586594957,
       "type": "file"
     },
     {
-      "path": "backend/tests/test_market_maker.py",
+      "path": "backend/core/profitability_gates.py",
       "accessCount": 1,
-      "lastAccessed": 1780239143241,
+      "lastAccessed": 1780590439530,
       "type": "file"
     },
     {
-      "path": "backend/core/settlement",
+      "path": "backend/core/agi_promotion_pipeline.py",
       "accessCount": 1,
-      "lastAccessed": 1780241607538,
+      "lastAccessed": 1780590439578,
+      "type": "file"
+    },
+    {
+      "path": ".claude/worktrees/agent-ac1caf41/backend/models",
+      "accessCount": 1,
+      "lastAccessed": 1780594966594,
       "type": "directory"
     },
     {
-      "path": "backend/core/circuit_breaker_pybreaker.py",
+      "path": ".claude/worktrees/agent-ac1caf41/backend/models/kg_models.py",
       "accessCount": 1,
-      "lastAccessed": 1780243177256,
+      "lastAccessed": 1780595339021,
+      "type": "file"
+    },
+    {
+      "path": ".claude/worktrees/agent-ac1caf41/backend/tests/conftest.py",
+      "accessCount": 1,
+      "lastAccessed": 1780596770540,
+      "type": "file"
+    },
+    {
+      "path": ".claude/worktrees/agent-ac1caf41/backend/tests/test_profitability_gates.py",
+      "accessCount": 1,
+      "lastAccessed": 1780597131536,
       "type": "file"
     }
   ],

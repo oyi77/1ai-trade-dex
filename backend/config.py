@@ -423,6 +423,9 @@ class ConfigRegistry:
     PAPER_SIZE_IMPACT_FACTOR: float = 0.5  # logarithmic size impact on slippage
     PAPER_CLOB_FEE_RATE: float = 0.02  # Polymarket fee rate (2%)
     PAPER_MIN_DEPTH_USD: float = 100.0  # reject if orderbook depth below this
+    PAPER_MAX_DEPTH_CONSUMPTION_PCT: float = 0.20
+    PAPER_LONGSHOT_SLIPPAGE_MULTIPLIER: float = 2.0
+    PAPER_LONGSHOT_PRICE_THRESHOLD: float = 0.10
 
     # Weather parameters
     WEATHER_ENABLED: bool = True
@@ -1113,6 +1116,7 @@ class ConfigRegistry:
     # ARBITRAGE - Arbitrage detection parameters
     # --------------------------------------------------------------------------
     ARBITRAGE_DETECTOR_ENABLED: bool = False
+    ARB_EXECUTOR_ENABLED: bool = True
     ARB_MIN_PROFIT: float = 0.02
     ARB_MAX_RETRIES: int = 3
     ARB_CIRCUIT_BREAKER_THRESHOLD: int = 5

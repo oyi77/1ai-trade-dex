@@ -83,6 +83,7 @@ from backend.ai.rejection_learner import generate_rejection_proposals
 from backend.core.strategy_evolution_loop import strategy_evolution_loop
 from backend.core.wr_monitor import wr_monitor_job
 from backend.core.wallet_reconciler import wallet_reconciler_job
+from backend.core.arb_executor import arb_execution_job
 
 scheduler: Optional[AsyncIOScheduler] = None
 
@@ -431,37 +432,6 @@ def get_scheduler_jobs() -> list[dict]:
     ]
 
 
-async def _cleanup_stale_trades() -> None:
-    """Settle trades older than 24h that are still open."""
-    from backend.db.utils import get_db_session
-    from backend.models.database import Trade
-    from datetime import timedelta
-
-    try:
-        with get_db_session() as db:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-            stale = (
-                db.query(Trade)
-                .filter(
-                    Trade.settled == False,  # noqa: E712
-                    Trade.created_at < cutoff,
-                )
-                .all()
-            )
-            if stale:
-                for t in stale:
-                    t.settled = True
-                    t.pnl = 0.0
-                    t.settlement_value = 0.5
-                    t.resolved_at = datetime.now(timezone.utc)
-                db.commit()
-                logger.info(
-                    f"[scheduler] Auto-settled {len(stale)} stale trades (>24h)"
-                )
-    except Exception as e:
-        logger.warning(f"[scheduler] Stale trade cleanup failed: {e}")
-
-
 def _load_strategy_jobs() -> None:
     """Read StrategyConfig table and schedule enabled strategies for all modes."""
     import backend.strategies  # noqa: F401 — triggers __init__.py auto-registration
@@ -486,19 +456,6 @@ def _load_strategy_jobs() -> None:
 
     # Register WS-driven strategies with event bus
     _register_event_driven_strategies()
-
-    # Schedule stale trade cleanup (every hour)
-    try:
-        scheduler.add_job(
-            _cleanup_stale_trades,
-            IntervalTrigger(seconds=3600),
-            id="stale_trade_cleanup",
-            replace_existing=True,
-            next_run_time=datetime.now(timezone.utc) + timedelta(seconds=60),
-        )
-        logger.info("Scheduled stale trade cleanup job (every 1h)")
-    except Exception as e:
-        logger.warning(f"Failed to schedule stale trade cleanup: {e}")
 
 
 def _register_event_driven_strategies() -> None:
@@ -885,9 +842,16 @@ async def _cleanup_stale_trades_job():
             if stale_live:
                 for t in stale_live:
                     t.settled = True
-                    t.pnl = 0.0
-                    t.settlement_value = 0.5
-                    t.resolved_at = datetime.now(timezone.utc)
+                    try:
+                        from backend.core.settlement.settlement_helpers import calculate_pnl
+
+                        t.pnl = calculate_pnl(t, 0.0)
+                    except Exception:
+                        min_loss = -(float(getattr(t, "entry_price", 0.0) or 0.0) * float(getattr(t, "size", 0.0) or 0.0))
+                        t.pnl = round(min_loss, 2)
+                    t.settlement_value = 0.0
+                    t.settlement_time = datetime.now(timezone.utc)
+                    t.settlement_source = "stale_live_force_close"
                 db.commit()
                 logger.info(
                     f"[stale_trade_cleanup] Auto-settled {len(stale_live)} stale LIVE trades (>12h)"
@@ -1190,7 +1154,7 @@ def start_scheduler():
     )
 
     # Watchdog: check strategy heartbeats every 30s
-    from backend.core.heartbeat import watchdog_job, wallet_sync_job, liveness_file_job
+    from backend.core.heartbeat import watchdog_job, wallet_sync_job, liveness_file_job, drift_alert_job
 
     scheduler.add_job(
         liveness_file_job,
@@ -1232,6 +1196,18 @@ def start_scheduler():
         misfire_grace_time=120,
     )
     logger.info("Scheduled wallet reconciler job every 5 minutes")
+
+    # DB ↔ CLOB drift alert: compare live bankroll to real PUSD every 5 min
+    _persist_and_add_job(
+        scheduler,
+        drift_alert_job,
+        IntervalTrigger(minutes=5),
+        id="drift_alert",
+        replace_existing=True,
+        max_instances=1,
+        misfire_grace_time=120,
+    )
+    logger.info("Scheduled drift alert job every 5 minutes")
 
     # Wallet sync disabled — contains blocking synchronous DB calls that freeze the event loop.
     # Re-enable after refactoring to use async DB (asyncpg/databases) or thread pool execution.
@@ -1403,6 +1379,18 @@ def start_scheduler():
                 replace_existing=True,
                 max_instances=1,
             )
+
+    if getattr(settings, "ARB_EXECUTOR_ENABLED", False):
+        for mode in modes:
+            scheduler.add_job(
+                arb_execution_job,
+                IntervalTrigger(seconds=30),
+                kwargs={"mode": mode, "limit": 200},
+                id=f"{mode}_arb_executor",
+                replace_existing=True,
+                max_instances=1,
+            )
+        logger.info("Scheduled arb executor job every 30 seconds for modes: %s", modes)
 
     # Strategy ranking job - daily ranking and auto-disable
     scheduler.add_job(

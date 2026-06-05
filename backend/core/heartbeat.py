@@ -396,31 +396,24 @@ async def wallet_sync_job() -> None:
             clob = clob_from_settings(mode=sync_mode)
             async with clob:
                 await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=30.0)
-                balance_data = await asyncio.wait_for(
-                    clob.get_wallet_balance(),
-                    timeout=30.0,
-                )
-                usdc_balance = balance_data.get("usdc_balance", 0.0)
-                error = balance_data.get("error")
+                if sync_mode == "live":
+                    # Live mode syncs to CLOB PUSD cash (raw trading balance).
+                    # PUSD is internal to CLOB — not on-chain ERC20.
+                    usdc_balance = await asyncio.wait_for(
+                        clob.get_pusd_balance(),
+                        timeout=30.0,
+                    )
+                    error = None
+                else:
+                    # Testnet/paper: use wallet balance (RPC or CLOB fallback).
+                    balance_data = await asyncio.wait_for(
+                        clob.get_wallet_balance(),
+                        timeout=30.0,
+                    )
+                    usdc_balance = balance_data.get("usdc_balance", 0.0)
+                    error = balance_data.get("error")
 
                 if usdc_balance >= 0 and not error:
-                    # For live mode, also fetch PM portfolio value (includes positions)
-                    if sync_mode == "live":
-                        try:
-                            from backend.core.wallet.bankroll_reconciliation import (
-                                fetch_pm_total_equity,
-                            )
-
-                            portfolio = await fetch_pm_total_equity()
-                            if portfolio is not None and portfolio > 0:
-                                usdc_balance = float(portfolio)
-                                logger.info(
-                                    f"wallet_sync: live PM portfolio = ${usdc_balance:.2f}"
-                                )
-                        except Exception as e:
-                            logger.debug(
-                                f"wallet_sync: PM portfolio fetch failed: {e}, using CLOB cash"
-                            )
                     _sync_balance_to_db(usdc_balance, sync_mode)
                     logger.info(
                         f"wallet_sync: {sync_mode} balance = ${usdc_balance:.2f}"
@@ -434,15 +427,31 @@ async def wallet_sync_job() -> None:
 
 def _sync_balance_to_db(balance: float, mode: str) -> None:
     from backend.db.utils import get_db_session
+    from backend.core.wallet.botstate_ledger import BotStateLedger
 
     try:
         with get_db_session() as db:
             state = db.query(BotState).filter(BotState.mode == mode).first()
-            if state:
-                state.bankroll = max(0.0, float(balance))
+            if not state:
+                return
+            entry = BotStateLedger.sync_to_absolute(
+                db=db,
+                mode=mode,
+                target_balance=float(balance),
+                source="wallet_sync",
+            )
+            # Always touch last_sync_at so dashboards know when DB was last checked
+            # even when the balance hasn't changed.
+            if entry is not None or state:
+                from datetime import datetime, timezone
+
+                if entry is None and hasattr(state, "last_sync_at"):
+                    state.last_sync_at = datetime.now(timezone.utc)
                 db.commit()
+            if entry is not None:
                 logger.debug(
-                    f"wallet_sync: {mode} balance updated to ${state.bankroll:.2f}"
+                    f"wallet_sync: {mode} balance synced via ledger "
+                    f"(field={entry.field}, value={entry.new_value:.2f})"
                 )
     except Exception as e:
         if _is_lock_timeout_error(e):
@@ -475,6 +484,99 @@ def _touch_heartbeat_file() -> None:
         pass  # Non-critical — don't crash watchdog for a file write failure
 
 
+DRIFT_ALERT_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    ".production_guardian_alerts.json",
+)
+
+
+async def drift_alert_job() -> None:
+    """Compare bot_state.live.bankroll to real CLOB PUSD. Alert on drift.
+
+    Writes to .production_guardian_alerts.json so the guardian cron can
+    pick up drift without querying the DB itself.
+    """
+    from backend.db.utils import get_db_session
+    from backend.models.database import BotState
+    from backend.data.polymarket_clob import clob_from_settings
+
+    try:
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode="live").first()
+            if not state:
+                return
+            db_bankroll = float(state.bankroll or 0.0)
+    except Exception as e:
+        logger.warning(f"drift_alert: DB read failed: {e}")
+        return
+
+    try:
+        clob = clob_from_settings(mode="live")
+        async with clob:
+            await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=15.0)
+            pusd = await asyncio.wait_for(clob.get_pusd_balance(), timeout=15.0)
+            if pusd is None:
+                return
+            onchain = float(pusd)
+    except asyncio.CancelledError:
+        return
+    except Exception as e:
+        logger.debug(f"drift_alert: CLOB fetch failed: {e}")
+        return
+
+    drift = round(db_bankroll - onchain, 4)
+    abs_drift = abs(drift)
+
+    alert = None
+    if abs_drift > 5.0:
+        logger.error(
+            f"[DRIFT ALERT] CRITICAL: DB=${db_bankroll:.2f} vs CLOB=${onchain:.2f} "
+            f"drift=${drift:+.2f}"
+        )
+        alert = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "severity": "CRITICAL",
+            "db_bankroll": db_bankroll,
+            "clob_pusd": onchain,
+            "drift": drift,
+            "message": f"DB ${db_bankroll:.2f} vs CLOB ${onchain:.2f} drift ${drift:+.2f}",
+        }
+    elif abs_drift > 0.50:
+        logger.warning(
+            f"[DRIFT ALERT] WARNING: DB=${db_bankroll:.2f} vs CLOB=${onchain:.2f} "
+            f"drift=${drift:+.2f}"
+        )
+        alert = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "severity": "WARNING",
+            "db_bankroll": db_bankroll,
+            "clob_pusd": onchain,
+            "drift": drift,
+            "message": f"DB ${db_bankroll:.2f} vs CLOB ${onchain:.2f} drift ${drift:+.2f}",
+        }
+
+    if alert:
+        try:
+            os.makedirs(os.path.dirname(DRIFT_ALERT_FILE), exist_ok=True)
+            existing = []
+            if os.path.exists(DRIFT_ALERT_FILE):
+                try:
+                    with open(DRIFT_ALERT_FILE, "r") as f:
+                        existing = json.load(f)
+                        if not isinstance(existing, list):
+                            existing = []
+                except (json.JSONDecodeError, ValueError):
+                    existing = []
+            existing.append(alert)
+            # Keep last 50 alerts only
+            if len(existing) > 50:
+                existing = existing[-50:]
+            with open(DRIFT_ALERT_FILE, "w") as f:
+                json.dump(existing, f, indent=2)
+        except OSError:
+            pass
+
+
 async def liveness_file_job() -> None:
     """Lightweight external liveness tick.
 
@@ -482,3 +584,100 @@ async def liveness_file_job() -> None:
     event loop is alive, not whether BotState writes are contended.
     """
     _touch_heartbeat_file()
+
+
+GUARDIAN_ALERTS_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    ".production_guardian_alerts.json",
+)
+
+
+async def drift_alert_job() -> None:
+    """Compare bot_state.live.bankroll to real CLOB PUSD every 5 min.
+
+    Writes warnings to .production_guardian_alerts.json if |drift| > $0.50.
+    Logs CRITICAL if |drift| > $5.00.
+    """
+    from backend.config import settings
+    from backend.data.polymarket_clob import clob_from_settings
+    from backend.db.utils import get_db_session
+    from backend.models.database import BotState
+
+    try:
+        clob = clob_from_settings(mode="live")
+        async with clob:
+            await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=30.0)
+            pusd = await asyncio.wait_for(clob.get_pusd_balance(), timeout=30.0)
+    except asyncio.CancelledError:
+        return
+    except Exception as e:
+        logger.warning(f"drift_alert: failed to fetch PUSD balance: {e}")
+        return
+
+    if pusd is None or pusd < 0:
+        return
+
+    real_balance = float(pusd)
+    db_balance = 0.0
+    try:
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode="live").first()
+            if state:
+                db_balance = float(getattr(state, "bankroll", 0) or 0)
+    except Exception as e:
+        logger.warning(f"drift_alert: failed to read DB bankroll: {e}")
+        return
+
+    drift = round(real_balance - db_balance, 4)
+    abs_drift = abs(drift)
+
+    if abs_drift <= 0.50:
+        return  # within tolerance
+
+    alert = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "type": "drift_alert",
+        "severity": "CRITICAL" if abs_drift > 5.0 else "WARNING",
+        "real_pusd": real_balance,
+        "db_bankroll": db_balance,
+        "drift": drift,
+    }
+
+    if abs_drift > 5.0:
+        logger.error(
+            f"[DRIFT_ALERT] CRITICAL: DB bankroll ${db_balance:.2f} "
+            f"drifted from CLOB PUSD ${real_balance:.2f} by ${drift:+.2f}"
+        )
+    else:
+        logger.warning(
+            f"[DRIFT_ALERT] DB bankroll ${db_balance:.2f} "
+            f"drifted from CLOB PUSD ${real_balance:.2f} by ${drift:+.2f}"
+        )
+
+    # Auto-correct: sync DB to real PUSD
+    try:
+        _sync_balance_to_db(real_balance, "live")
+        logger.info(
+            f"[DRIFT_ALERT] Auto-corrected: synced live bankroll to ${real_balance:.2f}"
+        )
+        alert["auto_corrected"] = True
+    except Exception as e:
+        logger.warning(f"[DRIFT_ALERT] Auto-correct failed: {e}")
+        alert["auto_corrected"] = False
+
+    # Persist alert to file
+    try:
+        existing = []
+        try:
+            with open(GUARDIAN_ALERTS_FILE, "r") as f:
+                existing = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        existing.append(alert)
+        # Keep last 100 alerts
+        existing = existing[-100:]
+        os.makedirs(os.path.dirname(GUARDIAN_ALERTS_FILE), exist_ok=True)
+        with open(GUARDIAN_ALERTS_FILE, "w") as f:
+            json.dump(existing, f, indent=2)
+    except OSError:
+        pass

@@ -1,6 +1,7 @@
 """Tests for backend.core.strategy_executor — strategy decision → trade pipeline."""
 
 import sys
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -118,6 +119,7 @@ class TestPaperTradeCreatesRecord:
         from backend.models.database import Trade, Signal, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade
 
         _reload_executor()
         db = _TestSession()
@@ -229,9 +231,24 @@ class TestRiskRejection:
             mock_settings.TRADING_MODE = "paper"
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            def test_cfg(name, default=None):
+                overrides = {
+                    "LIVE_STRATEGY_ALLOWLIST": [],
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 1.0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 50,
+                    "INITIAL_BANKROLL": 2000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            strategy_executor._fetch_live_pusd_balance_sync = lambda: 2000.0
+            strategy_executor.MAKER_FIRST_ENABLED = False
+            result = await strategy_executor.execute_decision(
                 _make_decision(market_ticker="reject-market"), "test_strategy", "paper"
             )
             assert result is None
@@ -301,9 +318,24 @@ class TestBotStateLockHandling:
             mock_settings.TRADING_MODE = "paper"
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            def test_cfg(name, default=None):
+                overrides = {
+                    "LIVE_STRATEGY_ALLOWLIST": [],
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 1.0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 50,
+                    "INITIAL_BANKROLL": 2000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            strategy_executor._fetch_live_pusd_balance_sync = lambda: 2000.0
+            strategy_executor.MAKER_FIRST_ENABLED = False
+            result = await strategy_executor.execute_decision(
                 _make_decision(market_ticker="no-lock-risk-reject"),
                 "test_strategy",
                 "paper",
@@ -497,9 +529,10 @@ class TestAttemptSizingRejection:
             mock_settings.MAX_CONCURRENT_TRADES = 10
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            strategy_executor._cfg = lambda name, default=None: [] if name == "LIVE_STRATEGY_ALLOWLIST" else default
+            result = await strategy_executor.execute_decision(
                 _make_decision(market_ticker="tiny-market", size=0.93),
                 "tiny_strategy",
                 "paper",
@@ -610,6 +643,7 @@ class TestUpdatesBankroll:
         """Paper trade DEDUCTS bankroll at entry — settlement returns stake + PNL."""
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -1051,6 +1085,7 @@ class TestLiveModeCallsCLOB:
         from backend.data.polymarket_clob import OrderResult
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
+        from backend.models.database import Trade
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -1101,9 +1136,24 @@ class TestLiveModeCallsCLOB:
             mock_settings.TRADING_MODE = "live"
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            def test_cfg(name, default=None):
+                overrides = {
+                    "LIVE_STRATEGY_ALLOWLIST": [],
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 1.0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 50,
+                    "INITIAL_BANKROLL": 2000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            strategy_executor._fetch_live_pusd_balance_sync = lambda: 2000.0
+            strategy_executor.MAKER_FIRST_ENABLED = False
+            result = await strategy_executor.execute_decision(
                 _make_decision(
                     market_ticker="live-market-001",
                     token_id="token-abc-123",
@@ -1116,6 +1166,111 @@ class TestLiveModeCallsCLOB:
         assert result is not None
         mock_clob.place_limit_order.assert_awaited_once()
         assert result["clob_order_id"] == "live-order-xyz"
+
+        verify_db = TestSession()
+        try:
+            trade = verify_db.query(Trade).filter_by(clob_order_id="live-order-xyz").one()
+            assert trade.filled_size == pytest.approx(5.0)
+            assert trade.fill_price == pytest.approx(0.56)
+        finally:
+            verify_db.close()
+
+
+    @pytest.mark.asyncio
+    async def test_live_mode_records_normalized_filled_size_and_fee(self):
+        """Live execution must persist provider-style filled_size/fill_price/fee fields."""
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+        from backend.models.database import StrategyConfig, Trade
+
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        TestSession = sessionmaker(bind=test_engine)
+        Base.metadata.create_all(bind=test_engine)
+
+        db = TestSession()
+        _seed_state(db, bankroll=2000.0, paper_bankroll=2000.0, mode="live")
+        db.add(StrategyConfig(strategy_name="live_strategy", enabled=True, mode="live"))
+        db.commit()
+        db.close()
+
+        mock_order_result = SimpleNamespace(
+            success=True,
+            order_id="normalized-live-order",
+            filled_size=7.25,
+            filled_avg_price=0.42,
+            fees_paid=0.031,
+        )
+
+        mock_clob = AsyncMock()
+        mock_clob.place_limit_order = AsyncMock(return_value=mock_order_result)
+        mock_clob.create_or_derive_api_key = AsyncMock()
+        mock_clob.__aenter__ = AsyncMock(return_value=mock_clob)
+        mock_clob.__aexit__ = AsyncMock(return_value=False)
+
+        from backend.core import mode_context
+
+        mode_context._contexts.clear()
+        register_context(
+            "live",
+            ModeExecutionContext(
+                mode="live",
+                clob_client=mock_clob,
+                risk_manager=RiskManager(),
+                strategy_configs={},
+            ),
+        )
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "live"
+
+            _reload_executor()
+            import backend.core.strategy_executor as strategy_executor
+
+            def test_cfg(name, default=None):
+                overrides = {
+                    "LIVE_STRATEGY_ALLOWLIST": [],
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 1.0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 50,
+                    "INITIAL_BANKROLL": 2000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            strategy_executor._fetch_live_pusd_balance_sync = lambda: 2000.0
+            strategy_executor.MAKER_FIRST_ENABLED = False
+            result = await strategy_executor.execute_decision(
+                _make_decision(
+                    market_ticker="live-market-normalized",
+                    token_id="token-normalized-123",
+                    size=10.0,
+                    entry_price=0.43,
+                ),
+                "live_strategy",
+                "live",
+            )
+
+        assert result is not None
+        assert result["fill_price"] == pytest.approx(0.42)
+
+        verify_db = TestSession()
+        try:
+            trade = verify_db.query(Trade).filter_by(clob_order_id="normalized-live-order").one()
+            assert trade.filled_size == pytest.approx(7.25)
+            assert trade.fill_price == pytest.approx(0.42)
+            assert trade.fee == pytest.approx(0.031)
+        finally:
+            verify_db.close()
 
     @pytest.mark.asyncio
     async def test_live_clob_success_without_order_id_records_failed_attempt(self):
@@ -1175,9 +1330,24 @@ class TestLiveModeCallsCLOB:
             mock_settings.TRADING_MODE = "live"
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            def test_cfg(name, default=None):
+                overrides = {
+                    "LIVE_STRATEGY_ALLOWLIST": [],
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 1.0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 50,
+                    "INITIAL_BANKROLL": 2000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            strategy_executor._fetch_live_pusd_balance_sync = lambda: 2000.0
+            strategy_executor.MAKER_FIRST_ENABLED = False
+            result = await strategy_executor.execute_decision(
                 _make_decision(
                     market_ticker="live-market-no-order-id",
                     token_id="token-abc-123",
@@ -1263,9 +1433,21 @@ class TestLiveModeCallsCLOB:
             mock_settings.INITIAL_BANKROLL = 1000.0
 
             _reload_executor()
-            from backend.core.strategy_executor import execute_decision
+            import backend.core.strategy_executor as strategy_executor
 
-            result = await execute_decision(
+            def test_cfg(name, default=None):
+                overrides = {
+                    "PER_TRADE_MAX_LOSS_PCT": 1.0,
+                    "PORTFOLIO_CIRCUIT_BREAKER_PCT": 0,
+                    "MIN_ORDER_USDC": 1.0,
+                    "MAX_DAILY_TRADES_PER_STRATEGY": 0,
+                    "INITIAL_BANKROLL": 1000.0,
+                    "COOLDOWN_CONSECUTIVE_LOSSES": 0,
+                }
+                return overrides.get(name, default)
+
+            strategy_executor._cfg = test_cfg
+            result = await strategy_executor.execute_decision(
                 _make_decision(
                     market_ticker="testnet-token-market",
                     token_id="123456789",
