@@ -293,6 +293,8 @@ class ConfigRegistry:
     )
     KILL_SHARPE: float = -2.0  # Sharpe ratio below which strategy is auto-killed
     KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
+    KILL_CUMULATIVE_LOSS: float = -500.0  # cumulative PnL below which strategy is auto-killed
+    KILL_AVG_LOSS_RATIO: float = 5.0  # avg_loss/avg_win ratio above which strategy is auto-killed
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
     WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
     MIN_WARMUP_TRADES: int = 30  # trades before strategy governance activates

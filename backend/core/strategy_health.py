@@ -51,6 +51,8 @@ class StrategyHealthMonitor:
     WARN_PSI = 0.25  # drift detection threshold, deployment-independent
     KILL_SHARPE = settings.KILL_SHARPE
     KILL_DRAWDOWN = settings.KILL_DRAWDOWN
+    KILL_CUMULATIVE_LOSS = getattr(settings, "KILL_CUMULATIVE_LOSS", -500.0)
+    KILL_AVG_LOSS_RATIO = getattr(settings, "KILL_AVG_LOSS_RATIO", 5.0)
 
     def assess(
         self,
@@ -202,8 +204,13 @@ class StrategyHealthMonitor:
         win_rate = wins / total
         sharpe = self._sharpe_from_outcomes(outcomes)
         max_dd = self._max_drawdown_from_outcomes(outcomes)
+        cumulative_pnl = sum(o.pnl or 0 for o in outcomes)
+        win_pnls = [o.pnl for o in outcomes if o.result == "win" and o.pnl]
+        loss_pnls = [o.pnl for o in outcomes if o.result == "loss" and o.pnl]
+        avg_win = sum(win_pnls) / len(win_pnls) if win_pnls else 0.0
+        avg_loss = sum(loss_pnls) / len(loss_pnls) if loss_pnls else 0.0
         return self._should_kill_metrics(
-            total, win_rate, sharpe, max_dd
+            total, win_rate, sharpe, max_dd, cumulative_pnl, avg_win, avg_loss
         ) or self._check_consecutive_losses(outcomes)
 
     def should_warn(
@@ -296,7 +303,8 @@ class StrategyHealthMonitor:
     # ── private helpers ──────────────────────────────────────────────────────
 
     def _should_kill_metrics(
-        self, total: int, win_rate: float, sharpe: float, max_dd: float
+        self, total: int, win_rate: float, sharpe: float, max_dd: float,
+        cumulative_pnl: float = 0.0, avg_win: float = 0.0, avg_loss: float = 0.0,
     ) -> bool:
         if total < self.MIN_WARMUP_TRADES:
             return False
@@ -304,6 +312,22 @@ class StrategyHealthMonitor:
             return True
         if sharpe < self.KILL_SHARPE and max_dd > self.KILL_DRAWDOWN:
             return True
+        if cumulative_pnl < self.KILL_CUMULATIVE_LOSS:
+            logger.warning(
+                "[HealthMonitor] KILL: cumulative_pnl=${:.2f} < threshold=${:.2f}".format(
+                    cumulative_pnl, self.KILL_CUMULATIVE_LOSS,
+                )
+            )
+            return True
+        if avg_win > 0 and avg_loss < 0:
+            loss_ratio = abs(avg_loss / avg_win)
+            if loss_ratio > self.KILL_AVG_LOSS_RATIO:
+                logger.warning(
+                    "[HealthMonitor] KILL: avg_loss/avg_win={:.1f} > threshold={:.1f}".format(
+                        loss_ratio, self.KILL_AVG_LOSS_RATIO,
+                    )
+                )
+                return True
         return False
 
     def _check_consecutive_losses(self, outcomes) -> bool:
