@@ -59,6 +59,8 @@ const SECTION_LABELS: Record<string, string> = {
   web_search: 'Web Search Settings',
   self_improve: 'Self-Improve',
   phase2: 'Phase 2 Features',
+  agi_governance: 'AGI Governance',
+  balance_sync: 'Balance Sync',
 }
 
 function FieldInput({
