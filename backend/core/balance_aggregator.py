@@ -368,7 +368,7 @@ class BalanceAggregator:
             except Exception as e:
                 logger.warning(f"Poll loop error: {e}")
 
-            await asyncio.sleep(30)  # Poll every 30s
+            await asyncio.sleep(getattr(settings, "BALANCE_POLL_INTERVAL_SECONDS", 30))
 
     def _update(self, venue: str, balance: VenueBalance):
         """Update balance and notify callbacks."""

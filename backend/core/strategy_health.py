@@ -47,8 +47,8 @@ class StrategyHealthMonitor:
     MIN_WARMUP_TRADES = settings.MIN_WARMUP_TRADES
     KILL_WIN_RATE = settings.KILL_WIN_RATE
     WARN_WIN_RATE = settings.WARN_WIN_RATE
-    WARN_BRIER = 0.4  # calibration threshold, deployment-independent
-    WARN_PSI = 0.25  # drift detection threshold, deployment-independent
+    WARN_BRIER = getattr(settings, "WARN_BRIER", 0.4)
+    WARN_PSI = getattr(settings, "WARN_PSI", 0.25)
     KILL_SHARPE = settings.KILL_SHARPE
     KILL_DRAWDOWN = settings.KILL_DRAWDOWN
     KILL_CUMULATIVE_LOSS = getattr(settings, "KILL_CUMULATIVE_LOSS", -500.0)
@@ -331,11 +331,10 @@ class StrategyHealthMonitor:
         return False
 
     def _check_consecutive_losses(self, outcomes) -> bool:
-        """Return True if last 10+ outcomes are all losses."""
-        CONSECUTIVE_LOSS_KILL = 10
-        if len(outcomes) < CONSECUTIVE_LOSS_KILL:
+        limit = getattr(settings, "KILL_CONSECUTIVE_LOSSES", 10)
+        if len(outcomes) < limit:
             return False
-        recent = outcomes[-CONSECUTIVE_LOSS_KILL:]
+        recent = outcomes[-limit:]
         return all(o.result == "loss" for o in recent)
 
     def _check_daily_loss_exceeded(self, outcomes, max_daily_loss: float) -> bool:
