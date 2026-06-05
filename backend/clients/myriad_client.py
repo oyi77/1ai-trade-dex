@@ -14,9 +14,10 @@ class MyriadClient:
     """HTTP client for Myriad Markets API."""
 
     def __init__(self):
-        self._base_url = _BASE_URL.rstrip("/")
-        self._wallet = os.getenv("MYRIAD_WALLET_ADDRESS", "")
-        self._private_key = os.getenv("MYRIAD_PRIVATE_KEY", "")
+        from backend.config import settings
+        self._base_url = getattr(settings, "MYRIAD_API_URL", "https://api.myriad.markets").rstrip("/")
+        self._wallet = getattr(settings, "MYRIAD_WALLET_ADDRESS", "") or ""
+        self._private_key = getattr(settings, "MYRIAD_PRIVATE_KEY", "") or ""
 
     async def get_markets(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Fetch available prediction markets."""
@@ -122,8 +123,8 @@ class MyriadClient:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.delete(f"{self._base_url}/orders/{order_id}")
                 return resp.status_code == 200
-        except (httpx.HTTPError, ConnectionError, TimeoutError):
-            logger.exception(f"[MyriadClient] Failed to cancel order {order_id}")
+        except (httpx.HTTPError, ConnectionError, TimeoutError) as e:
+            logger.exception(f"[MyriadClient] Failed to cancel order {order_id}: {e}")
             return False
 
     async def get_fills(self, wallet_address: str = None, limit: int = 100) -> list:

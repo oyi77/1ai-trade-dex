@@ -28,7 +28,7 @@ from backend.ai.llm_router import LLMRouter as _LLMRouter
 from backend.ai.probability_utils import clamp_probability
 
 from loguru import logger
-from random import random
+import random
 
 # --- Configuration ---
 MAX_DEBATE_ROUNDS = 2
@@ -425,44 +425,30 @@ def update_debate_with_signals(
     return debate_result
 
 
-async def run_debate(
-    question: str,
-    market_price: float,
-    volume: float = 0.0,
-    category: str = "",
-    context: str = "",
-    max_rounds: int = MAX_DEBATE_ROUNDS,
-    data_sources: list[str] | None = None,
-    signal_votes: list[SignalVote] | None = None,
-) -> DebateResult | None:
-    """
-    Run a Bull/Bear/Judge debate on a prediction market question.
+def _parse_argument(
+    response: str | None, stance: str, round_num: int
+) -> DebateArgument | None:
+    """Parse an agent response into a DebateArgument, or None if unparseable."""
+    if not response:
+        return None
+    parsed = _parse_agent_response(response)
+    if parsed is None:
+        return None
+    prob, conf, reasoning = parsed
+    return DebateArgument(
+        stance=stance,
+        round_num=round_num,
+        probability=prob,
+        confidence=conf,
+        reasoning=reasoning,
+        raw_response=response,
+    )
 
-    Protocol (RA-CR):
-      1. Bull and Bear each make opening arguments (Round 1)
-      2. Each rebuts the other's argument (Round 2, if max_rounds >= 2)
-      3. Judge synthesizes the full transcript into a consensus
 
-    Args:
-        question: The prediction market question
-        market_price: Current YES price [0, 1]
-        volume: 24h trading volume in USD
-        category: Market category (e.g. "crypto", "politics")
-        context: Additional context (news, data)
-        max_rounds: Maximum debate rounds (1-2, clamped)
-        data_sources: List of data source labels used to build context
-
-    Returns:
-        DebateResult with consensus probability, or None on total failure
-    """
-    start_time = time.time()
-
-    rounds = max(MIN_DEBATE_ROUNDS, min(MAX_DEBATE_ROUNDS, max_rounds))
-
-    bull_args: list[DebateArgument] = []
-    bear_args: list[DebateArgument] = []
-
-    # --- Round 1: Opening arguments ---
+async def _run_opening_round(
+    question: str, market_price: float, volume: float, category: str, context: str
+) -> tuple[list[DebateArgument], list[DebateArgument]] | None:
+    """Run Round 1: parallel Bull and Bear opening arguments. Returns None if both fail."""
     bull_prompt = _build_opening_prompt(
         question, market_price, volume, category, context, BULL
     )
@@ -476,95 +462,58 @@ async def run_debate(
     )
 
     if bull_response is None and bear_response is None:
-        logger.warning(
-            "[debate_engine.run_debate] Both Bull and Bear agents failed in Round 1"
-        )
+        logger.warning("[debate_engine] Both Bull and Bear agents failed in Round 1")
         return None
 
-    if bull_response:
-        parsed = _parse_agent_response(bull_response)
-        if parsed is not None:
-            prob, conf, reasoning = parsed
-            bull_args.append(
-                DebateArgument(
-                    stance=BULL,
-                    round_num=1,
-                    probability=prob,
-                    confidence=conf,
-                    reasoning=reasoning,
-                    raw_response=bull_response,
-                )
-            )
+    bull_args: list[DebateArgument] = []
+    bear_args: list[DebateArgument] = []
+    bull_arg = _parse_argument(bull_response, BULL, 1)
+    if bull_arg:
+        bull_args.append(bull_arg)
+    bear_arg = _parse_argument(bear_response, BEAR, 1)
+    if bear_arg:
+        bear_args.append(bear_arg)
+    return bull_args, bear_args
 
-    if bear_response:
-        parsed = _parse_agent_response(bear_response)
-        if parsed is not None:
-            prob, conf, reasoning = parsed
-            bear_args.append(
-                DebateArgument(
-                    stance=BEAR,
-                    round_num=1,
-                    probability=prob,
-                    confidence=conf,
-                    reasoning=reasoning,
-                    raw_response=bear_response,
-                )
-            )
 
-    # --- Rounds 2+: Rebuttals ---
+async def _run_rebuttals(
+    question: str,
+    market_price: float,
+    rounds: int,
+    bull_args: list[DebateArgument],
+    bear_args: list[DebateArgument],
+) -> None:
+    """Run Round 2+: Bull and Bear rebuttals, appending to existing argument lists."""
     for round_num in range(2, rounds + 1):
         if bear_args:
-            latest_bear = bear_args[-1].reasoning
-            bull_rebuttal_prompt = _build_rebuttal_prompt(
-                question, market_price, BULL, latest_bear, round_num
+            prompt = _build_rebuttal_prompt(
+                question, market_price, BULL, bear_args[-1].reasoning, round_num
             )
-            bull_resp = await _call_agent(
-                bull_rebuttal_prompt, _build_bull_system(), role="debate_agent"
-            )
-            if bull_resp:
-                parsed = _parse_agent_response(bull_resp)
-                if parsed is not None:
-                    prob, conf, reasoning = parsed
-                    bull_args.append(
-                        DebateArgument(
-                            stance=BULL,
-                            round_num=round_num,
-                            probability=prob,
-                            confidence=conf,
-                            reasoning=reasoning,
-                            raw_response=bull_resp,
-                        )
-                    )
+            resp = await _call_agent(prompt, _build_bull_system(), role="debate_agent")
+            arg = _parse_argument(resp, BULL, round_num)
+            if arg:
+                bull_args.append(arg)
 
         if bull_args:
-            latest_bull = bull_args[-1].reasoning
-            bear_rebuttal_prompt = _build_rebuttal_prompt(
-                question, market_price, BEAR, latest_bull, round_num
+            prompt = _build_rebuttal_prompt(
+                question, market_price, BEAR, bull_args[-1].reasoning, round_num
             )
-            bear_resp = await _call_agent(
-                bear_rebuttal_prompt, _build_bear_system(), role="debate_agent"
-            )
-            if bear_resp:
-                parsed = _parse_agent_response(bear_resp)
-                if parsed is not None:
-                    prob, conf, reasoning = parsed
-                    bear_args.append(
-                        DebateArgument(
-                            stance=BEAR,
-                            round_num=round_num,
-                            probability=prob,
-                            confidence=conf,
-                            reasoning=reasoning,
-                            raw_response=bear_resp,
-                        )
-                    )
+            resp = await _call_agent(prompt, _build_bear_system(), role="debate_agent")
+            arg = _parse_argument(resp, BEAR, round_num)
+            if arg:
+                bear_args.append(arg)
 
-    rounds_completed = max(
-        (a.round_num for a in bull_args + bear_args),
-        default=0,
-    )
 
-    # --- Judge synthesis ---
+async def _synthesize_judge(
+    question: str,
+    market_price: float,
+    volume: float,
+    category: str,
+    context: str,
+    bull_args: list[DebateArgument],
+    bear_args: list[DebateArgument],
+) -> tuple[float, float, str, str]:
+    """Run Judge synthesis. Returns (prob, conf, reasoning, raw_response)."""
     judge_prompt = _build_judge_prompt(
         question, market_price, volume, category, context, bull_args, bear_args
     )
@@ -573,65 +522,87 @@ async def run_debate(
     )
 
     judge_parsed = _parse_agent_response(judge_response) if judge_response else None
-
     if judge_parsed is not None:
-        consensus_prob, consensus_conf, consensus_reasoning = judge_parsed
+        prob, conf, reasoning = judge_parsed
+        return prob, conf, reasoning, judge_response or ""
+
+    if judge_response:
+        logger.warning("[debate_engine] Judge response unparseable, falling back to weighted average")
     else:
-        # Fallback: confidence-weighted average of all arguments
-        if judge_response:
-            logger.warning(
-                "[debate_engine.run_debate] Judge response unparseable, "
-                "falling back to weighted average"
-            )
-        else:
-            logger.warning(
-                "[debate_engine.run_debate] Judge agent failed, "
-                "falling back to weighted average"
-            )
-        all_args = bull_args + bear_args
-        if not all_args:
-            return None
+        logger.warning("[debate_engine] Judge agent failed, falling back to weighted average")
 
-        total_weight = sum(a.confidence for a in all_args)
-        if total_weight > 0:
-            consensus_prob = (
-                sum(a.probability * a.confidence for a in all_args) / total_weight
-            )
-        else:
-            consensus_prob = sum(a.probability for a in all_args) / len(all_args)
+    all_args = bull_args + bear_args
+    if not all_args:
+        return 0.5, 0.0, "No arguments available", ""
 
-        consensus_conf = 0.3
-        consensus_reasoning = (
-            "Judge unavailable. Consensus derived from weighted average of "
-            f"{len(bull_args)} bull and {len(bear_args)} bear arguments."
+    total_weight = sum(a.confidence for a in all_args)
+    if total_weight > 0:
+        prob = sum(a.probability * a.confidence for a in all_args) / total_weight
+    else:
+        prob = sum(a.probability for a in all_args) / len(all_args)
+
+    reasoning = (
+        "Judge unavailable. Consensus derived from weighted average of "
+        f"{len(bull_args)} bull and {len(bear_args)} bear arguments."
+    )
+    return prob, 0.3, reasoning, judge_response or ""
+
+
+async def run_debate(
+    question: str,
+    market_price: float,
+    volume: float = 0.0,
+    category: str = "",
+    context: str = "",
+    max_rounds: int = MAX_DEBATE_ROUNDS,
+    data_sources: list[str] | None = None,
+    signal_votes: list[SignalVote] | None = None,
+) -> DebateResult | None:
+    """Run a Bull/Bear/Judge debate on a prediction market question.
+
+    Protocol (RA-CR):
+      1. Bull and Bear each make opening arguments (Round 1)
+      2. Each rebuts the other's argument (Round 2, if max_rounds >= 2)
+      3. Judge synthesizes the full transcript into a consensus
+    """
+    start_time = time.time()
+    rounds = max(MIN_DEBATE_ROUNDS, min(MAX_DEBATE_ROUNDS, max_rounds))
+
+    opening = await _run_opening_round(question, market_price, volume, category, context)
+    if opening is None:
+        return None
+    bull_args, bear_args = opening
+
+    await _run_rebuttals(question, market_price, rounds, bull_args, bear_args)
+
+    rounds_completed = max(
+        (a.round_num for a in bull_args + bear_args), default=0,
+    )
+
+    consensus_prob, consensus_conf, consensus_reasoning, judge_raw = (
+        await _synthesize_judge(
+            question, market_price, volume, category, context, bull_args, bear_args
         )
-        judge_response = judge_response or ""
+    )
 
     consensus_prob = clamp_probability(consensus_prob)
     consensus_conf = max(0.0, min(1.0, consensus_conf))
-
     latency_ms = (time.time() - start_time) * 1000
 
     logger.info(
-        "[debate_engine.run_debate] question=%s price=%.3f consensus=%.3f "
-        "conf=%.2f rounds=%d bull_args=%d bear_args=%d latency=%.0fms",
-        question[:60],
-        market_price,
-        consensus_prob,
-        consensus_conf,
-        rounds_completed,
-        len(bull_args),
-        len(bear_args),
-        latency_ms,
+        "[debate_engine] question=%s price=%.3f consensus=%.3f conf=%.2f "
+        "rounds=%d bull=%d bear=%d latency=%.0fms",
+        question[:60], market_price, consensus_prob, consensus_conf,
+        rounds_completed, len(bull_args), len(bear_args), latency_ms,
     )
 
-    result = DebateResult(
+    return DebateResult(
         consensus_probability=consensus_prob,
         confidence=consensus_conf,
         reasoning=consensus_reasoning,
         bull_arguments=bull_args,
         bear_arguments=bear_args,
-        judge_raw=judge_response or "",
+        judge_raw=judge_raw,
         rounds_completed=rounds_completed,
         latency_ms=latency_ms,
         market_question=question,
@@ -639,5 +610,3 @@ async def run_debate(
         data_sources=data_sources or [],
         signal_votes=signal_votes or [],
     )
-
-    return result

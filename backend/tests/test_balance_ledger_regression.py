@@ -22,7 +22,6 @@ These tests pin down the *correct* behavior:
      never `db.query(BotState).first()`.
 """
 
-import asyncio
 import inspect
 import re
 from datetime import datetime, timezone
@@ -284,12 +283,34 @@ async def test_continuous_reconciliation_clamps_to_onchain_equity(ledger_db):
     state.bankroll = 99999.0
     ledger_db.commit()
 
+    settled = Trade(
+        market_ticker="test-market",
+        direction="up",
+        entry_price=0.55,
+        size=10.0,
+        strategy="test_strat",
+        trading_mode="live",
+        settled=True,
+        result="win",
+        pnl=234.56,
+        settlement_value=1.0,
+        timestamp=datetime.now(timezone.utc),
+        settlement_time=datetime.now(timezone.utc),
+        token_id="tok_1",
+        platform="polymarket",
+    )
+    ledger_db.add(settled)
+    ledger_db.commit()
+
     with patch(
-        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
+        "backend.core.wallet.bankroll_reconciliation._fetch_clob_pusd_balance",
         new=AsyncMock(return_value=1234.56),
     ):
         reports = await reconcile_bot_state(
             ledger_db, modes=("live",), apply=True, commit=True
         )
     ledger_db.refresh(state)
-    assert state.bankroll == pytest.approx(1234.56, abs=0.01)
+    # Live mode keeps bankroll from PUSD sync (not PM equity).
+    # Reconciliation detects drift in total_pnl from settled trades.
+    assert len(reports) == 1
+    assert reports[0].new_total_pnl == pytest.approx(234.56, abs=0.01)

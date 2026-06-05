@@ -64,9 +64,8 @@ class PolymarketProvider(DataProvider):
 
     async def get_balance(self) -> BalanceInfo:
         async with PolymarketCLOB() as clob:
-            b = await clob.get_wallet_balance()
-            usdc = float(b.get("usdc_balance", 0.0))
-            return BalanceInfo(available=usdc, locked=0.0, total=usdc)
+            pusd = await clob.get_pusd_balance()
+            return BalanceInfo(available=pusd, locked=0.0, total=pusd)
 
     async def place_order(
         self, market_id: str, side: str, size: float, price: float, **kwargs

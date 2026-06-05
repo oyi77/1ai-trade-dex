@@ -695,6 +695,34 @@ class ConfigRegistry:
     PMXT_ENABLED: bool = False
     ADMIN_API_KEY: Optional[str] = None
 
+    # Platform wallet credentials
+    WALLET_PUBLIC_ADDRESS: Optional[str] = None
+    HYPERLIQUID_PRIVATE_KEY: Optional[str] = None
+    HYPERLIQUID_WALLET_ADDRESS: Optional[str] = None
+    ASTER_PRIVATE_KEY: Optional[str] = None
+    ASTER_WALLET_ADDRESS: Optional[str] = None
+    LIGHTER_PRIVATE_KEY: Optional[str] = None
+    LIGHTER_ACCOUNT_INDEX: str = "0"
+    LIGHTER_API_KEY_INDEX: str = "2"
+    OSTIUM_PRIVATE_KEY: Optional[str] = None
+    OSTIUM_RPC_URL: str = "https://rpc.arbitrum.one"
+    MYRIAD_API_URL: str = "https://api.myriad.markets"
+    MYRIAD_WALLET_ADDRESS: Optional[str] = None
+    MYRIAD_PRIVATE_KEY: Optional[str] = None
+    SXBET_WALLET_ADDRESS: Optional[str] = None
+    AZURO_GRAPH_URL: str = "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
+    AZURO_RPC_URL: str = "https://rpc.gnosischain.com"
+    AZURO_CHAIN_ID: int = 100
+    AZURO_CACHE_TTL_SECONDS: int = 60
+    AZURO_WALLET_ADDRESS: Optional[str] = None
+    AZURO_LP_ADDRESS: Optional[str] = None
+    AZURO_LP_ABI_PATH: Optional[str] = None
+    GOLDSKY_API_URL: Optional[str] = None
+
+    # Platform balance sync
+    PLATFORM_BALANCE_SYNC_INTERVAL_SECONDS: int = 120
+    PLATFORM_BALANCE_SYNC_ENABLED: bool = True
+
     # Port and hosting
     PORT: int = 8100  # backend API port
     CORS_ORIGINS: str = (
@@ -739,7 +767,7 @@ class ConfigRegistry:
     DAILY_LOSS_LIMIT_ENABLED: bool = True
     DAILY_LOSS_LIMIT: float = 100.0  # max daily loss in USD
     DRAWDOWN_BREAKER_ENABLED_PER_MODE: Dict[str, bool] = field(
-        default_factory=lambda: {"paper": True, "testnet": True, "live": True}
+        default_factory=lambda: {"paper": False, "testnet": True, "live": True}
     )
     DAILY_LOSS_LIMIT_ENABLED_PER_MODE: Dict[str, bool] = field(
         default_factory=lambda: {"paper": False, "testnet": True, "live": True}

@@ -16,15 +16,12 @@ class AzuroClient:
     def __init__(
         self, graph_url: str = None, rpc_url: str = None, chain_id: int = None
     ):
-        self._graph_url = graph_url or os.getenv(
-            "AZURO_GRAPH_URL", self.DEFAULT_GRAPH_URL
-        )
-        self._rpc_url = rpc_url or os.getenv(
-            "AZURO_RPC_URL", "https://rpc.gnosischain.com"
-        )
-        self._chain_id = chain_id or int(os.getenv("AZURO_CHAIN_ID", "100"))
+        from backend.config import settings
+        self._graph_url = graph_url or getattr(settings, "AZURO_GRAPH_URL", self.DEFAULT_GRAPH_URL)
+        self._rpc_url = rpc_url or getattr(settings, "AZURO_RPC_URL", "https://rpc.gnosischain.com")
+        self._chain_id = chain_id or int(getattr(settings, "AZURO_CHAIN_ID", 100))
         self._cache: dict = {}
-        self._cache_ttl = int(os.getenv("AZURO_CACHE_TTL_SECONDS", "60"))
+        self._cache_ttl = int(getattr(settings, "AZURO_CACHE_TTL_SECONDS", 60))
 
     async def cached_query(self, gql: str, variables: dict = None) -> dict:
         """Execute GraphQL query with caching."""
@@ -88,8 +85,9 @@ class AzuroClient:
                 "Install with: pip install web3 eth_account"
             )
 
-        lp_address = os.getenv("AZURO_LP_ADDRESS")
-        lp_abi_path = os.getenv("AZURO_LP_ABI_PATH")
+        from backend.config import settings
+        lp_address = getattr(settings, "AZURO_LP_ADDRESS", None) or os.getenv("AZURO_LP_ADDRESS")
+        lp_abi_path = getattr(settings, "AZURO_LP_ABI_PATH", None) or os.getenv("AZURO_LP_ABI_PATH")
 
         if not lp_address or not lp_abi_path:
             raise RuntimeError(
@@ -175,3 +173,27 @@ class AzuroClient:
 
         logger.info("Azuro bet submitted", tx_hash=tx_hash.hex())
         return tx_hash.hex()
+
+    async def get_balance(self, wallet_address: str = None) -> dict:
+        """Get xDAI/USDC balance for a wallet on Gnosis chain.
+
+        Returns dict with 'balance' (xDAI as float) and 'raw_wei'.
+        """
+        from backend.config import settings
+        addr = wallet_address or getattr(settings, "AZURO_WALLET_ADDRESS", "") or ""
+        if not addr:
+            return {"balance": 0.0, "raw_wei": 0}
+        try:
+            from web3 import Web3
+
+            w3 = Web3(Web3.HTTPProvider(self._rpc_url))
+            if not w3.is_connected():
+                logger.warning("[azuro] Cannot connect to RPC for balance check")
+                return {"balance": 0.0, "raw_wei": 0}
+            checksum = Web3.to_checksum_address(addr)
+            balance_wei = w3.eth.get_balance(checksum)
+            balance_xdai = float(w3.from_wei(balance_wei, "ether"))
+            return {"balance": balance_xdai, "raw_wei": balance_wei}
+        except Exception as e:
+            logger.warning(f"[azuro] get_balance error: {e}")
+            return {"balance": 0.0, "raw_wei": 0}

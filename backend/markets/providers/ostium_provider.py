@@ -102,11 +102,20 @@ class OstiumProvider(BaseMarketProvider):
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
         bal = await self._client.get_balance()
+        available = Decimal(str(bal.get("balance", bal.get("available", "0"))))
+        total = Decimal(str(bal.get("balance", bal.get("total", "0"))))
+        margin = Decimal("0")
+        try:
+            positions = await self._client.get_positions()
+            for pos in positions:
+                margin += Decimal(str(abs(float(pos.get("collateral", pos.get("size", "0"))))))
+        except Exception:
+            pass
         return NormalizedBalance(
             venue="ostium",
-            available_cash=Decimal(str(bal.get("balance", bal.get("available", "0")))),
-            total_equity=Decimal(str(bal.get("balance", bal.get("total", "0")))),
-            reserved_margin=Decimal("0"),
+            available_cash=available,
+            total_equity=total,
+            reserved_margin=margin,
             currency="USDC",
             raw=bal,
         )
@@ -136,19 +145,7 @@ class OstiumProvider(BaseMarketProvider):
             )
         return result
 
-    @staticmethod
-    def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:
-        logger.warning(f"[OstiumProvider] Order rejected: {reason}")
-        return NormalizedOrderResult(
-            venue_order_id="",
-            client_order_id=order.client_order_id,
-            status=OrderStatus.REJECTED,
-            filled_size=Decimal("0"),
-            filled_avg_price=None,
-            remaining_size=order.size,
-            fees_paid=Decimal("0"),
-            raw={"error": reason},
-        )
+
 
     async def health_check(self) -> bool:
         """Check if Ostium is accessible."""

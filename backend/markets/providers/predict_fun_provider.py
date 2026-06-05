@@ -106,13 +106,26 @@ class PredictFunProvider(BaseMarketProvider):
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(
-            venue="predict_fun",
-            available_cash=Decimal("0"),
-            total_equity=Decimal("0"),
-            reserved_margin=Decimal("0"),
-            currency="USDC",
-        )
+        try:
+            raw = await self._client.get_balance()
+            bal = Decimal(str(raw.get("balance", 0)))
+            return NormalizedBalance(
+                venue="predict_fun",
+                available_cash=bal,
+                total_equity=bal,
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+                raw=raw,
+            )
+        except Exception as exc:
+            logger.warning(f"[PredictFunProvider] get_balance failed: {exc}")
+            return NormalizedBalance(
+                venue="predict_fun",
+                available_cash=Decimal("0"),
+                total_equity=Decimal("0"),
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+            )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

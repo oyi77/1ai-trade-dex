@@ -119,7 +119,6 @@ class TestPaperTradeCreatesRecord:
         from backend.models.database import Trade, Signal, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
-        from backend.models.database import Trade
 
         _reload_executor()
         db = _TestSession()
@@ -531,7 +530,12 @@ class TestAttemptSizingRejection:
             _reload_executor()
             import backend.core.strategy_executor as strategy_executor
 
-            strategy_executor._cfg = lambda name, default=None: [] if name == "LIVE_STRATEGY_ALLOWLIST" else default
+            strategy_executor._cfg = lambda name, default=None: {
+                "LIVE_STRATEGY_ALLOWLIST": [],
+                "PORTFOLIO_CIRCUIT_BREAKER_PCT": 0,
+                "INITIAL_BANKROLL": 1000.0,
+                "MIN_ORDER_USDC": 600.0,
+            }.get(name, default)
             result = await strategy_executor.execute_decision(
                 _make_decision(market_ticker="tiny-market", size=0.93),
                 "tiny_strategy",
@@ -606,6 +610,11 @@ class TestAttemptUnexpectedFailure:
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
+            mock_settings.INITIAL_BANKROLL = 1000.0
+            mock_settings.MIN_ORDER_USDC = 5.0
+            mock_settings.COOLDOWN_CONSECUTIVE_LOSSES = 3
+            mock_settings.COOLDOWN_MINUTES = 60
+            mock_settings.DUPLICATE_TRADE_COOLDOWN_SEC = 60
             validate_trade.side_effect = RuntimeError("validator exploded")
 
             _reload_executor()
@@ -643,7 +652,6 @@ class TestUpdatesBankroll:
         """Paper trade DEDUCTS bankroll at entry — settlement returns stake + PNL."""
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk_manager import RiskManager
-        from backend.models.database import Trade
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -681,6 +689,11 @@ class TestUpdatesBankroll:
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
+            mock_settings.INITIAL_BANKROLL = 1000.0
+            mock_settings.MIN_ORDER_USDC = 5.0
+            mock_settings.COOLDOWN_CONSECUTIVE_LOSSES = 3
+            mock_settings.COOLDOWN_MINUTES = 60
+            mock_settings.DUPLICATE_TRADE_COOLDOWN_SEC = 60
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision
@@ -746,6 +759,11 @@ class TestUpdatesBankroll:
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
+            mock_settings.INITIAL_BANKROLL = 1000.0
+            mock_settings.MIN_ORDER_USDC = 5.0
+            mock_settings.COOLDOWN_CONSECUTIVE_LOSSES = 3
+            mock_settings.COOLDOWN_MINUTES = 60
+            mock_settings.DUPLICATE_TRADE_COOLDOWN_SEC = 60
 
             _reload_executor()
             from backend.core.strategy_executor import execute_decision

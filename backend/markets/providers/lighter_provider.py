@@ -39,7 +39,7 @@ class LighterProvider(BaseMarketProvider):
                 VenueCapability.SHORT_SELLING,
             ],
             supported_currencies=["USDC"],
-            required_env_vars=["WALLET_PRIVATE_KEY"],
+            required_env_vars=["WALLET_PRIVATE_KEY", "LIGHTER_ACCOUNT_INDEX", "LIGHTER_API_KEY_INDEX"],
             supports_paper_mode=True,
             is_live_venue=True,
             min_order_size_usd=1.0,

@@ -49,7 +49,7 @@ class MyriadProvider(BaseMarketProvider):
                 VenueCapability.MARKET_SEARCH,
             ],
             supported_currencies=["USDC"],
-            required_env_vars=["MYRIAD_API_URL"],
+            required_env_vars=["MYRIAD_API_URL", "MYRIAD_WALLET_ADDRESS"],
             supports_paper_mode=True,
             is_live_venue=False,  # API 404 — service unavailable
             min_order_size_usd=1.0,
@@ -97,10 +97,11 @@ class MyriadProvider(BaseMarketProvider):
 
     async def get_balance(self) -> NormalizedBalance:
         bal = await self._client.get_balance()
+        available = bal if isinstance(bal, Decimal) else Decimal(str(bal or 0))
         return NormalizedBalance(
             venue="myriad",
-            available_cash=bal,
-            total_equity=bal,
+            available_cash=available,
+            total_equity=available,
             reserved_margin=Decimal("0"),
         )
 
@@ -146,15 +147,4 @@ class MyriadProvider(BaseMarketProvider):
             for m in markets[:limit]
         ]
 
-    def _rejected(self, order, reason):
-        logger.warning(f"[MyriadProvider] Order rejected: {reason}")
-        return NormalizedOrderResult(
-            venue_order_id="",
-            client_order_id=order.client_order_id,
-            status=OrderStatus.REJECTED,
-            filled_size=Decimal("0"),
-            filled_avg_price=None,
-            remaining_size=order.size,
-            fees_paid=Decimal("0"),
-            reject_reason=reason,
-        )
+

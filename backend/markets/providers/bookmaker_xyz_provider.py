@@ -112,13 +112,26 @@ class BookmakerXYZProvider(BaseMarketProvider):
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(
-            venue="bookmaker_xyz",
-            available_cash=Decimal("0"),
-            total_equity=Decimal("0"),
-            reserved_margin=Decimal("0"),
-            currency="USDC",
-        )
+        try:
+            raw = await self._client.get_balance()
+            bal = Decimal(str(raw.get("balance", 0)))
+            return NormalizedBalance(
+                venue="bookmaker_xyz",
+                available_cash=bal,
+                total_equity=bal,
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+                raw=raw,
+            )
+        except Exception as exc:
+            logger.warning(f"[BookmakerXYZProvider] get_balance failed: {exc}")
+            return NormalizedBalance(
+                venue="bookmaker_xyz",
+                available_cash=Decimal("0"),
+                total_equity=Decimal("0"),
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+            )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

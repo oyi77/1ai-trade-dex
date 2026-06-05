@@ -191,8 +191,12 @@ async def test_auto_add_profitable_wallets_rolls_back_before_leaderboard_await()
 
         def query(self, model):
             if model is WalletConfig:
-                return _WalletConfigQuery(self.rows, self.added)
-            return super().query(model)
+                q = _WalletConfigQuery(self.rows, self.added)
+                q._is_column_query = False
+                return q
+            q = _WalletConfigQuery(self.rows, self.added)
+            q._is_column_query = True
+            return q
 
         def rollback(self):
             self.rollback_called = True
@@ -208,6 +212,7 @@ async def test_auto_add_profitable_wallets_rolls_back_before_leaderboard_await()
             super().__init__(rows)
             self._added = added
             self._address = None
+            self._is_column_query = False
 
         def filter(self, *args, **_kwargs):
             for arg in args:
@@ -216,6 +221,12 @@ async def test_auto_add_profitable_wallets_rolls_back_before_leaderboard_await()
                 if value is not None:
                     self._address = value
             return self
+
+        def all(self):
+            rows = super().all()
+            if self._is_column_query:
+                return [(getattr(r, "address", None),) for r in rows]
+            return rows
 
         def first(self):
             if self._address is None:
