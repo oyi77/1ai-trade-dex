@@ -1,0 +1,3 @@
+## 2025-02-23 - [Consolidating O(N) calculations in real-time dashboards]
+**Learning:** In real-time dashboards with rapid render cycles and large datasets (e.g. trades, signals), performing multiple `.filter(...).length` calls within a component calculation blocks the main UI thread with redundant O(N) traversals.
+**Action:** Always consolidate multiple or chained high-order array methods into a single-pass iterative `for` loop wrapped in a `useMemo` hook, ensuring the hook is declared before any early returns to respect React rules of hooks.
