@@ -74,6 +74,22 @@ export function TradesTable({ trades }: Props) {
       : <ArrowDown className="w-2.5 h-2.5 text-amber-500" />
   }
 
+  // ⚡ Bolt: Consolidate multiple O(N) array filters into a single-pass O(N) loop
+  // This prevents main thread blocking on rapid re-renders with large trade histories
+  // Must be placed before the early return to respect React Hooks rules
+  const counts = useMemo(() => {
+    let wins = 0, losses = 0, pending = 0, settled = 0
+    for (let i = 0; i < trades.length; i++) {
+      const t = trades[i]
+      if (t.result === 'win') wins++
+      else if (t.result === 'loss') losses++
+      else if (t.result === 'pending') pending++
+
+      if (t.settled && t.result !== 'expired') settled++
+    }
+    return { wins, losses, pending, settled, all: trades.length }
+  }, [trades])
+
   if (trades.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-neutral-600">
@@ -84,11 +100,11 @@ export function TradesTable({ trades }: Props) {
   }
 
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: trades.length },
-    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
-    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
-    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
-    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'wins', label: 'Wins', count: counts.wins },
+    { key: 'losses', label: 'Losses', count: counts.losses },
+    { key: 'pending', label: 'Pending', count: counts.pending },
+    { key: 'settled', label: 'Settled', count: counts.settled },
   ]
 
   return (
