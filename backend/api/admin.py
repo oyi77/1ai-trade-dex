@@ -99,6 +99,26 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
             "TELEGRAM_ADMIN_CHAT_IDS": s.TELEGRAM_ADMIN_CHAT_IDS,
             "TELEGRAM_HIGH_CONFIDENCE_ALERTS": s.TELEGRAM_HIGH_CONFIDENCE_ALERTS,
         },
+        "agi_governance": {
+            "KILL_WIN_RATE": s.KILL_WIN_RATE,
+            "KILL_SHARPE": s.KILL_SHARPE,
+            "KILL_DRAWDOWN": s.KILL_DRAWDOWN,
+            "KILL_CUMULATIVE_LOSS": getattr(s, "KILL_CUMULATIVE_LOSS", -500.0),
+            "KILL_AVG_LOSS_RATIO": getattr(s, "KILL_AVG_LOSS_RATIO", 5.0),
+            "KILL_CONSECUTIVE_LOSSES": getattr(s, "KILL_CONSECUTIVE_LOSSES", 10),
+            "WARN_WIN_RATE": s.WARN_WIN_RATE,
+            "WARN_SHARPE": getattr(s, "WARN_SHARPE", -1.0),
+            "WARN_BRIER": getattr(s, "WARN_BRIER", 0.4),
+            "WARN_PSI": getattr(s, "WARN_PSI", 0.25),
+            "MIN_WARMUP_TRADES": s.MIN_WARMUP_TRADES,
+            "AGI_HEALTH_CHECK_ENABLED": getattr(s, "AGI_HEALTH_CHECK_ENABLED", True),
+            "AGI_HEALTH_CHECK_INTERVAL_MINUTES": getattr(s, "AGI_HEALTH_CHECK_INTERVAL_MINUTES", 15),
+        },
+        "balance_sync": {
+            "PLATFORM_BALANCE_SYNC_ENABLED": getattr(s, "PLATFORM_BALANCE_SYNC_ENABLED", True),
+            "PLATFORM_BALANCE_SYNC_INTERVAL_SECONDS": getattr(s, "PLATFORM_BALANCE_SYNC_INTERVAL_SECONDS", 120),
+            "BALANCE_POLL_INTERVAL_SECONDS": getattr(s, "BALANCE_POLL_INTERVAL_SECONDS", 30),
+        },
     }
     # Also return flat format for frontend compatibility
     grouped["mirofish_enabled"] = getattr(s, "MIROFISH_ENABLED", False)
