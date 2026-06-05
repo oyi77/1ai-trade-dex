@@ -739,9 +739,11 @@ class RiskManager:
                     adjusted,
                     adjusted,
                 )
-            elif bankroll > 0 and min_order_usdc <= bankroll * 0.5:
-                # Small bankroll: bump to min even if cap says no.
-                # CLOB requires >= $1. Rejecting every trade starves the strategy.
+            elif (
+                bankroll <= getattr(self.s, "MAX_TRADE_SIZE", float("inf"))
+                and bankroll > 0
+                and min_order_usdc <= bankroll * 0.5
+            ):
                 adjusted = min_order_usdc
                 logger.info(
                     "[risk_manager] Bumped %s trade to CLOB minimum despite cap: "
@@ -770,7 +772,6 @@ class RiskManager:
     def _get_or_update_calibration_and_bias(self, db) -> tuple[dict, Optional[dict]]:
         """Return cached calibration and longshot bias, updating if stale (> 5 minutes)."""
         import time
-        from datetime import datetime, timezone
         from backend.core.learning.calibration_tracker import (
             compute_price_bucket_calibration,
         )

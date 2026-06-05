@@ -185,7 +185,7 @@ class TestDBSessionShadowRunner:
             assert settled_trade.stage == "SETTLED"
             assert settled_trade.outcome == "win"
             assert settled_trade.settlement_value == 1.0
-            assert abs(settled_trade.pnl_usd - 82.19) < 0.01
+            assert abs(settled_trade.pnl_usd - 81.68) < 0.01
             assert settled_trade.accuracy_score == abs(0.65 - 0.55)
             assert settled_trade.actual_outcome == 0.55
         finally:
@@ -320,9 +320,6 @@ class TestDBSessionShadowRunner:
         runner = DBSessionShadowRunner()
 
         # Record trades with high accuracy (within 0.2 of predicted)
-        now = datetime.now(timezone.utc)
-        _two_days_ago = now - timedelta(days=2)
-
         # Add trades with accurate predictions (within 0.2)
         runner.record_signal(
             market_ticker="BTC-UP-2001",

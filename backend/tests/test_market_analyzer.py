@@ -454,7 +454,7 @@ async def test_analyze_market_auto_fetches_research_when_none():
                 get_daily_stats=MagicMock(return_value={"total_cost_usd": 0.01})
             ),
         ),
-        patch("backend.research.storage.ResearchStorage", return_value=mock_storage),
+        patch("backend.ai.market_analyzer.ResearchStorage", return_value=mock_storage),
     ):
         result = await analyze_market(
             question="Will BTC moon?",
@@ -497,7 +497,7 @@ async def test_analyze_market_research_fetch_failure_graceful():
             ),
         ),
         patch(
-            "backend.research.storage.ResearchStorage",
+            "backend.ai.market_analyzer.ResearchStorage",
             side_effect=RuntimeError("DB unavailable"),
         ),
     ):

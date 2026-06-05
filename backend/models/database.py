@@ -771,6 +771,27 @@ class BotState(Base):
         )
 
 
+class PlatformBalance(Base):
+    """Per-platform balance snapshot — updated by platform_balance_sync_job."""
+
+    __tablename__ = "platform_balances"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    platform = Column(String(50), nullable=False, index=True)
+    mode = Column(String(20), nullable=False, default="live")
+    available_cash = Column(Float, default=0.0)
+    locked_margin = Column(Float, default=0.0)
+    total_equity = Column(Float, default=0.0)
+    currency = Column(String(10), default="USDC")
+    raw_response = Column(Text, nullable=True)
+    synced_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    error = Column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("platform", "mode", name="uq_platform_balance_mode"),
+    )
+
+
 @event.listens_for(SQLAlchemySession, "before_flush")
 def protect_live_bot_state_financial_fields(session, flush_context, instances):
     """Prevent stale ORM sessions from overwriting live equity caches.

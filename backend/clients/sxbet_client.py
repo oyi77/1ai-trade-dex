@@ -197,7 +197,8 @@ class SXBetClient:
         Returns:
             Dict with balance info (USDC available, etc.).
         """
-        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        from backend.config import settings as _cfg
+        addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
             return {}
         try:
@@ -221,7 +222,8 @@ class SXBetClient:
         Returns:
             List of position dicts.
         """
-        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        from backend.config import settings as _cfg
+        addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
             return []
         try:
@@ -249,7 +251,8 @@ class SXBetClient:
         Returns:
             List of fill dicts with id, side, size, price, fee, status, etc.
         """
-        addr = wallet_address or os.getenv("WALLET_PUBLIC_ADDRESS", "")
+        from backend.config import settings as _cfg
+        addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
             return []
         try:

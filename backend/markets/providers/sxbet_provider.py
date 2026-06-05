@@ -101,18 +101,7 @@ class SXBetProvider(BaseMarketProvider):
         """SX.bet doesn't support cancel."""
         return False
 
-    @staticmethod
-    def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:
-        return NormalizedOrderResult(
-            venue_order_id="",
-            client_order_id=order.client_order_id,
-            status=OrderStatus.REJECTED,
-            filled_size=Decimal("0"),
-            filled_avg_price=None,
-            remaining_size=order.size,
-            fees_paid=Decimal("0"),
-            raw={"error": reason},
-        )
+
 
     async def get_markets(self, limit: int = 50, **kwargs) -> list[MarketInfo]:
         """Get available markets from SX.bet."""
@@ -155,13 +144,35 @@ class SXBetProvider(BaseMarketProvider):
 
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance."""
-        return NormalizedBalance(
-            venue="sxbet",
-            available_cash=Decimal("0"),
-            total_equity=Decimal("0"),
-            reserved_margin=Decimal("0"),
-            currency="USDC",
-        )
+        try:
+            raw = await self._client.get_balance()
+            if not raw:
+                return NormalizedBalance(
+                    venue="sxbet",
+                    available_cash=Decimal("0"),
+                    total_equity=Decimal("0"),
+                    reserved_margin=Decimal("0"),
+                    currency="USDC",
+                )
+            available = Decimal(str(raw.get("available", raw.get("balance", raw.get("usdc", 0)))))
+            locked = Decimal(str(raw.get("locked", raw.get("exposure", 0))))
+            return NormalizedBalance(
+                venue="sxbet",
+                available_cash=available,
+                total_equity=available + locked,
+                reserved_margin=locked,
+                currency="USDC",
+                raw=raw,
+            )
+        except Exception as exc:
+            logger.warning(f"[SXBetProvider] get_balance failed: {exc}")
+            return NormalizedBalance(
+                venue="sxbet",
+                available_cash=Decimal("0"),
+                total_equity=Decimal("0"),
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+            )
 
     async def get_positions(self) -> list[NormalizedPosition]:
         """Get open positions."""

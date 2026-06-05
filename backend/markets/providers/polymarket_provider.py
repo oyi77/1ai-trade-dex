@@ -99,7 +99,8 @@ class PolymarketProvider(BaseMarketProvider):
                     size=float(order.size),
                 )
         except Exception as exc:
-            import sys, traceback
+            import sys
+            import traceback
 
             traceback.print_exc(file=sys.stderr)
             return self._rejected(order, str(exc))
@@ -134,19 +135,26 @@ class PolymarketProvider(BaseMarketProvider):
     async def get_balance(self) -> NormalizedBalance:
         if not self._paper_mode:
             async with clob_from_settings(mode=self._mode) as clob:
-                raw = await clob.get_wallet_balance()
-            available = Decimal(str(raw.get("usdc_balance", 0)))
+                raw = await clob.get_pusd_balance()
+            available = Decimal(str(raw))
             return NormalizedBalance(
                 venue="polymarket",
                 available_cash=available,
                 total_equity=available,
                 reserved_margin=Decimal("0"),
-                raw=raw,
             )
+        from backend.models.database import SessionLocal, BotState
+
+        db = SessionLocal()
+        try:
+            state = db.query(BotState).filter_by(mode="paper").first()
+            bal = float(state.paper_bankroll) if state and state.paper_bankroll is not None else 1000.0
+        finally:
+            db.close()
         return NormalizedBalance(
             venue="polymarket",
-            available_cash=Decimal("10000"),
-            total_equity=Decimal("10000"),
+            available_cash=Decimal(str(bal)),
+            total_equity=Decimal(str(bal)),
             reserved_margin=Decimal("0"),
         )
 
@@ -285,15 +293,4 @@ class PolymarketProvider(BaseMarketProvider):
             or order.market_id
         )
 
-    @staticmethod
-    def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:
-        return NormalizedOrderResult(
-            venue_order_id="",
-            client_order_id=order.client_order_id,
-            status=OrderStatus.REJECTED,
-            filled_size=Decimal("0"),
-            filled_avg_price=None,
-            remaining_size=order.size,
-            fees_paid=Decimal("0"),
-            raw={"error": reason},
-        )
+

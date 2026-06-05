@@ -53,6 +53,8 @@ class BalanceAggregator:
             return
         self._running = True
 
+        self._register_db_persistence()
+
         # Start WS feeds for venues that support it
         self._ws_tasks["aster"] = asyncio.create_task(self._ws_aster())
         self._ws_tasks["lighter"] = asyncio.create_task(self._ws_lighter())
@@ -62,6 +64,43 @@ class BalanceAggregator:
         self._poll_task = asyncio.create_task(self._poll_loop())
 
         logger.info("BalanceAggregator started: 3 WS feeds + polling loop")
+
+    def _register_db_persistence(self):
+        """Register callback that persists balance snapshots to PlatformBalance table."""
+        async def _persist(agg: AggregatedBalance):
+            try:
+                from backend.models.database import PlatformBalance
+                from backend.db.utils import get_db_session
+                from datetime import datetime, timezone
+
+                with get_db_session() as db:
+                    now = datetime.now(timezone.utc)
+                    for venue_name, vb in agg.venues.items():
+                        existing = (
+                            db.query(PlatformBalance)
+                            .filter_by(platform=venue_name, mode="live")
+                            .first()
+                        )
+                        if existing:
+                            existing.available_cash = vb.cash_balance
+                            existing.locked_margin = max(0, vb.total_equity - vb.cash_balance)
+                            existing.total_equity = vb.total_equity
+                            existing.synced_at = now
+                            existing.error = None
+                        else:
+                            db.add(PlatformBalance(
+                                platform=venue_name,
+                                mode="live",
+                                available_cash=vb.cash_balance,
+                                locked_margin=max(0, vb.total_equity - vb.cash_balance),
+                                total_equity=vb.total_equity,
+                                synced_at=now,
+                            ))
+                    db.commit()
+            except Exception as e:
+                logger.debug(f"BalanceAggregator DB persist error: {e}")
+
+        self.on_balance_update(lambda agg: asyncio.ensure_future(_persist(agg)))
 
     async def stop(self):
         """Stop all feeds."""
@@ -304,16 +343,22 @@ class BalanceAggregator:
                     client = AzuroClient()
                     bal = await client.get_balance()
                     if bal:
+                        val = float(bal.get("balance", 0))
                         self._update(
-                            "azuro",
+                            "bookmaker_xyz",
                             VenueBalance(
-                                venue="azuro",
-                                cash_balance=float(
-                                    bal.get("balance", bal.get("value", 0))
-                                ),
-                                total_equity=float(
-                                    bal.get("balance", bal.get("value", 0))
-                                ),
+                                venue="bookmaker_xyz",
+                                cash_balance=val,
+                                total_equity=val,
+                                source="poll",
+                            ),
+                        )
+                        self._update(
+                            "predict_fun",
+                            VenueBalance(
+                                venue="predict_fun",
+                                cash_balance=val,
+                                total_equity=val,
                                 source="poll",
                             ),
                         )

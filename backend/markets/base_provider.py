@@ -5,12 +5,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import AsyncGenerator
 
+from decimal import Decimal
+
 from backend.markets.order_types import (
     MarketInfo,
     NormalizedBalance,
     NormalizedOrder,
     NormalizedOrderResult,
     NormalizedPosition,
+    OrderStatus,
     VenueCapability,
 )
 
@@ -93,3 +96,17 @@ class BaseMarketProvider(ABC):
 
     async def teardown(self) -> None:
         pass
+
+    @staticmethod
+    def _rejected(order: NormalizedOrder, reason: str) -> NormalizedOrderResult:
+        """Helper: create rejection result for order failure."""
+        return NormalizedOrderResult(
+            venue_order_id="",
+            client_order_id=order.client_order_id,
+            status=OrderStatus.REJECTED,
+            filled_size=Decimal("0"),
+            filled_avg_price=None,
+            remaining_size=order.size,
+            fees_paid=Decimal("0"),
+            raw={"error": reason},
+        )

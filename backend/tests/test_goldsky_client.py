@@ -245,7 +245,7 @@ async def test_fetch_order_filled_events_success():
     mock_client.post = AsyncMock(return_value=mock_response)
 
     with patch(
-        "backend.data.goldsky_client.httpx.AsyncClient", return_value=mock_client
+        "backend.data.goldsky_client.get_shared_client", return_value=mock_client
     ):
         result = await fetch_order_filled_events(
             after_timestamp=0, after_id="", batch_size=10
@@ -267,7 +267,7 @@ async def test_fetch_order_filled_events_graphql_errors():
     mock_client.post = AsyncMock(return_value=mock_response)
 
     with patch(
-        "backend.data.goldsky_client.httpx.AsyncClient", return_value=mock_client
+        "backend.data.goldsky_client.get_shared_client", return_value=mock_client
     ):
         result = await fetch_order_filled_events()
 
