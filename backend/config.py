@@ -295,8 +295,11 @@ class ConfigRegistry:
     KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
     KILL_CUMULATIVE_LOSS: float = -500.0  # cumulative PnL below which strategy is auto-killed
     KILL_AVG_LOSS_RATIO: float = 5.0  # avg_loss/avg_win ratio above which strategy is auto-killed
+    KILL_CONSECUTIVE_LOSSES: int = 10  # consecutive losses before auto-kill
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
     WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
+    WARN_BRIER: float = 0.4  # calibration threshold
+    WARN_PSI: float = 0.25  # drift detection threshold
     MIN_WARMUP_TRADES: int = 30  # trades before strategy governance activates
     DEGRADATION_WR_THRESHOLD: float = (
         0.35  # win rate drop triggering degradation review
@@ -724,6 +727,7 @@ class ConfigRegistry:
     # Platform balance sync
     PLATFORM_BALANCE_SYNC_INTERVAL_SECONDS: int = 120
     PLATFORM_BALANCE_SYNC_ENABLED: bool = True
+    BALANCE_POLL_INTERVAL_SECONDS: int = 30  # polling interval for venues without WebSocket
 
     # Port and hosting
     PORT: int = 8100  # backend API port
