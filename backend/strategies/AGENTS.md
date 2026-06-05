@@ -13,36 +13,39 @@ Independent strategy implementations: market analysis, signal generation, trade 
 
 | Strategy | File | Status | Win Rate | PnL | Notes |
 |----------|------|--------|----------|-----|-------|
-| agi_orchestrator | agi_orchestrator.py (743 LOC) | ACTIVE | — | — | Meta-strategy; orchestrates genomes |
-| universal_scanner | universal_scanner.py | ACTIVE | — | — | Market-wide signals |
-| bond_scanner | bond_scanner.py | ACTIVE | — | — | Bond market alpha |
-| cex_pm_leadlag | cex_pm_leadlag.py | ACTIVE | — | — | CEX/Polymarket lead-lag |
-| unified_arb | unified_pm_arb.py (537 LOC) | ACTIVE | — | — | Unified arb (replaces cross_market_arb + arb_scanner + hft_cross_arb + cross_dex_arb) |
-| line_movement_detector | line_movement_detector.py | ACTIVE | — | — | Order book kinetics |
-| market_maker | market_maker.py | ACTIVE | — | — | Market making, liquidity provision |
-| btc_oracle | btc_oracle.py | DISABLED | 43.9% | -$341 | Auto-killed (low WR) |
-| general_scanner | general_market_scanner.py | ACTIVE | — | — | Market-wide opportunity scanner (name=general_scanner) |
-| probability_arb | probability_arb.py | DISABLED | — | — | Research-phase; disabled |
+| bond_scanner | bond_scanner.py | PAPER | 39.6% | +$18,711 | 35.9x win/loss ratio. Buys cheap NO shares |
+| copy_trader | copy_trader_strategy.py | PAPER | — | — | Mirrors top traders |
+| market_maker | market_maker.py | PAPER | — | — | Market making, liquidity provision |
+| resolution_sniper | resolution_sniper.py | PAPER | — | — | Near-resolution sniping |
+| probability_arb | probability_arb.py | PAPER | — | — | Cross-platform probability arbitrage |
+| negrisk_strategy | negrisk_strategy.py | PAPER | — | — | Negative risk exploitation |
 
-### Additional Active Strategies
+### Disabled (Killed by AGI or Manual)
 
-| Strategy | File | Status | Notes |
-|----------|------|--------|-------|
-| crypto_oracle | crypto_oracle.py (37K) | PAPER | BTC/ETH/SOL 5-min markets |
-| general_market_scanner | general_market_scanner.py (41K) | ACTIVE | Market-wide opportunity scanner |
-| longshot_bias | longshot_bias.py | ACTIVE | Longshot bias exploitation |
-| order_executor | order_executor.py (17K) | ACTIVE | Order execution helper |
-| agi_meta_strategy | agi_meta_strategy.py | ACTIVE | AGI meta-strategy wrapper |
-| template_base | template_base.py | TEMPLATE | Strategy template for new strategies |
-| registry | registry.py | INFRA | Strategy registry and loader |
+| Strategy | File | Status | PnL | Kill Reason |
+|----------|------|--------|-----|-------------|
+| line_movement_detector | line_movement_detector.py | DISABLED | -$7,350 | Worst performer |
+| cross_platform_arb | cross_market_arb_enhanced.py | DISABLED | -$1,450 | Net loser |
+| arb_scanner | — | DISABLED | -$2,500 | Net loser |
+| cex_pm_leadlag | cex_pm_leadlag.py | DISABLED | -$777 | Net loser |
+| crypto_oracle | crypto_oracle.py | DISABLED | -$2,014 | Net loser |
+| weather_emos | — | DISABLED | +$3,776 | Auto-killed by AGI |
+| longshot_bias | longshot_bias.py | DISABLED | -$27 | 618 trades, net negative |
+| agi_orchestrator | agi_orchestrator.py | DISABLED | — | Meta-strategy |
+| general_scanner | general_market_scanner.py | DISABLED | — | — |
+| universal_scanner | universal_scanner.py | DISABLED | — | — |
+| hft_scalper | hft_scalper.py | DISABLED | — | — |
+| hyperliquid | hyperliquid_strategy.py | DISABLED | — | — |
+| whale_frontrun | — | DISABLED | — | — |
+| whale_pnl_tracker | — | DISABLED | — | — |
+| kalshi_arb | — | DISABLED | — | — |
+| unified_arb | unified_pm_arb.py | DISABLED | — | — |
+| news_frontrun | news_frontrun.py | DISABLED | -$5 | Too few trades |
 
-### Deprecated / Legacy
+### Live Mode — STOPPED
 
-| Strategy | File | Status | Notes |
-|----------|------|--------|-------|
-| probability_arb | probability_arb.py | DISABLED | Research-phase |
-
-**Deleted 2026-06-01:** `btc_momentum.py` (DEPRECATED, -49.5% ROI), `realtime_scanner.py` (DISABLED, unstable)
+Live trading is DISABLED (bankroll=$3.48). Bond_scanner was moved from live to paper.
+Re-enable only after 2+ weeks of profitable paper trading and re-funding.
 
 ### Signal Infrastructure (backend/modules/)
 
