@@ -342,6 +342,28 @@ class BalanceAggregator:
                         )
                 except Exception as e:
                     logger.debug(f"SXBet poll error: {e}")
+
+                # Limitless (on-chain USDC on Base L2)
+                try:
+                    from backend.markets.providers.limitless_provider import LimitlessProvider
+
+                    provider = LimitlessProvider()
+                    bal = await asyncio.wait_for(provider.get_balance(), timeout=20)
+                    if bal:
+                        cash = float(getattr(bal, "available_cash", 0) or 0)
+                        equity = float(getattr(bal, "total_equity", 0) or 0)
+                        self._update(
+                            "limitless",
+                            VenueBalance(
+                                venue="limitless",
+                                cash_balance=cash,
+                                total_equity=equity,
+                                source="poll",
+                            ),
+                        )
+                except Exception as e:
+                    logger.debug(f"Limitless poll error: {e}")
+
                 try:
                     from backend.clients.azuro_client import AzuroClient
 
