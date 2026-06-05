@@ -111,8 +111,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, shares=173.33, pnl=66.93
-        assert pnl == pytest.approx(66.93, abs=0.01)
+        # Polymarket fee reduces PnL but does not increase share count: shares=100/0.60, fee=0.4, pnl=66.27
+        assert pnl == pytest.approx(66.55, abs=0.01)
         assert pnl > 0
 
     def test_calculate_pnl_long_loss(self, db):
@@ -131,8 +131,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, loss=-104... actual=-100.4
-        assert pnl == pytest.approx(-100.4, abs=0.01)
+        # Polymarket fee: 0.003*min(0.60,0.40)*100=0.12, loss=-100.12
+        assert pnl == pytest.approx(-100.12, abs=0.01)
         assert pnl < 0
 
     def test_calculate_pnl_short_profit(self, db):
@@ -151,8 +151,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 0.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # Polymarket fee: 0.01*min(0.50,0.50)*100=5.0, cost=105, shares=210, pnl=100.5
-        assert pnl == pytest.approx(100.5, abs=0.01)
+        # Polymarket fee reduces PnL but does not increase share count: shares=200, fee=0.15, pnl=99.85
+        assert pnl == pytest.approx(99.85, abs=0.01)
         assert pnl > 0
 
     def test_calculate_pnl_short_loss(self, db):
@@ -171,8 +171,8 @@ class TestTradeSettlementIntegration:
         settlement_value = 1.0
         pnl = calculate_pnl(trade, settlement_value)
 
-        # Polymarket fee: 0.01*min(0.60,0.40)*100=4.0, cost=104, loss=-104... actual=-100.4
-        assert pnl == pytest.approx(-100.5, abs=0.01)
+        # Polymarket fee: 0.003*min(0.60,0.40)*100=0.12, loss=-100.12
+        assert pnl == pytest.approx(-100.15, abs=0.01)
         assert pnl < 0
 
 

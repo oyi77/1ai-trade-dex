@@ -147,6 +147,18 @@
   },
   "hotPaths": [
     {
+      "path": "src/api/data_sources.ts",
+      "accessCount": 4,
+      "lastAccessed": 1780473977781,
+      "type": "directory"
+    },
+    {
+      "path": "src/api.ts",
+      "accessCount": 2,
+      "lastAccessed": 1780474137553,
+      "type": "directory"
+    },
+    {
       "path": "src/hooks/useSSEEvents.ts",
       "accessCount": 1,
       "lastAccessed": 1779188216270,
@@ -157,6 +169,12 @@
       "accessCount": 1,
       "lastAccessed": 1779188290442,
       "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1780473923668,
+      "type": "directory"
     }
   ],
   "userDirectives": []

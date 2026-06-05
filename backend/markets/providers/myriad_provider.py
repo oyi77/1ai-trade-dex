@@ -111,9 +111,11 @@ class MyriadProvider(BaseMarketProvider):
                 market_id=p.get("market_id", ""),
                 side=p.get("side", "long"),
                 size=Decimal(str(p.get("size", 0))),
-                entry_price=Decimal(str(p.get("price", 0))),
-                current_price=Decimal(str(p.get("current_price", 0))),
-                unrealized_pnl=Decimal(str(p.get("pnl", 0))),
+                avg_entry_price=Decimal(str(p.get("price", 0))),
+                venue="myriad",
+                current_price=p.get("current_price")
+                and Decimal(str(p["current_price"])),
+                unrealized_pnl=p.get("pnl") and Decimal(str(p["pnl"])),
             )
             for p in positions
         ]
@@ -126,13 +128,20 @@ class MyriadProvider(BaseMarketProvider):
             ]
         return [
             MarketInfo(
+                venue="myriad",
                 market_id=m.get("id", ""),
                 title=m.get("title", ""),
                 description=m.get("description", ""),
                 category=m.get("category", "other"),
-                end_date=m.get("end_date"),
-                outcomes=m.get("outcomes", []),
-                active=m.get("status") == "active",
+                yes_price=None,
+                no_price=None,
+                volume_24h=Decimal("0"),
+                open_interest=Decimal("0"),
+                closes_at=m.get("end_date")
+                and float(m["end_date"]),
+                is_active=m.get("status") == "active",
+                min_order_size=Decimal("0"),
+                tick_size=Decimal("0"),
             )
             for m in markets[:limit]
         ]

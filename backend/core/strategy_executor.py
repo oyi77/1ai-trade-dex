@@ -103,6 +103,30 @@ def _lock_retry_delay(attempt: int) -> float:
     return _LOCK_RETRY_BASE_DELAY_SECONDS * (2**attempt)
 
 
+def _first_numeric_attr(obj, names: tuple[str, ...]) -> Optional[float]:
+    """Return the first numeric attribute/key from a venue result object.
+
+    Venue adapters are not yet fully uniform: legacy Polymarket CLOB returns
+    ``fill_size``/``fill_price``/``fee`` while normalized providers return
+    ``filled_size``/``filled_avg_price``/``fees_paid``. This helper keeps the
+    executor multi-platform and prevents one provider shape from dropping live
+    fill facts.
+    """
+    for name in names:
+        value = None
+        if isinstance(obj, dict):
+            value = obj.get(name)
+        else:
+            value = getattr(obj, name, None)
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _update_botstate_after_trade(db, mode: str, adjusted_size: float) -> None:
     """Atomically update BotState counters without taking an ORM row lock."""
 
@@ -849,13 +873,21 @@ async def _execute_decision_live_clob(
                                 )
                         logger.info(f"[LIVE][{strategy_name}] CLOB result: success={result.success} order_id={getattr(result,'order_id',None)} error={getattr(result,'error',None)}")
                         if result.success:
-                            clob_order_id = result.order_id
-                            fill_price = result.fill_price or fill_price
-                            if (
-                                hasattr(result, "filled_size")
-                                and result.filled_size is not None
-                            ):
-                                filled_size = result.fill_size
+                            clob_order_id = getattr(result, "order_id", None)
+                            normalized_fill_price = _first_numeric_attr(
+                                result,
+                                ("fill_price", "filled_avg_price", "avg_price"),
+                            )
+                            if normalized_fill_price is not None:
+                                fill_price = normalized_fill_price
+                            filled_size = _first_numeric_attr(
+                                result,
+                                ("filled_size", "fill_size", "filled", "size_matched"),
+                            )
+                            fee = _first_numeric_attr(
+                                result,
+                                ("fee", "fees_paid", "fees", "fee_paid"),
+                            )
 
                             from backend.core.trade_forensics import classify_trade_role
 
@@ -993,7 +1025,7 @@ async def _execute_decision_live_clob(
                 fill_price,
                 entry_price,
                 filled_size,
-                None,  # fee = None for live CLOB
+                fee,
                 role,
                 maker_size,
                 taker_size,
@@ -1647,6 +1679,7 @@ def _record_trade(
         confidence=confidence,
         clob_order_id=clob_order_id,
         filled_size=filled_size,
+        fill_price=fill_price,
         fee=fee,
         slippage=slippage,
         market_type=market_type,
@@ -1740,6 +1773,8 @@ def _record_trade(
         "direction": direction,
         "fill_price": fill_price,
         "size": adjusted_size,
+        "filled_size": filled_size,
+        "fee": fee,
         "edge": edge,
         "confidence": confidence,
         "trading_mode": mode,

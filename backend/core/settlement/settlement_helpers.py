@@ -764,48 +764,46 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     On a win, each share pays $1: net profit = (1.0 - entry_price) * shares.
     On a loss, shares are worth $0: net loss = -(entry_price * shares).
     """
-    # Map up/down to yes/no logic
-    direction = trade.direction
-    if direction == "up":
-        direction = "yes"
-    elif direction == "down":
-        direction = "no"
-    # Normalize case: YES→yes, NO→no, UP→up, DOWN→down, BUY→buy
-    direction = direction.lower()
-
-    _filled = getattr(trade, "filled_size", None)
-    size = float(_filled) if isinstance(_filled, (int, float)) else trade.size
-
-    # Normalize direction — Polymarket stores YES/NO uppercase
-    # Map all variants: up→yes, down→no, YES→yes, NO→no
+    # Normalize direction — binary venues use YES/NO semantics even when
+    # strategies call them UP/DOWN. Keep this venue-neutral for Polymarket,
+    # Kalshi, SX.bet-style contracts, etc.
     direction = (trade.direction or "yes").strip().lower()
-    if direction == "up":
+    if direction in ("up", "buy"):
         direction = "yes"
-    elif direction == "down":
+    elif direction in ("down", "sell"):
         direction = "no"
 
     _fill_price = getattr(trade, "fill_price", None)
     entry_price = (
         float(_fill_price)
         if isinstance(_fill_price, (int, float))
-        else trade.entry_price
+        else float(trade.entry_price or 0.0)
     )
 
-    # Account for Polymarket taker fee
-    # Exact formula: (fee_bps / 10000) * min(price, 1-price) * size
-    # Fee is proportional to uncertainty — max at 0.50, near zero at extremes
-    from backend.fee_config import TAKER_FEE_BPS
+    # `Trade.size` is USDC notional in the strategy/execution pipeline.
+    # `Trade.filled_size`, when present, is the actual venue share/contract
+    # quantity. Do not treat fees as extra capital that buys more shares.
+    raw_size = float(trade.size or 0.0)
+    _filled = getattr(trade, "filled_size", None)
+    has_filled_shares = isinstance(_filled, (int, float)) and float(_filled) > 0
+    if has_filled_shares:
+        shares = float(_filled)
+        notional = shares * entry_price if 0 < entry_price < 1.0 else raw_size
+    else:
+        notional = raw_size
+        shares = raw_size / entry_price if 0 < entry_price < 1.0 else raw_size
 
-    fee_bps = TAKER_FEE_BPS
-    uncertainty = min(entry_price, 1.0 - entry_price) if 0 < entry_price < 1.0 else 0.0
-    fee = (fee_bps / 10000.0) * uncertainty * size
-    dollar_cost = size + fee  # actual USDC spent including fee
+    stored_fee = getattr(trade, "fee", None)
+    if isinstance(stored_fee, (int, float)):
+        fee = float(stored_fee)
+    else:
+        from backend.fee_config import TAKER_FEE_BPS
 
-    # Convert dollar amount to shares if needed
-    # The execution pipeline stores dollars, but PnL formula expects shares
-    shares = size
-    if entry_price and entry_price > 0 and entry_price < 1.0:
-        shares = dollar_cost / entry_price
+        uncertainty = (
+            min(entry_price, 1.0 - entry_price) if 0 < entry_price < 1.0 else 0.0
+        )
+        fee = (TAKER_FEE_BPS / 10000.0) * uncertainty * notional
+    dollar_cost = notional + fee
 
     if not entry_price or entry_price <= 0 or entry_price >= 1.0:
         if entry_price and entry_price >= 1.0:
@@ -1460,10 +1458,6 @@ async def reconcile_positions(db: Session) -> List[int]:
     from backend.models.database import Trade
 
     effective_mode = settings.TRADING_MODE
-    if effective_mode == "paper":
-        logger.debug("Skipping position reconciliation in paper mode")
-        return []
-
     wallet_address = settings.POLYMARKET_BUILDER_ADDRESS
 
     if not wallet_address:

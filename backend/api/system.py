@@ -934,10 +934,17 @@ async def reset_bot(
     try:
         trades_deleted = db.query(Trade).delete()
 
+        from backend.core.wallet.botstate_ledger import BotStateLedger
+
         for mode in ["paper", "testnet", "live"]:
             state = for_update(db, db.query(BotState).filter_by(mode=mode)).first()
             if state:
-                state.bankroll = settings.INITIAL_BANKROLL
+                BotStateLedger.sync_to_absolute(
+                    db=db,
+                    mode=mode,
+                    target_balance=float(settings.INITIAL_BANKROLL),
+                    source="bot_reset",
+                )
                 state.total_trades = 0
                 state.winning_trades = 0
                 state.total_pnl = 0.0
@@ -986,6 +993,7 @@ async def paper_topup(
         )
 
     from backend.core.scheduler import log_event
+    from backend.core.wallet.botstate_ledger import BotStateLedger
     from backend.models.audit_logger import log_audit_event
 
     state = for_update(db, db.query(BotState).filter_by(mode="paper")).first()
@@ -993,11 +1001,11 @@ async def paper_topup(
         raise HTTPException(status_code=404, detail="Paper bot state not found")
 
     previous = float(state.paper_bankroll or 0.0)
-    state.paper_bankroll = previous + body.amount
+    BotStateLedger.record_deposit(
+        db=db, mode="paper", amount=float(body.amount), source="paper_topup"
+    )
 
     # Also bump the effective initial bankroll so reconciliation preserves the top-up.
-    # Without this, the next reconcile cycle would recalculate bankroll as
-    # INITIAL_BANKROLL + pnl - exposure, wiping the top-up.
     prev_initial = float(state.paper_initial_bankroll or settings.INITIAL_BANKROLL)
     state.paper_initial_bankroll = prev_initial + body.amount
 

@@ -212,6 +212,31 @@ async def fetch_pm_total_equity(wallet: Optional[str] = None) -> Optional[float]
     return round(cash + float(open_value), 6)
 
 
+async def _fetch_clob_pusd_balance() -> Optional[float]:
+    """Fetch CLOB-internal PUSD collateral balance (tradeable cash).
+
+    This is the ground truth for live bankroll. On-chain RPC token balances
+    (USDC.e, USDC Native) include main wallet funds that are NOT in CLOB and
+    cannot be traded. CLOB PUSD is what the order book actually sees.
+    """
+    import asyncio
+
+    from backend.data.polymarket_clob import clob_from_settings
+
+    try:
+        clob = clob_from_settings(mode="live")
+        async with clob:
+            await asyncio.wait_for(clob.create_or_derive_api_key(), timeout=15.0)
+            pusd = await asyncio.wait_for(clob.get_pusd_balance(), timeout=15.0)
+        if pusd is not None and pusd >= 0:
+            return float(pusd)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.warning("CLOB PUSD balance fetch failed: %s", exc)
+    return None
+
+
 async def fetch_pm_profile_pnl(wallet: Optional[str] = None) -> Optional[float]:
     """Fetch Polymarket profile/account PnL from the public user PnL API.
 
@@ -462,13 +487,13 @@ def _realized_trade_stats(db: Session, mode: str) -> tuple[int, float, int]:
     trade_count, realized_pnl, win_count = (
         db.query(
             func.count(Trade.id),
-            func.coalesce(func.sum(func.coalesce(Trade.pnl, -Trade.size)), 0.0),
-            func.coalesce(func.sum(case((Trade.result == "win", 1), else_=0)), 0),
+            func.coalesce(func.sum(Trade.pnl), 0.0),
+            func.coalesce(func.sum(case((Trade.pnl > 0, 1), else_=0)), 0),
         )
         .filter(
             Trade.settled.is_(True),
             Trade.trading_mode == mode,
-            Trade.result.in_(("win", "loss", "closed")),
+            Trade.pnl.isnot(None),
         )
         .first()
     )
@@ -674,7 +699,10 @@ def _build_report(
                 "PM total equity unavailable; live bankroll cache was not changed"
             )
         else:
-            new_bankroll = round(float(pm_portfolio_value), 2)
+            # Live bankroll is PUSD cash synced by wallet_sync_job every 60s.
+            # Do NOT overwrite with PM portfolio equity (which includes open
+            # position values and drifts with token prices).
+            new_bankroll = old_bankroll
             # Live total_pnl uses realized PnL from settled trades,
             # not bankroll delta (CLOB balance excludes open positions)
             new_total_pnl = realized_pnl
@@ -734,7 +762,7 @@ async def reconcile_bot_state(
     pm_portfolio_value: Optional[float] = None
     mode_list = tuple(modes)
     if "live" in mode_list:
-        pm_portfolio_value = await fetch_pm_total_equity()
+        pm_portfolio_value = await _fetch_clob_pusd_balance()
 
     previous_live_update_permission = db.info.get("allow_live_financial_update")
     db.info["allow_live_financial_update"] = True
@@ -816,7 +844,7 @@ async def reconcile_bot_state(
                         f"[reconciliation] TransactionEvent recording failed: {e}"
                     )
                 logger.warning(
-                    "BotState reconciled (%s): bankroll $%.2f -> $%.2f, pnl $%.2f -> $%.2f",
+                    "BotState reconciled ({}): bankroll ${:.2f} -> ${:.2f}, pnl ${:.2f} -> ${:.2f}",
                     mode,
                     report.old_bankroll,
                     report.new_bankroll,
@@ -825,7 +853,7 @@ async def reconcile_bot_state(
                 )
             elif report.has_drift:
                 logger.warning(
-                    "BotState drift detected (%s): bankroll $%.2f -> $%.2f, pnl $%.2f -> $%.2f",
+                    "BotState drift detected ({}): bankroll ${:.2f} -> ${:.2f}, pnl ${:.2f} -> ${:.2f}",
                     mode,
                     report.old_bankroll,
                     report.new_bankroll,

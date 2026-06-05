@@ -32,7 +32,7 @@ module.exports = {
       args: '-m backend.core.orchestrator',
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
-        TRADING_MODE: 'paper',
+        TRADING_MODE: 'live',
         RISK_PROFILE: 'crazy',
         WEATHER_ENABLED: 'false',
         PYTHONDONTWRITEBYTECODE: '1'

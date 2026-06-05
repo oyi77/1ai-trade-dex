@@ -91,7 +91,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
         max_position_frac = getattr(settings, "MAX_POSITION_FRACTION", 0.10)
         hard_cap = float(params.get("max_position_usd", 5.0))
         dynamic_cap = ctx.bankroll * max_position_frac
-        max_size = max(hard_cap, dynamic_cap)
+        max_size = min(hard_cap, dynamic_cap)
         max_size = min(
             max_size, ctx.bankroll * 0.15
         )  # never more than 15% of bankroll per trade
@@ -112,7 +112,22 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 max_hold_seconds=int(params.get("max_hold_seconds", 240)),
             )
         except Exception as e:
-            logger.warning(f"[cex_pm_leadlag] Auto-sell exit check failed: {e}")
+            msg = str(e)
+            logger.warning(f"[cex_pm_leadlag] Auto-sell exit check failed: {msg}")
+            if any(
+                keyword in msg.lower()
+                for keyword in ["connection", "timeout", "cancel", "fill"]
+            ):
+                try:
+                    from backend.core.alert_engine import AlertManager
+
+                    AlertManager(ctx.db).check_failed_settlement(
+                        trade_id=0,
+                        reason=f"cex_pm_leadlag auto-sell execution failure: {msg}",
+                        mode=ctx.mode,
+                    )
+                except Exception:
+                    pass
 
         # Max open positions gate
         db = ctx.db
@@ -191,6 +206,8 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 )
                 continue
 
+            result.markets_scanned += 1
+
             # Per-asset open positions cap
             asset_open = (
                 db.query(Trade)
@@ -264,9 +281,10 @@ class CexPmLeadLagStrategy(BaseStrategy):
                         question = (
                             f"{asset_key.upper()} price {micro.price:.0f} with {abs(micro.momentum_1m):.4f} 1-min momentum. "
                             f"Will {asset_key.upper()} be {'UP' if direction == 'up' else 'DOWN'} in the next 5-minute window? "
-                            f"Polymarket UP mid={pm_up_mid:.3f}, implied edge={edge:.4f}. Trade or skip?"
+                            f"Polymarket UP mid={pm_up_mid:.3f}, implied edge={edge:.4f}. Trade or skip? "
                         )
                         import asyncio as _asyncio
+
                         debate_result = await _asyncio.wait_for(
                             run_debate_with_routing(
                                 db=ctx.db,
@@ -296,9 +314,15 @@ class CexPmLeadLagStrategy(BaseStrategy):
                                 )
                                 continue
                             confidence = max(confidence, debate_result.confidence)
+                    except _asyncio.TimeoutError:
+                        logger.warning(
+                            "[cex_pm_leadlag] debate validation timed out for %s, rejecting as uncertain",
+                            market.slug,
+                        )
+                        continue
                     except Exception:
                         logger.warning(
-                            "[cex_pm_leadlag] debate validation failed, REJECTING trade"
+                            "[cex_pm_leadlag] debate validation failed, rejecting trade"
                         )
                         continue
 
@@ -345,18 +369,27 @@ class CexPmLeadLagStrategy(BaseStrategy):
                 result.decisions_recorded += 1
 
                 try:
-                    activity_logger.log_entry(
+                    entry = ActivityLog(
                         strategy_name=self.name,
                         decision_type="entry" if decision == "BUY" else "hold",
                         data=signal_data,
-                        confidence=confidence,
+                        confidence_score=confidence,
                         mode=ctx.mode,
-                        db=ctx.db,
                     )
-                except Exception:
-                    logger.exception(
-                        f"Failed to record CEX-PM lead-lag decision for {asset_key}"
+                    db.add(entry)
+                    db.flush()
+                    db.commit()
+                    db.refresh(entry)
+                except Exception as exc:  # pragma: no cover - defensive DB fallback
+                    logger.warning(
+                        "[cex_pm_leadlag] decision recording skipped for %s (%s)",
+                        asset_key,
+                        exc,
                     )
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
 
                 if decision == "BUY":
                     result.trades_attempted += 1

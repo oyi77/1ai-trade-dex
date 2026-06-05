@@ -103,6 +103,15 @@ class PaperSlippageSimulator:
             self._get_setting("PAPER_SIZE_IMPACT_FACTOR", 0.5, db)
         )
         min_depth_usd = float(self._get_setting("PAPER_MIN_DEPTH_USD", 0.0, db))
+        max_depth_consumption_pct = float(
+            self._get_setting("PAPER_MAX_DEPTH_CONSUMPTION_PCT", 0.20, db)
+        )
+        longshot_slippage_multiplier = float(
+            self._get_setting("PAPER_LONGSHOT_SLIPPAGE_MULTIPLIER", 2.0, db)
+        )
+        longshot_price_threshold = float(
+            self._get_setting("PAPER_LONGSHOT_PRICE_THRESHOLD", 0.10, db)
+        )
         random_slippage = bool(self._get_setting("PAPER_RANDOM_SLIPPAGE", False, db))
 
         # If slippage simulation disabled (base_slippage_bps=0), return original fill
@@ -131,10 +140,30 @@ class PaperSlippageSimulator:
                 "rejection_reason": "INSUFFICIENT_LIQUIDITY",
             }
 
+        if (
+            max_depth_consumption_pct > 0
+            and orderbook_depth_usd > 0
+            and size > orderbook_depth_usd * max_depth_consumption_pct
+        ):
+            return {
+                "fill_price": entry_price,
+                "slippage_bps": 0.0,
+                "fee_usd": 0.0,
+                "effective_size": 0.0,
+                "rejected": True,
+                "rejection_reason": "DEPTH_CONSUMPTION_LIMIT",
+            }
+
         # Calculate slippage based on size impact
         # Larger orders experience more slippage (logarithmic relationship)
         size_impact = size_impact_factor * math.log(max(1, size / 100))
         slippage_bps = max(min_slippage_bps, base_slippage_bps * (1 + size_impact))
+        edge_distance = min(entry_price, 1.0 - entry_price)
+        if (
+            0 < edge_distance < longshot_price_threshold
+            and longshot_slippage_multiplier > 1.0
+        ):
+            slippage_bps *= longshot_slippage_multiplier
 
         # Add random jitter if enabled
         if random_slippage:

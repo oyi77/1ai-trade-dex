@@ -101,6 +101,15 @@ class AGIPromotionPipeline:
                 success=False,
                 reason="AGI-generated strategies require manual approval for live promotion (ADR-006)",
             )
+        gate_result = self._check_live_profitability_gate(experiment_id)
+        if gate_result is not None and not gate_result.passed:
+            return PromotionResult(
+                experiment_id=experiment_id,
+                from_status="paper",
+                to_status="paper",
+                success=False,
+                reason="Profitability gate failed: " + "; ".join(gate_result.reasons),
+            )
         result = self.runner.promote_experiment(experiment_id)
         promotion = PromotionResult(
             experiment_id=experiment_id,
@@ -153,5 +162,27 @@ class AGIPromotionPipeline:
         except Exception:
             logger.exception(
                 f"AGIPromotionPipeline: failed to find experiment {experiment_id}"
+            )
+            return None
+
+    def _check_live_profitability_gate(self, experiment_id: str):
+        try:
+            experiment = (
+                self.runner._session.query(ExperimentRecord)
+                .filter_by(id=int(experiment_id))
+                .first()
+            )
+            if experiment is None or not experiment.strategy_name:
+                return None
+            from backend.core.profitability_gates import evaluate_strategy_paper_gate
+
+            return evaluate_strategy_paper_gate(
+                self.runner._session,
+                strategy_name=experiment.strategy_name,
+                min_trades=self.MIN_TRADES_PAPER,
+            )
+        except Exception:
+            logger.exception(
+                f"AGIPromotionPipeline: profitability gate failed for experiment {experiment_id}"
             )
             return None

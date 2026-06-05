@@ -98,13 +98,14 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        # Polymarket fee: 0.01*min(0.40,0.60)*10=0.04, cost=10.04, shares=25.1, pnl=15.06
-        assert pnl == pytest.approx(15.06)
+        # Polymarket fee: 30bps * min(0.40,0.60) * $10 = $0.012.
+        # shares = 10 / 0.40 = 25; gross payout = 25; pnl = 25 - 10 - 0.012 = 14.99.
+        assert pnl == pytest.approx(14.99)
         assert pnl > 0.0
 
     def test_down_position_wins_at_settlement_0(self):
         """Bought DOWN at 0.40, market settled DOWN (0.0) → profit.
-        Polymarket fee: 0.01*min(0.40,0.60)*10=0.04, cost=10.04, shares=25.1, pnl=15.06.
+        Polymarket fee: 0.003*min(0.40,0.60)*10=0.04; fee reduces PnL but does not buy shares.
         """
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
@@ -113,14 +114,14 @@ class TestPnlWin:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        assert pnl == pytest.approx(15.06)
+        assert pnl == pytest.approx(14.99)
         assert pnl > 0.0
 
 
 class TestPnlLoss:
     def test_up_position_loses_at_settlement_0(self):
         """Bought UP at 0.40, market settled DOWN (0.0) → loss.
-        New fee: 0.01*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
+        New fee: 0.003*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
@@ -128,13 +129,13 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
-        # -10.04 (Polymarket fee: 0.01*min(0.40,0.60)*10=0.04)
-        assert pnl == pytest.approx(-10.04)
+        # -10.01 (Polymarket fee: 0.003*min(0.40,0.60)*10=0.04)
+        assert pnl == pytest.approx(-10.01)
         assert pnl < 0.0
 
     def test_down_position_loses_at_settlement_1(self):
         """Bought DOWN at 0.40, market settled UP (1.0) → loss.
-        New fee: 0.01*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
+        New fee: 0.003*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
@@ -142,12 +143,12 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
-        # -10.04 (Polymarket fee: 0.01*min(0.40,0.60)*10=0.04)
-        assert pnl == pytest.approx(-10.04)
+        # -10.01 (Polymarket fee: 0.003*min(0.40,0.60)*10=0.04)
+        assert pnl == pytest.approx(-10.01)
         assert pnl < 0.0
 
     def test_loss_magnitude(self):
-        """Loss includes fee. size=$20, fee=0.01*min(0.55,0.45)*20=0.09, cost=$20.09. Loss = -cost."""
+        """Loss includes fee. size=$20, fee=0.003*min(0.55,0.45)*20=0.09, cost=$20.09. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.55
@@ -155,8 +156,8 @@ class TestPnlLoss:
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
         assert pnl == pytest.approx(
-            -20.09
-        )  # Polymarket fee: 0.01*min(0.55,0.45)*20=0.09
+            -20.03
+        )  # Polymarket fee: 0.003*min(0.55,0.45)*20=0.09
 
 
 class TestPnlPush:
@@ -325,16 +326,15 @@ class TestBankrollUpdate:
         assert state.paper_pnl == pytest.approx(-123.0)
 
     @pytest.mark.asyncio
-    async def test_live_settlement_reconciles_total_equity_instead_of_ledger_pnl(
+    async def test_live_settlement_preserves_wallet_synced_cash_and_reconciles_pnl(
         self, db, monkeypatch
     ):
-        """Live BotState uses external total equity after settlement, not local ledger P&L."""
         from backend.core.settlement.settlement import update_bot_state_with_settlements
 
         state = _state_for_mode(db, "live")
         db.info["allow_live_financial_update"] = True
-        state.bankroll = -2645.42
-        state.total_pnl = -2745.42
+        state.bankroll = 160.73
+        state.total_pnl = 0.0
         state.live_initial_bankroll = 200.73
         state.total_trades = 0
         state.winning_trades = 0
@@ -350,19 +350,18 @@ class TestBankrollUpdate:
         trade.pnl = -40.0
         db.flush()
 
-        async def fake_total_equity():
+        async def fake_clob_pusd_balance():
             return 160.73
 
         monkeypatch.setattr(
-            "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
-            fake_total_equity,
+            "backend.core.wallet.bankroll_reconciliation._fetch_clob_pusd_balance",
+            fake_clob_pusd_balance,
         )
 
         await update_bot_state_with_settlements(db, [trade])
 
         db.refresh(state)
         assert state.bankroll == pytest.approx(160.73)
-        # total_pnl = bankroll - initial_bankroll (160.73 - 200.73 = -40.0)
         assert state.total_pnl == pytest.approx(-40.0)
         assert state.total_trades == 1
         assert state.winning_trades == 0
@@ -547,3 +546,27 @@ async def test_reconcile_positions_targets_live_open_trades(db):
         trades_to_close = await reconcile_positions(db)
 
     assert live_trade.id in trades_to_close
+
+
+@pytest.mark.asyncio
+async def test_reconcile_positions_does_not_skip_paper(db):
+    from backend.core.settlement.settlement_helpers import reconcile_positions
+
+    _make_trade(db, market_ticker="PAPER-MANUAL", trading_mode="paper", settled=False)
+    db.commit()
+
+    @asynccontextmanager
+    async def fake_clob_factory(*args, **kwargs):
+        yield SimpleNamespace(get_trader_positions=AsyncMock(return_value=[]))
+
+    with (
+        patch(
+            "backend.data.polymarket_clob.clob_from_settings",
+            side_effect=fake_clob_factory,
+        ),
+        patch.object(settings, "TRADING_MODE", "paper"),
+        patch.object(settings, "POLYMARKET_BUILDER_ADDRESS", "0xFAKE_TEST_WALLET"),
+    ):
+        trades_to_close = await reconcile_positions(db)
+
+    assert len(trades_to_close) >= 1

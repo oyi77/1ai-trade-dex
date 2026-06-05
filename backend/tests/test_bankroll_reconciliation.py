@@ -85,6 +85,58 @@ async def test_reconciles_paper_mode_specific_bankroll_without_touching_trades(
 
 
 @pytest.mark.asyncio
+@patch("backend.core.wallet.bankroll_reconciliation.settings")
+async def test_reconciliation_counts_all_settled_pnl_rows(mock_settings, db_session):
+    mock_settings.INITIAL_BANKROLL = 1000.0
+    state = BotState(mode="paper", bankroll=1000.0, paper_bankroll=1000.0)
+    settled_cleanup = Trade(
+        market_ticker="cleanup-loss",
+        direction="up",
+        entry_price=0.5,
+        size=25.0,
+        settled=True,
+        result="stale_cleanup",
+        pnl=-25.0,
+        trading_mode="paper",
+        settlement_time=datetime.now(timezone.utc),
+    )
+    settled_expired = Trade(
+        market_ticker="expired-loss",
+        direction="down",
+        entry_price=0.5,
+        size=10.0,
+        settled=True,
+        result="expired",
+        pnl=-10.0,
+        trading_mode="paper",
+        settlement_time=datetime.now(timezone.utc),
+    )
+    settled_win = Trade(
+        market_ticker="normal-win",
+        direction="up",
+        entry_price=0.5,
+        size=10.0,
+        settled=True,
+        result="win",
+        pnl=10.0,
+        trading_mode="paper",
+        settlement_time=datetime.now(timezone.utc),
+    )
+    db_session.add_all([state, settled_cleanup, settled_expired, settled_win])
+    db_session.commit()
+
+    reports = await reconcile_bot_state(
+        db_session, modes=("paper",), apply=True, commit=True, source="test"
+    )
+
+    db_session.refresh(state)
+    assert reports[0].new_total_pnl == pytest.approx(-25.0)
+    assert reports[0].new_trade_count == 3
+    assert reports[0].new_win_count == 1
+    assert state.paper_pnl == pytest.approx(-25.0)
+
+
+@pytest.mark.asyncio
 async def test_dry_run_does_not_mutate_testnet_state(db_session):
     state = BotState(
         mode="testnet", bankroll=-74.49, testnet_bankroll=-74.49, testnet_pnl=0.0
@@ -139,7 +191,7 @@ async def test_reconciliation_clamps_depleted_simulated_available_bankroll(db_se
 
 
 @pytest.mark.asyncio
-async def test_live_reconciliation_uses_total_equity_not_position_value_only(
+async def test_live_reconciliation_preserves_wallet_synced_cash_without_trades(
     db_session, monkeypatch
 ):
     state = BotState(
@@ -148,12 +200,12 @@ async def test_live_reconciliation_uses_total_equity_not_position_value_only(
     db_session.add(state)
     db_session.commit()
 
-    async def fake_total_equity():
+    async def fake_clob_pusd_balance():
         return 163.56
 
     monkeypatch.setattr(
-        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
-        fake_total_equity,
+        "backend.core.wallet.bankroll_reconciliation._fetch_clob_pusd_balance",
+        fake_clob_pusd_balance,
     )
 
     reports = await reconcile_bot_state(
@@ -165,11 +217,8 @@ async def test_live_reconciliation_uses_total_equity_not_position_value_only(
     )
 
     db_session.refresh(state)
-    assert reports[0].new_bankroll == pytest.approx(163.56)
-    assert state.bankroll == pytest.approx(163.56)
-    # PnL = realized trade ledger (no settled trades in this test → 0.0).
-    # We do NOT use bankroll-delta (new_bankroll - initial_deposit) because
-    # that would count deposits as profit. See ADR-002.
+    assert reports[0].new_bankroll == pytest.approx(4.23)
+    assert state.bankroll == pytest.approx(4.23)
     assert state.total_pnl == pytest.approx(0.0)
 
 
@@ -194,12 +243,12 @@ async def test_live_reconciliation_keeps_realized_ledger_pnl_even_if_profile_pnl
     db_session.add_all([state, settled_win])
     db_session.commit()
 
-    async def fake_total_equity():
+    async def fake_clob_pusd_balance():
         return 163.56
 
     monkeypatch.setattr(
-        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
-        fake_total_equity,
+        "backend.core.wallet.bankroll_reconciliation._fetch_clob_pusd_balance",
+        fake_clob_pusd_balance,
     )
 
     reports = await reconcile_bot_state(
@@ -237,12 +286,12 @@ async def test_live_reconciliation_preserves_financial_cache_when_equity_unavail
     db_session.add(settled_loss)
     db_session.commit()
 
-    async def unavailable_total_equity():
+    async def unavailable_clob_pusd_balance():
         return None
 
     monkeypatch.setattr(
-        "backend.core.wallet.bankroll_reconciliation.fetch_pm_total_equity",
-        unavailable_total_equity,
+        "backend.core.wallet.bankroll_reconciliation._fetch_clob_pusd_balance",
+        unavailable_clob_pusd_balance,
     )
 
     reports = await reconcile_bot_state(

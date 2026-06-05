@@ -1,3 +1,5 @@
+from loguru import logger
+
 from backend.core.execution_pipeline.base import (
     BaseExecutionStage,
     ExecutionStageManifest,
@@ -118,13 +120,21 @@ class LiveExecuteStage(BaseExecutionStage):
         if db is None:
             return
 
-        state = ctx.get("state")
-        mode = ctx.get("mode", "live")
-        adjusted_size = float(decision.get("size", 0.0))
+        size = float(decision.get("size", 0.0) or 0.0)
+        price = float(decision.get("entry_price", decision.get("price", 0.0)) or 0.0)
 
-        if state and mode == "live":
-            state.bankroll = (state.bankroll or 0.0) - adjusted_size
-            state.total_trades = (state.total_trades or 0) + 1
+        from backend.core.wallet.botstate_ledger import BotStateLedger
+
+        try:
+            BotStateLedger.debit_for_fill(
+                db=db,
+                mode="live",
+                size=size,
+                price=price,
+                source="execution_pipeline.live_execute",
+            )
+        except LookupError as exc:
+            logger.debug(f"LiveExecuteStage.record skipped: {exc}")
 
     def health_check(self):
         try:

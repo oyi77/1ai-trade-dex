@@ -69,13 +69,14 @@ class ActivityHandler:
             )
 
     async def _handle_transfer(self, event: ActivityEvent):
-        """Record deposit/withdrawal → update bankroll + live_initial_bankroll."""
+        """Record deposit/withdrawal via the centralized BotStateLedger."""
         logger.info(
             f"[{event.source}] {event.event_type.upper()}: {event.amount} {event.token} "
             f"tx={event.tx_hash or 'internal'}"
         )
         try:
             from backend.db.utils import get_db_session
+            from backend.core.wallet.botstate_ledger import BotStateLedger
             from backend.models.database import BotState, TransactionEvent
 
             with get_db_session() as db:
@@ -84,24 +85,20 @@ class ActivityHandler:
                     logger.warning("[ActivityHandler] No live BotState found")
                     return
 
-                old_bankroll = state.bankroll or 0.0
-
                 if event.event_type == "deposit":
-                    if state.live_initial_bankroll is None:
-                        state.live_initial_bankroll = event.amount
-                    state.bankroll = old_bankroll + event.amount
-                elif event.event_type == "withdrawal":
-                    state.live_initial_bankroll = max(
-                        0.0, (state.live_initial_bankroll or 0.0) - event.amount
+                    BotStateLedger.record_deposit(
+                        db=db,
+                        mode="live",
+                        amount=float(event.amount),
+                        source=event.source or "blockchain_activity",
                     )
-                    state.bankroll = max(0.0, old_bankroll - event.amount)
-
-                state.total_deposits = (state.total_deposits or 0.0) + (
-                    event.amount if event.event_type == "deposit" else 0.0
-                )
-                state.total_withdrawals = (state.total_withdrawals or 0.0) + (
-                    event.amount if event.event_type == "withdrawal" else 0.0
-                )
+                elif event.event_type == "withdrawal":
+                    BotStateLedger.record_withdrawal(
+                        db=db,
+                        mode="live",
+                        amount=float(event.amount),
+                        source=event.source or "blockchain_activity",
+                    )
 
                 tx_event = TransactionEvent(
                     type=event.event_type,
@@ -119,7 +116,7 @@ class ActivityHandler:
                 db.commit()
 
                 logger.info(
-                    f"[ActivityHandler] Bankroll updated: {old_bankroll:.2f} → {state.bankroll:.2f}, "
+                    f"[ActivityHandler] Bankroll updated: {state.bankroll:.2f}, "
                     f"live_initial: {state.live_initial_bankroll:.2f}"
                 )
         except Exception as e:

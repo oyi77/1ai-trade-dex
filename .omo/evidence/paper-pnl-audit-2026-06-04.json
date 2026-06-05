@@ -1,0 +1,13 @@
+{
+  "command": "venv/bin/python -m backend.scripts.audit_paper_pnl",
+  "dry_run": true,
+  "mode": "paper",
+  "trade_count": 2218,
+  "current_total_pnl": 15527.37,
+  "recomputed_total_pnl": 2036.73,
+  "delta_total_pnl": -13490.64,
+  "mismatch_count": 1196,
+  "largest_outlier_pnl": 1904.96,
+  "top_outlier_share": 0.04543,
+  "interpretation": "Historical paper ledger remains profitable after recomputing with current PnL logic, but reported PnL is overstated by 13490.64 and has 1196 mismatched rows. No database rows were mutated."
+}

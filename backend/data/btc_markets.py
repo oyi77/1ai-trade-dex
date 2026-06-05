@@ -24,9 +24,9 @@ _market_slug_cache: dict[str, Any] = {}
 
 # Slug patterns per asset: maps asset prefix to regex for 5-min window slugs
 _SLUG_PATTERNS = {
-    "btc": re.compile(r"^btc-updown-5m-\d{10}$"),
-    "eth": re.compile(r"^eth-updown-5m-\d{10}$"),
-    "sol": re.compile(r"^sol-updown-5m-\d{10}$"),
+    "btc": re.compile(r"^btc-updown-5m-\d+$"),
+    "eth": re.compile(r"^eth-updown-5m-\d+$"),
+    "sol": re.compile(r"^sol-updown-5m-\d+$"),
 }
 
 # Default keywords per asset for market scanning

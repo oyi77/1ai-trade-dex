@@ -24,24 +24,21 @@ class RecordStage(BaseExecutionStage):
             return {"status": "skipped", "reason": "No database session"}
 
         mode = ctx.get("mode", "paper")
-        state = ctx.get("state")
+        size = float(decision.get("size", 0.0) or 0.0)
+        price = float(decision.get("entry_price", decision.get("price", 0.0)) or 0.0)
 
-        if state:
-            if mode == "paper" and hasattr(state, "paper_bankroll"):
-                state.paper_bankroll = (state.paper_bankroll or 0.0) - float(
-                    decision.get("size", 0.0)
-                )
-                state.paper_trades = (state.paper_trades or 0) + 1
-            elif mode == "testnet" and hasattr(state, "testnet_bankroll"):
-                state.testnet_bankroll = (state.testnet_bankroll or 0.0) - float(
-                    decision.get("size", 0.0)
-                )
-                state.testnet_trades = (state.testnet_trades or 0) + 1
-            elif mode == "live" and hasattr(state, "bankroll"):
-                state.bankroll = (state.bankroll or 0.0) - float(
-                    decision.get("size", 0.0)
-                )
-                state.total_trades = (state.total_trades or 0) + 1
+        from backend.core.wallet.botstate_ledger import BotStateLedger
+
+        try:
+            BotStateLedger.debit_for_fill(
+                db=db,
+                mode=mode,
+                size=size,
+                price=price,
+                source="execution_pipeline.record",
+            )
+        except LookupError as exc:
+            return {"status": "skipped", "reason": str(exc)}
 
         return {"status": "recorded", "state_updated": True}
 
