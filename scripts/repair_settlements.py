@@ -22,13 +22,22 @@ from loguru import logger
 
 
 async def _resolve_from_gamma(token_id: str, market_ticker: str) -> float | None:
-    """Fetch settlement value directly from Gamma API."""
+    """Fetch settlement value from Gamma API by token_id."""
+    if not token_id:
+        return None
     try:
         client = get_shared_client()
+        # Try by token_id first (more reliable)
         resp = await client.get(
             f"{settings.GAMMA_API_URL}/markets",
-            params={"slug": market_ticker},
+            params={"clob_token_ids": token_id},
         )
+        if resp.status_code != 200:
+            # Fallback: try by slug
+            resp = await client.get(
+                f"{settings.GAMMA_API_URL}/markets",
+                params={"slug": market_ticker},
+            )
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -54,11 +63,11 @@ async def _resolve_from_gamma(token_id: str, market_ticker: str) -> float | None
 
         threshold = 0.005
         if p0 <= threshold and p1 >= (1.0 - threshold):
-            return 0.0  # NO won
+            return 0.0
         elif p1 <= threshold and p0 >= (1.0 - threshold):
-            return 1.0  # YES won
+            return 1.0
         else:
-            return None  # Not clearly resolved
+            return None
     except Exception as e:
         logger.debug(f"Gamma resolve failed for {market_ticker}: {e}")
         return None

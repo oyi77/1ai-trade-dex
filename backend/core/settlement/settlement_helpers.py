@@ -1199,6 +1199,12 @@ async def process_settled_trade(
         return False
 
     trade.settled = True
+    if settlement_value not in (0.0, 1.0):
+        logger.error(
+            f"[settlement] Invalid settlement_value={settlement_value} for trade {trade.id} "
+            f"({trade.market_ticker}). Binary markets must be 0.0 or 1.0. Rejecting."
+        )
+        return False
     trade.settlement_value = settlement_value
     trade.pnl = pnl
     trade.settlement_time = datetime.now(timezone.utc)
