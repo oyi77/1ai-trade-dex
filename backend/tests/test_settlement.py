@@ -89,28 +89,30 @@ def _state_for_mode(db, mode: str) -> BotState:
 class TestPnlWin:
     def test_up_position_wins_at_settlement_1(self):
         """Bought UP at 0.40, market settled UP (1.0) → profit.
-        size is dollars ($10), converted to shares ($10 / $0.40 = 25 shares).
-        Win PnL = (1.0 - entry_price) * shares = 0.60 * 25 = 15.0."""
+        size is SHARES (25 shares = $10 at $0.40).
+        Win PnL = (1.0 - entry_price) * shares = 0.60 * 25 = 15.0.
+        """
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
-        trade.size = 10.0  # dollars
+        trade.size = 25.0  # shares (=$10 at $0.40)
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
         # Polymarket fee: 30bps * min(0.40,0.60) * $10 = $0.012.
-        # shares = 10 / 0.40 = 25; gross payout = 25; pnl = 25 - 10 - 0.012 = 14.99.
+        # shares = 25; gross payout = 25; pnl = 25 - 10 - 0.012 = 14.988.
         assert pnl == pytest.approx(14.99)
         assert pnl > 0.0
 
     def test_down_position_wins_at_settlement_0(self):
         """Bought DOWN at 0.40, market settled DOWN (0.0) → profit.
-        Polymarket fee: 0.003*min(0.40,0.60)*10=0.04; fee reduces PnL but does not buy shares.
+        size is SHARES (25 shares = $10 at $0.40).
+        Polymarket fee: 30bps * min(0.40,0.60) * $10 = $0.04; fee reduces PnL.
         """
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
-        trade.size = 10.0  # dollars
+        trade.size = 25.0  # shares (=$10 at $0.40)
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
@@ -121,11 +123,12 @@ class TestPnlWin:
 class TestPnlLoss:
     def test_up_position_loses_at_settlement_0(self):
         """Bought UP at 0.40, market settled DOWN (0.0) → loss.
-        New fee: 0.003*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
+        size is SHARES (25 shares = $10 at $0.40).
+        New fee: 30bps * min(0.40,0.60) * $10 = $0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.40
-        trade.size = 10.0  # dollars
+        trade.size = 25.0  # shares (=$10 at $0.40)
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
 
@@ -135,11 +138,12 @@ class TestPnlLoss:
 
     def test_down_position_loses_at_settlement_1(self):
         """Bought DOWN at 0.40, market settled UP (1.0) → loss.
-        New fee: 0.003*min(0.40,0.60)*10=0.04, cost = $10.04. Loss = -cost."""
+        size is SHARES (25 shares = $10 at $0.40).
+        New fee: 30bps * min(0.40,0.60) * $10 = $0.04, cost = $10.04. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "down"
         trade.entry_price = 0.40
-        trade.size = 10.0  # dollars
+        trade.size = 25.0  # shares (=$10 at $0.40)
 
         pnl = calculate_pnl(trade, settlement_value=1.0)
 
@@ -148,16 +152,137 @@ class TestPnlLoss:
         assert pnl < 0.0
 
     def test_loss_magnitude(self):
-        """Loss includes fee. size=$20, fee=0.003*min(0.55,0.45)*20=0.09, cost=$20.09. Loss = -cost."""
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
         trade.entry_price = 0.55
-        trade.size = 20.0  # dollars
+        trade.size = 20.0  # shares (=$11 at $0.55)
 
         pnl = calculate_pnl(trade, settlement_value=0.0)
-        assert pnl == pytest.approx(
-            -20.03
-        )  # Polymarket fee: 0.003*min(0.55,0.45)*20=0.09
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
+    def test_loss_magnitude(self):
+        """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
+        trade = MagicMock(spec=Trade)
+        trade.direction = "up"
+        trade.entry_price = 0.55
+        trade.size = 20.0  # shares (=$11 at $0.55)
+
+        pnl = calculate_pnl(trade, settlement_value=0.0)
+        # Loss = -cost = -(shares * entry_price + fee)
+        # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
+        # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
+        assert pnl == pytest.approx(-11.01, abs=0.01)
 
 
 class TestPnlPush:

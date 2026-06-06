@@ -757,10 +757,8 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
     - UP position wins when settlement = 1.0
     - DOWN position wins when settlement = 0.0
 
-    IMPORTANT: The execution pipeline stores `size` as a DOLLAR AMOUNT
-    (not shares). This function converts dollars to shares using entry_price
-    before applying the PnL formula.
-    `entry_price` is the cost per share (0.0-1.0).
+    IMPORTANT: The execution pipeline stores `size` as SHARES (number of contracts),
+    NOT dollars. `entry_price` is the cost per share (0.0-1.0).
     On a win, each share pays $1: net profit = (1.0 - entry_price) * shares.
     On a loss, shares are worth $0: net loss = -(entry_price * shares).
     """
@@ -780,19 +778,19 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
         else float(trade.entry_price or 0.0)
     )
 
-    # `Trade.size` is USDC notional in the strategy/execution pipeline.
-    # `Trade.filled_size`, when present, is the actual venue share/contract
-    # quantity. Do not treat fees as extra capital that buys more shares.
-    raw_size = float(trade.size or 0.0)
+    # `Trade.size` is SHARES (number of contracts), NOT dollars.
+    # `Trade.filled_size`, when present, is the actual filled shares (should equal size).
+    shares = float(trade.size or 0.0)
+    _filled = getattr(trade, "filled_size", None)
     _filled = getattr(trade, "filled_size", None)
     has_filled_shares = isinstance(_filled, (int, float)) and float(_filled) > 0
     if has_filled_shares:
         shares = float(_filled)
-        notional = shares * entry_price if 0 < entry_price < 1.0 else raw_size
-    else:
-        notional = raw_size
-        shares = raw_size / entry_price if 0 < entry_price < 1.0 else raw_size
 
+    # Notional USD value of the position
+    notional = shares * entry_price if 0 < entry_price < 1.0 else 0.0
+
+    # Fee calculation (taker fee on notional)
     stored_fee = getattr(trade, "fee", None)
     if isinstance(stored_fee, (int, float)):
         fee = float(stored_fee)
@@ -802,8 +800,10 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
         uncertainty = (
             min(entry_price, 1.0 - entry_price) if 0 < entry_price < 1.0 else 0.0
         )
-        fee = (TAKER_FEE_BPS / 10000.0) * uncertainty * notional
-    dollar_cost = notional + fee
+        fee = (TAKER_FEE_BPS / 10000.0) * uncertainty * (shares * entry_price) if 0 < entry_price < 1.0 else 0.0
+
+    # Dollar cost = notional + fee
+    dollar_cost = shares * entry_price + fee if 0 < entry_price < 1.0 else 0.0
 
     if not entry_price or entry_price <= 0 or entry_price >= 1.0:
         if entry_price and entry_price >= 1.0:
@@ -818,14 +818,14 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
 
     if direction == "yes":
         if settlement_value == 1.0:
-            pnl = shares - dollar_cost
+            pnl = shares * (1.0 - entry_price) - fee
         else:
-            pnl = -dollar_cost
+            pnl = -shares * entry_price - fee
     else:
         if settlement_value == 0.0:
-            pnl = shares - dollar_cost
+            pnl = shares * (1.0 - entry_price) - fee
         else:
-            pnl = -dollar_cost
+            pnl = -shares * entry_price - fee
 
     return round(pnl, 2)
 

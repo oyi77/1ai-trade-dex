@@ -1,0 +1,20 @@
+[
+  {
+    "timestamp": "2026-06-05T08:54:57.689141+00:00",
+    "type": "drift_alert",
+    "severity": "WARNING",
+    "real_pusd": 5.581954,
+    "db_bankroll": 6.78,
+    "drift": -1.198,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-06-05T09:09:59.098791+00:00",
+    "type": "drift_alert",
+    "severity": "WARNING",
+    "real_pusd": 3.475464,
+    "db_bankroll": 4.648464000000001,
+    "drift": -1.173,
+    "auto_corrected": true
+  }
+]
