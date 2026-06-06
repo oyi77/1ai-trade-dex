@@ -103,24 +103,24 @@ class LighterProvider(BaseMarketProvider):
     async def get_balance(self) -> NormalizedBalance:
         """Get account balance with timeout fallback."""
         try:
-            assets = await asyncio.wait_for(self._client.get_balance(), timeout=10)
-            if isinstance(assets, list):
-                usdc = next((a for a in assets if a.get("symbol") == "USDC"), {})
-            elif isinstance(assets, dict):
-                usdc = assets.get("USDC", assets)
-            else:
-                usdc = {}
+            self._client._ensure_initialized()
+            result = await asyncio.wait_for(
+                self._client._account_api.account(by="index", value=str(self._client._account_index)),
+                timeout=10,
+            )
+            # result is DetailedAccounts — extract USDC balance
+            accounts = getattr(result, "accounts", []) or []
+            usdc_balance = Decimal("0")
+            for acc in accounts:
+                if getattr(acc, "symbol", "") == "USDC":
+                    usdc_balance = Decimal(str(getattr(acc, "balance", "0")))
+                    break
             return NormalizedBalance(
                 venue="lighter",
-                available_cash=Decimal(
-                    str(usdc.get("availableBalance", usdc.get("free", "0")))
-                ),
-                total_equity=Decimal(str(usdc.get("balance", usdc.get("total", "0")))),
-                reserved_margin=Decimal(
-                    str(usdc.get("initialMargin", usdc.get("used", "0")))
-                ),
+                available_cash=usdc_balance,
+                total_equity=usdc_balance,
+                reserved_margin=Decimal("0"),
                 currency="USDC",
-                raw=assets if isinstance(assets, dict) else {"assets": assets},
             )
         except (asyncio.TimeoutError, Exception) as exc:
             logger.warning(f"[LighterProvider] get_balance failed: {exc}")

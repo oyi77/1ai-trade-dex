@@ -98,36 +98,20 @@ class HyperliquidProvider(BaseMarketProvider):
             return False
 
     async def get_balance(self) -> NormalizedBalance:
-        """Get account balance via direct HTTP (SDK can hang)."""
+        """Get account balance via SDK (skip_ws=True for fast init)."""
         try:
-            import httpx
-            from backend.config import settings
-
-            wallet = getattr(settings, "HYPERLIQUID_WALLET_ADDRESS", "") or ""
-            if not wallet:
-                return NormalizedBalance(venue="hyperliquid", available_cash=Decimal("0"),
-                                         total_equity=Decimal("0"), reserved_margin=Decimal("0"), currency="USDC")
-
-            async with httpx.AsyncClient(timeout=8) as client:
-                resp = await client.post(
-                    "https://api.hyperliquid.xyz/info",
-                    content='{"type": "clearinghouseState", "user": "' + wallet + '"}',
-                    headers={"Content-Type": "application/json"},
-                )
-                if resp.status_code != 200:
-                    return NormalizedBalance(venue="hyperliquid", available_cash=Decimal("0"),
-                                             total_equity=Decimal("0"), reserved_margin=Decimal("0"), currency="USDC")
-
-                state = resp.json()
-                margin = state.get("marginSummary", {})
-                return NormalizedBalance(
-                    venue="hyperliquid",
-                    available_cash=Decimal(str(margin.get("accountValue", "0"))),
-                    total_equity=Decimal(str(margin.get("accountValue", "0"))),
-                    reserved_margin=Decimal(str(margin.get("totalMarginUsed", "0"))),
-                    currency="USDC",
-                    raw=state,
-                )
+            state = await asyncio.wait_for(
+                asyncio.to_thread(self._client.get_balance), timeout=10
+            )
+            margin = state.get("marginSummary", {})
+            return NormalizedBalance(
+                venue="hyperliquid",
+                available_cash=Decimal(str(margin.get("accountValue", "0"))),
+                total_equity=Decimal(str(margin.get("accountValue", "0"))),
+                reserved_margin=Decimal(str(margin.get("totalMarginUsed", "0"))),
+                currency="USDC",
+                raw=state,
+            )
         except Exception as exc:
             logger.warning(f"[HyperliquidProvider] get_balance failed: {exc}")
             return NormalizedBalance(venue="hyperliquid", available_cash=Decimal("0"),

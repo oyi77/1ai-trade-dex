@@ -31,7 +31,7 @@ class HyperliquidClient:
             self._account = None
             self._exchange = None
 
-        self._info = Info(constants.MAINNET_API_URL, skip_ws=False)
+        self._info = Info(constants.MAINNET_API_URL, skip_ws=True)
         self._subscriptions = {}
 
     async def get_markets(self) -> list:

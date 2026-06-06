@@ -52,13 +52,22 @@ class LighterClient:
         self._api_client = ApiClient(config)
         self._account_api = AccountApi(self._api_client)
         self._tx_api = TransactionApi(self._api_client)
-        if self._private_key and not self._skip_signer:
+        self._initialized = True
+
+    def _ensure_signer(self):
+        """Lazy-init signer only when needed for trading (not for reads)."""
+        if self._signer is not None:
+            return
+        if not self._private_key or self._skip_signer:
+            return
+        try:
             self._signer = SignerClient(
                 url=_LIGHTER_HOST,
                 account_index=self._account_index,
                 api_private_keys={self._api_key_index: self._private_key},
             )
-        self._initialized = True
+        except Exception as e:
+            logger.warning(f"[LighterClient] Signer init failed: {e}")
 
     async def get_markets(self) -> list:
         """Get all available markets."""
@@ -91,6 +100,7 @@ class LighterClient:
         time_in_force: 0=IOC, 1=GTT, 2=PostOnly
         """
         self._ensure_initialized()
+        self._ensure_signer()
         if not self._signer:
             raise RuntimeError("LighterClient: no private key configured for trading")
 
@@ -107,6 +117,7 @@ class LighterClient:
     async def cancel_order(self, market_id: int, order_id: int) -> dict:
         """Cancel an order."""
         self._ensure_initialized()
+        self._ensure_signer()
         if not self._signer:
             raise RuntimeError("LighterClient: no private key configured for trading")
 
