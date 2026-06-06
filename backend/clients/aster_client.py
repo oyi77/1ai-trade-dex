@@ -13,18 +13,24 @@ from loguru import logger
 class AsterClient:
     """Aster perpetuals DEX client (Binance-compatible, ECDSA auth)."""
 
-    def __init__(self, private_key: str = None):
+    def __init__(self, private_key: str = None, wallet_address: str = None):
         self._private_key = (
             private_key
             or os.getenv("ASTER_PRIVATE_KEY")
             or os.getenv("WALLET_PRIVATE_KEY", "")
         )
+        self._wallet_address = (
+            wallet_address
+            or os.getenv("ASTER_WALLET_ADDRESS")
+            or os.getenv("WALLET_ADDRESS", "")
+        )
 
-        # Derive address from private key — Aster AGENT must be registered at asterdex.com/en/api-wallet
         from eth_account import Account as EthAccount
 
         _account = EthAccount.from_key(self._private_key) if self._private_key else None
-        _address = _account.address if _account else ""
+        _derived = _account.address if _account else ""
+
+        _address = self._wallet_address or _derived
 
         _opts = {
             "defaultType": "swap",

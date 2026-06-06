@@ -582,9 +582,10 @@ class CryptoOracleStrategy(BaseStrategy):
         else:
             oracle_implied = market_mid
 
-        # Fee-adjusted edge: deduct 2% round-trip fee (1% buy + 1% sell)
+        # Fee-adjusted edge: deduct round-trip fee from runtime config
         raw_edge = abs(oracle_implied - market_mid)
-        fee_adjusted_edge = raw_edge - 0.02  # Polymarket round-trip fee
+        fee_rate = float(getattr(settings, "PAPER_CLOB_FEE_RATE", 0.003))
+        fee_adjusted_edge = raw_edge - fee_rate
         edge = fee_adjusted_edge - min_edge
 
         if edge <= 0:
