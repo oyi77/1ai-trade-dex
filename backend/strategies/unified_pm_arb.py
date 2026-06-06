@@ -86,6 +86,19 @@ class UnifiedPMArb(BaseStrategy):
             logger.warning("[unified_arb] Kalshi fetch failed")
             return []
 
+    async def _fetch_limitless(self) -> List[Dict[str, Any]]:
+        """Fetch Limitless markets."""
+        try:
+            from backend.data.arb_opportunity_scanner import _normalize_limitless_markets
+            from backend.clients.limitless_client import LimitlessClient
+
+            client = LimitlessClient()
+            markets = await asyncio.wait_for(client.get_markets(limit=200), timeout=15)
+            return _normalize_limitless_markets(markets or [], fee_pct=0.02)
+        except Exception:
+            logger.warning("[unified_arb] Limitless fetch failed")
+            return []
+
     # ------------------------------------------------------------------
     # Detection
     # ------------------------------------------------------------------
@@ -104,10 +117,11 @@ class UnifiedPMArb(BaseStrategy):
         start = time.monotonic()
         decisions: List[Dict] = []
 
-        # 1. Fetch markets from Polymarket + Kalshi in parallel
-        pm_markets, kalshi_markets = await asyncio.gather(
+        # 1. Fetch markets from Polymarket + Kalshi + Limitless in parallel
+        pm_markets, kalshi_markets, limitless_markets = await asyncio.gather(
             self._fetch_polymarket(),
             self._fetch_kalshi(),
+            self._fetch_limitless(),
             return_exceptions=True,
         )
         if isinstance(pm_markets, Exception):
@@ -116,12 +130,17 @@ class UnifiedPMArb(BaseStrategy):
         if isinstance(kalshi_markets, Exception):
             logger.warning(f"[unified_arb] Kalshi fetch exception: {kalshi_markets}")
             kalshi_markets = []
+        if isinstance(limitless_markets, Exception):
+            logger.warning(f"[unified_arb] Limitless fetch exception: {limitless_markets}")
+            limitless_markets = []
 
         all_markets: Dict[str, List[Dict]] = {}
         if pm_markets:
             all_markets["polymarket"] = pm_markets
         if kalshi_markets:
             all_markets["kalshi"] = kalshi_markets
+        if limitless_markets:
+            all_markets["limitless"] = limitless_markets
 
         if not all_markets:
             return CycleResult(

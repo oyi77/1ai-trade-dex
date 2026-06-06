@@ -389,6 +389,13 @@ def _normalize_kalshi_markets(raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     return normalized
 
 
+def _normalize_limitless_markets(
+    raw: List[Dict[str, Any]], fee_pct: float = 0.02
+) -> List[Dict[str, Any]]:
+    """Normalize Limitless markets (same format as Polymarket)."""
+    return _normalize_pm_markets(raw, "limitless", fee_pct=fee_pct)
+
+
 def _sxbet_question(m: dict) -> str:
     """Extract readable question from SXBet market data."""
     t1 = m.get("teamOneName", "") or m.get("outcomeOneName", "")

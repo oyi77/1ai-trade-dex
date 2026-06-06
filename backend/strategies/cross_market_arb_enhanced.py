@@ -60,7 +60,7 @@ _DEFAULT_FEES = {
     "myriad": 0.02,
     "predict_fun": 0.02,
     "bookmaker_xyz": 0.02,
-    # "limitless": 0.02,  # DISABLED — smart wallet not deployed (2026-05-30)
+    "limitless": 0.02,
 }
 
 
