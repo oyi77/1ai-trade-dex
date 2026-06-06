@@ -1,5 +1,6 @@
 """Lighter DEX market provider plugin."""
 
+import asyncio
 from decimal import Decimal
 
 from backend.markets.base_provider import (
@@ -100,27 +101,36 @@ class LighterProvider(BaseMarketProvider):
             return False
 
     async def get_balance(self) -> NormalizedBalance:
-        """Get account balance."""
-        assets = await self._client.get_balance()
-        # assets may be a list or dict depending on SDK version
-        if isinstance(assets, list):
-            usdc = next((a for a in assets if a.get("symbol") == "USDC"), {})
-        elif isinstance(assets, dict):
-            usdc = assets.get("USDC", assets)
-        else:
-            usdc = {}
-        return NormalizedBalance(
-            venue="lighter",
-            available_cash=Decimal(
-                str(usdc.get("availableBalance", usdc.get("free", "0")))
-            ),
-            total_equity=Decimal(str(usdc.get("balance", usdc.get("total", "0")))),
-            reserved_margin=Decimal(
-                str(usdc.get("initialMargin", usdc.get("used", "0")))
-            ),
-            currency="USDC",
-            raw=assets if isinstance(assets, dict) else {"assets": assets},
-        )
+        """Get account balance with timeout fallback."""
+        try:
+            assets = await asyncio.wait_for(self._client.get_balance(), timeout=10)
+            if isinstance(assets, list):
+                usdc = next((a for a in assets if a.get("symbol") == "USDC"), {})
+            elif isinstance(assets, dict):
+                usdc = assets.get("USDC", assets)
+            else:
+                usdc = {}
+            return NormalizedBalance(
+                venue="lighter",
+                available_cash=Decimal(
+                    str(usdc.get("availableBalance", usdc.get("free", "0")))
+                ),
+                total_equity=Decimal(str(usdc.get("balance", usdc.get("total", "0")))),
+                reserved_margin=Decimal(
+                    str(usdc.get("initialMargin", usdc.get("used", "0")))
+                ),
+                currency="USDC",
+                raw=assets if isinstance(assets, dict) else {"assets": assets},
+            )
+        except (asyncio.TimeoutError, Exception) as exc:
+            logger.warning(f"[LighterProvider] get_balance failed: {exc}")
+            return NormalizedBalance(
+                venue="lighter",
+                available_cash=Decimal("0"),
+                total_equity=Decimal("0"),
+                reserved_margin=Decimal("0"),
+                currency="USDC",
+            )
 
     async def get_positions(self, market_id=None) -> list[NormalizedPosition]:
         """Get open positions."""
