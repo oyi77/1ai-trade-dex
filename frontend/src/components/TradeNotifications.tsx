@@ -117,7 +117,7 @@ async function handleApproveSignal(signalContext: SignalContext) {
   }
 }
 
-function handleSkipSignal(_signalContext: SignalContext) {
+function handleSkipSignal() {
   // Skipped signal tracked server-side
 }
 

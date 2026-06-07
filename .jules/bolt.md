@@ -1,0 +1,3 @@
+## 2024-06-07 - Math.max(...) Spread Operator Call Stack Limits
+**Learning:** `Math.max(0, ...array.map(...))` and similar constructs with the spread operator can throw a `RangeError: Maximum call stack size exceeded` in the browser when the array is exceptionally large, as it tries to pass thousands of arguments to a single function call. Additionally, this creates unnecessary intermediate arrays when using `.map()`.
+**Action:** Always replace `Math.max(..., ...array)` with `array.reduce((max, d) => Math.max(max, d.val), initial_value)` for unbounded datasets (like leaderboards or trade histories). Ensure the `initial_value` in the `reduce` call incorporates any constant anchoring thresholds (like `0` for PnL charts) so the fallback behavior is logically identical.
