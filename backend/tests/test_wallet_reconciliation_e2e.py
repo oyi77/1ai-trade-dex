@@ -309,8 +309,10 @@ async def test_settlement_verification_external_closure(db, mock_clob):
         assert trade2_closed.settlement_source == "data_api"
         assert trade2_closed.blockchain_verified is True
         assert trade2_closed.result == "win"
-        # Polymarket fee: 0.01*min(0.40,0.60)*50=0.2, cost=50.2, shares=125.5, pnl=75.3
-        assert trade2_closed.pnl == pytest.approx(74.94)
+        # shares=50.0, entry_price=0.40 -> notional=20.0
+        # fee=0.003*min(0.40,0.60)*(50.0*0.40)=0.024
+        # pnl = 50.0*(1.0-0.40) - 0.024 = 29.98
+        assert trade2_closed.pnl == pytest.approx(29.98)
 
 
 # ---------------------------------------------------------------------------

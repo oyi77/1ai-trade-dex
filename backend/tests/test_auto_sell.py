@@ -45,9 +45,9 @@ def _make_trade(
 
 def test_get_auto_sell_config_defaults():
     cfg = _get_auto_sell_config()
-    assert cfg["profit_target_pct"] == 0.03
-    assert cfg["stop_loss_pct"] == 0.03
-    assert cfg["max_hold_seconds"] == 300
+    assert cfg["profit_target_pct"] == 0.06
+    assert cfg["stop_loss_pct"] == 0.04
+    assert cfg["max_hold_seconds"] == 600
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +62,8 @@ async def test_profit_target_triggers_sell():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    # 0.50 -> 0.505 = +1% PnL > 0.8% target
-    result = await manager.check_and_sell(trade, current_price=0.505)
+    # 0.50 -> 0.515 = +3% gross PnL > 0.8% target + 2% round-trip fee
+    result = await manager.check_and_sell(trade, current_price=0.515)
     assert result is not None
     assert result.triggered is True
     assert result.trigger_reason == "TAKE_PROFIT"
@@ -77,8 +77,8 @@ async def test_no_sell_within_bounds():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=9999
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    # 0.50 -> 0.502 = +0.4% PnL < 0.8% target
-    result = await manager.check_and_sell(trade, current_price=0.502)
+    # 0.50 -> 0.51 = +2% gross - 2% fee = 0% net PnL (within bounds)
+    result = await manager.check_and_sell(trade, current_price=0.51)
     assert result is None
 
 
@@ -134,8 +134,9 @@ async def test_no_direction_profit():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="no")
-    # For NO: pnl = (entry - current) / entry = (0.50 - 0.49) / 0.50 = 0.02 = 2%
-    result = await manager.check_and_sell(trade, current_price=0.49)
+    # For NO: pnl = (entry - current) / entry = (0.50 - 0.48) / 0.50 = 0.04 = 4%
+    # 4% gross - 2% fee = 2% net > 0.8% profit target
+    result = await manager.check_and_sell(trade, current_price=0.48)
     assert result is not None
     assert result.trigger_reason == "TAKE_PROFIT"
 
@@ -147,8 +148,9 @@ async def test_no_direction_stop_loss():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="no")
-    # For NO: pnl = (0.50 - 0.51) / 0.50 = -0.02 = -2%
-    result = await manager.check_and_sell(trade, current_price=0.51)
+    # For NO: pnl = (0.50 - 0.515) / 0.50 = -0.03 = -3%
+    # -3% gross - 2% fee = -5% net < -0.8% stop loss
+    result = await manager.check_and_sell(trade, current_price=0.515)
     assert result is not None
     assert result.trigger_reason == "STOP_LOSS"
 
@@ -185,14 +187,15 @@ async def test_sell_order_placed_with_clob_client():
     mock_order_result.order_id = "order-42"
     clob.place_limit_order.return_value = mock_order_result
 
-    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=clob)
+    # 0.50 -> 0.52 = +4% gross - 2% fee = 2% net > 0.8% profit target
+    result = await manager.check_and_sell(trade, current_price=0.52, clob_client=clob)
     assert result is not None
     assert result.triggered is True
     assert result.order_id == "order-42"
     clob.place_limit_order.assert_awaited_once_with(
         token_id="tok_abc",
         side="SELL",
-        price=0.51,
+        price=0.52,
         size=20.0,
     )
 
@@ -204,7 +207,8 @@ async def test_no_order_when_clob_is_none():
         profit_target_pct=0.008, stop_loss_pct=0.008, max_hold_seconds=300
     )
     trade = _make_trade(entry_price=0.50, direction="yes")
-    result = await manager.check_and_sell(trade, current_price=0.51, clob_client=None)
+    # 0.50 -> 0.52 = +4% gross - 2% fee = 2% net > 0.8% profit target
+    result = await manager.check_and_sell(trade, current_price=0.52, clob_client=None)
     assert result is not None
     assert result.triggered is True
     assert result.order_id is None
@@ -227,11 +231,11 @@ async def test_scan_and_sell_all():
     t2 = _make_trade(
         trade_id=2, entry_price=0.50, direction="yes"
     )  # won't trigger (price same)
-    prices = {"test-market": 0.51}  # 2% up for t1
+    prices = {"test-market": 0.52}  # t1: 4% gross - 2% fee = 2% net > 0.8% target
 
-    # Give t2 a different ticker so it gets no price
+    # Give t2 a different ticker with price that keeps net PnL within bounds
     t2.market_ticker = "other-market"
-    prices["other-market"] = 0.50
+    prices["other-market"] = 0.51  # t2: 2% gross - 2% fee = 0% net (no trigger)
 
     results = await manager.scan_and_sell_all([t1, t2], prices)
     assert len(results) == 1
@@ -306,6 +310,6 @@ async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
 
     # Invoke without overrides to ensure global defaults are used
     await check_strategy_positions_for_auto_sell("test_strat")
-    assert call_params["profit_target"] == 0.03
-    assert call_params["stop_loss"] == 0.03
-    assert call_params["max_hold"] == 300
+    assert call_params["profit_target"] == 0.06
+    assert call_params["stop_loss"] == 0.04
+    assert call_params["max_hold"] == 600

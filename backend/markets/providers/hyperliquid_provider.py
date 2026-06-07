@@ -1,5 +1,6 @@
 """Hyperliquid DEX market provider plugin."""
 
+import asyncio
 from decimal import Decimal
 
 from backend.markets.base_provider import (

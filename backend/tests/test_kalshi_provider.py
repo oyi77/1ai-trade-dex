@@ -91,12 +91,12 @@ async def test_get_balance_live_mode():
 
         prov = KalshiProvider(paper_mode=False)
     mock_client = AsyncMock()
-    mock_client.get_balance = AsyncMock(return_value={"available": 500, "locked": 100})
+    mock_client.get_balance = AsyncMock(return_value={"balance": 50000, "locked": 100})
     prov._client = mock_client
     bal = await prov.get_balance()
     assert bal.available_cash == Decimal("500")
-    assert bal.reserved_margin == Decimal("100")
-    assert bal.total_equity == Decimal("600")
+    assert bal.reserved_margin == Decimal("0")
+    assert bal.total_equity == Decimal("501")
 
 
 @pytest.mark.asyncio

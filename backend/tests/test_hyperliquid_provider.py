@@ -64,12 +64,10 @@ async def test_cancel_order_paper_mode(provider):
 @pytest.mark.asyncio
 async def test_get_balance_paper_mode(provider):
     """Paper mode just returns mock via client."""
-    mock_client = AsyncMock()
-    mock_client.get_balance = AsyncMock(
-        return_value={
-            "marginSummary": {"accountValue": "5000", "totalMarginUsed": "200"}
-        }
-    )
+    mock_client = MagicMock()
+    mock_client.get_balance.return_value = {
+        "marginSummary": {"accountValue": "5000", "totalMarginUsed": "200"}
+    }
     provider._client = mock_client
     bal = await provider.get_balance()
     assert bal.venue == "hyperliquid"

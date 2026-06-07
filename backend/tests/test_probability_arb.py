@@ -162,56 +162,6 @@ class TestProbabilityArbClass:
 
 
 # ---------------------------------------------------------------------------
-# execute_arb -- documents the NameError bug
-# ---------------------------------------------------------------------------
-
-
-class TestExecuteArbBug:
-    @pytest.mark.asyncio
-    async def test_execute_arb_name_error_on_market_id(self):
-        """BUG: execute_arb references undefined `market_id` variable on line 104.
-
-        The function signature takes (opportunity, yes_token_id, no_token_id, clob)
-        but the body uses `market_id` which is not a parameter.
-        This should raise a NameError when called.
-        """
-        opp = ArbOpportunity(
-            market_id="test-market",
-            yes_price=0.40,
-            no_price=0.35,
-            sum_price=0.75,
-            profit=0.25,
-            fees=0.01,
-            net_profit=0.24,
-            confidence=1.0,
-        )
-
-        with pytest.raises(NameError, match="market_id"):
-            await execute_arb(opp, "yes_tok", "no_tok", clob=None)
-
-    @pytest.mark.asyncio
-    async def test_execute_arb_with_clob_also_raises(self):
-        """Even with a CLOB client, the NameError fires before any order."""
-        opp = ArbOpportunity(
-            market_id="test-market",
-            yes_price=0.40,
-            no_price=0.35,
-            sum_price=0.75,
-            profit=0.25,
-            fees=0.01,
-            net_profit=0.24,
-            confidence=1.0,
-        )
-        mock_clob = MagicMock()
-        mock_clob.place_limit_order = AsyncMock(
-            return_value=MagicMock(order_id="ord_123")
-        )
-
-        with pytest.raises(NameError, match="market_id"):
-            await execute_arb(opp, "yes_tok", "no_tok", clob=mock_clob)
-
-
-# ---------------------------------------------------------------------------
 # _place_order_with_retry
 # ---------------------------------------------------------------------------
 

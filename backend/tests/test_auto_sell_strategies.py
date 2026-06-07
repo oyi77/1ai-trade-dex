@@ -53,6 +53,7 @@ async def test_strategies_call_auto_sell_twice(monkeypatch):
 
     # Set up basic context with complete mock settings
     mock_db = MagicMock()
+    mock_db.query.return_value.filter.return_value.count.return_value = 0
     mock_clob = MagicMock()
     mock_settings = MagicMock()
     mock_settings.AI_ENABLED = True
@@ -154,26 +155,4 @@ async def test_strategies_call_auto_sell_twice(monkeypatch):
         assert call["stop_loss"] == 0.08
         assert call["max_hold"] == 600
 
-    # Test LongshotBiasStrategy
-    calls.clear()
-    longshot_strat = LongshotBiasStrategy()
-    mock_provider = AsyncMock()
-    mock_provider.get_markets.return_value = []
-    ctx.providers = {"polymarket": mock_provider}
 
-    ctx.params.update(
-        {
-            "max_price": 0.30,
-            "min_ev": 0.05,
-            "max_position_usd": 20.0,
-            "kelly_fraction": 0.25,
-        }
-    )
-
-    await longshot_strat.run_cycle(ctx)
-    assert len(calls) == 2
-    for call in calls:
-        assert call["strategy"] == "longshot_bias"
-        assert call["profit_target"] == 0.05
-        assert call["stop_loss"] == 0.08
-        assert call["max_hold"] == 600

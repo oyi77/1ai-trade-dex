@@ -350,6 +350,7 @@ def cleanup_proposals_between_tests(db):
                 BotState(
                     mode=mode,
                     bankroll=10000.0 if mode != "testnet" else 100.0,
+                    paper_bankroll=10000.0,
                     total_trades=0,
                     winning_trades=0,
                     total_pnl=0.0,

@@ -339,7 +339,7 @@ class StrategyHealthMonitor:
 
     def _check_daily_loss_exceeded(self, outcomes, max_daily_loss: float) -> bool:
         """Return True if cumulative loss in last 24h exceeds threshold."""
-        from datetime import timedelta
+        from datetime import timedelta, timezone
 
         cutoff = _now_utc() - timedelta(hours=24)
         daily_pnl = 0.0
@@ -347,6 +347,8 @@ class StrategyHealthMonitor:
             settled = getattr(o, "settled_at", None) or getattr(
                 o, "settlement_time", None
             )
+            if settled and settled.tzinfo is None:
+                settled = settled.replace(tzinfo=timezone.utc)
             if settled and settled >= cutoff and o.pnl is not None:
                 daily_pnl += o.pnl
         return daily_pnl < -max_daily_loss

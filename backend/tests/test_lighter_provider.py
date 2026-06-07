@@ -109,40 +109,45 @@ async def test_cancel_order_fails(provider):
 
 @pytest.mark.asyncio
 async def test_get_balance_list_format(provider):
-    mock_client = AsyncMock()
-    mock_client.get_balance = AsyncMock(
-        return_value=[
-            {
-                "symbol": "ETH",
-                "availableBalance": "2.5",
-                "balance": "5",
-                "initialMargin": "2.5",
-            },
-            {
-                "symbol": "USDC",
-                "availableBalance": "1000",
-                "balance": "2000",
-                "initialMargin": "500",
-            },
-        ]
-    )
+    mock_client = MagicMock()
+    mock_client._ensure_initialized = MagicMock()
+
+    eth_acc = MagicMock()
+    eth_acc.symbol = "ETH"
+    eth_acc.balance = "5"
+
+    usdc_acc = MagicMock()
+    usdc_acc.symbol = "USDC"
+    usdc_acc.balance = "2000"
+
+    result = MagicMock()
+    result.accounts = [eth_acc, usdc_acc]
+
+    mock_client._account_api.account = AsyncMock(return_value=result)
     provider._client = mock_client
     bal = await provider.get_balance()
     assert bal.venue == "lighter"
-    assert bal.available_cash == Decimal("1000")
+    assert bal.available_cash == Decimal("2000")
     assert bal.total_equity == Decimal("2000")
-    assert bal.reserved_margin == Decimal("500")
+    assert bal.reserved_margin == Decimal("0")
 
 
 @pytest.mark.asyncio
 async def test_get_balance_dict_format(provider):
-    mock_client = AsyncMock()
-    mock_client.get_balance = AsyncMock(
-        return_value={"USDC": {"free": "500", "total": "1000", "used": "200"}}
-    )
+    mock_client = MagicMock()
+    mock_client._ensure_initialized = MagicMock()
+
+    usdc_acc = MagicMock()
+    usdc_acc.symbol = "USDC"
+    usdc_acc.balance = "1000"
+
+    result = MagicMock()
+    result.accounts = [usdc_acc]
+
+    mock_client._account_api.account = AsyncMock(return_value=result)
     provider._client = mock_client
     bal = await provider.get_balance()
-    assert bal.available_cash == Decimal("500")
+    assert bal.available_cash == Decimal("1000")
 
 
 @pytest.mark.asyncio

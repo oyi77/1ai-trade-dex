@@ -207,6 +207,7 @@ class TestCryptoOracleDiscovery:
         ctx.params = {}
         ctx.mode = "paper"
         ctx.db = MagicMock()
+        ctx.db.query.return_value.filter.return_value.count.return_value = 0
 
         with patch(
             "backend.data.btc_markets.fetch_active_crypto_markets", mock_markets
@@ -228,6 +229,7 @@ class TestCryptoOracleDiscovery:
         ctx.params = {}
         ctx.mode = "paper"
         ctx.db = MagicMock()
+        ctx.db.query.return_value.filter.return_value.count.return_value = 0
 
         # Should iterate over ETH without crashing
         with patch(
@@ -251,6 +253,7 @@ class TestCryptoOracleDiscovery:
         ctx.params = {}
         ctx.mode = "paper"
         ctx.db = MagicMock()
+        ctx.db.query.return_value.filter.return_value.count.return_value = 0
 
         with patch(
             "backend.core.market_scanner.fetch_markets_by_keywords",
@@ -265,20 +268,32 @@ class TestCryptoOracleFilters:
     """Validate block_direction_down and blocked_hours_utc filters."""
 
     @pytest.mark.asyncio
+    @patch("backend.data.crypto.compute_crypto_microstructure", new_callable=AsyncMock)
     @patch("backend.strategies.crypto_oracle.datetime")
     @patch("backend.strategies.crypto_oracle.fetch_crypto_price_for_asset")
-    async def test_on_market_event_blocked_hours(self, mock_fetch_price, mock_datetime):
+    async def test_on_market_event_blocked_hours(
+        self, mock_fetch_price, mock_datetime, mock_micro
+    ):
         import time
 
+        from backend.data.crypto import CryptoMicrostructure
+
         mock_fetch_price.return_value = 95000.0
+        mock_micro.return_value = CryptoMicrostructure(
+            rsi=55.0,
+            momentum_1m=0.005,
+            momentum_5m=0.003,
+            volatility=0.02,
+        )
 
         # Set current time to a blocked hour (e.g. 0 UTC)
         mock_now = datetime(2026, 5, 27, 0, 0, 0, tzinfo=timezone.utc)
         mock_datetime.now.return_value = mock_now
 
         strategy = CryptoOracleStrategy()
-        # Set min_edge to -1.0 so that edge check always passes
+        # Set min_edge to -1.0 and min_confidence to 0 so that checks always pass
         strategy.default_params["min_edge"] = -1.0
+        strategy.default_params["min_confidence"] = 0.0
 
         from backend.strategies.base import MarketEvent
 
@@ -304,14 +319,26 @@ class TestCryptoOracleFilters:
         assert result_eth is not None
 
     @pytest.mark.asyncio
+    @patch("backend.data.crypto.compute_crypto_microstructure", new_callable=AsyncMock)
     @patch("backend.strategies.crypto_oracle.fetch_crypto_price_for_asset")
-    async def test_on_market_event_block_direction_down(self, mock_fetch_price):
+    async def test_on_market_event_block_direction_down(
+        self, mock_fetch_price, mock_micro
+    ):
         import time
 
+        from backend.data.crypto import CryptoMicrostructure
+
         mock_fetch_price.return_value = 95000.0
+        mock_micro.return_value = CryptoMicrostructure(
+            rsi=55.0,
+            momentum_1m=0.005,
+            momentum_5m=0.003,
+            volatility=0.02,
+        )
 
         strategy = CryptoOracleStrategy()
         strategy.default_params["min_edge"] = -1.0
+        strategy.default_params["min_confidence"] = 0.0
         from backend.strategies.base import MarketEvent
 
         # For BTC, down direction is blocked by default
@@ -374,16 +401,29 @@ class TestCryptoOracleFilters:
 
         strategy = CryptoOracleStrategy()
         strategy.default_params["min_edge"] = -1.0
+        strategy.default_params["min_confidence"] = 0.0
         ctx = MagicMock()
-        ctx.params = {}
+        ctx.params = {"max_open_positions": 3}
         ctx.mode = "paper"
         ctx.db = MagicMock()
+        ctx.db.query.return_value.filter.return_value.count.return_value = 0
 
-        # Under blocked hour, BTC should be skipped immediately
         with patch(
             "backend.strategies.crypto_oracle._get_time_multiplier", return_value=1.0
         ):
-            result = await strategy.run_cycle(ctx)
+            from backend.data.crypto import CryptoMicrostructure
+
+            with patch(
+                "backend.strategies.crypto_oracle.compute_crypto_microstructure",
+                new_callable=AsyncMock,
+                return_value=CryptoMicrostructure(
+                    rsi=55.0,
+                    momentum_1m=0.005,
+                    momentum_5m=0.003,
+                    volatility=0.02,
+                ),
+            ):
+                result = await strategy.run_cycle(ctx)
             assets_traded = {d["asset"] for d in result.decisions}
             assert "bitcoin" not in assets_traded
             assert "ethereum" in assets_traded

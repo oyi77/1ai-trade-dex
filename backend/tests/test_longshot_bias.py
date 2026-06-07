@@ -16,10 +16,10 @@ class TestLongshotBiasDefaults:
 
     def test_default_params(self):
         params = LongshotBiasStrategy.default_params
-        assert params["max_price"] == 0.30
-        assert params["min_ev"] == 0.05
-        assert params["max_position_usd"] == 20.0
-        assert params["kelly_fraction"] == 0.25
+        assert params["max_price"] == 0.25
+        assert params["min_ev"] == 0.10
+        assert params["max_position_usd"] == 10.0
+        assert params["kelly_fraction"] == 0.15
 
 
 class TestMarketFilter:
@@ -36,8 +36,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.25,
-                no_price=0.75,
+                yes_price=0.24,
+                no_price=0.76,
             ),
             MarketInfo(
                 ticker="B",
@@ -249,6 +249,6 @@ class TestHardGuards:
         assert "min_edge" in params
         assert "min_model_prob" in params
         assert "max_entry_price" in params
-        assert params["min_edge"] == 0.10
-        assert params["min_model_prob"] == 0.65
-        assert params["max_entry_price"] == 0.40
+        assert params["min_edge"] == 0.15
+        assert params["min_model_prob"] == 0.75
+        assert params["max_entry_price"] == 0.30

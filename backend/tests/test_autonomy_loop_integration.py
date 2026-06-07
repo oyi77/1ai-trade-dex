@@ -21,6 +21,7 @@ def enable_autonomy(monkeypatch):
     monkeypatch.setattr(settings, "AGI_AUTO_ENABLE", True)
     monkeypatch.setattr(settings, "AGI_STRATEGY_HEALTH_ENABLED", True)
     monkeypatch.setattr(settings, "AGI_BANKROLL_ALLOCATION_ENABLED", True)
+    monkeypatch.setattr(settings, "LIVE_STRATEGY_ALLOWLIST", ["e2e_strat"])
 
 
 @pytest.mark.asyncio

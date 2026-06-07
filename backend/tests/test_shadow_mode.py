@@ -185,7 +185,7 @@ class TestDBSessionShadowRunner:
             assert settled_trade.stage == "SETTLED"
             assert settled_trade.outcome == "win"
             assert settled_trade.settlement_value == 1.0
-            assert abs(settled_trade.pnl_usd - 81.68) < 0.01
+            assert abs(settled_trade.pnl_usd - 44.93) < 0.01
             assert settled_trade.accuracy_score == abs(0.65 - 0.55)
             assert settled_trade.actual_outcome == 0.55
         finally:

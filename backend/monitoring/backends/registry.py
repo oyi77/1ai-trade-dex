@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 from typing import List
 
@@ -6,6 +7,8 @@ from backend.core.plugin_errors import PluginEnvVarMissing, PluginNotFound
 from backend.core.plugin_registry import PluginRegistry
 from backend.core.registry_utils import check_env_vars
 from backend.monitoring.backends.base import BaseMetricsBackend, MetricsBackendManifest
+
+logger = logging.getLogger(__name__)
 
 
 class MetricsBackendRegistry(

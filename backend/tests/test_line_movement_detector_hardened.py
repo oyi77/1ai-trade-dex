@@ -25,9 +25,13 @@ class TestLineMovementDetectorHardened:
         return ctx
 
     @pytest.mark.asyncio
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_volume_liquidity_thresholds(self, mock_client_class):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_volume_liquidity_thresholds(self, mock_get_shared_client):
         strategy = LineMovementDetectorStrategy()
+
+        mock_client = MagicMock()
+        mock_client.get = AsyncMock(return_value=MagicMock(status_code=200, json=MagicMock(return_value=[])))
+        mock_get_shared_client.return_value = mock_client
 
         # Test 1: Volatility magnitude scale increases min_volume and min_liquidity
         strategy.default_params["min_volume_24h"] = 1000
@@ -73,8 +77,8 @@ class TestLineMovementDetectorHardened:
         assert result_low_liq is None
 
     @pytest.mark.asyncio
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_volatility_spread_rejection(self, mock_client_class):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_volatility_spread_rejection(self, mock_get_shared_client):
         strategy = LineMovementDetectorStrategy()
         strategy.default_params["min_volume_24h"] = 100
         strategy.default_params["min_liquidity"] = 100
@@ -104,7 +108,7 @@ class TestLineMovementDetectorHardened:
 
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_get_shared_client.return_value = mock_client
 
         ctx = self._create_mock_context()
         result = await strategy._analyze_movement(mv, strategy.default_params, ctx)
@@ -112,8 +116,8 @@ class TestLineMovementDetectorHardened:
         assert result is None
 
     @pytest.mark.asyncio
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_kinetics_flickering_rejection(self, mock_client_class):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_kinetics_flickering_rejection(self, mock_get_shared_client):
         strategy = LineMovementDetectorStrategy()
         strategy.default_params["min_volume_24h"] = 100
         strategy.default_params["min_liquidity"] = 100
@@ -142,7 +146,7 @@ class TestLineMovementDetectorHardened:
         }
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_get_shared_client.return_value = mock_client
 
         ctx = self._create_mock_context()
         result = await strategy._analyze_movement(mv, strategy.default_params, ctx)
@@ -150,8 +154,8 @@ class TestLineMovementDetectorHardened:
         assert result is None
 
     @pytest.mark.asyncio
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_kinetics_imbalance_rejection(self, mock_client_class):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_kinetics_imbalance_rejection(self, mock_get_shared_client):
         strategy = LineMovementDetectorStrategy()
         strategy.default_params["min_volume_24h"] = 100
         strategy.default_params["min_liquidity"] = 100
@@ -183,7 +187,7 @@ class TestLineMovementDetectorHardened:
         }
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_get_shared_client.return_value = mock_client
 
         ctx = self._create_mock_context()
         result = await strategy._analyze_movement(mv, strategy.default_params, ctx)
@@ -191,8 +195,8 @@ class TestLineMovementDetectorHardened:
 
     @pytest.mark.asyncio
     @patch("backend.strategies.line_movement_detector.run_debate_with_routing")
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_debate_gate_rejection(self, mock_client_class, mock_debate):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_debate_gate_rejection(self, mock_get_shared_client, mock_debate):
         strategy = LineMovementDetectorStrategy()
         strategy.default_params["min_volume_24h"] = 100
         strategy.default_params["min_liquidity"] = 100
@@ -221,7 +225,7 @@ class TestLineMovementDetectorHardened:
         }
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_get_shared_client.return_value = mock_client
 
         # Mock debate result rejecting the signal (confidence = 0.40 < 0.55)
         mock_debate_res = MagicMock()
@@ -234,8 +238,8 @@ class TestLineMovementDetectorHardened:
 
     @pytest.mark.asyncio
     @patch("backend.strategies.line_movement_detector.run_debate_with_routing")
-    @patch("backend.strategies.line_movement_detector.httpx.AsyncClient")
-    async def test_successful_signal(self, mock_client_class, mock_debate):
+    @patch("backend.strategies.line_movement_detector.get_shared_client")
+    async def test_successful_signal(self, mock_get_shared_client, mock_debate):
         strategy = LineMovementDetectorStrategy()
         strategy.default_params["min_volume_24h"] = 100
         strategy.default_params["min_liquidity"] = 100
@@ -265,7 +269,7 @@ class TestLineMovementDetectorHardened:
         }
         mock_client = MagicMock()
         mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client_class.return_value.__aenter__.return_value = mock_client
+        mock_get_shared_client.return_value = mock_client
 
         # Mock debate result accepting the signal (confidence = 0.80)
         mock_debate_res = MagicMock()

@@ -11,7 +11,7 @@ Tests the complete integration:
 import pytest
 import json
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from backend.core.proposal_applier import ProposalApplier
 from backend.core.proposal_executor import ProposalExecutor
@@ -103,6 +103,7 @@ async def test_proposal_changes_max_position_limit(db_session, strategy_config):
 
     mock_limiter = Mock()
     mock_limiter.acquire = Mock()
+    mock_limiter.wait_and_acquire = AsyncMock()
     with (
         patch(
             "backend.core.strategy_executor._get_rate_limiter",

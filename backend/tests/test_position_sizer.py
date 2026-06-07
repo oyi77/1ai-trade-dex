@@ -17,8 +17,8 @@ class TestKellyCriterion:
         """WR=0.55, avg_win=1.2, avg_loss=1.0 -> f* ~= 0.1, quarter ~= 0.025."""
         result = kelly_criterion(0.55, 1.2, 1.0)
         # f* = (0.55 * 1.2 - 0.45) / 1.2 = (0.66 - 0.45) / 1.2 = 0.175
-        # quarter-Kelly = 0.175 * 0.25 = 0.04375
-        assert result == pytest.approx(0.04375, abs=1e-6)
+        # Kelly = 0.175 * 0.2 (settings.KELLY_FRACTION) = 0.035
+        assert result == pytest.approx(0.035, abs=1e-6)
 
     def test_break_even(self):
         """WR=0.5, avg_win=1.0, avg_loss=1.0 -> f* = 0 (break-even)."""
@@ -46,8 +46,8 @@ class TestKellyCriterion:
         """Strong edge should produce a larger Kelly fraction."""
         result = kelly_criterion(0.7, 2.0, 1.0)
         # f* = (0.7 * 2.0 - 0.3) / 2.0 = 1.1 / 2.0 = 0.55
-        # quarter = 0.55 * 0.25 = 0.1375
-        assert result == pytest.approx(0.1375, abs=1e-6)
+        # Kelly = 0.55 * 0.2 (settings.KELLY_FRACTION) = 0.11
+        assert result == pytest.approx(0.11, abs=1e-6)
         assert 0 < result < 1
 
 
@@ -64,12 +64,12 @@ class TestCalculatePositionSize:
             avg_win=1.2,
             avg_loss=1.0,
         )
-        # Kelly frac = 0.04375, base = 1000 * 0.04375 = 43.75
-        # * confidence 0.8 = 35.0
+        # Kelly frac = 0.035, base = 1000 * 0.035 = 35.0
+        # * confidence 0.8 = 28.0
         # liquidity cap = 5000 * 0.10 = 500 (not binding)
         # slippage 0.02 <= 0.05 (no penalty)
-        # clamped to [5, 50] -> 35.0
-        assert size == pytest.approx(35.0, abs=0.1)
+        # clamped to [5, 50] -> 28.0
+        assert size == pytest.approx(28.0, abs=0.1)
         assert MIN_POSITION_USD <= size <= MAX_POSITION_USD
 
     def test_zero_capital(self):
