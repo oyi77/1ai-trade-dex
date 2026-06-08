@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   ComposedChart,
   Area,
@@ -50,16 +51,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function EquityChart({ data, initialBankroll }: Props) {
-  if (data.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-neutral-600">
-        <p className="text-xs">No trade history</p>
-        <p className="text-[10px] mt-0.5">Chart appears after settled trades</p>
-      </div>
-    )
-  }
-
-  const chartData = [
+  const chartData = useMemo(() => [
     { timestamp: 'Start', pnl: 0, bankroll: initialBankroll },
     ...data.map(d => ({
       ...d,
@@ -71,18 +63,39 @@ export function EquityChart({ data, initialBankroll }: Props) {
         hour12: false,
       }),
     })),
-  ]
+  ], [data, initialBankroll])
+
+  const { minPnl, maxPnl, minBankroll, maxBankroll } = useMemo(() => {
+    let minP = 0
+    let maxP = 0
+    let minB = initialBankroll
+    let maxB = initialBankroll
+
+    for (const d of data) {
+      const p = d.pnl ?? 0
+      const b = d.bankroll ?? initialBankroll
+      if (p < minP) minP = p
+      if (p > maxP) maxP = p
+      if (b < minB) minB = b
+      if (b > maxB) maxB = b
+    }
+
+    return { minPnl: minP, maxPnl: maxP, minBankroll: minB, maxBankroll: maxB }
+  }, [data, initialBankroll])
+
+  if (data.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-neutral-600">
+        <p className="text-xs">No trade history</p>
+        <p className="text-[10px] mt-0.5">Chart appears after settled trades</p>
+      </div>
+    )
+  }
 
   const currentPnl = data[data.length - 1]?.pnl ?? 0
   const isPositive = currentPnl >= 0
 
-  const minPnl = Math.min(0, ...data.map(d => d.pnl ?? 0))
-  const maxPnl = Math.max(0, ...data.map(d => d.pnl ?? 0))
   const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
-
-  const allBankrolls = [initialBankroll, ...data.map(d => d.bankroll ?? initialBankroll)]
-  const minBankroll = Math.min(...allBankrolls)
-  const maxBankroll = Math.max(...allBankrolls)
   const bkPadding = (maxBankroll - minBankroll) * 0.15 || 2
 
   const brushStart = Math.max(0, chartData.length - 20)
