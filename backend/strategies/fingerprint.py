@@ -8,8 +8,7 @@ import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
-from backend.core.logger import get_logger
-logger = get_logger(__name__)
+from loguru import logger
 from typing import Literal
 
 

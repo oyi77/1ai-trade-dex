@@ -1,5 +1,4 @@
-from backend.core.logger import get_logger
-logger = get_logger(__name__)
+from loguru import logger
 """Limitless Exchange provider — HMAC auth, EIP-712 signing, tokens-based."""
 
 import asyncio

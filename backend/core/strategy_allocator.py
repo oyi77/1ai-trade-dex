@@ -1,6 +1,5 @@
 from __future__ import annotations
-from backend.core.logger import get_logger
-logger = get_logger(__name__)
+from loguru import logger
 
 import os
 from datetime import datetime, timezone

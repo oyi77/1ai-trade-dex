@@ -1,5 +1,4 @@
-from backend.core.logger import get_logger
-logger = get_logger(__name__)
+from loguru import logger
 import boto3
 import os
 import time

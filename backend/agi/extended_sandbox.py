@@ -11,8 +11,7 @@ without first passing through here.
 """
 
 from __future__ import annotations
-from backend.core.logger import get_logger
-logger = get_logger(__name__)
+from loguru import logger
 
 import os
 import subprocess
