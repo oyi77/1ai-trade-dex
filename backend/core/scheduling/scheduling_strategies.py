@@ -1140,6 +1140,20 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
     import json
 
     from backend.db.utils import get_db_session
+    from backend.models.database import BotState
+    from datetime import datetime, timezone
+
+    def _update_botstate_last_run():
+        with get_db_session() as db:
+            state = db.query(BotState).filter_by(mode=mode).first()
+            if state:
+                state.last_run = datetime.now(timezone.utc)
+                db.commit()
+
+    try:
+        await asyncio.to_thread(_update_botstate_last_run)
+    except Exception as _exc:
+        logger.debug(f"[{strategy_name}] last_run update skipped: {_exc}")
 
     # Phase 1: Read config in a thread to avoid blocking the event loop
     def _read_config():

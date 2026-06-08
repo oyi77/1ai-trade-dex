@@ -519,26 +519,24 @@ class LineMovementDetectorStrategy(BaseStrategy):
             avg_loss=self.HISTORICAL_AVG_LOSS,
             kelly_fraction=self.KELLY_FRACTION,
         )
-        # Scale Kelly by confidence (lower confidence → smaller size)
-        kelly_size = ctx.bankroll * kelly_frac * min(confidence, 1.0)
-
-        # Edge-scaled component: bigger moves warrant bigger positions
-        move_magnitude = abs(movement.price_change_pct)
-        edge_factor = min(2.0, max(0.5, move_magnitude / 5.0))
-        # Volume boost: scale up to 1.5x for high-volume moves
-        vol_factor = min(
-            1.5,
-            max(0.5, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)),
-        )
-        size = round(kelly_size * edge_factor * vol_factor, 2)
-
-        # Hard floor: 2% of bankroll max risk per trade
+        # Cap raw Kelly output at max_risk BEFORE applying multipliers.
+        # Previous bug: edge_factor * vol_factor pushed size past the cap
+        # and the min() floor made every trade hit exactly 2% of bankroll.
         max_risk = ctx.bankroll * self.MAX_RISK_PER_TRADE_PCT
-        size = min(size, max_risk)
-        # Also respect global position fraction cap
+        kelly_capped = min(
+            ctx.bankroll * kelly_frac * min(confidence, 1.0), max_risk
+        )
+
+        move_magnitude = abs(movement.price_change_pct)
+        edge_factor = max(0.5, min(1.0, move_magnitude / 5.0))
+        vol_factor = max(
+            0.5,
+            min(1.0, movement.volume_24h / _cfg("LINE_MOVE_VOL_SCALE_DENOM", 50000.0)),
+        )
+        size = round(kelly_capped * edge_factor * vol_factor, 2)
+
         max_position_frac = getattr(ctx.settings, "MAX_POSITION_FRACTION", 0.30)
         size = min(size, ctx.bankroll * max_position_frac)
-        # Ensure positive
         size = max(size, 0.0)
 
         return {
