@@ -1,0 +1,20 @@
+[Unit]
+Description=BNB HACK — Autonomous Onchain Trading Agent
+Documentation=https://github.com/openclaw/1ai-poly-trader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/openclaw/projects/1ai-poly-trader
+ExecStart=/home/openclaw/projects/1ai-poly-trader/scripts/run_bnb_hack.sh --loop
+Restart=always
+RestartSec=30
+User=openclaw
+
+# Security hardening (relaxed for read/write access to data/logs dirs)
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
