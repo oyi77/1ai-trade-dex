@@ -228,7 +228,7 @@ class NewsFrontrunStrategy(BaseStrategy):
         max_position = float(params.get("max_position_usd", 5.0))
         cooldown = float(params.get("cooldown_seconds", 300))
         max_open = int(params.get("max_open_positions", 2))
-        max_per_asset = int(params.get("max_per_asset", 1))
+        int(params.get("max_per_asset", 1))
 
         # Check open positions
         from backend.models.database import Trade

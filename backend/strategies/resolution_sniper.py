@@ -212,11 +212,11 @@ class ResolutionSniperStrategy(BaseStrategy):
         skip_price_range = 0
         skip_volume = 0
         skip_existing = 0
-        min_price_dist = float(params["min_price_distance_pct"]) / 100.0
+        float(params["min_price_distance_pct"]) / 100.0
         min_sec = float(params["min_seconds_to_resolution"])
         max_sec = float(params["max_seconds_to_resolution"])
         min_mkt_price = float(params["min_market_price"])
-        max_mkt_price = float(params["max_market_price"])
+        float(params["max_market_price"])
         min_volume = float(params["min_volume"])
         max_position_size = float(params["max_position_size"])
         bankroll_pct = float(params["bankroll_pct"])

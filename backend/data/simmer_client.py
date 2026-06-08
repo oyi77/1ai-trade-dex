@@ -16,6 +16,7 @@ Consider removing or integrating before use.
 """
 
 from __future__ import annotations
+import httpx
 import os
 from typing import Any, Dict, List, Optional
 

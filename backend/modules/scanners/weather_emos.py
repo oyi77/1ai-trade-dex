@@ -614,7 +614,7 @@ class WeatherEMOSStrategy(BaseStrategy):
 
         if not weather_markets:
             logger.warning(
-                f"No active weather markets found. Auto-pausing weather_emos strategy."
+                "No active weather markets found. Auto-pausing weather_emos strategy."
             )
             # Auto-pause by setting enabled=False in StrategyConfig
             if ctx.db:

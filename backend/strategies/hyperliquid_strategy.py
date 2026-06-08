@@ -58,7 +58,7 @@ class HyperliquidStrategy(BaseStrategy):
         max_entry = params.get(
             "max_entry_price", self.default_params["max_entry_price"]
         )
-        max_trade_usd = params.get(
+        params.get(
             "max_trade_usd", self.default_params["max_trade_usd"]
         )
 

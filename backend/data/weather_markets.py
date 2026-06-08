@@ -292,7 +292,7 @@ def _extract_date(text: str) -> Optional[date]:
         try:
             return date(year, month, day)
         except ValueError:
-            logger.debug(f"weather_markets: invalid date parsed from '{raw_date}'")
+            logger.debug("weather_markets: invalid date parsed")
 
     return None
 

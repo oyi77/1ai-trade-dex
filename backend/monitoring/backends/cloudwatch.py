@@ -1,3 +1,6 @@
+from backend.core.logger import get_logger
+logger = get_logger(__name__)
+import boto3
 import os
 import time
 from typing import Dict

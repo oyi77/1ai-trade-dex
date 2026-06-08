@@ -1,6 +1,7 @@
 """Activity tracker — dispatches events from all sources to handlers."""
 
 from __future__ import annotations
+from backend.core.activity.sources.base import BaseActivitySource
 import asyncio
 import random
 from typing import Callable, Optional

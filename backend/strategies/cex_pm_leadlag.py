@@ -131,7 +131,7 @@ class CexPmLeadLagStrategy(BaseStrategy):
 
         # Max open positions gate
         db = ctx.db
-        from backend.models.database import Trade
+        from backend.models.database import Trade, ActivityLog
 
         open_count = (
             db.query(Trade)

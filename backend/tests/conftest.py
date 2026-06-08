@@ -122,8 +122,6 @@ from backend.models.outcome_tables import (
     TradingCalibrationRecord,
 )
 from backend.models.signal_log import SignalLog
-from backend.models.signal_log import SignalLog
-from backend.models.signal_log import SignalLog
 from backend.models.kg_models import ExperimentRecord, DecisionAuditLog
 from backend.models.historical_data import (
     HistoricalCandle,
@@ -317,19 +315,6 @@ def db():
 
 @pytest.fixture(autouse=True)
 def cleanup_proposals_between_tests(db):
-    from backend.models.database import (
-        BotState,
-        Trade,
-        Signal,
-        StrategyProposal,
-        StrategyConfig,
-        ActivityLog,
-        DecisionLog,
-        TradeAttempt,
-        MiroFishSignal,
-        ShadowTrade,
-    )
-    from backend.models.kg_models import ExperimentRecord
 
     db.query(Trade).delete()
     db.query(Signal).delete()

@@ -5,6 +5,7 @@ enhanced features, and periodic retraining support.
 """
 
 from __future__ import annotations
+import random as _random
 
 import os
 from dataclasses import dataclass, field

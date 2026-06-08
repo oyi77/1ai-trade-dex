@@ -169,7 +169,7 @@ async def test_strategy(class_name: str, module_path: str, display_name: str) ->
     if class_name in UTILITY_CLASSES:
         # Utility class: verify instantiation only
         result["status"] = "PASS"
-        result["error"] = f"Utility class instantiated OK (no run_cycle)"
+        result["error"] = "Utility class instantiated OK (no run_cycle)"
     else:
         ctx, sample_markets = make_mock_ctx()
         try:
@@ -178,9 +178,9 @@ async def test_strategy(class_name: str, module_path: str, display_name: str) ->
 
             mf = strategy.market_filter
             if _inspect.iscoroutinefunction(mf):
-                filtered = await mf(sample_markets)
+                await mf(sample_markets)
             else:
-                filtered = mf(sample_markets)
+                mf(sample_markets)
 
             # Run the strategy cycle — handle both async and sync run_cycle
             awaitable = strategy.run_cycle(ctx)

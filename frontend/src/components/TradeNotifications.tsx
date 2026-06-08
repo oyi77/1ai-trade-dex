@@ -358,7 +358,7 @@ const NotificationCard = forwardRef(function NotificationCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleSkipSignal(ctx)
+                  handleSkipSignal()
                   onDismiss(notification.id)
                 }}
                 className="flex-1 px-2 py-1 text-[9px] font-bold uppercase bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"

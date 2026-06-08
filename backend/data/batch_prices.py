@@ -1,3 +1,4 @@
+import httpx
 """Batch prices history fetcher for Polymarket markets.
 
 Polymarket has a /batch-prices-history endpoint that fetches price history

@@ -1,3 +1,5 @@
+from groq import AsyncGroq
+from anthropic import AsyncAnthropic
 """
 AI Parameter Optimizer for PolyEdge Trading Bot.
 

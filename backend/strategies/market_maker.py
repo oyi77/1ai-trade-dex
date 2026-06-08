@@ -258,7 +258,7 @@ class MarketMakerStrategy(BaseStrategy):
         if quote_size <= 0:
             raise ValueError("quote_size must be > 0")
 
-        gamma = p.get("risk_aversion", 0.3)
+        p.get("risk_aversion", 0.3)
         skew_factor = p.get("inventory_skew_factor", 0.7)
 
         reservation = mid_price - inventory_pct * skew_factor * spread

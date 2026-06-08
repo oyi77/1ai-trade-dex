@@ -1,8 +1,11 @@
+import asyncio
+from backend.config import settings
+
 """Unified real-time balance aggregator across all trading venues.
 Combines WebSocket feeds (Aster, Lighter, Hyperliquid) with polling (Polymarket, Kalshi, Ostium).
 """
 
-import asyncio
+
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Callable

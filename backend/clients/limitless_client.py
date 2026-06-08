@@ -1,3 +1,5 @@
+from eth_account import Account
+import json
 """Limitless Exchange client — raw API for markets, SDK for orders."""
 
 import os
@@ -43,22 +45,6 @@ class LimitlessClient:
             )
         return self._sdk
 
-    async def get_markets(self, limit: int = 100) -> list:
-        """Get active markets using SDK with 5-minute cache."""
-        now = _time.monotonic()
-        if self._markets_cache and (now - self._markets_cache_time) < self._cache_ttl:
-            return self._markets_cache[:limit]
-        try:
-            sdk = self._get_sdk()
-            markets = await sdk.get_all_active_markets()
-            if markets:
-                self._markets_cache = markets
-                self._markets_cache_time = now
-            return (markets or [])[:limit]
-        except Exception as e:
-            logger.warning(f"[limitless] get_markets failed: {e}")
-            return self._markets_cache[:limit] if self._markets_cache else []
-
     def _auth_headers(self) -> dict:
         """Build auth headers for raw API calls."""
         headers = {"Content-Type": "application/json"}
@@ -66,57 +52,13 @@ class LimitlessClient:
             headers["X-API-Key"] = self._api_key
         return headers
 
-    async def get_markets(self, limit: int = 100) -> list:
-        """Get active markets with 5-minute cache to avoid Cloudflare rate limits."""
-        now = _time.monotonic()
-        if self._markets_cache and (now - self._markets_cache_time) < self._cache_ttl:
-            return self._markets_cache[:limit]
-
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                all_markets = []
-                for page in range(1, 21):  # max 20 pages = 500 markets
-                    resp = await client.get(
-                        f"{self._base_url}/markets/active",
-                        params={"limit": 25, "page": page},
-                        headers=self._auth_headers(),
-                    )
-                    if resp.status_code == 429:
-                        logger.warning(
-                            f"[limitless] Rate limited on page {page}, using cached results"
-                        )
-                        break
-                    if resp.status_code != 200:
-                        break
-                    data = resp.json().get("data", [])
-                    if not data:
-                        break
-                    all_markets.extend(data)
-                    if len(data) < 25:
-                        break
-                if all_markets:
-                    self._markets_cache = all_markets
-                    self._markets_cache_time = now
-                return all_markets[:limit]
-        except Exception as e:
-            logger.warning(f"[limitless] get_markets failed: {e}")
-            return self._markets_cache[:limit] if self._markets_cache else []
-
-    async def get_orderbook(self, market_id: str) -> dict:
-        """Get orderbook for a specific market."""
-        sdk = self._get_sdk()
-        try:
-            return await sdk.get_orderbook(market_id)
-        except Exception as e:
-            logger.warning(f"[limitless] get_orderbook failed: {e}")
-            return {}
-
-    @staticmethod
     def _sign_request(
         token_id: str, secret: str, method: str, path: str, body: str = ""
     ) -> dict:
         """Generate HMAC-SHA256 signed headers for Limitless API."""
-        import hmac, hashlib, base64
+        import hmac
+        import hashlib
+        import base64
         from datetime import datetime, timezone
 
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -189,7 +131,7 @@ class LimitlessClient:
                 }
 
             # Get market data
-            resp = await self._hmac_request("GET", f"/markets/active?limit=200")
+            resp = await self._hmac_request("GET", "/markets/active?limit=200")
             if resp.status_code != 200:
                 return {"error": f"Market fetch failed: {resp.status_code}"}
             markets = resp.json().get("data", [])

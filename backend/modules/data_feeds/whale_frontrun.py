@@ -324,7 +324,7 @@ class WhaleFrontrun(BaseStrategy):
         for activity in buffered:
             try:
                 # Dynamic whale checks
-                min_whale_notional = params.get("min_whale_notional", 10000.0)
+                min_whale_notional = 10000.0
                 if activity.size < min_whale_notional:
                     logger.debug(
                         f"WhaleFrontrun: activity size ${activity.size:.0f} < threshold ${min_whale_notional:.0f}"

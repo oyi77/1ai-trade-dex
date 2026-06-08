@@ -1,3 +1,5 @@
+from backend.core.logger import get_logger
+logger = get_logger(__name__)
 import os
 from typing import Dict
 

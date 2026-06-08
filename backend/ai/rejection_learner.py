@@ -8,6 +8,7 @@ kelly_fraction or lowering min_edge threshold so future trades exceed the minimu
 """
 
 from __future__ import annotations
+import json as _json
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List
 

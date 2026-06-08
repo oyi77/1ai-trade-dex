@@ -1,12 +1,15 @@
 """Strategy Fingerprint -- 14-dimension profiling from trading history."""
 
 from __future__ import annotations
+from datetime import timezone
 
 import math
 import statistics
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
+from backend.core.logger import get_logger
+logger = get_logger(__name__)
 from typing import Literal
 
 

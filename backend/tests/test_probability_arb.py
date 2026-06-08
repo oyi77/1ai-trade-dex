@@ -243,7 +243,7 @@ class TestProcessPendingArbs:
             "queued_at": 0,  # ancient
             "retries": 5,  # over max
         }
-        count = process_pending_arbs()
+        process_pending_arbs()
         assert "old-key" not in _pending_arbs
 
 

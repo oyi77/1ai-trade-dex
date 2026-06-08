@@ -245,7 +245,7 @@ class TradeDetector:
     ) -> list[CopySignal]:
         """Poll wallets for new BUY trades not yet seen."""
         signals: list[CopySignal] = []
-        now = datetime.now(timezone.utc)
+        datetime.now(timezone.utc)
 
         for wallet in wallets:
             addr = wallet.proxy_wallet or wallet.address
@@ -295,7 +295,7 @@ class TradeDetector:
 
         seen = self._seen[wallet]
         new: list[dict] = []
-        now_ts = time.time()
+        time.time()
 
         for t in all_trades:
             tx = t.get("transactionHash", "") or t.get("id", "")
@@ -498,7 +498,7 @@ class CopyTraderStrategy(BaseStrategy):
                             reason=f"Copy from {signal.wallet[:10]} @ {signal.price:.3f}",
                         )
                     except Exception:
-                        logger.warning(f"copy_trader: failed to log decision for wallet copy")
+                        logger.warning("copy_trader: failed to log decision for wallet copy")
 
                     # Execute trade
                     if ctx.mode != "paper":

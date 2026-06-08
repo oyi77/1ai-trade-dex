@@ -618,7 +618,7 @@ class UniversalScanner(BaseStrategy):
 
             web_context = await _fetch_web_context(market.question)
             brain_context = await _fetch_brain_context(market.question)
-            combined_context = " | ".join(filter(None, [web_context, brain_context]))
+            " | ".join(filter(None, [web_context, brain_context]))
             data_sources = ["gamma_api", "websearch"] if web_context else ["gamma_api"]
 
             debate_result = llm_result
