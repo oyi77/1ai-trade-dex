@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.circuit_breaker import X' keeps working.
 """
 
-from backend.core.risk.circuit_breaker import *
+from backend.core.risk.circuit_breaker import *  # noqa: F403

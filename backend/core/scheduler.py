@@ -1,3 +1,3 @@
 """Backward-compatible shim — imports from backend.core.scheduling.scheduler."""
 
-from backend.core.scheduling.scheduler import *
+from backend.core.scheduling.scheduler import *  # noqa: F403

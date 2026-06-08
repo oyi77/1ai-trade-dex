@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.settlement_capture import X' keeps working.
 """
 
-from backend.core.settlement.settlement_capture import *
+from backend.core.settlement.settlement_capture import *  # noqa: F403

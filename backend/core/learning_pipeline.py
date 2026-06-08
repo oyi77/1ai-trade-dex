@@ -1,3 +1,3 @@
 """Backward-compatible shim — imports from backend.core.learning.learning_pipeline."""
 
-from backend.core.learning.learning_pipeline import *
+from backend.core.learning.learning_pipeline import *  # noqa: F403

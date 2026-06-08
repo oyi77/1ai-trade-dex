@@ -1,3 +1,3 @@
 """Backward-compatible shim — imports from backend.core.scheduling.fronttest_scheduler."""
 
-from backend.core.scheduling.fronttest_scheduler import *
+from backend.core.scheduling.fronttest_scheduler import *  # noqa: F403

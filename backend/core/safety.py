@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.safety import X' keeps working.
 """
 
-from backend.core.risk.safety import *
+from backend.core.risk.safety import *  # noqa: F403

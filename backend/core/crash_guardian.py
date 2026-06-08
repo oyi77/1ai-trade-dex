@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.crash_guardian import X' keeps working.
 """
 
-from backend.core.risk.crash_guardian import *
+from backend.core.risk.crash_guardian import *  # noqa: F403

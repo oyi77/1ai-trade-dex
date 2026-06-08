@@ -1,3 +1,3 @@
 """Backward-compatible shim — imports from backend.core.risk.correlation_monitor."""
 
-from backend.core.risk.correlation_monitor import *
+from backend.core.risk.correlation_monitor import *  # noqa: F403

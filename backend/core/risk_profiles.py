@@ -1,3 +1,3 @@
 """Backward-compatible shim — imports from backend.core.risk.risk_profiles."""
 
-from backend.core.risk.risk_profiles import *
+from backend.core.risk.risk_profiles import *  # noqa: F403

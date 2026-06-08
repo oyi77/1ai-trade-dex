@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.dispute_tracker import X' keeps working.
 """
 
-from backend.core.settlement.dispute_tracker import *
+from backend.core.settlement.dispute_tracker import *  # noqa: F403

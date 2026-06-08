@@ -2,4 +2,4 @@
 This module exists so that 'from backend.core.auto_redeem import X' keeps working.
 """
 
-from backend.core.settlement.auto_redeem import *
+from backend.core.settlement.auto_redeem import *  # noqa: F403
