@@ -21,21 +21,14 @@ def _now_utc():
 
 
 def disable_for_rehab(config) -> None:
-    """Disable strategy for rehabilitation: keep enabled in paper mode.
+    """Disable strategy for rehabilitation: set enabled=False and disabled_at.
 
-    Instead of setting enabled=False (which prevents scheduler from running),
-    keeps enabled=True but sets disabled_at for cooldown tracking and
-    trading_mode="paper" so the strategy generates validation data.
-
-    Only sets paper mode if the strategy was already paper or shadow.
-    Live strategies keep their trading_mode but get disabled_at timestamp.
+    Losing strategies should be fully disabled, not kept alive in paper mode.
+    This prevents the scheduler from running them and consuming resources.
     """
+    config.enabled = False
     config.disabled_at = datetime.now(timezone.utc)
-    current_mode = getattr(config, "trading_mode", "paper") or "paper"
-    if current_mode in ("paper", "shadow"):
-        config.trading_mode = "paper"
-    # Live strategies: don't override trading_mode, just set disabled_at
-    # Don't set enabled=False — scheduler needs enabled=True to run paper trades
+    config.updated_at = datetime.now(timezone.utc)
 
 
 def is_in_rehab(config) -> bool:

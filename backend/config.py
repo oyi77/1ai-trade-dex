@@ -427,7 +427,8 @@ class ConfigRegistry:
         1.00  # per-strategy max drawdown (% of allocation)
     )
     # LIVE_STRATEGY_ALLOWLIST: only strategies in this list can execute live.
-    # Promoters, schedulers, and risk checks will respect this. Empty list = no live allowed.
+    # Promoters, schedulers, and risk checks will respect this.
+    # Empty list = ALL strategies allowed (permissive mode).
     LIVE_STRATEGY_ALLOWLIST: list = field(default_factory=list)
     VOLATILITY_SIZE_SCALE: bool = False  # reduce size in high volatility
     COOLDOWN_CONSECUTIVE_LOSSES: int = 3  # losses before cooldown
@@ -890,12 +891,12 @@ class ConfigRegistry:
     # AGI - Self-improvement and autonomy features
     # --------------------------------------------------------------------------
     # AGI Autonomy
-    AGI_AUTO_PROMOTE: bool = False
-    AGI_AUTO_ENABLE: bool = False
+    AGI_AUTO_PROMOTE: bool = True
+    AGI_AUTO_ENABLE: bool = True
     AGI_STRATEGY_HEALTH_ENABLED: bool = True
     AGI_HEALTH_CHECK_ENABLED: bool = True
     AGI_REHABILITATION_ENABLED: bool = True
-    AGI_BANKROLL_ALLOCATION_ENABLED: bool = False
+    AGI_BANKROLL_ALLOCATION_ENABLED: bool = True
     REGIME_ROUTING_ENABLED: bool = True
     ENABLE_PAIR_COST_ARB: bool = True
     USE_EVENT_BUS_HANDLERS: bool = True

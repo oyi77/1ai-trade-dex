@@ -793,7 +793,7 @@ class AutonomousPromoter:
         )  # Lazy to avoid circular import
 
         # LIVE_STRATEGY_ALLOWLIST gate — only promote strategies that are explicitly
-        # allowed. If list is empty, no live promotions are permitted.
+        # allowed. If list is empty, ALL strategies are allowed (permissive mode).
         from backend.config import settings
         allowed = settings.LIVE_STRATEGY_ALLOWLIST
         if allowed and strategy_name not in allowed:
