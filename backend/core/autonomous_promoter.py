@@ -447,7 +447,7 @@ class AutonomousPromoter:
                 ):
                     wr = health.get("win_rate", 0.0)
                     sharpe = health.get("sharpe", 0.0)
-                    if wr >= 0.45 and sharpe >= -0.5:
+                    if wr >= 0.55 and sharpe >= 0.3:
                         exp.status = ExperimentStatus.LIVE_PROMOTED.value
                         exp.promoted_at = datetime.now(timezone.utc)
                         if settings.AGI_AUTO_ENABLE:
