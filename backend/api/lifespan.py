@@ -698,6 +698,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning(f"[LIFESPAN] Binance WS feed failed to start: {e}")
 
+    # --- Load Strategies and Start Scheduler ---
+    _t_strat = _time.time()
+    try:
+        from backend.strategies.loader import load_all_strategies
+        from backend.core.scheduler import start_scheduler
+        
+        # Load all strategy modules (triggers auto-registration via BaseStrategy.__init_subclass__)
+        load_all_strategies()
+        logger.info(f"[LIFESPAN] Strategies loaded in {_time.time() - _t_strat:.2f}s")
+        
+        # Start APScheduler with all registered strategies
+        start_scheduler()
+        logger.info("[LIFESPAN] APScheduler started — strategies now running")
+    except Exception as e:
+        logger.error(f"[LIFESPAN] Failed to start strategies/scheduler: {e}", exc_info=True)
+
     yield
 
     # --- Shutdown ---
