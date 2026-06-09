@@ -117,14 +117,16 @@ class TestRealTimeCopyTrader:
         """Verify start_realtime can be started and stopped."""
         trader = RealTimeCopyTrader()
         
-        # Mock the WebSocket and API calls
-        with patch("backend.bot.realtime_copy_trader.PolymarketWebSocket"):
+        # Mock the WebSocket with async methods
+        mock_ws = AsyncMock()
+        mock_ws.connect = AsyncMock(side_effect=asyncio.sleep(10))
+        
+        with patch("backend.bot.realtime_copy_trader.PolymarketWebSocket", return_value=mock_ws):
             with patch("backend.bot.realtime_copy_trader.get_shared_client") as mock_client:
                 mock_client.return_value.get = AsyncMock(
                     return_value=MagicMock(status_code=200, json=lambda: [])
                 )
                 
-                # Start in background with timeout
                 task = asyncio.create_task(
                     asyncio.wait_for(
                         trader.start_realtime(strategy_ctx),
@@ -136,7 +138,6 @@ class TestRealTimeCopyTrader:
                 except (asyncio.TimeoutError, Exception):
                     pass
                 
-                # Stop should complete
                 await trader.stop_realtime()
 
     @pytest.mark.asyncio
