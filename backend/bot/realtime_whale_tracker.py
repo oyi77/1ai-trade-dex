@@ -223,16 +223,37 @@ class RealTimeWhaleTracker(BaseStrategy):
     async def _execute_whale_copy(self, trade: Dict, whale_info: Dict):
         """Execute a copy trade based on whale activity."""
         try:
-            # This would integrate with the existing Polymarket CLOB client
-            # For now, log the decision
+            asset_id = trade.get("asset", "")
+            side = trade.get("side", "BUY")
+            size = float(trade.get("size", 0))
+            price = float(trade.get("price", 0))
+            usd_value = size * price
+
+            min_size = self.default_params["min_transfer_size_usd"]
+            if usd_value < min_size:
+                return
+
+            position_pct = self.default_params["position_size_pct"]
+
             logger.info(
-                f"[{self.name}] Would copy whale: {trade['side']} {trade['size']} "
-                f"@ {trade['price']} on {trade.get('asset', '?')} "
-                f"from {whale_info['name']}"
+                f"[{self.name}] WHALE COPY: {side} {size:.0f} @ ${price:.3f} "
+                f"(${usd_value:.0f}) on {asset_id[:20]}... from {whale_info['name']}"
             )
 
-            # TODO: Integrate with Polymarket CLOB for actual execution
-            # ctx.clob.place_order(...)
+            from backend.data.polymarket_clob import PolymarketCLOB
+
+            try:
+                clob = PolymarketCLOB(settings, simulation=True)
+                order_result = await clob.place_limit_order(
+                    token_id=asset_id,
+                    side=side,
+                    price=price,
+                    size=size * position_pct,
+                )
+                logger.info(f"[{self.name}] Order placed: {order_result}")
+            except Exception as clob_err:
+                logger.warning(f"[{self.name}] CLOB order failed (paper mode OK): {clob_err}")
 
         except Exception as e:
             logger.error(f"[{self.name}] Whale copy execution failed: {e}")
+
