@@ -74,7 +74,7 @@ class RealTimeCopyTrader(BaseStrategy):
         # Update leaderboard cache
         await self._update_leaderboard()
 
-        # Connect to Polymarket WebSocket
+        # Connect to Polymarket WebSocket with reconnection logic
         config = WebSocketConfig(
             channel=ChannelType.MARKET,
             asset_ids=[],  # Subscribe to all markets
@@ -88,8 +88,25 @@ class RealTimeCopyTrader(BaseStrategy):
         logger.info(f"[{self.name}] Starting real-time copy trader")
         logger.info(f"[{self.name}] Tracking {len(self._leaderboard_cache)} profitable traders")
 
-        # Start WebSocket connection
-        await self._ws.connect()
+        # Start WebSocket connection with reconnection retry
+        max_retries = 3
+        retry_delay = 5  # seconds
+        for attempt in range(max_retries):
+            try:
+                await self._ws.connect()
+                logger.info(f"[{self.name}] WebSocket connected successfully")
+                break
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"[{self.name}] WebSocket connection failed (attempt {attempt + 1}/{max_retries}): {e} "
+                        f"— retrying in {retry_delay}s"
+                    )
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(f"[{self.name}] WebSocket connection failed after {max_retries} attempts: {e}")
+                    self._running = False
+                    raise
 
     async def stop_realtime(self):
         """Stop real-time connection."""
@@ -196,13 +213,17 @@ class RealTimeCopyTrader(BaseStrategy):
         """Update leaderboard cache from Polymarket API."""
         try:
             client = get_shared_client()
-            resp = await client.get(
-                "https://data-api.polymarket.com/v1/leaderboard",
-                params={
-                    "timePeriod": "MONTH",
-                    "limit": 50,
-                    "orderBy": "PNL",
-                },
+            # Add 10s timeout to prevent hanging on slow API
+            resp = await asyncio.wait_for(
+                client.get(
+                    "https://data-api.polymarket.com/v1/leaderboard",
+                    params={
+                        "timePeriod": "MONTH",
+                        "limit": 50,
+                        "orderBy": "PNL",
+                    },
+                ),
+                timeout=10.0,
             )
 
             if resp.status_code == 200:

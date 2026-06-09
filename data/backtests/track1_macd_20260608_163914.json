@@ -1,0 +1,970 @@
+[
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.82,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T22:00:00+00:00",
+        "exit": "2025-12-13T14:00:00+00:00",
+        "entry_px": 881.15,
+        "exit_px": 887.03,
+        "pnl_pct": 0.67,
+        "pnl_usdc": 0.03,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 93.84,
+    "sharpe": -0.29,
+    "profit_factor": 1.66
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.75
+    },
+    "return_pct": -96.16,
+    "win_rate": 27.3,
+    "trades": [
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T00:00:00+00:00",
+        "exit": "2025-12-14T01:30:00+00:00",
+        "entry_px": 898.38,
+        "exit_px": 895.99,
+        "pnl_pct": -0.27,
+        "pnl_usdc": -0.08,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T08:30:00+00:00",
+        "exit": "2025-12-14T09:30:00+00:00",
+        "entry_px": 896.91,
+        "exit_px": 894.69,
+        "pnl_pct": -0.25,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T00:30:00+00:00",
+        "exit": "2025-12-15T11:30:00+00:00",
+        "entry_px": 882.7,
+        "exit_px": 887.76,
+        "pnl_pct": 0.57,
+        "pnl_usdc": 0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T21:30:00+00:00",
+        "exit": "2025-12-16T18:00:00+00:00",
+        "entry_px": 853.21,
+        "exit_px": 868.32,
+        "pnl_pct": 1.77,
+        "pnl_usdc": 0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T22:30:00+00:00",
+        "exit": "2025-12-16T23:00:00+00:00",
+        "entry_px": 873.66,
+        "exit_px": 872.93,
+        "pnl_pct": -0.08,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T23:30:00+00:00",
+        "exit": "2025-12-17T00:00:00+00:00",
+        "entry_px": 875.63,
+        "exit_px": 872.21,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T07:30:00+00:00",
+        "exit": "2025-12-17T08:30:00+00:00",
+        "entry_px": 868.06,
+        "exit_px": 862.61,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T13:30:00+00:00",
+        "exit": "2025-12-17T16:00:00+00:00",
+        "entry_px": 862.44,
+        "exit_px": 843.38,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.05,
+        "reason": "sl"
+      },
+      {
+        "entry": "2025-12-17T22:30:00+00:00",
+        "exit": "2025-12-18T05:00:00+00:00",
+        "entry_px": 843.69,
+        "exit_px": 831.82,
+        "pnl_pct": -1.41,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 96.19,
+    "sharpe": -0.69,
+    "profit_factor": 0.46
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.75
+    },
+    "return_pct": -96.16,
+    "win_rate": 27.3,
+    "trades": [
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T00:00:00+00:00",
+        "exit": "2025-12-14T01:30:00+00:00",
+        "entry_px": 898.38,
+        "exit_px": 895.99,
+        "pnl_pct": -0.27,
+        "pnl_usdc": -0.08,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T08:30:00+00:00",
+        "exit": "2025-12-14T09:30:00+00:00",
+        "entry_px": 896.91,
+        "exit_px": 894.69,
+        "pnl_pct": -0.25,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T00:30:00+00:00",
+        "exit": "2025-12-15T11:30:00+00:00",
+        "entry_px": 882.7,
+        "exit_px": 887.76,
+        "pnl_pct": 0.57,
+        "pnl_usdc": 0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T21:30:00+00:00",
+        "exit": "2025-12-16T18:00:00+00:00",
+        "entry_px": 853.21,
+        "exit_px": 868.32,
+        "pnl_pct": 1.77,
+        "pnl_usdc": 0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T22:30:00+00:00",
+        "exit": "2025-12-16T23:00:00+00:00",
+        "entry_px": 873.66,
+        "exit_px": 872.93,
+        "pnl_pct": -0.08,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T23:30:00+00:00",
+        "exit": "2025-12-17T00:00:00+00:00",
+        "entry_px": 875.63,
+        "exit_px": 872.21,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T07:30:00+00:00",
+        "exit": "2025-12-17T08:30:00+00:00",
+        "entry_px": 868.06,
+        "exit_px": 862.61,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T13:30:00+00:00",
+        "exit": "2025-12-17T16:00:00+00:00",
+        "entry_px": 862.44,
+        "exit_px": 843.38,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.05,
+        "reason": "sl"
+      },
+      {
+        "entry": "2025-12-17T22:30:00+00:00",
+        "exit": "2025-12-18T05:00:00+00:00",
+        "entry_px": 843.69,
+        "exit_px": 831.82,
+        "pnl_pct": -1.41,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 96.19,
+    "sharpe": -0.69,
+    "profit_factor": 0.46
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.75
+    },
+    "return_pct": -96.16,
+    "win_rate": 27.3,
+    "trades": [
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T00:00:00+00:00",
+        "exit": "2025-12-14T01:30:00+00:00",
+        "entry_px": 898.38,
+        "exit_px": 895.99,
+        "pnl_pct": -0.27,
+        "pnl_usdc": -0.08,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T08:30:00+00:00",
+        "exit": "2025-12-14T09:30:00+00:00",
+        "entry_px": 896.91,
+        "exit_px": 894.69,
+        "pnl_pct": -0.25,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T00:30:00+00:00",
+        "exit": "2025-12-15T11:30:00+00:00",
+        "entry_px": 882.7,
+        "exit_px": 887.76,
+        "pnl_pct": 0.57,
+        "pnl_usdc": 0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T21:30:00+00:00",
+        "exit": "2025-12-16T18:00:00+00:00",
+        "entry_px": 853.21,
+        "exit_px": 868.32,
+        "pnl_pct": 1.77,
+        "pnl_usdc": 0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T22:30:00+00:00",
+        "exit": "2025-12-16T23:00:00+00:00",
+        "entry_px": 873.66,
+        "exit_px": 872.93,
+        "pnl_pct": -0.08,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T23:30:00+00:00",
+        "exit": "2025-12-17T00:00:00+00:00",
+        "entry_px": 875.63,
+        "exit_px": 872.21,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T07:30:00+00:00",
+        "exit": "2025-12-17T08:30:00+00:00",
+        "entry_px": 868.06,
+        "exit_px": 862.61,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T13:30:00+00:00",
+        "exit": "2025-12-17T16:00:00+00:00",
+        "entry_px": 862.44,
+        "exit_px": 843.38,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.05,
+        "reason": "sl"
+      },
+      {
+        "entry": "2025-12-17T22:30:00+00:00",
+        "exit": "2025-12-18T05:00:00+00:00",
+        "entry_px": 843.69,
+        "exit_px": 831.82,
+        "pnl_pct": -1.41,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 96.19,
+    "sharpe": -0.69,
+    "profit_factor": 0.46
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": -96.16,
+    "win_rate": 27.3,
+    "trades": [
+      {
+        "entry": "2025-12-13T15:00:00+00:00",
+        "exit": "2025-12-13T18:30:00+00:00",
+        "entry_px": 897.33,
+        "exit_px": 892.13,
+        "pnl_pct": -0.58,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T00:00:00+00:00",
+        "exit": "2025-12-14T01:30:00+00:00",
+        "entry_px": 898.38,
+        "exit_px": 895.99,
+        "pnl_pct": -0.27,
+        "pnl_usdc": -0.08,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-14T08:30:00+00:00",
+        "exit": "2025-12-14T09:30:00+00:00",
+        "entry_px": 896.91,
+        "exit_px": 894.69,
+        "pnl_pct": -0.25,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T00:30:00+00:00",
+        "exit": "2025-12-15T11:30:00+00:00",
+        "entry_px": 882.7,
+        "exit_px": 887.76,
+        "pnl_pct": 0.57,
+        "pnl_usdc": 0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-15T21:30:00+00:00",
+        "exit": "2025-12-16T18:00:00+00:00",
+        "entry_px": 853.21,
+        "exit_px": 868.32,
+        "pnl_pct": 1.77,
+        "pnl_usdc": 0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T22:30:00+00:00",
+        "exit": "2025-12-16T23:00:00+00:00",
+        "entry_px": 873.66,
+        "exit_px": 872.93,
+        "pnl_pct": -0.08,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-16T23:30:00+00:00",
+        "exit": "2025-12-17T00:00:00+00:00",
+        "entry_px": 875.63,
+        "exit_px": 872.21,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T07:30:00+00:00",
+        "exit": "2025-12-17T08:30:00+00:00",
+        "entry_px": 868.06,
+        "exit_px": 862.61,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2025-12-17T13:30:00+00:00",
+        "exit": "2025-12-17T16:00:00+00:00",
+        "entry_px": 862.44,
+        "exit_px": 843.38,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.05,
+        "reason": "sl"
+      },
+      {
+        "entry": "2025-12-17T22:30:00+00:00",
+        "exit": "2025-12-18T05:00:00+00:00",
+        "entry_px": 843.69,
+        "exit_px": 831.82,
+        "pnl_pct": -1.41,
+        "pnl_usdc": -0.02,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 96.19,
+    "sharpe": -0.69,
+    "profit_factor": 0.46
+  }
+]

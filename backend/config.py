@@ -1570,7 +1570,7 @@ class ConfigRegistry:
     BNB_HACK_COOLDOWN_MINUTES: int = 120
     BNB_HACK_MAX_CONSECUTIVE_LOSSES: int = 3
     BNB_HACK_CHECK_INTERVAL_SECONDS: int = 3600
-    ALCHEMY_API_KEY: str = ""
+    ALCHEMY_API_KEY: str = ""  # WARNING: Must be set for whale tracker to work
     WHALE_WALLETS: str = "0xf8831548531d56ad6a4331493243c447a827cd1f"
     COPY_TRADER_MIN_PNL: int = 10000
     COPY_TRADER_MIN_VOLUME: int = 100000

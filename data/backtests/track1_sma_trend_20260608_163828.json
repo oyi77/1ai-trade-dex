@@ -1,0 +1,722 @@
+[
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.79,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-13T00:00:00+00:00",
+        "exit": "2025-12-14T14:00:00+00:00",
+        "entry_px": 881.07,
+        "exit_px": 888.06,
+        "pnl_pct": 0.79,
+        "pnl_usdc": 0.04,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-15T10:00:00+00:00",
+        "exit": "2025-12-15T11:00:00+00:00",
+        "entry_px": 890.21,
+        "exit_px": 887.76,
+        "pnl_pct": -0.28,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.82,
+    "sharpe": -0.41,
+    "profit_factor": 3.41
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -93.8,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T23:00:00+00:00",
+        "exit": "2025-12-14T16:00:00+00:00",
+        "entry_px": 881.58,
+        "exit_px": 886.18,
+        "pnl_pct": 0.52,
+        "pnl_usdc": 0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-16T18:00:00+00:00",
+        "exit": "2025-12-16T20:00:00+00:00",
+        "entry_px": 871.49,
+        "exit_px": 870.41,
+        "pnl_pct": -0.12,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.83,
+    "sharpe": -0.41,
+    "profit_factor": 2.08
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -93.8,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T23:00:00+00:00",
+        "exit": "2025-12-14T16:00:00+00:00",
+        "entry_px": 881.58,
+        "exit_px": 886.18,
+        "pnl_pct": 0.52,
+        "pnl_usdc": 0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-16T18:00:00+00:00",
+        "exit": "2025-12-16T20:00:00+00:00",
+        "entry_px": 871.49,
+        "exit_px": 870.41,
+        "pnl_pct": -0.12,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.83,
+    "sharpe": -0.41,
+    "profit_factor": 2.08
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -93.8,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T23:00:00+00:00",
+        "exit": "2025-12-14T16:00:00+00:00",
+        "entry_px": 881.58,
+        "exit_px": 886.18,
+        "pnl_pct": 0.52,
+        "pnl_usdc": 0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-16T18:00:00+00:00",
+        "exit": "2025-12-16T20:00:00+00:00",
+        "entry_px": 871.49,
+        "exit_px": 870.41,
+        "pnl_pct": -0.12,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.83,
+    "sharpe": -0.41,
+    "profit_factor": 2.08
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -93.8,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2025-12-12T23:00:00+00:00",
+        "exit": "2025-12-14T16:00:00+00:00",
+        "entry_px": 881.58,
+        "exit_px": 886.18,
+        "pnl_pct": 0.52,
+        "pnl_usdc": 0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2025-12-16T18:00:00+00:00",
+        "exit": "2025-12-16T20:00:00+00:00",
+        "entry_px": 871.49,
+        "exit_px": 870.41,
+        "pnl_pct": -0.12,
+        "pnl_usdc": -0.01,
+        "reason": "death_x"
+      }
+    ],
+    "max_dd": 93.83,
+    "sharpe": -0.41,
+    "profit_factor": 2.08
+  }
+]

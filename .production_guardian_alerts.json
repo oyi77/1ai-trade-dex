@@ -16,5 +16,14 @@
     "db_bankroll": 4.648464000000001,
     "drift": -1.173,
     "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-06-08T15:58:55.048670+00:00",
+    "type": "drift_alert",
+    "severity": "WARNING",
+    "real_pusd": 17.566924,
+    "db_bankroll": 18.31,
+    "drift": -0.7431,
+    "auto_corrected": true
   }
 ]

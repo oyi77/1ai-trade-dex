@@ -1,0 +1,2122 @@
+[
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -24.35,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.2,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.63,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -24.38,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T08:30:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 597.94,
+        "pnl_pct": 4.07,
+        "pnl_usdc": 0.24,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.95,
+    "sharpe": -1.05,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -24.44,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.72,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -24.45,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.72,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -24.47,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T08:30:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 597.94,
+        "pnl_pct": 4.07,
+        "pnl_usdc": 0.24,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 25.05,
+    "sharpe": -1.05,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -24.49,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.77,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.05,
+      "pos": 0.25
+    },
+    "return_pct": -24.49,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.77,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -24.51,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T08:30:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 597.94,
+        "pnl_pct": 4.07,
+        "pnl_usdc": 0.24,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 25.09,
+    "sharpe": -1.05,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.25
+    },
+    "return_pct": -24.51,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T08:30:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 597.94,
+        "pnl_pct": 4.07,
+        "pnl_usdc": 0.24,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 25.09,
+    "sharpe": -1.05,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -24.54,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.81,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -24.58,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.86,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.07,
+      "pos": 0.25
+    },
+    "return_pct": -24.58,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.86,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -24.61,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.88,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -24.71,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 24.98,
+    "sharpe": -1.03,
+    "profit_factor": 0.47
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -24.75,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 25.02,
+    "sharpe": -1.03,
+    "profit_factor": 0.47
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.25
+    },
+    "return_pct": -24.75,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.18,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.17,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.19,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.1,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.04,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 25.02,
+    "sharpe": -1.03,
+    "profit_factor": 0.47
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.5
+    },
+    "return_pct": -42.97,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.3,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.29,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.07,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.21,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.15,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 43.38,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.5
+    },
+    "return_pct": -43.0,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.3,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.29,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.07,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T08:30:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 597.94,
+        "pnl_pct": 4.07,
+        "pnl_usdc": 0.36,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.15,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 43.86,
+    "sharpe": -1.05,
+    "profit_factor": 0.47
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.5
+    },
+    "return_pct": -43.11,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 602.51,
+        "pnl_pct": -2.66,
+        "pnl_usdc": -0.3,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.29,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.07,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.21,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.15,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 43.52,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "macd",
+    "params": {
+      "fee": 0.003,
+      "sl": 0.03,
+      "tp": 0.05,
+      "pos": 0.5
+    },
+    "return_pct": -43.12,
+    "win_rate": 25.5,
+    "trades": [
+      {
+        "entry": "2026-06-04T03:30:00+00:00",
+        "exit": "2026-06-04T05:30:00+00:00",
+        "entry_px": 618.99,
+        "exit_px": 604.23,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.27,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-04T12:00:00+00:00",
+        "exit": "2026-06-04T21:30:00+00:00",
+        "entry_px": 600.87,
+        "exit_px": 599.29,
+        "pnl_pct": -0.26,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T00:00:00+00:00",
+        "exit": "2026-06-05T01:00:00+00:00",
+        "entry_px": 606.94,
+        "exit_px": 600.39,
+        "pnl_pct": -1.08,
+        "pnl_usdc": -0.14,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T09:00:00+00:00",
+        "exit": "2026-06-05T13:30:00+00:00",
+        "entry_px": 595.2,
+        "exit_px": 581.02,
+        "pnl_pct": -2.38,
+        "pnl_usdc": -0.27,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-05T20:30:00+00:00",
+        "exit": "2026-06-06T04:00:00+00:00",
+        "entry_px": 577.54,
+        "exit_px": 562.36,
+        "pnl_pct": -2.63,
+        "pnl_usdc": -0.29,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T05:30:00+00:00",
+        "exit": "2026-06-06T11:30:00+00:00",
+        "entry_px": 576.28,
+        "exit_px": 574.06,
+        "pnl_pct": -0.39,
+        "pnl_usdc": -0.07,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T18:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.58,
+        "exit_px": 571.7,
+        "pnl_pct": -0.67,
+        "pnl_usdc": -0.09,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-06T23:30:00+00:00",
+        "exit": "2026-06-07T12:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 588.54,
+        "pnl_pct": 2.44,
+        "pnl_usdc": 0.21,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T17:30:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 596.14,
+        "exit_px": 588.95,
+        "pnl_pct": -1.21,
+        "pnl_usdc": -0.15,
+        "reason": "macd_sell"
+      },
+      {
+        "entry": "2026-06-07T22:00:00+00:00",
+        "exit": "2026-06-08T03:00:00+00:00",
+        "entry_px": 603.7,
+        "exit_px": 601.85,
+        "pnl_pct": -0.31,
+        "pnl_usdc": -0.06,
+        "reason": "macd_sell"
+      }
+    ],
+    "max_dd": 43.53,
+    "sharpe": -1.02,
+    "profit_factor": 0.48
+  }
+]

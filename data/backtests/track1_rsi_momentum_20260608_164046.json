@@ -1,0 +1,2162 @@
+[
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -10.07,
+    "win_rate": 33.5,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 638.69,
+        "pnl_pct": -5.83,
+        "pnl_usdc": -0.48,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.13,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.02,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.22,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 11.72,
+    "sharpe": -0.46,
+    "profit_factor": 0.55
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.03,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -10.67,
+    "win_rate": 32.7,
+    "trades": [
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T19:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 657.59,
+        "pnl_pct": -3.05,
+        "pnl_usdc": -0.26,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T19:30:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 660.31,
+        "exit_px": 638.69,
+        "pnl_pct": -3.27,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.13,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.21,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 12.31,
+    "sharpe": -0.49,
+    "profit_factor": 0.53
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.04,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -10.81,
+    "win_rate": 33.1,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 648.39,
+        "pnl_pct": -4.4,
+        "pnl_usdc": -0.36,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 635.38,
+        "pnl_pct": -2.35,
+        "pnl_usdc": -0.2,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.21,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 12.45,
+    "sharpe": -0.5,
+    "profit_factor": 0.53
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -10.88,
+    "win_rate": 32.9,
+    "trades": [
+      {
+        "entry": "2026-06-02T16:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 669.23,
+        "exit_px": 648.39,
+        "pnl_pct": -3.11,
+        "pnl_usdc": -0.26,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T03:30:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 633.99,
+        "pnl_pct": -2.57,
+        "pnl_usdc": -0.22,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.13,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T20:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 619.8,
+        "pnl_pct": -2.1,
+        "pnl_usdc": -0.18,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T09:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 591.89,
+        "pnl_pct": -2.44,
+        "pnl_usdc": -0.21,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T11:30:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 595.3,
+        "exit_px": 602.87,
+        "pnl_pct": 1.27,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.21,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 12.35,
+    "sharpe": -0.51,
+    "profit_factor": 0.56
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.05,
+      "tp": 0.05,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -11.55,
+    "win_rate": 33.5,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 638.69,
+        "pnl_pct": -5.83,
+        "pnl_usdc": -0.47,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 12.79,
+    "sharpe": -0.52,
+    "profit_factor": 0.48
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.05,
+      "tp": 0.07,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.05,
+    "win_rate": 33.5,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 638.69,
+        "pnl_pct": -5.83,
+        "pnl_usdc": -0.47,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.28,
+    "sharpe": -0.54,
+    "profit_factor": 0.45
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.05,
+    "win_rate": 33.5,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 638.69,
+        "pnl_pct": -5.83,
+        "pnl_usdc": -0.47,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.28,
+    "sharpe": -0.54,
+    "profit_factor": 0.45
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.03,
+      "tp": 0.05,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.15,
+    "win_rate": 32.7,
+    "trades": [
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T19:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 657.59,
+        "pnl_pct": -3.05,
+        "pnl_usdc": -0.25,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T19:30:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 660.31,
+        "exit_px": 638.69,
+        "pnl_pct": -3.27,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.37,
+    "sharpe": -0.56,
+    "profit_factor": 0.46
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.04,
+      "tp": 0.05,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.29,
+    "win_rate": 33.1,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 648.39,
+        "pnl_pct": -4.4,
+        "pnl_usdc": -0.36,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 635.38,
+        "pnl_pct": -2.35,
+        "pnl_usdc": -0.2,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.51,
+    "sharpe": -0.56,
+    "profit_factor": 0.46
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.03,
+      "tp": 0.07,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.64,
+    "win_rate": 32.7,
+    "trades": [
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T19:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 657.59,
+        "pnl_pct": -3.05,
+        "pnl_usdc": -0.25,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T19:30:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 660.31,
+        "exit_px": 638.69,
+        "pnl_pct": -3.27,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.86,
+    "sharpe": -0.58,
+    "profit_factor": 0.44
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.64,
+    "win_rate": 32.7,
+    "trades": [
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T19:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 657.59,
+        "pnl_pct": -3.05,
+        "pnl_usdc": -0.25,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T19:30:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 660.31,
+        "exit_px": 638.69,
+        "pnl_pct": -3.27,
+        "pnl_usdc": -0.27,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.86,
+    "sharpe": -0.58,
+    "profit_factor": 0.44
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.04,
+      "tp": 0.07,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.78,
+    "win_rate": 33.1,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 648.39,
+        "pnl_pct": -4.4,
+        "pnl_usdc": -0.35,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 635.38,
+        "pnl_pct": -2.35,
+        "pnl_usdc": -0.2,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 14.0,
+    "sharpe": -0.58,
+    "profit_factor": 0.44
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.78,
+    "win_rate": 33.1,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 648.39,
+        "pnl_pct": -4.4,
+        "pnl_usdc": -0.35,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 635.38,
+        "pnl_pct": -2.35,
+        "pnl_usdc": -0.2,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 14.0,
+    "sharpe": -0.58,
+    "profit_factor": 0.44
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.02,
+      "tp": 0.05,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -12.86,
+    "win_rate": 32.9,
+    "trades": [
+      {
+        "entry": "2026-06-02T16:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 669.23,
+        "exit_px": 648.39,
+        "pnl_pct": -3.11,
+        "pnl_usdc": -0.26,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T03:30:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 633.99,
+        "pnl_pct": -2.57,
+        "pnl_usdc": -0.21,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T20:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 619.8,
+        "pnl_pct": -2.1,
+        "pnl_usdc": -0.18,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T09:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 591.89,
+        "pnl_pct": -2.44,
+        "pnl_usdc": -0.2,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T11:30:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 595.3,
+        "exit_px": 602.87,
+        "pnl_pct": 1.27,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 13.91,
+    "sharpe": -0.6,
+    "profit_factor": 0.47
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.02,
+      "tp": 0.07,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -13.35,
+    "win_rate": 32.9,
+    "trades": [
+      {
+        "entry": "2026-06-02T16:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 669.23,
+        "exit_px": 648.39,
+        "pnl_pct": -3.11,
+        "pnl_usdc": -0.26,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T03:30:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 633.99,
+        "pnl_pct": -2.57,
+        "pnl_usdc": -0.21,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T20:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 619.8,
+        "pnl_pct": -2.1,
+        "pnl_usdc": -0.18,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T09:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 591.89,
+        "pnl_pct": -2.44,
+        "pnl_usdc": -0.2,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T11:30:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 595.3,
+        "exit_px": 602.87,
+        "pnl_pct": 1.27,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 14.4,
+    "sharpe": -0.62,
+    "profit_factor": 0.45
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -13.35,
+    "win_rate": 32.9,
+    "trades": [
+      {
+        "entry": "2026-06-02T16:00:00+00:00",
+        "exit": "2026-06-02T22:30:00+00:00",
+        "entry_px": 669.23,
+        "exit_px": 648.39,
+        "pnl_pct": -3.11,
+        "pnl_usdc": -0.26,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T03:30:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 633.99,
+        "pnl_pct": -2.57,
+        "pnl_usdc": -0.21,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.12,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T20:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 619.8,
+        "pnl_pct": -2.1,
+        "pnl_usdc": -0.18,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T09:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 591.89,
+        "pnl_pct": -2.44,
+        "pnl_usdc": -0.2,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T11:30:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 595.3,
+        "exit_px": 602.87,
+        "pnl_pct": 1.27,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.07,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.01,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T12:30:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 575.91,
+        "pnl_pct": 1.85,
+        "pnl_usdc": 0.11,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.04,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 14.4,
+    "sharpe": -0.62,
+    "profit_factor": 0.45
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 14,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.5,
+      "entry_mode": ">30"
+    },
+    "return_pct": -19.28,
+    "win_rate": 33.5,
+    "trades": [
+      {
+        "entry": "2026-06-01T02:00:00+00:00",
+        "exit": "2026-06-01T10:00:00+00:00",
+        "entry_px": 704.74,
+        "exit_px": 699.46,
+        "pnl_pct": -0.75,
+        "pnl_usdc": -0.15,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-01T17:00:00+00:00",
+        "exit": "2026-06-02T01:00:00+00:00",
+        "entry_px": 686.51,
+        "exit_px": 688.37,
+        "pnl_pct": 0.27,
+        "pnl_usdc": -0.0,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-02T12:00:00+00:00",
+        "exit": "2026-06-03T03:00:00+00:00",
+        "entry_px": 678.26,
+        "exit_px": 638.69,
+        "pnl_pct": -5.83,
+        "pnl_usdc": -0.87,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T05:00:00+00:00",
+        "exit": "2026-06-03T12:00:00+00:00",
+        "entry_px": 644.13,
+        "exit_px": 635.38,
+        "pnl_pct": -1.36,
+        "pnl_usdc": -0.23,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T13:30:00+00:00",
+        "exit": "2026-06-03T23:30:00+00:00",
+        "entry_px": 633.11,
+        "exit_px": 620.63,
+        "pnl_pct": -1.97,
+        "pnl_usdc": -0.31,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T02:00:00+00:00",
+        "exit": "2026-06-04T21:00:00+00:00",
+        "entry_px": 606.67,
+        "exit_px": 602.87,
+        "pnl_pct": -0.63,
+        "pnl_usdc": -0.13,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T10:00:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 592.66,
+        "pnl_pct": 1.32,
+        "pnl_usdc": 0.14,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-06T03:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 573.13,
+        "pnl_pct": 0.1,
+        "pnl_usdc": -0.03,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.39,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-08T09:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 598.9,
+        "exit_px": 597.78,
+        "pnl_pct": -0.19,
+        "pnl_usdc": -0.07,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 22.21,
+    "sharpe": -0.46,
+    "profit_factor": 0.54
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 10,
+      "sl": 0.04,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -19.68,
+    "win_rate": 23.9,
+    "trades": [
+      {
+        "entry": "2026-06-02T23:30:00+00:00",
+        "exit": "2026-06-03T10:00:00+00:00",
+        "entry_px": 650.69,
+        "exit_px": 643.4,
+        "pnl_pct": -1.12,
+        "pnl_usdc": -0.1,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T14:30:00+00:00",
+        "exit": "2026-06-03T23:00:00+00:00",
+        "entry_px": 637.02,
+        "exit_px": 622.86,
+        "pnl_pct": -2.22,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T03:00:00+00:00",
+        "exit": "2026-06-04T07:00:00+00:00",
+        "entry_px": 615.92,
+        "exit_px": 602.33,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T10:00:00+00:00",
+        "exit": "2026-06-04T13:00:00+00:00",
+        "entry_px": 592.88,
+        "exit_px": 599.9,
+        "pnl_pct": 1.18,
+        "pnl_usdc": 0.06,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T23:30:00+00:00",
+        "exit": "2026-06-05T06:00:00+00:00",
+        "entry_px": 604.53,
+        "exit_px": 576.27,
+        "pnl_pct": -4.67,
+        "pnl_usdc": -0.34,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T12:30:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 591.15,
+        "pnl_pct": 1.06,
+        "pnl_usdc": 0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-05T21:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 576.5,
+        "pnl_pct": 0.69,
+        "pnl_usdc": 0.03,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.19,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T14:00:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 591.67,
+        "exit_px": 588.95,
+        "pnl_pct": -0.46,
+        "pnl_usdc": -0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T06:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 596.83,
+        "exit_px": 597.78,
+        "pnl_pct": 0.16,
+        "pnl_usdc": -0.01,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 20.41,
+    "sharpe": -0.88,
+    "profit_factor": 0.4
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 10,
+      "sl": 0.05,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -19.89,
+    "win_rate": 24.0,
+    "trades": [
+      {
+        "entry": "2026-06-02T10:30:00+00:00",
+        "exit": "2026-06-03T02:00:00+00:00",
+        "entry_px": 680.11,
+        "exit_px": 645.56,
+        "pnl_pct": -5.08,
+        "pnl_usdc": -0.37,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T04:00:00+00:00",
+        "exit": "2026-06-03T10:00:00+00:00",
+        "entry_px": 636.9,
+        "exit_px": 643.4,
+        "pnl_pct": 1.02,
+        "pnl_usdc": 0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-03T14:30:00+00:00",
+        "exit": "2026-06-03T23:00:00+00:00",
+        "entry_px": 637.02,
+        "exit_px": 622.86,
+        "pnl_pct": -2.22,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T03:00:00+00:00",
+        "exit": "2026-06-04T07:00:00+00:00",
+        "entry_px": 615.92,
+        "exit_px": 602.33,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T10:00:00+00:00",
+        "exit": "2026-06-04T13:00:00+00:00",
+        "entry_px": 592.88,
+        "exit_px": 599.9,
+        "pnl_pct": 1.18,
+        "pnl_usdc": 0.06,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T23:30:00+00:00",
+        "exit": "2026-06-05T12:30:00+00:00",
+        "entry_px": 604.53,
+        "exit_px": 591.15,
+        "pnl_pct": -2.21,
+        "pnl_usdc": -0.17,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-05T21:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 576.5,
+        "pnl_pct": 0.69,
+        "pnl_usdc": 0.03,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.19,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T14:00:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 591.67,
+        "exit_px": 588.95,
+        "pnl_pct": -0.46,
+        "pnl_usdc": -0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T06:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 596.83,
+        "exit_px": 597.78,
+        "pnl_pct": 0.16,
+        "pnl_usdc": -0.01,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 20.89,
+    "sharpe": -0.88,
+    "profit_factor": 0.4
+  },
+  {
+    "strategy": "rsi_momentum",
+    "params": {
+      "fee": 0.003,
+      "rsi_p": 10,
+      "sl": 0.02,
+      "tp": 0.03,
+      "pos": 0.25,
+      "entry_mode": ">30"
+    },
+    "return_pct": -20.33,
+    "win_rate": 23.8,
+    "trades": [
+      {
+        "entry": "2026-06-03T14:30:00+00:00",
+        "exit": "2026-06-03T16:00:00+00:00",
+        "entry_px": 637.02,
+        "exit_px": 622.05,
+        "pnl_pct": -2.35,
+        "pnl_usdc": -0.18,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-03T16:30:00+00:00",
+        "exit": "2026-06-03T23:00:00+00:00",
+        "entry_px": 628.25,
+        "exit_px": 622.86,
+        "pnl_pct": -0.86,
+        "pnl_usdc": -0.08,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T03:00:00+00:00",
+        "exit": "2026-06-04T05:00:00+00:00",
+        "entry_px": 615.92,
+        "exit_px": 602.51,
+        "pnl_pct": -2.18,
+        "pnl_usdc": -0.17,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-04T10:00:00+00:00",
+        "exit": "2026-06-04T13:00:00+00:00",
+        "entry_px": 592.88,
+        "exit_px": 599.9,
+        "pnl_pct": 1.18,
+        "pnl_usdc": 0.06,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-04T23:30:00+00:00",
+        "exit": "2026-06-05T05:30:00+00:00",
+        "entry_px": 604.53,
+        "exit_px": 584.55,
+        "pnl_pct": -3.31,
+        "pnl_usdc": -0.24,
+        "reason": "sl"
+      },
+      {
+        "entry": "2026-06-05T07:00:00+00:00",
+        "exit": "2026-06-05T12:30:00+00:00",
+        "entry_px": 584.93,
+        "exit_px": 591.15,
+        "pnl_pct": 1.06,
+        "pnl_usdc": 0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-05T20:00:00+00:00",
+        "exit": "2026-06-05T21:30:00+00:00",
+        "entry_px": 572.55,
+        "exit_px": 576.5,
+        "pnl_pct": 0.69,
+        "pnl_usdc": 0.03,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-06T04:30:00+00:00",
+        "exit": "2026-06-06T08:00:00+00:00",
+        "entry_px": 565.47,
+        "exit_px": 583.33,
+        "pnl_pct": 3.16,
+        "pnl_usdc": 0.19,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T14:00:00+00:00",
+        "exit": "2026-06-07T19:00:00+00:00",
+        "entry_px": 591.67,
+        "exit_px": 588.95,
+        "pnl_pct": -0.46,
+        "pnl_usdc": -0.05,
+        "reason": "rsi_below50"
+      },
+      {
+        "entry": "2026-06-08T06:00:00+00:00",
+        "exit": "2026-06-08T09:30:00+00:00",
+        "entry_px": 596.83,
+        "exit_px": 597.78,
+        "pnl_pct": 0.16,
+        "pnl_usdc": -0.01,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 21.05,
+    "sharpe": -0.94,
+    "profit_factor": 0.4
+  }
+]

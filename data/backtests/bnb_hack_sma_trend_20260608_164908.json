@@ -1,0 +1,830 @@
+[
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 30,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 10.61,
+    "win_rate": 66.7,
+    "trades": [
+      {
+        "entry": "2026-05-29T06:00:00+00:00",
+        "exit": "2026-05-29T18:00:00+00:00",
+        "entry_px": 638.16,
+        "exit_px": 639.64,
+        "pnl_pct": 0.23,
+        "pnl_usdc": -0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-05-29T23:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 643.1,
+        "exit_px": 708.57,
+        "pnl_pct": 10.18,
+        "pnl_usdc": 2.5,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T19:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 573.73,
+        "exit_px": 599.11,
+        "pnl_pct": 4.42,
+        "pnl_usdc": 1.12,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.32,
+    "sharpe": 2.88,
+    "profit_factor": 207.27
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 30,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 10.61,
+    "win_rate": 66.7,
+    "trades": [
+      {
+        "entry": "2026-05-29T06:00:00+00:00",
+        "exit": "2026-05-29T18:00:00+00:00",
+        "entry_px": 638.16,
+        "exit_px": 639.64,
+        "pnl_pct": 0.23,
+        "pnl_usdc": -0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-05-29T23:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 643.1,
+        "exit_px": 708.57,
+        "pnl_pct": 10.18,
+        "pnl_usdc": 2.5,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T19:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 573.73,
+        "exit_px": 599.11,
+        "pnl_pct": 4.42,
+        "pnl_usdc": 1.12,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.32,
+    "sharpe": 2.88,
+    "profit_factor": 207.27
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 30,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 10.61,
+    "win_rate": 66.7,
+    "trades": [
+      {
+        "entry": "2026-05-29T06:00:00+00:00",
+        "exit": "2026-05-29T18:00:00+00:00",
+        "entry_px": 638.16,
+        "exit_px": 639.64,
+        "pnl_pct": 0.23,
+        "pnl_usdc": -0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-05-29T23:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 643.1,
+        "exit_px": 708.57,
+        "pnl_pct": 10.18,
+        "pnl_usdc": 2.5,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T19:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 573.73,
+        "exit_px": 599.11,
+        "pnl_pct": 4.42,
+        "pnl_usdc": 1.12,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.32,
+    "sharpe": 2.88,
+    "profit_factor": 207.27
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 30,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 10.61,
+    "win_rate": 66.7,
+    "trades": [
+      {
+        "entry": "2026-05-29T06:00:00+00:00",
+        "exit": "2026-05-29T18:00:00+00:00",
+        "entry_px": 638.16,
+        "exit_px": 639.64,
+        "pnl_pct": 0.23,
+        "pnl_usdc": -0.02,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-05-29T23:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 643.1,
+        "exit_px": 708.57,
+        "pnl_pct": 10.18,
+        "pnl_usdc": 2.5,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T19:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 573.73,
+        "exit_px": 599.11,
+        "pnl_pct": 4.42,
+        "pnl_usdc": 1.12,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.32,
+    "sharpe": 2.88,
+    "profit_factor": 207.27
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.82,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T18:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.64,
+        "exit_px": 708.57,
+        "pnl_pct": 10.78,
+        "pnl_usdc": 2.66,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.86,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.82,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T18:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.64,
+        "exit_px": 708.57,
+        "pnl_pct": 10.78,
+        "pnl_usdc": 2.66,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.86,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.82,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T18:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.64,
+        "exit_px": 708.57,
+        "pnl_pct": 10.78,
+        "pnl_usdc": 2.66,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.86,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 50,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.82,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T18:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.64,
+        "exit_px": 708.57,
+        "pnl_pct": 10.78,
+        "pnl_usdc": 2.66,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.86,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.81,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T15:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.74,
+        "exit_px": 708.57,
+        "pnl_pct": 10.76,
+        "pnl_usdc": 2.65,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.82,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.81,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T15:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.74,
+        "exit_px": 708.57,
+        "pnl_pct": 10.76,
+        "pnl_usdc": 2.65,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.82,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.81,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T15:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.74,
+        "exit_px": 708.57,
+        "pnl_pct": 10.76,
+        "pnl_usdc": 2.65,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.82,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 20,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.81,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T15:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 639.74,
+        "exit_px": 708.57,
+        "pnl_pct": 10.76,
+        "pnl_usdc": 2.65,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T04:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 582.79,
+        "exit_px": 599.11,
+        "pnl_pct": 2.8,
+        "pnl_usdc": 0.68,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.82,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 10,
+      "ss": 30,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.5,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T01:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 636.96,
+        "exit_px": 708.57,
+        "pnl_pct": 11.24,
+        "pnl_usdc": 2.77,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T21:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.02,
+        "exit_px": 572.46,
+        "pnl_pct": -0.45,
+        "pnl_usdc": -0.2,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-06T23:00:00+00:00",
+        "exit": "2026-06-07T00:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 574.13,
+        "pnl_pct": -0.07,
+        "pnl_usdc": -0.1,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.62,
+    "profit_factor": 11.57
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 10,
+      "ss": 30,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.5,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T01:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 636.96,
+        "exit_px": 708.57,
+        "pnl_pct": 11.24,
+        "pnl_usdc": 2.77,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T21:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.02,
+        "exit_px": 572.46,
+        "pnl_pct": -0.45,
+        "pnl_usdc": -0.2,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-06T23:00:00+00:00",
+        "exit": "2026-06-07T00:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 574.13,
+        "pnl_pct": -0.07,
+        "pnl_usdc": -0.1,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.62,
+    "profit_factor": 11.57
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 10,
+      "ss": 30,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.5,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T01:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 636.96,
+        "exit_px": 708.57,
+        "pnl_pct": 11.24,
+        "pnl_usdc": 2.77,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T21:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.02,
+        "exit_px": 572.46,
+        "pnl_pct": -0.45,
+        "pnl_usdc": -0.2,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-06T23:00:00+00:00",
+        "exit": "2026-06-07T00:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 574.13,
+        "pnl_pct": -0.07,
+        "pnl_usdc": -0.1,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.62,
+    "profit_factor": 11.57
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 10,
+      "ss": 30,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.5,
+    "win_rate": 50.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T01:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 636.96,
+        "exit_px": 708.57,
+        "pnl_pct": 11.24,
+        "pnl_usdc": 2.77,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-06T21:00:00+00:00",
+        "exit": "2026-06-06T22:00:00+00:00",
+        "entry_px": 575.02,
+        "exit_px": 572.46,
+        "pnl_pct": -0.45,
+        "pnl_usdc": -0.2,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-06T23:00:00+00:00",
+        "exit": "2026-06-07T00:00:00+00:00",
+        "entry_px": 574.53,
+        "exit_px": 574.13,
+        "pnl_pct": -0.07,
+        "pnl_usdc": -0.1,
+        "reason": "death_x"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.62,
+    "profit_factor": 11.57
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.02,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.49,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T16:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 644.0,
+        "exit_px": 708.57,
+        "pnl_pct": 10.03,
+        "pnl_usdc": 2.47,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.75,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.03,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.49,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T16:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 644.0,
+        "exit_px": 708.57,
+        "pnl_pct": 10.03,
+        "pnl_usdc": 2.47,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.75,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.04,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.49,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T16:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 644.0,
+        "exit_px": 708.57,
+        "pnl_pct": 10.03,
+        "pnl_usdc": 2.47,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.75,
+    "profit_factor": Infinity
+  },
+  {
+    "strategy": "sma_trend",
+    "params": {
+      "fee": 0.003,
+      "sf": 5,
+      "ss": 40,
+      "sl": 0.05,
+      "tp": 0.1,
+      "pos": 0.75
+    },
+    "return_pct": 9.49,
+    "win_rate": 100.0,
+    "trades": [
+      {
+        "entry": "2026-05-29T16:00:00+00:00",
+        "exit": "2026-05-30T16:00:00+00:00",
+        "entry_px": 644.0,
+        "exit_px": 708.57,
+        "pnl_pct": 10.03,
+        "pnl_usdc": 2.47,
+        "reason": "tp"
+      },
+      {
+        "entry": "2026-06-07T03:00:00+00:00",
+        "exit": "2026-06-08T09:00:00+00:00",
+        "entry_px": 581.1,
+        "exit_px": 599.11,
+        "pnl_pct": 3.1,
+        "pnl_usdc": 0.76,
+        "reason": "end"
+      }
+    ],
+    "max_dd": 1.31,
+    "sharpe": 2.75,
+    "profit_factor": Infinity
+  }
+]
