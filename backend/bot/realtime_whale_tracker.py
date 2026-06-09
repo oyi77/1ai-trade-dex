@@ -198,27 +198,26 @@ class RealTimeWhaleTracker(BaseStrategy):
                 )
         except Exception as e:
             logger.debug(f"[{self.name}] TX parse error: {e}")
+
+    async def _handle_whale_trade(self, trade: Dict, value: float):
         """Handle a detected whale trade."""
         trader_wallet = trade.get("maker")
+        if trader_wallet not in self._tracked_whales:
+            return
         whale_info = self._tracked_whales[trader_wallet]
 
-        # Check cooldown
         if trader_wallet in self._last_whale_activity:
             last_activity = self._last_whale_activity[trader_wallet]
             cooldown = self.default_params["cooldown_seconds"]
             if (datetime.now(timezone.utc) - last_activity).total_seconds() < cooldown:
                 return
 
-        # Log whale activity
         logger.info(
             f"[{self.name}] Whale detected: {whale_info['name']} "
-            f"({trade['side']} ${value:.0f} on {trade.get('asset', '?')})"
+            f"({trade.get('side', '?')} ${value:.0f} on {trade.get('asset', '?')})"
         )
 
-        # Execute copy trade
         await self._execute_whale_copy(trade, whale_info)
-
-        # Update last activity
         self._last_whale_activity[trader_wallet] = datetime.now(timezone.utc)
 
     async def _execute_whale_copy(self, trade: Dict, whale_info: Dict):
