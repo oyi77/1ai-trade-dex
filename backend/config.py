@@ -1571,6 +1571,9 @@ class ConfigRegistry:
     BNB_HACK_MAX_CONSECUTIVE_LOSSES: int = 3
     BNB_HACK_CHECK_INTERVAL_SECONDS: int = 3600
     ALCHEMY_API_KEY: str = ""
+    WHALE_WALLETS: str = "0xf8831548531d56ad6a4331493243c447a827cd1f"
+    COPY_TRADER_MIN_PNL: int = 10000
+    COPY_TRADER_MIN_VOLUME: int = 100000
 
     # --------------------------------------------------------------------------
     # MISSING FIELDS - Added for completeness
