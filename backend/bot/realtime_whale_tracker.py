@@ -62,22 +62,45 @@ class RealTimeWhaleTracker(BaseStrategy):
         """Start real-time WebSocket connection for whale tracking."""
         self._running = True
 
-        # Load whale wallets from database or config
         await self._load_whale_wallets()
 
-        # Connect to Alchemy WebSocket
         api_key = self.default_params.get("alchemy_api_key") or settings.ALCHEMY_API_KEY
         if not api_key:
-            logger.error(f"[{self.name}] No Alchemy API key configured")
+            logger.warning(f"[{self.name}] No Alchemy API key — using polling fallback")
+            await self._start_polling_fallback()
             return
 
-        logger.info(f"[{self.name}] Starting real-time whale tracker")
+        logger.info(f"[{self.name}] Starting Alchemy WebSocket whale tracker")
         logger.info(f"[{self.name}] Tracking {len(self._tracked_whales)} whale wallets")
 
-        # TODO: Connect to Alchemy WebSocket
-        # This would subscribe to pending transactions for tracked wallets
-        # For now, we'll use polling as fallback
-        await self._start_polling_fallback()
+        try:
+            import websockets
+
+            ws_url = f"wss://eth-mainnet.g.alchemy.com/v2/{api_key}"
+            self._ws = await websockets.connect(ws_url)
+
+            subscribe_msg = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "eth_subscribe",
+                "params": ["newPendingTransactions", True],
+            }
+            await self._ws.send(json.dumps(subscribe_msg))
+
+            async for message in self._ws:
+                if not self._running:
+                    break
+                try:
+                    data = json.loads(message)
+                    if "params" in data:
+                        tx = data["params"].get("result", {})
+                        await self._handle_pending_tx(tx)
+                except Exception as e:
+                    logger.debug(f"[{self.name}] WS message parse error: {e}")
+
+        except Exception as e:
+            logger.warning(f"[{self.name}] Alchemy WebSocket failed: {e} — falling back to polling")
+            await self._start_polling_fallback()
 
     async def stop_realtime(self):
         """Stop real-time connection."""
@@ -87,18 +110,32 @@ class RealTimeWhaleTracker(BaseStrategy):
             pass
 
     async def _load_whale_wallets(self):
-        """Load whale wallets from database or configuration."""
-        # TODO: Load from database
-        # For now, use hardcoded examples
-        self._tracked_whales = {
-            "0xf8831548531d56ad6a4331493243c447a827cd1f": {
-                "name": "Inaccuratestake",
-                "pnl": 3947666,
-                "win_rate": 0.0,
-                "trades": 0,
-            },
-            # Add more whale wallets here
-        }
+        """Load whale wallets from config and Polymarket leaderboard."""
+        wallets_str = getattr(settings, "WHALE_WALLETS", "")
+        if wallets_str:
+            for wallet in wallets_str.split(","):
+                wallet = wallet.strip()
+                if wallet:
+                    self._tracked_whales[wallet] = {"name": f"whale_{wallet[:10]}", "pnl": 0, "volume": 0}
+
+        try:
+            client = get_shared_client()
+            resp = await client.get(
+                "https://data-api.polymarket.com/v1/leaderboard",
+                params={"timePeriod": "ALL", "limit": 20, "orderBy": "PNL"},
+            )
+            if resp.status_code == 200:
+                for trader in resp.json():
+                    wallet = trader.get("proxyWallet", "")
+                    pnl = trader.get("pnl", 0)
+                    if wallet and pnl >= self.default_params["min_whale_pnl"]:
+                        self._tracked_whales[wallet] = {
+                            "name": trader.get("userName", f"whale_{wallet[:10]}"),
+                            "pnl": pnl,
+                            "volume": trader.get("vol", 0),
+                        }
+        except Exception as e:
+            logger.warning(f"[{self.name}] Leaderboard fetch failed: {e}")
 
     async def _start_polling_fallback(self):
         """Fallback: Poll for whale activity every 10 seconds."""
@@ -145,7 +182,22 @@ class RealTimeWhaleTracker(BaseStrategy):
         except Exception as e:
             logger.warning(f"[{self.name}] Whale activity check failed: {e}")
 
-    async def _handle_whale_trade(self, trade: Dict, value: float):
+    async def _handle_pending_tx(self, tx: Dict):
+        """Handle a pending transaction from Alchemy WebSocket."""
+        try:
+            from_addr = tx.get("from", "").lower()
+            to_addr = tx.get("to", "").lower()
+            value_wei = int(tx.get("value", "0"), 16) if isinstance(tx.get("value"), str) else int(tx.get("value", 0))
+            value_eth = value_wei / 1e18
+
+            tracked_wallets = {w.lower() for w in self._tracked_whales}
+            if from_addr in tracked_wallets or to_addr in tracked_wallets:
+                logger.info(
+                    f"[{self.name}] Whale tx detected: {from_addr[:10]}→{to_addr[:10]} "
+                    f"value={value_eth:.4f} ETH"
+                )
+        except Exception as e:
+            logger.debug(f"[{self.name}] TX parse error: {e}")
         """Handle a detected whale trade."""
         trader_wallet = trade.get("maker")
         whale_info = self._tracked_whales[trader_wallet]

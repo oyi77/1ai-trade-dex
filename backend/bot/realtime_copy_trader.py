@@ -141,25 +141,53 @@ class RealTimeCopyTrader(BaseStrategy):
     def _extract_trader_wallet(self, event: TradeEvent) -> Optional[str]:
         """Extract trader wallet from trade event.
 
-        Note: This depends on Polymarket WebSocket event format.
-        The actual implementation needs to match their API.
+        Polymarket WebSocket trade events don't directly expose the trader wallet.
+        Instead, we check if the asset_id matches any tracked trader's known positions.
         """
-        # TODO: Implement based on actual Polymarket WS event structure
-        # For now, return None to skip
+        asset_id = getattr(event, "asset_id", None)
+        if not asset_id:
+            return None
+
+        for wallet, info in self._leaderboard_cache.items():
+            known_positions = info.get("positions", {})
+            if asset_id in known_positions:
+                return wallet
         return None
 
     async def _execute_copy(self, event: TradeEvent, trader_info: Dict):
-        """Execute a copy trade via Polymarket CLOB."""
+        """Execute a copy trade via Polymarket CLOB or paper simulation."""
         try:
-            # This would integrate with the existing Polymarket CLOB client
-            # For now, log the decision
+            asset_id = getattr(event, "asset_id", None)
+            side = getattr(event, "side", "BUY")
+            size = float(getattr(event, "size", 0))
+            price = float(getattr(event, "price", 0))
+            usd_value = size * price
+
+            if usd_value < self.default_params["min_trade_size_usd"]:
+                return
+
+            position_pct = self.default_params["position_size_pct"]
+
             logger.info(
-                f"[{self.name}] Would copy: {event.side} {event.size} @ {event.price} "
-                f"on {event.asset_id} from {trader_info['name']}"
+                f"[{self.name}] COPY TRADE: {side} {size:.0f} @ ${price:.3f} "
+                f"(${usd_value:.0f}) on {asset_id[:20]}... from {trader_info['name']}"
             )
 
-            # TODO: Integrate with Polymarket CLOB for actual execution
-            # ctx.clob.place_order(...)
+            from backend.data.polymarket_clob import PolymarketCLOB
+
+            try:
+                clob = PolymarketCLOB(settings, simulation=True)
+                order_result = await clob.place_limit_order(
+                    token_id=asset_id,
+                    side=side,
+                    price=price,
+                    size=size * position_pct,
+                )
+                logger.info(f"[{self.name}] Order placed: {order_result}")
+            except Exception as clob_err:
+                logger.warning(f"[{self.name}] CLOB order failed (paper mode OK): {clob_err}")
+
+            self._log_trade(asset_id, side, size, price, trader_info)
 
         except Exception as e:
             logger.error(f"[{self.name}] Copy execution failed: {e}")
