@@ -235,18 +235,16 @@ async def execute_arb_decisions(
     if not rows:
         return []
 
-    bot_state: BotState | None = None
+    bankroll = 0.0
     with get_db_session() as db:
         bot_state = db.query(BotState).filter_by(mode=mode).first()
-
-    bankroll = 0.0
-    if bot_state is not None:
-        if hasattr(bot_state, "paper_bankroll") and mode == "paper":
-            bankroll = float(bot_state.paper_bankroll or 0.0)
-        elif hasattr(bot_state, "bankroll") and mode == "live":
-            bankroll = float(bot_state.bankroll or 0.0)
-        else:
-            bankroll = float(getattr(bot_state, "bankroll", 0.0) or 0.0)
+        if bot_state is not None:
+            if hasattr(bot_state, "paper_bankroll") and mode == "paper":
+                bankroll = float(bot_state.paper_bankroll or 0.0)
+            elif hasattr(bot_state, "bankroll") and mode == "live":
+                bankroll = float(bot_state.bankroll or 0.0)
+            else:
+                bankroll = float(getattr(bot_state, "bankroll", 0.0) or 0.0)
 
     if not bankroll:
         from backend.config import settings as _settings

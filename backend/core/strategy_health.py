@@ -27,8 +27,10 @@ def disable_for_rehab(config) -> None:
     This prevents the scheduler from running them and consuming resources.
     """
     config.enabled = False
-    config.disabled_at = datetime.now(timezone.utc)
-    config.updated_at = datetime.now(timezone.utc)
+    # DB column is DateTime (naive) — strip tzinfo for consistency
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    config.disabled_at = now_utc
+    config.updated_at = now_utc
 
 
 def is_in_rehab(config) -> bool:

@@ -48,8 +48,25 @@ from backend.core.settlement.settlement_helpers import (
 )
 
 from loguru import logger
+from sqlalchemy import text as sa_text
 
 _settlement_lock = asyncio.Lock()
+
+
+def _ensure_session(db: Session) -> None:
+    """Ping the DB connection and reconnect if it dropped during async awaits."""
+    try:
+        db.execute(sa_text("SELECT 1"))
+    except Exception:
+        logger.warning("[settlement] DB session stale, rolling back and reconnecting")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        db.bind.dispose()
+        # Re-establish the connection by forcing a new checkout
+        db.connection().close()
+        db.connection()
 
 # Track trades whose position is gone but API couldn't confirm resolution.
 # Maps trade_id -> datetime of first detection. Used to implement a grace
@@ -261,6 +278,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         return []
 
     async with _settlement_lock:
+        _ensure_session(db)
         alert_manager = AlertManager(db)
 
         try:
@@ -407,6 +425,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             logger.error(f"KG write failed for trade {trade.id}: {e}")
 
                 if closed_count > 0:
+                    _ensure_session(db)
                     db.commit()
                     logger.info(
                         f"Position reconciliation: processed {closed_count} trades"
@@ -425,6 +444,7 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
         try:
             import time as _time
 
+            _ensure_session(db)
             _qstart = _time.monotonic()
             pending = (
                 db.query(Trade)
