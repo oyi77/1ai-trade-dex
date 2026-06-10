@@ -14,6 +14,7 @@ from loguru import logger
 
 from backend.config import settings
 from backend.models.outcome_tables import StrategyOutcome, StrategyHealthRecord
+from backend.db.utils import utcnow
 
 
 def _now_utc():
@@ -27,8 +28,7 @@ def disable_for_rehab(config) -> None:
     This prevents the scheduler from running them and consuming resources.
     """
     config.enabled = False
-    # DB column is DateTime (naive) — strip tzinfo for consistency
-    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    now_utc = utcnow()
     config.disabled_at = now_utc
     config.updated_at = now_utc
 

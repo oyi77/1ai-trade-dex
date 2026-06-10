@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from backend.core.config_service import get_setting
 from backend.models.database import MiroFishSignal
 from backend.db.utils import get_db_session
+from backend.db.utils import utcnow
 
 
 @dataclass
@@ -225,7 +226,7 @@ class SignalParser:
                 existing.reasoning = signal.reasoning
                 existing.source = signal.source
                 existing.weight = signal.weight
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = utcnow()
 
                 logger.info(f"Updated MiroFish signal for {signal.market_id}")
             else:

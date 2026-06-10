@@ -11,6 +11,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from backend.models.database import TradeAttempt
+from backend.db.utils import utcnow
 
 
 def _json_dumps(value: Any) -> str | None:
@@ -103,7 +104,7 @@ class TradeAttemptRecorder:
             } and not isinstance(value, (str, type(None))):
                 value = _json_dumps(value)
             setattr(self.attempt, key, value)
-        self.attempt.updated_at = datetime.now(timezone.utc)
+        self.attempt.updated_at = utcnow()
         self.db.flush()
 
     def record_blocked(

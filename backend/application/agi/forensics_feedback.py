@@ -16,6 +16,7 @@ from loguru import logger
 from backend.config import settings
 from backend.core.event_bus import publish_event
 from backend.models.database import StrategyConfig
+from backend.db.utils import utcnow
 
 
 class StrategyConfigMutation(BaseModel):
@@ -100,7 +101,7 @@ def apply_mutation_to_config(
         config.params = mutation.new_value
     else:
         setattr(config, mutation.param, mutation.new_value)
-    config.updated_at = datetime.now(timezone.utc)
+    config.updated_at = utcnow()
     db.commit()
 
 
@@ -190,7 +191,7 @@ def _apply_via_safe_tuner(
         else:
             setattr(config, param, new_value)
 
-        config.updated_at = datetime.now(timezone.utc)
+        config.updated_at = utcnow()
         db.commit()
 
         # Also update GenomeRegistry.fitness_json to close the feedback loop (G3)

@@ -20,6 +20,7 @@ from backend.models.kg_models import (
     DecisionAuditLog,
 )
 from backend.models.database import KgNode, KgEdge, EvolutionLog
+from backend.db.utils import utcnow
 
 
 class KnowledgeGraph:
@@ -58,7 +59,7 @@ class KnowledgeGraph:
         if existing:
             if properties:
                 existing.properties = properties
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = utcnow()
             if self._autocommit:
                 self._session.commit()
             return KGEntityType(
@@ -471,7 +472,7 @@ class KnowledgeGraph:
         )
         if existing:
             existing.properties = entity.properties
-            existing.updated_at = datetime.now(timezone.utc)
+            existing.updated_at = utcnow()
         else:
             existing = KGEntityModel(
                 entity_type=entity.entity_type,

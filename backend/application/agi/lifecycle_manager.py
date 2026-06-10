@@ -15,6 +15,7 @@ from backend.domain.genome.models import StrategyGenome, DeathCertificate
 from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.domain.evolution.fitness import calculate_fitness
 from backend.core.event_bus import publish_event
+from backend.db.utils import utcnow
 
 # Auto-kill conditions from spec lines 227-232
 AUTO_KILL_CONDITIONS = [
@@ -231,7 +232,7 @@ class LifecycleManager:
 
         # Update genome stage
         genome.stage = target_stage
-        genome.updated_at = datetime.now(timezone.utc)
+        genome.updated_at = utcnow()
 
         # Update database
         db_genome = (
@@ -242,8 +243,8 @@ class LifecycleManager:
 
         if db_genome:
             db_genome.stage = target_stage
-            db_genome.stage_entered_at = datetime.now(timezone.utc)
-            db_genome.updated_at = datetime.now(timezone.utc)
+            db_genome.stage_entered_at = utcnow()
+            db_genome.updated_at = utcnow()
 
             # Update fitness metrics — sync both JSON and native columns
             if genome.fitness_metrics:
@@ -262,8 +263,8 @@ class LifecycleManager:
             # Sync native columns
             if hasattr(genome, "fitness_score") and genome.fitness_score is not None:
                 db_genome.fitness_score = genome.fitness_score
-            db_genome.last_evaluated_at = datetime.now(timezone.utc)
-            db_genome.fitness_updated_at = datetime.now(timezone.utc)
+            db_genome.last_evaluated_at = utcnow()
+            db_genome.fitness_updated_at = utcnow()
 
             db.commit()
 

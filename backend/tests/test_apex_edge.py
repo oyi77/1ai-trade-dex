@@ -17,6 +17,7 @@ from backend.core.edge.edge_types import (
 )
 from backend.core.edge.probability_models import BrownianBridgeModel, NearResolutionModel
 from backend.core.edge.exit_manager import ExitManager
+from backend.db.utils import utcnow
 
 
 # ─── Helpers ────────────────────────────────────────────────────────
@@ -212,7 +213,7 @@ class TestExitManager:
         t.direction = "yes"
         t.edge = 5.0
         t.edge_at_entry = 5.0
-        t.timestamp = datetime.now(timezone.utc) - timedelta(hours=0.1)
+        t.timestamp = utcnow() - timedelta(hours=0.1)
         t.token_id = "0x1"
         for k, v in kw.items():
             setattr(t, k, v)

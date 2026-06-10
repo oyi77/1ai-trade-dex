@@ -47,6 +47,7 @@ from backend.core.position_monitor import (
 
 # auto_sell is opt-in per strategy, not imported globally
 from backend.models.database import ScheduledJob, Trade
+from backend.db.utils import utcnow
 from backend.core.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
 from backend.core.agi_jobs import (
@@ -1333,8 +1334,8 @@ def start_scheduler():
     with get_db_session() as db:
         for config in db.query(StrategyConfig).filter(StrategyConfig.enabled).all():
             for mode in settings.active_modes_set:
-                # Only schedule strategy for its configured mode (skip paper if live)
-                if config.mode == "live" and mode != "live":
+                # Only schedule strategy for its configured mode (skip mismatched)
+                if config.mode and config.mode != mode:
                     continue
                 trades = (
                     db.query(Trade)
@@ -1851,7 +1852,7 @@ def start_scheduler():
                         win_rate = wins / len(trades) if trades else 0
 
                         if win_rate < wr_threshold:
-                            config.disabled_at = datetime.now(timezone.utc) + timedelta(
+                            config.disabled_at = utcnow() + timedelta(
                                 hours=re_disable_hours - cooldown_hours
                             )
                             re_disabled.append(

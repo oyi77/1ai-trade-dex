@@ -1,10 +1,21 @@
 import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from backend.models.database import SessionLocal
 
 from loguru import logger
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from backend.core.retry import retry
+
+
+def utcnow() -> datetime:
+    """Return a naive UTC datetime for DB column writes.
+
+    All DB DateTime columns are naive (no tzinfo). Using tz-aware
+    datetimes causes comparison mismatches and DetachedInstanceError
+    on attribute access after session close.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 @retry(max_attempts=5, retryable_exceptions=(OperationalError,))

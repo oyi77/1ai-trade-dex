@@ -23,6 +23,7 @@ from backend.core.experiment_runner import ExperimentRunner
 from backend.core.agi_types import ExperimentStatus
 from backend.core.strategy_health import StrategyHealthMonitor
 from backend.core.event_bus import publish_event
+from backend.db.utils import utcnow
 
 from loguru import logger
 
@@ -806,7 +807,7 @@ class AutonomousPromoter:
         config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
         if config:
             config.enabled = True
-            config.updated_at = datetime.now(timezone.utc)
+            config.updated_at = utcnow()
             interval = config.interval_seconds or 60
 
             # Apply evolved params from experiment if available

@@ -44,6 +44,7 @@ from backend.domain.evolution.shadow_metrics import compute_shadow_metrics
 from backend.domain.evolution.evolution_action import EvolutionAction
 from backend.models.database import GenomeRegistry, EvolutionLog, ShadowTrade
 from backend.models.genome_registry import GenomePerformance
+from backend.db.utils import utcnow
 
 from loguru import logger
 
@@ -572,7 +573,7 @@ def update_fitness_from_shadow() -> int:
                 last_evaluated=datetime.now(timezone.utc),
             )
             genome.fitness_json = metrics.model_dump_json()
-            genome.updated_at = datetime.now(timezone.utc)
+            genome.updated_at = utcnow()
             updated += 1
 
         return updated
@@ -679,13 +680,13 @@ def _sync_genome_fitness_from_shadow_trades(
     # Compute composite fitness score and sync ALL native denormalized columns
     fitness_score = calculate_fitness(fitness)
     genome.fitness_score = fitness_score
-    genome.fitness_updated_at = datetime.now(timezone.utc)
+    genome.fitness_updated_at = utcnow()
     genome.total_pnl = metrics["total_pnl"]
     genome.win_rate = metrics["win_rate"]
     genome.sharpe_ratio = metrics["sharpe_ratio"]
     genome.max_drawdown_pct = metrics["max_drawdown_pct"]
     genome.trade_count = metrics["total_trades"]
-    genome.last_evaluated_at = datetime.now(timezone.utc)
+    genome.last_evaluated_at = utcnow()
 
     perf_row = (
         db.query(GenomePerformance)
@@ -751,7 +752,7 @@ def fitness_evaluation_job() -> None:
 
                 # Sync both JSON and native denormalized columns
                 genome.fitness_score = fitness_score
-                genome.fitness_updated_at = datetime.now(timezone.utc)
+                genome.fitness_updated_at = utcnow()
                 genome.total_pnl = (
                     raw.get("total_pnl", 0.0) if metrics.total_trades > 0 else 0.0
                 )
@@ -759,7 +760,7 @@ def fitness_evaluation_job() -> None:
                 genome.sharpe_ratio = metrics.sharpe_ratio
                 genome.max_drawdown_pct = metrics.max_drawdown_pct
                 genome.trade_count = metrics.total_trades
-                genome.last_evaluated_at = datetime.now(timezone.utc)
+                genome.last_evaluated_at = utcnow()
 
                 # Log evolution action
                 action = EvolutionAction(
@@ -805,13 +806,13 @@ def mutation_cycle_job() -> None:
 
                 # Sync both JSON and native denormalized columns
                 mutant_genome.fitness_score = 0.0
-                mutant_genome.fitness_updated_at = datetime.now(timezone.utc)
+                mutant_genome.fitness_updated_at = utcnow()
                 mutant_genome.total_pnl = 0.0
                 mutant_genome.win_rate = 0.0
                 mutant_genome.sharpe_ratio = 0.0
                 mutant_genome.max_drawdown_pct = 0.0
                 mutant_genome.trade_count = 0
-                mutant_genome.last_evaluated_at = datetime.now(timezone.utc)
+                mutant_genome.last_evaluated_at = utcnow()
 
                 db.add(mutant_genome)
                 mutants.append(mutant_genome)
@@ -861,13 +862,13 @@ def crossover_cycle_job() -> None:
 
                 # Sync both JSON and native denormalized columns
                 child_genome.fitness_score = 0.0
-                child_genome.fitness_updated_at = datetime.now(timezone.utc)
+                child_genome.fitness_updated_at = utcnow()
                 child_genome.total_pnl = 0.0
                 child_genome.win_rate = 0.0
                 child_genome.sharpe_ratio = 0.0
                 child_genome.max_drawdown_pct = 0.0
                 child_genome.trade_count = 0
-                child_genome.last_evaluated_at = datetime.now(timezone.utc)
+                child_genome.last_evaluated_at = utcnow()
 
                 db.add(child_genome)
 
@@ -995,8 +996,8 @@ def shadow_validation_job() -> None:
             ):
                 from_stage = genome.stage
                 genome.stage = "GRAVEYARD"
-                genome.stage_entered_at = datetime.now(timezone.utc)
-                genome.updated_at = datetime.now(timezone.utc)
+                genome.stage_entered_at = utcnow()
+                genome.updated_at = utcnow()
                 action = EvolutionAction(
                     action_type="kill",
                     genome_id=genome.genome_id,
@@ -1024,8 +1025,8 @@ def shadow_validation_job() -> None:
                     and metrics["sharpe_ratio"] >= SHADOW_TO_PAPER_MIN_SHARPE
                 ):
                     genome.stage = "PAPER"
-                    genome.stage_entered_at = datetime.now(timezone.utc)
-                    genome.updated_at = datetime.now(timezone.utc)
+                    genome.stage_entered_at = utcnow()
+                    genome.updated_at = utcnow()
                     action = EvolutionAction(
                         action_type="promote",
                         genome_id=genome.genome_id,
@@ -1049,8 +1050,8 @@ def shadow_validation_job() -> None:
                     and metrics["max_drawdown_pct"] <= PAPER_TO_LIVE_MAX_DRAWDOWN
                 ):
                     genome.stage = "LIVE"
-                    genome.stage_entered_at = datetime.now(timezone.utc)
-                    genome.updated_at = datetime.now(timezone.utc)
+                    genome.stage_entered_at = utcnow()
+                    genome.updated_at = utcnow()
                     action = EvolutionAction(
                         action_type="promote",
                         genome_id=genome.genome_id,
@@ -1108,14 +1109,14 @@ def full_population_review_job() -> None:
             )
             fitness = calculate_fitness(metrics_obj)
             genome.fitness_score = fitness
-            genome.fitness_updated_at = datetime.now(timezone.utc)
+            genome.fitness_updated_at = utcnow()
             if raw_metrics:
                 genome.total_pnl = raw_metrics.get("total_pnl", 0.0)
                 genome.win_rate = raw_metrics.get("win_rate", 0.0)
                 genome.sharpe_ratio = raw_metrics.get("sharpe_ratio", 0.0)
                 genome.max_drawdown_pct = raw_metrics.get("max_drawdown_pct", 0.0)
                 genome.trade_count = raw_metrics.get("total_trades", 0)
-                genome.last_evaluated_at = datetime.now(timezone.utc)
+                genome.last_evaluated_at = utcnow()
 
             if (
                 fitness < 0.30
@@ -1178,7 +1179,7 @@ def legend_evaluation_job() -> None:
             fitness = calculate_fitness(metrics_obj)
             if fitness > 0.85 and raw_metrics.get("profit_factor", 0) > 2.0:
                 genome.stage = "LEGEND"
-                genome.stage_entered_at = datetime.now(timezone.utc)
+                genome.stage_entered_at = utcnow()
                 action = EvolutionAction(
                     action_type="promote",
                     genome_id=genome.genome_id,
@@ -1230,8 +1231,8 @@ def targeted_mutation(genome_id: str, chrom_name: str, db) -> None:
             mutated.sharpe_ratio = mutated.fitness_metrics.sharpe_ratio or 0.0
             mutated.max_drawdown_pct = mutated.fitness_metrics.max_drawdown_pct or 0.0
             mutated.trade_count = mutated.fitness_metrics.total_trades or 0
-            mutated.fitness_updated_at = datetime.now(timezone.utc)
-            mutated.last_evaluated_at = datetime.now(timezone.utc)
+            mutated.fitness_updated_at = utcnow()
+            mutated.last_evaluated_at = utcnow()
             db.add(mutated)
 
             action = EvolutionAction(

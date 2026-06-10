@@ -26,7 +26,7 @@ class CleanupStats:
         self.backup_files_removed = 0
         self.space_freed_mb = 0.0
         self.disk_free_percent = 0.0
-        self.timestamp = datetime.now(timezone.utc).isoformat()
+        self.timestamp = utcnow().isoformat()
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging."""

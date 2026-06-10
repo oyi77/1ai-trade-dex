@@ -8,6 +8,7 @@ from sqlalchemy import func, desc, and_
 
 from backend.models.database import GenomeRegistry
 from backend.models.genome_registry import GenomeShadowTrade
+from backend.db.utils import utcnow
 
 
 class GenomeRepository:
@@ -58,7 +59,7 @@ class GenomeRepository:
                     else genome.fitness_metrics
                 )
                 existing.stage = stage
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = utcnow()
                 existing.archetype = genome.archetype
                 existing.strategy_name = genome.strategy_name
             else:
@@ -166,7 +167,7 @@ class GenomeRepository:
             )
             if genome:
                 genome.stage = new_stage
-                genome.updated_at = datetime.now(timezone.utc)
+                genome.updated_at = utcnow()
                 db.commit()
                 return True
             return False
@@ -193,8 +194,8 @@ class GenomeRepository:
                 genome.win_rate = metrics.get("win_rate", 0.0)
                 genome.sharpe_ratio = metrics.get("sharpe_ratio", 0.0)
                 genome.max_drawdown_pct = metrics.get("max_drawdown_pct", 0.0)
-                genome.last_evaluated_at = datetime.now(timezone.utc)
-                genome.updated_at = datetime.now(timezone.utc)
+                genome.last_evaluated_at = utcnow()
+                genome.updated_at = utcnow()
                 db.commit()
                 return True
             return False

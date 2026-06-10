@@ -6,6 +6,7 @@ from typing import Dict, Any
 from backend.config import settings
 from backend.core.event_bus import subscribe_handler, publish_event
 from backend.db.utils import get_db_session
+from backend.db.utils import utcnow
 
 from loguru import logger
 
@@ -174,7 +175,7 @@ async def on_strategy_killed(event_type: str, data: Dict[str, Any]) -> None:
             )
             if genome and genome.stage != "GRAVEYARD":
                 genome.stage = "GRAVEYARD"
-                genome.updated_at = datetime.now(timezone.utc)
+                genome.updated_at = utcnow()
                 db.commit()
                 return genome
         return None

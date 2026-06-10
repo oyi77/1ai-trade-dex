@@ -26,6 +26,7 @@ from backend.monitoring.agi_metrics import (
     record_pipeline_lesson_stored,
     record_pipeline_error,
 )
+from backend.db.utils import utcnow
 
 # ---------------------------------------------------------------------------
 # Pipeline metrics
@@ -451,7 +452,7 @@ class LearningPipeline:
                     genome.fitness_score = max(
                         0.0, min(1.0, current_fitness + fitness_delta)
                     )
-                    genome.fitness_updated_at = datetime.now(timezone.utc)
+                    genome.fitness_updated_at = utcnow()
 
                     db.commit()
 

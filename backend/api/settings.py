@@ -10,6 +10,7 @@ import asyncio
 from backend.api.auth import require_admin
 from backend.models.database import get_db, SystemSettings
 from backend.config import settings as app_settings
+from backend.db.utils import utcnow
 
 from loguru import logger
 
@@ -62,7 +63,7 @@ def _set_setting(db: Session, key: str, value: Any):
     setting = db.query(SystemSettings).filter(SystemSettings.key == key).first()
     if setting:
         setting.value = value
-        setting.updated_at = datetime.now(timezone.utc)
+        setting.updated_at = utcnow()
     else:
         setting = SystemSettings(key=key, value=value)
         db.add(setting)
@@ -280,7 +281,7 @@ async def bulk_update_settings(
                         value,
                     )
             row.value = value
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = utcnow()
         else:
             db.add(SystemSettings(key=key, value=value))
         updated += 1
