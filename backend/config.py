@@ -1190,6 +1190,28 @@ class ConfigRegistry:
     SSE_EVENT_TYPE_FILTER_ENABLED: bool = True
 
     # --------------------------------------------------------------------------
+    # APEX - Advanced Polymarket Edge eXecution
+    # --------------------------------------------------------------------------
+    APEX_ENABLED: bool = True
+    APEX_MIN_EDGE_PP: float = 2.0
+    APEX_MIN_CONFIDENCE: float = 0.5
+    APEX_SCAN_INTERVAL: int = 120
+    APEX_MAX_POSITIONS: int = 5
+    APEX_POSITION_SIZE_PCT: float = 0.08
+    APEX_PROFIT_TARGET_PCT: float = 0.025
+    APEX_STOP_LOSS_PCT: float = 0.04
+    APEX_MAX_HOLD_HOURS: float = 72.0
+    APEX_CALIBRATION_MIN_SAMPLES: int = 20
+    APEX_CALIBRATION_MAX_ADJUSTMENT: float = 5.0
+    APEX_VOLATILITY_SOURCE: str = "market"
+    APEX_NEAR_RESOLUTION_MIN_HOURS: float = 1.0
+    APEX_NEAR_RESOLUTION_MAX_HOURS: float = 72.0
+    APEX_NEAR_RESOLUTION_MIN_PRICE: float = 0.85
+    APEX_STALE_ODDS_THRESHOLD_MINUTES: int = 30
+    APEX_LIQUIDITY_GAP_MIN_SPREAD: float = 0.03
+    APEX_LIQUIDITY_GAP_MIN_VOLUME: float = 5000.0
+
+    # --------------------------------------------------------------------------
     # NEWS - News feed settings
     # --------------------------------------------------------------------------
     NEWS_FEED_ENABLED: bool = False
