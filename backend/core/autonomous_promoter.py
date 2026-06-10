@@ -890,7 +890,6 @@ class AutonomousPromoter:
             )
 
     async def _disable_strategy(self, strategy_name: str, db: Session) -> None:
-        from datetime import datetime, timezone
 
         config = db.query(StrategyConfig).filter_by(strategy_name=strategy_name).first()
         if config:

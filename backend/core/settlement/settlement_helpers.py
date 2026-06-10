@@ -788,7 +788,7 @@ def calculate_pnl(trade: Trade, settlement_value: float) -> float:
         shares = float(_filled)
 
     # Notional USD value of the position
-    notional = shares * entry_price if 0 < entry_price < 1.0 else 0.0
+    shares * entry_price if 0 < entry_price < 1.0 else 0.0
 
     # Fee calculation (taker fee on notional)
     stored_fee = getattr(trade, "fee", None)

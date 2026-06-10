@@ -30,7 +30,7 @@ class TestBaseActivitySourceLifecycle:
 
         class DummySource(BaseActivitySource):
             async def _run(self):
-                t = self.create_subtask(self._slow_loop())
+                self.create_subtask(self._slow_loop())
                 # Keep main task alive so subtask stays running
                 try:
                     while self._running:

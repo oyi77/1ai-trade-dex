@@ -12,7 +12,7 @@ from typing import Any, Optional
 import httpx
 
 from backend.config import settings
-from backend.data.shared_client import get_shared_client, get_semaphore
+from backend.data.shared_client import get_shared_client
 from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.errors import ExternalAPIError
 from backend.core.external_rate_limiter import ExternalRateLimiter

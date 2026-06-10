@@ -266,7 +266,6 @@ def test_auto_sell_result_to_dict():
 @pytest.mark.asyncio
 async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
     """Verify check_strategy_positions_for_auto_sell passes kwargs to AutoSellManager."""
-    from unittest.mock import AsyncMock, patch
     from backend.core.auto_sell import check_strategy_positions_for_auto_sell
 
     mock_trade = _make_trade(trade_id=1, entry_price=0.50, direction="yes")
@@ -285,7 +284,6 @@ async def test_check_strategy_positions_for_auto_sell_kwargs(monkeypatch):
     )
 
     # Mock scan_and_sell_all to check manager configuration
-    original_scan = AutoSellManager.scan_and_sell_all
     call_params = {}
 
     async def mock_scan(self, trades, prices, clob_client=None):

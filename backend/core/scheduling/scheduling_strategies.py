@@ -6,7 +6,6 @@ This module will be removed in a future release.
 """
 
 import asyncio
-import gc
 from datetime import datetime, timezone
 from sqlalchemy import func
 

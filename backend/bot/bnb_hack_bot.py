@@ -36,7 +36,7 @@ async def run_once(paper: bool = False):
     try:
         price = await bot.feed.get_price("BNBUSDT")
         sig = await bot.signals.evaluate()
-        bal = await bot.exchange.balance()
+        await bot.exchange.balance()
         print()
         print("=" * 60)
         print(f"  Agent:     {settings.bnb_hack.wallet_address}")

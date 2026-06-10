@@ -558,7 +558,7 @@ def auto_disable_losing_strategies():
 
             from backend.core.maker_taker_analytics import maker_taker_analytics
 
-            mt_stats = maker_taker_analytics.get_stats(db)
+            maker_taker_analytics.get_stats(db)
 
             for config in enabled_configs:
                 config_mode = getattr(config, "mode", None) or "paper"
