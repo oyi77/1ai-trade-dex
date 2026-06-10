@@ -14,10 +14,10 @@ from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING
 
 from backend.core.edge.edge_types import clamp
+from backend.models.database import Trade
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-    from backend.models.database import Trade
 
 
 BUCKET_SIZE = 0.05  # 5-cent probability buckets
@@ -99,7 +99,7 @@ class CalibrationTracker:
             if t.model_probability is None:
                 continue
             bucket = _bucket_key(t.model_probability)
-            cat = t.category or "unknown"
+            cat = t.strategy or "unknown"  # Trade model has no `category` column; group by strategy instead
             b = self._by_category[cat][bucket]
             b.predicted_sum += t.model_probability
             b.realized_count += 1 if t.result == "win" else 0

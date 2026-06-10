@@ -212,7 +212,7 @@ class ResolutionTimingScanner(EdgeScanner):
             "ascending": "false",
         }
         try:
-            client = await get_shared_client()
+            client = get_shared_client()
             resp = await client.get(gamma_url, params=params, timeout=15.0)
             resp.raise_for_status()
             markets = resp.json()

@@ -191,9 +191,8 @@ class LiquidityGapScanner(EdgeScanner):
     async def _fetch_markets(self) -> list[dict]:
         """Fetch active markets from Gamma API."""
         try:
-            from backend.data.gamma import GammaClient
-            gamma = GammaClient(settings)
-            markets = await gamma.get_markets(category=None, limit=200)
+            from backend.data.gamma import fetch_markets
+            markets = await fetch_markets(limit=200, active=True, order="volume")
             return markets or []
         except Exception as e:
             logger.warning(f"[apex:liquidity_gap] Gamma fetch failed: {e}")

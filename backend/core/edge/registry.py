@@ -30,17 +30,20 @@ class EdgeScannerABC:
         if cls.name and cls.name not in _PENDING_SCANNERS:
             _PENDING_SCANNERS[cls.name] = cls
 
-    async def detect(self, markets: List[Dict[str, Any]], ctx: Any) -> List[Edge]:
-        """Scan markets and return detected edges.
+    async def detect(self, ctx: Any) -> List[Edge]:  # noqa: D401
+        """Scan and return detected edges.
 
         Args:
-            markets: List of market dicts from Gamma API or MarketUniverseScanner.
             ctx: StrategyContext with db, clob, settings, logger, bankroll, etc.
 
         Returns:
             List of Edge objects for tradeable opportunities.
         """
         raise NotImplementedError
+
+    # Backwards-compatible alias — some scanner impls use ``scan(ctx)``
+    async def scan(self, ctx: Any) -> List[Edge]:  # noqa: D401
+        return await self.detect(ctx)
 
     async def health_check(self) -> bool:
         """Return True if scanner is healthy and can detect edges."""
@@ -106,7 +109,7 @@ class EdgeRegistry:
             return []
 
         # Run all scanners concurrently
-        tasks = [scanner.detect(markets, ctx) for scanner in enabled]
+        tasks = [scanner.scan(ctx) for scanner in enabled]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         all_edges: List[Edge] = []

@@ -140,10 +140,9 @@ class OrderBookStaleScanner(EdgeScanner):
         if hasattr(ctx, "markets") and ctx.markets:
             return ctx.markets
 
-        from backend.data.gamma import GammaClient
+        from backend.data.gamma import fetch_markets
         try:
-            gamma = GammaClient(settings)
-            markets = await gamma.get_markets(category=None, limit=100)
+            markets = await fetch_markets(limit=100, active=True, order="volume")
             return markets or []
         except Exception as e:
             logger.warning(f"[apex:order_book_stale] Gamma fetch failed: {e}")

@@ -65,7 +65,7 @@ class APEXStrategy(BaseStrategy):
         self._pipeline = SignalPipeline()
         self._exit_manager = ExitManager()
         self._initialized = True
-        logger.info(f"[apex] Initialized with {len(self._registry.scanners)} scanners")
+        logger.info(f"[apex] Initialized with {len(self._registry.list_enabled())} scanners")
 
     async def market_filter(self, markets: List) -> List:
         return markets
@@ -99,7 +99,7 @@ class APEXStrategy(BaseStrategy):
 
         # Phase 2: Scan for edges
         try:
-            edges = await self._registry.scan_all(ctx)
+            edges = await self._registry.run_all([], ctx)
         except Exception as e:
             logger.warning(f"[apex] Edge scan failed: {e}")
             result.errors.append(f"edge_scan: {e}")
