@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   ComposedChart,
   Area,
@@ -50,6 +51,60 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function EquityChart({ data, initialBankroll }: Props) {
+  const {
+    chartData,
+    currentPnl,
+    minPnl,
+    maxPnl,
+    minBankroll,
+    maxBankroll
+  } = useMemo(() => {
+    // Single-pass optimization to prevent Math.max(...array) call stack errors
+    // and reduce O(N) recalculations
+    const resultChartData = [
+      { timestamp: 'Start', pnl: 0, bankroll: initialBankroll }
+    ]
+    let resultMinPnl = 0
+    let resultMaxPnl = 0
+    let resultMinBankroll = initialBankroll
+    let resultMaxBankroll = initialBankroll
+    let resultCurrentPnl = 0
+
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]
+      const pnl = d.pnl ?? 0
+      const bankroll = d.bankroll ?? initialBankroll
+
+      resultCurrentPnl = pnl
+
+      if (pnl < resultMinPnl) resultMinPnl = pnl
+      if (pnl > resultMaxPnl) resultMaxPnl = pnl
+
+      if (bankroll < resultMinBankroll) resultMinBankroll = bankroll
+      if (bankroll > resultMaxBankroll) resultMaxBankroll = bankroll
+
+      resultChartData.push({
+        ...d,
+        timestamp: new Date(d.timestamp).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+      })
+    }
+
+    return {
+      chartData: resultChartData,
+      currentPnl: resultCurrentPnl,
+      minPnl: resultMinPnl,
+      maxPnl: resultMaxPnl,
+      minBankroll: resultMinBankroll,
+      maxBankroll: resultMaxBankroll
+    }
+  }, [data, initialBankroll])
+
   if (data.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-neutral-600">
@@ -59,30 +114,8 @@ export function EquityChart({ data, initialBankroll }: Props) {
     )
   }
 
-  const chartData = [
-    { timestamp: 'Start', pnl: 0, bankroll: initialBankroll },
-    ...data.map(d => ({
-      ...d,
-      timestamp: new Date(d.timestamp).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }),
-    })),
-  ]
-
-  const currentPnl = data[data.length - 1]?.pnl ?? 0
   const isPositive = currentPnl >= 0
-
-  const minPnl = Math.min(0, ...data.map(d => d.pnl ?? 0))
-  const maxPnl = Math.max(0, ...data.map(d => d.pnl ?? 0))
   const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
-
-  const allBankrolls = [initialBankroll, ...data.map(d => d.bankroll ?? initialBankroll)]
-  const minBankroll = Math.min(...allBankrolls)
-  const maxBankroll = Math.max(...allBankrolls)
   const bkPadding = (maxBankroll - minBankroll) * 0.15 || 2
 
   const brushStart = Math.max(0, chartData.length - 20)
