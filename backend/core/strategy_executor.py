@@ -988,16 +988,37 @@ async def _execute_decision_live_clob(
                         )
                         db.commit()
                         return None
-                if clob_order_id is None:
-                    return None
-                alert_manager.check_high_slippage(
+            if clob_order_id is None:
+                return None
+            if filled_size is not None and filled_size <= 0:
+                logger.warning(
+                    f"[{mode.upper()}][{strategy_name}] Order {clob_order_id} placed but NOT FILLED "
+                    f"(filled_size=0). Skipping trade record to prevent phantom position. "
+                    f"Token={token_id[:20] if token_id else None}..."
+                )
+                attempt_recorder.record_rejected(
+                    "Order placed but not filled (filled_size=0)",
+                    phase="execution",
+                    reason_code="UNFILLED_LIMIT_ORDER",
+                    adjusted_size=adjusted_size,
+                    order_id=clob_order_id,
+                )
+                db.commit()
+                try:
+                    async with context.clob_client as cancel_clob:
+                        await cancel_clob.cancel_order(clob_order_id)
+                        logger.info(f"[{mode.upper()}][{strategy_name}] Cancelled unfilled order {clob_order_id}")
+                except Exception as cancel_err:
+                    logger.warning(f"[{mode.upper()}][{strategy_name}] Failed to cancel unfilled order {clob_order_id}: {cancel_err}")
+                return None
+            alert_manager.check_high_slippage(
                     trade_id=0,
                     expected_price=entry_price,
                     actual_price=fill_price,
                     position_value=adjusted_size,
                     mode=mode,
                 )
-            elif mode in ("testnet", "live") and not token_id:
+            if mode in ("testnet", "live") and not token_id:
                 logger.warning(
                     f"[{mode.upper()}][{strategy_name}] No token_id for {market_ticker}, skipping order"
                 )

@@ -73,11 +73,29 @@ class LiveExecuteStage(BaseExecutionStage):
                 size=size,
             )
 
+            actual_filled = float(result.get("filled_size", 0) or 0)
+            if actual_filled <= 0 and result.get("order_id"):
+                return {
+                    "status": "unfilled",
+                    "order_id": result.get("order_id"),
+                    "fill_price": result.get("fill_price", entry_price),
+                    "filled_size": 0,
+                    "reason": "limit order placed but not yet filled on CLOB",
+                }
+            if actual_filled <= 0:
+                return {
+                    "status": "unfilled",
+                    "order_id": result.get("order_id"),
+                    "fill_price": result.get("fill_price", entry_price),
+                    "filled_size": 0,
+                    "reason": "no fill on CLOB",
+                }
+
             return {
                 "status": "executed",
                 "order_id": result.get("order_id"),
                 "fill_price": result.get("fill_price", entry_price),
-                "filled_size": result.get("filled_size", size),
+                "filled_size": actual_filled,
             }
         except Exception as e:
             return {
@@ -100,11 +118,29 @@ class LiveExecuteStage(BaseExecutionStage):
                 size=size,
             )
 
+            actual_filled = float(result.get("filled_size", 0) or 0)
+            if actual_filled <= 0 and result.get("order_id"):
+                return {
+                    "status": "unfilled",
+                    "order_id": result.get("order_id"),
+                    "fill_price": result.get("fill_price", entry_price),
+                    "filled_size": 0,
+                    "reason": "kalshi limit order placed but not yet filled",
+                }
+            if actual_filled <= 0:
+                return {
+                    "status": "unfilled",
+                    "order_id": result.get("order_id"),
+                    "fill_price": result.get("fill_price", entry_price),
+                    "filled_size": 0,
+                    "reason": "no fill on Kalshi",
+                }
+
             return {
                 "status": "executed",
                 "order_id": result.get("order_id"),
                 "fill_price": result.get("fill_price", entry_price),
-                "filled_size": result.get("filled_size", size),
+                "filled_size": actual_filled,
             }
         except Exception as e:
             return {
@@ -113,7 +149,7 @@ class LiveExecuteStage(BaseExecutionStage):
             }
 
     def record(self, decision, result, ctx):
-        if result["status"] == "error":
+        if result["status"] in ("error", "unfilled"):
             return
 
         db = ctx.get("db")

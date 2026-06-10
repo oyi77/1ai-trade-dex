@@ -308,6 +308,32 @@ class BondScannerStrategy(BaseStrategy):
             else:
                 trade_entry_price = qualifying_price
 
+            # given phantom-position risk, when bidding at mid, then apply 2% premium
+            MARKETABLE_PREMIUM_PCT = float(
+                params.get("marketable_premium_pct", 0.02)
+            )
+            if trade_direction in ("yes", "up"):
+                trade_entry_price = min(
+                    0.99,
+                    round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
+                )
+            else:
+                trade_entry_price = min(
+                    0.99,
+                    round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
+                )
+            # given new entry price, when computing edge, then use actual cost
+            if target_side_param in ("cheap_no", "cheap_yes_no"):
+                true_win_prob = 1.0 - qualifying_price
+            else:
+                true_win_prob = buy_price + edge_adjustment
+            profit_if_win = 1.0 - trade_entry_price
+            loss_if_lose = trade_entry_price
+            raw_edge = true_win_prob * profit_if_win - (1.0 - true_win_prob) * loss_if_lose
+            edge = round(raw_edge, 4)
+            if edge < 0.0001:
+                continue
+
             decision = {
                 "market_ticker": slug,
                 "token_id": clob_token_id,
