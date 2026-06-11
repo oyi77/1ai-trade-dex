@@ -114,23 +114,23 @@ def bt(k: list[list], s: Strategy, p: dict) -> Result:
         px = c[i]
 
         if in_pos:
-            pnl = (px-ep)/ep; exit = False; reason = ""
-            if pnl <= -sl: reason = "sl"; exit = True
-            elif pnl >= tp: reason = "tp"; exit = True
+            pnl = (px-ep)/ep; is_exit = False; reason = ""
+            if pnl <= -sl: reason = "sl"; is_exit = True
+            elif pnl >= tp: reason = "tp"; is_exit = True
             elif s == Strategy.SMA_TREND and sf[i] < ss[i] and sf[i-1] >= ss[i-1]:
-                reason = "death_x"; exit = True
+                reason = "death_x"; is_exit = True
             elif s == Strategy.RSI_MOM:
                 mode = p.get("entry_mode", ">50")
                 if mode == ">50" and rsi[i] < 50 and rsi[i-1] >= 50:
-                    reason = "rsi_below50"; exit = True
+                    reason = "rsi_below50"; is_exit = True
                 elif mode == ">30" and rsi[i] < 50 and rsi[i-1] >= 50:
-                    reason = "rsi_below50"; exit = True
+                    reason = "rsi_below50"; is_exit = True
             elif s == Strategy.BOLL and px >= bb_mid[i]:
-                reason = "bb_mid"; exit = True
+                reason = "bb_mid"; is_exit = True
             elif s == Strategy.MACD and macd_h[i] < 0 and macd_h[i-1] >= 0:
-                reason = "macd_sell"; exit = True
+                reason = "macd_sell"; is_exit = True
 
-            if exit:
+            if is_exit:
                 ev = qty*px*(1-fee); pnl_usdc = ev-e_usdc; pnl_p = (px-ep)/ep*100
                 cap = cap + ev; in_pos = False
                 trades.append(Trade(et or t[i], t[i], ep, px, pnl_p, pnl_usdc, reason))
