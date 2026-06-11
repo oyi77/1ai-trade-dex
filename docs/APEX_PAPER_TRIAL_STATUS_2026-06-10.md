@@ -158,3 +158,77 @@ Live verification (2026-06-11): `order_book_stale` standalone run against
 real CLOB found **14 edges**. APEX paper cycles now have a working scanner →
 pipeline → decision path; next checkpoint is trade accumulation per the
 gating pipeline (PAPER ≥ 20 verified trades).
+
+---
+
+## Resolution update — 2026-06-11 (part 2): edge_pp unit mismatch
+
+After the part-1 fixes were deployed, live PM2 logs showed the APEX pipeline
+filtering every edge to zero signals:
+
+```
+[apex:pipeline] 15 edges → 0 signals (bankroll=$100.00)
+```
+
+**Root cause:** `Edge.edge_pp` is documented and consumed as **percentage
+points (0-100 scale)** — `APEX_MIN_EDGE_PP=2.0` and
+`risk_manager.evaluate_apex_signal` both compare against the pp scale. Two
+scanners computed `edge_pp` on the **0-1 probability scale** instead:
+
+- `resolution_timing.py`: `edge_pp = round(raw_edge - 0.001, 4)` ≈ 0.01-0.03
+- `order_book_stale.py`: `edge_pp = round(abs(fair_price - entry_price) - 0.002, 4)` ≈ 0.005-0.05
+
+Both were therefore always `< APEX_MIN_EDGE_PP=2.0`, so the pipeline dropped
+every edge regardless of how strong it actually was — APEX has been
+producing zero trades since deployment.
+
+**Fix:** both scanners now multiply the raw probability-scale edge by 100
+(`edge_pp = round((raw_edge - fee) * 100, 2)`), and their internal minimum
+thresholds were rescaled to match (`order_book_stale`: `0.005` → `0.5`).
+
+A second, co-located bug in `resolution_timing.py`: the scanner always
+bought `clobTokenIds[0]` (the YES token) regardless of which outcome
+(`qualifying_index`) actually had the qualifying price, and flipped
+`entry_price`/`fair_price` for "no"-direction outcomes in a way that no
+longer matched the token actually purchased. Fixed to track
+`qualifying_index` through to token selection (`_extract_token_id(market,
+index=qualifying_index)`), and to buy the qualifying outcome's own token at
+its own quoted price (`entry_price = qualifying_price`, `fair_price =
+win_prob`).
+
+Live verification (2026-06-11) after the fix:
+- `order_book_stale`: 16 edges found, 16 passing `edge_pp >= 2.0`
+- `resolution_timing`: 3 edges found, 1 passing `edge_pp >= 2.0`
+
+## Dead-code sweep — 2026-06-11
+
+Ran `ruff check --select F401,F811,F841` across `backend/core/edge/`,
+`backend/core/arb_executor.py`, `backend/core/hft_executor.py`,
+`backend/api/dashboard.py`, `backend/ai/ensemble.py`,
+`backend/monitoring/trade_journal.py`, `backend/core/settlement/auto_redeem.py`,
+`backend/clients/bnb_agent_client.py`, and `backend/data/gamma.py`. Removed
+29 unused imports/variables, including a no-op `adjusted_z` computation in
+`backend/core/edge/time_decay.py::BrownianBridge.probability_at_time`.
+
+Two of these were real bugs, not just unused symbols:
+
+- `backend/api/dashboard.py::_resolve_market_questions` had 35 lines of
+  Gamma-API batch-resolve logic placed *after* an unconditional early
+  `return result` — completely unreachable.
+- `backend/core/hft_executor.py::HFTExecutor.execute_signal` had its
+  risk-rejection block (`if not risk.get("allowed", False): ... return`)
+  placed *after* an unconditional `return` inside the circuit-breaker
+  check, with `risk = self._risk.validate_hft_trade(...)` computed
+  afterwards but never gated on. This meant every `validate_hft_trade`
+  rejection reason (confidence too low, max exposure reached, position
+  limit reached, zero bankroll, window exposure cap reached) was silently
+  ignored and `size = risk["size"]` (which can be `0.0` for disallowed
+  trades) proceeded to execution regardless. Restructured so the risk check
+  runs immediately after the circuit-breaker check and `allowed=False`
+  short-circuits with a `"rejected"` execution result.
+
+Full `backend/tests/` suite: 3371 tests, 0 failed, 0 errors after the fix
+(one test, `test_integration_ensemble.py::test_combine_signals_with_all_components`,
+passed unused `technical_conf`/`ai_confidence`/`orderbook_conf` kwargs that
+`combine_signals` never read; updated the test call to match the trimmed
+signature).

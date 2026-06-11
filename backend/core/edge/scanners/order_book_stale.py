@@ -17,7 +17,7 @@ from typing import List
 
 from loguru import logger
 
-from backend.config import settings, _cfg
+from backend.config import _cfg
 from backend.core.edge.edge_model import Edge, EdgeType
 from backend.core.edge.registry import EdgeScannerABC as EdgeScanner
 
@@ -116,11 +116,12 @@ class OrderBookStaleScanner(EdgeScanner):
             fair_price = last_price  # last trade is closer to true value
             entry_price = mid_price
 
-            # Edge is the divergence, discounted for uncertainty
+            # Edge in percentage points (Edge.edge_pp contract; the pipeline
+            # filter and risk manager are on the pp scale), fee-discounted.
             confidence = min(divergence / 0.10, 0.7)  # low confidence, scales with divergence
-            edge_pp = round(abs(fair_price - entry_price) - 0.002, 4)  # deduct fees
+            edge_pp = round((abs(fair_price - entry_price) - 0.002) * 100, 2)
 
-            if edge_pp < 0.005:
+            if edge_pp < 0.5:
                 return None
 
             return Edge(

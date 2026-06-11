@@ -15,10 +15,9 @@ Edge model:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List
 
-import httpx
 from loguru import logger
 
 from backend.config import settings, _cfg
@@ -140,6 +139,7 @@ class ResolutionTimingScanner(EdgeScanner):
 
         qualifying_price = None
         qualifying_outcome = None
+        qualifying_index = None
         for i, price_val in enumerate(outcome_prices_raw):
             try:
                 price = float(price_val)
@@ -148,19 +148,27 @@ class ResolutionTimingScanner(EdgeScanner):
             if self.min_price <= price <= self.max_price:
                 qualifying_outcome = outcomes[i] if i < len(outcomes) else "yes"
                 qualifying_price = price
+                qualifying_index = i
                 break
 
         if qualifying_price is None:
             return None
+
+        # Buy the qualifying outcome's own token — outcomePrices[i] is the
+        # price of outcomes[i], so the index-matched token is the right one.
+        indexed_token = self._extract_token_id(market, index=qualifying_index)
+        if indexed_token:
+            clob_token_id = indexed_token
 
         # Calculate edge using conservative boost model
         taper = max(0.0, (qualifying_price - 0.92) / 0.06)
         proximity_boost = 0.03 * (1.0 - 0.5 * taper)
         win_prob = min(qualifying_price + proximity_boost, 0.995)
 
-        # Fee-adjusted edge
+        # Fee-adjusted edge in percentage points (Edge.edge_pp contract;
+        # APEX_MIN_EDGE_PP and the risk manager are on the pp scale).
         raw_edge = win_prob * (1.0 - qualifying_price) - (1.0 - win_prob) * qualifying_price
-        edge_pp = round(raw_edge - 0.001, 4)  # deduct maker fee + slippage
+        edge_pp = round((raw_edge - 0.001) * 100, 2)  # deduct maker fee + slippage
 
         if edge_pp < self.min_edge_pp:
             return None
@@ -168,11 +176,12 @@ class ResolutionTimingScanner(EdgeScanner):
         confidence = win_prob
         edge_score = edge_pp * confidence
 
-        # Direction and entry price
+        # Direction and entry price: we hold the qualifying outcome's token,
+        # bought at its own quoted price.
         direction = str(qualifying_outcome).strip().strip("'\"").lower()
         if direction not in ("yes", "no", "up", "down"):
             direction = "yes"
-        entry_price = qualifying_price if direction in ("yes", "up") else round(1.0 - qualifying_price, 6)
+        entry_price = qualifying_price
 
         # Edge expires when market resolves
         expires_at = end_dt
@@ -183,7 +192,7 @@ class ResolutionTimingScanner(EdgeScanner):
             edge_type=EdgeType.RESOLUTION_TIMING,
             direction=direction,
             entry_price=entry_price,
-            fair_price=win_prob if direction in ("yes", "up") else 1.0 - win_prob,
+            fair_price=win_prob,
             edge_pp=edge_pp,
             confidence=confidence,
             edge_score=edge_score,
@@ -237,14 +246,14 @@ class ResolutionTimingScanner(EdgeScanner):
             return set()
 
     @staticmethod
-    def _extract_token_id(market: dict) -> str | None:
-        """Extract CLOB token ID from market data."""
+    def _extract_token_id(market: dict, index: int = 0) -> str | None:
+        """Extract the CLOB token ID for the outcome at `index`."""
         clob_token_ids = market.get("clobTokenIds") or []
         if isinstance(clob_token_ids, str):
             try:
                 clob_token_ids = json.loads(clob_token_ids)
             except Exception:
                 return None
-        if clob_token_ids and len(clob_token_ids) > 0:
-            return str(clob_token_ids[0])
+        if clob_token_ids and index is not None and index < len(clob_token_ids):
+            return str(clob_token_ids[index])
         return None
