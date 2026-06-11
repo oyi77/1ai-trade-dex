@@ -129,6 +129,9 @@ class HFTExecutor:
             )
             return execution
 
+        # Calculate permissible trade risk before execution
+        risk = self._risk.validate_hft_trade(signal, bankroll)
+        if not risk.get("allowed", False):
             record_execution(
                 strategy="hft",
                 side="BUY",
@@ -150,8 +153,6 @@ class HFTExecutor:
             )
             return execution
 
-        # Calculate permissible trade risk before execution
-        risk = self._risk.validate_hft_trade(signal, bankroll)
         size = risk["size"]
         side = "BUY" if signal.signal_type in ("arb", "prob_arb", "whale") else "SELL"
 

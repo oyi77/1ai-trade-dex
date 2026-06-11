@@ -12,13 +12,13 @@ and generating exit signals when:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from loguru import logger
 
-from backend.config import settings, _cfg
-from backend.core.edge.edge_model import Edge, EdgeType, ExitSignal, ExitReason
+from backend.config import _cfg
+from backend.core.edge.edge_model import ExitSignal, ExitReason
 
 
 class ExitManager:

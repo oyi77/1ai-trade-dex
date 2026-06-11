@@ -83,7 +83,6 @@ class APEXMarketScanner:
     ) -> list[MarketSnapshot]:
         """Convert raw market dicts to MarketSnapshot objects."""
         snapshots = []
-        now = datetime.now(timezone.utc)
 
         for m in markets:
             try:

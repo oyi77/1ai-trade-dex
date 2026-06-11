@@ -200,7 +200,6 @@ def _redeem_via_relayer(
     try:
         from py_builder_relayer_client.client import RelayClient
         from py_builder_relayer_client.models import (
-            TransactionType as RelayerTxType,
             SafeTransaction as Transaction,
             OperationType,
         )

@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 _BNBAGENT_AVAILABLE = False
 try:
     from bnbagent import ERC8004Agent, AgentEndpoint, EVMWalletProvider
-    from bnbagent.erc8183 import ERC8183Client, JobStatus
+    from bnbagent.erc8183 import ERC8183Client
     _BNBAGENT_AVAILABLE = True
 except ImportError:
     logger.warning(

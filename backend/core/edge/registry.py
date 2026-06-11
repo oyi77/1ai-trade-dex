@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from loguru import logger
 
-from backend.core.edge.edge_model import Edge, EdgeType, Signal
+from backend.core.edge.edge_model import Edge, EdgeType
 
 
 class EdgeScannerABC:

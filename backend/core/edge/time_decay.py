@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from math import erf, sqrt, log
 from typing import Dict
 
-from loguru import logger
 
 from backend.core.edge.edge_types import clamp
 
@@ -115,10 +114,6 @@ class BrownianBridge:
 
         # Convert probability to z-score
         z0 = _norm_ppf(clamp(p0))
-
-        # Adjusted z: probability converges, reducing variance
-        # Higher z0 means more certain → boost near resolution
-        adjusted_z = z0 / max(effective_sigma * sqrt(t_remaining), 0.01) * effective_sigma
 
         return clamp(_norm_cdf(z0))
 

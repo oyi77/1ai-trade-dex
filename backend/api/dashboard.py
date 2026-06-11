@@ -129,39 +129,6 @@ async def _resolve_market_questions(tickers: list[str], db: Session) -> dict[str
 
     return result
 
-    # Batch-resolve from Gamma API
-    try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            for ticker in unresolved:
-                try:
-                    resp = await client.get(
-                        "https://gamma-api.polymarket.com/markets",
-                        params={"condition_id": ticker, "limit": 1},
-                    )
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        if data and isinstance(data, list) and len(data) > 0:
-                            question = data[0].get("question", "")
-                            if question:
-                                _market_question_cache[ticker] = question
-                                result[ticker] = question
-                                continue
-                except Exception:
-                    logger.exception(
-                        f"Failed to fetch market question for condition {ticker}"
-                    )
-                result[ticker] = ticker
-    except Exception:
-        logger.exception(
-            "Failed to batch-resolve market questions from Gamma API (unreachable fallback)"
-        )
-        for ticker in unresolved:
-            result[ticker] = ticker
-
-    return result
-
 
 router = APIRouter(tags=["dashboard"])
 

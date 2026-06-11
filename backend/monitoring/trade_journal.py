@@ -227,35 +227,27 @@ class TradeJournal:
             with open(output_path, "w", newline="") as f:
                 writer = csv.DictWriter(
                     f,
-                    fieldnames=(
-                        list(
-                            _trade_to_dict.__code__.co_varnames[
-                                : _trade_to_dict.__code__.co_argcount
-                            ]
-                        )
-                        if False
-                        else [
-                            "id",
-                            "market_ticker",
-                            "platform",
-                            "strategy",
-                            "trading_mode",
-                            "direction",
-                            "entry_price",
-                            "size",
-                            "timestamp",
-                            "settled",
-                            "result",
-                            "pnl",
-                            "settlement_value",
-                            "confidence",
-                            "model_probability",
-                            "edge_at_entry",
-                            "fee",
-                            "slippage",
-                            "source",
-                        ]
-                    ),
+                    fieldnames=[
+                        "id",
+                        "market_ticker",
+                        "platform",
+                        "strategy",
+                        "trading_mode",
+                        "direction",
+                        "entry_price",
+                        "size",
+                        "timestamp",
+                        "settled",
+                        "result",
+                        "pnl",
+                        "settlement_value",
+                        "confidence",
+                        "model_probability",
+                        "edge_at_entry",
+                        "fee",
+                        "slippage",
+                        "source",
+                    ],
                 )
                 writer.writeheader()
             return output_path

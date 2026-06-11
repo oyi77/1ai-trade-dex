@@ -44,11 +44,8 @@ class EnsembleSignalGenerator:
     def combine_signals(
         self,
         technical_prob: float,
-        technical_conf: float = 0.0,
         ai_prob: float = None,
-        ai_confidence: float = 0.0,
         orderbook_imbalance: float = 0.0,
-        orderbook_conf: float = 0.0,
         wash_trade_score: int = 0,
         market_price: float = 0.5,
     ) -> EnsembleSignal:

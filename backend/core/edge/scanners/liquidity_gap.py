@@ -12,7 +12,7 @@ from typing import List
 
 from loguru import logger
 
-from backend.config import settings, _cfg
+from backend.config import _cfg
 from backend.core.edge.edge_model import Edge, EdgeType
 from backend.core.edge.registry import EdgeScannerABC as EdgeScanner
 

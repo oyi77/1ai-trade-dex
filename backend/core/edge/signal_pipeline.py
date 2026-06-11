@@ -9,13 +9,12 @@ Pipeline stages:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from loguru import logger
 
 from backend.config import settings, _cfg
-from backend.core.edge.edge_model import Edge, EdgeType, Signal
+from backend.core.edge.edge_model import Edge, Signal
 
 
 class SignalPipeline:

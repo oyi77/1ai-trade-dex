@@ -24,11 +24,8 @@ class TestEnsembleSignalIntegration:
         """Test full ensemble combination with all signal types."""
         result = self.generator.combine_signals(
             technical_prob=0.72,
-            technical_conf=0.88,
             ai_prob=0.68,
-            ai_confidence=0.82,
             orderbook_imbalance=0.35,
-            orderbook_conf=0.75,
             wash_trade_score=25,
             market_price=0.55,
         )

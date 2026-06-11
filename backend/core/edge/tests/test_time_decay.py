@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
 
-import pytest
 
 from backend.core.edge.time_decay import (
     BrownianBridge,
     TimeDecayModel,
     _norm_cdf,
     _norm_ppf,
-    CATEGORY_VOLATILITY,
     DEFAULT_VOLATILITY,
     MAX_BOOST_PP,
-    MIN_PROB_FOR_BOOST,
-    MAX_PROB_FOR_BOOST,
-    MAX_RESOLUTION_HOURS,
-    CRYPTO_MIN_BOOST_HOURS,
 )
 
 

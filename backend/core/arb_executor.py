@@ -13,8 +13,6 @@ emits a fresh decision if the edge reappears.
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
 
 from loguru import logger
 
@@ -245,7 +243,6 @@ async def _unwind_filled_legs(
 async def execute_arb_decisions(
     rows: list[DecisionLog],
     mode: str = "paper",
-    default_max_size: float = 25.0,
     kelly_fraction: float = 0.25,
     execute_decision_factory=execute_decision,
     quote_provider=None,
