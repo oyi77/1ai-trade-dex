@@ -11,6 +11,7 @@ import pytest
 from backend.core.edge.scanners.resolution_timing import ResolutionTimingScanner, RISKY_KEYWORDS
 from backend.core.edge.scanners.liquidity_gap import LiquidityGapScanner
 from backend.core.edge.scanners.order_book_stale import OrderBookStaleScanner
+from backend.data.polymarket_clob import OrderBook
 from backend.core.edge.edge_model import Edge, EdgeType
 
 
@@ -143,10 +144,11 @@ class TestOrderBookStaleScanner:
     async def test_detects_stale_divergence(self):
         market = {"slug": "test", "token_id": "token1"}
         clob = AsyncMock()
-        clob.get_order_book = AsyncMock(return_value={
-            "bids": [{"price": "0.45", "size": "10"}],
-            "asks": [{"price": "0.55", "size": "10"}],
-        })
+        clob.get_order_book = AsyncMock(return_value=OrderBook(
+            token_id="token1",
+            bids=[{"price": "0.45", "size": "10"}],
+            asks=[{"price": "0.55", "size": "10"}],
+        ))
         clob.get_last_trade_price = AsyncMock(return_value=0.65)
         result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
         assert result is not None
@@ -156,10 +158,11 @@ class TestOrderBookStaleScanner:
     async def test_skips_small_divergence(self):
         market = {"slug": "test", "token_id": "token1"}
         clob = AsyncMock()
-        clob.get_order_book = AsyncMock(return_value={
-            "bids": [{"price": "0.49", "size": "10"}],
-            "asks": [{"price": "0.51", "size": "10"}],
-        })
+        clob.get_order_book = AsyncMock(return_value=OrderBook(
+            token_id="token1",
+            bids=[{"price": "0.49", "size": "10"}],
+            asks=[{"price": "0.51", "size": "10"}],
+        ))
         clob.get_last_trade_price = AsyncMock(return_value=0.50)
         result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
         assert result is None

@@ -15,15 +15,32 @@ from loguru import logger
 
 # Shared client with generous pool — one client for all data fetches
 _shared_client: httpx.AsyncClient | None = None
+_client_loop: "asyncio.AbstractEventLoop | None" = None
 
 # Semaphore to limit concurrent requests and prevent PoolTimeout
 _semaphore = asyncio.Semaphore(10)
 
 
+def _loop_changed() -> bool:
+    """True if the running event loop differs from the one the client was
+    created under — using a client across loops raises 'Event loop is
+    closed' on its pooled connections."""
+    if _client_loop is None:
+        return False
+    try:
+        return asyncio.get_running_loop() is not _client_loop
+    except RuntimeError:
+        return False
+
+
 def get_shared_client() -> httpx.AsyncClient:
     """Get or create the shared httpx.AsyncClient. Thread-safe via module-level singleton."""
-    global _shared_client
-    if _shared_client is None or _shared_client.is_closed:
+    global _shared_client, _client_loop
+    if _shared_client is None or _shared_client.is_closed or _loop_changed():
+        try:
+            _client_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            _client_loop = None
         _shared_client = httpx.AsyncClient(
             timeout=httpx.Timeout(30.0, connect=10.0),
             limits=httpx.Limits(

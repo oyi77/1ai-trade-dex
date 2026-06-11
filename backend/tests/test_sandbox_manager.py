@@ -5,7 +5,13 @@ from backend.agi.sandbox.results import SandboxResult
 
 class TestSandboxManager:
     def setup_method(self):
-        # Import nodes to trigger @node_registry.plugin decorators and populate the registry
+        # Earlier tests may have reset the node registry singleton. Nodes
+        # register via import-time decorators, so purge the package from
+        # sys.modules and re-import to repopulate the registry.
+        import sys
+
+        for name in [m for m in list(sys.modules) if m.startswith("backend.agi.nodes")]:
+            del sys.modules[name]
         import backend.agi.nodes  # noqa: F401
 
         self.manager = SandboxManager()

@@ -29,6 +29,10 @@ Base.metadata.create_all(bind=TEST_ENGINE)
 @pytest.fixture()
 def db():
     """Fresh DB session; rolls back after each test to keep isolation."""
+    # Re-run create_all: other test modules may have registered new tables
+    # on Base.metadata after this module's import-time create_all, and the
+    # teardown below deletes from every table in sorted_tables.
+    Base.metadata.create_all(bind=TEST_ENGINE)
     session = TestSession()
     yield session
     session.rollback()

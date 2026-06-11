@@ -393,11 +393,17 @@ class TestRegistry:
         assert "live_mode" not in result
 
     def test_auto_discover(self):
-        (
-            importlib.reload(sys.modules["backend.core.execution_pipeline.stages"])
-            if "backend.core.execution_pipeline.stages" in sys.modules
-            else None
-        )
+        # Earlier tests may have reset the singleton registry. Stage classes
+        # register via import-time decorators, and reloading only the package
+        # __init__ does not re-execute already-imported submodules — purge
+        # them from sys.modules so the decorators run again.
+        for name in [
+            m
+            for m in list(sys.modules)
+            if m.startswith("backend.core.execution_pipeline.stages")
+        ]:
+            del sys.modules[name]
+        import backend.core.execution_pipeline.stages  # noqa: F401
 
         from backend.core.execution_pipeline.registry import registry
 
