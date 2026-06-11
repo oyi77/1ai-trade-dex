@@ -147,7 +147,7 @@ class APEXStrategy(BaseStrategy):
                 return []
             price_lookup: Dict[str, float] = {}
             for t in open_trades:
-                p = self._get_current_price(t, ctx)
+                p = await self._get_current_price(t, ctx)
                 if p and t.market_ticker:
                     price_lookup[t.market_ticker] = p
             return self._exit_manager.check_all_positions(open_trades, price_lookup)
@@ -183,14 +183,14 @@ class APEXStrategy(BaseStrategy):
         except Exception:
             return []
 
-    def _get_current_price(self, trade, ctx: StrategyContext) -> Optional[float]:
+    async def _get_current_price(self, trade, ctx: StrategyContext) -> Optional[float]:
         if ctx.clob and trade.token_id:
             try:
-                book = ctx.clob.get_order_book_sync(trade.token_id)
-                if book and book.get("bids") and book.get("asks"):
-                    return (float(book["bids"][0].get("price", 0)) + float(book["asks"][0].get("price", 1))) / 2.0
-            except Exception:
-                pass
+                price = await ctx.clob.get_mid_price(trade.token_id)
+                if price and price > 0:
+                    return float(price)
+            except Exception as e:
+                logger.debug(f"[apex] mid-price fetch failed for {trade.token_id}: {e}")
         return getattr(trade, "entry_price", None)
 
     def _signal_to_decision(self, signal, ctx: StrategyContext) -> Optional[Dict[str, Any]]:

@@ -42,11 +42,13 @@ class OrderBookStaleScanner(EdgeScanner):
         try:
             clob = ctx.clob
             if clob is None:
+                logger.debug("[apex:order_book_stale] No CLOB client in ctx; skipping")
                 return edges
 
             # Get markets we're tracking
             markets = await self._get_active_markets(ctx)
             if not markets:
+                logger.debug("[apex:order_book_stale] No active markets; skipping")
                 return edges
 
             for market in markets[:50]:  # limit to avoid API flood
@@ -67,18 +69,30 @@ class OrderBookStaleScanner(EdgeScanner):
         """Check if a market's order book is stale relative to recent trades."""
         token_id = market.get("token_id") or market.get("clob_token_id")
         if not token_id:
+            # Gamma API markets carry token ids as a JSON string under
+            # `clobTokenIds` — first entry is the YES token.
+            raw = market.get("clobTokenIds")
+            if isinstance(raw, str):
+                import json
+                try:
+                    raw = json.loads(raw)
+                except Exception:
+                    raw = []
+            if isinstance(raw, list) and raw:
+                token_id = str(raw[0])
+        if not token_id:
             return None
 
         slug = market.get("slug") or market.get("conditionId") or ""
 
         try:
-            # Get order book snapshot
+            # Get order book snapshot (OrderBook dataclass from PolymarketCLOB)
             book = await clob.get_order_book(token_id)
-            if not book or not book.get("bids") or not book.get("asks"):
+            if not book or book.best_bid is None or book.best_ask is None:
                 return None
 
-            best_bid = float(book["bids"][0].get("price", 0))
-            best_ask = float(book["asks"][0].get("price", 999))
+            best_bid = book.best_bid
+            best_ask = book.best_ask
             mid_price = (best_bid + best_ask) / 2.0
 
             if mid_price <= 0.01 or mid_price >= 0.99:

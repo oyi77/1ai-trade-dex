@@ -303,11 +303,11 @@ class TestEdgeRegistry:
         assert "dummy" in reg._scanners
         assert reg._scanners["dummy"].name == "dummy"
 
-    def test_empty_scan(self):
+    async def test_empty_scan(self):
         from backend.core.edge.registry import EdgeRegistry
         reg = EdgeRegistry()
         ctx = MagicMock()
-        edges = asyncio.get_event_loop().run_until_complete(reg.run_all([], ctx))
+        edges = await reg.run_all([], ctx)
         assert edges == []
 
 

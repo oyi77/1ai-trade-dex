@@ -405,6 +405,25 @@ class PolymarketCLOB:
             book = await self.get_order_book(token_id)
             return book.mid_price
 
+    async def get_last_trade_price(self, token_id: str) -> Optional[float]:
+        """Get the last traded price for a token.
+
+        Live response shape (docs/api_samples/clob_last-trade-price.json):
+        {"price": "0.99", "side": "BUY"}
+        """
+        try:
+            resp = await self._http.get(
+                f"{self._clob_host}/last-trade-price", params={"token_id": token_id}
+            )
+            resp.raise_for_status()
+            price = resp.json().get("price")
+            return float(price) if price is not None else None
+        except Exception as e:
+            logger.debug(
+                f"[polymarket_clob.get_last_trade_price] {type(e).__name__}: {e}"
+            )
+            return None
+
     async def get_market(self, condition_id: str) -> Optional[dict]:
         """Get market data from Gamma API."""
 

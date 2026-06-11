@@ -30,6 +30,32 @@ __all__ = ["position_monitor_job"]
 from loguru import logger
 
 
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def _market_data_clob(mode: str):
+    """Read-only PolymarketCLOB for strategy market data (order books,
+    mid prices). Yields None if the client cannot be constructed so a CLOB
+    outage degrades strategies to their no-clob fallbacks instead of
+    failing the whole cycle.
+    """
+    from backend.data.polymarket_clob import clob_from_settings
+
+    clob = None
+    try:
+        clob = clob_from_settings(mode)
+        await clob.__aenter__()
+    except Exception as e:
+        logger.warning(f"[scheduler] CLOB client unavailable for {mode}: {e}")
+        clob = None
+    try:
+        yield clob
+    finally:
+        if clob is not None:
+            await clob.__aexit__(None, None, None)
+
+
 def _get_bankroll_for_mode(state, mode: str) -> float:
     """Read the correct bankroll field based on trading mode."""
     if mode == "paper":
@@ -405,21 +431,22 @@ async def scan_and_trade_job(mode: str):
 
                 state = db.query(BotState).first()
                 bankroll = _get_bankroll_for_mode(state, mode) if state else 100.0
-                strategy_ctx = StrategyContext(
-                    db=db,
-                    clob=None,
-                    settings=settings,
-                    logger=logger,
-                    params=cfg["params"],
-                    mode=mode,
-                    bankroll=bankroll,
-                    market_registry=market_registry,
-                )
                 strategy = strategy_cls()
                 try:
-                    result = await asyncio.wait_for(
-                        strategy.run(strategy_ctx), timeout=30.0
-                    )
+                    async with _market_data_clob(mode) as clob:
+                        strategy_ctx = StrategyContext(
+                            db=db,
+                            clob=clob,
+                            settings=settings,
+                            logger=logger,
+                            params=cfg["params"],
+                            mode=mode,
+                            bankroll=bankroll,
+                            market_registry=market_registry,
+                        )
+                        result = await asyncio.wait_for(
+                            strategy.run(strategy_ctx), timeout=30.0
+                        )
                 except asyncio.TimeoutError:
                     logger.error(
                         f"[{mode.upper()}] Strategy {cfg['strategy_name']} timed out after 30 seconds."
@@ -1238,19 +1265,19 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                         )  # Use 50% of equity for arb
                 except Exception:
                     logger.warning("scheduling_strategies: failed to fetch PM equity for arb sizing")
-            ctx = StrategyContext(
-                db=db,
-                clob=None,
-                settings=_settings,
-                logger=logger,
-                params=params,
-                mode=effective_mode,
-                bankroll=bankroll,
-                market_registry=market_registry,
-            )
-
             strategy = strategy_cls()
-            result = await asyncio.wait_for(strategy.run(ctx), timeout=120)
+            async with _market_data_clob(effective_mode) as clob:
+                ctx = StrategyContext(
+                    db=db,
+                    clob=clob,
+                    settings=_settings,
+                    logger=logger,
+                    params=params,
+                    mode=effective_mode,
+                    bankroll=bankroll,
+                    market_registry=market_registry,
+                )
+                result = await asyncio.wait_for(strategy.run(ctx), timeout=120)
 
             # Record shadow trades in paper/testnet modes so AGI health check
             # can read win rate from ShadowTrade table.
