@@ -33,11 +33,6 @@ def disable_for_rehab(config) -> None:
     config.updated_at = now_utc
 
 
-def is_in_rehab(config) -> bool:
-    """Check if strategy is in rehab (disabled_at set, still enabled in paper mode)."""
-    return config.enabled is True and config.disabled_at is not None
-
-
 class StrategyHealthMonitor:
     MIN_WARMUP_TRADES = settings.MIN_WARMUP_TRADES
     KILL_WIN_RATE = settings.KILL_WIN_RATE

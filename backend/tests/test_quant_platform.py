@@ -289,9 +289,10 @@ class TestStrategyRanker:
             .filter(StrategyConfig.strategy_name == "loser")
             .first()
         )
-        assert cfg.enabled is True
+        # disable_for_rehab fully disables losing strategies (no paper-mode
+        # zombie): enabled=False with disabled_at recorded.
+        assert cfg.enabled is False
         assert cfg.disabled_at is not None
-        assert cfg.trading_mode == "paper"
 
 
 # ─── Backtester Metrics Tests ───

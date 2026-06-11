@@ -96,12 +96,22 @@ class PredictFunProvider(BaseMarketProvider):
         raw = await self._client.get_markets(limit=limit)
         return [
             MarketInfo(
+                venue="predict_fun",
                 market_id=str(c.get("conditionId", "")),
-                question=str(c),
-                yes_price=0.5,
-                no_price=0.5,
+                title=str(c.get("question") or c.get("title") or c),
+                description="",
+                category="",
+                yes_price=Decimal("0.5"),
+                no_price=Decimal("0.5"),
+                volume_24h=Decimal("0"),
+                open_interest=Decimal("0"),
+                closes_at=None,
+                is_active=True,
+                min_order_size=Decimal("1"),
+                tick_size=Decimal("0.01"),
             )
             for c in raw
+            if isinstance(c, dict)
         ]
 
     async def get_balance(self) -> NormalizedBalance:

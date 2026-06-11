@@ -394,7 +394,7 @@ class CrossMarketArbEnhanced:
 
         return ArbOpportunityEnhanced(
             event_id=f"{id_a}:{id_b}",
-            kind="cross_platform_arb",
+            kind="cross_platform",
             platform_a=platform_a,
             platform_b=platform_b,
             market_a_id=id_a,

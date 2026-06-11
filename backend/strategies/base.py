@@ -105,7 +105,11 @@ class CycleResult:
 class BaseStrategy(ABC):
     """Abstract base class for all PolyEdge trading strategies."""
 
-    default_params: dict = field(default_factory=dict)
+    # Declarative per-class metadata — subclasses override with their own
+    # dict; never mutate this shared default. (BaseStrategy is not a
+    # dataclass, so field(default_factory=...) would leave a raw Field
+    # object on the class.)
+    default_params: dict = {}
 
     # ------------------------------------------------------------------
     # Abstract interface
