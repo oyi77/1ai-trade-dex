@@ -69,7 +69,7 @@ async def test_pagination_returns_all_positions(tmp_path):
             call_count += 1
             return resp
 
-    with patch("backend.data.wallet_history.httpx.AsyncClient", FakeClient):
+    with patch("backend.data.wallet_history.get_shared_client", lambda: FakeClient()):
         with patch("backend.data.wallet_history.CACHE_DIR", tmp_path):
             result = await get_all_closed_positions(WALLET, force_refresh=True)
 
@@ -98,7 +98,7 @@ async def test_empty_wallet_returns_empty(tmp_path):
         async def get(self, url, params=None):
             return _make_response([])
 
-    with patch("backend.data.wallet_history.httpx.AsyncClient", FakeClient):
+    with patch("backend.data.wallet_history.get_shared_client", lambda: FakeClient()):
         with patch("backend.data.wallet_history.CACHE_DIR", tmp_path):
             result = await get_all_closed_positions(WALLET, force_refresh=True)
 
@@ -194,7 +194,7 @@ async def test_network_error_returns_empty(tmp_path):
         async def get(self, url, params=None):
             raise ConnectionError("network down")
 
-    with patch("backend.data.wallet_history.httpx.AsyncClient", FailClient):
+    with patch("backend.data.wallet_history.get_shared_client", lambda: FailClient()):
         with patch("backend.data.wallet_history.CACHE_DIR", tmp_path):
             result = await get_all_closed_positions(WALLET, force_refresh=True)
 
@@ -233,7 +233,7 @@ async def test_stale_cache_triggers_refresh(tmp_path):
             # First call returns data, second returns empty to stop pagination
             return _make_response(fresh_data if calls == 1 else [])
 
-    with patch("backend.data.wallet_history.httpx.AsyncClient", FakeClient):
+    with patch("backend.data.wallet_history.get_shared_client", lambda: FakeClient()):
         with patch("backend.data.wallet_history.CACHE_DIR", tmp_path):
             result = await get_all_closed_positions(WALLET, force_refresh=False)
 
@@ -262,7 +262,7 @@ async def test_get_open_positions():
         async def get(self, url, params=None):
             return _make_response(mock_positions)
 
-    with patch("backend.data.wallet_history.httpx.AsyncClient", FakeClient):
+    with patch("backend.data.wallet_history.get_shared_client", lambda: FakeClient()):
         result = await get_open_positions(WALLET)
 
     assert result == mock_positions

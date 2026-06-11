@@ -500,6 +500,12 @@ async def test_analyze_market_research_fetch_failure_graceful():
             "backend.ai.market_analyzer.ResearchStorage",
             side_effect=RuntimeError("DB unavailable"),
         ),
+        # Edge vs current_price exceeds 0.05, which triggers Claude
+        # escalation — keep the test offline and deterministic.
+        patch(
+            "backend.ai.market_analyzer._call_claude",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         result = await analyze_market(
             question="Will ETH flip BTC?",

@@ -45,7 +45,7 @@ CLAUDE_CFG = {
 class TestResolveProvider:
     def test_default_role_returns_default_provider(self):
         router = _make_router({"groq": GROQ_CFG}, default="groq")
-        with patch("backend.config.settings") as mock_settings:
+        with patch("backend.ai.llm_router.settings") as mock_settings:
             mock_settings.LLM_DEFAULT_PROVIDER = "groq"
             result = router._resolve_provider("default")
         assert result == "groq"
@@ -67,14 +67,14 @@ class TestResolveProvider:
 
     def test_debate_agent_role_resolves_from_settings(self):
         router = _make_router({"groq": GROQ_CFG, "claude": CLAUDE_CFG}, default="groq")
-        with patch("backend.config.settings") as mock_settings:
+        with patch("backend.ai.llm_router.settings") as mock_settings:
             mock_settings.LLM_DEBATE_PROVIDER = "claude"
             result = router._resolve_provider("debate_agent")
         assert result == "claude"
 
     def test_debate_agent_role_invalid_provider_falls_back(self):
         router = _make_router({"groq": GROQ_CFG}, default="groq")
-        with patch("backend.config.settings") as mock_settings:
+        with patch("backend.ai.llm_router.settings") as mock_settings:
             mock_settings.LLM_DEBATE_PROVIDER = "missing_provider"
             result = router._resolve_provider("debate_agent")
         assert result == "groq"
