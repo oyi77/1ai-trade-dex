@@ -7,22 +7,39 @@ import pytest
 from backend.core.arb_executor import execute_arb_decisions
 
 
-@contextmanager
-def _fake_db_session(bankroll: float = 100.0):
+def _make_fake_db_session(bankroll: float = 100.0, marks: list | None = None):
     bot_state = SimpleNamespace(bankroll=bankroll, paper_bankroll=bankroll)
 
     class Query:
         def filter_by(self, **kwargs):
             return self
 
+        def filter(self, *args):
+            return self
+
         def first(self):
             return bot_state
+
+        def update(self, values, synchronize_session=False):
+            if marks is not None:
+                marks.append(values.get("execution_status"))
+            return 1
 
     class DB:
         def query(self, model):
             return Query()
 
-    yield DB()
+        def commit(self):
+            pass
+
+    @contextmanager
+    def session():
+        yield DB()
+
+    return session
+
+
+_fake_db_session = _make_fake_db_session()
 
 
 def _decision(signal_data: dict, market_ticker: str = "arb-market"):
@@ -215,6 +232,75 @@ async def test_unprofitable_verified_legs_are_not_executed(monkeypatch):
 
     assert processed == []
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_skipped_decision_is_marked_skipped(monkeypatch):
+    marks: list = []
+    monkeypatch.setattr(
+        "backend.core.arb_executor.get_db_session",
+        _make_fake_db_session(marks=marks),
+    )
+
+    async def fake_execute(payload, strategy_name, mode="paper"):
+        return {"ok": True}
+
+    row = _decision({"kind": "same_game_cross"})
+
+    processed = await execute_arb_decisions(
+        [row], mode="paper", execute_decision_factory=fake_execute
+    )
+
+    assert processed == []
+    assert marks == ["SKIPPED"]
+
+
+@pytest.mark.asyncio
+async def test_executed_decision_is_marked_executed(monkeypatch):
+    marks: list = []
+    monkeypatch.setattr(
+        "backend.core.arb_executor.get_db_session",
+        _make_fake_db_session(marks=marks),
+    )
+
+    async def fake_execute(payload, strategy_name, mode="paper"):
+        return {"ok": True}
+
+    row = _decision(_verified_yes_no_signal(), market_ticker="condition-1")
+
+    processed = await execute_arb_decisions(
+        [row], mode="paper", execute_decision_factory=fake_execute
+    )
+
+    assert processed == ["1"]
+    assert marks == ["EXECUTED"]
+
+
+@pytest.mark.asyncio
+async def test_failed_bundle_is_marked_failed(monkeypatch):
+    marks: list = []
+    monkeypatch.setattr(
+        "backend.core.arb_executor.get_db_session",
+        _make_fake_db_session(marks=marks),
+    )
+    _patch_bundle_gate(monkeypatch)
+
+    async def fake_execute(payload, strategy_name, mode="paper"):
+        if payload["decision"] == "BUY" and payload["direction"] == "NO":
+            return None
+        return {"ok": True}
+
+    async def quote_provider(leg):
+        return {"price": 0.41 if leg["direction"] == "YES" else 0.47, "available_size": 10.0}
+
+    row = _decision(_verified_yes_no_signal(), market_ticker="condition-1")
+
+    processed = await execute_arb_decisions(
+        [row], mode="live", execute_decision_factory=fake_execute, quote_provider=quote_provider
+    )
+
+    assert processed == []
+    assert marks == ["FAILED"]
 
 
 @pytest.mark.asyncio

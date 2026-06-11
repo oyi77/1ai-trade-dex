@@ -4,8 +4,11 @@ Reads DecisionLog rows with `decision == 'ARB'` and re-dispatches them
 through `execute_decision`. This is the missing link between arb detection
 in `UnifiedPMArb` and trade execution.
 
-Audit marks are intentionally omitted because `DecisionLog` does not have
-an `execution_status`/`executed_at` column in the current schema.
+Each decision is handled at most once: after processing, rows are marked
+via `DecisionLog.execution_status` (EXECUTED / SKIPPED / FAILED) and the
+fetch query only returns rows where it is still NULL. Arb decisions are
+time-sensitive — a stale or invalid one is marked and dropped; the scanner
+emits a fresh decision if the edge reappears.
 """
 
 from __future__ import annotations
@@ -21,14 +24,13 @@ from backend.models.database import DecisionLog, BotState
 
 
 async def _default_live_quote_provider(leg: dict) -> dict:
-    from backend.config import settings
-    from backend.data.polymarket_clob import PolymarketCLOB
+    from backend.data.polymarket_clob import clob_from_settings
 
     token_id = str(leg.get("token_id") or "").strip()
     if not token_id:
         return {}
-    clob = PolymarketCLOB(settings)
-    book = await clob.get_order_book(token_id)
+    async with clob_from_settings("live") as clob:
+        book = await clob.get_order_book(token_id)
     if book.best_ask is None:
         return {}
     ask_size = 0.0
@@ -50,6 +52,22 @@ def _load_signal_data(row: DecisionLog) -> dict:
     if isinstance(raw_signal, dict):
         return raw_signal
     return {}
+
+
+def _mark_execution_status(row_ids: list[str], status: str) -> None:
+    ids = [int(rid) for rid in row_ids if str(rid).isdigit()]
+    if not ids:
+        return
+    try:
+        with get_db_session() as db:
+            db.query(DecisionLog).filter(DecisionLog.id.in_(ids)).update(
+                {"execution_status": status}, synchronize_session=False
+            )
+            db.commit()
+    except Exception as exc:
+        logger.warning(
+            "[arb_executor] failed to mark decisions {} as {}: {}", ids, status, exc
+        )
 
 
 def _positive_float(value, default: float = 0.0) -> float:
@@ -252,6 +270,8 @@ async def execute_arb_decisions(
         bankroll = float(getattr(_settings, "INITIAL_BANKROLL", 50.0))
 
     processed: list[str] = []
+    skipped: list[str] = []
+    failed: list[str] = []
 
     if mode == "live":
         with get_db_session() as arb_db:
@@ -265,19 +285,23 @@ async def execute_arb_decisions(
                     incomplete,
                     mode,
                 )
+                # Leave rows unmarked so they are retried once bundles resolve.
                 return []
 
     for row in rows:
+        row_id = str(getattr(row, "id", "")) or "unknown"
         try:
             signal_data = _load_signal_data(row)
             legs = _validated_arb_legs(
                 row, signal_data, bankroll, kelly_fraction, mode
             )
             if not legs:
+                skipped.append(row_id)
                 continue
             if mode == "live":
                 legs = await _refresh_live_quotes(row, legs, quote_provider)
                 if not legs:
+                    skipped.append(row_id)
                     continue
                 legs = _validated_arb_legs(
                     row,
@@ -287,9 +311,9 @@ async def execute_arb_decisions(
                     mode,
                 )
                 if not legs or not _profitable_legs(row, signal_data, legs):
+                    skipped.append(row_id)
                     continue
 
-            row_id = str(getattr(row, "id", "")) or "unknown"
             market_ticker = getattr(row, "market_ticker", "") or signal_data.get("event_id", "")
             strategy_name = getattr(row, "strategy", "unified_pm_arb") or "unified_pm_arb"
             platform = signal_data.get("platform") or signal_data.get("platform_a") or "polymarket"
@@ -347,12 +371,19 @@ async def execute_arb_decisions(
                     len(legs),
                     bundle_id,
                 )
+            else:
+                failed.append(row_id)
         except Exception as e:
+            failed.append(row_id)
             logger.warning(
                 "[arb_executor] failed decision id={}: {}",
                 getattr(row, "id", "?"),
                 str(e),
             )
+
+    _mark_execution_status(processed, "EXECUTED")
+    _mark_execution_status(skipped, "SKIPPED")
+    _mark_execution_status(failed, "FAILED")
     return processed
 
 
@@ -361,8 +392,14 @@ async def fetch_pending_arb_decisions(
     limit: int = 200,
 ) -> list[DecisionLog]:
     with get_db_session() as db:
-        q = db.query(DecisionLog).filter(DecisionLog.decision == "ARB")
+        q = db.query(DecisionLog).filter(
+            DecisionLog.decision == "ARB",
+            DecisionLog.execution_status.is_(None),
+        )
         rows = q.order_by(DecisionLog.created_at.asc()).limit(limit).all()
+        # Expunge to avoid detached-instance errors after session closes
+        for r in rows:
+            db.expunge(r)
         return list(rows)
 
 

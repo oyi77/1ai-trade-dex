@@ -967,6 +967,8 @@ class DecisionLog(Base):
     signal_data = Column(Text, nullable=True)  # JSON string
     reason = Column(Text, nullable=True)
     outcome = Column(String, nullable=True)  # WIN, LOSS, PUSH — filled at settlement
+    # NULL = pending pickup by executor; EXECUTED, SKIPPED, FAILED once handled
+    execution_status = Column(String, nullable=True, index=True)
     created_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )
