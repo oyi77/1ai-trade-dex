@@ -13,7 +13,7 @@ from typing import List
 
 from loguru import logger
 
-from backend.config import settings, _cfg
+from backend.config import _cfg
 from backend.core.edge.edge_model import Edge, Signal
 
 
@@ -158,14 +158,18 @@ class SignalPipeline:
         """Get current bankroll from context."""
         try:
             from backend.models.database import BotState, for_update
-            state = for_update(ctx.db, ctx.db.query(BotState)).first()
+            state = for_update(
+                ctx.db, ctx.db.query(BotState).filter(BotState.mode == ctx.mode)
+            ).first()
             if state:
                 if ctx.mode == "paper":
-                    return float(state.paper_bankroll or settings.INITIAL_BANKROLL)
+                    value = state.paper_bankroll
                 elif ctx.mode == "testnet":
-                    return float(state.testnet_bankroll or settings.INITIAL_BANKROLL)
+                    value = state.testnet_bankroll
                 else:
-                    return float(state.bankroll or settings.INITIAL_BANKROLL)
+                    value = state.bankroll
+                if value is not None:
+                    return max(0.0, float(value))
         except Exception as e:
             logger.debug(f"[apex:pipeline] Bankroll query failed: {e}")
         return float(_cfg("INITIAL_BANKROLL", 20.0))

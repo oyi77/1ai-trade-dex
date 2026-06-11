@@ -318,3 +318,63 @@ This is a financial-state + risk/settlement question (`risk_manager.py` and
 any fix: reset `paper_bankroll`, investigate the settlement anomalies above
 first, and/or disable the worst-performing strategies per the strategy
 governance table before re-funding paper.
+
+## Update — 2026-06-12: governance already disabled the worst offenders;
+## also fixed a real `_get_bankroll()` masking bug (unrelated, pure correctness)
+
+### Bug C (fixed): `_get_bankroll()` in `signal_pipeline.py` and
+`apex_strategy.py` masked a real `$0.00` bankroll with a fallback default
+via `state.paper_bankroll or <default>`. Since `0.0 or X == X` in Python,
+a genuinely-bankrupt paper account silently reported `$100`/`$1000` instead
+of `$0`. `signal_pipeline.py::_get_bankroll()` additionally used
+`db.query(BotState).first()` with **no mode filter**, so it returned the
+`live` row (`paper_bankroll=$100`) regardless of `ctx.mode` — this is the
+exact source of the misleading `[apex:pipeline] ... (bankroll=$100.00)` log
+line from the prior fix.
+
+**Fix:** both functions now filter `BotState` by `ctx.mode` and use
+`value if value is not None else <default>` (then floor at 0). Net effect
+with the real `$0` paper bankroll: `signal_pipeline._size()` now correctly
+sizes every edge to `$0` → `0.15*$0 < min_size_usd` → **0 signals** (instead
+of 5 signals sized off a fake `$100`, then rejected downstream). This is the
+*correct* behavior for a `$0` bankroll — it just makes Bug B's blockage
+visible one stage earlier. Also removed now-dead imports
+(`Edge`, `EdgeType`, `datetime`, `timezone`, `settings`) from
+`apex_strategy.py` flagged by ruff. 54 apex tests + 21 bankroll/preflight
+tests pass; ruff clean on both files.
+
+### Re-investigated Bug B with `strategy_config` (not checked previously):
+
+The 5 worst-performing strategies from the PnL table above were **already
+auto-disabled** by governance on `2026-06-10 22:40:03` (before this
+session started):
+
+| strategy | enabled | mode | disabled_at |
+|---|---|---|---|
+| cross_platform_arb | false | paper | 2026-06-10 22:40:03 |
+| crypto_oracle | false | paper | 2026-06-10 22:40:03 |
+| arb_scanner | false | paper | 2026-06-10 22:40:03 |
+| line_movement_detector | false | paper | 2026-06-10 22:40:03 |
+| cex_pm_leadlag | false | paper | 2026-06-10 22:40:03 |
+| **apex** | **true** | paper | — |
+| **longshot_bias** | **true** | paper | — |
+
+(Note: `crypto_oracle` is documented in `CLAUDE.md` as "Currently enabled in
+PAPER mode" — that line is now stale; DB is authoritative per CLAUDE.md's
+own strategy-governance rule.)
+
+`unified_arb` (2830 trades, all `pnl==0.0`) has **no row** in
+`strategy_config` at all — it appears to be a retired/renamed strategy that
+can no longer place trades, so its `$0.00` total doesn't threaten a fresh
+bankroll going forward (though the all-zero `pnl` on `result='loss'` rows
+still looks like a settlement-recording bug worth a separate look someday).
+
+**Net picture for Bug B**: the only two strategies currently enabled in
+paper mode are `apex` (0 trades, two scanner bugs just fixed this session)
+and `longshot_bias` (net **+$717.46 over 618 trades**, i.e. historically
+profitable). The strategies that actually drained the $1000 → $0 are already
+gated off. Resetting `paper_bankroll`/`bankroll` (mode='paper') to a fresh
+value is therefore lower-risk than it looked on 2026-06-11, but it is still
+a financial-state change to `BotState` and the user has not yet been asked
+how they'd like to proceed (reset value, and whether to re-enable any
+disabled strategies first).

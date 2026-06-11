@@ -7,13 +7,12 @@ signals → create decisions → execute through existing risk/executor stack.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
-from backend.config import settings, _cfg
-from backend.core.edge.edge_model import Edge, EdgeType, ExitSignal
+from backend.config import _cfg
+from backend.core.edge.edge_model import ExitSignal
 from backend.core.edge.registry import EdgeRegistry
 from backend.core.edge.scanners.resolution_timing import ResolutionTimingScanner
 from backend.core.edge.scanners.order_book_stale import OrderBookStaleScanner
@@ -163,10 +162,13 @@ class APEXStrategy(BaseStrategy):
             ).first()
             if state:
                 if ctx.mode == "paper":
-                    return float(state.paper_bankroll or _cfg("INITIAL_BANKROLL", 20.0))
+                    value = state.paper_bankroll
                 elif ctx.mode == "testnet":
-                    return float(state.testnet_bankroll or _cfg("INITIAL_BANKROLL", 20.0))
-                return float(state.bankroll or _cfg("INITIAL_BANKROLL", 20.0))
+                    value = state.testnet_bankroll
+                else:
+                    value = state.bankroll
+                if value is not None:
+                    return max(0.0, float(value))
         except Exception:
             pass
         return float(_cfg("INITIAL_BANKROLL", 20.0))
