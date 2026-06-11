@@ -41,11 +41,11 @@ class Result:
     ret_pct: float; ret_usdc: float; wr: float; n: int; w: int; l: int
     dd: float; sharpe: float; pf: float
     avg_w: float; avg_l: float; max_w: float; max_l: float
-    hold_m: float; trades: List[Trade]; eq: List[float]
+    hold_m: float; trades: list[Trade]; eq: list[float]
 
 # ── Data ──
 
-async def fetch(interval: str, months: float) -> List[List]:
+async def fetch(interval: str, months: float) -> list[list]:
     now = int(datetime.now(timezone.utc).timestamp() * 1000)
     start = now - int(months * 30 * 24 * 3600 * 1000)
     all_k, cs = [], start
@@ -60,7 +60,7 @@ async def fetch(interval: str, months: float) -> List[List]:
         await asyncio.sleep(0.05)
     return all_k
 
-def series(k: List[List]):
+def series(k: list[list]):
     c = [float(x[4]) for x in k]; h = [float(x[2]) for x in k]
     l = [float(x[3]) for x in k]; v = [float(x[5]) for x in k]
     t = [datetime.fromtimestamp(x[0]/1000, tz=timezone.utc) for x in k]
@@ -70,19 +70,19 @@ def series(k: List[List]):
 
 from backend.signals.technical import compute_sma_series as sma_s, compute_rsi_series as rsi_s
 
-def ema_s(c: List[float], p: int):
+def ema_s(c: list[float], p: int):
     k = 2/(p+1); out = [c[0]]
     for i in range(1, len(c)): out.append(c[i]*k + out[-1]*(1-k))
     return out
 
-def macd_s(c: List[float]):
+def macd_s(c: list[float]):
     e12, e26 = ema_s(c,12), ema_s(c,26)
     macd = [a-b for a,b in zip(e12,e26)]
     sig = ema_s(macd,9)
     hist = [a-b for a,b in zip(macd,sig)]
     return macd, sig, hist
 
-def bb_s(c: List[float], p=20, s=2.0):
+def bb_s(c: list[float], p=20, s=2.0):
     mid = sma_s(c, p); up, lo = [], []
     for i in range(len(c)):
         if i < p-1: up.append(0); lo.append(0)
@@ -93,7 +93,7 @@ def bb_s(c: List[float], p=20, s=2.0):
 
 # ── Backtest ──
 
-def bt(k: List[List], s: Strategy, p: dict) -> Result:
+def bt(k: list[list], s: Strategy, p: dict) -> Result:
     c, _, _, _, t = series(k)
     warmup, fee = 60, 0.003
     rsi = rsi_s(c, p.get("rsi_p", 14))
@@ -106,7 +106,7 @@ def bt(k: List[List], s: Strategy, p: dict) -> Result:
 
     cap = peak = INIT_CAP; in_pos = False
     ep = 0.0; et = None; e_usdc = 0.0; qty = 0.0
-    trades: List[Trade] = []; eq = [INIT_CAP]; max_dd = 0.0
+    trades: list[Trade] = []; eq = [INIT_CAP]; max_dd = 0.0
     sl = p.get("sl", 0.03); tp = p.get("tp", 0.05)
     pos_pct = p.get("pos", 0.5)
 
@@ -246,12 +246,12 @@ def print_r(r: Result, tag: str = ""):
             last.append(f"{t.reason} {s}")
         print(f"    Trades: {' | '.join(last)}")
 
-def save(rs: List[Result], name: str):
+def save(rs: list[Result], name: str):
     path = Path(f"data/backtests/bnb_hack_{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
     path.parent.mkdir(parents=True, exist_ok=True)
     data = [{
         "strategy": r.name, "params": r.params,
-        "return_pct": r.ret_pct, "win_rate": r.wr, "trades": r.n,
+        "return_pct": r.ret_pct, "win_rate": r.wr, "num_trades": r.n,
         "max_dd": r.dd, "sharpe": r.sharpe, "profit_factor": r.pf,
         "trades": [{"entry":t.entry.isoformat(),"exit":t.exit.isoformat(),
                     "entry_px":t.entry_px,"exit_px":t.exit_px,
