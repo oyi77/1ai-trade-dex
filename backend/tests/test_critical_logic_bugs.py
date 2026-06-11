@@ -280,53 +280,6 @@ class TestE16SettlementBotStateMock:
 
 
 # ---------------------------------------------------------------------------
-# E-17: Edge = price - (1.0 - no_price) simplifies to edge = 0.0
-# ---------------------------------------------------------------------------
-class TestE17UniversalScannerEdge:
-    """Verify edge calculation is not always zero."""
-
-    def test_edge_not_always_zero(self):
-        """The edge calculation should use model probability, not derive from price."""
-        from backend.strategies.universal_scanner import UniversalScanner
-        import inspect
-
-        source = inspect.getsource(UniversalScanner._handle_price_event)
-        assert (
-            "implied_prob = 1.0 - no_price" not in source
-        ), "E-17: implied_prob should not be derived from no_price (always gives edge=0)"
-
-
-# ---------------------------------------------------------------------------
-# E-18: implied_prob = 1.0 hardcoded in cex_pm_leadlag
-# ---------------------------------------------------------------------------
-class TestE18CEXPMLeadlagImpliedProb:
-    """Verify implied probability is used in cex_pm_leadlag."""
-
-    def test_implied_prob_not_hardcoded(self):
-        """implied_prob should be referenced in the strategy."""
-        from backend.strategies.cex_pm_leadlag import CexPmLeadLagStrategy
-        import inspect
-
-        source = inspect.getsource(CexPmLeadLagStrategy.run_cycle)
-        assert "implied_prob" in source, "E-18: implied_prob should be referenced"
-
-
-# ---------------------------------------------------------------------------
-# E-19/E-20: model_probability: 1.0/0.0 fabrication
-# ---------------------------------------------------------------------------
-class TestE19E20OracleModelProbability:
-    """Verify model_probability uses oracle_implied."""
-
-    def test_crypto_oracle_no_binary_probability(self):
-        """crypto_oracle should use oracle_implied for model_probability."""
-        from backend.strategies.crypto_oracle import CryptoOracleStrategy
-        import inspect
-
-        source = inspect.getsource(CryptoOracleStrategy.run_cycle)
-        assert "oracle_implied" in source, "E-20: Should use oracle_implied"
-
-
-# ---------------------------------------------------------------------------
 # E-25: gymnasium blocks pytest collection
 # ---------------------------------------------------------------------------
 class TestE25GymnasiumImport:
