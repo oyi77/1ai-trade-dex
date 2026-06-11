@@ -210,6 +210,7 @@ class BondScannerStrategy(BaseStrategy):
 
             qualifying_outcome = None
             qualifying_price = None
+            qualifying_index = None
 
             for i, price_val in enumerate(outcome_prices_raw):
                 try:
@@ -220,6 +221,7 @@ class BondScannerStrategy(BaseStrategy):
                 if min_price <= price <= max_price:
                     qualifying_outcome = outcomes[i] if i < len(outcomes) else "yes"
                     qualifying_price = price
+                    qualifying_index = i
                     break
 
             if qualifying_price is None:
@@ -300,33 +302,26 @@ class BondScannerStrategy(BaseStrategy):
             if trade_direction not in ("yes", "no", "up", "down"):
                 # If outcome name is not a valid direction, default to YES for prediction markets
                 trade_direction = "yes"
-            # entry_price must reflect the cost of the share we're buying.
-            # qualifying_price is the YES outcome price.
-            # If betting NO, the share cost is (1 - qualifying_price).
-            if trade_direction in ("no", "down"):
-                trade_entry_price = round(1.0 - qualifying_price, 6)
-            else:
-                trade_entry_price = qualifying_price
+            # We buy the qualifying outcome's own token at its own quoted
+            # price — outcomePrices[i] is the price of outcomes[i], so no
+            # YES/NO flip is needed.
+            trade_entry_price = qualifying_price
+            if (
+                qualifying_index is not None
+                and qualifying_index < len(clob_token_ids)
+            ):
+                clob_token_id = str(clob_token_ids[qualifying_index])
 
             # given phantom-position risk, when bidding at mid, then apply 2% premium
             MARKETABLE_PREMIUM_PCT = float(
                 params.get("marketable_premium_pct", 0.02)
             )
-            if trade_direction in ("yes", "up"):
-                trade_entry_price = min(
-                    0.99,
-                    round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
-                )
-            else:
-                trade_entry_price = min(
-                    0.99,
-                    round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
-                )
+            trade_entry_price = min(
+                0.99,
+                round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
+            )
             # given new entry price, when computing edge, then use actual cost
-            if target_side_param in ("cheap_no", "cheap_yes_no"):
-                true_win_prob = 1.0 - qualifying_price
-            else:
-                true_win_prob = buy_price + edge_adjustment
+            true_win_prob = win_prob
             profit_if_win = 1.0 - trade_entry_price
             loss_if_lose = trade_entry_price
             raw_edge = true_win_prob * profit_if_win - (1.0 - true_win_prob) * loss_if_lose
