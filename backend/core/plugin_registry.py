@@ -76,8 +76,17 @@ class PluginRegistry(Generic[T_Manifest, T_Plugin]):
         self._pre_register: Optional[Callable[[type], None]] = pre_register
 
     def plugin(self, cls: type) -> type:
-        """Decorator that registers a class with this registry at import time."""
-        self.register(cls)
+        """Decorator that registers a class with this registry at import time.
+
+        Registration failures (e.g. missing env vars for an optional plugin)
+        are logged and skipped rather than raised — a module-level decorator
+        must not break package import / auto-discovery for sibling plugins.
+        Use ``register()`` directly when a failure should be fatal.
+        """
+        try:
+            self.register(cls)
+        except Exception as e:
+            logger.warning(f"Skipping plugin {cls.__name__}: {e}")
         return cls
 
     def register(self, plugin_class: type) -> None:

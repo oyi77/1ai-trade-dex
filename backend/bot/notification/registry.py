@@ -110,7 +110,7 @@ class NotificationRegistry(
         self, package_path: str = "backend.bot.notification.providers"
     ) -> None:
         """Auto-discover notification providers via base PluginRegistry.auto_discover."""
-        self._auto_discover(package_path)
+        super().auto_discover(package_path)
 
 
 registry = NotificationRegistry()
