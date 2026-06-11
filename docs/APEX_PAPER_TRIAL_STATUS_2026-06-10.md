@@ -232,3 +232,89 @@ Full `backend/tests/` suite: 3371 tests, 0 failed, 0 errors after the fix
 passed unused `technical_conf`/`ai_confidence`/`orderbook_conf` kwargs that
 `combine_signals` never read; updated the test call to match the trimmed
 signature).
+
+---
+
+## Live verification — 2026-06-11/12: edge_pp fix confirmed, two new blockers found
+
+After deploying the edge_pp pp-scale fix, PM2 logs confirmed it works:
+
+```
+[apex:pipeline] 18 edges → 5 signals (bankroll=$100.00)
+```
+
+(previously `15 edges → 0 signals`). All 5 signals were then rejected by
+`_preflight_checks`, revealing two further issues:
+
+### Bug A (fixed): `order_book_stale.py` had the same yes/no scale bug as
+`resolution_timing.py`'s part-2 fix, just not yet applied here.
+
+For `direction == "no"` edges, `entry_price`/`fair_price` were left in the
+**YES token's** price scale (`mid_price`/`last_price`), while `token_id`
+defaulted to the YES token. `risk_manager.check_edge` then computed
+`edge_pp = (fair_price - entry_price) * 100` — mixing scales — producing
+large, wrong-signed values:
+
+```
+[apex] Risk rejected will-adobe-q2-total-arr-be-above-27pt0b: Edge filter: edge_pp=-21.00 < MIN_EDGE_PP=0.0001
+[apex] Risk rejected us-enacts-ai-safety-bill-before-2027: Edge filter: edge_pp=-14.50 < MIN_EDGE_PP=0.0001
+```
+
+**Fix:** for `direction == "no"`, convert to the NO token's own scale
+(`entry_price = 1 - mid_price`, `fair_price = 1 - last_price`) and select
+`clobTokenIds[1]` (the NO token) via new `_extract_no_token_id()`. The
+scanner's own `edge_pp = round((abs(fair_price - entry_price) - 0.002) * 100, 2)`
+is unchanged (abs() is invariant to the conversion). Added
+`test_no_direction_uses_no_token_scale` to `test_apex_edge_detectors.py`.
+
+### Bug B (NOT FIXED — needs a decision): paper bankroll is $0, blocking
+**all** paper-mode strategies, not just APEX.
+
+The other 3 of 5 APEX signals were rejected with:
+
+```
+[apex] Risk rejected <market>: concentration: event exposure $0.00 + $X > 100% of bankroll ($0.00)
+```
+
+`BotState(mode='paper')`: `paper_initial_bankroll=$1000`, but
+`paper_bankroll=$0.00` and `bankroll=$0.00` today. `paper_pnl=-$3919.19`
+across 2703 settled paper trades (5360 `Trade` rows total) spanning
+2026-05-26 → 2026-06-10, i.e. the paper account lost ~4x its starting
+bankroll and is floored at $0 — **this blocks every strategy in paper mode**
+(100% concentration check rejects any size > $0 of $0 bankroll), which in
+turn blocks the entire PAPER(≥20 trades)→FRONTTEST→SHADOW→LIVE gate.
+
+PnL by strategy (paper, settled):
+
+| strategy | trades | total pnl | avg pnl |
+|---|---|---|---|
+| cross_platform_arb | 100 | -2493.22 | -24.93 |
+| crypto_oracle | 666 | -1619.22 | -2.43 |
+| arb_scanner | 250 | -1247.50 | -4.99 |
+| line_movement_detector | 249 | -426.60 | -1.71 |
+| unified_arb | 2830 | 0.00 | 0.00 |
+| news_frontrun | 7 | -2.64 | -0.38 |
+| cex_pm_leadlag | 210 | -6.01 | -0.03 |
+| weather_emos | 22 | +197.81 | +8.99 |
+| longshot_bias | 618 | +717.46 | +1.16 |
+| bond_scanner | 358 | +960.73 | +3.03 |
+| (null strategy, bulk-settled) | 50 | NULL | — |
+
+Two anomalies worth investigating before any bankroll reset, since a reset
+without a root-cause fix would likely just drain again:
+- `unified_arb`: 2830 trades, **every one** with `pnl == 0.0` exactly —
+  looks like settlement never computes real PnL for this strategy rather
+  than 2830 genuinely break-even trades.
+- `cross_platform_arb`: avg **-$24.93/trade** over 100 trades — far larger
+  than any other strategy's per-trade loss, for a strategy whose name
+  implies low-risk arbitrage.
+- 50 `Trade` rows have `strategy=NULL`, `pnl=NULL`, `size=NULL`,
+  `result='loss'`, `settled=True`, all with the identical timestamp
+  `2026-06-10 06:18:51` — looks like a bulk/orphan-cleanup operation, not
+  organic trading.
+
+This is a financial-state + risk/settlement question (`risk_manager.py` and
+`settlement.py` are ADR-gated per `CLAUDE.md`) and needs a decision before
+any fix: reset `paper_bankroll`, investigate the settlement anomalies above
+first, and/or disable the worst-performing strategies per the strategy
+governance table before re-funding paper.

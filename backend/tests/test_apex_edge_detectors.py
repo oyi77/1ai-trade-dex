@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -12,7 +11,7 @@ from backend.core.edge.scanners.resolution_timing import ResolutionTimingScanner
 from backend.core.edge.scanners.liquidity_gap import LiquidityGapScanner
 from backend.core.edge.scanners.order_book_stale import OrderBookStaleScanner
 from backend.data.polymarket_clob import OrderBook
-from backend.core.edge.edge_model import Edge, EdgeType
+from backend.core.edge.edge_model import EdgeType
 
 
 def make_market(**overrides):
@@ -166,3 +165,32 @@ class TestOrderBookStaleScanner:
         clob.get_last_trade_price = AsyncMock(return_value=0.50)
         result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_no_direction_uses_no_token_scale(self):
+        """For 'no' edges, entry/fair price and token id must be in the NO
+        token's own scale, so risk_manager's edge_pp = (fair-entry)*100 is
+        positive and matches the scanner's own (sign-agnostic) edge_pp."""
+        market = {
+            "slug": "test",
+            "token_id": "yes_token",
+            "clobTokenIds": '["yes_token", "no_token"]',
+        }
+        clob = AsyncMock()
+        # mid_price = (0.45 + 0.59) / 2 = 0.52
+        clob.get_order_book = AsyncMock(return_value=OrderBook(
+            token_id="yes_token",
+            bids=[{"price": "0.45", "size": "10"}],
+            asks=[{"price": "0.59", "size": "10"}],
+        ))
+        # last_price (0.31) < mid_price (0.52) -> direction = "no"
+        clob.get_last_trade_price = AsyncMock(return_value=0.31)
+        result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
+        assert result is not None
+        assert result.direction == "no"
+        assert result.token_id == "no_token"
+        # NO-scale: entry = 1 - mid, fair = 1 - last
+        assert abs(result.entry_price - (1.0 - 0.52)) < 1e-9
+        assert abs(result.fair_price - (1.0 - 0.31)) < 1e-9
+        # Edge is positive in the traded token's own scale
+        assert (result.fair_price - result.entry_price) * 100 > 0

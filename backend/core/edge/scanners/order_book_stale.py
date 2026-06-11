@@ -113,11 +113,26 @@ class OrderBookStaleScanner(EdgeScanner):
 
             # Direction: if last trade > mid, market is stale-bid (price should go up)
             direction = "yes" if last_price > mid_price else "no"
-            fair_price = last_price  # last trade is closer to true value
-            entry_price = mid_price
+
+            # entry_price/fair_price must be in the scale of the token we
+            # actually buy (Edge.entry_price/fair_price contract). The book
+            # above is for the YES token; for "no" trades, convert to the NO
+            # token's own price (NO ≈ 1 - YES) and select the NO token id —
+            # otherwise risk_manager's edge_pp = (fair_price - entry_price)*100
+            # mixes scales and produces a large, wrong-signed value.
+            if direction == "no":
+                fair_price = 1.0 - last_price
+                entry_price = 1.0 - mid_price
+                no_token_id = self._extract_no_token_id(market)
+                if no_token_id:
+                    token_id = no_token_id
+            else:
+                fair_price = last_price  # last trade is closer to true value
+                entry_price = mid_price
 
             # Edge in percentage points (Edge.edge_pp contract; the pipeline
             # filter and risk manager are on the pp scale), fee-discounted.
+            # abs() makes this invariant to the yes/no scale conversion above.
             confidence = min(divergence / 0.10, 0.7)  # low confidence, scales with divergence
             edge_pp = round((abs(fair_price - entry_price) - 0.002) * 100, 2)
 
@@ -149,6 +164,20 @@ class OrderBookStaleScanner(EdgeScanner):
         except Exception as e:
             logger.debug(f"[apex:order_book_stale] Error evaluating {slug}: {e}")
             return None
+
+    @staticmethod
+    def _extract_no_token_id(market: dict) -> str | None:
+        """Extract the CLOB token ID for the NO outcome (clobTokenIds[1])."""
+        raw = market.get("clobTokenIds")
+        if isinstance(raw, str):
+            import json
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                return None
+        if isinstance(raw, list) and len(raw) > 1:
+            return str(raw[1])
+        return None
 
     async def _get_active_markets(self, ctx) -> list[dict]:
         """Get active markets from context or Gamma API."""
