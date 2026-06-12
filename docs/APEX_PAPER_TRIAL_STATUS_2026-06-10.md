@@ -706,17 +706,36 @@ This also surfaced 3 **pre-existing** issues that were previously invisible
 **Verification (Lighter `get_balance` fix):** `pytest
 backend/tests/test_lighter_client.py backend/tests/test_lighter_provider.py`
 — 15/15 pass. `ruff check backend/clients/lighter_client.py
-backend/tests/test_lighter_client.py` — clean. Live verification pending:
-restart and confirm `Lighter REST balance error: 'AccountApi' object has no
-attribute 'assets'` no longer recurs every ~15s.
+backend/tests/test_lighter_client.py` — clean.
+
+**Live verification:** after restarting `polyedge-orchestrator` (pid
+2094015, 19:44:34), `ActivityTracker started` fires again with 7 sources
+registered (Bug H still fixed). The `AttributeError: 'AccountApi' object has
+no attribute 'assets'` is **gone** — `_ws_lighter` now reaches the real
+`account_api.account(by="index", value=...)` HTTP call. However, that call
+now returns `Lighter REST balance error: (403)` every ~15s (17 occurrences
+in the first ~90s). This is a **new, different, pre-existing** issue: an
+HTTP 403 from the Lighter API on the `account()` endpoint despite
+`LIGHTER_PRIVATE_KEY`/`LIGHTER_ACCOUNT_INDEX`/`LIGHTER_API_KEY_INDEX` all
+being set in `.env` — likely the unauthenticated `ApiClient`/`Configuration`
+used by `_ensure_initialized()` doesn't attach the API-key auth headers that
+`account()` requires (auth is currently only wired up in `_ensure_signer()`,
+which is for trade-signing, not read endpoints). This affects
+`LighterProvider.get_balance()` too (same SDK call) — i.e. Lighter balance
+reads are likely 403'ing in the live trading path as well, not just this
+poller. Deferred: needs investigation into the `lighter` SDK's expected auth
+mechanism for read endpoints (API-key header vs query param vs signed
+request).
 
 ### Status
 
 F3/F-G: fixed and live-verified (no recurrence observed, see above). Bug H:
-fixed and live-verified (`ActivityTracker started`, 7 sources registered).
-Bug I (`LighterClient.get_balance` SDK mismatch): fixed, pending live
-verification after restart. Three further pre-existing gaps discovered and
-documented above (Aster/Hyperliquid/Lighter activity-source interface
-mismatch; Polymarket WS `ws_config`/blocking-connect bug; remaining
-`LighterClient` SDK-mismatch methods) — deferred as out-of-scope for this
-session.
+fixed and live-verified (`ActivityTracker started`, 7 sources registered,
+both restarts). Bug I (`AccountApi.assets` AttributeError): fixed and
+live-verified — error message changed from the AttributeError to a 403,
+confirming the SDK call path is now correct; the 403 itself is a new,
+separate, pre-existing auth-configuration gap (see above). Four pre-existing
+gaps discovered and documented above (Lighter API 403/auth for read
+endpoints; Aster/Hyperliquid/Lighter activity-source interface mismatch;
+Polymarket WS `ws_config`/blocking-connect bug; remaining `LighterClient`
+SDK-mismatch methods) — all deferred as out-of-scope for this session.
