@@ -945,15 +945,13 @@ all continue to run as before. Documented in
 ADR-gating rule for `risk_manager.py`.
 
 With the default `bias_weight=0.10`, a NO trade now passes the floor if
-`confidence >= 0.50 / 1.10 ≈ 0.4546`. Of the 10 observed candidates
-(`confidence` 0.41-0.48), **3/10** now clear the floor
-(`bitcoin-above-60k-on-june-18-2026` 0.484→0.532,
+`confidence >= 0.50 / 1.10 ≈ 0.4546`. Of the 10 candidates observed
+pre-restart (`confidence` 0.41-0.48), an estimated **3/10** would clear the
+floor (`bitcoin-above-60k-on-june-18-2026` 0.484→0.532,
 `aligned-fdv-above-20m-one-day-after-launch` 0.473→0.521,
-`will-nike-q4-greater-china-revenue-be-above-1pt0b` 0.472→0.519). The
-remaining 7/10 (`confidence` 0.41-0.45, mostly markets priced < 1c) stay
-below 0.4546 even after the boost and continue to be rejected — see
-"Alternatives Considered" in ADR-015 for why the weight was not increased
-further in this pass.
+`will-nike-q4-greater-china-revenue-be-above-1pt0b` 0.472→0.519). This
+estimate is superseded by the live results below — the market set shifted to
+12 candidates by the time of the actual post-restart cycle.
 
 ### Verification
 
@@ -967,10 +965,45 @@ further in this pass.
   backend/tests/test_strategy_gate.py backend/tests/test_longshot_bias.py
   backend/tests/test_bankroll_allocator.py
   backend/tests/test_bankroll_allocator_longshot.py`: 112 passed, 3 skipped.
-- Live verification (post-restart, expect ~3/10 `longshot_bias` decisions per
-  cycle to clear the risk gate and appear as paper `Trade` rows) pending.
+- **Live verification** (`pm2 restart polyedge-orchestrator`, pid `2549192`,
+  restart #12): the first post-fix cycle (22:43-22:43:54) found 12 candidates
+  (market set shifted vs. the pre-restart 10). One candidate —
+  `aligned-fdv-above-20m-one-day-after-launch` NO @ 10.20c, raw
+  `confidence=0.4702`, `edge=79.6%` — was boosted via
+  `"[risk_manager] Applied NO-bias: no -> 0.47 -> 0.52"` (0.4702 × 1.10 =
+  0.5172), cleared the 0.50 floor, and was **executed as a paper trade**:
+  `trades.id=25796`, `direction=no`, `entry_price=fill_price=0.0973` (after
+  4.59% slippage from the 0.102 quote), `size=$6.15`, `fee=$0.0018`,
+  `trading_mode=paper`, `settled=false`. Log:
+  `"[longshot_bias] PARALLEL: executed 1 trades in paper mode (input
+  decisions: 12)"` — **the first confirmed paper-trade execution by
+  `longshot_bias` since Bug K was fixed**.
+- Of the other 11 candidates, the risk-gate outcome was directly observed for
+  5: `will-spacex-raise-between-70b-and-80b-in-its-ipo` (0.41→0.45),
+  `isl1-kef-haf-2026-06-14-total-0pt5` (0.44→0.48),
+  `dota2-nawedw-the-2026-06-11-game-handicap-home-1pt5` (0.41→0.45),
+  `nathan-ngoy-20260609173850418` (0.45→0.49), and
+  `marquinhos-20260609165807832` (0.42→0.46) — all still rejected
+  (`confidence < 0.50` after boosting), consistent with the "candidates below
+  ~0.4546 stay rejected" expectation.
+- The next cycle (22:44:03-22:44:54) re-evaluated the same 12 candidates:
+  `aligned-fdv-above-20m-one-day-after-launch` was again boosted to 0.52
+  (clears the floor) but correctly rejected by the pre-existing
+  duplicate-position guard (`"Risk rejected
+  aligned-fdv-above-20m-one-day-after-launch: unsettled trade exists for
+  aligned-fdv-above-20m-one-day-after-launch"`), since `trades.id=25796` was
+  still open. `"PARALLEL: executed 0 trades in paper mode (input decisions:
+  12)"` — confirms the fix does not cause repeat-buys of the same market
+  every cycle.
 
 ### Status
 
-Bug L: fixed, tested (112 passed / 3 skipped), documented (ADR-015). Live
-verification pending restart of `polyedge-orchestrator`.
+Bug L: fixed, tested (112 passed / 3 skipped), documented (ADR-015), and
+**live-verified**. `longshot_bias` placed its first paper trade in this
+investigation (`trades.id=25796`, NO `aligned-fdv-above-20m-one-day-after-launch`
+@ 9.73c fill, $6.15, `confidence` 0.47→0.52 after the NO-bias boost,
+`edge=79.6%`). Combined with the Bug K fix, `longshot_bias` is now confirmed
+working end-to-end in paper mode: candidate selection → risk-gate pass →
+paper execution → duplicate-entry guard on subsequent cycles. PnL/win-rate
+validation requires these positions to settle (multi-day/week horizon for
+most of these markets) — not yet measurable.
