@@ -644,7 +644,79 @@ backend/tests/test_activity_integration.py backend/tests/test_activity_live.py`
 verification pending: restart `polyedge-orchestrator` and confirm
 `ActivityTracker started` replaces the `name 'os' is not defined` warning.
 
+**Live verification (Bug H):** after restarting `polyedge-orchestrator`
+(pid 2000601, 19:05:23), `ActivityTracker failed to start: name 'os' is not
+defined` (which had fired on every prior startup, e.g. 2026-06-11 23:40:53,
+2026-06-12 01:28:23, 07:46:43, 18:54:16) no longer appears. Instead:
+`ActivityTracker started`, and 7 sources registered successfully —
+`polymarket`, `azuro`, `kalshi`, `ostium`, `myriad`, `sxbet`, `paper`.
+
+This also surfaced 3 **pre-existing** issues that were previously invisible
+(masked because no activity source ever attempted to register before):
+
+1. `Aster activity source skipped: 'AsterProvider' object has no attribute
+   'connect'` / same for Hyperliquid and Lighter — `_register_activity_sources()`
+   calls `await <provider>.connect()`, but `AsterProvider`/`HyperliquidProvider`/
+   `LighterProvider` (`BaseMarketProvider` subclasses) have no `connect()` and
+   their `__init__` already does all needed setup synchronously. Additionally,
+   the activity-source classes (`AsterActivitySource`, `HyperliquidActivitySource`,
+   `LighterActivitySource`) expect client methods (`watch_balance`/`get_fills`/
+   `watch_positions`, `subscribe_user_fills`/`subscribe_order_updates`,
+   `subscribe`/`recv`/`get_balance`) that don't all exist on these provider
+   classes either — a deeper interface mismatch than a one-line fix. Deferred:
+   needs a scoped design pass per activity source, not attempted here.
+
+2. `[polymarket] WS fills error, falling back to REST:
+   PolymarketWebSocket.__init__() got an unexpected keyword argument
+   'ws_config'. Did you mean 'config'?` — `polymarket_source.py:75` calls
+   `PolymarketWebSocket(ws_config={"url": ..., "channel": ...})`, but the
+   constructor takes a single positional `config: WebSocketConfig` dataclass
+   (no `url` field — the endpoint is resolved internally from
+   `ChannelType` via `PolymarketWebSocket.ENDPOINTS`). Separately,
+   `PolymarketWebSocket.connect()` itself runs its own internal
+   reconnect-until-exhausted loop and only returns when retries are
+   exhausted, so `await ws.connect()` in `_connect_ws_fills()` would block
+   rather than return after a successful connect — the "keep alive" loop
+   below it is currently unreachable. REST fallback
+   (`_rest_fills_loop`, using `self._clob.get_trader_trades()`) works and is
+   what's actually running. Deferred: needs both the constructor-arg fix and
+   a rework of how `_connect_ws_fills` awaits `connect()` (e.g. run as a
+   background task), plus sourcing `condition_ids`/API creds for the
+   authenticated USER channel.
+
+3. `Lighter REST balance error: 'AccountApi' object has no attribute
+   'assets'` (`balance_aggregator.py:162`, **10,014 occurrences** in the log
+   history, firing every ~15s) — `LighterClient.get_balance()` called
+   `self._account_api.assets(...)`, but the installed `lighter` SDK's
+   `AccountApi` has no `assets`/`order_books`/`positions`/
+   `account_active_orders`/`info` methods (SDK version mismatch). FIXED here:
+   rewrote `get_balance()` to use `account_api.account(by="index",
+   value=str(account_index))` and extract the `USDC`-symbol entry's
+   `.balance`, mirroring the already-correct, already-tested
+   `LighterProvider.get_balance()` (`backend/markets/providers/lighter_provider.py:103-124`,
+   covered by `test_lighter_provider.py::test_get_balance_list_format` /
+   `test_get_balance_dict_format`). New test file
+   `backend/tests/test_lighter_client.py` (3 tests) covers the USDC-found,
+   USDC-missing, and empty-accounts cases. `LighterClient.get_markets()`
+   (`order_books`), `get_positions()` (`positions`), `get_active_orders()`
+   (`account_active_orders`), and `health_check()` (`info()`) have the same
+   SDK-mismatch bug but are not in the active polling hot path causing log
+   spam — deferred, same root cause, separate fix.
+
+**Verification (Lighter `get_balance` fix):** `pytest
+backend/tests/test_lighter_client.py backend/tests/test_lighter_provider.py`
+— 15/15 pass. `ruff check backend/clients/lighter_client.py
+backend/tests/test_lighter_client.py` — clean. Live verification pending:
+restart and confirm `Lighter REST balance error: 'AccountApi' object has no
+attribute 'assets'` no longer recurs every ~15s.
+
 ### Status
 
 F3/F-G: fixed and live-verified (no recurrence observed, see above). Bug H:
-fixed, pending live verification after restart.
+fixed and live-verified (`ActivityTracker started`, 7 sources registered).
+Bug I (`LighterClient.get_balance` SDK mismatch): fixed, pending live
+verification after restart. Three further pre-existing gaps discovered and
+documented above (Aster/Hyperliquid/Lighter activity-source interface
+mismatch; Polymarket WS `ws_config`/blocking-connect bug; remaining
+`LighterClient` SDK-mismatch methods) — deferred as out-of-scope for this
+session.

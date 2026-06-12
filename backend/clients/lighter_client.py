@@ -75,9 +75,17 @@ class LighterClient:
         return self._account_api.order_books()
 
     async def get_balance(self) -> dict:
-        """Get account assets/balance."""
+        """Get account assets/balance (USDC collateral)."""
         self._ensure_initialized()
-        return self._account_api.assets(account_index=self._account_index)
+        result = await self._account_api.account(
+            by="index", value=str(self._account_index)
+        )
+        usdc_balance = 0.0
+        for acc in getattr(result, "accounts", []) or []:
+            if getattr(acc, "symbol", "") == "USDC":
+                usdc_balance = float(getattr(acc, "balance", "0") or 0)
+                break
+        return {"usdc": usdc_balance, "total": usdc_balance}
 
     async def get_positions(self) -> list:
         """Get open positions."""
