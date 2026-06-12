@@ -889,6 +889,88 @@ will very likely exceed `1.0`, driving `true_win_prob` negative for
 
 ### Status
 
-Bug K: fixed, tested (62 passed / 3 skipped), documented. Dry-run against live
-market data confirms decisions are produced again (5/cycle vs. 0 previously).
-Live verification pending restart of `polyedge-orchestrator`.
+Bug K: fixed, tested (62 passed / 3 skipped), documented, and **live-verified**.
+After `pm2 restart polyedge-orchestrator`, the first cycle logged `Found 10
+markets below 15c (bias=0.5900)` and produced 10 BUY-NO decisions/cycle
+(`decisions=10` vs. 0 before the fix) — e.g.
+`bitcoin-above-60k-on-june-18-2026 NO @ 12.50c | edge: 75.0% | EV: 35.4% |
+Kelly: 6.2% | $6.15`. The candidate-direction bug is resolved.
+
+However, all 10 decisions were then rejected by
+`strategy_executor._preflight_checks` →
+`risk_manager.validate_trade()` with `"Risk rejected {slug}: confidence
+0.41-0.47 < min threshold 0.50"`, so **zero trades were placed** even in
+paper mode. This is a *separate* bug — see Bug L below — now fixed.
+
+## Update — 2026-06-12: Bug L — `LONGSHOT_NO_BIAS_WEIGHT` dead since
+## introduction; `longshot_bias` 100% risk-rejected on `confidence < 0.50`
+
+### Root cause
+
+After the Bug K fix, `longshot_bias` produced 10 BUY-NO decisions/cycle, each
+with `confidence = true_win_prob = 1 - yes_price * bias_ratio` in the
+**0.41-0.48** range (e.g. `confidence=0.41` for a NO @ 0.45c with
+`yes_price=0.9955`, `bias_ratio=0.59`). `_preflight_checks` →
+`risk_manager.validate_trade()` rejects any trade with `confidence <
+min_confidence` (`PAPER_AUTO_APPROVE_MIN_CONFIDENCE = 0.50`). All 10/10
+decisions were rejected with `"confidence 0.4X < min threshold 0.50"` —
+`PARALLEL: executed 0 trades in paper mode (input decisions: 10)`.
+
+This is **by design** for `longshot_bias` — it bets on the longshot (NO) at
+5-15c where `P(NO wins)` is genuinely < 0.50; the edge comes from payout odds
+(`edge = model_prob - no_price` = 65-99%, `EV` = 35-41%), not from
+`P(win) > 0.5`. The 0.50 confidence floor is a sanity check appropriate for
+favorite-betting strategies but structurally excludes any true longshot
+strategy.
+
+`risk_manager.py` already has a mechanism for exactly this:
+`LONGSHOT_NO_BIAS_WEIGHT` (default 0.10, added in commit `a23a8b31`, "NO-bias
+weighting") boosts `confidence` for `direction == "NO"` trades by
+`confidence * (1 + bias_weight)` before evaluation. But since that commit it
+has been applied **after** the `confidence < min_confidence` rejection
+(`backend/core/risk/risk_manager.py` — the check at the old line ~426 ran
+before the adjustment at the old line ~440) — every NO trade was rejected
+before the boost could run. `LONGSHOT_NO_BIAS_WEIGHT` has been dead code for
+its intended purpose since it was introduced.
+
+### Fix
+
+`backend/core/risk/risk_manager.py::validate_trade()`: moved the
+`LONGSHOT_NO_BIAS_WEIGHT` / category-direction adjustment block to run
+**before** the `confidence < min_confidence` floor check, so the adjustment
+actually affects the gating decision. No other risk check (MIN_TRADE_EV,
+check_edge, drawdown, exposure, concentration, category edge) was changed —
+all continue to run as before. Documented in
+`docs/architecture/adr-015-longshot-no-bias-confidence-ordering.md` per the
+ADR-gating rule for `risk_manager.py`.
+
+With the default `bias_weight=0.10`, a NO trade now passes the floor if
+`confidence >= 0.50 / 1.10 ≈ 0.4546`. Of the 10 observed candidates
+(`confidence` 0.41-0.48), **3/10** now clear the floor
+(`bitcoin-above-60k-on-june-18-2026` 0.484→0.532,
+`aligned-fdv-above-20m-one-day-after-launch` 0.473→0.521,
+`will-nike-q4-greater-china-revenue-be-above-1pt0b` 0.472→0.519). The
+remaining 7/10 (`confidence` 0.41-0.45, mostly markets priced < 1c) stay
+below 0.4546 even after the boost and continue to be rejected — see
+"Alternatives Considered" in ADR-015 for why the weight was not increased
+further in this pass.
+
+### Verification
+
+- New tests in `backend/tests/test_risk_manager.py`
+  (`TestLongshotNoBiasOrdering`, 3 tests): a NO trade at `confidence=0.46`
+  is rejected with `bias_weight=0.0` and allowed with `bias_weight=0.10`
+  (boosted to 0.506); a YES trade at `confidence=0.52` is correctly rejected
+  once the symmetric penalty (`*0.95 = 0.494`) is applied before the floor.
+- `pytest backend/tests/test_risk_manager.py
+  backend/tests/test_risk_profiles.py backend/tests/test_strategy_executor.py
+  backend/tests/test_strategy_gate.py backend/tests/test_longshot_bias.py
+  backend/tests/test_bankroll_allocator.py
+  backend/tests/test_bankroll_allocator_longshot.py`: 112 passed, 3 skipped.
+- Live verification (post-restart, expect ~3/10 `longshot_bias` decisions per
+  cycle to clear the risk gate and appear as paper `Trade` rows) pending.
+
+### Status
+
+Bug L: fixed, tested (112 passed / 3 skipped), documented (ADR-015). Live
+verification pending restart of `polyedge-orchestrator`.

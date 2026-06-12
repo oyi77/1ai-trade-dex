@@ -230,6 +230,73 @@ class TestConfidenceThreshold:
         assert threshold == 0.40
 
 
+class TestLongshotNoBiasOrdering:
+    """LONGSHOT_NO_BIAS_WEIGHT must apply BEFORE the confidence floor.
+
+    longshot_bias bets on NO at low prices where true P(NO wins) < 0.5 by
+    design — positive EV comes from payout odds, not from P(win) > 0.5.
+    LONGSHOT_NO_BIAS_WEIGHT exists to correct raw confidence for this case,
+    but if applied after the floor check it can never rescue a trade that
+    was already rejected. See adr-015-longshot-no-bias-confidence-ordering.md.
+    """
+
+    def _settings(self, bias_weight: float = 0.10) -> MockSettings:
+        s = MockSettings()
+        s.AUTO_APPROVE_MIN_CONFIDENCE = 0.50
+        s.PAPER_AUTO_APPROVE_MIN_CONFIDENCE = 0.50
+        s.REGIME_ROUTING_ENABLED = False
+        s.LONGSHOT_NO_BIAS_WEIGHT = bias_weight
+        return s
+
+    def test_no_bias_rescues_borderline_no_bet(self):
+        """0.46 alone fails the 0.50 floor, but 0.46*1.10=0.506 passes."""
+        rm = RiskManager(settings_obj=self._settings(0.10))
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.46,
+            market_ticker="LONGSHOT-NO",
+            mode="paper",
+            strategy_name="longshot_bias",
+            direction="no",
+        )
+        assert decision.allowed is True
+
+    def test_same_confidence_rejected_without_no_bias(self):
+        """Without the NO-bias weight, 0.46 stays below 0.50 and is rejected."""
+        rm = RiskManager(settings_obj=self._settings(0.0))
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.46,
+            market_ticker="LONGSHOT-NO",
+            mode="paper",
+            strategy_name="longshot_bias",
+            direction="no",
+        )
+        assert decision.allowed is False
+        assert "confidence" in decision.reason.lower()
+
+    def test_yes_direction_penalty_can_trigger_floor_rejection(self):
+        """YES bets are penalized (not boosted); a 0.52 confidence YES bet
+        drops to 0.494 with weight=0.10 and must be rejected by the floor."""
+        rm = RiskManager(settings_obj=self._settings(0.10))
+        decision = rm.validate_trade(
+            size=5.0,
+            current_exposure=0.0,
+            bankroll=100.0,
+            confidence=0.52,
+            market_ticker="LONGSHOT-YES",
+            mode="paper",
+            strategy_name="some_strategy",
+            direction="yes",
+        )
+        assert decision.allowed is False
+        assert "confidence" in decision.reason.lower()
+
+
 class TestDrawdownFloors:
     """Tests for daily/weekly drawdown floor enforcement (Task 12)."""
 

@@ -423,20 +423,12 @@ class RiskManager:
                 )
                 return RiskDecision(False, e.message, 0.0)
 
-        min_confidence = self._get_confidence_threshold(effective_mode, strategy_name)
-        if confidence < min_confidence:
-            record_signal(
-                strategy=strategy_name or "unknown", signal_type="rejected_confidence"
-            )
-            increment_risk_rejection(
-                strategy=strategy_name or "unknown", reason="confidence"
-            )
-            return RiskDecision(
-                False,
-                f"confidence {confidence:.2f} < min threshold {min_confidence:.2f}",
-                0.0,
-            )
-
+        # NO-bias adjustment must run BEFORE the confidence floor below — it
+        # exists specifically to correct raw P(win) for asymmetric longshot
+        # bets, where P(win) < 0.5 is expected by design. Applying it after
+        # the floor (the original ordering) made LONGSHOT_NO_BIAS_WEIGHT dead
+        # code: every genuine longshot NO bet was rejected before the
+        # adjustment could run. See adr-015-longshot-no-bias-confidence-ordering.md.
         bias_weight = getattr(self.s, "LONGSHOT_NO_BIAS_WEIGHT", 0.0)
         if bias_weight > 0 and direction:
             original_conf = confidence
@@ -451,6 +443,20 @@ class RiskManager:
                     original_conf,
                     confidence,
                 )
+
+        min_confidence = self._get_confidence_threshold(effective_mode, strategy_name)
+        if confidence < min_confidence:
+            record_signal(
+                strategy=strategy_name or "unknown", signal_type="rejected_confidence"
+            )
+            increment_risk_rejection(
+                strategy=strategy_name or "unknown", reason="confidence"
+            )
+            return RiskDecision(
+                False,
+                f"confidence {confidence:.2f} < min threshold {min_confidence:.2f}",
+                0.0,
+            )
 
         cat_enabled = getattr(self.s, "CATEGORY_CONFIDENCE_ENABLED", False)
         if cat_enabled and category:
