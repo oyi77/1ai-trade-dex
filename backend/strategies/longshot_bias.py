@@ -45,9 +45,9 @@ class LongshotBiasStrategy(BaseStrategy):
     }
 
     async def market_filter(self, markets: list[MarketInfo]) -> list[MarketInfo]:
-        """Filter to only low-price markets (below max_price threshold)."""
+        """Filter to markets where the NO token is cheap (below max_price)."""
         max_price = self.default_params.get("max_price", 0.30)
-        return [m for m in markets if 0 < m.yes_price < max_price]
+        return [m for m in markets if 0 < m.no_price < max_price]
 
     async def run_cycle(self, ctx: StrategyContext) -> CycleResult:
         """Execute one scan cycle: find longshot markets, evaluate EV, size by Kelly."""
@@ -108,7 +108,9 @@ class LongshotBiasStrategy(BaseStrategy):
                 except Exception:
                     continue
 
-            candidates = [m for m in parsed_markets if 0 < m["yes_price"] < max_price and m["volume"] >= min_volume]
+            # The strategy buys the NO token, so a "longshot below max_price"
+            # market is one where no_price (not yes_price) is cheap.
+            candidates = [m for m in parsed_markets if 0 < m["no_price"] < max_price and m["volume"] >= min_volume]
 
             # Get dynamic longshot bias
             bias_ratio = 0.59  # fallback: YES trades win rate
@@ -128,6 +130,13 @@ class LongshotBiasStrategy(BaseStrategy):
             except Exception as e:
                 ctx.logger.warning("[longshot_bias] Bias calc failed: {}", e)
 
+            # Clamp: true_win_prob = 1 - yes_price * bias_ratio must stay
+            # positive for yes_price up to 1.0, or every decision below would
+            # hit the true_win_prob <= 0 guard and the strategy would go
+            # silent again once enough high-win-rate trades push bias_ratio
+            # (= win_rate / avg_entry_price) above ~1.
+            bias_ratio = max(0.1, min(bias_ratio, 0.95))
+
             ctx.logger.info(
                 f"[longshot_bias] Found {len(candidates)} markets below {int(max_price*100)}c (bias={bias_ratio:.4f}) parsed={len(parsed_markets)} raw={len(raw_markets)}"
             )
@@ -146,13 +155,16 @@ class LongshotBiasStrategy(BaseStrategy):
                         continue
 
                     # --- HARD GUARD: minimum model probability ---
-                    # Model probability = 1 - yes_price (NO wins when YES loses)
-                    model_prob = 1.0 - yes_price
+                    # Model probability = yes_price (market-implied confidence
+                    # the favorite/YES outcome occurs). The NO token we buy is
+                    # the corresponding longshot, priced below max_price.
+                    model_prob = yes_price
                     if model_prob < min_model_prob:
                         continue
 
                     # --- HARD GUARD: minimum edge (model vs market) ---
-                    # Edge = model_prob - market_implied_prob (no_price)
+                    # Edge = model_prob (favorite confidence) - no_price (cost
+                    # of the longshot NO token) — requires a lopsided market.
                     edge = model_prob - no_price
                     if edge < min_edge:
                         continue

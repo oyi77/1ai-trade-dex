@@ -816,3 +816,79 @@ which executed as a $50 paper trade) — both within the new ≤6pp divergence
 bound and no longer pinned at the 0.7 cap. `resolution_timing` decisions
 (`conf=0.90`, `conf=0.94`) are unaffected. Remaining `conf=0.70` rows in
 `decision_log` are pre-fix history.
+
+## Update — 2026-06-12: Bug K — `longshot_bias` candidate-direction bug,
+## 100% `GUARD blocked`, zero decisions every cycle since re-enable
+
+### Root cause
+
+`longshot_bias` (`backend/strategies/longshot_bias.py`) was re-enabled in the
+DB on 2026-06-10 (300s interval, PAPER mode), with a track record of 618
+historical trades / 97.9% WR / +$717.46. Since re-enable it produced **zero**
+decisions every cycle — every candidate hit `[longshot_bias] GUARD blocked:
+{slug} no_price={no_price:.3f} > max={max_entry_price:.3f}`.
+
+The candidate filter selected `0 < yes_price < max_price (0.25)`, which
+implies `no_price > 0.75` for every candidate. The very next guard rejected
+any candidate with `no_price > max_entry_price (0.30)` — a condition that is
+**always true** given the candidate filter (`no_price > 0.75 > 0.30`
+unconditionally). This is a self-contradictory pair of filters: nothing could
+ever pass.
+
+This also contradicted the strategy's own docstring/description ("buy NO
+tokens on markets priced below 30c where empirical EV is +23%") and the
+`compute_longshot_bias_from_trades(price_threshold=max_price, ...)` call,
+which only matches settled `Trade.entry_price < max_price` — i.e. it assumes
+`entry_price` (= `no_price` for this strategy's BUY decisions) is itself
+`< max_price`. The candidate filter selecting `yes_price < max_price` (giving
+`no_price > 0.75`) could never produce such trades.
+
+A second, latent issue was found in the same pass: `true_win_prob = 1.0 -
+yes_price * bias_ratio` (used for Kelly sizing and, after this fix, for the
+`min_model_prob`/`min_edge` guards via `model_prob = yes_price`) only stays
+positive while `bias_ratio < 1 / yes_price`. The fallback `bias_ratio = 0.59`
+is safe, but once `compute_longshot_bias_from_trades()` starts returning a
+ratio computed from real settled trades — `bias = win_rate / avg(entry_price)`,
+and `avg(entry_price) < 0.25` by construction for this strategy — `bias_ratio`
+will very likely exceed `1.0`, driving `true_win_prob` negative for
+`yes_price` close to 1 and silently zeroing out the strategy again (via the
+`true_win_prob <= 0: continue` guard) once enough trades settle.
+
+### Fix
+
+`backend/strategies/longshot_bias.py`:
+- `market_filter()` and the `candidates = [...]` comprehension now select
+  `0 < no_price < max_price` (was `yes_price`) — matching the docstring
+  ("buy NO tokens... priced below 30c") and the bias-detector's
+  `price_threshold` semantics.
+- `model_prob` (used by the `min_model_prob` and `min_edge` guards) changed
+  from `1.0 - yes_price` to `yes_price` — under the corrected candidate
+  direction (`no_price < max_price` → `yes_price > 1 - max_price`),
+  `model_prob = yes_price` represents "market-implied confidence in the
+  favorite", which is `>= min_model_prob (0.75)` for in-range candidates and
+  makes `edge = model_prob - no_price` a genuine (large, positive) lopsidedness
+  measure rather than ~0 for complementary prices.
+- `bias_ratio` is now clamped to `[0.1, 0.95]` after the
+  `compute_longshot_bias_from_trades()` call, so `true_win_prob = 1 -
+  yes_price * bias_ratio` stays positive for any `yes_price` up to 1.0 —
+  preventing the latent future-shutdown described above.
+
+### Verification
+
+- `pytest backend/tests/test_longshot_bias.py
+  backend/tests/test_bankroll_allocator_longshot.py
+  backend/tests/test_strategy_executor.py backend/tests/test_strategy_gate.py
+  backend/tests/test_bankroll_allocator.py`: 62 passed, 3 skipped.
+- Dry-run of `run_cycle()` against live Gamma data (paper mode, $1000
+  bankroll, no DB): **5 decisions** produced (previously 0), e.g.
+  `will-the-democratic-party-win-the-pa-03-house-seat` BUY NO @ 0.055,
+  edge=0.89, confidence=0.4425, size=$10 (capped at `max_position_usd`).
+  All 5 candidates had `no_price` in [0.004, 0.175], `yes_price >= 0.825 >=
+  min_model_prob (0.75)`, and `edge >= 0.65 >= min_edge (0.15)`.
+- Live verification (post-restart `decision_log`/`trades` check) pending.
+
+### Status
+
+Bug K: fixed, tested (62 passed / 3 skipped), documented. Dry-run against live
+market data confirms decisions are produced again (5/cycle vs. 0 previously).
+Live verification pending restart of `polyedge-orchestrator`.

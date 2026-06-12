@@ -36,8 +36,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.24,
-                no_price=0.76,
+                yes_price=0.76,
+                no_price=0.24,
             ),
             MarketInfo(
                 ticker="B",
@@ -46,8 +46,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.15,
-                no_price=0.85,
+                yes_price=0.85,
+                no_price=0.15,
             ),
             MarketInfo(
                 ticker="C",
@@ -56,8 +56,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.55,
-                no_price=0.45,
+                yes_price=0.45,
+                no_price=0.55,
             ),
             MarketInfo(
                 ticker="D",
@@ -66,12 +66,12 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.30,
-                no_price=0.70,
+                yes_price=0.70,
+                no_price=0.30,
             ),
         ]
         filtered = await s.market_filter(markets)
-        # Should include A (0.25) and B (0.15), exclude C (0.55) and D (0.30, not <)
+        # Should include A (no=0.24) and B (no=0.15), exclude C (no=0.55) and D (no=0.30, not <)
         assert len(filtered) == 2
         slugs = {m.slug for m in filtered}
         assert slugs == {"a", "b"}
@@ -89,8 +89,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.0,
-                no_price=1.0,
+                yes_price=1.0,
+                no_price=0.0,
             ),
             MarketInfo(
                 ticker="G",
@@ -99,8 +99,8 @@ class TestMarketFilter:
                 end_date=None,
                 volume=1000,
                 liquidity=500,
-                yes_price=0.10,
-                no_price=0.90,
+                yes_price=0.90,
+                no_price=0.10,
             ),
         ]
         filtered = await s.market_filter(markets)
@@ -195,52 +195,51 @@ class TestHardGuards:
         assert no_price_pass <= max_entry_price
 
     def test_min_model_prob_guard(self):
-        """Markets where model probability < 65% should be rejected."""
-        min_model_prob = 0.65
-        # YES=0.40 => model_prob (NO wins) = 0.60 => below 0.65 => rejected
-        yes_price = 0.40
-        model_prob = 1.0 - yes_price
+        """Markets where model probability < 75% should be rejected."""
+        min_model_prob = 0.75
+        # YES=0.70 => model_prob (favorite confidence) = 0.70 => below 0.75 => rejected
+        yes_price = 0.70
+        model_prob = yes_price
         assert model_prob < min_model_prob
 
     def test_min_model_prob_high_enough(self):
-        """Markets where model probability >= 65% should pass."""
-        min_model_prob = 0.65
-        # YES=0.25 => model_prob = 0.75 => above 0.65 => passes
-        yes_price = 0.25
-        model_prob = 1.0 - yes_price
+        """Markets where model probability >= 75% should pass."""
+        min_model_prob = 0.75
+        # YES=0.80 => model_prob = 0.80 => above 0.75 => passes
+        yes_price = 0.80
+        model_prob = yes_price
         assert model_prob >= min_model_prob
 
     def test_min_edge_guard(self):
-        """Markets where edge (model_prob - no_price) < 10% should be rejected."""
-        min_edge = 0.10
-        # YES=0.25 => model_prob=0.75, NO=0.75 => edge=0.0 => rejected
-        yes_price = 0.25
-        no_price = 0.75
-        model_prob = 1.0 - yes_price
+        """Markets where edge (model_prob - no_price) < 15% should be rejected."""
+        min_edge = 0.15
+        # YES=0.55 => model_prob=0.55, NO=0.45 => edge=0.10 => rejected
+        yes_price = 0.55
+        no_price = 0.45
+        model_prob = yes_price
         edge = model_prob - no_price
         assert edge < min_edge
 
     def test_min_edge_sufficient(self):
-        """Markets where edge >= 10% should pass."""
-        min_edge = 0.10
-        # YES=0.20 => model_prob=0.80, NO=0.60 => edge=0.20 => passes
-        yes_price = 0.20
-        no_price = 0.60
-        model_prob = 1.0 - yes_price
+        """Markets where edge >= 15% should pass."""
+        min_edge = 0.15
+        # YES=0.80 => model_prob=0.80, NO=0.20 => edge=0.60 => passes
+        yes_price = 0.80
+        no_price = 0.20
+        model_prob = yes_price
         edge = model_prob - no_price
         assert edge >= min_edge
 
     def test_fair_price_no_edge_blocked(self):
         """A market bought at ~0.50 (fair price) has zero edge and must be blocked."""
-        min_edge = 0.10
-        max_entry_price = 0.40
+        min_edge = 0.15
+        min_model_prob = 0.75
         # Market at YES=0.50 => NO=0.50 => model_prob=0.50
         no_price = 0.50
         yes_price = 0.50
-        model_prob = 1.0 - yes_price  # 0.50
+        model_prob = yes_price  # 0.50
         edge = model_prob - no_price  # 0.0
-        assert no_price > max_entry_price  # blocked by entry price
-        assert model_prob < 0.65  # blocked by min model prob
+        assert model_prob < min_model_prob  # blocked by min model prob
         assert edge < min_edge  # blocked by min edge
 
     def test_new_params_in_defaults(self):

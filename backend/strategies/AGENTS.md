@@ -19,6 +19,7 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | resolution_sniper | resolution_sniper.py | PAPER | — | — | Near-resolution sniping |
 | probability_arb | probability_arb.py | PAPER | — | — | Cross-platform probability arbitrage |
 | negrisk_strategy | negrisk_strategy.py | PAPER | — | — | Negative risk exploitation |
+| longshot_bias | longshot_bias.py | PAPER | 97.9% | +$717.46 | 618 historical trades. Candidate-direction bug fixed 2026-06-12 (was selecting `yes_price<max_price` → 100% blocked by `max_entry_price`; now selects `no_price<max_price`, buying cheap NO per strategy thesis) |
 
 ### Disabled (Killed by AGI or Manual)
 
@@ -30,7 +31,6 @@ Independent strategy implementations: market analysis, signal generation, trade 
 | cex_pm_leadlag | cex_pm_leadlag.py | DISABLED | -$777 | Net loser |
 | crypto_oracle | crypto_oracle.py | DISABLED | -$2,014 | Net loser |
 | weather_emos | — | DISABLED | +$3,776 | Auto-killed by AGI |
-| longshot_bias | longshot_bias.py | DISABLED | -$27 | 618 trades, net negative |
 | agi_orchestrator | agi_orchestrator.py | DISABLED | — | Meta-strategy |
 | general_scanner | general_market_scanner.py | DISABLED | — | — |
 | universal_scanner | universal_scanner.py | DISABLED | — | — |
