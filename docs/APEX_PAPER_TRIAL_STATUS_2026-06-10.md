@@ -739,3 +739,80 @@ gaps discovered and documented above (Lighter API 403/auth for read
 endpoints; Aster/Hyperliquid/Lighter activity-source interface mismatch;
 Polymarket WS `ws_config`/blocking-connect bug; remaining `LighterClient`
 SDK-mismatch methods) — all deferred as out-of-scope for this session.
+
+## Update — 2026-06-12: Bug J — `order_book_stale` scanner's edge thesis was
+## inverted, root cause of `apex`'s 16.7% WR / -$20.64 (all 34 paper trades)
+
+After re-enabling `apex` (paper) ~2h ago, all 34 trades placed so far came
+from a single edge type — `order_book_stale` — and every one of them had
+`confidence` exactly `0.70` (6 settled: 1 win, 5 losses, -$20.64, 16.7% WR).
+Confidence being pinned at *exactly* the same value across wildly different
+categories (esports, weather, politics, commodities) for 100% of trades was
+the tell.
+
+**Root cause (`backend/core/edge/scanners/order_book_stale.py`):** the
+scanner compares the CLOB's live `/last-trade-price` to the current
+order-book mid-price and, if they diverge by `>= min_divergence_pp` (2pp),
+treats the *last trade price* as "fair value" and the *current mid-price* as
+the stale, not-yet-caught-up entry price — i.e. it bets the market will
+revert toward whatever price the last fill happened at.
+
+`/last-trade-price` carries no timestamp, and the constructor already
+defined (but never used) `min_volume` and `max_age_seconds` config knobs —
+strong evidence the original intent was "only treat this as *order-book*
+staleness if the *last trade* was recent and the market is liquid enough
+that a fresh fill is meaningful." Without that check, the scanner fires on
+*any* market where trading has been infrequent: the "last trade" can be
+hours/days old while the current bid/ask mid is the actually-current,
+informed price. In that case the thesis is backwards — there is no reason
+for price to revert toward an old fill, and `confidence = min(divergence /
+0.10, 0.7)` was saturating at its 0.7 cap on essentially every signal,
+because real "the order book hasn't updated yet" gaps are small (a few pp)
+while "the last trade is just old" gaps are large (we observed 13.5pp and
+18.5pp divergences on top-100-by-volume markets — decision_log
+`will-the-democratic-party-win-the-ny-21-house-seat` edge=13.30%,
+`will-valve-add-first-cs2-operation-by-june-30-2026-962` edge=18.30%, both
+conf=0.70). The high, saturated confidence meant `min_confidence` filters
+(0.3 in the pipeline, 0.5 in `apex_strategy`) never screened these out.
+
+**Fix:** wired in the previously-dead `min_volume` filter (`APEX_STALE_MIN_VOLUME`,
+default 500 — thin markets trade rarely, so a stale "last trade" is the norm,
+not a signal) and added a new upper bound `max_divergence_pp`
+(`APEX_STALE_MAX_DIVERGENCE_PP`, default 0.06): divergences above this are
+now skipped rather than treated as high-confidence edges, since a gap that
+large almost always means the *last trade* — not the order book — is the
+stale data point. This also means confidence (`min(divergence/0.10, 0.7)`)
+can no longer reach its 0.7 cap, restoring it as a meaningful filter signal.
+Both new config vars documented in `.env.example`.
+
+**Verification:** `pytest backend/tests/test_apex_edge_detectors.py` — 20/20
+pass (added `test_skips_excessive_divergence` and `test_skips_low_volume` for
+`OrderBookStaleScanner`; updated `test_detects_stale_divergence` and
+`test_no_direction_uses_no_token_scale` to use realistic in-bounds
+divergences). Full apex/edge suite (`test_apex_edge.py`,
+`test_apex_strategy.py`, `test_apex_calibration.py`,
+`core/edge/tests/test_time_decay.py`, plus all `apex|edge|stale`-matching
+tests across `backend/tests/`) — 321/321 pass.
+
+**Expected live effect:** `order_book_stale` found 20-21 "edges" every ~2min
+cycle pre-fix (out of ~24 total across all 3 scanners); post-fix this should
+drop sharply (most of those 20 had >6pp divergence on markets that, while
+in the top-100-by-volume, may still trade infrequently). `apex` will lean
+more on `resolution_timing` (4 edges/cycle, same structural thesis as
+`bond_scanner` which has a 70.4% WR / +$1065.73 track record over 358 paper
+trades) and `liquidity_gap` (0 edges/cycle so far). To be confirmed after
+restart by watching `[apex:order_book_stale] Found N stale order book edges`
+and whether any new `apex` trades still show `conf=0.70` exactly.
+
+### Status
+
+Bug J: fixed, tested (321/321), documented, **live-verified**. After
+restarting `polyedge-orchestrator`, `[apex:order_book_stale] Found 7 stale
+order book edges` (down from 20-21 pre-fix). The two new `order_book_stale`
+decisions post-restart are `conf=0.55` (edge=5.30%,
+`will-the-democratic-party-win-the-ny-21-house-seat`) and `conf=0.58`
+(edge=5.60%, `donald-trump-of-truth-social-posts-june-9-june-16-100-119`,
+which executed as a $50 paper trade) — both within the new ≤6pp divergence
+bound and no longer pinned at the 0.7 cap. `resolution_timing` decisions
+(`conf=0.90`, `conf=0.94`) are unaffected. Remaining `conf=0.70` rows in
+`decision_log` are pre-fix history.

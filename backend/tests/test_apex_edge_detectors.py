@@ -141,21 +141,22 @@ class TestOrderBookStaleScanner:
 
     @pytest.mark.asyncio
     async def test_detects_stale_divergence(self):
-        market = {"slug": "test", "token_id": "token1"}
+        market = {"slug": "test", "token_id": "token1", "volume": 5000}
         clob = AsyncMock()
         clob.get_order_book = AsyncMock(return_value=OrderBook(
             token_id="token1",
             bids=[{"price": "0.45", "size": "10"}],
             asks=[{"price": "0.55", "size": "10"}],
         ))
-        clob.get_last_trade_price = AsyncMock(return_value=0.65)
+        # divergence = |0.54 - 0.50| = 0.04, within (min, max] bounds
+        clob.get_last_trade_price = AsyncMock(return_value=0.54)
         result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
         assert result is not None
         assert result.edge_type == EdgeType.ORDER_BOOK_STALE
 
     @pytest.mark.asyncio
     async def test_skips_small_divergence(self):
-        market = {"slug": "test", "token_id": "token1"}
+        market = {"slug": "test", "token_id": "token1", "volume": 5000}
         clob = AsyncMock()
         clob.get_order_book = AsyncMock(return_value=OrderBook(
             token_id="token1",
@@ -167,6 +168,38 @@ class TestOrderBookStaleScanner:
         assert result is None
 
     @pytest.mark.asyncio
+    async def test_skips_excessive_divergence(self):
+        """A huge gap between last trade and current mid means the *last
+        trade* is stale (an old fill in a thin market), not the order book —
+        this should be skipped, not treated as a high-confidence edge."""
+        market = {"slug": "test", "token_id": "token1", "volume": 5000}
+        clob = AsyncMock()
+        clob.get_order_book = AsyncMock(return_value=OrderBook(
+            token_id="token1",
+            bids=[{"price": "0.45", "size": "10"}],
+            asks=[{"price": "0.55", "size": "10"}],
+        ))
+        # divergence = |0.65 - 0.50| = 0.15, beyond max_divergence_pp
+        clob.get_last_trade_price = AsyncMock(return_value=0.65)
+        result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_skips_low_volume(self):
+        """Thin markets trade rarely, so a stale 'last trade' is the norm,
+        not a signal — require minimum volume before considering staleness."""
+        market = {"slug": "test", "token_id": "token1", "volume": 100}
+        clob = AsyncMock()
+        clob.get_order_book = AsyncMock(return_value=OrderBook(
+            token_id="token1",
+            bids=[{"price": "0.45", "size": "10"}],
+            asks=[{"price": "0.55", "size": "10"}],
+        ))
+        clob.get_last_trade_price = AsyncMock(return_value=0.54)
+        result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
+        assert result is None
+
+    @pytest.mark.asyncio
     async def test_no_direction_uses_no_token_scale(self):
         """For 'no' edges, entry/fair price and token id must be in the NO
         token's own scale, so risk_manager's edge_pp = (fair-entry)*100 is
@@ -174,6 +207,7 @@ class TestOrderBookStaleScanner:
         market = {
             "slug": "test",
             "token_id": "yes_token",
+            "volume": 5000,
             "clobTokenIds": '["yes_token", "no_token"]',
         }
         clob = AsyncMock()
@@ -183,14 +217,15 @@ class TestOrderBookStaleScanner:
             bids=[{"price": "0.45", "size": "10"}],
             asks=[{"price": "0.59", "size": "10"}],
         ))
-        # last_price (0.31) < mid_price (0.52) -> direction = "no"
-        clob.get_last_trade_price = AsyncMock(return_value=0.31)
+        # last_price (0.47) < mid_price (0.52) -> direction = "no";
+        # divergence = 0.05, within (min, max] bounds
+        clob.get_last_trade_price = AsyncMock(return_value=0.47)
         result = await self.scanner._evaluate_market(market, clob, datetime.now(timezone.utc))
         assert result is not None
         assert result.direction == "no"
         assert result.token_id == "no_token"
         # NO-scale: entry = 1 - mid, fair = 1 - last
         assert abs(result.entry_price - (1.0 - 0.52)) < 1e-9
-        assert abs(result.fair_price - (1.0 - 0.31)) < 1e-9
+        assert abs(result.fair_price - (1.0 - 0.47)) < 1e-9
         # Edge is positive in the traded token's own scale
         assert (result.fair_price - result.entry_price) * 100 > 0

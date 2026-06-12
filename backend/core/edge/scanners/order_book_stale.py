@@ -31,6 +31,10 @@ class OrderBookStaleScanner(EdgeScanner):
 
     def __init__(self) -> None:
         self.min_divergence_pp = float(_cfg("APEX_STALE_MIN_DIVERGENCE_PP", 0.02))
+        # Above this, the "last trade" is far more likely to be an old, stale
+        # data point than a momentary order-book lag — see edge thesis note
+        # in _evaluate_market below.
+        self.max_divergence_pp = float(_cfg("APEX_STALE_MAX_DIVERGENCE_PP", 0.06))
         self.min_volume = float(_cfg("APEX_STALE_MIN_VOLUME", 500))
         self.max_age_seconds = int(_cfg("APEX_STALE_MAX_AGE_SECONDS", 300))
 
@@ -85,6 +89,14 @@ class OrderBookStaleScanner(EdgeScanner):
 
         slug = market.get("slug") or market.get("conditionId") or ""
 
+        # Thin markets trade rarely, so their "last trade" price can be hours
+        # or days old — a large gap there reflects an outdated reference
+        # point, not a fresh order-book lag. Require enough volume that
+        # recent trades are a meaningful signal.
+        volume = float(market.get("volume", 0) or 0)
+        if volume < self.min_volume:
+            return None
+
         try:
             # Get order book snapshot (OrderBook dataclass from PolymarketCLOB)
             book = await clob.get_order_book(token_id)
@@ -109,6 +121,15 @@ class OrderBookStaleScanner(EdgeScanner):
             divergence = abs(last_price - mid_price)
 
             if divergence < self.min_divergence_pp:
+                return None
+
+            # A genuine "order book hasn't caught up yet" gap is small and
+            # short-lived. Divergences this large almost always mean the
+            # *last trade* is the stale data point (an old fill in a thin
+            # market), not the live order book — betting on "reversion" to
+            # it has no edge and was the dominant loss driver for this
+            # scanner. Skip rather than treat as a high-confidence signal.
+            if divergence > self.max_divergence_pp:
                 return None
 
             # Direction: if last trade > mid, market is stale-bid (price should go up)
