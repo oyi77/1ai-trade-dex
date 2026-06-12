@@ -1261,3 +1261,42 @@ from entry or it's held >2h, `_close_position` will settle it with a real
 partial pnl instead of waiting for Gamma. Live-mode `_place_exit_order` is
 gated by `StrategyGate.can_execute_live` and dormant (apex is paper-only),
 untested per the `SHADOW_MODE=true` live-trading-test restriction.
+
+### Immediate backlog Bug O should clear on the next 1-2 `apex` cycles
+
+As of 2026-06-13 ~03:00 UTC, apex has **36 stuck paper positions** ($1505.42
+total cost basis) that this fix directly targets — all 36 are already past
+`APEX_MAX_HOLD_SECONDS=7200` (2h), so `_check_exits` should generate at least
+a `TIME_DECAY` (or `PROFIT_TARGET`/`STOP_LOSS` if price has moved enough)
+signal for every one of them on the next `run_cycle`:
+
+- 21 positions `settled=false, pnl=NULL`, ages 4.1-10.9h (genuinely open,
+  always were eligible for `_check_exits`).
+- 15 positions `settled=true, pnl=NULL`, ages 19.1-25.5h — the ADR-016 limbo
+  state (`_cleanup_stale_trades_job`'s 12h `stale_paper` branch already fired
+  and Gamma resolution didn't return a value). Before this fix these were
+  invisible to `_check_exits` (`Trade.settled.is_(False)` only) and would have
+  sat for up to 5 days before `force_closed_unresolved` hardcoded them to
+  `pnl = -cost_basis` (100% loss). The new `or_(Trade.settled.is_(False),
+  Trade.pnl.is_(None))` filter (point 3 of the Fix above) now includes them —
+  they'll get a real partial-pnl early exit at current mid price instead.
+
+**Verification for next session**: re-run the settled-trade query from
+Bug O's investigation —
+
+```sql
+SELECT strategy, settlement_source, result, count(*), round(sum(pnl)::numeric,2)
+FROM trades WHERE strategy='apex' AND settled=true AND pnl IS NOT NULL
+GROUP BY strategy, settlement_source, result ORDER BY settlement_source, result;
+```
+
+Expect new `early_exit_time_decay` / `early_exit_profit_target` /
+`early_exit_stop_loss` rows (in addition to the existing 7
+`market_resolution` rows: 6 loss/-52.46, 1 win/+13.23), and the apex open-
+position count/cost-basis to drop from 36/$1505.42 toward 0. If 36 positions
+are STILL stuck with the SAME ages after apex has cycled multiple times,
+check whether `ctx.clob.get_mid_price(token_id)` is failing for these
+specific (likely old/thin) markets — `_get_current_price` returns `None` on
+CLOB error, which makes `check_position` a no-op (`current_price is None →
+return None`), silently leaving the position open with no exit signal and no
+error surfaced.
