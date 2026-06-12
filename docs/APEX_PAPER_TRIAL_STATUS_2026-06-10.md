@@ -523,3 +523,77 @@ covered by the new unit test.
 Bug D: not a bug (confirmed intentional). Bug E: fixed and verified live.
 Bug F: fixed, F1 verified live, F2 verified by unit test. All changes
 committed together with the existing bankroll-reset work from this trial.
+
+## Update — 2026-06-12: Bug F3/G — second & third instances of the F1
+## session-poisoning anti-pattern (settlement.py + scheduler.py)
+
+While live-monitoring the F1/F2 fix, found the **same missing-`db.rollback()`
+anti-pattern** recurring on nearly every settlement cycle (~every 2 min) for
+4.5+ hours (10:09:58–14:41:58):
+
+```
+ERROR | backend.core.settlement.settlement:settle_pending_trades:812 -
+Paper bankroll top-up failed: (psycopg2.OperationalError) server closed the
+connection unexpectedly
+```
+
+**F3 — `settlement.py` auto-topup block (lines ~782-813).** The "Auto-topup
+paper bankroll if depleted" block has two `db.commit()` calls: one for the
+bankroll/`BotState` update (line 782) and a nested one for the audit-trail
+`TransactionEvent` (line 806). Neither except handler called `db.rollback()`
+on failure — identical to F1's root cause (Postgres
+`idle_in_transaction_session_timeout=30000` killing the connection between
+statements).
+
+This is more severe than F1 because of what runs immediately after on the
+**same `db` session**: the ADR-gated risk auto-disable check,
+`check_risk_and_disable(db)` (`backend/core/strategy_gate.py:317`, "Risk
+Layer — Auto-Disable... runs on every heartbeat" per `CLAUDE.md`). Confirmed
+`check_risk_and_disable` exists and immediately calls `db.execute(text(...))`
+— on a poisoned session this raises `PendingRollbackError`, caught silently
+at settlement.py:829-830 as `logger.debug("Risk check failed (non-fatal)")`.
+So for 4.5+ hours, the risk auto-disable check was very likely silently
+no-op'ing every cycle it ran after a topup-block failure — a safety-relevant
+silent failure, not just log noise.
+
+Fix: added `db.rollback()` to both except blocks —
+the outer `except Exception as e: logger.error(f"Paper bankroll top-up
+failed: {e}")` (line ~812) and the inner
+`except Exception as tee: logger.debug(f"TransactionEvent recording for
+auto-topup failed: {tee}")` (line ~809) — mirroring the F1 fix. Same
+reasoning as F1: this is session-recovery, not a relaxation of risk/settlement
+logic, so no new ADR is required despite `settlement.py` being ADR-gated.
+
+**F-G — `scheduler.py::_cleanup_stale_trades_job` (line ~941).** A related,
+lower-frequency occurrence (seen twice: 13:48:14, 14:18:06):
+
+```
+WARNING | backend.core.scheduling.scheduler:_cleanup_stale_trades_job:971 -
+[stale_trade_cleanup] Failed: (psycopg2.OperationalError) server closed the
+connection unexpectedly
+```
+
+This job calls `await resolve_paper_trades(db)` (line 930, same Gamma-HTTP
+function as F1) inside a `with get_db_session() as db:` block, caught by
+`except Exception as e: logger.warning(f"[stale_trade_cleanup] Paper Gamma
+resolution failed: {e}")` (line 941-942) — again, no `db.rollback()`. The
+subsequent `stuck_paper` query (>5-day stuck paper trades, lines 947-969)
+then raises `PendingRollbackError`, which propagates out of the
+`get_db_session()` context manager (which itself rolls back and re-raises)
+and surfaces as the line-971 `[stale_trade_cleanup] Failed` log — meaning the
+5-day stuck-paper force-settle silently doesn't run for that cycle.
+
+Fix: added `db.rollback()` to the line 941-942 except block, same pattern.
+
+**Verification:** `test_settlement.py` (25/25) and the scheduler test suites
+(`test_auto_redeem_scheduler.py`, `test_scheduler_agi_jobs.py`,
+`test_scheduler_queue_mode.py`, 21/21) pass; `ruff check` on both files shows
+only pre-existing unrelated `F841` unused-variable warnings (lines 111-112
+of `settlement.py`, line 562 of `scheduler.py`, present before this change —
+out of scope here). Live verification pending: restart
+`polyedge-orchestrator` and confirm `Paper bankroll top-up failed` and
+`[stale_trade_cleanup] Failed` no longer recur on subsequent cycles.
+
+### Status
+
+F3/F-G: fixed, pending live verification after restart.

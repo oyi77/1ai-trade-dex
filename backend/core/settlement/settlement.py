@@ -808,8 +808,10 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                         logger.debug(
                             f"TransactionEvent recording for auto-topup failed: {tee}"
                         )
+                        db.rollback()
         except Exception as e:
             logger.error(f"Paper bankroll top-up failed: {e}")
+            db.rollback()
 
         # Learning pipeline: process settled trades asynchronously
         # (non-blocking — settlement must never wait for learning)

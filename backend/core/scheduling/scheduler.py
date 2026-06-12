@@ -940,6 +940,7 @@ async def _cleanup_stale_trades_job():
                         )
                 except Exception as e:
                     logger.warning(f"[stale_trade_cleanup] Paper Gamma resolution failed: {e}")
+                    db.rollback()
 
             # Force-settle paper trades that were marked for Gamma but couldn't
             # resolve (e.g. weather/event markets where Gamma returns '[').
