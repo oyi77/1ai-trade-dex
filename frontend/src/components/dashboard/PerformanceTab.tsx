@@ -57,14 +57,22 @@ export function PerformanceTab() {
   // Filter equity curve by selected mode
   const filteredEquityCurve = useMemo(() => dashboardData?.equity_curve ?? [], [dashboardData])
 
-  // ⚡ Bolt: Memoized complex trade filtering for mode metrics
+  // ⚡ Bolt: Memoized complex trade filtering for mode metrics with single-pass optimization
   const chartData = useMemo(() => {
-    const paperTrades = filteredTrades.filter((t) => t.trading_mode === 'paper')
-    const liveTrades = filteredTrades.filter((t) => t.trading_mode === 'live')
-    const paperWins = paperTrades.filter((t) => t.result === 'win').length
-    const paperSettled = paperTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
-    const liveWins = liveTrades.filter((t) => t.result === 'win').length
-    const liveSettled = liveTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
+    let paperWins = 0
+    let paperSettled = 0
+    let liveWins = 0
+    let liveSettled = 0
+
+    for (const t of filteredTrades) {
+      if (t.trading_mode === 'paper') {
+        if (t.result === 'win') paperWins++
+        if (t.result === 'win' || t.result === 'loss') paperSettled++
+      } else if (t.trading_mode === 'live') {
+        if (t.result === 'win') liveWins++
+        if (t.result === 'win' || t.result === 'loss') liveSettled++
+      }
+    }
 
     return [
       { name: 'Paper', winRate: paperSettled > 0 ? (paperWins / paperSettled) * 100 : 0 },
@@ -91,12 +99,20 @@ export function PerformanceTab() {
   // Filter strategy stats by selected mode
   const filteredStrategyPnL = strategyPnL
 
-  // ⚡ Bolt: Memoized aggregated strategy stats to avoid reduce loops on re-render
+  // ⚡ Bolt: Memoized aggregated strategy stats to avoid reduce loops on re-render (optimized to single-pass)
   const { totalWins, totalLosses, totalPending, totalPnlSum, totalTrades, overallWinRate } = useMemo(() => {
-    const totalWins = filteredStrategyPnL.reduce((s, r) => s + r.wins, 0)
-    const totalLosses = filteredStrategyPnL.reduce((s, r) => s + r.losses, 0)
-    const totalPending = filteredStrategyPnL.reduce((s, r) => s + r.pending, 0)
-    const totalPnlSum = filteredStrategyPnL.reduce((s, r) => s + r.total_pnl, 0)
+    let totalWins = 0
+    let totalLosses = 0
+    let totalPending = 0
+    let totalPnlSum = 0
+
+    for (const r of filteredStrategyPnL) {
+      totalWins += r.wins
+      totalLosses += r.losses
+      totalPending += r.pending
+      totalPnlSum += r.total_pnl
+    }
+
     const totalTrades = totalWins + totalLosses
     const overallWinRate = totalTrades > 0 ? totalWins / totalTrades : 0
     return { totalWins, totalLosses, totalPending, totalPnlSum, totalTrades, overallWinRate }

@@ -1,0 +1,3 @@
+## 2024-03-24 - [PerformanceTab Single-Pass Optimization]
+**Learning:** Consolidating multiple `reduce()` or `filter()` operations on derived state into a single-pass `for` loop significantly prevents O(N) recalculations and UI blocking during rapid render cycles. In `PerformanceTab.tsx`, we iterated through `filteredStrategyPnL` four separate times to calculate the sums of various keys. By rolling these up into a single-pass loop, we achieve better performance.
+**Action:** When working on complex charts or React memo hooks, avoid chaining multiple high-order array methods and instead extract the logic into an efficient iterative `for...of` loop.
