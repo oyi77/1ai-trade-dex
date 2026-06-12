@@ -1,6 +1,7 @@
 """PolyEdge top-level orchestrator — wires together CLOB, Telegram, scheduler, and strategies."""
 
 import asyncio
+import os
 import signal
 from typing import Optional, Dict
 

@@ -597,3 +597,54 @@ out of scope here). Live verification pending: restart
 ### Status
 
 F3/F-G: fixed, pending live verification after restart.
+
+**Live verification (F3/F-G):** after the 18:54:16 restart (pid 1973529,
+clean startup), two settlement cycles ran (18:56:31–18:56:37 and
+18:58:31–18:58:37), both logging `Job "settlement_job ..." executed
+successfully` with no `Paper bankroll top-up failed` or
+`[stale_trade_cleanup] Failed`. Both cycles completed in well under 1s
+(19 Gamma calls in ~1.8s), far below the 30s
+`idle_in_transaction_session_timeout` that triggers the underlying
+`OperationalError` — so the specific triggering condition (a slow
+settlement cycle) hasn't recurred yet. The fix is code-correct (identical
+to the proven F1 pattern), tests pass, and `ruff` is clean; it will engage
+the next time a cycle runs long, same as F1.
+
+## Update — 2026-06-12: Bug H — `ActivityTracker failed to start: name 'os'
+## is not defined` (missing `import os` in orchestrator.py)
+
+Every orchestrator startup (confirmed across multiple restarts, including
+2026-06-11 23:40:53, 2026-06-12 01:28:23, and 18:54:16) logs:
+
+```
+WARNING | backend.core.orchestrator:start:80 - ActivityTracker failed to
+start: name 'os' is not defined
+```
+
+**Root cause:** `Orchestrator._register_activity_sources()`
+(`backend/core/orchestrator.py:307`) reads
+`os.environ.get("SKIP_ACTIVITY_SOURCES", "")` to optionally skip individual
+activity sources, but `orchestrator.py` never imports the `os` module. The
+`NameError` is raised on the first line of `_register_activity_sources()`,
+before any activity source is registered, and is caught by the generic
+`except Exception as e:` around the whole ActivityTracker startup block
+(`orchestrator.py:79-81`) — so `self._activity_tracker` is set to `None` and
+**no activity sources (Aster, Hyperliquid, Lighter, Polymarket, Azuro) are
+ever registered**, meaning real-time fill/transfer tracking and
+`ActivityHandler`'s bankroll/position updates have been silently disabled on
+every run since this code path was added.
+
+Fix: added `import os` to `orchestrator.py`'s import block (alongside
+`asyncio`/`signal`). One-line fix; `SKIP_ACTIVITY_SOURCES` was a pre-existing
+but previously-unreachable env var, now documented in `.env.example`.
+
+**Verification:** `pytest backend/tests/test_orchestrator_wiring.py
+backend/tests/test_activity_integration.py backend/tests/test_activity_live.py`
+— 82/82 pass. `ruff check backend/core/orchestrator.py` — clean. Live
+verification pending: restart `polyedge-orchestrator` and confirm
+`ActivityTracker started` replaces the `name 'os' is not defined` warning.
+
+### Status
+
+F3/F-G: fixed and live-verified (no recurrence observed, see above). Bug H:
+fixed, pending live verification after restart.
