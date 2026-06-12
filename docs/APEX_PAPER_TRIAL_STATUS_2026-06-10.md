@@ -1118,11 +1118,16 @@ invariant.
   are skipped before `_signal_to_decision`, so apex no longer generates a
   second BUY decision for a market it's already in.
 
-`backend/core/strategy_executor.py`: the cross-strategy duplicate-execution
-filter (~line 1311) changed from `Trade.settled.is_(False)` to
+`backend/core/strategy_executor.py`: `_preflight_checks` has TWO
+near-duplicate cross-strategy guards on the same `market_ticker`: check #2
+("Duplicate execution block", ~line 1311, scoped by `event_slug` when
+present) and check #11 ("Per-market position cap", ~line 1611, no
+`event_slug` scoping — the fallback for `event_slug` mismatches/NULLs).
+Both changed from `Trade.settled.is_(False)` to
 `or_(Trade.settled.is_(False), Trade.pnl.is_(None))` (added `or_` to the
-sqlalchemy import), so the existing `BLOCKED_DUPLICATE_OPEN_POSITION` guard
-now also covers the limbo window for every strategy, not just apex.
+sqlalchemy import), so the `BLOCKED_DUPLICATE_OPEN_POSITION` /
+`REJECTED_POSITION_CAP` guards now cover the limbo window for every
+strategy, not just apex.
 
 ### Verification
 
@@ -1135,12 +1140,14 @@ trades are excluded) and `test_run_cycle_skips_existing_positions` (a full
 already-held market is dropped while a signal for a new market proceeds).
 
 New tests in `backend/tests/test_strategy_executor.py`
-(`TestDuplicateExecutionBlock`, 2 tests): a `settled=True, pnl=None` trade by
+(`TestDuplicateExecutionBlock`, 3 tests): a `settled=True, pnl=None` trade by
 another strategy now blocks (`BLOCKED_DUPLICATE_OPEN_POSITION`); a fully
-resolved (`settled=True, pnl=5.0`) trade by another strategy does not block.
+resolved (`settled=True, pnl=5.0`) trade by another strategy does not block;
+a limbo trade with an `event_slug` mismatch (bypasses check #2) is caught by
+check #11 (`REJECTED_POSITION_CAP`).
 
 `pytest backend/tests/test_strategy_executor.py backend/tests/test_apex_strategy.py
-backend/tests/test_settlement.py`: 56 passed, 3 skipped.
+backend/tests/test_settlement.py`: 57 passed, 3 skipped.
 
 ### Status
 

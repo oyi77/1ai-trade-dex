@@ -1604,11 +1604,13 @@ def _preflight_checks(
         return None
 
     # 11. Per-market position cap
+    # settled=True with pnl IS NULL is ADR-016 limbo (stale-marked pending
+    # Gamma resolution, up to 5d) and is still a financially open position.
     _existing_open = (
         db.query(Trade)
         .filter(
             Trade.market_ticker == market_ticker,
-            Trade.settled == False,  # noqa: E712
+            or_(Trade.settled.is_(False), Trade.pnl.is_(None)),
             Trade.trading_mode == mode,
             Trade.strategy != strategy_name,
         )

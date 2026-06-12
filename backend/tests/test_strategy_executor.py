@@ -303,6 +303,67 @@ class TestDuplicateExecutionBlock:
         finally:
             check_db.close()
 
+    @pytest.mark.asyncio
+    async def test_position_cap_blocks_limbo_trade_with_event_slug_mismatch(self):
+        """Check #2 (duplicate execution block) is scoped by event_slug, so a
+        limbo trade with a different/missing event_slug on the same ticker
+        falls through to check #11 (per-market position cap), which must
+        also treat settled=True/pnl=NULL as an open position."""
+        from backend.models.database import Trade, TradeAttempt
+        from backend.core.mode_context import register_context, ModeExecutionContext
+        from backend.core.risk_manager import RiskManager
+
+        _reload_executor()
+        db = _TestSession()
+        _seed_state(db)
+        db.add(Trade(
+            market_ticker="dup-market-003", strategy="other_strategy",
+            trading_mode="paper", settled=True, pnl=None, event_slug=None,
+            direction="yes", entry_price=0.5, size=10.0,
+        ))
+        db.commit()
+        db.close()
+
+        mock_clob = AsyncMock()
+        register_context(
+            "paper",
+            ModeExecutionContext(
+                mode="paper",
+                clob_client=mock_clob,
+                risk_manager=RiskManager(),
+                strategy_configs={},
+            ),
+        )
+
+        with (
+            patch("backend.core.strategy_executor.settings") as mock_settings,
+            patch("backend.db.utils.SessionLocal", _TestSession),
+            patch("backend.core.strategy_executor._broadcast_event"),
+        ):
+            mock_settings.TRADING_MODE = "paper"
+
+            _reload_executor()
+            from backend.core.strategy_executor import execute_decision
+
+            result = await execute_decision(
+                _make_decision(market_ticker="dup-market-003", event_slug="some-event-slug"),
+                "test_strategy", "paper",
+            )
+
+        assert result is None
+
+        check_db = _TestSession()
+        try:
+            attempt = (
+                check_db.query(TradeAttempt)
+                .filter(TradeAttempt.market_ticker == "dup-market-003")
+                .first()
+            )
+            assert attempt is not None
+            assert attempt.reason_code == "REJECTED_POSITION_CAP"
+        finally:
+            check_db.close()
+
 
 class TestRiskRejection:
     @pytest.mark.asyncio
