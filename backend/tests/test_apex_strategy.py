@@ -176,3 +176,159 @@ class TestAPEXStrategy:
         tickers = [d["market_ticker"] for d in result.decisions if d.get("decision") == "BUY"]
         assert "MKT-HELD" not in tickers
         assert "MKT-NEW" in tickers
+
+
+class TestAPEXClosePosition:
+    """ADR-017: APEX's own exit signals (profit target / stop loss / time
+    decay) must actually settle the Trade with a partial early-exit P&L,
+    not just emit a dead 'SELL' decision dict."""
+
+    @pytest.fixture
+    def strategy(self):
+        from backend.strategies.apex_strategy import APEXStrategy
+        s = APEXStrategy()
+        s._ensure_initialized()
+        return s
+
+    def _open_trade(self, db, **kw):
+        from backend.models.database import Trade
+        defaults = dict(
+            market_ticker="MKT-EXIT", strategy="apex", trading_mode="paper",
+            direction="yes", entry_price=0.50, size=10.0, token_id="0xEXIT",
+            settled=False, pnl=None, timestamp=datetime.now(timezone.utc) - timedelta(minutes=5),
+        )
+        defaults.update(kw)
+        trade = Trade(**defaults)
+        db.add(trade)
+        db.commit()
+        return trade
+
+    @pytest.mark.asyncio
+    async def test_close_position_profit_target_paper(self, strategy, db):
+        from backend.core.edge.edge_model import ExitSignal
+        from backend.core.edge.edge_model import ExitReason
+        from backend.strategies.base import StrategyContext
+
+        trade = self._open_trade(db)
+        sig = ExitSignal(
+            trade_id=trade.id, market_id=trade.market_ticker,
+            reason=ExitReason.PROFIT_TARGET, exit_price=0.58, urgency=0.6,
+            edge_at_entry=5.0, current_edge=0.0,
+        )
+        ctx = StrategyContext(db=db, clob=None, settings=None, logger=None, params={}, mode="paper", bankroll=100.0)
+
+        closed = await strategy._close_position(sig, ctx)
+
+        assert closed is not None
+        assert closed["result"] == "win"
+        assert closed["pnl"] == pytest.approx(0.79)
+        db.refresh(trade)
+        assert trade.settled is True
+        assert trade.pnl == pytest.approx(0.79)
+        assert trade.result == "win"
+        assert trade.settlement_source == "early_exit_profit_target"
+        assert trade.settlement_time is not None
+
+    @pytest.mark.asyncio
+    async def test_close_position_stop_loss_paper(self, strategy, db):
+        from backend.core.edge.edge_model import ExitSignal
+        from backend.core.edge.edge_model import ExitReason
+        from backend.strategies.base import StrategyContext
+
+        trade = self._open_trade(db)
+        sig = ExitSignal(
+            trade_id=trade.id, market_id=trade.market_ticker,
+            reason=ExitReason.STOP_LOSS, exit_price=0.42, urgency=0.9,
+            edge_at_entry=5.0, current_edge=0.0,
+        )
+        ctx = StrategyContext(db=db, clob=None, settings=None, logger=None, params={}, mode="paper", bankroll=100.0)
+
+        closed = await strategy._close_position(sig, ctx)
+
+        assert closed is not None
+        assert closed["result"] == "loss"
+        assert closed["pnl"] == pytest.approx(-0.81)
+        db.refresh(trade)
+        assert trade.settled is True
+        assert trade.result == "loss"
+        assert trade.settlement_source == "early_exit_stop_loss"
+
+    @pytest.mark.asyncio
+    async def test_close_position_already_settled_is_noop(self, strategy, db):
+        """A trade that is fully settled (settled=True, pnl set) must not be
+        re-closed — calculate_exit_pnl would double-charge fees and overwrite
+        the original settlement pnl."""
+        from backend.core.edge.edge_model import ExitSignal
+        from backend.core.edge.edge_model import ExitReason
+        from backend.strategies.base import StrategyContext
+
+        trade = self._open_trade(db, settled=True, pnl=5.0, result="win",
+                                  settlement_source="gamma_resolution")
+        sig = ExitSignal(
+            trade_id=trade.id, market_id=trade.market_ticker,
+            reason=ExitReason.PROFIT_TARGET, exit_price=0.58, urgency=0.6,
+            edge_at_entry=5.0, current_edge=0.0,
+        )
+        ctx = StrategyContext(db=db, clob=None, settings=None, logger=None, params={}, mode="paper", bankroll=100.0)
+
+        closed = await strategy._close_position(sig, ctx)
+
+        assert closed is None
+        db.refresh(trade)
+        assert trade.pnl == 5.0
+        assert trade.settlement_source == "gamma_resolution"
+
+    @pytest.mark.asyncio
+    async def test_run_cycle_closes_profit_target_position(self, strategy, db):
+        """End-to-end Phase 1: an open position whose mid-price has rallied
+        past profit_target_pct gets closed via run_cycle, producing a SELL
+        decision with realized pnl/result."""
+        from backend.strategies.base import StrategyContext
+
+        trade = self._open_trade(db)
+
+        mock_clob = AsyncMock()
+        mock_clob.get_mid_price = AsyncMock(return_value=0.58)
+
+        strategy._calibration.refresh_from_db = AsyncMock(return_value=None)
+        strategy._registry.run_all = AsyncMock(return_value=[])
+
+        ctx = StrategyContext(db=db, clob=mock_clob, settings=None, logger=None, params={}, mode="paper", bankroll=100.0)
+
+        result = await strategy.run_cycle(ctx)
+
+        sell_decisions = [d for d in result.decisions if d.get("decision") == "SELL"]
+        assert len(sell_decisions) == 1
+        assert sell_decisions[0]["exit_reason"] == "profit_target"
+        assert sell_decisions[0]["result"] == "win"
+        assert sell_decisions[0]["pnl"] == pytest.approx(0.79)
+
+        db.refresh(trade)
+        assert trade.settled is True
+        assert trade.result == "win"
+
+    @pytest.mark.asyncio
+    async def test_close_position_live_blocked_by_gate_stays_open(self, strategy, db):
+        """A strategy not yet promoted to 'live' (the default — apex is
+        paper-only) must not place real CLOB orders; the position is left
+        open for retry next cycle (ADR-017)."""
+        from backend.core.edge.edge_model import ExitSignal
+        from backend.core.edge.edge_model import ExitReason
+        from backend.strategies.base import StrategyContext
+
+        trade = self._open_trade(db, trading_mode="live")
+        sig = ExitSignal(
+            trade_id=trade.id, market_id=trade.market_ticker,
+            reason=ExitReason.PROFIT_TARGET, exit_price=0.58, urgency=0.6,
+            edge_at_entry=5.0, current_edge=0.0,
+        )
+        mock_clob = AsyncMock()
+        ctx = StrategyContext(db=db, clob=mock_clob, settings=None, logger=None, params={}, mode="live", bankroll=100.0)
+
+        closed = await strategy._close_position(sig, ctx)
+
+        assert closed is None
+        mock_clob.place_limit_order.assert_not_called()
+        db.refresh(trade)
+        assert trade.settled is False
+        assert trade.pnl is None

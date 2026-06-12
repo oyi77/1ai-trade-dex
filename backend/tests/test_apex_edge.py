@@ -255,6 +255,31 @@ class TestExitManager:
         if len(exits) >= 2:
             assert exits[0].urgency >= exits[1].urgency
 
+    def test_pnl_pct_direction_independent(self):
+        """current_price comes from the same held token as entry_price
+        (trade.token_id) for all APEX edge scanners, so a 'no' position
+        must produce the SAME exit signal as a 'yes' position at the same
+        entry/current prices — check_position must not branch on direction."""
+        trade_yes = self._mock_trade(entry_price=0.50, direction="yes")
+        trade_no = self._mock_trade(entry_price=0.50, direction="no")
+
+        sig_yes = self.manager.check_position(trade_yes, current_price=0.58)
+        sig_no = self.manager.check_position(trade_no, current_price=0.58)
+
+        assert sig_yes is not None
+        assert sig_no is not None
+        assert sig_yes.reason == sig_no.reason == ExitReason.PROFIT_TARGET
+        assert sig_yes.metadata["pnl_pct"] == pytest.approx(sig_no.metadata["pnl_pct"])
+
+    def test_stop_loss_no_direction(self):
+        """A 'no' position whose current_price has dropped (relative to
+        entry, in held-token terms) must trigger STOP_LOSS just like a
+        'yes' position — same direction-independence guarantee."""
+        trade = self._mock_trade(entry_price=0.50, direction="no")
+        sig = self.manager.check_position(trade, current_price=0.46)
+        assert sig is not None
+        assert sig.reason == ExitReason.STOP_LOSS
+
 
 # ─── Calibration Tracker tests ────────────────────────────────────
 

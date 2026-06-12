@@ -1156,3 +1156,108 @@ duplicate positions will resolve normally (each leg settles independently
 against its own entry price); this fix only prevents *new* duplicates going
 forward. Live verification requires observing that apex's next cycle does
 not re-enter any of its currently-held (including limbo) markets.
+
+## Update — 2026-06-13: Bug O — APEX's own exits (profit target / stop loss /
+## time decay) never closed a position; `pnl_pct` was direction-inverted
+
+### Root cause
+
+`apex_strategy.py::run_cycle` Phase 1 calls `_check_exits`, which uses
+`ExitManager.check_all_positions` to evaluate every open `apex` position
+against `profit_target_pct=2.5%`, `stop_loss_pct=4%`,
+`max_hold_seconds=7200`, and edge decay. When a signal fired, Phase 1 only
+appended a `{"market_ticker":..., "decision": "SELL", "exit_reason":...}`
+dict to `result.decisions` — no `token_id` key. Both consumers of
+`decisions` drop dicts shaped like this:
+`scheduling_strategies.py`'s buy-decision filter (`decision in ("BUY",
+"QUOTE")`) and the shadow-runner loop (`decision.get("token_id")`). **No
+position was ever closed by APEX's own exit logic.** A grep across
+`strategy_executor.py` confirmed there is no `decision.get("side") ==
+"SELL"` / close handling anywhere; the only other "SELL"-producing path
+(`position_monitor.py::sell_signal_monitor_job`) opens a new *opposite*
+position (a hedge) rather than closing the original, and its
+`STOP_LOSS_DROP_PP=0.15` (15 percentage points) threshold is far looser than
+apex's actual losses anyway (-16% to -50% `pnl_pct`, i.e. 0.02-0.05
+probability points). Net effect: every APEX position ran to full Gamma
+settlement regardless of profit-target/stop-loss — APEX had no working risk
+exit in either paper or (would-be) live mode.
+
+Separately, `ExitManager.check_position`'s `pnl_pct` branched on
+`trade.direction`:
+
+```python
+if direction in ("yes", "up"):
+    pnl_pct = (current_price - entry_price) / entry_price
+else:
+    pnl_pct = (entry_price - current_price) / entry_price
+```
+
+All three APEX scanners record `entry_price` as the price of the *held
+token* (`trade.token_id`) at entry, and `_get_current_price` fetches the mid
+price of that same token — both prices are already in held-token terms, so
+the `else` branch inverted `pnl_pct` for every `no`/`down` position (a
+losing NO position read as a gain, and vice versa), corrupting both the
+profit-target and stop-loss checks for non-YES positions.
+
+### Fix
+
+- `backend/core/edge/exit_manager.py`: removed the `direction` branch —
+  `pnl_pct = (current_price - entry_price) / entry_price` unconditionally
+  (direction-independent by construction, per the entry-price convention
+  above).
+- `backend/core/settlement/settlement_helpers.py`: new
+  `calculate_exit_pnl(trade, exit_price) -> (pnl, fee)` — a **partial**
+  realization at a continuous price (`pnl = shares * (exit_price -
+  entry_price) - entry_fee - exit_fee`), distinct from `calculate_pnl`'s
+  binary `settlement_value ∈ {0.0, 1.0}`. Adds a new exit-leg taker fee (an
+  early exit requires a real CLOB sell order, unlike binary redemption).
+- `backend/strategies/apex_strategy.py`:
+  - `_check_exits` now uses the ADR-016
+    `or_(Trade.settled.is_(False), Trade.pnl.is_(None))` filter (previously
+    `settled.is_(False)` only), so limbo-window positions are still eligible
+    for an APEX exit.
+  - New `_close_position(sig, ctx)`: settles the `Trade` in place via
+    `calculate_exit_pnl` — sets `settled=True`, `pnl`, `result`
+    (`win`/`loss`/`push`), `settlement_time=utcnow()`,
+    `settlement_source=f"early_exit_{sig.reason.value}"`. Guards against
+    re-closing an already-fully-settled trade.
+  - New `_place_exit_order(trade, exit_price, ctx)`: live-mode CLOB SELL,
+    gated by `StrategyGate.can_execute_live("apex", db)` — dormant while
+    apex is paper-only. On rejection/error returns `None` and the position
+    stays open for retry next cycle.
+  - Phase 1 now calls `_close_position` for each exit signal.
+- `backend/core/paper_pnl_audit.py`: `_settlement_value_for_trade` returns
+  `None` for `settlement_source` starting with `early_exit_` to avoid
+  false-positive mismatches (different pnl model than binary settlement).
+
+Documented in `docs/architecture/adr-017-apex-early-exit-settlement.md` per
+the ADR-gating rule for settlement logic.
+
+### Verification
+
+New tests:
+- `backend/tests/test_apex_edge.py::TestExitManager`:
+  `test_pnl_pct_direction_independent` (a `no` position and a `yes` position
+  at the same entry/current prices produce the same `PROFIT_TARGET` signal
+  and `pnl_pct`), `test_stop_loss_no_direction`.
+- `backend/tests/test_settlement.py::TestCalculateExitPnl` (5 tests):
+  profit exit, loss exit, direction-independence, `fill_price`/`filled_size`
+  precedence, stored `trade.fee` precedence.
+- `backend/tests/test_apex_strategy.py::TestAPEXClosePosition` (5 tests):
+  profit-target close (paper), stop-loss close (paper), no-op on
+  already-fully-settled trade, end-to-end `run_cycle` Phase 1 closing a
+  profit-target position via a mocked CLOB mid-price, and a live-mode close
+  blocked by the strategy gate (position stays open, no CLOB call made).
+
+`pytest backend/tests/test_apex_edge.py backend/tests/test_settlement.py
+backend/tests/test_apex_strategy.py backend/tests/test_paper_pnl_audit.py`:
+83 passed.
+
+### Status
+
+Bug O: fixed, tested, documented (ADR-017). Paper-mode exits are live as of
+this fix — the next time an open apex position's mid-price moves ±2.5%/4%
+from entry or it's held >2h, `_close_position` will settle it with a real
+partial pnl instead of waiting for Gamma. Live-mode `_place_exit_order` is
+gated by `StrategyGate.can_execute_live` and dormant (apex is paper-only),
+untested per the `SHADOW_MODE=true` live-trading-test restriction.

@@ -118,15 +118,13 @@ class ExitManager:
             now = datetime.now(timezone.utc)
 
         entry_price = float(trade.entry_price)
-        direction = (trade.direction or "yes").lower()
         trade_id = trade.id
         market_id = trade.market_ticker or ""
 
-        # Calculate PnL
-        if direction in ("yes", "up"):
-            pnl_pct = (current_price - entry_price) / entry_price
-        else:
-            pnl_pct = (entry_price - current_price) / entry_price
+        # APEX edge scanners record entry_price as the price of the held
+        # token (trade.token_id) at entry, and current_price comes from the
+        # same token — so pnl_pct is direction-independent.
+        pnl_pct = (current_price - entry_price) / entry_price
 
         # 1. Profit target
         if pnl_pct >= self.profit_target_pct:

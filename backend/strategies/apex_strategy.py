@@ -83,16 +83,19 @@ class APEXStrategy(BaseStrategy):
         except Exception as e:
             logger.warning(f"[apex] Calibration refresh failed: {e}")
 
-        # Phase 1: Check existing positions for exits
+        # Phase 1: Check existing positions for exits and close them
         try:
             exits = await self._check_exits(ctx)
             for sig in exits:
-                result.decisions.append({
-                    "market_ticker": sig.market_id,
-                    "direction": "SELL", "decision": "SELL",
-                    "exit_reason": sig.reason.value, "urgency": sig.urgency,
-                })
-                result.decisions_recorded += 1
+                closed = await self._close_position(sig, ctx)
+                if closed:
+                    result.decisions.append({
+                        "market_ticker": sig.market_id,
+                        "direction": "SELL", "decision": "SELL",
+                        "exit_reason": sig.reason.value, "urgency": sig.urgency,
+                        "pnl": closed["pnl"], "result": closed["result"],
+                    })
+                    result.decisions_recorded += 1
         except Exception as e:
             result.errors.append(f"exit_check: {e}")
 
@@ -139,10 +142,14 @@ class APEXStrategy(BaseStrategy):
     async def _check_exits(self, ctx: StrategyContext) -> List[ExitSignal]:
         try:
             from backend.models.database import Trade
+            from sqlalchemy import or_
             open_trades = (
                 ctx.db.query(Trade)
-                .filter(Trade.settled.is_(False), Trade.strategy == self.name,
-                        Trade.trading_mode == ctx.mode)
+                .filter(
+                    Trade.strategy == self.name,
+                    Trade.trading_mode == ctx.mode,
+                    or_(Trade.settled.is_(False), Trade.pnl.is_(None)),
+                )
                 .all()
             )
             if not open_trades:
@@ -156,6 +163,90 @@ class APEXStrategy(BaseStrategy):
         except Exception as e:
             logger.warning(f"[apex] Exit check error: {e}")
             return []
+
+    async def _close_position(self, sig: ExitSignal, ctx: StrategyContext) -> Optional[Dict[str, Any]]:
+        """Realize an ExitSignal: settle the Trade with partial early-exit P&L.
+
+        Live mode places a real CLOB SELL order first; if that fails or is
+        blocked by the strategy gate, the position is left open for retry
+        next cycle (see ADR-017).
+        """
+        try:
+            from backend.models.database import Trade
+            from backend.core.settlement.settlement_helpers import calculate_exit_pnl
+            from backend.db.utils import utcnow
+
+            trade = ctx.db.query(Trade).filter(Trade.id == sig.trade_id).first()
+            if trade is None or (trade.settled and trade.pnl is not None):
+                return None
+
+            exit_price = max(0.0, min(1.0, float(sig.exit_price)))
+
+            if ctx.mode == "live":
+                filled_price = await self._place_exit_order(trade, exit_price, ctx)
+                if filled_price is None:
+                    return None  # CLOB order failed/blocked — retry next cycle
+                exit_price = filled_price
+
+            pnl, fee = calculate_exit_pnl(trade, exit_price)
+            trade.settled = True
+            trade.pnl = pnl
+            trade.result = "win" if pnl > 0 else ("loss" if pnl < 0 else "push")
+            trade.settlement_time = utcnow()
+            trade.settlement_source = f"early_exit_{sig.reason.value}"
+            ctx.db.commit()
+            logger.info(
+                f"[apex] Closed trade #{trade.id} ({trade.market_ticker}) "
+                f"reason={sig.reason.value} exit_price={exit_price:.4f} "
+                f"pnl=${pnl:.2f} fee=${fee:.2f}"
+            )
+            return {"trade_id": trade.id, "pnl": pnl, "result": trade.result}
+        except Exception as e:
+            logger.exception(f"[apex] Position close failed for trade_id={sig.trade_id}: {e}")
+            try:
+                ctx.db.rollback()
+            except Exception:
+                pass
+            return None
+
+    async def _place_exit_order(self, trade, exit_price: float, ctx: StrategyContext) -> Optional[float]:
+        """Place a live CLOB SELL to close `trade`. Returns the realized exit
+        price, or None if the order could not be placed (caller retries
+        next cycle without mutating the Trade).
+        """
+        if not ctx.clob or not trade.token_id:
+            logger.warning(f"[apex] Cannot close live trade #{trade.id}: no CLOB client/token_id")
+            return None
+
+        from backend.core.strategy_gate import StrategyGate
+        can_live, reason = StrategyGate.can_execute_live(self.name, ctx.db)
+        if not can_live:
+            logger.warning(f"[apex] Live exit blocked by strategy gate: {reason}")
+            return None
+
+        shares = float(trade.filled_size or trade.size or 0.0)
+        if shares <= 0:
+            return None
+
+        # Cross the spread to guarantee a fill (same 2% marketable premium
+        # used for BUY entries, see bond_scanner.py), applied below mid.
+        MARKETABLE_PREMIUM_PCT = 0.02
+        limit_price = max(0.01, round(exit_price * (1.0 - MARKETABLE_PREMIUM_PCT), 4))
+
+        try:
+            await ctx.clob.create_or_derive_api_key()
+            order_result = await ctx.clob.place_limit_order(
+                token_id=trade.token_id, side="SELL", price=limit_price, size=shares,
+            )
+            if not order_result.success:
+                logger.warning(
+                    f"[apex] Live exit order rejected for trade #{trade.id}: {order_result.error}"
+                )
+                return None
+            return float(order_result.fill_price) if order_result.fill_price else limit_price
+        except Exception as e:
+            logger.exception(f"[apex] Live exit CLOB error for trade #{trade.id}: {e}")
+            return None
 
     def _get_bankroll(self, ctx: StrategyContext) -> float:
         try:

@@ -13,6 +13,7 @@ from sqlalchemy.pool import StaticPool
 from backend.models.database import Base, Trade, BotState, SettlementEvent
 from backend.core.settlement.settlement_helpers import (
     calculate_pnl,
+    calculate_exit_pnl,
     process_settled_trade,
     total_loss_settlement_value,
 )
@@ -797,3 +798,101 @@ async def test_resolve_paper_trades_updates_botstate_counters(db):
     assert state.paper_trades == 1
     assert state.paper_wins == 1
     assert state.paper_pnl == pytest.approx(trade.pnl)
+
+
+# ---------------------------------------------------------------------------
+# Early-exit P&L calculation — calculate_exit_pnl() (ADR-017)
+# ---------------------------------------------------------------------------
+
+
+class TestCalculateExitPnl:
+    def test_profit_exit(self):
+        """10 shares bought at 0.50, exited at 0.58.
+        entry_fee = 30bps*min(0.50,0.50)*(10*0.50) = 0.0075
+        exit_fee  = 30bps*min(0.58,0.42)*(10*0.58) = 0.007308
+        pnl = 10*(0.58-0.50) - 0.0075 - 0.007308 = 0.785192 -> 0.79
+        """
+        trade = MagicMock(spec=Trade)
+        trade.direction = "yes"
+        trade.entry_price = 0.50
+        trade.size = 10.0
+
+        pnl, fee = calculate_exit_pnl(trade, exit_price=0.58)
+
+        assert pnl == pytest.approx(0.79)
+        assert fee == pytest.approx(0.01)
+
+    def test_loss_exit(self):
+        """10 shares bought at 0.50, exited at 0.42 (stop loss).
+        entry_fee = 30bps*min(0.50,0.50)*(10*0.50) = 0.0075
+        exit_fee  = 30bps*min(0.42,0.58)*(10*0.42) = 0.005292
+        pnl = 10*(0.42-0.50) - 0.0075 - 0.005292 = -0.812792 -> -0.81
+        """
+        trade = MagicMock(spec=Trade)
+        trade.direction = "yes"
+        trade.entry_price = 0.50
+        trade.size = 10.0
+
+        pnl, fee = calculate_exit_pnl(trade, exit_price=0.42)
+
+        assert pnl == pytest.approx(-0.81)
+        assert fee == pytest.approx(0.01)
+
+    def test_direction_independent(self):
+        """exit_price is in held-token terms (same convention as entry_price),
+        so a 'no' position with the same entry/exit prices produces the same
+        pnl as a 'yes' position — calculate_exit_pnl must not branch on
+        direction."""
+        trade_yes = MagicMock(spec=Trade)
+        trade_yes.direction = "yes"
+        trade_yes.entry_price = 0.50
+        trade_yes.size = 10.0
+
+        trade_no = MagicMock(spec=Trade)
+        trade_no.direction = "no"
+        trade_no.entry_price = 0.50
+        trade_no.size = 10.0
+
+        pnl_yes, _ = calculate_exit_pnl(trade_yes, exit_price=0.58)
+        pnl_no, _ = calculate_exit_pnl(trade_no, exit_price=0.58)
+
+        assert pnl_yes == pytest.approx(pnl_no)
+
+    def test_uses_fill_price_and_filled_size(self):
+        """When fill_price/filled_size are set, they take precedence over
+        entry_price/size (mirrors calculate_pnl).
+        8 shares filled at 0.45, exited at 0.50.
+        entry_fee = 30bps*min(0.45,0.55)*(8*0.45) = 0.00486
+        exit_fee  = 30bps*min(0.50,0.50)*(8*0.50) = 0.006
+        pnl = 8*(0.50-0.45) - 0.00486 - 0.006 = 0.38914 -> 0.39
+        """
+        trade = MagicMock(spec=Trade)
+        trade.direction = "yes"
+        trade.entry_price = 0.40  # ignored — fill_price takes precedence
+        trade.size = 10.0  # ignored — filled_size takes precedence
+        trade.fill_price = 0.45
+        trade.filled_size = 8.0
+        trade.fee = None
+
+        pnl, fee = calculate_exit_pnl(trade, exit_price=0.50)
+
+        assert pnl == pytest.approx(0.39)
+        assert fee == pytest.approx(0.01)
+
+    def test_uses_stored_entry_fee(self):
+        """When trade.fee is already set (recorded at entry), it is used as
+        the entry-side fee instead of recomputing it.
+        pnl = 10*(0.58-0.50) - 0.05 - exit_fee(0.007308) = 0.742692 -> 0.74
+        """
+        trade = MagicMock(spec=Trade)
+        trade.direction = "yes"
+        trade.entry_price = 0.50
+        trade.size = 10.0
+        trade.fee = 0.05
+        trade.fill_price = None
+        trade.filled_size = None
+
+        pnl, fee = calculate_exit_pnl(trade, exit_price=0.58)
+
+        assert pnl == pytest.approx(0.74)
+        assert fee == pytest.approx(0.06)

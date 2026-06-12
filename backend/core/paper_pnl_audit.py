@@ -41,6 +41,11 @@ class PaperPnlApplyResult:
 
 
 def _settlement_value_for_trade(trade: Trade) -> float | None:
+    # Early exits (see ADR-017) realize a partial pnl via calculate_exit_pnl,
+    # not a binary settlement value — skip recompute to avoid false-positive
+    # mismatches against the full-binary calculate_pnl result.
+    if trade.settlement_source and str(trade.settlement_source).startswith("early_exit_"):
+        return None
     if trade.settlement_value is not None:
         return float(trade.settlement_value)
     direction = (trade.direction or "").strip().lower()
