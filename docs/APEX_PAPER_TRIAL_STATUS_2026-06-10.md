@@ -1626,3 +1626,94 @@ Bug T CLOSED. Pre-existing, separate gap noted but not fixed here:
 `cfg.interval_seconds`, so if a strategy's interval was changed from 60
 after scheduling, unschedule still won't match its job_id — out of scope
 for this fix.
+
+## Update — 2026-06-13: Bug U — 15 historical trades mislabeled
+`result="loss"` despite positive `pnl` (pre-ADR-016/018 stale data)
+
+### Root cause
+
+Before ADR-016 (Bug M, commit `f3cd8302`) and ADR-018 (Bug P, commit
+`1e1cdb85`), the `expired_unresolved`/`closed_unresolved` force-close
+branches in `settlement.py` hardcoded `trade.result = "loss"` and computed
+`pnl = calculate_pnl(trade, settlement_value=0.0)` regardless of
+`trade.direction`. For `direction="no"` trades, `settlement_value=0.0`
+is the **win** formula (`pnl = shares * (1 - entry_price) - fee`, positive)
+— so these trades got a positive `pnl` but a `"loss"` label.
+
+Found via DB query while investigating the Stop-hook's demand for
+evidence-based profitability data: 15 settled trades (all `direction="no"`,
+`settlement_value=0.0`, settled 2026-06-10 through 2026-06-12, i.e. before
+both fixes landed on 2026-06-13) have `result="loss"` AND `pnl > 0`:
+
+- 6 × `trading_mode="paper"`, `strategy="bond_scanner"`,
+  `settlement_source="expired_unresolved"`, sum `pnl=+$29.01`
+- 5 × `trading_mode="live"`, `strategy="bond_scanner"`,
+  `settlement_source="closed_unresolved"`, sum `pnl=+$5.03`
+- 4 × `trading_mode="live"`, `strategy="position_sync"`,
+  `settlement_source="closed_unresolved"`, sum `pnl=+$58.03`
+
+`BotStateLedger.credit_on_settlement`'s `is_loss` branch applies
+`bankroll_delta = size + pnl` / `pnl_delta = pnl` — the same formula as the
+`is_win` branch — so `paper_bankroll`/`paper_pnl`/`bankroll`/`total_pnl`
+**already include these correct positive amounts** (no money is missing or
+miscounted). The only things wrong were: (1) the `result` label itself, and
+(2) `paper_wins`/`winning_trades` were not incremented because `is_win` was
+`False` at settlement time. This directly distorts `StrategyGate`'s
+`result == "win"` win-rate computation used by the Strategy Gating Pipeline
+(`_check_fronttest`/`_check_shadow`), and skews any win-rate stat read from
+`Trade.result`.
+
+The forward-going code (post Bug M/P, using `total_loss_settlement_value`)
+is already correct — for `direction="no"`,
+`total_loss_settlement_value("no") == 1.0`, and
+`calculate_pnl(direction="no", settlement_value=1.0)` is the **loss**
+formula (negative `pnl`), matching `result="loss"`. This is a pure
+historical-data backfill for rows created by the old, already-fixed code.
+
+### Fix
+
+New Alembic data migration
+`backend/alembic/versions/20260613_fix_stale_loss_label_positive_pnl.py`
+(`fix_stale_loss_positive_pnl`, head, depends on `fix_ledger_wallet_sync_type`
+from Bug Q):
+
+- `UPDATE trades SET result = 'win' WHERE id IN (<15 ids>) AND result = 'loss' AND pnl > 0`
+- `UPDATE bot_state SET paper_wins = paper_wins + 6 WHERE mode = 'paper'`
+- `UPDATE bot_state SET winning_trades = winning_trades + 9 WHERE mode = 'live'`
+
+No `bankroll`/`pnl`/`total_pnl` columns are touched — those were already
+correct.
+
+### Verification
+
+- `alembic upgrade head` applied cleanly; `alembic current` →
+  `fix_stale_loss_positive_pnl (head)`.
+- Post-migration: 0/15 rows remain with `result='loss' AND pnl>0`; all 15
+  now `result='win'`. `bot_state.paper_wins` 1564→1571 (+6 from this
+  migration, +1 from a trade that settled in the interim);
+  `bot_state.winning_trades` (live) 73→82 (+9, exact match, no live
+  settlements in the interim).
+- `pytest backend/tests/test_settlement.py backend/tests/test_strategy_gate.py backend/tests/test_balance_ledger_regression.py`:
+  63/63 pass.
+- **Current realized P&L evidence** (post-fix, per the Stop hook's request
+  for actual, not theoretical, numbers):
+  - paper bankroll=$793.42, total_pnl=-$3904.67 (lifetime; dominated by the
+    still-deferred ADR-016 Alternative 3 backfill, ~2,830 `unified_arb`
+    pnl=0.0 rows ≈ -$14,051 unrecorded, see Bug M)
+  - paper 24h: 611 settled, 34 wins (5.6% WR), pnl=-$87.12
+  - paper 7d: 3055 settled, 92 wins (3.0% WR), pnl=+$152.85
+  - live bankroll=$27.48, total_pnl=-$439.74 (lifetime)
+  - live 24h: 22 settled, 3 wins (13.6% WR), pnl=-$14.33
+  - live 7d: 73 settled, 16 wins (21.9% WR), pnl=+$46.95
+
+### Status
+
+Bug U CLOSED. Both paper and live are net **profitable over the trailing
+7 days** (+$152.85 / +$46.95) but net **negative over the trailing 24h**
+(-$87.12 / -$14.33) — consistent with the longshot-heavy strategy mix
+(rare large wins offsetting frequent small losses). The remaining lever for
+durable profitability is the still-deferred ADR-016 Alternative 3 backfill
+(~$14,051 of `unified_arb`/`bond_scanner` pnl=0.0 rows that represent real
+historical losses never reflected in `paper_pnl`/`paper_bankroll`) — see
+Bug M for why this was deferred (append-only Trade guidance, needs its own
+ADR before touching `paper_bankroll`/`paper_pnl`/`total_pnl`).
