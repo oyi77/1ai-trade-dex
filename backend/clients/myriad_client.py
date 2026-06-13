@@ -18,9 +18,12 @@ class MyriadClient:
         self._base_url = getattr(settings, "MYRIAD_API_URL", "https://api.myriad.markets").rstrip("/")
         self._wallet = getattr(settings, "MYRIAD_WALLET_ADDRESS", "") or ""
         self._private_key = getattr(settings, "MYRIAD_PRIVATE_KEY", "") or ""
+        self._enabled = getattr(settings, "MYRIAD_ENABLED", True)
 
     async def get_markets(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Fetch available prediction markets."""
+        if not self._enabled:
+            return []
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.get(
@@ -38,6 +41,8 @@ class MyriadClient:
 
     async def get_market(self, market_id: str) -> Optional[Dict[str, Any]]:
         """Fetch a single market by ID."""
+        if not self._enabled:
+            return None
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(f"{self._base_url}/markets/{market_id}")
@@ -50,6 +55,8 @@ class MyriadClient:
     async def get_positions(self) -> List[Dict[str, Any]]:
         """Fetch positions for the configured wallet."""
         if not self._wallet:
+            return []
+        if not self._enabled:
             return []
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -69,6 +76,8 @@ class MyriadClient:
     async def get_balance(self) -> Decimal:
         """Fetch USDC balance for the configured wallet."""
         if not self._wallet:
+            return Decimal("0")
+        if not self._enabled:
             return Decimal("0")
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -90,6 +99,8 @@ class MyriadClient:
         price: Decimal,
     ) -> Dict[str, Any]:
         """Place a limit order on Myriad Markets."""
+        if not self._enabled:
+            return {"error": True}
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 resp = await client.post(
@@ -110,6 +121,8 @@ class MyriadClient:
 
     async def health_check(self) -> bool:
         """Check if Myriad API is available."""
+        if not self._enabled:
+            return False
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(f"{self._base_url}/health")
@@ -119,6 +132,8 @@ class MyriadClient:
 
     async def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
+        if not self._enabled:
+            return False
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.delete(f"{self._base_url}/orders/{order_id}")
@@ -137,6 +152,8 @@ class MyriadClient:
         Returns:
             List of fill dicts with id, side, size, price, fee, status, etc.
         """
+        if not self._enabled:
+            return []
         addr = wallet_address or self._wallet
         if not addr:
             return []

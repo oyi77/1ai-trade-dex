@@ -35,6 +35,12 @@ class SXBetClient:
             base_url or os.getenv("SXBET_API_URL", "https://api.sx.bet")
         ).rstrip("/")
         self._cached_domain = None
+        self._enabled = True
+        try:
+            from backend.config import settings as _cfg
+            self._enabled = getattr(_cfg, "SXBET_ENABLED", True)
+        except ImportError:
+            pass
 
     async def _get_domain(self) -> dict:
         """Fetch and cache EIP-712 domain parameters dynamically."""
@@ -82,6 +88,8 @@ class SXBetClient:
 
     async def get_sports(self) -> list:
         """Get available sports."""
+        if not self._enabled:
+            return []
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{self._base_url}/sports")
             resp.raise_for_status()
@@ -89,6 +97,8 @@ class SXBetClient:
 
     async def get_markets(self, sport_ids: list = None, limit: int = 200) -> list:
         """Get available markets, optionally filtered by sport."""
+        if not self._enabled:
+            return []
         params = {"limit": limit}
         if sport_ids:
             params["sportIds"] = ",".join(str(s) for s in sport_ids)
@@ -99,6 +109,8 @@ class SXBetClient:
 
     async def get_orderbook(self, market_hash: str) -> dict:
         """Get orderbook for a specific market."""
+        if not self._enabled:
+            return {}
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 f"{self._base_url}/orders", params={"marketHashes": market_hash}
@@ -126,6 +138,8 @@ class SXBetClient:
         Returns:
             API response dict with order details.
         """
+        if not self._enabled:
+            return {}
         import time
 
         account = Account.from_key(private_key)
@@ -197,6 +211,8 @@ class SXBetClient:
         Returns:
             Dict with balance info (USDC available, etc.).
         """
+        if not self._enabled:
+            return {}
         from backend.config import settings as _cfg
         addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
@@ -222,6 +238,8 @@ class SXBetClient:
         Returns:
             List of position dicts.
         """
+        if not self._enabled:
+            return []
         from backend.config import settings as _cfg
         addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
@@ -251,6 +269,8 @@ class SXBetClient:
         Returns:
             List of fill dicts with id, side, size, price, fee, status, etc.
         """
+        if not self._enabled:
+            return []
         from backend.config import settings as _cfg
         addr = wallet_address or getattr(_cfg, "SXBET_WALLET_ADDRESS", None) or getattr(_cfg, "WALLET_PUBLIC_ADDRESS", "") or os.getenv("WALLET_PUBLIC_ADDRESS", "")
         if not addr:
@@ -272,6 +292,8 @@ class SXBetClient:
 
     async def health_check(self) -> bool:
         """Check if SX.bet API is available."""
+        if not self._enabled:
+            return False
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(f"{self._base_url}/sports")

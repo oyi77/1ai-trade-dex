@@ -158,7 +158,19 @@ class BalanceAggregator:
                             ),
                         )
                     except Exception as e:
-                        if "couldn't get nonce" not in str(e):
+                        estr = str(e)
+                        if "403" in estr or "Forbidden" in estr:
+                            logger.debug(f"Lighter REST balance 403 (treating as zero): {e}")
+                            self._update(
+                                "lighter",
+                                VenueBalance(
+                                    venue="lighter",
+                                    cash_balance=0.0,
+                                    total_equity=0.0,
+                                    source="poll",
+                                ),
+                            )
+                        elif "couldn't get nonce" not in estr:
                             logger.warning(f"Lighter REST balance error: {e}")
                     await asyncio.sleep(15)
         except Exception as e:

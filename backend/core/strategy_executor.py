@@ -453,6 +453,68 @@ def _execute_decision_paper_or_kalshi(
                 )
             return None
 
+async def _resolve_token_id_from_gamma(identifier: str) -> Optional[str]:
+    """Resolve a token_id from a market slug or conditionId via Gamma API.
+
+    bond_scanner decisions may have token_id=None when Gamma API doesn't
+    return clobTokenIds for a market. This fallback fetches the event by
+    slug (or the market by conditionId) and extracts clobTokenIds[0] from
+    the first market.
+    """
+    if not identifier:
+        return None
+
+    from backend.data.shared_client import get_shared_client
+
+    client = get_shared_client()
+    gamma_base = settings.GAMMA_API_URL
+
+    import json as _json_lib
+
+    def _extract_token_id(market: dict) -> Optional[str]:
+        clob_token_ids = market.get("clobTokenIds") or []
+        if isinstance(clob_token_ids, str):
+            try:
+                clob_token_ids = _json_lib.loads(clob_token_ids)
+            except Exception:
+                clob_token_ids = []
+        if clob_token_ids and len(clob_token_ids) > 0:
+            return str(clob_token_ids[0])
+        return None
+
+    # Attempt 1: look up by slug on /events endpoint
+    try:
+        resp = await client.get(f"{gamma_base}/events", params={"slug": identifier})
+        resp.raise_for_status()
+        data = resp.json()
+        if data:
+            event = data[0] if isinstance(data, list) else data
+            for market in event.get("markets", []):
+                token_id = _extract_token_id(market)
+                if token_id:
+                    return token_id
+    except Exception:
+        pass
+
+    # Attempt 2: look up by conditionId on /markets endpoint
+    try:
+        resp = await client.get(f"{gamma_base}/markets", params={"conditionId": identifier})
+        resp.raise_for_status()
+        data = resp.json()
+        if data:
+            market = data[0] if isinstance(data, list) else data
+            token_id = _extract_token_id(market)
+            if token_id:
+                return token_id
+    except Exception:
+        pass
+
+    logger.warning(
+        f"[strategy_executor] Failed to resolve token_id for '{identifier}' "
+        f"via Gamma API (tried slug and conditionId)"
+    )
+    return None
+
 
 async def execute_decision(
     decision: dict, strategy_name: str, mode: str, db=None
@@ -483,7 +545,22 @@ async def execute_decision(
     asset_lock = await _get_asset_lock(str(asset_key))
     async with _trade_semaphore:
         async with asset_lock:
-            # Paper/testnet/Kalshi: no async CLOB calls — offload entirely to thread
+            # ── Fallback: resolve missing token_id for live CLOB execution ──
+            if mode == "live" and not decision.get("token_id"):
+                slug = str(decision.get("market_ticker", "") or "")
+                resolved = await _resolve_token_id_from_gamma(slug)
+                if resolved:
+                    logger.info(
+                        f"[{strategy_name}] Resolved missing token_id={resolved} for "
+                        f"slug '{slug}' via Gamma API"
+                    )
+                    decision["token_id"] = resolved
+                else:
+                    logger.warning(
+                        f"[{strategy_name}] Live mode but no token_id in decision for "
+                        f"{slug} — falling back to paper path"
+                    )
+
             is_live_clob = (
                 mode == "live"
                 and not (
@@ -492,11 +569,6 @@ async def execute_decision(
                 )
                 and decision.get("token_id") is not None
             )
-            if mode == "live" and not is_live_clob and not decision.get("token_id"):
-                logger.warning(
-                    f"[{strategy_name}] Live mode but no token_id in decision for "
-                    f"{decision.get('market_ticker', '?')} — falling back to paper path"
-                )
             for lock_attempt in range(_MAX_LOCK_RETRY_ATTEMPTS):
                 try:
                     if not is_live_clob:

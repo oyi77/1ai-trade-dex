@@ -738,7 +738,9 @@ class ConfigRegistry:
     MYRIAD_API_URL: str = "https://api.myriad.markets"
     MYRIAD_WALLET_ADDRESS: Optional[str] = None
     MYRIAD_PRIVATE_KEY: Optional[str] = None
+    MYRIAD_ENABLED: bool = True
     SXBET_WALLET_ADDRESS: Optional[str] = None
+    SXBET_ENABLED: bool = True
     AZURO_GRAPH_URL: str = "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
     AZURO_RPC_URL: str = "https://rpc.gnosischain.com"
     AZURO_CHAIN_ID: int = 100
