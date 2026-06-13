@@ -256,8 +256,13 @@ class RiskManager:
                         adjustment = bucket["error"] * bucket["confidence"]
                         adjustment = max(-0.05, min(0.05, adjustment))
                         pre_adj = signal_win_rate
+                        # CALIBRATION GUARD: never adjust swr below market_price,
+                        # otherwise edge_pp = (swr - price) * 100 turns negative
+                        # and the edge filter rejects EVERY trade — permanent deadlock.
+                        max_down = max(0.0, pre_adj - market_price - 0.005)
+                        adjustment = max(adjustment, -max_down)
                         signal_win_rate = max(
-                            0.01, min(0.99, signal_win_rate + adjustment)
+                            0.01, min(0.99, pre_adj + adjustment)
                         )
                         logger.info(
                             "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
