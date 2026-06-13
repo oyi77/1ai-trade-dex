@@ -1300,3 +1300,42 @@ specific (likely old/thin) markets — `_get_current_price` returns `None` on
 CLOB error, which makes `check_position` a no-op (`current_price is None →
 return None`), silently leaving the position open with no exit signal and no
 error surfaced.
+
+### VERIFIED 2026-06-13 03:09 WIB — Bug O fix deployed and confirmed live
+
+**Root cause of the "0 cycles cleared" symptom**: `pm2` showed
+`polyedge-orchestrator` had been running since 2026-06-12 22:42:04 — over 4
+hours BEFORE commit `6d5baf7a` (Bug O) was made at 02:43:12. Python doesn't
+hot-reload, so the live bot was executing the pre-fix `apex_strategy.py` the
+entire time; the fix was correct but **inert** until the process restarted.
+Ran `pm2 restart polyedge-orchestrator` (clean restart, no startup errors,
+8 paper strategies registered).
+
+**Result — first post-restart apex cycle (03:09:41-43 WIB)** closed **32 of
+the 36** stuck positions in a single pass via `_close_position`:
+
+| exit reason | result | count | sum(pnl) |
+|---|---|---|---|
+| profit_target | win | 10 | +40.65 |
+| stop_loss | loss | 9 | -44.60 |
+| time_decay | loss/push/win | 10 (5/1/4) | +0.65 |
+| edge_decay | loss | 3 | -0.62 |
+
+A second cycle 340s later closed 2 more (1 more profit_target win, 1 more
+stop_loss loss), leaving **2 open positions / $37.00 cost basis** (down from
+36/$1505.42). Net realized pnl across all 34 early exits: **-$5.19** —
+losses that were previously running to full Gamma settlement (-100% of cost
+basis) are now capped at `stop_loss_pct=4%`. Biggest example: trade #25761
+(`fifwc-aut-jor-2026-06-17-goals-romano-schmid-gte3`) closed at
+`stop_loss exit_price=0.0250 pnl=-17.85` instead of riding to -100%.
+
+**Operational note for future fixes**: a code commit to a strategy module
+has **zero runtime effect** until `pm2 restart polyedge-orchestrator` is run
+— `git log` time is not a proxy for "deployed". Any future fix to
+`backend/strategies/`, `backend/core/edge/`, or `backend/core/scheduling/`
+should be followed by a restart + log/DB verification, as done here.
+
+**Status**: Bug O CLOSED. apex's open-position backlog is cleared; going
+forward `_check_exits` runs every `ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS`
+(300s) and should keep the open-position count near `max_concurrent` rather
+than accumulating.
