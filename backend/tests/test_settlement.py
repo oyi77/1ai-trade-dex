@@ -334,6 +334,78 @@ class TestForceClosedUnresolvedPnl:
         assert pnl == pytest.approx(-0.329, abs=0.1)
 
 
+class TestUnresolvedLossConsistency:
+    """`closed_unresolved`/`expired_unresolved`/`stale_expired`/
+    `btc_5min_unresolved` force-settle a trade as result="loss" when no real
+    market resolution is available. Before total_loss_settlement_value() was
+    wired into these branches, they called calculate_pnl(trade, 0.0) — for a
+    'no'/'down' position this is the WIN formula (positive pnl), producing
+    e.g. trade #25753 (NO @ 0.23, size=5, pnl=+3.85, result="loss"). See
+    docs/architecture/adr-016-force-closed-unresolved-pnl.md.
+    """
+
+    @pytest.mark.asyncio
+    async def test_expired_unresolved_no_position_settles_as_negative_loss(self, db):
+        from backend.core.settlement.settlement import settle_pending_trades
+
+        trade = _make_trade(
+            db,
+            market_ticker="will-some-event-happen-by-2026",
+            direction="no",
+            entry_price=0.23,
+            size=5.0,
+        )
+        trade.market_end_date = datetime.now(timezone.utc) - timedelta(hours=100)
+        db.commit()
+
+        with patch(
+            "backend.core.settlement.settlement._resolve_markets",
+            AsyncMock(return_value={}),
+        ):
+            results = await settle_pending_trades(db)
+
+        assert len(results) == 1
+        settled = results[0]
+        assert settled.result == "loss"
+        assert settled.settlement_source == "expired_unresolved"
+        assert settled.settlement_value == 1.0  # total_loss_settlement_value("no")
+        assert settled.pnl < 0.0
+
+    @pytest.mark.asyncio
+    async def test_btc_5min_unresolved_down_position_settles_as_negative_loss(self, db):
+        from backend.core.settlement.settlement import _settle_btc_5min_trade
+
+        now = datetime.now(timezone.utc)
+        window_start_ts = int((now - timedelta(hours=25)).timestamp())
+        trade = _make_trade(
+            db,
+            market_ticker=f"btc-updown-5m-{window_start_ts}",
+            direction="down",
+            entry_price=0.30,
+            size=10.0,
+        )
+        trade.timestamp = now - timedelta(hours=25)
+        db.commit()
+
+        with (
+            patch(
+                "backend.data.btc_markets.fetch_btc_market_for_settlement",
+                AsyncMock(return_value=None),
+            ),
+            patch(
+                "backend.data.crypto.fetch_binance_klines",
+                AsyncMock(return_value=[]),
+            ),
+        ):
+            result = await _settle_btc_5min_trade(trade, now)
+
+        assert result is not None
+        assert result.result == "loss"
+        assert result.settlement_source == "btc_5min_unresolved"
+        assert result.settlement_value == 1.0  # total_loss_settlement_value("down")
+        assert result.pnl < 0.0
+
+
 class TestPnlPush:
     def test_push_is_zero_at_entry_price_win(self):
         """When entry_price=1.0 (degenerate), pnl = 0 on win."""

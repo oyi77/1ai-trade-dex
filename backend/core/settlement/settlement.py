@@ -45,6 +45,7 @@ from backend.core.settlement.settlement_helpers import (
     _parse_market_resolution as _parse_market_resolution,
     _resolve_markets,
     process_settled_trade,
+    total_loss_settlement_value,
 )
 
 from loguru import logger
@@ -248,16 +249,20 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
         logger.warning(f"BTC 5min CEX fallback also failed for {ticker}: {e}")
 
     max_settle_age_hours = 24
-    if now < trade.timestamp + timedelta(hours=max_settle_age_hours):
+    trade_ts = trade.timestamp
+    if trade_ts and trade_ts.tzinfo is None:
+        trade_ts = trade_ts.replace(tzinfo=timezone.utc)
+    if trade_ts and now < trade_ts + timedelta(hours=max_settle_age_hours):
         logger.info(f"BTC 5min {ticker}: could not resolve yet, will retry next cycle")
         return None
 
     trade.settled = True
-    trade.result = "expired_unresolved"
-    trade.pnl = calculate_pnl(trade, 0.0)
+    trade.result = "loss"
+    loss_sv = total_loss_settlement_value(trade.direction)
+    trade.pnl = calculate_pnl(trade, loss_sv)
     trade.settlement_time = now
     trade.settlement_source = "btc_5min_unresolved"
-    trade.settlement_value = 0.0
+    trade.settlement_value = loss_sv
     record_execution(
         strategy=trade.strategy or "btc_5min",
         side=trade.direction or "n/a",
@@ -369,8 +374,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                             trade.settlement_source = "closed_unresolved"
                             # Always recalculate — pre-set pnl may be wrong
                             # closed_unresolved = position gone, settle as loss
-                            trade.pnl = calculate_pnl(trade, 0.0)
-                            trade.settlement_value = 0.0
+                            loss_sv = total_loss_settlement_value(trade.direction)
+                            trade.pnl = calculate_pnl(trade, loss_sv)
+                            trade.settlement_value = loss_sv
                             logger.warning(
                                 "Position reconciliation: trade {} position gone, "
                                 "resolution unavailable after {}h grace — "
@@ -610,8 +616,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                     trade.settled = True
                     trade.result = "loss"
                     trade.settlement_time = now
-                    trade.pnl = calculate_pnl(trade, 0.0)
-                    trade.settlement_value = 0.0
+                    loss_sv = total_loss_settlement_value(trade.direction)
+                    trade.pnl = calculate_pnl(trade, loss_sv)
+                    trade.settlement_value = loss_sv
                     trade.settlement_source = "expired_unresolved"
                     settled_trades.append(trade)
                     record_execution(
@@ -682,8 +689,9 @@ async def settle_pending_trades(db: Session) -> List[Trade]:
                 trade.settled = True
                 trade.result = "loss"
                 trade.settlement_time = now
-                trade.pnl = calculate_pnl(trade, 0.0)
-                trade.settlement_value = 0.0
+                loss_sv = total_loss_settlement_value(trade.direction)
+                trade.pnl = calculate_pnl(trade, loss_sv)
+                trade.settlement_value = loss_sv
                 trade.settlement_source = "stale_expired"
                 settled_trades.append(trade)
                 record_execution(

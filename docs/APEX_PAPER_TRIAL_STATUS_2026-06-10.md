@@ -1339,3 +1339,94 @@ should be followed by a restart + log/DB verification, as done here.
 forward `_check_exits` runs every `ORCHESTRATOR_STRATEGY_INTERVAL_SECONDS`
 (300s) and should keep the open-position count near `max_concurrent` rather
 than accumulating.
+
+## Update — 2026-06-13: Bug P — `bond_scanner` LIVE trades record
+## `result="loss"` with positive `pnl`, understating win rate
+
+### Root cause
+
+ADR-016 (Bug M, above) fixed `force_closed_unresolved`'s hardcoded
+`calculate_pnl(trade, 0.0)` but explicitly deferred four other settlement
+branches that had the *identical* pattern, reasoning live trading was
+disabled. `bond_scanner` has since been re-enabled for **live** trading
+(`rehab_allocation_pct=0.25`, since 2026-06-12 07:30:40), making this no
+longer theoretical.
+
+`calculate_pnl(trade, 0.0)` means "settlement_value=0.0" — a WIN for
+`direction="no"/"down"` positions (positive pnl via the WIN formula), but
+these branches all hardcode `result="loss"`. Found 11 `bond_scanner` trades
+(10 distinct positions) with `result="loss"` and **positive** `pnl`, total
+**+$29.09**, all `direction="no"`, settled via `closed_unresolved` or
+`expired_unresolved`:
+
+```
+id     market                                                  entry  size     pnl   result  source
+25753  will-matheus-cunha-score-a-goal-...-world-cup            0.230  5.000    3.85  loss    closed_unresolved
+25700  will-luke-kornet-score-40-points-...                     0.908  5.776    0.53  loss    closed_unresolved
+25699  (same market as 25700)                                   0.908  5.776    0.53  loss    closed_unresolved
+25694  over-500m-committed-to-the-align-public-sale             0.988  5.050    0.06  loss    closed_unresolved
+25693  will-morgan-stanley-fail-by-june-30-2026                 0.989  5.050    0.06  loss    closed_unresolved
+25440  highest-temperature-in-denver-on-june-8-2026-92-93f      0.039  5.000    4.81  loss    expired_unresolved
+25328  highest-temperature-in-guangzhou-on-june-8-2026-35corh.  0.010  5.000    4.95  loss    expired_unresolved
+25265  highest-temperature-in-houston-on-june-7-2026-82-83f     0.016  5.000    4.92  loss    expired_unresolved
+25087  highest-temperature-in-dallas-on-june-7-2026-94-95f      0.114  5.000    4.43  loss    expired_unresolved
+24156  highest-temperature-in-atlanta-on-june-7-2026-76-77f     0.010  5.000    4.95  loss    expired_unresolved
+```
+
+This inflates `bond_scanner`'s reported loss count (and understates its win
+rate), which directly feeds CLAUDE.md's "Auto-kill at <30% win rate"
+governance rule — relevant since `bond_scanner` is currently on live-trading
+probation.
+
+A fourth branch, `_settle_btc_5min_trade`'s 24h-unresolved timeout, has the
+same hardcode plus two compounding bugs: (1) it sets
+`result="expired_unresolved"`, which `botstate_ledger.py::is_push` treats as
+a full-credit-back push (ignoring `pnl`) — inconsistent with the other three
+branches' `result="loss"`; (2) it compares a tz-aware `now` against
+`trade.timestamp` (naive UTC per `c2e92f5e`), which raises
+`TypeError: can't compare offset-naive and offset-aware datetimes` —
+aborting the *entire* settlement batch (all strategies) the first time any
+`btc-updown-5m-*` trade goes unresolved for 24h, violating "Settlement is
+Sacred — stale positions block orders."
+
+### Fix
+
+`backend/core/settlement/settlement.py`: applied
+`total_loss_settlement_value(trade.direction)` (from ADR-016) to all four
+deferred branches — `closed_unresolved`, `expired_unresolved`,
+`stale_expired`, and `_settle_btc_5min_trade`'s `btc_5min_unresolved` —
+replacing the hardcoded `calculate_pnl(trade, 0.0)` /
+`settlement_value=0.0`. Also changed `_settle_btc_5min_trade`'s `result`
+from `"expired_unresolved"` to `"loss"` (matching the other three branches,
+so `is_push`/`is_loss` bankroll treatment stays consistent with the now-real
+negative `pnl`), and normalized `trade.timestamp` to tz-aware UTC before the
+24h-timeout comparison, matching the existing pattern at
+`settlement.py:589-590`/`:634-635`. Documented in
+`docs/architecture/adr-018-unresolved-loss-branches-pnl.md` per the
+ADR-gating rule for settlement logic; `backend/core/AGENTS.md`'s "Settlement
+is Sacred" section now lists all five `result="loss"` force-settle branches
+that must use `total_loss_settlement_value`.
+
+Per CLAUDE.md's append-only rule (and ADR-016 Alternative 3), the 11
+historical `bond_scanner` rows (+$29.09 mislabeled as losses) are **not**
+backfilled — this is a forward-going fix only.
+
+### Verification
+
+- New tests in `backend/tests/test_settlement.py`
+  (`TestUnresolvedLossConsistency`, 2 tests): an `expired_unresolved` NO
+  position now settles with `result="loss"`, `settlement_value=1.0`,
+  `pnl<0` (previously `pnl>0`); a `btc_5min_unresolved` DOWN position past
+  24h now settles with `result="loss"`, `settlement_value=1.0`, `pnl<0`
+  (previously `result="expired_unresolved"`, `pnl>0`, and would have raised
+  `TypeError` on the naive/aware comparison).
+- `pytest backend/tests/test_settlement.py`: 36 passed.
+
+### Status
+
+Bug P: fixed (forward-going), tested, documented (ADR-018). Historical
+backfill of the +$29.09 mislabeled `bond_scanner` rows is a deferred
+follow-up, same as Bug M's ~$14,051. Live verification requires waiting for
+the next `bond_scanner`/BTC-5min trade to hit one of these four branches
+(not immediately observable — will check settlement logs after restart for
+clean execution with no new `TypeError`).

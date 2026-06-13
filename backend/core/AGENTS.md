@@ -60,6 +60,13 @@ Kernel coordination of strategy execution, scheduling, settlement reconciliation
 - **`force_closed_unresolved` (>5d stuck paper trades)**: `pnl` must equal
   `-cost_basis` via `calculate_pnl(trade, total_loss_settlement_value(trade.direction))`
   — never hardcode `pnl=0.0` for a `result="loss"` trade (ADR-016)
+- **Every `result="loss"` force-settle branch** (`closed_unresolved`,
+  `expired_unresolved`, `stale_expired`, `btc_5min_unresolved`, and
+  `force_closed_unresolved`) must derive `pnl`/`settlement_value` from
+  `total_loss_settlement_value(trade.direction)`, never a bare `0.0` —
+  `calculate_pnl(trade, 0.0)` is the WIN formula for `direction="no"/"down"`,
+  producing `result="loss"` + `pnl>0` (ADR-018; 11 `bond_scanner` trades hit
+  this before the fix)
 - **`early_exit_*` (APEX profit-target/stop-loss/time-decay)**: a *partial*
   realization at a continuous price, computed via
   `calculate_exit_pnl(trade, exit_price)` — NOT `calculate_pnl` (which is
