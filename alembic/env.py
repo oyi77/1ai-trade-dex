@@ -13,6 +13,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from backend.models.database import Base
 from backend.config import settings
 
+raise RuntimeError(
+    "This root alembic/ directory is LEGACY and its revision graph is "
+    "disconnected from backend/alembic/ (the canonical one — see "
+    "docs/alembic-dirs.md). Running migrations from here against the "
+    "shared DATABASE_URL desyncs alembic_version from the canonical graph "
+    "(this happened once already: revision 'arb_exec_status_001', fixed by "
+    "stamping to 'add_arb_bundle_tracking' + "
+    "backend/alembic/versions/20260613_add_decision_execution_status.py). "
+    "Run `cd backend && alembic upgrade head` instead."
+)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

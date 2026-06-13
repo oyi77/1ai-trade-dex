@@ -1430,3 +1430,86 @@ follow-up, same as Bug M's ~$14,051. Live verification requires waiting for
 the next `bond_scanner`/BTC-5min trade to hit one of these four branches
 (not immediately observable — will check settlement logs after restart for
 clean execution with no new `TypeError`).
+
+## Update — 2026-06-13: Bug Q — Alembic `alembic_version` desynced from
+## `backend/alembic`'s graph; `transaction_events` rows unreadable via ORM
+
+### Root cause
+
+`cd backend && alembic current` failed with `Can't locate revision
+identified by 'arb_exec_status_001'` — the canonical migration tool
+(`backend/alembic/`, per `docs/alembic-dirs.md`) was completely broken,
+directly blocking CLAUDE.md's "Database schema changes require an Alembic
+migration" workflow.
+
+Cause: the root `alembic.ini`/`alembic/env.py` (legacy, 50 migrations, head
+`arb_exec_status_001`) points at the SAME `settings.DATABASE_URL` as
+`backend/alembic/` (canonical, 8 migrations, head `add_arb_bundle_tracking`)
+— two disconnected revision graphs sharing one `alembic_version` row.
+Commit `5c0a7801` (2026-06-11) added a migration to the legacy
+`alembic/versions/` (against `docs/alembic-dirs.md`'s guidance) that added
+`decision_log.execution_status` + an index, and `alembic upgrade head` was
+run from the repo root — applying that column to prod and setting
+`alembic_version='arb_exec_status_001'`, a revision ID `backend/alembic`'s
+graph has never heard of.
+
+Separately, this surfaced a second bug while investigating: querying
+`transaction_events` via the ORM (`db.query(TransactionEvent)...`) raises
+`LookupError: 'ledger_wallet_sync' is not among the defined enum values`.
+`BotStateLedger._apply` (`backend/core/wallet/botstate_ledger.py`) wrote
+`TransactionEvent.type = f"ledger_{operation}"` — e.g. `"ledger_wallet_sync"`
+for `sync_to_absolute`'s reconciliation writes. SQLite/Postgres accept this
+on INSERT (no enum enforcement at the driver level), but
+`transaction_event_type`'s enum (`deposit`, `settlement_win`,
+`settlement_loss`, `reconciliation_adjustment`, `allocation`, `fee`,
+`withdrawal`) doesn't include any `ledger_*` value, so every SELECT of a
+row with that `type` crashes. 989 of 55,596 rows (all `wallet_sync`, the
+most frequent reconciliation op) were affected — any future ledger/
+transaction-history endpoint touching this table would crash.
+
+### Fix
+
+1. `alembic stamp --purge add_arb_bundle_tracking` — confirmed the DB schema
+   already matches every column/table `backend/alembic`'s 8 canonical
+   migrations would create, then re-pointed `alembic_version` at that head
+   (metadata-only, no schema change).
+2. `backend/alembic/versions/20260613_add_decision_execution_status.py` —
+   new canonical migration, `down_revision=add_arb_bundle_tracking`, that
+   idempotently adds `decision_log.execution_status` + its index (no-ops
+   here since the stray legacy migration already added them; applies
+   cleanly on a fresh DB).
+3. `backend/core/wallet/botstate_ledger.py::_apply` — replaced the
+   `f"ledger_{operation}"` type with a mapping to valid enum members
+   (`deposit`/`withdrawal`/`allocation`/`fee`/`settlement_win`/
+   `settlement_loss`/`reconciliation_adjustment` pass through,
+   `fill_debit`→`fee`, everything else incl. `wallet_sync`→
+   `reconciliation_adjustment`).
+4. `backend/alembic/versions/20260613_fix_ledger_wallet_sync_event_type.py`
+   — data migration backfilling the 989 existing `type='ledger_wallet_sync'`
+   rows to `'reconciliation_adjustment'` (amount/balance_after/context/note
+   untouched — only the schema-invalid discriminator is corrected).
+5. `alembic/env.py` (legacy root dir) now raises immediately on import,
+   so `alembic upgrade head` can never again be run from the repo root
+   against the shared DB. `docs/alembic-dirs.md` and
+   `backend/alembic/AGENTS.md` document the incident and the guard.
+
+### Verification
+
+- `cd backend && alembic current` → `add_decision_execution_status` then
+  `fix_ledger_wallet_sync_type (head)` after `alembic upgrade head` — both
+  ran without error.
+- `transaction_events` group-by-`type` after the backfill: no more
+  `ledger_wallet_sync` rows; `reconciliation_adjustment` count rose from
+  20,270 → 21,272 (the 989 backfilled + ~13 new from the restart);
+  `db.query(TransactionEvent).count()` (full ORM SELECT) now succeeds.
+- New regression test
+  `test_wallet_sync_transaction_event_type_is_valid_enum` in
+  `backend/tests/test_balance_ledger_regression.py`: `sync_to_absolute`
+  now records `type="reconciliation_adjustment"`. 9/9 pass in that file.
+- `pm2 restart polyedge-orchestrator`: online, no new tracebacks.
+
+### Status
+
+Bug Q CLOSED. Canonical Alembic workflow (`cd backend && alembic upgrade
+head`) works again; root `alembic/` can no longer silently corrupt
+`alembic_version`; `transaction_events` is fully ORM-readable.

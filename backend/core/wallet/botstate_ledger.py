@@ -204,8 +204,18 @@ class BotStateLedger:
         # Record a TransactionEvent so the user-facing ledger trail shows
         # the mutation even if audit logging is disabled.
         try:
+            if operation in ("deposit", "withdrawal", "allocation", "fee", "settlement_win", "settlement_loss", "reconciliation_adjustment"):
+                event_type = operation
+            elif operation == "fill_debit":
+                event_type = "fee"
+            else:
+                # wallet_sync, settlement_push/expired/closed/*, pnl_*, etc. —
+                # not represented in TransactionEvent.type's enum; the
+                # closest semantic bucket is "reconciliation_adjustment".
+                event_type = "reconciliation_adjustment"
+
             event = TransactionEvent(
-                type=f"ledger_{operation}",
+                type=event_type,
                 amount=delta,
                 balance_after=entry.new_value,
                 context={"mode": mode, "field": field, **context},

@@ -191,6 +191,29 @@ def test_ledger_persists_despite_before_flush_hook(ledger_db):
     )
 
 
+def test_wallet_sync_transaction_event_type_is_valid_enum(ledger_db):
+    """sync_to_absolute (operation="wallet_sync") must record a
+    TransactionEvent.type that is a member of the transaction_event_type
+    enum. The old code wrote type=f"ledger_{operation}" (e.g.
+    "ledger_wallet_sync"), which SQLite accepts on INSERT but which raises
+    LookupError on any later ORM SELECT of the table — 989 such rows exist
+    in production.
+    """
+    from backend.core.wallet.botstate_ledger import BotStateLedger
+    from backend.models.database import TransactionEvent
+
+    state = ledger_db.query(BotState).filter_by(mode="live").first()
+    state.bankroll = 1000.0
+    ledger_db.commit()
+
+    BotStateLedger.sync_to_absolute(ledger_db, mode="live", target_balance=1050.0)
+    ledger_db.commit()
+
+    events = ledger_db.query(TransactionEvent).all()
+    assert len(events) == 1
+    assert events[0].type == "reconciliation_adjustment"
+
+
 # ---------------------------------------------------------------------------
 # Test 3: No more bare db.query(BotState).first() in settlement path
 # ---------------------------------------------------------------------------
