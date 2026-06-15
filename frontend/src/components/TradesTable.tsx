@@ -74,6 +74,19 @@ export function TradesTable({ trades }: Props) {
       : <ArrowDown className="w-2.5 h-2.5 text-amber-500" />
   }
 
+  // ⚡ Bolt: Single-pass iteration to calculate filter counts instead of multiple .filter().length
+  const filterCounts = useMemo(() => {
+    let wins = 0, losses = 0, pending = 0, settled = 0
+    for (let i = 0; i < trades.length; i++) {
+      const t = trades[i]
+      if (t.result === 'win') wins++
+      if (t.result === 'loss') losses++
+      if (t.result === 'pending') pending++
+      if (t.settled && t.result !== 'expired') settled++
+    }
+    return { wins, losses, pending, settled }
+  }, [trades])
+
   if (trades.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-neutral-600">
@@ -85,10 +98,10 @@ export function TradesTable({ trades }: Props) {
 
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: trades.length },
-    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
-    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
-    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
-    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
+    { key: 'wins', label: 'Wins', count: filterCounts.wins },
+    { key: 'losses', label: 'Losses', count: filterCounts.losses },
+    { key: 'pending', label: 'Pending', count: filterCounts.pending },
+    { key: 'settled', label: 'Settled', count: filterCounts.settled },
   ]
 
   return (
