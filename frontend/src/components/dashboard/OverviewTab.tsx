@@ -160,12 +160,15 @@ export function OverviewTab({
   ]
   
   // Bolt: Calculate 24h trades and PnL (unmemoized so Date.now() window slides properly without needing a tick dependency)
-  const trades24h = filteredRecentTrades.filter((t: any) => {
-    const tradeTime = new Date(t.timestamp).getTime()
-    const now = Date.now()
-    return (now - tradeTime) < 24 * 60 * 60 * 1000
-  })
-  const pnl24h = trades24h.reduce((sum: number, t: any) => sum + (t.pnl ?? 0), 0)
+  const trades24h = []
+  let pnl24h = 0
+  const now = Date.now()
+  for (const t of filteredRecentTrades) {
+    if ((now - new Date(t.timestamp).getTime()) < 24 * 60 * 60 * 1000) {
+      trades24h.push(t)
+      pnl24h += (t.pnl ?? 0)
+    }
+  }
   
   const roi = filteredStats.returnPercent
   const activeTrades = selectedMode === 'all'
