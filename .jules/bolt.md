@@ -1,0 +1,3 @@
+## 2024-11-15 - [Chained Array Filtering in React Component]
+**Learning:** Found an anti-pattern in `TradesTable.tsx` where an array was being iterated over four separate times using `.filter().length` on every render to calculate derived state for UI tabs. While this works fine for small lists, it triggers unnecessary O(4N) recalculations on the main thread every time the component re-renders (which can happen frequently in a live dashboard context), potentially causing jank when the trade array grows large.
+**Action:** Always consolidate multiple or chained high-order array methods (like `.filter().length`) into a single-pass iterative `for` loop wrapped in a `useMemo` hook to reduce O(N) recalculation blocking times on the main UI thread.

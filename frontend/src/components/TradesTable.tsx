@@ -74,6 +74,24 @@ export function TradesTable({ trades }: Props) {
       : <ArrowDown className="w-2.5 h-2.5 text-amber-500" />
   }
 
+  // ⚡ Bolt: Consolidate trade counting into a single pass to reduce O(N) recalculations
+  const counts = useMemo(() => {
+    let wins = 0;
+    let losses = 0;
+    let pending = 0;
+    let settled = 0;
+
+    for (let i = 0; i < trades.length; i++) {
+      const t = trades[i];
+      if (t.result === 'win') wins++;
+      if (t.result === 'loss') losses++;
+      if (t.result === 'pending') pending++;
+      if (t.settled && t.result !== 'expired') settled++;
+    }
+
+    return { wins, losses, pending, settled };
+  }, [trades]);
+
   if (trades.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-neutral-600">
@@ -85,10 +103,10 @@ export function TradesTable({ trades }: Props) {
 
   const filterButtons: { key: FilterType; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: trades.length },
-    { key: 'wins', label: 'Wins', count: trades.filter(t => t.result === 'win').length },
-    { key: 'losses', label: 'Losses', count: trades.filter(t => t.result === 'loss').length },
-    { key: 'pending', label: 'Pending', count: trades.filter(t => t.result === 'pending').length },
-    { key: 'settled', label: 'Settled', count: trades.filter(t => t.settled && t.result !== 'expired').length },
+    { key: 'wins', label: 'Wins', count: counts.wins },
+    { key: 'losses', label: 'Losses', count: counts.losses },
+    { key: 'pending', label: 'Pending', count: counts.pending },
+    { key: 'settled', label: 'Settled', count: counts.settled },
   ]
 
   return (
