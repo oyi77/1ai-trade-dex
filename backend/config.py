@@ -249,9 +249,9 @@ class ConfigRegistry:
     RATE_LIMIT_BACKOFF_BASE: float = 2.0  # base multiplier for exponential backoff
     RATE_LIMIT_MAX_DELAY: float = 60.0  # maximum delay between retries
     # Circuit breaker thresholds (configurable per service)
-    CB_FAILURE_THRESHOLD: int = 5  # failures before opening circuit
-    CB_RECOVERY_TIMEOUT: float = 60.0  # seconds before attempting recovery
-    CB_HALF_OPEN_MAX: int = 1  # max concurrent probes in half-open state
+    CB_FAILURE_THRESHOLD: int = 20  # failures before opening circuit (increased from 5 to handle auto_sell burst)
+    CB_RECOVERY_TIMEOUT: float = 30.0  # seconds before attempting recovery (reduced from 60 for faster recovery)
+    CB_HALF_OPEN_MAX: int = 3  # max concurrent probes in half-open state (increased from 1)
 
     # --------------------------------------------------------------------------
     # STRATEGY_PARAMS - Strategy-specific thresholds and limits

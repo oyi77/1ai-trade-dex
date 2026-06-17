@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'polyedge-api',
-      script: 'venv/bin/python',
+      script: '.venv/bin/python',
       args: '-m uvicorn backend.api.main:app --host 0.0.0.0 --port 8100',
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
@@ -28,7 +28,7 @@ module.exports = {
     },
     {
       name: 'polyedge-orchestrator',
-      script: 'venv/bin/python',
+      script: '.venv/bin/python',
       args: '-m backend.core.orchestrator',
       cwd: '/home/openclaw/projects/1ai-poly-trader',
       env: {
