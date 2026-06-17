@@ -57,14 +57,28 @@ export function PerformanceTab() {
   // Filter equity curve by selected mode
   const filteredEquityCurve = useMemo(() => dashboardData?.equity_curve ?? [], [dashboardData])
 
-  // ⚡ Bolt: Memoized complex trade filtering for mode metrics
+  // ⚡ Bolt: Memoized complex trade filtering for mode metrics (Optimized to single O(N) loop)
   const chartData = useMemo(() => {
-    const paperTrades = filteredTrades.filter((t) => t.trading_mode === 'paper')
-    const liveTrades = filteredTrades.filter((t) => t.trading_mode === 'live')
-    const paperWins = paperTrades.filter((t) => t.result === 'win').length
-    const paperSettled = paperTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
-    const liveWins = liveTrades.filter((t) => t.result === 'win').length
-    const liveSettled = liveTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
+    let paperWins = 0, paperSettled = 0, liveWins = 0, liveSettled = 0
+
+    for (let i = 0; i < filteredTrades.length; i++) {
+      const t = filteredTrades[i]
+      if (t.trading_mode === 'paper') {
+        if (t.result === 'win') {
+          paperWins++
+          paperSettled++
+        } else if (t.result === 'loss') {
+          paperSettled++
+        }
+      } else if (t.trading_mode === 'live') {
+        if (t.result === 'win') {
+          liveWins++
+          liveSettled++
+        } else if (t.result === 'loss') {
+          liveSettled++
+        }
+      }
+    }
 
     return [
       { name: 'Paper', winRate: paperSettled > 0 ? (paperWins / paperSettled) * 100 : 0 },

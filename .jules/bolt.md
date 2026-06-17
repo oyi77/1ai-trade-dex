@@ -1,0 +1,3 @@
+## 2024-06-17 - [Array Filtering Overhead in Dashboards]
+**Learning:** Chaining multiple `.filter().length` array operations inside React `useMemo` blocks (as seen in `TradesTable` and `PerformanceTab`) causes significant main-thread CPU blocking on dashboards displaying thousands of real-time trades, because each `.filter` pass instantiates a new intermediate array before the next pass.
+**Action:** Always replace multiple parallel `.filter()` evaluations against the same array with a single iterative `for` loop accumulator or `.reduce()` inside the `useMemo` to achieve O(N) performance instead of O(k*N).
