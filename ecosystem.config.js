@@ -4,7 +4,7 @@ module.exports = {
       name: 'polyedge-api',
       script: '.venv/bin/python',
       args: '-m uvicorn backend.api.main:app --host 0.0.0.0 --port 8100',
-      cwd: '/home/openclaw/projects/1ai-poly-trader',
+      cwd: '/home/openclaw/projects/1ai-trade-dex',
       env: {
         ADMIN_API_KEY: '24c8bfd739504a528e1d24177c8e967a',
         LLM_DEFAULT_PROVIDER: 'groq',
@@ -30,7 +30,7 @@ module.exports = {
       name: 'polyedge-orchestrator',
       script: '.venv/bin/python',
       args: '-m backend.core.orchestrator',
-      cwd: '/home/openclaw/projects/1ai-poly-trader',
+      cwd: '/home/openclaw/projects/1ai-trade-dex',
       env: {
         TRADING_MODE: 'live',
         RISK_PROFILE: 'crazy',
@@ -43,9 +43,9 @@ module.exports = {
     },
     {
       name: 'polyedge-frontend',
-      script: '/home/openclaw/projects/1ai-poly-trader/frontend/node_modules/.bin/vite',
+      script: '/home/openclaw/projects/1ai-trade-dex/frontend/node_modules/.bin/vite',
       args: '--host',
-      cwd: '/home/openclaw/projects/1ai-poly-trader/frontend',
+      cwd: '/home/openclaw/projects/1ai-trade-dex/frontend',
       autorestart: true,
       max_restarts: 10,
       restart_delay: 3000,
