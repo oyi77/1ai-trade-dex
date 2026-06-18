@@ -83,54 +83,12 @@ from backend.models.database import (
     StrategyConfig,
     DecisionLog,
     TradeAttempt,
-    MarketWatch,
-    WalletConfig,
-    TradeContext,
-    JobQueue,
-    PendingApproval,
-    AILog,
     ActivityLog,
     MiroFishSignal,
     StrategyProposal,
-    PerformanceMetric,
-    AuditLog,
-    WhaleTransaction,
-    BtcPriceSnapshot,
-    ScanLog,
-    CopyTraderEntry,
-    SettlementEvent,
-    EquitySnapshot,
-    CalibrationRecord,
-    ResearchItemDB,
-    Alert,
-    AlertConfig,
-    Setting,
-    SystemSettings,
-    ErrorLog,
-    Experiment,
     ShadowTrade,
 )
-from backend.models.backtest import BacktestRun, BacktestTrade
-from backend.models.kg_models import LLMCostRecord
-import backend.models.genome_registry
-from backend.core.strategy_performance_registry import StrategyPerformanceSnapshot
-from backend.models.database import TransactionEvent
-from backend.models.outcome_tables import (
-    StrategyOutcome,
-    StrategyHealthRecord,
-    ParamChange,
-    TradingCalibrationRecord,
-)
-from backend.models.signal_log import SignalLog
-from backend.models.signal_log import SignalLog
-from backend.models.signal_log import SignalLog
-from backend.models.kg_models import ExperimentRecord, DecisionAuditLog
-from backend.models.historical_data import (
-    HistoricalCandle,
-    MarketOutcome,
-    WeatherSnapshot,
-)
-from backend.core.risk_profiles import RiskProfileRow
+from backend.models.kg_models import ExperimentRecord
 
 _db_mod.engine = test_engine
 _db_mod.SessionLocal = TestSessionLocal
@@ -317,19 +275,6 @@ def db():
 
 @pytest.fixture(autouse=True)
 def cleanup_proposals_between_tests(db):
-    from backend.models.database import (
-        BotState,
-        Trade,
-        Signal,
-        StrategyProposal,
-        StrategyConfig,
-        ActivityLog,
-        DecisionLog,
-        TradeAttempt,
-        MiroFishSignal,
-        ShadowTrade,
-    )
-    from backend.models.kg_models import ExperimentRecord
 
     db.query(Trade).delete()
     db.query(Signal).delete()
@@ -380,6 +325,5 @@ def cleanup_proposals_between_tests(db):
 @pytest.fixture(autouse=True)
 def reset_provider_registry():
     from backend.data.source_registry import DataSourceRegistry
-    from backend.markets.provider_registry import MarketProviderRegistry
 
     DataSourceRegistry.reset()

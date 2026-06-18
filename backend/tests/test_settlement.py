@@ -165,7 +165,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_2(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -177,7 +177,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_3(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -189,7 +189,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_4(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -201,7 +201,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_5(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -213,7 +213,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_6(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -225,7 +225,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_7(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -237,7 +237,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_8(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -249,7 +249,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_9(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -261,7 +261,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_10(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
@@ -273,7 +273,7 @@ class TestPnlLoss:
         # fee = 0.003 * min(0.55, 0.45) * (20 * 0.55) = 0.003 * 0.45 * 11 = 0.01485
         # cost = 11 + 0.01485 = 11.01485, loss = -11.01485
         assert pnl == pytest.approx(-11.01, abs=0.01)
-    def test_loss_magnitude(self):
+    def test_loss_magnitude_11(self):
         """Loss includes fee. size=20 shares at 0.55 entry = $11 notional. fee=0.003*min(0.55,0.45)*11=0.01485, cost=$11.01485. Loss = -cost."""
         trade = MagicMock(spec=Trade)
         trade.direction = "up"
