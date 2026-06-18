@@ -32,7 +32,7 @@ class BnbHackAlerter:
             logger.error("Alert send failed: {}", e)
 
     async def on_buy(self, price: float, amount: float, confidence: float, reason: str):
-        title = f"🟢 BUY Signal"
+        title = "🟢 BUY Signal"
         message = f"BNB Buy @ ${price:.2f}\nAmount: ${amount:.2f}\nConfidence: {confidence:.0%}\nReason: {reason}"
         details = {
             "action": "buy",
@@ -66,7 +66,7 @@ class BnbHackAlerter:
         await self.send_alert(title, message, "error", details)
 
     async def on_risk_limit_hit(self, limit_type: str, value: float):
-        title = f"🛑 Risk Limit Hit"
+        title = "🛑 Risk Limit Hit"
         message = f"BNB HACK Risk Alert\nLimit: {limit_type}\nValue: {value}"
         details = {
             "limit_type": limit_type,

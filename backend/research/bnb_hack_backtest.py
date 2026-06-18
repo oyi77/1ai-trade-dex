@@ -9,7 +9,11 @@ Usage:
     python -m backend.research.bnb_hack_backtest --strategy sma_trend    # Specific
 """
 
-import argparse, asyncio, json, math, sys
+import argparse
+import asyncio
+import json
+import math
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -292,15 +296,15 @@ async def main():
         print(f"    {len(params)}/{len(params)}")
 
         results.sort(key=lambda x: x.ret_pct, reverse=True)
-        print(f"\n  TOP 5:")
+        print("\n  TOP 5:")
         for i, r in enumerate(results[:5]): print_r(r, str(i+1))
-        print(f"\n  WORST 5:")
+        print("\n  WORST 5:")
         for i, r in enumerate(results[-5:]): print_r(r, str(len(results)-4+i))
 
         # Best Sharpe (min 3 trades)
         sh = sorted([r for r in results if r.n >= 3], key=lambda x: x.sharpe, reverse=True)
         if sh and sh[0].sharpe > 0:
-            print(f"\n  ★ BEST SHARPE:")
+            print("\n  ★ BEST SHARPE:")
             print_r(sh[0], f"★ S={sh[0].sharpe}")
 
         # Recent performance (last ~2 months)

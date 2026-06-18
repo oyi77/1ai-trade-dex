@@ -44,7 +44,7 @@ class BnbHackDecision:
 class BnbHackStrategy(BaseStrategy):
     """
     Autonomous Onchain Trading Agent for BSC spot trading.
-    
+
     Runs as a BaseStrategy in PolyEdge scheduler (daily + event-driven).
     Executes SMA crossover trades on BNB/USDT via TWAK.
     """

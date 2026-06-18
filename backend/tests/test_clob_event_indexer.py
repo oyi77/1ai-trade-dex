@@ -7,9 +7,10 @@ import pytest
 try:
     from hexbytes import HexBytes
 except ImportError:
-    HexBytes = lambda x: (
-        x if isinstance(x, bytes) else bytes.fromhex(x.replace("0x", ""))
-    )
+    def HexBytes(x):
+        return (
+            x if isinstance(x, bytes) else bytes.fromhex(x.replace("0x", ""))
+        )
 
 from backend.data.clob_event_indexer import CLOBEventIndexer, ORDER_FILLED_TOPIC
 from backend.data.goldsky_client import process_trade_event

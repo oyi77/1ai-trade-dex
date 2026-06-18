@@ -214,7 +214,7 @@ class BnbHackBot:
                     self.state.trades_today = 0
                     last_day = now.day
                     logger.info("Daily reset — total PnL: ${:+.2f}", self.state.total_pnl_usd)
-                
+
                 self.metrics.update_equity(self.state.total_pnl_usd)
                 start_dt = datetime.fromisoformat(
                     settings.bnb_hack.competition_start.replace("Z", "+00:00"))
