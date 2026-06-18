@@ -703,11 +703,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         from backend.strategies.loader import load_all_strategies
         from backend.core.scheduler import start_scheduler
-        
+
         # Load all strategy modules (triggers auto-registration via BaseStrategy.__init_subclass__)
         load_all_strategies()
         logger.info(f"[LIFESPAN] Strategies loaded in {_time.time() - _t_strat:.2f}s")
-        
+
         # Start APScheduler with all registered strategies
         start_scheduler()
         logger.info("[LIFESPAN] APScheduler started — strategies now running")

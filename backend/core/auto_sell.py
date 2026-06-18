@@ -158,7 +158,7 @@ class AutoSellManager:
             logger.debug("[auto_sell] Invalid entry_price={}", entry)
             return None
 
-        direction = (getattr(trade, "direction", "yes") or "yes").lower()
+        (getattr(trade, "direction", "yes") or "yes").lower()
         trade_id = getattr(trade, "id", 0)
         ticker = getattr(trade, "market_ticker", "") or ""
         token_id = getattr(trade, "token_id", None)

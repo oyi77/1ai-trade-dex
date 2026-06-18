@@ -360,18 +360,18 @@ async def bnb_hack_status() -> Dict[str, Any]:
     try:
         from backend.bot.bnb_hack import BnbHackBot
         bot = BnbHackBot.from_config(paper=False)
-        
+
         price = await bot.feed.get_price("BNBUSDT")
         bal = await bot.exchange.balance()
-        
+
         has_pos = bot.has_position()
         pnl_trade = 0.0
         if has_pos:
             pos = list(bot.state.positions.values())[0]
             pnl_trade = ((price - pos.entry_price) / pos.entry_price) * 100
-        
+
         await bot.close()
-        
+
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "running",
@@ -406,10 +406,10 @@ async def bnb_hack_signal() -> Dict[str, Any]:
     try:
         from backend.bot.bnb_hack import BnbHackBot
         bot = BnbHackBot.from_config(paper=False)
-        
+
         sig = await bot.signals.evaluate()
         await bot.close()
-        
+
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": sig["action"],
@@ -428,11 +428,11 @@ async def bnb_hack_trades(limit: int = 20) -> Dict[str, Any]:
     """Get recent trades from trade log."""
     import csv
     from pathlib import Path
-    
+
     try:
         log_path = Path("logs/bnb_hack_trades.csv")
         trades = []
-        
+
         if log_path.exists():
             with open(log_path, "r") as f:
                 reader = csv.DictReader(f)
@@ -447,7 +447,7 @@ async def bnb_hack_trades(limit: int = 20) -> Dict[str, Any]:
                         "pnl_usdc": float(row["pnl_usdc"]),
                         "reason": row["reason"],
                     })
-        
+
         return {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "trade_count": len(trades),

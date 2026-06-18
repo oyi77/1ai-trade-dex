@@ -157,7 +157,7 @@ class KalshiProvider(BaseMarketProvider):
                 # Fallback: convert from cents
                 balance_cents = raw.get("balance", raw.get("cash_balance", 0))
                 available = Decimal(str(balance_cents)) / Decimal("100")
-            
+
             locked = Decimal(str(raw.get("locked", raw.get("exposure", 0)))) / Decimal("100")
             return NormalizedBalance(
                 venue="kalshi",
