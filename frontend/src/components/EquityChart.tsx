@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   ComposedChart,
   Area,
@@ -50,6 +51,55 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function EquityChart({ data, initialBankroll }: Props) {
+
+
+  const {
+    chartData,
+    minPnl,
+    maxPnl,
+    minBankroll,
+    maxBankroll,
+    currentPnl,
+  } = React.useMemo(() => {
+    const chartData = [{ timestamp: 'Start', pnl: 0, bankroll: initialBankroll }]
+
+    let minPnl = 0
+    let maxPnl = 0
+    let minBankroll = initialBankroll
+    let maxBankroll = initialBankroll
+
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i]
+      const pnl = d.pnl ?? 0
+      const bankroll = d.bankroll ?? initialBankroll
+
+      minPnl = Math.min(minPnl, pnl)
+      maxPnl = Math.max(maxPnl, pnl)
+      minBankroll = Math.min(minBankroll, bankroll)
+      maxBankroll = Math.max(maxBankroll, bankroll)
+
+      chartData.push({
+        ...d,
+        timestamp: new Date(d.timestamp).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        }),
+      })
+    }
+
+    return {
+      chartData,
+      minPnl,
+      maxPnl,
+      minBankroll,
+      maxBankroll,
+      currentPnl: data[data.length - 1]?.pnl ?? 0
+    }
+  }, [data, initialBankroll])
+
   if (data.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-neutral-600">
@@ -59,34 +109,10 @@ export function EquityChart({ data, initialBankroll }: Props) {
     )
   }
 
-  const chartData = [
-    { timestamp: 'Start', pnl: 0, bankroll: initialBankroll },
-    ...data.map(d => ({
-      ...d,
-      timestamp: new Date(d.timestamp).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }),
-    })),
-  ]
-
-  const currentPnl = data[data.length - 1]?.pnl ?? 0
   const isPositive = currentPnl >= 0
-
-  const minPnl = Math.min(0, ...data.map(d => d.pnl ?? 0))
-  const maxPnl = Math.max(0, ...data.map(d => d.pnl ?? 0))
   const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
-
-  const allBankrolls = [initialBankroll, ...data.map(d => d.bankroll ?? initialBankroll)]
-  const minBankroll = Math.min(...allBankrolls)
-  const maxBankroll = Math.max(...allBankrolls)
   const bkPadding = (maxBankroll - minBankroll) * 0.15 || 2
-
   const brushStart = Math.max(0, chartData.length - 20)
-
   const gradientId = `equityGradient-${isPositive ? 'green' : 'red'}`
 
   return (
