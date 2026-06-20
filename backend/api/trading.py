@@ -613,14 +613,57 @@ async def get_journal(
         total = q.count()
         trades = q.offset((page - 1) * page_size).limit(page_size).all()
 
+        # Batch query for Signals
+        signal_ids = list({t.signal_id for t in trades if t.signal_id})
+        signals_map = {}
+        if signal_ids:
+            signals = db.query(Signal).filter(Signal.id.in_(signal_ids)).all()
+            signals_map = {s.id: s for s in signals}
+
+        # Batch query for TradeAttempts
+        trade_ids = [t.id for t in trades]
+        attempts_map = {}
+        if trade_ids:
+            attempts = (
+                db.query(TradeAttempt)
+                .filter(TradeAttempt.trade_id.in_(trade_ids))
+                .order_by(TradeAttempt.created_at.desc())
+                .all()
+            )
+            # Since we order by created_at.desc(), the first one we encounter for a trade is the most recent
+            for a in attempts:
+                if a.trade_id not in attempts_map:
+                    attempts_map[a.trade_id] = a
+
+        # Batch query for DecisionLogs
+        from sqlalchemy import or_
+
+        all_decisions = []
+        valid_trades = [t for t in trades if t.strategy and t.timestamp]
+        if valid_trades:
+            filters = []
+            for t in valid_trades:
+                filters.append(
+                    (DecisionLog.market_ticker == t.market_ticker)
+                    & (DecisionLog.strategy == t.strategy)
+                    & (DecisionLog.created_at >= t.timestamp - timedelta(minutes=5))
+                    & (DecisionLog.created_at <= t.timestamp + timedelta(minutes=5))
+                )
+
+            # SQLite has an expression limit, but for 50-200 trades it is easily handled.
+            all_decisions = (
+                db.query(DecisionLog)
+                .filter(or_(*filters))
+                .order_by(DecisionLog.created_at.desc())
+                .all()
+            )
+
         entries = []
         for trade in trades:
             entry = {"trade": _serialize_trade(trade)}
 
             # Signal
-            signal = None
-            if trade.signal_id:
-                signal = db.query(Signal).filter(Signal.id == trade.signal_id).first()
+            signal = signals_map.get(trade.signal_id) if trade.signal_id else None
             if signal:
                 sources = signal.sources
                 if isinstance(sources, str):
@@ -638,12 +681,7 @@ async def get_journal(
                 entry["signal"] = None
 
             # TradeAttempt
-            attempt = (
-                db.query(TradeAttempt)
-                .filter(TradeAttempt.trade_id == trade.id)
-                .order_by(TradeAttempt.created_at.desc())
-                .first()
-            )
+            attempt = attempts_map.get(trade.id)
             if attempt:
                 factors = attempt.factors_json
                 if isinstance(factors, str):
@@ -664,18 +702,16 @@ async def get_journal(
             decision = None
             if trade.strategy and trade.timestamp:
                 cutoff = trade.timestamp + timedelta(minutes=5)
-                decision = (
-                    db.query(DecisionLog)
-                    .filter(
-                        DecisionLog.market_ticker == trade.market_ticker,
-                        DecisionLog.strategy == trade.strategy,
-                        DecisionLog.created_at
-                        >= trade.timestamp - timedelta(minutes=5),
-                        DecisionLog.created_at <= cutoff,
-                    )
-                    .order_by(DecisionLog.created_at.desc())
-                    .first()
-                )
+                start_ts = trade.timestamp - timedelta(minutes=5)
+                for d in all_decisions:
+                    if (
+                        d.market_ticker == trade.market_ticker
+                        and d.strategy == trade.strategy
+                        and start_ts <= d.created_at <= cutoff
+                    ):
+                        decision = d
+                        break
+
             if decision:
                 sd = decision.signal_data
                 if isinstance(sd, str):
