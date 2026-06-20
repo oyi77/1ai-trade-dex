@@ -27,7 +27,7 @@ cryptography>=42.0.0
 numpy==2.4.6  # py3.14-compatible (1.26.x has no cp314 wheels)
 nest_asyncio==1.6.0  # required for sync balance fetch in async orchestrator
 pandas==3.0.3  # py3.14-compatible (2.2.x has no cp314 wheels)
-scipy==1.14.1  # was 1.12.0, updated minor for security
+scipy>=1.15.2  # updated to allow numpy 2.4.6 without conflict
 
 # Scheduling
 apscheduler==3.10.4
