@@ -168,7 +168,7 @@ def apply_paper_pnl_recalculation(
         import asyncio
 
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             asyncio.run(
                 reconcile_bot_state(

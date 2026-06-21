@@ -158,7 +158,7 @@ class AutoSellManager:
             logger.debug("[auto_sell] Invalid entry_price={}", entry)
             return None
 
-        direction = (getattr(trade, "direction", "yes") or "yes").lower()
+        (getattr(trade, "direction", "yes") or "yes").lower()
         trade_id = getattr(trade, "id", 0)
         ticker = getattr(trade, "market_ticker", "") or ""
         token_id = getattr(trade, "token_id", None)
@@ -438,7 +438,6 @@ async def check_strategy_positions_for_auto_sell(
     Convenience function for strategies (e.g. line_movement_detector) that
     want to integrate auto-sell into their own run_cycle.
     """
-    from backend.db.utils import get_db_session
     from backend.models.database import Trade
     from backend.core.position_monitor import _fetch_prices_bulk
 

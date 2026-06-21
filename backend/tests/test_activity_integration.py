@@ -1,8 +1,7 @@
 """Live integration tests for activity tracker — verifies provider connectivity and source interfaces."""
 
-import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class TestActivitySourceInterfaces:

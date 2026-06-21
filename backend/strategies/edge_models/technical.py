@@ -8,7 +8,6 @@ Converts composite into a model probability and edge vs. market price.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from loguru import logger

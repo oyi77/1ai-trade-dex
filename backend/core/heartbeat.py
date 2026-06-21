@@ -598,7 +598,6 @@ async def drift_alert_job() -> None:
     Writes warnings to .production_guardian_alerts.json if |drift| > $0.50.
     Logs CRITICAL if |drift| > $5.00.
     """
-    from backend.config import settings
     from backend.data.polymarket_clob import clob_from_settings
     from backend.db.utils import get_db_session
     from backend.models.database import BotState

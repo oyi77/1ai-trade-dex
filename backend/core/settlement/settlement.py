@@ -109,8 +109,8 @@ async def _settle_btc_5min_trade(trade: Trade, now: datetime) -> Trade | None:
     if now < window_end:
         return None
 
-    entry_price = float(trade.entry_price or 0)
-    size = float(trade.size or 0)
+    float(trade.entry_price or 0)
+    float(trade.size or 0)
     direction = (trade.direction or "up").lower()
 
     try:
@@ -994,6 +994,6 @@ async def reconcile_bot_state(db: Session) -> None:
         await _reconcile(db, apply=True, commit=True, source="settlement_reconcile")
         logger.debug("Bot state reconciliation complete")
 
-    except Exception as e:
+    except Exception:
         if db.in_transaction():
             db.rollback()

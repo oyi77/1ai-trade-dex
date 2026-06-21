@@ -105,7 +105,7 @@ def test_ledger_debit_uses_size_times_price_not_size(ledger_db):
 
 
 def test_ledger_credit_on_win_is_immediate(ledger_db):
-    """Settling a win credits (size + pnl) to bankroll — cost basis
+    """Settling a win credits (size + pnline) to bankroll — cost basis
     returned plus profit. Without immediate credit, the DB bankroll is
     wrong between settlement and the next reconciliation cycle.
     """
@@ -133,7 +133,7 @@ def test_ledger_credit_on_win_is_immediate(ledger_db):
     ledger_db.commit()
     ledger_db.refresh(state)
     assert state.paper_bankroll == pytest.approx(initial + 18.0), (
-        f"Expected $18 win credit (size+p&l), got ${state.paper_bankroll - initial:.2f}"
+        f"Expected $18 win credit (size+p&line), got ${state.paper_bankroll - initial:.2f}"
     )
     assert state.paper_wins == 1, f"Expected paper_wins=1, got {state.paper_wins}"
 
@@ -164,7 +164,7 @@ def test_ledger_credit_on_loss_does_not_return_cost_basis(ledger_db):
     ledger_db.commit()
     ledger_db.refresh(state)
     assert state.paper_bankroll == pytest.approx(initial, abs=0.01), (
-        f"Expected $0 net change on loss (cost already debited at fill), "
+        f"Expected $0 net change on loss (cost already debited at filline), "
         f"got ${state.paper_bankroll - initial:.2f}"
     )
 
@@ -257,7 +257,7 @@ def test_no_direct_state_bankroll_assignment_outside_ledger():
 
     bad_assignments: list[tuple[str, int, str]] = []
     pat = re.compile(
-        r"(state|bot)\.(bankroll|paper_bankroll|testnet_bankroll|total_pnl|paper_pnl|testnet_pnl|total_deposits|total_withdrawals|wallet_pnl)\s*([+\-*/]?=)"
+        r"(state|bot)\.(bankroll|paper_bankroll|testnet_bankroll|total_pnl|paper_pnl|testnet_pnl|total_deposits|total_withdrawals|wallet_pnline)\s*([+\-*/]?=)"
     )
 
     for mod_name in SITES_TO_CHECK:
@@ -282,15 +282,15 @@ def test_no_direct_state_bankroll_assignment_outside_ledger():
     # (assignments from variables or expressions) fail this test.
     zero_reset = re.compile(r"\.\w+\s*=\s*(0|0\.0|None)\s*$")
     filtered: list[tuple[str, int, str]] = []
-    for (m, ln, l) in bad_assignments:
+    for (m, ln, line) in bad_assignments:
         if "settlement.py" in m:
             continue
-        if zero_reset.search(l):
+        if zero_reset.search(line):
             continue
-        filtered.append((m, ln, l))
+        filtered.append((m, ln, line))
     assert not filtered, (
         "Direct assignments to financial fields still exist outside the ledger:\n"
-        + "\n".join(f"  {m}:{ln}: {l}" for (m, ln, l) in filtered)
+        + "\n".join(f"  {m}:{ln}: {line}" for (m, ln, line) in filtered)
     )
 
 

@@ -315,7 +315,6 @@ class TestDBSessionShadowRunner:
     def test_promotion_eligibility_accuracy_above_threshold(self):
         """Test promotion eligibility with accuracy above 60% and sufficient time."""
         from backend.application.strategy.shadow_runner import DBSessionShadowRunner
-        from datetime import datetime, timedelta, timezone
 
         runner = DBSessionShadowRunner()
 

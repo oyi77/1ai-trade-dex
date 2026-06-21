@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 
 from backend.core.edge.calibration_tracker import (
     CalibrationTracker,
     CalibrationBucket,
     _bucket_key,
-    BUCKET_SIZE,
-    MIN_SAMPLES_FOR_ADJUSTMENT,
     MAX_ADJUSTMENT_PP,
 )
 

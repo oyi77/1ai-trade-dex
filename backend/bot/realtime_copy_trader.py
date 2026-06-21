@@ -18,16 +18,14 @@ Data sources:
 """
 
 import asyncio
-import json
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Set, Any
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 from backend.config import settings
 from backend.data.polymarket_websocket import (
     PolymarketWebSocket,
     WebSocketConfig,
     ChannelType,
-    EventType,
     TradeEvent,
 )
 from backend.data.shared_client import get_shared_client

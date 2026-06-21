@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from loguru import logger
 
 from backend.db.utils import get_db_session
-from backend.models.database import BotState, Trade
 from backend.api.system import get_stats
 from backend.core.paper_pnl_audit import audit_paper_pnl
 

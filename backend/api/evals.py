@@ -1,7 +1,6 @@
 """Eval reports API — serves AGI evaluation reports from backend/evals/reports/."""
 
 import json
-import os
 from pathlib import Path
 from datetime import datetime
 
