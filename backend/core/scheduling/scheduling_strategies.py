@@ -428,7 +428,7 @@ async def scan_and_trade_job(mode: str):
                     continue
                 from backend.models.database import BotState
 
-                state = db.query(BotState).first()
+                state = db.query(BotState).filter_by(mode=mode).first()
                 bankroll = _get_bankroll_for_mode(state, mode) if state else 100.0
                 strategy = strategy_cls()
                 try:

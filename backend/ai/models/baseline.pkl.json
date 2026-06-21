@@ -1,5 +1,5 @@
 {
-  "model_path": "/home/openclaw/projects/1ai-poly-trader/backend/ai/models/baseline.pkl",
+  "model_path": "/home/openclaw/projects/1ai-trade-dex/backend/ai/models/baseline.pkl",
   "n_examples": 800,
   "feature_order": [
     "edge",

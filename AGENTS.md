@@ -1,7 +1,7 @@
 <!-- Parent: ../AGENTS.md -->
 <!-- Generated: 2026-05-17 | Updated: 2026-05-17 -->
 
-# 1ai-poly-trader
+# 1ai-trade-dex
 
 ## Purpose
 An AI-powered multi-platform trading system supporting prediction markets and decentralized perpetual exchanges (including Polymarket, Kalshi, SX.bet, Limitless, Azuro [Bookmaker.xyz, Predict.fun], Myriad, Hyperliquid, Ostium, Aster, and Lighter). Features 14 distinct trading strategies and an adaptive AGI orchestrator that continuously evolves and optimizes trading approaches based on market conditions and historical performance data.

@@ -4,7 +4,7 @@ Creates mock StrategyContext, calls run_cycle(), verifies it returns CycleResult
 No real API calls -- strategies operate on mock data only.
 
 Usage:
-    cd /home/openclaw/projects/1ai-poly-trader
+    cd /home/openclaw/projects/1ai-trade-dex
     python -m backend.tests.smoke_test_all_strategies
 """
 

@@ -262,7 +262,7 @@ class RiskManager:
                         max_down = max(0.0, pre_adj - market_price - 0.005)
                         adjustment = max(adjustment, -max_down)
                         signal_win_rate = max(
-                            0.01, min(0.99, pre_adj + adjustment)
+                            0.01, min(0.995, pre_adj + adjustment)
                         )
                         logger.info(
                             "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
@@ -766,7 +766,7 @@ class RiskManager:
             elif (
                 original_available_cash <= getattr(self.s, "MAX_TRADE_SIZE", float("inf"))
                 and original_available_cash > 0
-                and min_order_usdc <= original_available_cash * 0.5
+                and min_order_usdc <= original_available_cash * 0.95
             ):
                 adjusted = min_order_usdc
                 logger.info(
@@ -790,6 +790,39 @@ class RiskManager:
                     f"size ${adjusted:.2f} below minimum order ${min_order_usdc:.2f}",
                     0.0,
                 )
+
+        # ── Per-strategy drawdown enforcement ──
+        if db is not None and strategy_name and strategy_name != "unknown":
+            try:
+                from backend.models.database import Trade
+                from sqlalchemy import func
+
+                max_dd_pct = getattr(self.s, "MAX_STRATEGY_DRAWDOWN_PCT", 0.30)
+                # Skip if set to 100% (disabled)
+                if max_dd_pct < 1.0:
+                    strategy_pnl = (
+                        db.query(func.coalesce(func.sum(Trade.pnl), 0.0))
+                        .filter(
+                            Trade.strategy == strategy_name,
+                            Trade.trading_mode == effective_mode,
+                            Trade.settled.is_(True),
+                        )
+                        .scalar()
+                    )
+                    if bankroll > 0:
+                        dd_pct = abs(min(0.0, float(strategy_pnl))) / bankroll
+                        if dd_pct > max_dd_pct:
+                            logger.warning(
+                                "[risk_manager] Per-strategy DD BLOCKED: {} dd={:.1%} > max={:.1%}",
+                                strategy_name, dd_pct, max_dd_pct,
+                            )
+                            return RiskDecision(
+                                False,
+                                f"strategy drawdown {dd_pct:.1%} > max {max_dd_pct:.0%}",
+                                0.0,
+                            )
+            except Exception as e:
+                logger.debug(f"[risk_manager] Per-strategy DD check failed (non-fatal): {e}")
 
         return RiskDecision(True, "ok", adjusted)
     def _get_or_update_calibration_and_bias(self, db) -> tuple[dict, Optional[dict]]:

@@ -96,7 +96,7 @@ a178932 doc: Document critical position consolidation bug discovered in producti
 **PR #121: "[CRITICAL] Position Consolidation Bug [EXEC-1] - Fix + Complete Documentation"**
 
 - Status: ✅ Created and open
-- URL: https://github.com/oyi77/1ai-poly-trader/pull/121
+- URL: https://github.com/oyi77/1ai-trade-dex/pull/121
 - Description: Comprehensive explanation of bug, fix, and documentation
 - Commits: 6 code/doc commits
 - Files changed: 8 files, ~1,100 lines

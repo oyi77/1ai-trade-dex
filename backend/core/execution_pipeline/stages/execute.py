@@ -65,13 +65,23 @@ class LiveExecuteStage(BaseExecutionStage):
 
         order_type = "sell" if direction.upper() in ("NO", "SELL") else "buy"
 
+        # ── Slippage protection: reject if price moved too far ──
+        max_slippage = float(ctx.get("max_slippage", 0.03))  # default 3%
         try:
-            result = client.place_order(
-                token_id=token_id,
-                order_type=order_type,
-                price=entry_price,
-                size=size,
-            )
+            current_mid = client.get_midpoint(token_id) if hasattr(client, "get_midpoint") else None
+            if current_mid is not None and entry_price > 0:
+                slippage = abs(float(current_mid) - entry_price) / entry_price
+                if slippage > max_slippage:
+                    logger.warning(
+                        "[execute] SLIPPAGE REJECTED: ticker={} entry={:.4f} mid={:.4f} slip={:.2%} > max={:.2%}",
+                        decision.get("market_ticker", "?"), entry_price, float(current_mid),
+                        slippage, max_slippage,
+                    )
+                    return {"status": "rejected", "reason": f"slippage {slippage:.2%} > {max_slippage:.2%}"}
+        except Exception:
+            pass  # midpoint fetch is best-effort
+
+        try:
 
             actual_filled = float(result.get("filled_size", 0) or 0)
             if actual_filled <= 0 and result.get("order_id"):

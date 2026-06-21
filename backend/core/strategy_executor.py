@@ -1176,7 +1176,7 @@ def _pre_trade_safety_checks(
     max_trade_pct = float(_cfg("PER_TRADE_MAX_LOSS_PCT", 0.05))
     clob_min_order = float(_cfg("MIN_ORDER_USDC", 5.0))
     pct_limit = bankroll * max_trade_pct
-    effective_limit = max(pct_limit, clob_min_order) if bankroll > 0 else pct_limit
+    effective_limit = max(pct_limit, clob_min_order, bankroll * 0.95) if bankroll > 0 else pct_limit
     if bankroll > 0 and size > effective_limit:
         return (
             f"per-trade size ${size:.2f} > limit ${effective_limit:.2f} "
@@ -1501,13 +1501,14 @@ def _preflight_checks(
         )
         bankroll = 0.0
 
-    # 5b. Live mode minimum balance check (CLOB requires $5 minimum)
-    if mode == "live" and bankroll < 5.0 and order_side == "BUY" and not force_unwind:
+    # 5b. Live mode minimum balance check
+    clob_min = float(_cfg("MIN_ORDER_USDC", 1.0))
+    if mode == "live" and bankroll < clob_min and order_side == "BUY" and not force_unwind:
         logger.warning(
-            f"[{strategy_name}] Live trade rejected: bankroll ${bankroll:.2f} below CLOB $5 minimum"
+            f"[{strategy_name}] Live trade rejected: bankroll ${bankroll:.2f} below ${clob_min:.2f} minimum"
         )
         attempt_recorder.record_blocked(
-            f"Bankroll ${bankroll:.2f} below CLOB $5 minimum",
+            f"Bankroll ${bankroll:.2f} below ${clob_min:.2f} minimum",
             phase="preflight",
             reason_code="BLOCKED_INSUFFICIENT_BALANCE",
         )
@@ -1597,12 +1598,12 @@ def _preflight_checks(
     if entry_price > 0 and entry_price < 1.0:
         # Minimum USDC so that CLOB-rounded shares * price >= $1
         min_shares = math.ceil(1.0 / entry_price)
-        clob_min_usdc = min_shares * entry_price * 1.05  # 5% buffer for tick rounding
+        clob_min_usdc = min_shares * entry_price * 1.02  # 2% buffer for tick rounding
         min_size = max(min_size, clob_min_usdc)
     if adjusted_size < min_size:
         # If close enough (within 50% of bankroll), bump up to minimum
         # instead of rejecting — CLOB requires value >= $1 after share rounding.
-        if bankroll > 0 and min_size <= bankroll * 0.5:
+        if bankroll > 0 and min_size <= bankroll * 0.95:
             logger.info(
                 f"[{mode.upper()}][{strategy_name}] Bumping {market_ticker} "
                 f"size ${adjusted_size:.2f} → ${min_size:.2f} to meet CLOB min"

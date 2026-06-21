@@ -3,7 +3,7 @@
 > **BNB HACK: AI Trading Agent Edition** | CoinMarketCap × Trust Wallet × BNB Chain
 > **Entering**: 🤖 Onchain Trading Agent Track + 📊 Crypto Intelligence Agent Track
 > **Special Prizes**: Best Use of Agent Hub, Best Use of Trust Wallet Agent Kit, Best Use of BNB AI Agent SDK
-> **GitHub**: https://github.com/openclaw/1ai-poly-trader (private) | Demo: http://localhost:8100/docs
+> **GitHub**: https://github.com/openclaw/1ai-trade-dex (private) | Demo: http://localhost:8100/docs
 
 ---
 

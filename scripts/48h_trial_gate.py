@@ -3,7 +3,7 @@
 
 import sys
 
-sys.path.insert(0, "/home/openclaw/projects/1ai-poly-trader")
+sys.path.insert(0, "/home/openclaw/projects/1ai-trade-dex")
 
 from backend.models.database import SessionLocal
 from sqlalchemy import text

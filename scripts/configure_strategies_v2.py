@@ -17,7 +17,7 @@ AUTO-STOP BOT: System is hemorrhaging money
 """
 
 import sys
-sys.path.insert(0, '/home/openclaw/projects/1ai-poly-trader')
+sys.path.insert(0, '/home/openclaw/projects/1ai-trade-dex')
 
 from backend.config import settings
 from backend.models.database import StrategyConfig, SessionLocal

@@ -4,6 +4,9 @@ This module provides the ExecutionPipelineRegistry singleton that manages
 execution pipeline stages following the PluginRegistry pattern.
 """
 
+import asyncio
+import hashlib
+import time
 from typing import List, Optional
 
 from loguru import logger
@@ -15,6 +18,8 @@ from backend.core.plugin_registry import PluginRegistry
 
 from .base import BaseExecutionStage, ExecutionStageManifest
 
+# Global execution lock — prevents concurrent pipeline runs across strategies
+_pipeline_lock = asyncio.Lock()
 
 class ExecutionPipelineRegistry(
     PluginRegistry[ExecutionStageManifest, BaseExecutionStage]
@@ -57,6 +62,18 @@ class ExecutionPipelineRegistry(
             raise PluginNotFound(f"Execution stage '{name}' is unhealthy")
         return self._plugins[name]
 
+    def _generate_idempotency_key(self, decision: dict, context: dict) -> str:
+        """Generate a deterministic key for this trade to prevent duplicates."""
+        parts = [
+            str(decision.get("token_id", "")),
+            str(decision.get("market_ticker", "")),
+            str(decision.get("direction", "")),
+            str(decision.get("size", "")),
+            str(context.get("strategy_name", "")),
+            str(context.get("mode", "")),
+        ]
+        return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
     def run_pipeline(self, decision: dict, context: dict) -> dict:
         """Run all registered stages in order.
 
@@ -67,13 +84,19 @@ class ExecutionPipelineRegistry(
         Returns:
             Combined results dict from all stages
         """
-        results = {}
+        idempotency_key = self._generate_idempotency_key(decision, context)
+        context["_idempotency_key"] = idempotency_key
+        context["_pipeline_start_time"] = time.monotonic()
+
+        results = {"idempotency_key": idempotency_key}
         stages = self._get_stages_by_order()
         for stage in stages:
             if stage.validate(decision, context):
                 result = stage.execute(decision, context)
                 stage.record(decision, result, context)
                 results.update(result)
+                if result.get("status") in ("error", "rejected"):
+                    break
             else:
                 results["validation_failed"] = True
                 break

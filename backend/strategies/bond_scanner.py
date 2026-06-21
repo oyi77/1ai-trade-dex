@@ -238,7 +238,7 @@ class BondScannerStrategy(BaseStrategy):
             try:
                 from backend.models.database import BotState, for_update
 
-                state = for_update(ctx.db, ctx.db.query(BotState)).first()
+                state = for_update(ctx.db, ctx.db.query(BotState).filter_by(mode=ctx.mode)).first()
                 if state:
                     if ctx.mode == "paper":
                         bankroll = float(
@@ -259,7 +259,8 @@ class BondScannerStrategy(BaseStrategy):
                             else ctx.settings.INITIAL_BANKROLL
                         )
             except Exception as e:
-                logger.debug(f"Failed to query open trades: {e}")
+                logger.warning(f"[bond_scanner] BotState query failed for mode={ctx.mode}: {e}")
+            logger.info(f"[bond_scanner] Using bankroll=${bankroll:.2f} for mode={ctx.mode}")
 
             # Conservative edge model:
             # Assume the market is efficient at pricing probabilities above 0.90.
@@ -273,7 +274,7 @@ class BondScannerStrategy(BaseStrategy):
             # Require: win_prob * (1-P) - (1-win_prob) * P > 0
             # i.e. win_prob > P  (we need to believe the TRUE prob exceeds market)
             #
-            # Conservative boost: 1% for markets at 0.92, tapering to 0.5% at 0.98
+            # Conservative boost: 3% for markets at 0.92, tapering to 1.5% at 0.98
             taper = max(0.0, (qualifying_price - 0.92) / 0.06)  # 0 at 0.92, 1 at 0.98
             proximity_boost = 0.03 * (1.0 - 0.5 * taper)  # 3% at 0.92, 1.5% at 0.98
             win_prob = min(qualifying_price + proximity_boost, 0.995)  # cap at 99.5% for near-certain
@@ -284,7 +285,8 @@ class BondScannerStrategy(BaseStrategy):
             )
             edge = round(raw_edge - 0.001, 4)  # deduct maker fee (0% maker + 0.1% slippage)
             # Reject if estimated edge is below min_edge from config
-            if edge < 0.005:
+            min_edge_threshold = float(params.get("min_edge", getattr(settings, "BOND_SCANNER_MIN_EDGE", 0.02)))
+            if edge < min_edge_threshold:
                 continue
             confidence = win_prob
             # Size proportional to edge — don't max-bet on tiny edges
@@ -312,10 +314,12 @@ class BondScannerStrategy(BaseStrategy):
             ):
                 clob_token_id = str(clob_token_ids[qualifying_index])
 
-            # given phantom-position risk, when bidding at mid, then apply 2% premium
-            MARKETABLE_PREMIUM_PCT = float(
-                params.get("marketable_premium_pct", 0.02)
-            )
+            # Scale premium by price: high-prob markets (>0.95) need minimal premium
+            # because edge is already thin. Low-prob markets need more to get filled.
+            if qualifying_price >= 0.95:
+                MARKETABLE_PREMIUM_PCT = 0.005  # 0.5% — minimal for near-certain
+            else:
+                MARKETABLE_PREMIUM_PCT = float(params.get("marketable_premium_pct", 0.02))
             trade_entry_price = min(
                 0.99,
                 round(trade_entry_price * (1.0 + MARKETABLE_PREMIUM_PCT), 4),
@@ -326,9 +330,10 @@ class BondScannerStrategy(BaseStrategy):
             loss_if_lose = trade_entry_price
             raw_edge = true_win_prob * profit_if_win - (1.0 - true_win_prob) * loss_if_lose
             edge = round(raw_edge, 4)
-            if edge < 0.0001:
+            if edge < min_edge_threshold:
                 continue
 
+            logger.info(f"[bond_scanner] Sizing: bankroll=${bankroll:.2f} max_pos=${max_position_size} kelly={kelly:.4f} kf={kelly_fraction} size=${size:.2f}")
             decision = {
                 "market_ticker": slug,
                 "token_id": clob_token_id,
@@ -342,7 +347,9 @@ class BondScannerStrategy(BaseStrategy):
                 "suggested_size": size,
                 "edge": edge,
                 "confidence": confidence,
-                "model_probability": min(qualifying_price * 1.08, 0.99),
+                # model_probability must exceed entry_price by the true edge,
+                # because risk_manager computes edge = abs(model_probability - entry_price)
+                "model_probability": min(trade_entry_price + edge, 0.995),
                 "market_probability": qualifying_price,
                 "platform": settings.DEFAULT_VENUE,
                 "strategy_name": self.name,

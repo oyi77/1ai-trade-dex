@@ -353,8 +353,12 @@ def mutate_genome(
         base_rate = 0.10
 
     # Adaptive mutation pressure
-    if fitness_score < 0.30:
-        effective_rate = min(base_rate * 2.0, 0.50)  # More exploration
+    # CRITICAL FIX: Losing strategies should be QUARANTINED, not given more
+    # mutation. Doubling mutation on losers amplifies bad traits.
+    if fitness_score < 0.20:
+        effective_rate = 0.0  # Quarantine: do not mutate catastrophically bad genomes
+    elif fitness_score < 0.40:
+        effective_rate = max(base_rate * 0.5, 0.01)  # Reduce exploration for weak performers
     elif fitness_score > 0.80:
         effective_rate = max(base_rate * 0.5, 0.01)  # Exploit the edge
     else:

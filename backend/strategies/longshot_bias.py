@@ -216,51 +216,9 @@ class LongshotBiasStrategy(BaseStrategy):
                     }
                     decisions.append(decision)
 
-                    if ctx.mode != "paper":
-                        ctx.logger.info(
-                            f"[longshot_bias] LIVE path: ctx.mode={ctx.mode} slug={slug}"
-                        )
-
-                        provider = ctx.get_market_provider("polymarket")
-                        if provider and hasattr(provider, "place_order"):
-                            from backend.markets.order_types import (
-                                NormalizedOrder,
-                                OrderSide,
-                                OrderType,
-                            )
-
-                            norm_order = NormalizedOrder(
-                                market_id=slug,
-                                side=OrderSide.BUY,
-                                order_type=OrderType.LIMIT,
-                                size=Decimal(str(round(position_size, 2))),
-                                price=Decimal(str(round(no_price, 3))),
-                                metadata={"token_id": no_token_id},
-                            )
-                            result = await provider.place_order(norm_order)
-                            if result:
-                                reason = (result.raw or {}).get("error", "")
-                                ctx.logger.info(
-                                    f"[longshot_bias] LIVE order: {result.status} reason={reason}"
-                                )
-                                if result.status.name == "FILLED":
-                                    trades_placed += 1
-                            else:
-                                ctx.logger.warning(
-                                    f"[longshot_bias] LIVE order None for {slug}"
-                                )
-                    else:
-                        trades_placed += 1
-
-                    ctx.logger.info(
-                        "[longshot_bias] {} NO @ {:.2f}c | edge: {:.1%} | EV: {:.1%} | Kelly: {:.1%} | ${:.2f}",
-                        slug,
-                        no_price * 100,
-                        edge,
-                        ev,
-                        kelly,
-                        position_size,
-                    )
+                    # NOTE: Execution is handled by the execution pipeline.
+                    # Do NOT call provider.place_order() directly — that bypasses
+                    # risk validation, duplicate detection, and slippage checks.
 
                 except Exception as exc:
                     errors.append(str(exc))
@@ -275,7 +233,7 @@ class LongshotBiasStrategy(BaseStrategy):
         return CycleResult(
             decisions_recorded=decisions_recorded,
             trades_attempted=trades_attempted,
-            trades_placed=trades_placed,
+            trades_placed=0,
             errors=errors,
             decisions=decisions,
         )

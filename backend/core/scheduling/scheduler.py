@@ -618,10 +618,9 @@ def _evaluate_and_disable(
     consecutive_losses = 0
     for t in recent_losses:
         consecutive_losses += 1
-        if consecutive_losses >= 10:
+        if consecutive_losses >= 20:
             break
-
-    if win_rate < 0.30 or pnl < -50.0 or consecutive_losses >= 10:
+    if win_rate < 0.30 or pnl < -200.0 or consecutive_losses >= 20:
         from backend.core.strategy_health import disable_for_rehab
 
         reason_parts = []

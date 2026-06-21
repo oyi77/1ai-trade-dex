@@ -74,9 +74,13 @@ class AutonomousPromoter:
         return self._s.AGI_PROMOTER_PAPER_MAX_DRAWDOWN
 
     def _check_paper_criteria_from_health(
-        self, exp: ExperimentRecord, health: dict
+        self, exp: ExperimentRecord, health: dict, db=None
     ) -> tuple[bool, list[str]]:
-        """Evaluate paper→live promotion using current health metrics."""
+        """Evaluate paper→live promotion using current health metrics.
+
+        Includes walk-forward validation: checks last 20 trades separately
+        to ensure the edge hasn't decayed (strategy not coasting on old wins).
+        """
         reasons = []
         trades = health.get("total_trades", 0)
         win_rate = health.get("win_rate", 0.0)
@@ -99,6 +103,35 @@ class AutonomousPromoter:
         age_days = (datetime.now(timezone.utc) - ref_time).days
         if age_days < self.MIN_DAYS_PAPER:
             reasons.append(f"paper age {age_days}d < {self.MIN_DAYS_PAPER}d")
+
+        # Walk-forward validation: check last 20 trades separately
+        if db is not None and trades >= 10:
+            try:
+                strategy_name = exp.strategy_name or exp.name
+                from sqlalchemy import text as _sql_text
+                recent = db.execute(
+                    _sql_text(
+                        "SELECT result FROM trades "
+                        "WHERE strategy = :strat AND trading_mode = 'paper' "
+                        "AND settled = 1 "
+                        "ORDER BY id DESC LIMIT 20"
+                    ),
+                    {"strat": strategy_name},
+                ).fetchall()
+
+                if len(recent) >= 10:
+                    recent_wins = sum(
+                        1 for r in recent
+                        if (r[0] or "").lower() in ("win", "won", "1", "true")
+                    )
+                    recent_wr = recent_wins / len(recent)
+                    if recent_wr < self.MIN_WIN_RATE_PAPER:
+                        reasons.append(
+                            f"walk-forward: recent WR {recent_wr:.1%} < "
+                            f"{self.MIN_WIN_RATE_PAPER:.1%} (last {len(recent)} trades)"
+                        )
+            except Exception as exc:
+                logger.debug(f"[AutonomousPromoter] Walk-forward check failed: {exc}")
 
         return (len(reasons) == 0, reasons)
 
@@ -311,6 +344,10 @@ class AutonomousPromoter:
                 if health.get("status") == "killed":
                     exp.status = ExperimentStatus.PAPER.value
                     exp.promoted_at = None
+                    # Add cooldown: cannot be re-promoted for 48 hours after demotion
+                    from datetime import timedelta
+                    exp.last_demoted_at = datetime.now(timezone.utc) + timedelta(hours=48)
+
                     # misc_data is now a JSON dict with promotion_reviews; track retry count separately
                     _md = exp.misc_data if isinstance(exp.misc_data, dict) else {}
                     retry_count = _md.get("kill_retry_count", 0)
@@ -329,14 +366,27 @@ class AutonomousPromoter:
                     else:
                         db.add(exp)
                         logger.warning(
-                            f"[AutonomousPromoter] DEMOTED LIVE→PAPER '{exp.name}' (retry {retry_count}/{max_retries}): "
+                            f"[AutonomousPromoter] DEMOTED (kill) '{exp.name}' → PAPER, "
+                            f"retry {retry_count}/{max_retries}, cooldown 48h: "
                             f"wr={health.get('win_rate', 0):.1%}, sharpe={health.get('sharpe', 0):.2f}"
                         )
-                        stats["demoted"] = stats.get("demoted", 0) + 1
+                        stats["demoted_live_to_paper"] = stats.get("demoted_live_to_paper", 0) + 1
                     db.add(exp)
                     continue
 
-                meets, reasons = self._check_paper_criteria_from_health(exp, health)
+                # Cooldown check: skip if recently demoted (within 48h)
+                if getattr(exp, "last_demoted_at", None):
+                    cooldown_end = exp.last_demoted_at
+                    if cooldown_end.tzinfo is None:
+                        cooldown_end = cooldown_end.replace(tzinfo=timezone.utc)
+                    if datetime.now(timezone.utc) < cooldown_end:
+                        logger.info(
+                            f"[AutonomousPromoter] PAPER→LIVE SKIPPED '{exp.name}': "
+                            f"cooldown active until {cooldown_end.isoformat()}"
+                        )
+                        continue
+
+                meets, reasons = self._check_paper_criteria_from_health(exp, health, db=db)
                 if meets:
                     if not settings.AGI_AUTO_PROMOTE:
                         logger.info(
@@ -344,10 +394,6 @@ class AutonomousPromoter:
                             f"AGI_AUTO_PROMOTE=false (manual intervention required)"
                         )
                         continue
-
-                    exp.status = ExperimentStatus.LIVE_TRIAL.value
-                    exp.promoted_at = datetime.now(timezone.utc)
-                    db.add(exp)
                     try:
                         publish_event(
                             "experiment_promoted",

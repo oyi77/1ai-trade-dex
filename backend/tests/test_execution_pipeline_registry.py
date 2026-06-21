@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import sys
 
-sys.path.insert(0, "/Users/paijo/1ai-poly-trader")
+sys.path.insert(0, "/home/openclaw/projects/1ai-trade-dex")
 
 from backend.core.execution_pipeline.base import (
     BaseExecutionStage,

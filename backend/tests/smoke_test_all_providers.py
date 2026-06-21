@@ -8,7 +8,7 @@ Uses file-path imports to bypass providers/__init__.py auto-discovery
 which would import ALL providers at once and could hang.
 
 Usage:
-    cd /home/openclaw/projects/1ai-poly-trader
+    cd /home/openclaw/projects/1ai-trade-dex
     python -m backend.tests.smoke_test_all_providers
 """
 

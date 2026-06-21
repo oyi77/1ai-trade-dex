@@ -17,10 +17,10 @@ module.exports = {
         LIGHTER_ACCOUNT_INDEX: '0',
         LIGHTER_API_KEY_INDEX: '2',
         WALLET_FERNET_KEY: 'M7nIPAS8uCl34sjHjvfnpQAKi43Fkc56YW3cppgpnTs=',
-        MAX_POSITION_FRACTION: '0.30',
-        MAX_STRATEGY_DRAWDOWN_PCT: '0.50',
-        MAX_CORRELATED_EXPOSURE_PCT: '2.00',
-        RISK_PROFILE: 'crazy',
+        MAX_POSITION_FRACTION: '0.05',
+        MAX_STRATEGY_DRAWDOWN_PCT: '0.20',
+        MAX_CORRELATED_EXPOSURE_PCT: '0.50',
+        RISK_PROFILE: 'conservative',
       },
       autorestart: true,
       max_restarts: 10,
@@ -33,7 +33,7 @@ module.exports = {
       cwd: '/home/openclaw/projects/1ai-trade-dex',
       env: {
         TRADING_MODE: 'live',
-        RISK_PROFILE: 'crazy',
+        RISK_PROFILE: 'conservative',
         WEATHER_ENABLED: 'false',
         PYTHONDONTWRITEBYTECODE: '1'
       },

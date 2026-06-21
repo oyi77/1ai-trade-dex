@@ -4,7 +4,7 @@ import os
 import sys
 from unittest.mock import patch
 
-sys.path.insert(0, "/Users/paijo/1ai-poly-trader")
+sys.path.insert(0, "/home/openclaw/projects/1ai-trade-dex")
 
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.bot.notification.registry import registry

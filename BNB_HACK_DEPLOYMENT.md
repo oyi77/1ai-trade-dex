@@ -27,7 +27,7 @@ twak --version     # Should show TWAK version
 ```bash
 # Clone repo
 git clone <repo_url>
-cd 1ai-poly-trader
+cd 1ai-trade-dex
 
 # Create venv
 python3 -m venv .venv
@@ -51,7 +51,7 @@ cp .env.example .env
 
 ### Step 1: Verify Core Bot
 ```bash
-cd /path/to/1ai-poly-trader
+cd /path/to/1ai-trade-dex
 
 # Test single cycle
 python -m backend.bot.bnb_hack_bot
@@ -191,7 +191,7 @@ twak --version
 ### Issue: "ModuleNotFoundError: No module named 'backend.bot.bnb_hack'"
 ```bash
 # Ensure you're in the repo root
-cd /path/to/1ai-poly-trader
+cd /path/to/1ai-trade-dex
 
 # Reinstall dependencies
 pip install -r requirements.txt
@@ -245,7 +245,7 @@ sudo journalctl -u bnb-hack -n 10
 sudo systemctl restart polyedge-api
 # or
 pkill -f "python.*api"
-cd /path/to/1ai-poly-trader && python run.py &
+cd /path/to/1ai-trade-dex && python run.py &
 ```
 
 ---

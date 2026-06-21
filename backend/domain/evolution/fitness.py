@@ -31,11 +31,17 @@ def calculate_fitness(metrics: FitnessMetrics) -> float:
         return 0.0
 
     score = (
-        (normalize(metrics.sharpe_ratio, -3, 3) * 0.30)
-        + (metrics.win_rate * 0.20)
-        + (normalize(metrics.profit_factor, 0, 5) * 0.15)
+        (normalize(metrics.sharpe_ratio, -3, 3) * 0.25)
+        + (metrics.win_rate * 0.15)
+        + (normalize(metrics.profit_factor, 0, 5) * 0.10)
         + ((1.0 - metrics.max_drawdown_pct) * 0.15)
         + (normalize(metrics.alpha_per_trade, -1, 1) * 0.10)
-        + (metrics.capital_rotation_efficiency * 0.10)
+        + (metrics.capital_rotation_efficiency * 0.05)
+        # NEW: Regime consistency — penalize strategies with high Sharpe variance
+        # across regimes. If only profitable in one regime, fitness is fragile.
+        + (getattr(metrics, 'regime_consistency', 0.5) * 0.10)
+        # NEW: Recency-weighted performance — last 10 trades count 2x more
+        # than aggregate. Prevents stale strategies from coasting on old wins.
+        + (getattr(metrics, 'recent_win_rate', metrics.win_rate) * 0.10)
     )
     return max(0.0, min(1.0, score))

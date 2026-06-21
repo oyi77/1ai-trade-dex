@@ -259,7 +259,7 @@ class ConfigRegistry:
     # Trading parameters
     MIN_DEBATE_EDGE: float = 0.04  # debate threshold
     MIN_EDGE_THRESHOLD: float = 0.03  # minimum edge for signals
-    MIN_EDGE_PP: float = 2.0  # minimum edge in percentage points for risk_manager
+    MIN_EDGE_PP: float = 6.0  # minimum edge in percentage points for risk_manager
     MAX_ENTRY_PRICE: float = 0.80  # maximum entry price
     MAX_TRADES_PER_WINDOW: int = 20  # trades per scheduling window
     MAX_TRADES_PER_SCAN: int = 10  # trades per scan cycle
@@ -268,7 +268,7 @@ class ConfigRegistry:
     STALE_TRADE_HOURS: int = 24  # hours before trade considered stale
 
     # Position sizing
-    KELLY_FRACTION: float = 0.30  # Kelly fraction (0.30 = 30% Kelly)
+    KELLY_FRACTION: float = 0.10  # Kelly fraction (0.10 = 10% Kelly)
     MAX_POSITION_FRACTION: float = 0.30  # max position as % of bankroll
     MAX_TOTAL_EXPOSURE_FRACTION: float = 0.70  # max total exposure
     CORRELATION_MULTIPLIER: float = (
@@ -318,7 +318,7 @@ class ConfigRegistry:
     KILL_DRAWDOWN: float = 0.50  # drawdown fraction above which strategy is auto-killed
     KILL_CUMULATIVE_LOSS: float = -500.0  # cumulative PnL below which strategy is auto-killed
     KILL_AVG_LOSS_RATIO: float = 5.0  # avg_loss/avg_win ratio above which strategy is auto-killed
-    KILL_CONSECUTIVE_LOSSES: int = 10  # consecutive losses before auto-kill
+    KILL_CONSECUTIVE_LOSSES: int = 7  # consecutive losses before auto-kill
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
     WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
     WARN_BRIER: float = 0.4  # calibration threshold
@@ -346,7 +346,7 @@ class ConfigRegistry:
     PER_TRADE_MAX_LOSS_PCT: float = 0.05  # no single trade > 5% of bankroll
     MAX_DAILY_TRADES_PER_STRATEGY: int = 0  # 0 = unlimited (profitable strategies only)
     PORTFOLIO_CIRCUIT_BREAKER_PCT: float = (
-        0.50  # disable ALL if portfolio down >50% from peak
+        0.25  # disable ALL strategies if portfolio down >25% from peak
     )
     PROPOSAL_ROLLBACK_THRESHOLD: float = -0.1  # Sharpe rollback trigger
     PROPOSAL_IMPACT_WINDOW_HOURS: int = 48  # hours to monitor after proposal exec
@@ -415,7 +415,7 @@ class ConfigRegistry:
 
     # Risk config (canonical source)
     DEFAULT_KELLY_FRACTION: float = 0.25
-    MAX_KELLY_FRACTION: float = 0.50
+    MAX_KELLY_FRACTION: float = 0.15
     DEFAULT_MAX_DAILY_LOSS_USD: float = 100.0
     DEFAULT_MAX_DRAWDOWN_PCT: float = 0.20
     TERMINAL_DRAWDOWN_PCT: float = 0.50
@@ -424,7 +424,7 @@ class ConfigRegistry:
     DAILY_LOSS_FLOOR_PCT: float = -0.10  # daily loss floor (auto-pause)
     WEEKLY_LOSS_FLOOR_PCT: float = -0.20  # weekly loss floor (revert to paper)
     MAX_STRATEGY_DRAWDOWN_PCT: float = (
-        1.00  # per-strategy max drawdown (% of allocation)
+        0.30  # per-strategy max drawdown: block if strategy loses 30% of bankroll
     )
     # LIVE_STRATEGY_ALLOWLIST: only strategies in this list can execute live.
     # Promoters, schedulers, and risk checks will respect this.
@@ -793,7 +793,7 @@ class ConfigRegistry:
     # Circuit breakers
     CIRCUIT_BREAKER_ENABLED: bool = True
     MAX_CONCURRENT_POSITIONS: int = 3
-    CONSECUTIVE_LOSS_LIMIT: int = 3
+    CONSECUTIVE_LOSS_LIMIT: int = 5
 
     # Daily loss monitoring
     DAILY_LOSS_LIMIT_ENABLED: bool = True
@@ -1195,7 +1195,7 @@ class ConfigRegistry:
     # APEX - Advanced Polymarket Edge eXecution
     # --------------------------------------------------------------------------
     APEX_ENABLED: bool = True
-    APEX_MIN_EDGE_PP: float = 2.0
+    APEX_MIN_EDGE_PP: float = 6.0
     APEX_MIN_CONFIDENCE: float = 0.5
     APEX_SCAN_INTERVAL: int = 120
     APEX_MAX_POSITIONS: int = 5
