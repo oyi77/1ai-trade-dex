@@ -76,13 +76,12 @@ export function EquityChart({ data, initialBankroll }: Props) {
   const currentPnl = data[data.length - 1]?.pnl ?? 0
   const isPositive = currentPnl >= 0
 
-  const minPnl = Math.min(0, ...data.map(d => d.pnl ?? 0))
-  const maxPnl = Math.max(0, ...data.map(d => d.pnl ?? 0))
+  const minPnl = data.reduce((min, d) => Math.min(min, d.pnl ?? 0), 0)
+  const maxPnl = data.reduce((max, d) => Math.max(max, d.pnl ?? 0), 0)
   const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
 
-  const allBankrolls = [initialBankroll, ...data.map(d => d.bankroll ?? initialBankroll)]
-  const minBankroll = Math.min(...allBankrolls)
-  const maxBankroll = Math.max(...allBankrolls)
+  const minBankroll = data.reduce((min, d) => Math.min(min, d.bankroll ?? initialBankroll), initialBankroll)
+  const maxBankroll = data.reduce((max, d) => Math.max(max, d.bankroll ?? initialBankroll), initialBankroll)
   const bkPadding = (maxBankroll - minBankroll) * 0.15 || 2
 
   const brushStart = Math.max(0, chartData.length - 20)

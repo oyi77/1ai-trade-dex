@@ -255,7 +255,7 @@ export function LeaderboardTab() {
         <div className="shrink-0 px-3 py-1.5 border-t border-neutral-800 flex items-center gap-4 text-[9px] text-neutral-600">
           <span>Avg profit: <span className="text-neutral-400 tabular-nums">${(filtered.reduce((s, t) => s + (t.profit_30d ?? 0), 0) / filtered.length).toFixed(0)}</span></span>
           <span>Avg WR: <span className="text-neutral-400 tabular-nums">{(filtered.reduce((s, t) => s + (t.win_rate ?? 0), 0) / filtered.length * 100).toFixed(1)}%</span></span>
-          <span>Top score: <span className="text-amber-400 tabular-nums">{filtered.length > 0 ? Math.max(...filtered.map(t => t.score ?? 0)).toFixed(2) : '0.00'}</span></span>
+          <span>Top score: <span className="text-amber-400 tabular-nums">{filtered.length > 0 ? filtered.reduce((max, t) => Math.max(max, t.score ?? 0), -Infinity).toFixed(2) : '0.00'}</span></span>
         </div>
       )}
     </div>
