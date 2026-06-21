@@ -295,7 +295,7 @@ class BondScannerStrategy(BaseStrategy):
             loss_if_lose = qualifying_price
             rr_ratio = profit_if_win / loss_if_lose if loss_if_lose > 0 else 0
             if rr_ratio < 2.0:
-                logger.debug(f"[bond_scanner] R:R filter: {rr_ratio:.1f}:1 < 2:1 for {market.get('question','')[:40]}")
+                logger.info(f"[bond_scanner] R:R filter: {rr_ratio:.1f}:1 < 2:1 for {market.get('question','')[:40]}")
                 continue
             confidence = win_prob
             # Size proportional to edge — don't max-bet on tiny edges
