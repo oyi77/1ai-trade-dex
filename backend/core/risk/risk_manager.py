@@ -138,10 +138,10 @@ class RiskManager:
         """
         edge_pp = (signal_win_rate - market_price) * 100
         # Super-longshot trades require huge edge
-        if market_price < 0.30 and edge_pp < 10:
+        if market_price < 0.30 and edge_pp < 5:
             # log rejection below
             raise EdgeFilterError(
-                f"Edge filter: market_price={market_price:.2f} longshot, edge_pp={edge_pp:.2f} < 10",
+                f"Edge filter: market_price={market_price:.2f} longshot, edge_pp={edge_pp:.2f} < 5",
                 market_id=market_id,
                 market_price=market_price,
                 signal_win_rate=signal_win_rate,

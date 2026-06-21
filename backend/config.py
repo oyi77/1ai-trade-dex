@@ -288,7 +288,7 @@ class ConfigRegistry:
         os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.5")
     )
     PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(
-        os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.5")
+        os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.30")  # Lower for bond_scanner cheap-token strategy
     )
     AI_SIGNAL_WEIGHT: float = 0.30  # AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  # bias weight for longshot markets
