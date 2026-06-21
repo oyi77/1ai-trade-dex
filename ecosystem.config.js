@@ -32,7 +32,7 @@ module.exports = {
       args: '-m backend.core.orchestrator',
       cwd: '/home/openclaw/projects/1ai-trade-dex',
       env: {
-        TRADING_MODE: 'live',
+        TRADING_MODE: 'paper',  // START IN PAPER — switch to live only after verification
         RISK_PROFILE: 'conservative',
         WEATHER_ENABLED: 'false',
         PYTHONDONTWRITEBYTECODE: '1'
