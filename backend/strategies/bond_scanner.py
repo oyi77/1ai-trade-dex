@@ -262,31 +262,40 @@ class BondScannerStrategy(BaseStrategy):
                 logger.warning(f"[bond_scanner] BotState query failed for mode={ctx.mode}: {e}")
             logger.info(f"[bond_scanner] Using bankroll=${bankroll:.2f} for mode={ctx.mode}")
 
-            # Conservative edge model:
-            # Assume the market is efficient at pricing probabilities above 0.90.
-            # Our edge comes from the natural bias: markets slightly underprice
-            # high-probability outcomes close to resolution (last 1-10 days)
-            # because liquidity providers want to exit. Cap our assumed boost
-            # conservatively so that a single loss doesn't wipe many wins.
+            # Edge model: price-dependent boost + risk/reward filter
             #
-            # Key constraint: risk/reward ratio.
-            # At price=P, profit_if_win = (1-P)*size, loss_if_lose = P*size
-            # Require: win_prob * (1-P) - (1-win_prob) * P > 0
-            # i.e. win_prob > P  (we need to believe the TRUE prob exceeds market)
+            # For cheap tokens (< 0.50): markets underprice low-prob outcomes
+            # (longshot bias). Use 5% boost — empirical data shows 72% WR at 0.10 entry.
             #
-            # Conservative boost: 3% for markets at 0.92, tapering to 1.5% at 0.98
-            taper = max(0.0, (qualifying_price - 0.92) / 0.06)  # 0 at 0.92, 1 at 0.98
-            proximity_boost = 0.03 * (1.0 - 0.5 * taper)  # 3% at 0.92, 1.5% at 0.98
-            win_prob = min(qualifying_price + proximity_boost, 0.995)  # cap at 99.5% for near-certain
-            # Fee-adjusted edge: deduct 2% round-trip fee (1% taker per side)
+            # For mid-range (0.50-0.80): moderate boost, tighter filter.
+            #
+            # For near-certain (0.80+): minimal boost, most edge already priced in.
+            if qualifying_price < 0.30:
+                proximity_boost = 0.05  # 5% — longshot bias exploitation
+            elif qualifying_price < 0.50:
+                proximity_boost = 0.04  # 4% — moderate edge
+            elif qualifying_price < 0.80:
+                proximity_boost = 0.03  # 3% — standard
+            else:
+                taper = max(0.0, (qualifying_price - 0.80) / 0.20)
+                proximity_boost = 0.03 * (1.0 - 0.5 * taper)  # 3% at 0.80, 1.5% at 1.00
+            win_prob = min(qualifying_price + proximity_boost, 0.995)
+            # Fee-adjusted edge: deduct round-trip fee
             raw_edge = (
                 win_prob * (1.0 - qualifying_price)
                 - (1.0 - win_prob) * qualifying_price
             )
-            edge = round(raw_edge - 0.001, 4)  # deduct maker fee (0% maker + 0.1% slippage)
+            edge = round(raw_edge - 0.001, 4)  # deduct slippage
             # Reject if estimated edge is below min_edge from config
             min_edge_threshold = float(params.get("min_edge", getattr(settings, "BOND_SCANNER_MIN_EDGE", 0.02)))
             if edge < min_edge_threshold:
+                continue
+            # Risk/reward filter: reject if R:R < 2:1 (win must be 2x loss)
+            profit_if_win = 1.0 - qualifying_price
+            loss_if_lose = qualifying_price
+            rr_ratio = profit_if_win / loss_if_lose if loss_if_lose > 0 else 0
+            if rr_ratio < 2.0:
+                logger.debug(f"[bond_scanner] R:R filter: {rr_ratio:.1f}:1 < 2:1 for {market.get('question','')[:40]}")
                 continue
             confidence = win_prob
             # Size proportional to edge — don't max-bet on tiny edges
