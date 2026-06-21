@@ -20,8 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from decimal import Decimal
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 

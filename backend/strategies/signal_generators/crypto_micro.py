@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from loguru import logger
 
 from backend.strategies.signal_generators.base import Signal, SignalGenerator
 

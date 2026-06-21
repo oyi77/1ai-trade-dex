@@ -9,7 +9,7 @@ event-driven strategies to run alongside scheduler-based strategies.
 """
 
 import asyncio
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 from backend.bot.realtime_copy_trader import RealTimeCopyTrader
 from backend.bot.realtime_whale_tracker import RealTimeWhaleTracker

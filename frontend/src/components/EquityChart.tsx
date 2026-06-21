@@ -76,13 +76,25 @@ export function EquityChart({ data, initialBankroll }: Props) {
   const currentPnl = data[data.length - 1]?.pnl ?? 0
   const isPositive = currentPnl >= 0
 
-  const minPnl = Math.min(0, ...data.map(d => d.pnl ?? 0))
-  const maxPnl = Math.max(0, ...data.map(d => d.pnl ?? 0))
-  const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
+  let minPnl = 0
+  let maxPnl = 0
+  let minBankroll = initialBankroll
+  let maxBankroll = initialBankroll
 
-  const allBankrolls = [initialBankroll, ...data.map(d => d.bankroll ?? initialBankroll)]
-  const minBankroll = Math.min(...allBankrolls)
-  const maxBankroll = Math.max(...allBankrolls)
+  // ⚡ Bolt Performance Optimization:
+  // Replacing O(N) chained Math.max/min(...array.map()) with a single O(N) iterator loop
+  // prevents "Maximum call stack size exceeded" errors on large datasets
+  // and avoids multiple array allocations.
+  for (let i = 0; i < data.length; i++) {
+    const pnl = data[i].pnl ?? 0
+    const bankroll = data[i].bankroll ?? initialBankroll
+    if (pnl < minPnl) minPnl = pnl
+    if (pnl > maxPnl) maxPnl = pnl
+    if (bankroll < minBankroll) minBankroll = bankroll
+    if (bankroll > maxBankroll) maxBankroll = bankroll
+  }
+
+  const pnlPadding = Math.max(Math.abs(minPnl), Math.abs(maxPnl)) * 0.2 || 1
   const bkPadding = (maxBankroll - minBankroll) * 0.15 || 2
 
   const brushStart = Math.max(0, chartData.length - 20)

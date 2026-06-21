@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 import asyncio
-from datetime import datetime, timezone
 
 from backend.core.activity.models import ActivityEvent
 from backend.core.activity.sources.base import BaseActivitySource

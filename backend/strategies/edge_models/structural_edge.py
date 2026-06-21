@@ -10,7 +10,6 @@ import logging
 from typing import Any
 
 from backend.strategies.edge_models.base import EdgeCalculator, EdgeResult
-from backend.core.edge.edge_types import clamp
 from backend.core.edge.edge_calculator import APEXEdgeCalculator
 
 logger = logging.getLogger(__name__)
@@ -57,7 +56,7 @@ class StructuralEdgeCalculator(EdgeCalculator):
             EdgeResult if tradeable edge found, None otherwise.
         """
         from backend.core.edge.edge_types import MarketSnapshot
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         params = params or {}
 

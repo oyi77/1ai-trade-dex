@@ -127,7 +127,7 @@ export function BrainGraphExpanded() {
           </span>
         </div>
         <p className="text-xs text-slate-300 italic">
-          "{data.agents[selectedAgent].args}"
+          &quot;{data.agents[selectedAgent].args}&quot;
         </p>
       </div>
     </div>

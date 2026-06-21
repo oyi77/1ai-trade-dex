@@ -20,7 +20,7 @@ Data sources:
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List
 
 from backend.config import settings
 from backend.data.shared_client import get_shared_client
