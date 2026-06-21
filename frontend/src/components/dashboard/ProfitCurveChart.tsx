@@ -12,17 +12,30 @@ interface ProfitCurveChartProps {
 }
 
 export function ProfitCurveChart({ data }: ProfitCurveChartProps) {
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    return data.map(point => ({
-      time: new Date(point.timestamp).getTime(),
-      pnl: point.cumulative_pnl,
-      label: format(new Date(point.timestamp), 'MMM d'),
-    }))
-  }, [data])
+  const { chartData, minPnl, maxPnl } = useMemo(() => {
+    if (!data || data.length === 0) return { chartData: [], minPnl: 0, maxPnl: 0 }
 
-  const maxPnl = useMemo(() => Math.max(...chartData.map(d => d.pnl), 0), [chartData])
-  const minPnl = useMemo(() => Math.min(...chartData.map(d => d.pnl), 0), [chartData])
+    let currentMinPnl = 0
+    let currentMaxPnl = 0
+    const mappedData = new Array(data.length)
+
+    // ⚡ Bolt Performance Optimization:
+    // Combined array mapping and Math.max/min calculations into a single O(N) loop
+    // to prevent Maximum call stack size exceeded errors and avoid recreating arrays.
+    for (let i = 0; i < data.length; i++) {
+      const pnl = data[i].cumulative_pnl
+      if (pnl < currentMinPnl) currentMinPnl = pnl
+      if (pnl > currentMaxPnl) currentMaxPnl = pnl
+
+      mappedData[i] = {
+        time: new Date(data[i].timestamp).getTime(),
+        pnl,
+        label: format(new Date(data[i].timestamp), 'MMM d'),
+      }
+    }
+
+    return { chartData: mappedData, minPnl: currentMinPnl, maxPnl: currentMaxPnl }
+  }, [data])
 
   if (chartData.length === 0) {
     return (
