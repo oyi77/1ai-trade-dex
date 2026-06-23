@@ -16,6 +16,7 @@ class EdgeType(enum.Enum):
     MOMENTUM_REVERSION = "momentum_reversion"
     INFORMATION_ASYMMETRY = "information_asymmetry"
     CROSS_PLATFORM = "cross_platform"
+    CALIBRATION_MISPRICING = "calibration_mispricing"  # market price vs historical frequency
 
 
 class ExitReason(enum.Enum):

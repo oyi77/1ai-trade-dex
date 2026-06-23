@@ -43,6 +43,7 @@ class StrategyHealthMonitor:
     KILL_DRAWDOWN = settings.KILL_DRAWDOWN
     KILL_CUMULATIVE_LOSS = getattr(settings, "KILL_CUMULATIVE_LOSS", -500.0)
     KILL_AVG_LOSS_RATIO = getattr(settings, "KILL_AVG_LOSS_RATIO", 5.0)
+    KILL_ZERO_WR_AFTER_N = getattr(settings, "KILL_ZERO_WR_AFTER_N", 50)
 
     def assess(
         self,

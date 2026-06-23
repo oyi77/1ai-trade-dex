@@ -670,16 +670,24 @@ async def agi_improvement_cycle_job() -> None:
         stats["errors"].append(f"meta_learn: {e}")
 
     try:
-        from backend.agents.autoresearch.evolver import StrategyEvolver
+        from backend.core.smart_agi_evolution import get_smart_agi
 
-        stats["evolution_variants"] = len(StrategyEvolver().run_evolution_cycle())
+        smart_report = await get_smart_agi().run_smart_cycle()
+        stats["evolution_variants"] = len(smart_report.get("allocations", []))
+        stats["smart_agi_patterns"] = len(smart_report.get("patterns", []))
+        stats["smart_agi_killed"] = len(smart_report.get("killed", []))
         stats["stage_results"]["evolution"] = "ok"
+        if smart_report.get("actions"):
+            logger.info(
+                "[agi_improvement_cycle] Smart AGI actions: %s",
+                "; ".join(smart_report["actions"]),
+            )
     except Exception as e:
         etype = classify_exception(e)
         stats["stage_results"]["evolution"] = f"error:{etype.value}"
         if etype == ErrorType.PERMANENT:
             logger.critical(
-                "[agi_improvement_cycle] evolution stage PERMANENT failure: %s",
+                "[agi_improvement_cycle] Smart AGI evolution PERMANENT failure: %s",
                 e,
                 exc_info=True,
             )
@@ -691,7 +699,7 @@ async def agi_improvement_cycle_job() -> None:
             stats["errors"].append(f"evolution: {e}")
             raise
         logger.warning(
-            "[agi_improvement_cycle] evolution stage failed (BENIGN): %s",
+            "[agi_improvement_cycle] Smart AGI evolution failed (BENIGN): %s",
             e,
             exc_info=True,
         )
@@ -771,67 +779,30 @@ async def agi_improvement_cycle_job() -> None:
         raise
 
     try:
-        from backend.core.strategy_synthesizer import StrategySynthesizer
-        from backend.core.agi_types import MarketRegime as _MR
-        from backend.core.knowledge_graph import KnowledgeGraph
-        from backend.db.utils import get_db_session
+        from backend.core.proactive_agi import get_proactive_agi
 
-        # Build KG context for the synthesizer prompt
-        _kg_ctx: dict = {}
-        try:
-            with get_db_session() as kg_db:
-                _kg = KnowledgeGraph(session=kg_db)
-                _kg_ctx = {
-                    "recent_regimes": [
-                        e.properties.get("value")
-                        for e in _kg.query_by_type("regime", limit=5)
-                        if e.properties.get("value")
-                    ],
-                    "best_strategies": [
-                        e.properties for e in _kg.query_by_type("strategy", limit=5)
-                    ],
-                }
-        except Exception as _kg_err:
-            logger.debug(
-                "[agi_improvement_cycle] KG context fetch failed (non-fatal): %s",
-                _kg_err,
-            )
-
-        with get_db_session() as synth_db:
-            synthesizer = StrategySynthesizer(session=synth_db)
-            generated = await synthesizer.generate_strategy(
-                description="New strategy for current market regime",
-                regime=_MR.UNKNOWN,
-                kg_context=_kg_ctx,
-            )
-            if generated.validation_passed:
-                exp_id = synthesizer.register_generated(generated)
-                stats["strategies_composed"] = 1
-                stats["stage_results"]["composition"] = "ok"
+        proactive = get_proactive_agi()
+        if proactive.should_run():
+            proactive_report = await proactive.run_proactive_cycle()
+            stats["strategies_composed"] = proactive_report.get("strategies_created", 0)
+            stats["proactive_edges_sought"] = proactive_report.get("edges_sought", 0)
+            stats["proactive_strategies_validated"] = proactive_report.get("strategies_validated", 0)
+            stats["proactive_strategies_deployed"] = proactive_report.get("strategies_deployed", 0)
+            stats["stage_results"]["composition"] = "ok"
+            if proactive_report.get("actions"):
                 logger.info(
-                    "[agi_improvement_cycle] Synthesized strategy '%s' passed all gates → SHADOW (exp_id=%s)",
-                    generated.name,
-                    exp_id,
+                    "[agi_improvement_cycle] Proactive AGI actions: %s",
+                    "; ".join(proactive_report["actions"]),
                 )
-            else:
-                stats["strategies_composed"] = 0
-                failed_gates = [
-                    k
-                    for k, v in generated.gate_results.items()
-                    if not v.get("passed", True)
-                ]
-                stats["stage_results"]["composition"] = f"gate_failed:{failed_gates}"
-                logger.warning(
-                    "[agi_improvement_cycle] Synthesized strategy '%s' failed gates: %s",
-                    generated.name,
-                    failed_gates,
-                )
+        else:
+            stats["stage_results"]["composition"] = "skipped:not_due"
+            logger.debug("[agi_improvement_cycle] Proactive AGI cycle not due yet")
     except Exception as e:
         etype = classify_exception(e)
         stats["stage_results"]["composition"] = f"error:{etype.value}"
         if etype == ErrorType.PERMANENT:
             logger.critical(
-                "[agi_improvement_cycle] composition stage PERMANENT failure: %s",
+                "[agi_improvement_cycle] Proactive AGI PERMANENT failure: %s",
                 e,
                 exc_info=True,
             )

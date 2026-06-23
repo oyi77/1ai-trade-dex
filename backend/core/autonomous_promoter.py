@@ -414,7 +414,9 @@ class AutonomousPromoter:
                     self._capture_promotion_review(
                         exp, db, "PAPER", "LIVE_TRIAL", health
                     )
-
+                    exp.status = ExperimentStatus.LIVE_TRIAL.value
+                    exp.promoted_at = datetime.now(timezone.utc)
+                    db.add(exp)
                     logger.info(
                         f"[AutonomousPromoter] PAPER→LIVE_TRIAL '{exp.name}' promoted to trial "
                         f"(trades={health.get('total_trades', 0)}, wr={health.get('win_rate', 0):.1%})"
@@ -422,7 +424,6 @@ class AutonomousPromoter:
                     stats["paper_to_live_trial"] = (
                         stats.get("paper_to_live_trial", 0) + 1
                     )
-                else:
                     ref_time = exp.promoted_at or exp.created_at
                     if ref_time.tzinfo is None:
                         ref_time = ref_time.replace(tzinfo=timezone.utc)

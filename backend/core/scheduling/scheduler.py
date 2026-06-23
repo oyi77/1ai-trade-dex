@@ -127,29 +127,26 @@ def _register_evolution_jobs(target_scheduler) -> None:
     )
     logger.info("Scheduled evolution fitness update job every 1 hour")
 
-    target_scheduler.add_job(
-        run_mutation_cycle,
-        IntervalTrigger(hours=settings.AGI_MUTATION_INTERVAL_HOURS),
-        id="evolution_mutation_cycle",
-        replace_existing=True,
-        max_instances=1,
-    )
-    logger.info(
-        "Scheduled evolution mutation cycle job every %s hours",
-        settings.AGI_MUTATION_INTERVAL_HOURS,
-    )
+    # Old DEAP mutation cycle disabled — Smart AGI evolution replaces it.
+    # Smart AGI runs edge discovery + capital allocation + auto-kill, not parameter mutation.
+    # target_scheduler.add_job(
+    #     run_mutation_cycle,
+    #     IntervalTrigger(hours=settings.AGI_MUTATION_INTERVAL_HOURS),
+    #     id="evolution_mutation_cycle",
+    #     replace_existing=True,
+    #     max_instances=1,
+    # )
+    logger.info("Old DEAP mutation cycle disabled — Smart AGI evolution replaces it")
 
-    target_scheduler.add_job(
-        run_crossover_cycle,
-        IntervalTrigger(hours=settings.AGI_CROSSOVER_INTERVAL_HOURS),
-        id="evolution_crossover_cycle",
-        replace_existing=True,
-        max_instances=1,
-    )
-    logger.info(
-        "Scheduled evolution crossover cycle job every %s hours",
-        settings.AGI_CROSSOVER_INTERVAL_HOURS,
-    )
+    # Old DEAP crossover cycle disabled — Smart AGI handles capital allocation instead.
+    # target_scheduler.add_job(
+    #     run_crossover_cycle,
+    #     IntervalTrigger(hours=settings.AGI_CROSSOVER_INTERVAL_HOURS),
+    #     id="evolution_crossover_cycle",
+    #     replace_existing=True,
+    #     max_instances=1,
+    # )
+    logger.info("Old DEAP crossover cycle disabled — Smart AGI handles allocation")
 
     target_scheduler.add_job(
         rebalance_population,

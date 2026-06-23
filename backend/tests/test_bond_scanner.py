@@ -68,11 +68,11 @@ class TestBondScannerFilters:
         strategy = BondScannerStrategy()
         params = strategy.default_params
 
-        # Price too low — should NOT qualify
-        low_market = _make_market(outcome_prices=["0.80", "0.20"])
-        prices = [float(p) for p in low_market["outcomePrices"]]
+        # All outcomes above max_price — should NOT qualify
+        high_only_market = _make_market(outcome_prices=["0.80", "0.60"])
+        prices = [float(p) for p in high_only_market["outcomePrices"]]
         qualifies = any(params["min_price"] <= p <= params["max_price"] for p in prices)
-        assert not qualifies, "0.80 should not qualify (below min_price)"
+        assert not qualifies, f"0.80 and 0.60 are above max_price={params['max_price']} — should not qualify"
 
         # Price too high — should NOT qualify
         high_market = _make_market(outcome_prices=["0.999", "0.001"])

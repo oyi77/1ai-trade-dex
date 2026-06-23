@@ -38,8 +38,26 @@ class EnsembleSignalGenerator:
         "data_quality": 0.15,
     }
 
-    def __init__(self, weights: dict = None):
-        self.weights = weights if weights is not None else dict(self.DEFAULT_WEIGHTS)
+    def __init__(self, weights: dict = None, use_adaptive: bool = True):
+        self._static_weights = weights if weights is not None else dict(self.DEFAULT_WEIGHTS)
+        self.use_adaptive = use_adaptive
+
+    @property
+    def weights(self) -> dict[str, float]:
+        """Get current weights — adaptive if available, static fallback."""
+        if self.use_adaptive:
+            try:
+                from backend.ai.probability_calibrator import get_adaptive_ensemble
+                from backend.db.utils import get_db_session
+
+                adaptive = get_adaptive_ensemble()
+                with get_db_session() as db:
+                    if adaptive.should_update():
+                        return adaptive.update_weights(db)
+                    return adaptive.weights
+            except Exception:
+                logger.debug("[Ensemble] Adaptive weights unavailable, using static")
+        return dict(self._static_weights)
 
     def combine_signals(
         self,

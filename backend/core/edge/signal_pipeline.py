@@ -34,27 +34,38 @@ class SignalPipeline:
     async def evaluate(self, edges: List[Edge], ctx) -> List[Signal]:
         """Filter, deduplicate, size, and rank edges into actionable signals.
 
-        Args:
-            edges: Raw edges from EdgeRegistry.scan_all()
-            ctx: StrategyContext with db, mode, clob, settings, etc.
-
-        Returns:
-            Ranked list of Signals ready for risk evaluation.
+        Also enriches edges with historical calibration mispricing detection.
         """
         if not edges:
             return []
+
+        # Stage 0: Enrich with historical edge detection
+        try:
+            from backend.core.edge.historical_edge_detector import get_historical_edge_detector
+            detector = get_historical_edge_detector()
+            # Only run for markets without existing structural edges
+            if len(edges) < 3:
+                hist_edges = detector.detect(
+                    market_question=getattr(ctx, "market_question", ""),
+                    market_price=getattr(ctx, "market_price", 0.5),
+                    category=getattr(ctx, "category", ""),
+                )
+                edges = edges + hist_edges
+        except Exception:
+            logger.debug("[apex:pipeline] Historical edge detection skipped")
 
         # Stage 1: Filter
         filtered = self._filter(edges)
         logger.debug(f"[apex:pipeline] Filter: {len(edges)} → {len(filtered)} edges")
 
-        # Stage 2: Deduplicate (already done in EdgeRegistry, but safety check)
+        # Stage 2: Deduplicate
         deduped = self._deduplicate(filtered)
         logger.debug(f"[apex:pipeline] Dedup: {len(filtered)} → {len(deduped)} edges")
 
-        # Stage 3: Size
+        # Stage 3: Size (with anti-martingale)
         bankroll = self._get_bankroll(ctx)
-        signals = self._size(deduped, bankroll)
+        strategy_name = getattr(ctx, "strategy_name", "")
+        signals = self._size(deduped, bankroll, strategy_name)
         logger.debug(f"[apex:pipeline] Sized: {len(deduped)} edges → {len(signals)} signals")
 
         # Stage 4: Rank and cap
@@ -94,19 +105,82 @@ class SignalPipeline:
 
     def _deduplicate(self, edges: List[Edge]) -> List[Edge]:
         """Keep highest edge_score for each (market_id, direction)."""
-        seen: dict[tuple, Edge] = {}
+        seen: dict[str, Edge] = {}
         for edge in edges:
-            key = (edge.market_id, edge.direction)
+            key = f"{edge.market_id}:{edge.direction}"
             if key not in seen or edge.edge_score > seen[key].edge_score:
                 seen[key] = edge
         return sorted(seen.values(), key=lambda e: e.edge_score, reverse=True)
 
-    def _size(self, edges: List[Edge], bankroll: float) -> List[Signal]:
-        """Calculate position sizes using quarter-Kelly with confidence discount."""
+    def _rank(self, signals: List[Signal]) -> List[Signal]:
+        """Rank signals by expected value (edge_pp * size)."""
+        return sorted(signals, key=lambda s: s.expected_value, reverse=True)
+
+    def _get_bankroll(self, ctx) -> float:
+        """Get current bankroll from context."""
+        try:
+            from backend.models.database import BotState, for_update
+            state = for_update(
+                ctx.db, ctx.db.query(BotState).filter(BotState.mode == ctx.mode)
+            ).first()
+            if state:
+                if ctx.mode == "paper":
+                    value = state.paper_bankroll
+                elif ctx.mode == "testnet":
+                    value = state.testnet_bankroll
+                else:
+                    value = state.bankroll
+                if value is not None:
+                    return max(0.0, float(value))
+        except Exception as e:
+            logger.debug(f"[apex:pipeline] Bankroll query failed: {e}")
+        return float(_cfg("INITIAL_BANKROLL", 20.0))
+
+    def _size(self, edges: List[Edge], bankroll: float, strategy_name: str = "") -> List[Signal]:
+        """Calculate position sizes using quarter-Kelly with confidence discount.
+
+        Anti-martingale: if strategy has 3+ consecutive losses, halve position size.
+        Hard cap: max 2% of bankroll per trade regardless of Kelly output.
+        """
         signals = []
+
+        # Check for losing streak (anti-martingale)
+        loss_streak = 0
+        if strategy_name:
+            try:
+                from backend.models.database import Trade
+                from backend.db.utils import get_db_session
+                with get_db_session() as db:
+                    recent = (
+                        db.query(Trade.result)
+                        .filter(
+                            Trade.strategy == strategy_name,
+                            Trade.settled.is_(True),
+                            Trade.result.isnot(None),
+                        )
+                        .order_by(Trade.settlement_time.desc())
+                        .limit(10)
+                        .all()
+                    )
+                    for r in recent:
+                        if r.result == "loss":
+                            loss_streak += 1
+                        else:
+                            break
+            except Exception:
+                pass
+
+        anti_martingale_mult = 0.5 if loss_streak >= 3 else 1.0
+        if anti_martingale_mult < 1.0:
+            logger.info(
+                f"[apex:pipeline] Anti-martingale: {strategy_name} has {loss_streak} "
+                f"consecutive losses → sizing at {anti_martingale_mult:.0%}"
+            )
+
+        # Hard cap: 2% of bankroll
+        max_bet_pct = 0.02
+
         for edge in edges:
-            # Kelly criterion: f* = edge / (1 - p) for YES bets
-            # With confidence discount: f = kelly * confidence * kelly_fraction
             if edge.direction in ("yes", "up"):
                 kelly = edge.edge_pp / (1.0 - edge.entry_price) if edge.entry_price < 0.99 else 0.0
             else:
@@ -114,16 +188,15 @@ class SignalPipeline:
 
             kelly = max(0, kelly)
             size_usd = min(
-                bankroll * self.max_bankroll_pct,  # max position size
+                bankroll * max_bet_pct,  # hard cap at 2% bankroll
+                bankroll * self.max_bankroll_pct,  # configurable max position size
                 bankroll * kelly * self.kelly_fraction * edge.confidence,  # Kelly-sized
             )
-            size_usd = max(size_usd, self.min_size_usd)  # CLOB minimum
-
-            if size_usd > bankroll * 0.15:
-                size_usd = bankroll * 0.15  # hard cap at 15% bankroll
+            size_usd *= anti_martingale_mult  # apply anti-martingale discount
+            size_usd = max(size_usd, self.min_size_usd)
 
             if size_usd < self.min_size_usd:
-                continue  # can't meet CLOB minimum
+                continue
 
             ev = edge.edge_pp * size_usd
 
@@ -149,27 +222,3 @@ class SignalPipeline:
             signals.append(signal)
 
         return signals
-
-    def _rank(self, signals: List[Signal]) -> List[Signal]:
-        """Rank signals by expected value (edge_pp * size)."""
-        return sorted(signals, key=lambda s: s.expected_value, reverse=True)
-
-    def _get_bankroll(self, ctx) -> float:
-        """Get current bankroll from context."""
-        try:
-            from backend.models.database import BotState, for_update
-            state = for_update(
-                ctx.db, ctx.db.query(BotState).filter(BotState.mode == ctx.mode)
-            ).first()
-            if state:
-                if ctx.mode == "paper":
-                    value = state.paper_bankroll
-                elif ctx.mode == "testnet":
-                    value = state.testnet_bankroll
-                else:
-                    value = state.bankroll
-                if value is not None:
-                    return max(0.0, float(value))
-        except Exception as e:
-            logger.debug(f"[apex:pipeline] Bankroll query failed: {e}")
-        return float(_cfg("INITIAL_BANKROLL", 20.0))
