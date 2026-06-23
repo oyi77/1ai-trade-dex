@@ -389,9 +389,31 @@ class StrategyHealthMonitor:
         return sum((p - a) ** 2 for p, a in pairs) / len(pairs)
 
     def _disable_strategy(self, strategy: str, db: Session) -> None:
-        """Disable strategy for rehab: keep enabled in paper mode."""
+        """Disable strategy for rehab: keep enabled in paper mode.
+
+        ponytail: skip profitable strategies — the health monitor's kill
+        thresholds can false-positive on strategies with positive lifetime PnL.
+        """
         try:
-            from backend.models.database import StrategyConfig
+            from backend.models.database import StrategyConfig, Trade
+            from sqlalchemy import func
+
+            # ponytail: don't kill profitable strategies
+            total_pnl = (
+                db.query(func.coalesce(func.sum(Trade.pnl), 0.0))
+                .filter(
+                    Trade.strategy == strategy,
+                    Trade.settled.is_(True),
+                    Trade.pnl.isnot(None),
+                )
+                .scalar() or 0.0
+            )
+            if total_pnl > 0:
+                logger.info(
+                    f"[HealthMonitor] SKIP kill '{strategy}' — "
+                    f"profitable (PnL=${total_pnl:.2f})"
+                )
+                return
 
             config = (
                 db.query(StrategyConfig)
