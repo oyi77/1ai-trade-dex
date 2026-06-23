@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import patch
 import pytest
 
-from backend.core.crash_guardian import CrashGuardian, ProcessHealth
+from backend.core.risk.crash_guardian import CrashGuardian, ProcessHealth
 
 
 @pytest.fixture

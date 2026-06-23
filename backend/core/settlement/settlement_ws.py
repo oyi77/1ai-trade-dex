@@ -14,7 +14,7 @@ from typing import Optional, Set
 from backend.data.ws_client import CLOBWebSocket, SettlementEvent
 from backend.models.database import Trade
 from backend.db.utils import get_db_session
-from backend.core.task_manager import TaskManager
+from backend.core.scheduling.task_manager import TaskManager
 
 from loguru import logger
 

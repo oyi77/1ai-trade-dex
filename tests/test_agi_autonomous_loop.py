@@ -191,8 +191,8 @@ async def test_full_autonomous_cycle():
     """
 
     # Pre-import for cleanup in finally block
-    import backend.core.auto_improve as auto_improve_mod
-    from backend.core.auto_improve import TUNABLE_PARAMS, _get_current_params
+    import backend.core.learning.auto_improve as auto_improve_mod
+    from backend.core.learning.auto_improve import TUNABLE_PARAMS, _get_current_params
 
     pre_params = _get_current_params()
 
@@ -433,7 +433,7 @@ async def test_full_autonomous_cycle():
         assert "diary_posted" in review_result
 
         # ── Stage 6: Auto-Improve ─────────────────────────────────────
-        from backend.core.auto_improve import auto_improve_job
+        from backend.core.learning.auto_improve import auto_improve_job
 
         # Capture pre-improve params
         pre_params = _get_current_params()

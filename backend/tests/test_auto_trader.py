@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from backend.core.auto_trader import AutoTrader
-from backend.core.risk_manager import RiskDecision
+from backend.core.risk.risk_manager import RiskDecision
 
 
 @pytest.fixture

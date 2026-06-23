@@ -15,7 +15,7 @@ from typing import Optional, Set
 from backend.config import settings
 from backend.job_queue.abstract import AbstractQueue, Job
 from backend.monitoring.queue_metrics import get_queue_metrics, JobTimer
-from backend.core.task_manager import TaskManager
+from backend.core.scheduling.task_manager import TaskManager
 
 
 from loguru import logger

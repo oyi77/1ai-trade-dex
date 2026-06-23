@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from backend.core.task_manager import TaskManager
+from backend.core.scheduling.task_manager import TaskManager
 
 
 async def short_task():

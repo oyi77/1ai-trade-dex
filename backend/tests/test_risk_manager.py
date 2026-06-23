@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 
 
 @dataclass
@@ -545,7 +545,7 @@ class TestEdgeFilter:
         return s
 
     def test_check_edge_raises_on_low_edge(self):
-        from backend.core.risk_manager import EdgeFilterError
+        from backend.core.risk.risk_manager import EdgeFilterError
 
         rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
         import pytest
@@ -559,7 +559,7 @@ class TestEdgeFilter:
         assert edge_pp == pytest.approx(8.0)
 
     def test_check_edge_rejects_longshot_without_huge_edge(self):
-        from backend.core.risk_manager import EdgeFilterError
+        from backend.core.risk.risk_manager import EdgeFilterError
 
         rm = RiskManager(settings_obj=self._settings_with_edge(5.0))
         import pytest

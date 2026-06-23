@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.core.self_debugger import (
+from backend.core.learning.self_debugger import (
     SelfDebugger,
     DiagnosisResult,
     RecoveryResult,

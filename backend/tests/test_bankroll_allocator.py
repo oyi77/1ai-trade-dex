@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from backend.core.bankroll_allocator import BankrollAllocator
+from backend.core.wallet.bankroll_allocator import BankrollAllocator
 
 
 class TestBankrollAllocator:

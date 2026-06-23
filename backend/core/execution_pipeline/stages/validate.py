@@ -5,7 +5,7 @@ from backend.core.execution_pipeline.base import (
     ExecutionStageManifest,
 )
 from backend.core.execution_pipeline.registry import registry
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 
 
 class ValidationStage(BaseExecutionStage):

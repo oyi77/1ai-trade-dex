@@ -8,7 +8,7 @@ This method adjusts strategy allocations based on detected longshot bias (overco
 
 from unittest.mock import MagicMock, patch
 
-from backend.core.bankroll_allocator import BankrollAllocator
+from backend.core.wallet.bankroll_allocator import BankrollAllocator
 
 # LongshotBiasDetector is imported inside the method body via a local import,
 # so patch it at its definition module, not the caller's namespace.

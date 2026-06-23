@@ -65,7 +65,7 @@ class TestE09DrawdownFloorsSessionScope:
 
     def test_drawdown_floors_db_inside_context_manager(self):
         """All db.query() calls should be indented inside the `with ctx as db:` block."""
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         import inspect
 
         source = inspect.getsource(RiskManager.check_drawdown_floors)
@@ -129,7 +129,7 @@ class TestE11CalibrationRaceCondition:
 
     def test_file_write_inside_lock(self):
         """The calibration file write should be inside the threading lock."""
-        from backend.core import calibration
+        from backend.core.learning import calibration
         import inspect
 
         source = inspect.getsource(calibration.update_calibration)
@@ -192,7 +192,7 @@ class TestE13AutoImproveSessionScope:
 
     def test_brain_write_uses_separate_session(self):
         """_write_outcomes_to_brain should exist and accept db parameter."""
-        from backend.core import auto_improve
+        from backend.core.learning import auto_improve
         import inspect
 
         source = inspect.getsource(auto_improve._write_outcomes_to_brain)
@@ -200,7 +200,7 @@ class TestE13AutoImproveSessionScope:
 
     def test_suggestions_uses_separate_session(self):
         """get_suggestions should be called in auto_improve_job."""
-        from backend.core import auto_improve
+        from backend.core.learning import auto_improve
         import inspect
 
         source = inspect.getsource(auto_improve.auto_improve_job)
@@ -208,7 +208,7 @@ class TestE13AutoImproveSessionScope:
 
     def test_market_insights_uses_separate_session(self):
         """_write_market_insights should exist and accept db parameter."""
-        from backend.core import auto_improve
+        from backend.core.learning import auto_improve
         import inspect
 
         source = inspect.getsource(auto_improve._write_market_insights)

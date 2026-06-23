@@ -1,8 +1,8 @@
-"""Tests for backend.core.dispute_tracker."""
+"""Tests for backend.core.settlement.dispute_tracker."""
 
 import pytest
 
-from backend.core.dispute_tracker import (
+from backend.core.settlement.dispute_tracker import (
     DisputeTracker,
     ResolutionRisk,
 )

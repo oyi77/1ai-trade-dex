@@ -348,7 +348,7 @@ async def model_calibration_check_job() -> None:
                 brier,
                 brier_threshold,
             )
-            from backend.core.retrain_trigger import check_and_trigger_retraining
+            from backend.core.learning.retrain_trigger import check_and_trigger_retraining
 
             retrain_result = await check_and_trigger_retraining()
             log_event(

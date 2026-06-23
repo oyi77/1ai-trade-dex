@@ -5,7 +5,7 @@ Covers:
 - `get_bucket_win_rate(price, strategy, ...)` — historical bucket win rate.
 """
 
-from backend.core.calibration import get_bucket_win_rate, kelly_fraction
+from backend.core.learning.calibration import get_bucket_win_rate, kelly_fraction
 
 
 def test_kelly_fraction_returns_zero_when_no_edge():

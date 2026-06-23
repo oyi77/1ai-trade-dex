@@ -169,7 +169,7 @@ class Orchestrator:
 
             # Create 3 ModeExecutionContext instances for per-mode execution isolation
             from backend.core.mode_context import ModeExecutionContext, register_context
-            from backend.core.risk_manager import RiskManager
+            from backend.core.risk.risk_manager import RiskManager
             from backend.models.database import StrategyConfig
 
             for mode in ["paper", "testnet", "live"]:
@@ -290,7 +290,7 @@ class Orchestrator:
         stop_scheduler()
 
         if hasattr(self, "_settlement_handler") and self._settlement_handler:
-            from backend.core.settlement_ws import stop_settlement_handler
+            from backend.core.settlement.settlement_ws import stop_settlement_handler
 
             await stop_settlement_handler()
 
@@ -819,7 +819,7 @@ def init_phase2_modules() -> dict:
     if getattr(settings, "AUTO_TRADER_ENABLED", False):
         try:
             from backend.core.auto_trader import AutoTrader
-            from backend.core.risk_manager import RiskManager
+            from backend.core.risk.risk_manager import RiskManager
 
             from backend.core.wallet.registry import get_wallet_router
 

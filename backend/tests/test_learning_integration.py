@@ -19,7 +19,7 @@ from backend.core.trading_calibration import TradingCalibration
 from backend.core.thompson_sampler import ThompsonSampler
 from backend.core.strategy_health import StrategyHealthMonitor
 from backend.core.safe_param_tuner import SafeParamTuner
-from backend.core.online_learner import OnlineLearner
+from backend.core.learning.online_learner import OnlineLearner
 
 
 @pytest.fixture

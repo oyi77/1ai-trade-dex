@@ -118,7 +118,7 @@ class TestPaperTradeCreatesRecord:
         """In paper mode, execute_decision creates a Trade row in the DB."""
         from backend.models.database import Trade, Signal, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         _reload_executor()
         db = _TestSession()
@@ -194,7 +194,7 @@ class TestDuplicateExecutionBlock:
         position and must block other strategies from trading the same market."""
         from backend.models.database import Trade, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         _reload_executor()
         db = _TestSession()
@@ -252,7 +252,7 @@ class TestDuplicateExecutionBlock:
         is no longer an open position and must not block new trades."""
         from backend.models.database import Trade
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         _reload_executor()
         db = _TestSession()
@@ -311,7 +311,7 @@ class TestDuplicateExecutionBlock:
         also treat settled=True/pnl=NULL as an open position."""
         from backend.models.database import Trade, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         _reload_executor()
         db = _TestSession()
@@ -369,7 +369,7 @@ class TestRiskRejection:
     @pytest.mark.asyncio
     async def test_risk_rejection_returns_none(self):
         """RiskManager rejection causes execute_decision to return None."""
-        from backend.core.risk_manager import RiskDecision, RiskManager
+        from backend.core.risk.risk_manager import RiskDecision, RiskManager
         from backend.core.mode_context import register_context, ModeExecutionContext
 
         _reload_executor()
@@ -455,7 +455,7 @@ class TestBotStateLockHandling:
     @pytest.mark.asyncio
     async def test_preflight_bot_state_read_does_not_lock_before_risk_rejection(self):
         """Risk-rejected trades should not acquire BotState FOR UPDATE during preflight."""
-        from backend.core.risk_manager import RiskDecision, RiskManager
+        from backend.core.risk.risk_manager import RiskDecision, RiskManager
         from backend.core.mode_context import register_context, ModeExecutionContext
 
         test_engine = create_engine(
@@ -551,7 +551,7 @@ class TestBotStateLockHandling:
     async def test_trade_persists_when_post_trade_botstate_update_fails(self):
         """BotState follow-up failure must not roll back an already-created trade."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.core import strategy_executor as se
         from backend.models.database import Trade, TradeAttempt
 
@@ -662,7 +662,7 @@ class TestAttemptSizingRejection:
     @pytest.mark.asyncio
     async def test_order_below_minimum_records_attempt_reason(self):
         """Orders too small for the active mode are visible in TradeAttempt."""
-        from backend.core.risk_manager import RiskDecision, RiskManager
+        from backend.core.risk.risk_manager import RiskDecision, RiskManager
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.models.database import TradeAttempt
 
@@ -743,7 +743,7 @@ class TestAttemptUnexpectedFailure:
     @pytest.mark.asyncio
     async def test_unexpected_executor_error_records_failed_attempt(self):
         """Unexpected execution exceptions remain visible in TradeAttempt."""
-        from backend.core.risk_manager import RiskDecision, RiskManager
+        from backend.core.risk.risk_manager import RiskDecision, RiskManager
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.models.database import TradeAttempt
 
@@ -830,7 +830,7 @@ class TestUpdatesBankroll:
     async def test_updates_paper_bankroll(self):
         """Paper trade DEDUCTS bankroll at entry — settlement returns stake + PNL."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -896,7 +896,7 @@ class TestUpdatesBankroll:
     async def test_trade_creation_uses_atomic_botstate_update_without_for_update(self):
         """Successful paper trades update BotState without SELECT ... FOR UPDATE."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -969,7 +969,7 @@ class TestUpdatesBankroll:
         """Trade/attempt persistence must survive follow-up BotState sync failure."""
         from backend.models.database import Trade, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -1164,7 +1164,7 @@ class TestCreatesSignalRecord:
         """execute_decision creates a Signal row for calibration tracking."""
         from backend.models.database import Signal
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -1231,7 +1231,7 @@ class TestMaxTradesPerCycle:
     async def test_max_trades_per_cycle(self):
         """execute_decisions caps at MAX_TRADES_PER_CYCLE (6)."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
 
         test_engine = create_engine(
             "sqlite:///:memory:",
@@ -1281,7 +1281,7 @@ class TestLiveModeCallsCLOB:
         """In live mode, place_limit_order is called and its result drives trade creation."""
         from backend.data.polymarket_clob import OrderResult
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.models.database import Trade
 
         test_engine = create_engine(
@@ -1377,7 +1377,7 @@ class TestLiveModeCallsCLOB:
     async def test_live_mode_records_normalized_filled_size_and_fee(self):
         """Live execution must persist provider-style filled_size/fill_price/fee fields."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.models.database import StrategyConfig, Trade
 
         test_engine = create_engine(
@@ -1474,7 +1474,7 @@ class TestLiveModeCallsCLOB:
         """Live CLOB handoff must not leave attempts stuck at RISK_APPROVED."""
         from backend.data.polymarket_clob import OrderResult
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.models.database import Trade, TradeAttempt
 
         test_engine = create_engine(
@@ -1583,7 +1583,7 @@ class TestLiveModeCallsCLOB:
     async def test_testnet_with_polymarket_token_uses_simulated_path(self):
         """Testnet Polymarket token decisions must not use live CLOB placement."""
         from backend.core.mode_context import register_context, ModeExecutionContext
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.models.database import Trade
 
         test_engine = create_engine(

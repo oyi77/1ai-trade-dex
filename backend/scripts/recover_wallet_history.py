@@ -26,7 +26,7 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from backend.core.wallet_reconciliation import WalletReconciler
+from backend.core.wallet.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.models.database import SessionLocal
 

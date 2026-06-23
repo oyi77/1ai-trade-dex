@@ -225,7 +225,7 @@ class TestCalibration:
 
     def test_default_sigma_us_city(self):
         """US cities default to 2.5°F sigma before calibration data."""
-        from backend.core.calibration import get_sigma, DEFAULT_SIGMA_F
+        from backend.core.learning.calibration import get_sigma, DEFAULT_SIGMA_F
 
         # With no calibration data, should return default
         sigma = get_sigma("nyc", source="gefs")
@@ -260,7 +260,7 @@ class TestCalibration:
 
     def test_calibration_report_no_data(self):
         """Report returns string even with no data."""
-        from backend.core.calibration import get_calibration_report
+        from backend.core.learning.calibration import get_calibration_report
 
         report = get_calibration_report()
         assert isinstance(report, str)

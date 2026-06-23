@@ -5,7 +5,7 @@ from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph
 from backend.core.strategy_allocator import RegimeAwareAllocator
 from backend.core.agi_goal_engine import AGIGoalEngine
-from backend.core.self_debugger import SelfDebugger
+from backend.core.learning.self_debugger import SelfDebugger
 from backend.core.strategy_composer import StrategyComposer
 from backend.core.experiment_runner import ExperimentRunner
 from backend.core.agi_orchestrator import AGIOrchestrator

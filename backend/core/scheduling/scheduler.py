@@ -48,7 +48,7 @@ from backend.core.position_monitor import (
 # auto_sell is opt-in per strategy, not imported globally
 from backend.models.database import ScheduledJob, Trade
 from backend.db.utils import utcnow
-from backend.core.auto_improve import auto_improve_job
+from backend.core.learning.auto_improve import auto_improve_job
 from backend.core.strategy_ranker import strategy_ranking_job
 from backend.core.agi_jobs import (
     self_review_job,
@@ -65,7 +65,7 @@ from backend.core.db_backup import backup_job
 from backend.core.cache_cleanup import cache_cleanup_job
 from backend.core.db_archiver import nightly_archive_job
 from backend.core.autonomous_promoter import autonomous_promotion_job
-from backend.core.bankroll_allocator import bankroll_allocation_job
+from backend.core.wallet.bankroll_allocator import bankroll_allocation_job
 from backend.core.agi_orchestrator import agi_improvement_cycle_job
 from backend.core.shadow_validation import shadow_validation_job
 from backend.application.agi.evolution_jobs import (

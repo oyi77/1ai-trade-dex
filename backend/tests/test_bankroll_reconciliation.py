@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.core.bankroll_reconciliation import (
+from backend.core.wallet.bankroll_reconciliation import (
     fetch_pm_profile_trade_stats,
     fetch_pm_traded_count,
     reconcile_bot_state,

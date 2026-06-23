@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.models.database import Base
 from backend.models.trading_wallet import TradingWallet, WalletAllocation
-from backend.core.wallet_router import WalletRouter
+from backend.core.wallet.wallet_router import WalletRouter
 from cryptography.fernet import Fernet
 
 

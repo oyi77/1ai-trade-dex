@@ -928,7 +928,7 @@ async def auto_trader_job(mode: str):
 
     try:
         from backend.core.auto_trader import AutoTrader
-        from backend.core.risk_manager import RiskManager
+        from backend.core.risk.risk_manager import RiskManager
         from backend.data.polymarket_clob import clob_from_settings
 
         from backend.core.wallet.registry import get_wallet_router
@@ -1432,9 +1432,9 @@ async def sync_live_wallet():
     from backend.db.utils import get_db_session
 
     try:
-        from backend.core.wallet_reconciliation import WalletReconciler
+        from backend.core.wallet.wallet_reconciliation import WalletReconciler
         from backend.data.polymarket_clob import clob_from_settings
-        from backend.core.bankroll_reconciliation import reconcile_bot_state
+        from backend.core.wallet.bankroll_reconciliation import reconcile_bot_state
 
         logger.info("[sync_live_wallet] Starting reconciliation...")
         clob = clob_from_settings(mode="live")

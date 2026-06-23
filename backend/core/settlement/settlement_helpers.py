@@ -1103,7 +1103,7 @@ async def _get_actual_temp_from_openmeteo(
 
 async def _try_calibrate_weather(signal, settlement_value: float) -> None:
     try:
-        from backend.core.calibration import update_calibration
+        from backend.core.learning.calibration import update_calibration
 
         sources = signal.sources or []
         city_key = next(
@@ -1391,7 +1391,7 @@ async def process_settled_trade(
 
     # Record calibration outcome for model validation
     try:
-        from backend.core.calibration_tracker import calibration_tracker
+        from backend.core.learning.calibration_tracker import calibration_tracker
 
         calibration_tracker.record_outcome(db, trade.market_ticker, settlement_value)
     except Exception as e:
@@ -1408,7 +1408,7 @@ async def process_settled_trade(
 
     # Trigger realtime RL learner — fire-and-forget, never blocks settlement
     try:
-        from backend.core.online_learner import OnlineLearner
+        from backend.core.learning.online_learner import OnlineLearner
 
         learner = OnlineLearner()
         learner_session_factory = sessionmaker(

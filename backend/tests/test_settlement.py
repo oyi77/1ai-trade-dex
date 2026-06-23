@@ -676,7 +676,7 @@ class TestProcessSettledTrade:
         trade_id = trade.id
 
         with patch(
-            "backend.core.online_learner.OnlineLearner.on_trade_settled",
+            "backend.core.learning.online_learner.OnlineLearner.on_trade_settled",
             side_effect=RuntimeError("boom {pk_1}"),
         ):
             result = await process_settled_trade(trade, True, 1.0, 6.0, db)

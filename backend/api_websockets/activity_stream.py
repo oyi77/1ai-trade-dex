@@ -7,7 +7,7 @@ activities are logged via POST /api/activities.
 import asyncio
 from typing import Dict, Any
 from datetime import datetime, timezone
-from backend.core.task_manager import TaskManager
+from backend.core.scheduling.task_manager import TaskManager
 
 from loguru import logger
 

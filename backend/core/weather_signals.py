@@ -8,7 +8,7 @@ from typing import List, Optional
 from scipy.stats import norm
 
 from backend.config import settings
-from backend.core.calibration import get_sigma
+from backend.core.learning.calibration import get_sigma
 from backend.core.signals import calculate_edge, calculate_kelly_size
 from backend.data.weather import fetch_ensemble_forecast
 from backend.data.weather_markets import WeatherMarket, fetch_polymarket_weather_markets

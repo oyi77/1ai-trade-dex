@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 from loguru import logger
 
 from backend.ai.llm_router import llm_router
-from backend.core.safety import SafetyMonitor, AlertSeverity
+from backend.core.risk.safety import SafetyMonitor, AlertSeverity
 from backend.models.database import BotState, SessionLocal
 
 

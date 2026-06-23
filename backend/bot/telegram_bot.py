@@ -670,7 +670,7 @@ class PolyEdgeBot:
         self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"
     ):
         try:
-            from backend.core.calibration import get_calibration_report
+            from backend.core.learning.calibration import get_calibration_report
 
             report = get_calibration_report()
             await update.message.reply_text(

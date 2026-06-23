@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
-from backend.core.learning_pipeline import (
+from backend.core.learning.learning_pipeline import (
     LearningPipeline,
     LessonExtractor,
     PipelineMetrics,

@@ -30,7 +30,7 @@ def test_extreme_scenarios():
 
 def validate_size(bankroll: float, confidence: float, expected_allowed: bool) -> dict:
     """Validate position sizing across extreme values."""
-    from backend.core.risk_manager_hft import HRiskManager
+    from backend.core.risk.risk_manager_hft import HRiskManager
     from backend.strategies.types_hft import HFTSignal
 
     risk = HRiskManager()
@@ -53,7 +53,7 @@ def validate_size(bankroll: float, confidence: float, expected_allowed: bool) ->
 
 def fuzz_position_sizing(n_iterations: int = 100) -> dict:
     """Fuzz test random position sizes."""
-    from backend.core.risk_manager_hft import HRiskManager
+    from backend.core.risk.risk_manager_hft import HRiskManager
     from backend.strategies.types_hft import HFTSignal
 
     risk = HRiskManager()

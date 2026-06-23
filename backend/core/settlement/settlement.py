@@ -78,7 +78,7 @@ _closed_unresolved_grace: dict = {}
 
 async def _fetch_pm_portfolio_value() -> float | None:
     """Fetch live total equity (USDC cash + open position value)."""
-    from backend.core.bankroll_reconciliation import fetch_pm_total_equity
+    from backend.core.wallet.bankroll_reconciliation import fetch_pm_total_equity
 
     return await fetch_pm_total_equity()
 
@@ -847,7 +847,7 @@ def _run_learning_pipeline_background(settled_trades: List[Trade]) -> None:
 
     Schedules an async task so settlement is never blocked.
     """
-    from backend.core.learning_pipeline import get_learning_pipeline
+    from backend.core.learning.learning_pipeline import get_learning_pipeline
     import asyncio
 
     async def _process_all() -> None:
@@ -930,7 +930,7 @@ async def update_bot_state_with_settlements(
         # Sync live bankroll from authoritative total equity source.
         if "live" in modes_with_settlements:
             try:
-                from backend.core.bankroll_reconciliation import (
+                from backend.core.wallet.bankroll_reconciliation import (
                     reconcile_bot_state as _reconcile,
                 )
 
@@ -987,7 +987,7 @@ async def reconcile_bot_state(db: Session) -> None:
     as the source of truth when on-chain wallet is available.
     """
     try:
-        from backend.core.bankroll_reconciliation import (
+        from backend.core.wallet.bankroll_reconciliation import (
             reconcile_bot_state as _reconcile,
         )
 

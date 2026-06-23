@@ -21,7 +21,7 @@ class AutoImproveNode(BaseAGINode):
         )
 
     async def execute(self, state: AgentState) -> AgentState:
-        from backend.core.auto_improve import AutoImprove
+        from backend.core.learning.auto_improve import AutoImprove
 
         strategy_key = state.get("strategy_key")
         performance_data = state.get("performance_data", {})

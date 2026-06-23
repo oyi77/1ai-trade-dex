@@ -248,7 +248,7 @@ async def on_experiment_promoted(event_type: str, data: Dict[str, Any]) -> None:
     to_stage = data.get("to_stage")
     logger.info(f"EVENT [experiment_promoted] genome={genome_id} to_stage={to_stage}")
     try:
-        from backend.core.bankroll_allocator import BankrollAllocator
+        from backend.core.wallet.bankroll_allocator import BankrollAllocator
 
         allocator = BankrollAllocator()
         asyncio.create_task(allocator.run_once())

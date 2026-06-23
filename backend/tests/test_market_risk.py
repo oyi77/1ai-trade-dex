@@ -1,5 +1,5 @@
 import pytest
-from backend.core.market_risk import MarketRiskGrader, RiskGrade
+from backend.core.risk.market_risk import MarketRiskGrader, RiskGrade
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from backend.core.copy_engine import CopyPolicyEngine
-    from backend.core.wallet_router import WalletRouter
+    from backend.core.wallet.wallet_router import WalletRouter
 
 _wallet_router: WalletRouter | None = None
 _copy_engine: CopyPolicyEngine | None = None

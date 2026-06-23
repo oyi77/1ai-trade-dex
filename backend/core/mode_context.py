@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from backend.data.polymarket_clob import PolymarketCLOB
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 from backend.models.database import StrategyConfig
 
 

@@ -75,7 +75,7 @@ class TestCodebaseScanner:
         code = """
 from backend.config import settings
 import backend.models.database
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 import os
 import json
 """
@@ -83,7 +83,7 @@ import json
         imports = CodebaseScanner._extract_imports(tree)
         assert "backend.config" in imports
         assert "backend.models.database" in imports
-        assert "backend.core.risk_manager" in imports
+        assert "backend.core.risk.risk_manager" in imports
         assert "os" not in imports
         assert "json" not in imports
 

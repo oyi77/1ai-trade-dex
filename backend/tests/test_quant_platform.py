@@ -26,7 +26,7 @@ def db():
 
 class TestCalibrationTracker:
     def test_record_prediction(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
         from backend.models.database import CalibrationRecord
 
         tracker = CalibrationTracker()
@@ -40,7 +40,7 @@ class TestCalibrationTracker:
         assert records[0].actual_outcome is None
 
     def test_record_outcome(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
         from backend.models.database import CalibrationRecord
 
         tracker = CalibrationTracker()
@@ -53,7 +53,7 @@ class TestCalibrationTracker:
         assert record.settlement_value == 1.0
 
     def test_record_outcome_loss(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         tracker = CalibrationTracker()
         tracker.record_prediction(db, "test", "mkt-1", 0.70, "yes")
@@ -65,7 +65,7 @@ class TestCalibrationTracker:
         assert record.actual_outcome == "loss"
 
     def test_no_direction_records_correctly(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         tracker = CalibrationTracker()
         tracker.record_prediction(db, "test", "mkt-no", 0.30, "no")
@@ -77,7 +77,7 @@ class TestCalibrationTracker:
         assert record.actual_outcome == "win"
 
     def test_calibration_curve(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         tracker = CalibrationTracker()
         # Add several predictions with outcomes
@@ -97,7 +97,7 @@ class TestCalibrationTracker:
         assert bin_with_data[0]["actual_win_rate"] == 0.8
 
     def test_brier_score(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         tracker = CalibrationTracker()
         # Perfect calibration: predict 1.0, always win
@@ -108,7 +108,7 @@ class TestCalibrationTracker:
         assert brier == 0.0  # Perfect score
 
     def test_brier_score_none_when_empty(self, db):
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         tracker = CalibrationTracker()
         assert tracker.get_brier_score(db, "nonexistent") is None

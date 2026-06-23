@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.api import dashboard as dashboard_api
-from backend.core.bankroll_reconciliation import PolymarketProfileTradeStats
+from backend.core.wallet.bankroll_reconciliation import PolymarketProfileTradeStats
 from backend.models.database import BotState, Trade
 
 # ---------------------------------------------------------------------------

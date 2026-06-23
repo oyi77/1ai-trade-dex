@@ -7,8 +7,7 @@ Subpackages:
     learning    — ML pipelines, calibration, self-debugging, auto-improvement
     wallet      — reconciliation, routing, allocation, equity tracking
 
-All flat imports (e.g. ``from backend.core.settlement import ...``) continue
-to work via backward-compatible shim modules at the package root.
+Import directly from subpackages: ``from backend.core.risk.risk_manager import RiskManager``
 """
 
 

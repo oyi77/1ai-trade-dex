@@ -21,7 +21,7 @@ class ModelCalibrationNode(BaseAGINode):
         )
 
     async def execute(self, state: AgentState) -> AgentState:
-        from backend.core.calibration_tracker import CalibrationTracker
+        from backend.core.learning.calibration_tracker import CalibrationTracker
 
         prediction_history = state.get("prediction_history", [])
         actual_outcomes = state.get("actual_outcomes", [])

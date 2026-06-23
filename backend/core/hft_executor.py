@@ -8,7 +8,7 @@ from typing import Optional, Any
 
 from backend.config import settings
 from backend.strategies.types_hft import HFTSignal, HFTExecution
-from backend.core.risk_manager_hft import HRiskManager
+from backend.core.risk.risk_manager_hft import HRiskManager
 from backend.core.slippage import calculate_slippage
 from backend.core.retry import retry
 from backend.monitoring.hft_metrics import (

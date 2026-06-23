@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade
-from backend.core.wallet_reconciliation import WalletReconciler
+from backend.core.wallet.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import PolymarketCLOB
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ async def test_database_recovery_from_empty(db, mock_clob):
     ]
 
     with patch(
-        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+        "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
     ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
@@ -186,7 +186,7 @@ async def test_external_trade_deduplication(db, mock_clob):
     ]
 
     with patch(
-        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+        "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
     ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
@@ -270,7 +270,7 @@ async def test_settlement_verification_external_closure(db, mock_clob):
 
     with (
         patch(
-            "backend.core.wallet_reconciliation.httpx.AsyncClient"
+            "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
         ) as mock_client_class,
         patch(
             "backend.core.settlement_helpers.fetch_resolution_for_trade",
@@ -363,7 +363,7 @@ async def test_orphan_detection(db, mock_clob):
     ]
 
     with patch(
-        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+        "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
     ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()
@@ -429,7 +429,7 @@ async def test_full_reconciliation_e2e(db, mock_clob):
     ]
 
     with patch(
-        "backend.core.wallet_reconciliation.httpx.AsyncClient"
+        "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
     ) as mock_client_class:
         mock_client = AsyncMock()
         mock_response = MagicMock()

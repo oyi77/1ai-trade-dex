@@ -86,7 +86,7 @@ async def test_whale_discovery_closes_snapshot_session_before_fetch_history():
 
 @pytest.mark.asyncio
 async def test_auto_add_profitable_wallets_rolls_back_before_leaderboard_await():
-    from backend.core.wallet_auto_discovery import auto_add_profitable_wallets
+    from backend.core.wallet.wallet_auto_discovery import auto_add_profitable_wallets
     from backend.models.database import WalletConfig
 
     class _WalletDB(_FakeDB):
@@ -151,7 +151,7 @@ async def test_auto_add_profitable_wallets_rolls_back_before_leaderboard_await()
         return [{"address": "0xdef", "pnl": 1200, "win_rate": 0.7}]
 
     with patch(
-        "backend.core.wallet_auto_discovery.auto_suggest_wallets_to_copy",
+        "backend.core.wallet.wallet_auto_discovery.auto_suggest_wallets_to_copy",
         side_effect=fake_auto_suggest,
     ):
         result = await auto_add_profitable_wallets(

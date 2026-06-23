@@ -13,7 +13,7 @@ Tests:
 
 from backend.core.regime_detector import RegimeDetector
 from backend.core.knowledge_graph import KnowledgeGraph
-from backend.core.self_debugger import SelfDebugger
+from backend.core.learning.self_debugger import SelfDebugger
 from backend.core.strategy_composer import StrategyComposer
 from backend.core.agi_types import MarketRegime, StrategyBlock
 from backend.core.experiment_runner import ExperimentRunner

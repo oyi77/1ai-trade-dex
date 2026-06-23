@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.models.database import Base, Trade, SystemSettings
 from backend.core.backtester import BacktestConfig, BacktestEngine
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 from backend.strategies.loader import load_all_strategies
 from backend.strategies.registry import STRATEGY_REGISTRY
 from backend.config_extensions import settings as extended_settings

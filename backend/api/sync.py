@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from backend.api.auth import require_admin
 from backend.config import settings
 from backend.core.event_bus import publish_event
-from backend.core.wallet_reconciliation import WalletReconciler
+from backend.core.wallet.wallet_reconciliation import WalletReconciler
 from backend.models.database import BotState, get_db, for_update
 
 from loguru import logger

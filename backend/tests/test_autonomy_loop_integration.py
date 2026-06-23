@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from backend.config import settings
 from backend.core.autonomous_promoter import AutonomousPromoter
-from backend.core.bankroll_allocator import BankrollAllocator
+from backend.core.wallet.bankroll_allocator import BankrollAllocator
 from backend.core.trade_forensics import TradeForensics
 from backend.models import database as _db_mod
 from backend.models.database import StrategyConfig, Trade

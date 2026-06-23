@@ -27,7 +27,7 @@ from backend.models.database import (
 )
 from backend.api.auth import require_admin
 from backend.core.signals import scan_for_signals
-from backend.core.bankroll_reconciliation import (
+from backend.core.wallet.bankroll_reconciliation import (
     fetch_pm_profile_pnl,
     fetch_pm_profile_trade_stats,
     _initial_bankroll_for_mode,

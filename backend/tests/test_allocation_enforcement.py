@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 from backend.models.database import Base, Trade, BotState
 
 
@@ -65,7 +65,7 @@ def _make_rm():
 class TestAllocationEnforcement:
     @patch("backend.db.utils.SessionLocal")
     @patch(
-        "backend.core.risk_manager.RiskManager._count_enabled_strategies",
+        "backend.core.risk.risk_manager.RiskManager._count_enabled_strategies",
         return_value=1,
     )
     def test_no_allocation_allows_trade(self, mock_count, mock_session_cls):

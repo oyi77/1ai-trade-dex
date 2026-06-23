@@ -18,7 +18,7 @@ from backend.core.knowledge_graph import KnowledgeGraph
 from backend.core.strategy_composer import StrategyComposer
 from backend.core.strategy_allocator import RegimeAwareAllocator
 from backend.core.agi_goal_engine import AGIGoalEngine, AGIGoal
-from backend.core.self_debugger import SelfDebugger
+from backend.core.learning.self_debugger import SelfDebugger
 from backend.core.llm_cost_tracker import LLMCostTracker
 from backend.core.agi_promotion_pipeline import AGIPromotionPipeline
 from backend.core.causal_reasoning import CausalReasoner

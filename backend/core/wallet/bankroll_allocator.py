@@ -188,7 +188,7 @@ class BankrollAllocator:
         self, allocations: dict[str, float]
     ) -> dict[str, float]:
         """Reduce signal weight for strategies with poorly calibrated price buckets."""
-        from backend.core.calibration_tracker import get_bucket_calibration
+        from backend.core.learning.calibration_tracker import get_bucket_calibration
 
         try:
             buckets = get_bucket_calibration(days=60, min_samples=10)

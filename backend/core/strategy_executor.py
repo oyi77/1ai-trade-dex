@@ -16,7 +16,7 @@ from backend.models.database import (
     StrategyConfig,
     botstate_mutex,
 )
-from backend.core.risk_manager import RiskManager
+from backend.core.risk.risk_manager import RiskManager
 from backend.core.event_bus import _broadcast_event
 from backend.core.mode_context import get_context
 from backend.core.alert_manager import AlertManager

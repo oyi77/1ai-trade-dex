@@ -14,8 +14,8 @@ from backend.config import settings
 from backend.core.log import configure_logging
 from backend.api.connection_limits import connection_limiter
 from backend.api.ws_manager_v2 import topic_manager
-from backend.core.task_manager import TaskManager
-from backend.core.wallet_reconciliation import WalletReconciler
+from backend.core.scheduling.task_manager import TaskManager
+from backend.core.wallet.wallet_reconciliation import WalletReconciler
 from backend.data.polymarket_clob import clob_from_settings
 from backend.data.polymarket_websocket import (
     get_market_websocket,
@@ -26,8 +26,8 @@ from backend.data.polymarket_websocket import (
 from backend.data.orderbook_cache import get_orderbook_cache
 from backend.models.database import BotState, MarketWatch, Trade, StrategyConfig
 from backend.core.mode_context import ModeExecutionContext, register_context
-from backend.core.risk_manager import RiskManager
-from backend.core.bankroll_reconciliation import reconcile_bot_state
+from backend.core.risk.risk_manager import RiskManager
+from backend.core.wallet.bankroll_reconciliation import reconcile_bot_state
 from backend.api_websockets import brain_stream, activity_stream, proposals, livestream
 from backend.db.utils import get_db_session
 
@@ -548,7 +548,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     encryption_key = settings.WALLET_ENCRYPTION_KEY or settings.WALLET_FERNET_KEY
     if encryption_key and settings.WALLET_ROUTER_ENABLED:
         try:
-            from backend.core.wallet_router import WalletRouter
+            from backend.core.wallet.wallet_router import WalletRouter
 
             with get_db_session() as db:
                 wallet_router = WalletRouter(db, fernet_key=encryption_key.encode())

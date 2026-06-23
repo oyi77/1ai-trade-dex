@@ -458,7 +458,7 @@ async def health_check(db: Session = Depends(get_db)):
     # ── Learning Pipeline ──
     learning_pipeline_health = {}
     try:
-        from backend.core.learning_pipeline import get_learning_pipeline
+        from backend.core.learning.learning_pipeline import get_learning_pipeline
 
         _lp = get_learning_pipeline()
         _m = _lp.metrics
