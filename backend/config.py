@@ -519,6 +519,45 @@ class ConfigRegistry:
     BOND_SCANNER_MAX_DAYS_TO_RESOLUTION: int = 14
     BOND_SCANNER_MIN_SIZE_USD: float = 1.0
 
+    # Mid-Range NO — bet NO on outcomes priced $0.30-0.50 (paper-only)
+    MID_RANGE_NO_MIN_PRICE: float = 0.30
+    MID_RANGE_NO_MAX_PRICE: float = 0.50
+    MID_RANGE_NO_MIN_VOLUME: int = 1000
+    MID_RANGE_NO_MAX_DAYS_TO_RESOLUTION: int = 60
+    MID_RANGE_NO_MIN_DAYS_TO_RESOLUTION: float = 0.0
+    MID_RANGE_NO_MAX_POSITION_SIZE: float = 5.0
+    MID_RANGE_NO_MAX_CONCURRENT: int = 10
+    MID_RANGE_NO_KELLY_FRACTION: float = 0.25
+    MID_RANGE_NO_MIN_SIZE_USD: float = 1.0
+    MID_RANGE_NO_BANKROLL_PCT: float = 0.02
+    MID_RANGE_NO_MIN_EDGE: float = 0.05
+
+    # Ultra-Cheap NO — bet NO on ultra-cheap outcomes (<$0.10) (paper-only)
+    ULTRA_CHEAP_NO_MIN_PRICE: float = 0.01
+    ULTRA_CHEAP_NO_MAX_PRICE: float = 0.10
+    ULTRA_CHEAP_NO_MIN_VOLUME: int = 500
+    ULTRA_CHEAP_NO_MAX_DAYS_TO_RESOLUTION: int = 30
+    ULTRA_CHEAP_NO_MIN_DAYS_TO_RESOLUTION: float = 0.0
+    ULTRA_CHEAP_NO_MAX_POSITION_SIZE: float = 5.0
+    ULTRA_CHEAP_NO_MAX_CONCURRENT: int = 10
+    ULTRA_CHEAP_NO_KELLY_FRACTION: float = 0.25
+    ULTRA_CHEAP_NO_MIN_SIZE_USD: float = 1.0
+    ULTRA_CHEAP_NO_BANKROLL_PCT: float = 0.02
+    ULTRA_CHEAP_NO_MIN_EDGE: float = 0.05
+
+    # BTC Fade — fade crypto event outcomes (paper-only)
+    BTC_FADE_MIN_PRICE: float = 0.01
+    BTC_FADE_MAX_PRICE: float = 0.30
+    BTC_FADE_MIN_VOLUME: int = 2000
+    BTC_FADE_MAX_DAYS_TO_RESOLUTION: int = 14
+    BTC_FADE_MIN_DAYS_TO_RESOLUTION: float = 0.0
+    BTC_FADE_MAX_POSITION_SIZE: float = 5.0
+    BTC_FADE_MAX_CONCURRENT: int = 8
+    BTC_FADE_KELLY_FRACTION: float = 0.20
+    BTC_FADE_MIN_SIZE_USD: float = 1.0
+    BTC_FADE_BANKROLL_PCT: float = 0.02
+    BTC_FADE_MIN_EDGE: float = 0.05
+
     # BTC Oracle
     BTC_ORACLE_MIN_POSITION_USD: float = 1.0
     BTC_ORACLE_MAX_POSITION_USD: float = 50.0
