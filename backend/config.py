@@ -259,7 +259,7 @@ class ConfigRegistry:
     # Trading parameters
     MIN_DEBATE_EDGE: float = 0.04  # debate threshold
     MIN_EDGE_THRESHOLD: float = 0.03  # minimum edge for signals
-    MIN_EDGE_PP: float = 6.0  # minimum edge in percentage points for risk_manager
+    MIN_EDGE_PP: float = 0.0  # minimum edge in percentage points for risk_manager
     MAX_ENTRY_PRICE: float = 0.80  # maximum entry price
     MAX_TRADES_PER_WINDOW: int = 20  # trades per scheduling window
     MAX_TRADES_PER_SCAN: int = 10  # trades per scan cycle
@@ -285,10 +285,10 @@ class ConfigRegistry:
 
     # Confidence and signal weights
     AUTO_APPROVE_MIN_CONFIDENCE: float = float(
-        os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.5")
+        os.getenv("AUTO_APPROVE_MIN_CONFIDENCE", "0.25")
     )
     PAPER_AUTO_APPROVE_MIN_CONFIDENCE: float = float(
-        os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.30")  # Lower for bond_scanner cheap-token strategy
+        os.getenv("PAPER_AUTO_APPROVE_MIN_CONFIDENCE", "0.20")  # Lower for bond_scanner cheap-token strategy
     )
     AI_SIGNAL_WEIGHT: float = 0.30  # AI weight in ensemble (max 0.50)
     LONGSHOT_NO_BIAS_WEIGHT: float = 0.10  # bias weight for longshot markets
