@@ -736,9 +736,10 @@ async def agi_improvement_cycle_job() -> None:
         raise
 
     try:
-        from backend.models.database import StrategyConfig
+        from backend.models.database import StrategyConfig, Trade
         from backend.models.outcome_tables import StrategyHealthRecord
         from backend.db.utils import get_db_session
+        from sqlalchemy import func
 
         with get_db_session() as db:
             killed = (
@@ -755,6 +756,22 @@ async def agi_improvement_cycle_job() -> None:
                     .first()
                 )
                 if config and config.enabled:
+                    # ponytail: don't kill profitable strategies
+                    total_pnl = (
+                        db.query(func.coalesce(func.sum(Trade.pnl), 0.0))
+                        .filter(
+                            Trade.strategy == hr.strategy,
+                            Trade.settled.is_(True),
+                            Trade.pnl.isnot(None),
+                        )
+                        .scalar() or 0.0
+                    )
+                    if total_pnl > 0:
+                        logger.info(
+                            f"[agi_improvement_cycle] SKIP kill '{hr.strategy}' — "
+                            f"profitable (PnL=${total_pnl:.2f})"
+                        )
+                        continue
                     from backend.core.strategy_health import disable_for_rehab
 
                     disable_for_rehab(config)
