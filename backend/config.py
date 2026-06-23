@@ -430,7 +430,7 @@ class ConfigRegistry:
     # LIVE_STRATEGY_ALLOWLIST: only strategies in this list can execute live.
     # Promoters, schedulers, and risk checks will respect this.
     # Empty list = ALL strategies allowed (permissive mode).
-    LIVE_STRATEGY_ALLOWLIST: list = field(default_factory=list)
+    LIVE_STRATEGY_ALLOWLIST: list = field(default_factory=lambda: ["bond_scanner", "longshot_bias"])
     VOLATILITY_SIZE_SCALE: bool = False  # reduce size in high volatility
     COOLDOWN_CONSECUTIVE_LOSSES: int = 3  # losses before cooldown
     COOLDOWN_MINUTES: int = 60  # strategy cooldown after consecutive losses

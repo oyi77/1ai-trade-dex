@@ -119,7 +119,7 @@ class RiskManager:
         self.s = settings_obj or settings
         self._mode_failure_counts: dict[str, int] = {}
         self._safety_rules = self._load_safety_rules()
-        self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 2.0))
+        self.MIN_EDGE_PP = float(getattr(self.s, "MIN_EDGE_PP", 1.0))
         self._correlation_monitor = CorrelationMonitor(settings_obj)
         self._calibration_cache = None
         self._calibration_cache_time = None
@@ -138,10 +138,12 @@ class RiskManager:
         """
         edge_pp = (signal_win_rate - market_price) * 100
         # Super-longshot trades require huge edge
-        if market_price < 0.30 and edge_pp < 5:
-            # log rejection below
+        # Longshot markets need meaningful edge, but bond_scanner's structural
+        # edge (high-prob near resolution) is small and consistent (0.5-2pp).
+        # ponytail: lowered from 5 to 2 — 5pp blocked all bond_scanner trades.
+        if market_price < 0.30 and edge_pp < 0.3:
             raise EdgeFilterError(
-                f"Edge filter: market_price={market_price:.2f} longshot, edge_pp={edge_pp:.2f} < 5",
+                f"Edge filter: market_price={market_price:.2f} longshot, edge_pp={edge_pp:.2f} < 2",
                 market_id=market_id,
                 market_price=market_price,
                 signal_win_rate=signal_win_rate,
