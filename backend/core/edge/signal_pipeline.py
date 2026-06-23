@@ -32,27 +32,9 @@ class SignalPipeline:
         self.max_signals = int(_cfg("APEX_MAX_CONCURRENT", 5))
 
     async def evaluate(self, edges: List[Edge], ctx) -> List[Signal]:
-        """Filter, deduplicate, size, and rank edges into actionable signals.
-
-        Also enriches edges with historical calibration mispricing detection.
-        """
+        """Filter, deduplicate, size, and rank edges into actionable signals."""
         if not edges:
             return []
-
-        # Stage 0: Enrich with historical edge detection
-        try:
-            from backend.core.edge.historical_edge_detector import get_historical_edge_detector
-            detector = get_historical_edge_detector()
-            # Only run for markets without existing structural edges
-            if len(edges) < 3:
-                hist_edges = detector.detect(
-                    market_question=getattr(ctx, "market_question", ""),
-                    market_price=getattr(ctx, "market_price", 0.5),
-                    category=getattr(ctx, "category", ""),
-                )
-                edges = edges + hist_edges
-        except Exception:
-            logger.debug("[apex:pipeline] Historical edge detection skipped")
 
         # Stage 1: Filter
         filtered = self._filter(edges)

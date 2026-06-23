@@ -1,4 +1,4 @@
-"""DEPRECATED: Use backend.core.settlement_helpers instead.
+"""
 
 Settlement helper functions - API resolution, P&L calculation, weather calibration.
 

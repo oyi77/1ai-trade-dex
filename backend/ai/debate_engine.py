@@ -98,9 +98,6 @@ class DebateResult:
     market_price: float = 0.0
     data_sources: list[str] = field(default_factory=list)
     signal_votes: list[SignalVote] = field(default_factory=list)
-    # Calibration fields (populated by ProbabilityCalibrator after debate)
-    calibrated_probability: float | None = None
-    brier_score: float | None = None
 
     def to_transcript_dict(self) -> dict:
         """Serialize the full debate transcript to a JSON-serializable dict.
@@ -136,8 +133,6 @@ class DebateResult:
                     "reasoning": self.reasoning,
                     "raw_response": self.judge_raw,
                     "consensus_probability": self.consensus_probability,
-                    "calibrated_probability": self.calibrated_probability,
-                    "brier_score": self.brier_score,
                     "confidence": self.confidence,
                 },
                 "rounds_completed": self.rounds_completed,
@@ -594,25 +589,10 @@ async def run_debate(
     consensus_conf = max(0.0, min(1.0, consensus_conf))
     latency_ms = (time.time() - start_time) * 1000
 
-    # Calibrate the raw consensus probability using historical outcomes
-    calibrated_prob = consensus_prob
-    brier_score = None
-    try:
-        from backend.ai.probability_calibrator import get_calibrator
-        from backend.db.utils import get_db_session
-
-        calibrator = get_calibrator()
-        with get_db_session() as cal_db:
-            calibrated_prob, brier_score = calibrator.calibrate(
-                "judge", consensus_prob, cal_db
-            )
-    except Exception:
-        logger.debug("[debate_engine] Calibration skipped (no DB or no data)")
-
     logger.info(
-        "[debate_engine] question=%s price=%.3f consensus=%.3f calibrated=%.3f conf=%.2f "
+        "[debate_engine] question=%s price=%.3f consensus=%.3f conf=%.2f "
         "rounds=%d bull=%d bear=%d latency=%.0fms",
-        question[:60], market_price, consensus_prob, calibrated_prob, consensus_conf,
+        question[:60], market_price, consensus_prob, consensus_conf,
         rounds_completed, len(bull_args), len(bear_args), latency_ms,
     )
 
@@ -629,6 +609,4 @@ async def run_debate(
         market_price=market_price,
         data_sources=data_sources or [],
         signal_votes=signal_votes or [],
-        calibrated_probability=calibrated_prob,
-        brier_score=brier_score,
     )

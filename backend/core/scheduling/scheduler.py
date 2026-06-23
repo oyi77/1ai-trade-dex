@@ -1,4 +1,4 @@
-"""DEPRECATED: Use backend.core.scheduler instead.
+"""
 
 Background scheduler for multi-strategy autonomous trading.
 

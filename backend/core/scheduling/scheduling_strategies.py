@@ -1,4 +1,4 @@
-"""DEPRECATED: Use backend.core.scheduling_strategies instead.
+"""
 
 Background job functions scheduled by APScheduler.
 

@@ -1,4 +1,4 @@
-"""DEPRECATED: Use backend.core.risk_manager instead.
+"""
 
 Risk manager — validates trades against position size, exposure, drawdown, and confidence rules.
 
