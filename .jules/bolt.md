@@ -1,0 +1,3 @@
+## 2024-06-13 - Avoid Math.max/min spread on large arrays
+**Learning:** Using `Math.max(...array)` or `Math.min(...array)` on large datasets (like chart data points or leaderboards) in frontend React components can trigger "Maximum call stack size exceeded" errors because JavaScript engines impose a hard limit on the number of arguments a function can accept. Additionally, it requires mapping an intermediate array, which increases memory overhead.
+**Action:** Always use `.reduce((max, val) => Math.max(max, val), initialValue)` instead of the spread operator for aggregate min/max calculations on unbounded data arrays. Explicitly define the `initialValue` appropriately (e.g., `0`, `-Infinity`, `Infinity`) to preserve intended scaling.
