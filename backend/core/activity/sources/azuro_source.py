@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 import asyncio
-import time
 
 from backend.core.activity.models import ActivityEvent
 from backend.core.activity.sources.base import BaseActivitySource
@@ -77,7 +76,7 @@ class AzuroActivitySource(BaseActivitySource):
             payout = float(bet.get("payout", 0)) / 1e18
             condition = bet.get("condition") or {}
             game = bet.get("game") or {}
-            outcome = bet.get("outcome") or {}
+            bet.get("outcome") or {}
 
             # Map bet status to event type
             if status == "Created":

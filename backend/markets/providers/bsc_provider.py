@@ -201,7 +201,6 @@ class BSCProvider(BaseMarketProvider):
     def _paper_order(self, order: NormalizedOrder) -> NormalizedOrderResult:
         """Simulate order fill in paper mode."""
         from datetime import datetime, timezone
-        import random
 
         side = "buy" if order.side in (OrderSide.YES, OrderSide.BUY) else "sell"
         price = order.price or Decimal("1.0")

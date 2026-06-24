@@ -101,7 +101,7 @@ class GroqClassifier(BaseAIClient):
                 try:
                     confidence = int(parts[1].strip()) / 100
                 except ValueError:
-                    logger.debug(f"groq: invalid confidence value in classification response")
+                    logger.debug("groq: invalid confidence value in classification response")
 
             # Validate category
             valid_categories = [

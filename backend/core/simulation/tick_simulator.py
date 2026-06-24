@@ -7,8 +7,8 @@ momentum, and quoting math over historical or mocked WebSocket streams.
 
 import asyncio
 import time
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Type
+from dataclasses import dataclass
+from typing import List, Dict, Any, Type
 from loguru import logger
 
 from backend.core.event_bus import MarketEvent

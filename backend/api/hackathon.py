@@ -3,10 +3,9 @@
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.config import settings
 from loguru import logger
 
 # Lazily imported to avoid circular deps at module level

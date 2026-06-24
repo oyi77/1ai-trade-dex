@@ -36,7 +36,9 @@ class LimitlessProvider(BaseMarketProvider):
 
     @staticmethod
     def _sign_request(tid: str, secret: str, method: str, path: str, body: str = "") -> dict:
-        import hmac, hashlib, base64
+        import hmac
+        import hashlib
+        import base64
         from datetime import datetime, timezone
         ts = datetime.now(timezone.utc).isoformat()
         msg = f"{ts}\n{method}\n{path}\n{body}"
@@ -93,7 +95,9 @@ class LimitlessProvider(BaseMarketProvider):
                 filled_avg_price=order.price or Decimal("0.5"),
                 remaining_size=Decimal("0"), fees_paid=Decimal("0"),
             )
-        import httpx, json, random, copy
+        import httpx
+        import json
+        import random
         from eth_account import Account
         from eth_account.messages import encode_typed_data
 
@@ -237,7 +241,9 @@ class LimitlessProvider(BaseMarketProvider):
                 return NormalizedBalance(venue="limitless", available_cash=Decimal("0"),
                                          total_equity=Decimal("0"), reserved_margin=Decimal("0"))
 
-            import hmac, hashlib, base64
+            import hmac
+            import hashlib
+            import base64
             from datetime import datetime, timezone
 
             timestamp = datetime.now(timezone.utc).isoformat()

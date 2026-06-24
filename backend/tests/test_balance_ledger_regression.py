@@ -282,15 +282,15 @@ def test_no_direct_state_bankroll_assignment_outside_ledger():
     # (assignments from variables or expressions) fail this test.
     zero_reset = re.compile(r"\.\w+\s*=\s*(0|0\.0|None)\s*$")
     filtered: list[tuple[str, int, str]] = []
-    for (m, ln, l) in bad_assignments:
+    for (m, ln, line) in bad_assignments:
         if "settlement.py" in m:
             continue
-        if zero_reset.search(l):
+        if zero_reset.search(line):
             continue
-        filtered.append((m, ln, l))
+        filtered.append((m, ln, line))
     assert not filtered, (
         "Direct assignments to financial fields still exist outside the ledger:\n"
-        + "\n".join(f"  {m}:{ln}: {l}" for (m, ln, l) in filtered)
+        + "\n".join(f"  {m}:{ln}: {line}" for (m, ln, line) in filtered)
     )
 
 
