@@ -175,6 +175,21 @@ class AutoSellManager:
 
         trigger: Optional[str] = None
 
+        # Pre-expiry sell: force exit 1 hour before market resolution to avoid
+        # full-position "expired" losses. This catches positions that would
+        # otherwise expire worthless because auto-sell didn't trigger on price.
+        market_end = _as_aware(getattr(trade, "market_end_date", None))
+        if market_end is not None:
+            seconds_to_expiry = (market_end - _now_utc()).total_seconds()
+            PRE_EXPIRY_SECONDS = 3600  # 1 hour
+            if 0 < seconds_to_expiry <= PRE_EXPIRY_SECONDS:
+                trigger = "PRE_EXPIRY"
+                logger.info(
+                    "[auto_sell] PRE_EXPIRY triggered for trade_id={} ticker={} "
+                    "seconds_to_expiry={:.0f} current_price={:.4f}",
+                    trade_id, ticker, seconds_to_expiry, current_price,
+                )
+
         # Effective stop-loss: if trailing stop is active (pnl exceeded activation
         # threshold), tighten stop to breakeven (0%) to lock in gains.
         effective_stop_loss = self.stop_loss

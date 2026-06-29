@@ -319,12 +319,12 @@ class ConfigRegistry:
     KILL_CUMULATIVE_LOSS: float = -500.0  # cumulative PnL below which strategy is auto-killed
     KILL_AVG_LOSS_RATIO: float = 5.0  # avg_loss/avg_win ratio above which strategy is auto-killed
     KILL_CONSECUTIVE_LOSSES: int = 7  # consecutive losses before auto-kill
-    KILL_ZERO_WR_AFTER_N: int = 50  # auto-kill if 0% win rate after N trades (catches broken strategies)
+    KILL_ZERO_WR_AFTER_N: int = 20  # auto-kill if 0% win rate after N trades (catches broken strategies fast)
     WARN_WIN_RATE: float = 0.15  # win rate below which strategy gets warning flag
     WARN_SHARPE: float = -1.0  # Sharpe below which strategy gets warning
     WARN_BRIER: float = 0.4  # calibration threshold
     WARN_PSI: float = 0.25  # drift detection threshold
-    MIN_WARMUP_TRADES: int = 30  # trades before strategy governance activates
+    MIN_WARMUP_TRADES: int = 20  # trades before strategy governance activates (was 30 — too slow)
     DEGRADATION_WR_THRESHOLD: float = (
         0.35  # win rate drop triggering degradation review
     )

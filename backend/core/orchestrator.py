@@ -208,7 +208,7 @@ class Orchestrator:
 
         self._patch_weather_job()
 
-        from backend.core.scheduler import start_scheduler
+        from backend.core.scheduling.scheduler import start_scheduler
 
         start_scheduler()
         logger.info(
@@ -285,7 +285,7 @@ class Orchestrator:
             await clob_client.__aexit__(None, None, None)
             logger.info(f"CLOB client closed for mode: {mode}")
 
-        from backend.core.scheduler import stop_scheduler
+        from backend.core.scheduling.scheduler import stop_scheduler
 
         stop_scheduler()
 
@@ -433,7 +433,7 @@ class Orchestrator:
 
     def _patch_weather_job(self) -> None:
         """Replace weather_scan_and_trade_job with a version that dispatches Telegram alerts."""
-        import backend.core.scheduler as sched_mod
+        import backend.core.scheduling.scheduler as sched_mod
 
         bot = self._bot
         clob = self._clob
@@ -443,7 +443,7 @@ class Orchestrator:
         async def patched_weather_job(mode: str = "paper"):
             """Weather job with Telegram dispatch."""
             from backend.core.weather_signals import scan_for_weather_signals
-            from backend.core.scheduler import log_event
+            from backend.core.scheduling.scheduler import log_event
 
             signals = await scan_for_weather_signals(mode=mode)
             actionable = [s for s in signals if s.passes_threshold]
@@ -620,13 +620,13 @@ class Orchestrator:
         logger.info(f"Trading modes updated to: {new_mode}")
 
     async def _on_pause(self) -> None:
-        from backend.core.scheduler import stop_scheduler
+        from backend.core.scheduling.scheduler import stop_scheduler
 
         stop_scheduler()
         logger.info("Trading paused via Telegram")
 
     async def _on_resume(self) -> None:
-        from backend.core.scheduler import start_scheduler
+        from backend.core.scheduling.scheduler import start_scheduler
 
         start_scheduler()
         logger.info("Trading resumed via Telegram")

@@ -1260,8 +1260,8 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
                     actual_equity = await fetch_pm_total_equity()
                     if actual_equity and actual_equity > 0:
                         bankroll = min(
-                            bankroll, actual_equity * 0.5
-                        )  # Use 50% of equity for arb
+                            bankroll, actual_equity * 0.75
+                        )  # Use 75% of equity for live trading
                 except Exception:
                     logger.warning("scheduling_strategies: failed to fetch PM equity for arb sizing")
             strategy = strategy_cls()
