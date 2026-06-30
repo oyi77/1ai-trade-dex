@@ -557,14 +557,10 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
         dict with keys: station_id, time, temp_c, wind_kt, visibility_mi, weather.
         Returns None if the API fails or no observations exist for that date.
     """
-    NOAA_METAR_URL = "https://aviationweather.gov/cgi-bin/data/api/v1/aoaws/metar"
+    NOAA_METAR_URL = "https://aviationweather.gov/api/data/metar"
     params = {
-        "dataSource": "metars",
-        "requestType": "retrieve",
+        "ids": station_id,
         "format": "json",
-        "stationString": station_id,
-        "startTime": f"{date}T00:00Z",
-        "endTime": f"{date}T23:59Z",
     }
 
     async def _fetch_metar():
@@ -581,27 +577,33 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
     try:
         data = await _weather_rate_limiter.call(noaa_metar_breaker.call, _fetch_metar)
 
-        features = data.get("features", [])
-        if not features:
+        # New NOAA API returns a JSON array (not GeoJSON features)
+        if isinstance(data, list):
+            observations = data
+        else:
+            observations = data.get("features", [])
+
+        if not observations:
             return None
 
         def _nearest_noon_hour(obs: dict) -> int:
-            ts = obs.get("properties", {}).get("timestamp", "")
+            # New API: obsTime field; old API: properties.timestamp
+            ts = obs.get("obsTime") or obs.get("properties", {}).get("timestamp", "")
             try:
                 return abs(datetime.fromisoformat(ts.replace("Z", "+00:00")).hour - 12)
             except Exception:
-                logger.debug("weather metar timestamp parse failed")
                 return 99
 
-        chosen = min(features, key=_nearest_noon_hour)
-        props = chosen.get("properties", {})
+        chosen = min(observations, key=_nearest_noon_hour)
+        # New API has flat structure; old API nests in properties
+        props = chosen.get("properties", chosen)
         return {
-            "station_id": props.get("station"),
-            "time": props.get("timestamp"),
-            "temp_c": props.get("temp_c"),
-            "wind_kt": props.get("wind_speed_kt"),
-            "visibility_mi": props.get("visibility_statute_mi"),
-            "weather": props.get("wx_string"),
+            "station_id": props.get("station") or props.get("icaoId"),
+            "time": props.get("timestamp") or props.get("obsTime"),
+            "temp_c": props.get("temp_c") or props.get("temp"),
+            "wind_kt": props.get("wind_speed_kt") or props.get("wspd"),
+            "visibility_mi": props.get("visibility_statute_mi") or props.get("visib"),
+            "weather": props.get("wx_string") or props.get("wxString"),
         }
     except CircuitOpenError:
         logger.warning(

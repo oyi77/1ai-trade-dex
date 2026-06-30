@@ -49,8 +49,11 @@ class RealTimeStrategyManager:
 
         for name, strategy in self._strategies.items():
             if hasattr(strategy, 'stop_realtime'):
-                await strategy.stop_realtime()
-                logger.info(f"[RealTimeManager] Stopped strategy: {name}")
+                try:
+                    await strategy.stop_realtime()
+                    logger.info(f"[RealTimeManager] Stopped strategy: {name}")
+                except Exception as e:
+                    logger.warning(f"[RealTimeManager] Error stopping {name}: {e}")
 
         # Cancel all tasks
         for name, task in self._tasks.items():
@@ -58,7 +61,7 @@ class RealTimeStrategyManager:
                 task.cancel()
                 try:
                     await task
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, Exception):
                     pass
 
         self._tasks.clear()

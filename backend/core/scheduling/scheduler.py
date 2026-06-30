@@ -1429,7 +1429,7 @@ def start_scheduler():
         for mode in modes:
             scheduler.add_job(
                 arb_execution_job,
-                IntervalTrigger(seconds=30),
+                IntervalTrigger(seconds=120),
                 kwargs={"mode": mode, "limit": 200},
                 id=f"{mode}_arb_executor",
                 replace_existing=True,

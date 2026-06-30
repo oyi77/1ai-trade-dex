@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from pathlib import Path
 import signal
 from typing import Optional, Dict
 
@@ -383,15 +384,16 @@ class Orchestrator:
         # except Exception as e:
         #     logger.warning(f"Limitless activity source skipped: {e}")
 
-        # Kalshi — REST fills + position polling
-        try:
-            from backend.data.kalshi_client import KalshiClient
-            from backend.core.activity.sources.kalshi_source import KalshiActivitySource
+        # Kalshi — REST fills + position polling (skip when disabled or no credentials)
+        if settings.KALSHI_ENABLED and settings.KALSHI_PRIVATE_KEY_PATH and Path(settings.KALSHI_PRIVATE_KEY_PATH).expanduser().exists():
+            try:
+                from backend.data.kalshi_client import KalshiClient
+                from backend.core.activity.sources.kalshi_source import KalshiActivitySource
 
-            kalshi_client = KalshiClient()
-            tracker.register_source("kalshi", KalshiActivitySource(addr, kalshi_client))
-        except Exception as e:
-            logger.warning(f"Kalshi activity source skipped: {e}")
+                kalshi_client = KalshiClient()
+                tracker.register_source("kalshi", KalshiActivitySource(addr, kalshi_client))
+            except Exception as e:
+                logger.warning(f"Kalshi activity source skipped: {e}")
 
         # Ostium — SDK fills + position polling
         try:

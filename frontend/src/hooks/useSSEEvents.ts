@@ -111,7 +111,20 @@ export function useSSEEvents(options: UseSSEEventsOptions = {}): UseSSEEventsRes
           es = null;
         }
         setStatus('disconnected');
-        reconnectTimeout = setTimeout(connect, 5000);
+        // Don't reconnect on auth errors (401) — only on network errors
+        // EventSource doesn't expose status code, so we check via a quick fetch
+        fetch(url, { method: 'HEAD', credentials: 'include' })
+          .then(r => {
+            if (r.status === 401 || r.status === 403) {
+              // Auth required — don't spam reconnects
+              return;
+            }
+            reconnectTimeout = setTimeout(connect, 5000);
+          })
+          .catch(() => {
+            // Network error — reconnect
+            reconnectTimeout = setTimeout(connect, 5000);
+          });
       };
     };
 

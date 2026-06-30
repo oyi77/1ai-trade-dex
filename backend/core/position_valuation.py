@@ -263,7 +263,7 @@ async def _fetch_prices_with_fallback(
                     return ticker, price_data, None
                 else:
                     error_msg = f"Empty or invalid response for {ticker}"
-                    logger.error(error_msg)
+                    logger.warning(error_msg)
                     return ticker, None, "invalid_response"
 
         except httpx.TimeoutException as e:
