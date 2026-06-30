@@ -101,7 +101,7 @@ def load_all_strategies() -> None:
             errors += 1
 
     log.info(
-        "Strategy discovery complete: %d loaded, %d errors, %d registered",
+        "Strategy discovery complete: {} loaded, {} errors, {} registered",
         loaded,
         errors,
         len(STRATEGY_REGISTRY),

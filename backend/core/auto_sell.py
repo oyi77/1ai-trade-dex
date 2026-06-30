@@ -260,6 +260,18 @@ class AutoSellManager:
                     trade.result = "expired"
                     trade.pnl = 0.0
                     result.triggered = False
+                    # Commit directly since trade may be detached from session
+                    try:
+                        from backend.db.utils import get_db_session as _gbs
+                        from sqlalchemy import text as _text
+                        with _gbs() as _db:
+                            _db.execute(
+                                _text("UPDATE trades SET settled=true, result='expired', pnl=0.0 WHERE id=:tid"),
+                                {"tid": trade_id},
+                            )
+                            _db.commit()
+                    except Exception as commit_err:
+                        logger.debug(f"[auto_sell] Failed to commit expired status for trade_id={trade_id}: {commit_err}")
                     return None
 
                 if sell_size * current_price < 1.0:
@@ -270,6 +282,17 @@ class AutoSellManager:
                     trade.result = "expired"
                     trade.pnl = 0.0
                     result.triggered = False
+                    try:
+                        from backend.db.utils import get_db_session as _gbs2
+                        from sqlalchemy import text as _text2
+                        with _gbs2() as _db2:
+                            _db2.execute(
+                                _text2("UPDATE trades SET settled=true, result='expired', pnl=0.0 WHERE id=:tid"),
+                                {"tid": trade_id},
+                            )
+                            _db2.commit()
+                    except Exception as commit_err:
+                        logger.debug(f"[auto_sell] Failed to commit expired status for trade_id={trade_id}: {commit_err}")
                     return None
 
                 order_id = await self._place_sell(
@@ -355,13 +378,6 @@ class AutoSellManager:
             size=size,
         )
         return getattr(result, "order_id", str(result))
-
-
-# ---------------------------------------------------------------------------
-# Scheduler-compatible async job
-# ---------------------------------------------------------------------------
-
-
 async def auto_sell_monitor_job() -> None:
     """APScheduler-compatible async job that checks ALL open positions for
     auto-sell every 30 seconds.

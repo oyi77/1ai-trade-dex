@@ -240,24 +240,24 @@ class AGISelfTuner:
                     .all()
                 )
 
-            for config in active_strategies:
-                strategy_name = config.strategy_name
-                try:
-                    perf = tracker.get_performance(strategy_name, limit=50)
+                for config in active_strategies:
+                    strategy_name = config.strategy_name
+                    try:
+                        perf = tracker.get_performance(strategy_name, limit=50)
 
-                    if perf.total_trades < MIN_TRADES_FOR_TUNING:
-                        continue
+                        if perf.total_trades < MIN_TRADES_FOR_TUNING:
+                            continue
 
-                    if perf.win_rate < WIN_RATE_FLOOR:
-                        changes = await self.evaluate_and_tune(strategy_name)
-                        if changes:
-                            tuned_count += 1
-                    elif perf.win_rate > WIN_RATE_CEILING and perf.total_trades >= 20:
-                        changes = await self.evaluate_and_tune(strategy_name)
-                        if changes:
-                            tuned_count += 1
-                except Exception:
-                    logger.exception(f"[AGISelfTuner] Error reviewing {strategy_name}")
+                        if perf.win_rate < WIN_RATE_FLOOR:
+                            changes = await self.evaluate_and_tune(strategy_name)
+                            if changes:
+                                tuned_count += 1
+                        elif perf.win_rate > WIN_RATE_CEILING and perf.total_trades >= 20:
+                            changes = await self.evaluate_and_tune(strategy_name)
+                            if changes:
+                                tuned_count += 1
+                    except Exception:
+                        logger.exception(f"[AGISelfTuner] Error reviewing {strategy_name}")
 
             if tuned_count > 0:
                 logger.info(

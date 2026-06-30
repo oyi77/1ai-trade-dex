@@ -42,7 +42,7 @@ def retry(
                             min(_backoff_base**attempt, _max_delay) + random.random()
                         )
                         logger.warning(
-                            "Retry %d/%d for %s after %.1fs: %s",
+                            "Retry {}/{} for {} after {:.1f}s: {}",
                             attempt,
                             max_attempts,
                             func.__name__,
@@ -73,7 +73,7 @@ def retry(
                             min(_backoff_base**attempt, _max_delay) + random.random()
                         )
                         logger.warning(
-                            "Retry %d/%d for %s after %.1fs: %s",
+                            "Retry {}/{} for {} after {:.1f}s: {}",
                             attempt,
                             max_attempts,
                             func.__name__,
