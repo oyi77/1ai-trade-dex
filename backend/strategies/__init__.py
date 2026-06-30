@@ -6,3 +6,5 @@ from backend.strategies.ultra_cheap_no import UltraCheapNoStrategy  # noqa: F401
 from backend.strategies.smart_money_copy import SmartMoneyCopyStrategy  # noqa: F401
 from backend.strategies.flb_exploiter import FLBExploiterStrategy  # noqa: F401
 from backend.strategies.multi_outcome_arb import MultiOutcomeArbStrategy  # noqa: F401
+from backend.strategies.negrisk_bundle_arb import NegRiskBundleArbStrategy  # noqa: F401
+from backend.strategies.flash_crash_reversion import FlashCrashReversionStrategy  # noqa: F401
