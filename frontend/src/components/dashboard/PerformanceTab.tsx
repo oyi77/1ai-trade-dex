@@ -57,14 +57,22 @@ export function PerformanceTab() {
   // Filter equity curve by selected mode
   const filteredEquityCurve = useMemo(() => dashboardData?.equity_curve ?? [], [dashboardData])
 
-  // ⚡ Bolt: Memoized complex trade filtering for mode metrics
+  // ⚡ Bolt: Memoized complex trade filtering for mode metrics (single pass optimization)
   const chartData = useMemo(() => {
-    const paperTrades = filteredTrades.filter((t) => t.trading_mode === 'paper')
-    const liveTrades = filteredTrades.filter((t) => t.trading_mode === 'live')
-    const paperWins = paperTrades.filter((t) => t.result === 'win').length
-    const paperSettled = paperTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
-    const liveWins = liveTrades.filter((t) => t.result === 'win').length
-    const liveSettled = liveTrades.filter((t) => t.result === 'win' || t.result === 'loss').length
+    let paperWins = 0
+    let paperSettled = 0
+    let liveWins = 0
+    let liveSettled = 0
+
+    for (const t of filteredTrades) {
+      if (t.trading_mode === 'paper') {
+        if (t.result === 'win') paperWins++
+        if (t.result === 'win' || t.result === 'loss') paperSettled++
+      } else if (t.trading_mode === 'live') {
+        if (t.result === 'win') liveWins++
+        if (t.result === 'win' || t.result === 'loss') liveSettled++
+      }
+    }
 
     return [
       { name: 'Paper', winRate: paperSettled > 0 ? (paperWins / paperSettled) * 100 : 0 },
@@ -72,13 +80,18 @@ export function PerformanceTab() {
     ]
   }, [filteredTrades])
 
-  // ⚡ Bolt: Memoized daily PNL reduction
+  // ⚡ Bolt: Memoized daily PNL reduction (single pass optimization)
   const dailyPnl = useMemo(() => {
     const todayStart = new Date(todayKey)
     todayStart.setHours(0, 0, 0, 0)
-    return filteredTrades
-      .filter((t) => t.timestamp && new Date(t.timestamp) >= todayStart)
-      .reduce((s: number, t) => s + (t.pnl ?? 0), 0)
+
+    let sum = 0
+    for (const t of filteredTrades) {
+      if (t.timestamp && new Date(t.timestamp) >= todayStart) {
+        sum += (t.pnl ?? 0)
+      }
+    }
+    return sum
   }, [filteredTrades, todayKey])
 
   // ⚡ Bolt: Memoized average trade size computation
