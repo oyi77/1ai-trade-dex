@@ -1,10 +1,7 @@
-"""DEPRECATED: Use backend.core.task_manager instead.
+"""TaskManager — scheduled task orchestration.
 
-DEPRECATED: Use backend.core.task_manager instead.
-This module will be removed in a future release.
-
-
-This module will be removed in a future release.
+Manages recurring tasks, health checks, and scheduling strategies.
+Actively imported by scheduler, settlement, websockets, and worker.
 """
 
 import asyncio

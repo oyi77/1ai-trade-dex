@@ -43,6 +43,9 @@ _SECRET_FIELDS = {
     "OPENAI_API_KEY",
     "BIGBRAIN_API_KEY",
     "REDIS_PASSWORD",
+    "BITGET_WALLET_API_KEY",
+    "BITGET_WALLET_API_SECRET",
+    "BITGET_WALLET_API_PASSPHRASE",
 }
 
 _MASK = "****"
@@ -93,6 +96,16 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
                 "ANTHROPIC_API_KEY", getattr(s, "ANTHROPIC_API_KEY", None)
             ),
             "GROQ_API_KEY": _mask("GROQ_API_KEY", getattr(s, "GROQ_API_KEY", None)),
+            # ── Bitget Wallet Web3 ──────────────────────────────────────────
+            "BITGET_WALLET_API_KEY": _mask(
+                "BITGET_WALLET_API_KEY", getattr(s, "BITGET_WALLET_API_KEY", None)
+            ),
+            "BITGET_WALLET_API_SECRET": _mask(
+                "BITGET_WALLET_API_SECRET", getattr(s, "BITGET_WALLET_API_SECRET", None)
+            ),
+            "BITGET_WALLET_API_PASSPHRASE": _mask(
+                "BITGET_WALLET_API_PASSPHRASE", getattr(s, "BITGET_WALLET_API_PASSPHRASE", None)
+            ),
         },
         "telegram": {
             "TELEGRAM_BOT_TOKEN": _mask("TELEGRAM_BOT_TOKEN", s.TELEGRAM_BOT_TOKEN),

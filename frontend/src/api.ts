@@ -337,6 +337,19 @@ export async function updateCredentials(creds: {
   return data
 }
 
+export async function updateBitgetWalletCredentials(creds: {
+  api_key?: string
+  api_secret?: string
+  api_passphrase?: string
+}): Promise<{ status: string; applied: Record<string, string>; skipped: Record<string, string> }> {
+  const updates: Record<string, string> = {}
+  if (creds.api_key) updates.BITGET_WALLET_API_KEY = creds.api_key
+  if (creds.api_secret) updates.BITGET_WALLET_API_SECRET = creds.api_secret
+  if (creds.api_passphrase) updates.BITGET_WALLET_API_PASSPHRASE = creds.api_passphrase
+  const { data } = await adminApi.post('/admin/settings', { updates })
+  return data
+}
+
 export async function fetchSystemStatus(): Promise<{
   trading_mode: string
   active_modes: string[]

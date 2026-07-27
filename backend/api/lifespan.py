@@ -642,6 +642,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         import backend.data.providers  # triggers provider auto-registration
         import backend.data.crypto_feeds  # triggers crypto feed auto-registration
+        import backend.data.bitget_wallet  # triggers Bitget Wallet provider auto-registration
 
         logger.info("[LIFESPAN] Data providers and crypto feeds loaded")
     except Exception as e:

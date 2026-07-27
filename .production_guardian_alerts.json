@@ -25,5 +25,293 @@
     "db_bankroll": 18.31,
     "drift": -0.7431,
     "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-02T13:50:09.201588+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-03T03:35:06.003549+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-07T06:53:42.897635+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-07T06:56:25.805120+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-08T08:39:08.495005+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-08T11:47:13.366370+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-08T12:08:17.249607+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-09T22:24:26.692872+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T21:43:10.541148+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T21:48:12.398211+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T21:53:10.561487+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T21:58:13.475852+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:03:10.536729+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:08:12.617485+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:13:10.514035+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:18:12.431227+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:23:10.551011+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:43:10.507840+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:48:11.893081+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:53:10.566668+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T22:58:11.933706+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:03:10.577086+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:18:11.847801+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:23:10.524733+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:28:11.916349+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:33:10.497276+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-14T23:38:12.155485+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-15T16:31:41.039164+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-15T23:46:35.822065+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-16T03:28:48.792571+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-19T12:48:44.401114+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-26T08:38:25.289459+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 15.188595,
+    "db_bankroll": 0.0,
+    "drift": 15.1886,
+    "auto_corrected": true
   }
 ]

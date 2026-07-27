@@ -1613,6 +1613,7 @@ class RiskManager:
                     adjusted_size=0.0,
                 )
         except Exception:
+            logger.warning("[apex:risk] Could not check concurrent positions, allowing through")
             pass  # can't count, allow through
 
         # 4. Drawdown check
@@ -1649,6 +1650,7 @@ class RiskManager:
                     adjusted_size=0.0,
                 )
         except Exception:
+            logger.warning("[apex:risk] Could not check concentration limits, allowing through")
             pass  # can't check correlation, allow
 
         return RiskDecision(

@@ -184,7 +184,7 @@ async def fetch_crypto_klines(
             ]
             return [kline_row]
     except Exception:
-        pass  # WS not available, fall through to cache/REST
+        logger.debug("WS kline fetch unavailable for pair {} (asset: {}), falling through to cache/REST", pair, asset_key)
 
     cache = _get_kline_cache(asset_key)
     if cache["data"] is not None and (now - cache["ts"]) < _CACHE_TTL:

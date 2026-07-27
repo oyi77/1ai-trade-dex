@@ -1246,7 +1246,7 @@ class TestMaxTradesPerCycle:
         db.close()
 
         decisions = [
-            _make_decision(market_ticker=f"cap-market-{i}", size=10.0) for i in range(5)
+            _make_decision(market_ticker=f"cap-market-{i}", size=10.0, condition_id=f"cap-cond-{i}") for i in range(5)
         ]
 
         mock_clob = AsyncMock()

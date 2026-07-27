@@ -59,7 +59,6 @@ LEAVE_ALONE = [
 
 # New strategies to enable
 NEW = [
-    "bnb_hack",              # Enable BNB HACK for June 22
 ]
 
 

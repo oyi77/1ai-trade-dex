@@ -31,27 +31,6 @@ DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
 # ============================================================================
 
 
-@dataclass(frozen=True)
-class BnbHackSettings:
-    wallet_address: str
-    wallet_password: str
-    access_id: str
-    hmac_secret: str
-    competition_start: str
-    competition_end: str
-    sma_fast: int
-    sma_slow: int
-    timeframe: str
-    take_profit_pct: float
-    stop_loss_pct: float
-    max_position_pct: float
-    min_confidence: float
-    max_daily_loss_usd: float
-    cooldown_minutes: int
-    max_consecutive_losses: int
-    check_interval_seconds: int
-
-
 @dataclass
 class ConfigRegistry:
     """
@@ -193,6 +172,8 @@ class ConfigRegistry:
     BYBIT_API_URL: str = "https://api.bybit.com/v5/market"
     COINGECKO_API_URL: str = "https://api.coingecko.com/api/v3"
     COINMARKETCAP_API_URL: str = "https://pro-api.coinmarketcap.com"
+    # Bitget Wallet Web3 API
+    BITGET_WALLET_API_URL: str = "https://api-web3.bitget.com"
     COINMARKETCAP_SANDBOX_URL: str = "https://sandbox-api.coinmarketcap.com"
 
     # Weather APIs
@@ -753,6 +734,10 @@ class ConfigRegistry:
     POLYMARKET_WALLET_ADDRESS: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY: Optional[str] = None
     POLYMARKET_RELAYER_API_KEY_ADDRESS: Optional[str] = None
+    # ── Bitget Wallet Web3 API ──────────────────────────────
+    BITGET_WALLET_API_KEY: str = ""
+    BITGET_WALLET_API_SECRET: str = ""
+    BITGET_WALLET_API_PASSPHRASE: str = ""
     AUTO_REDEEM_ENABLED: bool = True
     AUTO_REDEEM_DRY_RUN: bool = True
     AUTO_REDEEM_INTERVAL_SECONDS: int = 3600
@@ -1542,28 +1527,6 @@ class ConfigRegistry:
     # ------------------------------------------------------------------
 
     @property
-    def bnb_hack(self) -> BnbHackSettings:
-        return BnbHackSettings(
-            wallet_address=self.TWAK_WALLET_ADDRESS,
-            wallet_password=self.TWAK_WALLET_PASSWORD,
-            access_id=self.TWAK_ACCESS_ID,
-            hmac_secret=self.TWAK_HMAC_SECRET,
-            competition_start=self.BNB_HACK_COMPETITION_START,
-            competition_end=self.BNB_HACK_COMPETITION_END,
-            sma_fast=self.BNB_HACK_SMA_FAST,
-            sma_slow=self.BNB_HACK_SMA_SLOW,
-            timeframe=self.BNB_HACK_TIMEFRAME,
-            take_profit_pct=self.BNB_HACK_TAKE_PROFIT_PCT,
-            stop_loss_pct=self.BNB_HACK_STOP_LOSS_PCT,
-            max_position_pct=self.BNB_HACK_MAX_POSITION_PCT,
-            min_confidence=self.BNB_HACK_MIN_CONFIDENCE,
-            max_daily_loss_usd=self.BNB_HACK_MAX_DAILY_LOSS_USD,
-            cooldown_minutes=self.BNB_HACK_COOLDOWN_MINUTES,
-            max_consecutive_losses=self.BNB_HACK_MAX_CONSECUTIVE_LOSSES,
-            check_interval_seconds=self.BNB_HACK_CHECK_INTERVAL_SECONDS,
-        )
-
-    @property
     def active_modes_set(self) -> set[str]:
         valid = {"paper", "testnet", "live"}
         modes = {m.strip() for m in self.ACTIVE_MODES.split(",") if m.strip()}
@@ -1615,25 +1578,12 @@ class ConfigRegistry:
     WALLET_FERNET_KEY: Optional[str] = None
 
     # --------------------------------------------------------------------------
-    # BNB HACK Competition (TWAK onchain trading agent for BSC)
+    # TWAK (Trust Wallet Agent Kit) — shared with Track 1 agent endpoints
     # --------------------------------------------------------------------------
     TWAK_WALLET_ADDRESS: str = "0x5DE14Ebd7703662Ea7AB524a85af1910661a8768"
     TWAK_WALLET_PASSWORD: str = ""
     TWAK_ACCESS_ID: str = ""
     TWAK_HMAC_SECRET: str = ""
-    BNB_HACK_COMPETITION_START: str = "2026-06-22T00:00:00Z"
-    BNB_HACK_COMPETITION_END: str = "2026-06-28T23:59:59Z"
-    BNB_HACK_SMA_FAST: int = 10
-    BNB_HACK_SMA_SLOW: int = 50
-    BNB_HACK_TIMEFRAME: str = "1h"
-    BNB_HACK_TAKE_PROFIT_PCT: float = 3.0
-    BNB_HACK_STOP_LOSS_PCT: float = 3.0
-    BNB_HACK_MAX_POSITION_PCT: float = 75.0
-    BNB_HACK_MIN_CONFIDENCE: float = 0.50
-    BNB_HACK_MAX_DAILY_LOSS_USD: float = 5.0
-    BNB_HACK_COOLDOWN_MINUTES: int = 120
-    BNB_HACK_MAX_CONSECUTIVE_LOSSES: int = 3
-    BNB_HACK_CHECK_INTERVAL_SECONDS: int = 3600
     ALCHEMY_API_KEY: str = ""  # WARNING: Must be set for whale tracker to work
     WHALE_WALLETS: str = "0xf8831548531d56ad6a4331493243c447a827cd1f"
     COPY_TRADER_MIN_PNL: int = 10000

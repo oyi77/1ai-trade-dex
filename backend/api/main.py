@@ -58,7 +58,7 @@ from backend.api.alerts import router as alerts_router
 from backend.api.provider_credentials import router as provider_credentials_router
 from backend.api.evals import router as evals_router
 
-# Hackathon (BNB HACK: AI Trading Agent Edition)
+# Hackathon (CMC Skills + Track 1 autonomous agent)
 from backend.api.hackathon import router as hackathon_router
 
 # Plugin system API routers

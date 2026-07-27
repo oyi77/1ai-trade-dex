@@ -481,6 +481,7 @@ def _touch_heartbeat_file() -> None:
         with open(HEARTBEAT_FILE, "w") as f:
             f.write(datetime.now(timezone.utc).isoformat())
     except OSError:
+        logger.warning("Failed to write heartbeat file at {}, file system may be read-only", HEARTBEAT_FILE)
         pass  # Non-critical — don't crash watchdog for a file write failure
 
 

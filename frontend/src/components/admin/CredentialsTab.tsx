@@ -1,7 +1,7 @@
 import { POLL } from '../../polling'
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { updateCredentials, changeAdminPassword, fetchSystemStatus, toggleTradingMode } from '../../api'
+import { updateCredentials, changeAdminPassword, fetchSystemStatus, toggleTradingMode, updateBitgetWalletCredentials } from '../../api'
 import { useAuth } from '../../hooks/useAuth'
 
 const MODE_META = {
@@ -95,6 +95,11 @@ export function CredentialsTab() {
   const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [switchingMode, setSwitchingMode] = useState(false)
+  const [bitgetApiKey, setBitgetApiKey] = useState('')
+  const [bitgetApiSecret, setBitgetApiSecret] = useState('')
+  const [bitgetApiPassphrase, setBitgetApiPassphrase] = useState('')
+  const [bitgetSaving, setBitgetSaving] = useState(false)
+  const [bitgetSaveStatus, setBitgetSaveStatus] = useState<{ ok: boolean; message: string } | null>(null)
 
   const { data: sysStatus, refetch: refetchStatus } = useQuery({
     queryKey: ['admin-system-creds'],
@@ -148,6 +153,28 @@ export function CredentialsTab() {
       qc.invalidateQueries({ queryKey: ['admin-system'] })
     } finally {
       setSwitchingMode(false)
+    }
+  }
+  const handleBitgetSave = async () => {
+    const payload: Record<string, string> = {}
+    if (bitgetApiKey.trim()) payload.api_key = bitgetApiKey.trim()
+    if (bitgetApiSecret.trim()) payload.api_secret = bitgetApiSecret.trim()
+    if (bitgetApiPassphrase.trim()) payload.api_passphrase = bitgetApiPassphrase.trim()
+    if (!Object.keys(payload).length) return
+    setBitgetSaving(true)
+    setBitgetSaveStatus(null)
+    try {
+      const result = await updateBitgetWalletCredentials(payload)
+      setBitgetSaveStatus({ ok: true, message: `Saved: ${Object.keys(result.applied).join(', ')}` })
+      setBitgetApiKey('')
+      setBitgetApiSecret('')
+      setBitgetApiPassphrase('')
+      qc.invalidateQueries({ queryKey: ['admin-system'] })
+      qc.invalidateQueries({ queryKey: ['admin-settings'] })
+    } catch {
+      setBitgetSaveStatus({ ok: false, message: 'Failed to save Bitget credentials' })
+    } finally {
+      setBitgetSaving(false)
     }
   }
 
@@ -323,6 +350,63 @@ export function CredentialsTab() {
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Bitget Wallet Web3 API */}
+      <div className="border border-neutral-800 bg-neutral-900/20 p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="text-[10px] text-neutral-500 uppercase tracking-wider">Bitget Wallet Web3 API</div>
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${bitgetApiKey || bitgetApiSecret || bitgetApiPassphrase ? 'bg-yellow-500' : 'bg-neutral-700'}`} />
+        </div>
+        <p className="text-[11px] text-neutral-600 mb-4 leading-relaxed">
+          Price & market data from Bitget Wallet Web3. API key is optional — public endpoints work without auth.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <div className="text-[10px] text-neutral-400 uppercase tracking-wider mb-1">API Key</div>
+            <input
+              type="password"
+              value={bitgetApiKey}
+              onChange={e => setBitgetApiKey(e.target.value)}
+              placeholder="Optional — public endpoints are free"
+              className="w-full bg-transparent border border-neutral-800 text-neutral-300 text-[10px] px-2 py-1 font-mono focus:border-neutral-600 focus:outline-none placeholder:text-neutral-700"
+            />
+          </div>
+          <div>
+            <div className="text-[10px] text-neutral-400 uppercase tracking-wider mb-1">API Secret</div>
+            <input
+              type="password"
+              value={bitgetApiSecret}
+              onChange={e => setBitgetApiSecret(e.target.value)}
+              placeholder="Optional"
+              className="w-full bg-transparent border border-neutral-800 text-neutral-300 text-[10px] px-2 py-1 font-mono focus:border-neutral-600 focus:outline-none placeholder:text-neutral-700"
+            />
+          </div>
+          <div>
+            <div className="text-[10px] text-neutral-400 uppercase tracking-wider mb-1">API Passphrase</div>
+            <input
+              type="password"
+              value={bitgetApiPassphrase}
+              onChange={e => setBitgetApiPassphrase(e.target.value)}
+              placeholder="Optional"
+              className="w-full bg-transparent border border-neutral-800 text-neutral-300 text-[10px] px-2 py-1 font-mono focus:border-neutral-600 focus:outline-none placeholder:text-neutral-700"
+            />
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={handleBitgetSave}
+            disabled={bitgetSaving}
+            className="px-3 py-1.5 bg-neutral-800 border border-neutral-700 text-neutral-300 text-[10px] uppercase tracking-wider hover:border-neutral-500 transition-colors disabled:opacity-40"
+          >
+            {bitgetSaving ? 'Saving...' : 'Save Bitget Credentials'}
+          </button>
+          {bitgetSaveStatus && (
+            <span className={`text-[10px] font-mono ${bitgetSaveStatus.ok ? 'text-green-500' : 'text-red-500'}`}>
+              {bitgetSaveStatus.message}
+            </span>
+          )}
         </div>
       </div>
 

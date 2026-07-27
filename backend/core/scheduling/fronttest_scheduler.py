@@ -8,6 +8,12 @@ approved proposals to live.
 
 This module will be removed in a future release.
 """
+import warnings
+warnings.warn(
+    "backend.core.scheduling.fronttest_scheduler is deprecated; use backend.core.fronttest_scheduler instead",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from __future__ import annotations
 

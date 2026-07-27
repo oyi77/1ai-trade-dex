@@ -16,9 +16,10 @@ Every task follows this sequence. No exceptions.
 Full details: `~/.1ai/core/PROCESS.md` (auto-injected by hooks)
 
 ## This repo
-[One sentence: what this repo does]
-Stack: unknown
-Domain: [what this repo is responsible for]
+Automated prediction market and perpetual DEX trading bot — 10+ platforms, 14 strategies, AGI evolution, React dashboard.
+
+Stack: Python (FastAPI, SQLAlchemy, APScheduler) + TypeScript (React, Vite, TanStack Query)
+Domain: Prediction market trading, DEX arbitrage, automated strategy execution
 
 ## Rules — thin loader, no submodule
 Rules are NOT vendored into this repo. This repo does NOT need a rules submodule.
@@ -54,10 +55,21 @@ Do NOT add the rules repo as a git submodule. Update rules centrally, then run/s
 5. Run GATE.md before commit/PR.
 
 ## Repo-specific conventions
-- [add conventions specific to this repo]
+- Backend: Python/FastAPI under `backend/`
+- Frontend: React/TypeScript under `frontend/`
+- Models: SQLAlchemy in `backend/models/database.py` — 2763 lines, single-file schema
+- Config: Pydantic-settings in `backend/config.py` — all externalized to `.env`
+- Tests: pytest — `backend/tests/` (unit) and `tests/` (integration)
+- Strategies: `backend/strategies/` — each strategy is a self-contained module
+- Providers: plugin-based auto-discovery in provider registry
+- Database: Alembic migrations in `alembic/`, SQLite default, PostgreSQL in production
 
 ## Commands
-- Dev:   `npm run dev`
-- Test:  `npm run test`
-- Build: `npm run build`
-- Lint:  `npm run lint`
+- Backend dev: `uvicorn backend.api.main:app --reload --port 8100`
+- Frontend dev: `cd frontend && npm run dev`
+- Test (all): `pytest`
+- Test (backend): `pytest backend/tests/`
+- Test (frontend): `cd frontend && npm run test`
+- Build: `cd frontend && npm run build`
+- Docker: `docker-compose up -d`
+- DB migrate: `alembic upgrade head`

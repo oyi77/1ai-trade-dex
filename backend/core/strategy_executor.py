@@ -58,6 +58,77 @@ def _commit_with_retry(db) -> None:
         raise
 
 
+# ── HFT fast path ──────────────────────────────────────────
+def _hft_enabled() -> bool:
+    """Check if HFT fast path is globally enabled."""
+    return getattr(settings, "HFT_ENABLED", True)
+
+
+async def _execute_hft_path(
+    decision: dict, strategy_name: str, mode: str, db=None
+) -> Optional[dict]:
+    """Route decision through HFTExecutor for sub-50ms latency path.
+
+    Only available for live CLOB mode with HFT-eligible signals.
+    Falls through to standard path if HFT execution fails.
+    """
+    is_live_clob = (
+        mode == "live"
+        and not (
+            decision.get("market_ticker", "").startswith("KX")
+            or decision.get("platform") == "kalshi"
+        )
+        and decision.get("token_id") is not None
+    )
+    if not is_live_clob:
+        return None  # fall through to standard path
+
+    try:
+        from backend.core.hft_executor import HFTExecutor
+        from backend.strategies.types_hft import HFTSignal
+        from backend.data.polymarket_clob import clob_from_settings
+
+        clob = await clob_from_settings()
+        executor = HFTExecutor(clob=clob)
+        signal = HFTSignal(
+            signal_id=decision.get("signal_id") or decision.get("id", "hft-" + strategy_name),
+            market_id=decision["token_id"],
+            ticker=decision.get("market_ticker", ""),
+            edge=float(decision.get("entry_price", 0.5)),
+            confidence=float(decision.get("confidence", 0.5)),
+            signal_type="edge",
+            metadata={
+                "strategy": strategy_name,
+                "mode": mode,
+                "orderbook": decision.get("orderbook"),
+            },
+        )
+        bankroll = float(getattr(settings, "BANKROLL", 1000.0))
+        execution = await executor.execute(signal, size=0.0, bankroll=bankroll)
+
+        if execution.status == "filled":
+            return {
+                "order_id": execution.order_id,
+                "status": "filled",
+                "price": execution.price,
+                "size": execution.size,
+                "execution_id": execution.execution_id,
+                "latency_ms": execution.execution_latency_ms,
+            }
+        else:
+            logger.warning(
+                "[hft_path] HFT execution {} for {}: {}",
+                execution.status,
+                decision.get("market_ticker", "?"),
+                execution.error,
+            )
+            return None  # fall through to standard path
+
+    except Exception:
+        logger.exception("[hft_path] HFT executor failed — falling back to standard path for {}", strategy_name)
+        return None  # fall through to standard path
+
+
 def _get_rate_limiter() -> TokenBucketRateLimiter:
     """Lazily instantiate the global rate limiter."""
     global _rate_limiter
@@ -526,6 +597,10 @@ async def execute_decision(
     event loop. Paper/testnet/Kalshi paths run entirely in the thread.
     Live CLOB paths acquire locks on event loop then call CLOB async.
     """
+    # HFT fast path: bypass standard flow for low-latency strategies
+    if _hft_enabled() and decision.get("hft") or decision.get("hft_candidate"):
+        return await _execute_hft_path(decision, strategy_name, mode, db)
+
     asset_key = decision.get("condition_id") or decision.get("slug") or strategy_name
     market_id = str(asset_key)
 

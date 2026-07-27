@@ -227,8 +227,8 @@ async def test_circuit_breaker_integration(router: OrderbookRouter):
     """Test that circuit breaker is properly initialized"""
     assert router._circuit_breaker is not None
     assert router._circuit_breaker.name == "polymarket_ws"
-    assert router._circuit_breaker.failure_threshold == 5
-    assert router._circuit_breaker.recovery_timeout == 60
+    assert router._circuit_breaker.failure_threshold == 20
+    assert router._circuit_breaker.recovery_timeout == 30
 
 
 @pytest.mark.asyncio
