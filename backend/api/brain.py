@@ -468,6 +468,8 @@ async def get_debate_transcript(
     Raises:
         404: Decision not found or no debate data available
     """
+    if decision_id < 0 or decision_id > 2**63 - 1:
+        raise HTTPException(status_code=400, detail="Invalid decision_id")
     decision = db.query(DecisionLog).filter(DecisionLog.id == decision_id).first()
 
     if not decision:

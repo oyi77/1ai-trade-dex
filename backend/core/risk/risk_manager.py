@@ -248,36 +248,9 @@ class RiskManager:
             except Exception as e:
                 logger.warning(f"[risk_manager] Failed to fetch total live equity for bankroll base: {e}")
 
-        if db is not None and market_price is not None and signal_win_rate is not None:
-            try:
-                calibration_stats, _ = self._get_or_update_calibration_and_bias(db)
-                bucket_start = int(market_price * 100) - (int(market_price * 100) % 5)
-                if bucket_start in calibration_stats:
-                    bucket = calibration_stats[bucket_start]
-                    if bucket.get("confidence", 0.0) >= 0.3:
-                        adjustment = bucket["error"] * bucket["confidence"]
-                        adjustment = max(-0.05, min(0.05, adjustment))
-                        pre_adj = signal_win_rate
-                        # CALIBRATION GUARD: never adjust swr below market_price,
-                        # otherwise edge_pp = (swr - price) * 100 turns negative
-                        # and the edge filter rejects EVERY trade — permanent deadlock.
-                        max_down = max(0.0, pre_adj - market_price - 0.005)
-                        adjustment = max(adjustment, -max_down)
-                        signal_win_rate = max(
-                            0.01, min(0.995, pre_adj + adjustment)
-                        )
-                        logger.info(
-                            "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
-                            bucket_start,
-                            pre_adj,
-                            signal_win_rate,
-                            bucket["error"],
-                            bucket["confidence"],
-                        )
-            except Exception as e:
-                logger.error(
-                    f"[RiskManager] Failed to apply calibration adjustment: {e}"
-                )
+        signal_win_rate, calibration_stats, longshot_bias_stats = self._validate_trade_calibration(
+            db, market_price, signal_win_rate
+        )
 
         if (
             db is not None
@@ -634,62 +607,12 @@ class RiskManager:
                     0.0,
                 )
 
-        # Cross-market correlation check — block if clustered exposure > 30% of bankroll
-        if market_ticker and db is not None:
-            corr_result = self._correlation_monitor.check_correlation(
-                bankroll=bankroll,
-                market_ticker=market_ticker,
-                trade_size=size,
-                event_slug=None,  # market_ticker is a string; event_slug must be passed separately
-                db=db,
-                mode=effective_mode,
-            )
-            if not corr_result.allowed:
-                record_signal(
-                    strategy=strategy_name or "unknown",
-                    signal_type="rejected_correlation",
-                )
-                increment_risk_rejection(
-                    strategy=strategy_name or "unknown", reason="correlation"
-                )
-                return RiskDecision(False, corr_result.reason, 0.0)
-
-        # Live bankroll = PM portfolio value (includes locked positions);
-        # available cash = portfolio minus open exposure.
-        if effective_mode == "live":
-            available_cash = max(0.0, bankroll - current_exposure)
-            max_position = available_cash * self.s.MAX_POSITION_FRACTION
-        else:
-            max_position = bankroll * self.s.MAX_POSITION_FRACTION
-        max_capacity = max_position
-        adjusted = min(size, max_position)
-
-        # Global max trade size ceiling (immutable safety rule)
-        adjusted = min(adjusted, self.s.MAX_TRADE_SIZE)
-        max_capacity = min(max_capacity, self.s.MAX_TRADE_SIZE)
-
-        # Paper/testnet bankroll is available cash because entry execution
-        # deducts stake immediately; total exposure limits must use equity
-        # (cash + already-open stake), otherwise existing positions shrink the
-        # denominator and can permanently block new trades. Live bankroll is
-        # PM portfolio value, which already includes locked positions.
-        exposure_base = (
-            bankroll if effective_mode == "live" else bankroll + current_exposure
+        # Cross-market correlation check + concentration limits
+        adjusted, max_capacity, rejection = self._validate_trade_concentration(
+            size, bankroll, current_exposure, market_ticker, db, effective_mode, strategy_name
         )
-        # Use immutable safety rule for max total exposure
-        max_exposure = exposure_base * self._safety_rules["max_total_exposure"]
-        exposure_room = max(0.0, max_exposure - current_exposure)
-        max_capacity = min(max_capacity, exposure_room)
-        if current_exposure + adjusted > max_exposure:
-            adjusted = exposure_room
-            if adjusted <= 0:
-                record_signal(
-                    strategy=strategy_name or "unknown", signal_type="rejected_exposure"
-                )
-                increment_risk_rejection(
-                    strategy=strategy_name or "unknown", reason="exposure"
-                )
-                return RiskDecision(False, "max exposure reached", 0.0)
+        if rejection is not None:
+            return RiskDecision(False, rejection, 0.0)
 
         if slippage is not None and slippage > self.s.SLIPPAGE_TOLERANCE:
             record_signal(
@@ -700,36 +623,12 @@ class RiskManager:
             )
             return RiskDecision(False, f"slippage {slippage:.4f} > tolerance", 0.0)
 
-        # Per-strategy allocation: use AGI allocation if available, otherwise equal-weight fallback
-        effective_cap = None
-        if strategy_name and db is not None:
-            strategy_allocation = self._get_strategy_allocation(
-                strategy_name, bankroll, db, effective_mode
-            )
-            # Check remaining budget (total allocation minus open exposure)
-            remaining_cap = self._strategy_allocation_cap(
-                strategy_name, db, effective_mode
-            )
-            if remaining_cap is not None and remaining_cap <= 0:
-                record_signal(
-                    strategy=strategy_name, signal_type="rejected_allocation_exhausted"
-                )
-                increment_risk_rejection(
-                    strategy=strategy_name, reason="allocation_exhausted"
-                )
-                return RiskDecision(
-                    False, f"allocation exhausted for {strategy_name}", 0.0
-                )
-            effective_cap = (
-                remaining_cap if remaining_cap is not None else strategy_allocation
-            )
-            # Use the tighter of strategy allocation and remaining budget
-            adjusted = min(adjusted, effective_cap)
-            max_capacity = min(max_capacity, effective_cap)
-            logger.info(
-                f"[risk_manager] Strategy {strategy_name} allocation: ${strategy_allocation:.2f}, "
-                f"remaining: ${effective_cap:.2f}, adjusted size: ${adjusted:.2f}"
-            )
+        # Per-strategy allocation
+        adjusted, max_capacity, rejection = self._validate_trade_strategy_allocation(
+            strategy_name, adjusted, bankroll, db, effective_mode
+        )
+        if rejection is not None:
+            return RiskDecision(False, rejection, 0.0)
 
         if (
             bool(getattr(self.s, "VOLATILITY_SIZE_SCALE", True))
@@ -827,6 +726,139 @@ class RiskManager:
                 logger.debug(f"[risk_manager] Per-strategy DD check failed (non-fatal): {e}")
 
         return RiskDecision(True, "ok", adjusted)
+
+    def _validate_trade_calibration(self, db, market_price, signal_win_rate):
+        """Calibration adjustment logic (price bucket calibration, signal_win_rate adjustment)."""
+        calibration_stats = {}
+        longshot_bias_stats = {}
+        if db is not None and market_price is not None and signal_win_rate is not None:
+            try:
+                calibration_stats, longshot_bias_stats = self._get_or_update_calibration_and_bias(db)
+                bucket_start = int(market_price * 100) - (int(market_price * 100) % 5)
+                if bucket_start in calibration_stats:
+                    bucket = calibration_stats[bucket_start]
+                    if bucket.get("confidence", 0.0) >= 0.3:
+                        adjustment = bucket["error"] * bucket["confidence"]
+                        adjustment = max(-0.05, min(0.05, adjustment))
+                        pre_adj = signal_win_rate
+                        # CALIBRATION GUARD: never adjust swr below market_price,
+                        # otherwise edge_pp = (swr - price) * 100 turns negative
+                        # and the edge filter rejects EVERY trade — permanent deadlock.
+                        max_down = max(0.0, pre_adj - market_price - 0.005)
+                        adjustment = max(adjustment, -max_down)
+                        signal_win_rate = max(
+                            0.01, min(0.995, pre_adj + adjustment)
+                        )
+                        logger.info(
+                            "[risk_manager] Realized calibration adjustment for bucket {}c: {:.2f} -> {:.2f} (error={:.2%}, conf={:.2f})",
+                            bucket_start,
+                            pre_adj,
+                            signal_win_rate,
+                            bucket["error"],
+                            bucket["confidence"],
+                        )
+            except Exception as e:
+                logger.error(
+                    f"[RiskManager] Failed to apply calibration adjustment: {e}"
+                )
+        return signal_win_rate, calibration_stats, longshot_bias_stats
+
+    def _validate_trade_concentration(
+        self, size, bankroll, current_exposure, market_ticker, db, effective_mode, strategy_name
+    ):
+        """Cross-market correlation check + concentration limits. Returns (adjusted_size, max_capacity, rejection_reason)."""
+        # Cross-market correlation check — block if clustered exposure > 30% of bankroll
+        if market_ticker and db is not None:
+            corr_result = self._correlation_monitor.check_correlation(
+                bankroll=bankroll,
+                market_ticker=market_ticker,
+                trade_size=size,
+                event_slug=None,  # market_ticker is a string; event_slug must be passed separately
+                db=db,
+                mode=effective_mode,
+            )
+            if not corr_result.allowed:
+                record_signal(
+                    strategy=strategy_name or "unknown",
+                    signal_type="rejected_correlation",
+                )
+                increment_risk_rejection(
+                    strategy=strategy_name or "unknown", reason="correlation"
+                )
+                return 0.0, 0.0, corr_result.reason
+
+        # Live bankroll = PM portfolio value (includes locked positions);
+        # available cash = portfolio minus open exposure.
+        if effective_mode == "live":
+            available_cash = max(0.0, bankroll - current_exposure)
+            max_position = available_cash * self.s.MAX_POSITION_FRACTION
+        else:
+            max_position = bankroll * self.s.MAX_POSITION_FRACTION
+        max_capacity = max_position
+        adjusted = min(size, max_position)
+
+        # Global max trade size ceiling (immutable safety rule)
+        adjusted = min(adjusted, self.s.MAX_TRADE_SIZE)
+        max_capacity = min(max_capacity, self.s.MAX_TRADE_SIZE)
+
+        # Paper/testnet bankroll is available cash because entry execution
+        # deducts stake immediately; total exposure limits must use equity
+        # (cash + already-open stake), otherwise existing positions shrink the
+        # denominator and can permanently block new trades. Live bankroll is
+        # PM portfolio value, which already includes locked positions.
+        exposure_base = (
+            bankroll if effective_mode == "live" else bankroll + current_exposure
+        )
+        # Use immutable safety rule for max total exposure
+        max_exposure = exposure_base * self._safety_rules["max_total_exposure"]
+        exposure_room = max(0.0, max_exposure - current_exposure)
+        max_capacity = min(max_capacity, exposure_room)
+        if current_exposure + adjusted > max_exposure:
+            adjusted = exposure_room
+            if adjusted <= 0:
+                record_signal(
+                    strategy=strategy_name or "unknown", signal_type="rejected_exposure"
+                )
+                increment_risk_rejection(
+                    strategy=strategy_name or "unknown", reason="exposure"
+                )
+                return 0.0, 0.0, "max exposure reached"
+
+        return adjusted, max_capacity, None
+
+    def _validate_trade_strategy_allocation(
+        self, strategy_name, adjusted, bankroll, db, effective_mode
+    ):
+        """Per-strategy allocation check. Returns (adjusted_size, max_capacity, rejection_reason)."""
+        max_capacity = adjusted
+        if strategy_name and db is not None:
+            strategy_allocation = self._get_strategy_allocation(
+                strategy_name, bankroll, db, effective_mode
+            )
+            # Check remaining budget (total allocation minus open exposure)
+            remaining_cap = self._strategy_allocation_cap(
+                strategy_name, db, effective_mode
+            )
+            if remaining_cap is not None and remaining_cap <= 0:
+                record_signal(
+                    strategy=strategy_name, signal_type="rejected_allocation_exhausted"
+                )
+                increment_risk_rejection(
+                    strategy=strategy_name, reason="allocation_exhausted"
+                )
+                return adjusted, 0.0, f"allocation exhausted for {strategy_name}"
+            effective_cap = (
+                remaining_cap if remaining_cap is not None else strategy_allocation
+            )
+            # Use the tighter of strategy allocation and remaining budget
+            adjusted = min(adjusted, effective_cap)
+            max_capacity = min(max_capacity, effective_cap)
+            logger.info(
+                f"[risk_manager] Strategy {strategy_name} allocation: ${strategy_allocation:.2f}, "
+                f"remaining: ${effective_cap:.2f}, adjusted size: ${adjusted:.2f}"
+            )
+        return adjusted, max_capacity, None
+
     def _get_or_update_calibration_and_bias(self, db) -> tuple[dict, Optional[dict]]:
         """Return cached calibration and longshot bias, updating if stale (> 5 minutes)."""
         import time
@@ -1614,7 +1646,6 @@ class RiskManager:
                 )
         except Exception:
             logger.warning("[apex:risk] Could not check concurrent positions, allowing through")
-            pass  # can't count, allow through
 
         # 4. Drawdown check
         mode = ctx.mode or getattr(self.s, "TRADING_MODE", "paper")
@@ -1651,7 +1682,6 @@ class RiskManager:
                 )
         except Exception:
             logger.warning("[apex:risk] Could not check concentration limits, allowing through")
-            pass  # can't check correlation, allow
 
         return RiskDecision(
             allowed=True,

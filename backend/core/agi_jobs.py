@@ -26,7 +26,7 @@ def _get_active_market_queries() -> list[str]:
 
 async def self_review_job() -> None:
     """Run the self-review cycle: attribution, postmortems, degradation detection."""
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running self-review cycle...")
     try:
@@ -48,7 +48,7 @@ async def self_review_job() -> None:
 
 async def research_pipeline_job() -> None:
     """Run the autonomous research pipeline: RSS, BigBrain search, scoring."""
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running research pipeline...")
     try:
@@ -80,7 +80,7 @@ async def research_pipeline_job() -> None:
 
 
 async def agi_health_check_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running AGI health check...")
     try:
@@ -183,7 +183,7 @@ async def agi_health_check_job() -> None:
 
 
 async def nightly_review_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running nightly review...")
     try:
@@ -200,7 +200,7 @@ async def nightly_review_job() -> None:
 
 
 async def strategy_rehabilitation_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running strategy rehabilitation...")
     try:
@@ -217,7 +217,7 @@ async def strategy_rehabilitation_job() -> None:
 
 
 async def historical_data_collection_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running historical data collection...")
     try:
@@ -234,7 +234,7 @@ async def historical_data_collection_job() -> None:
 
 
 async def forensics_integration_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running forensics integration...")
     try:
@@ -251,7 +251,7 @@ async def forensics_integration_job() -> None:
 
 
 async def fronttest_validation_job() -> None:
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running fronttest validation...")
     try:
@@ -301,7 +301,7 @@ async def model_calibration_check_job() -> None:
     Runs the ModelEvaluator against recent settled trades. If the Brier score
     exceeds the configured threshold (default 0.25), fires the retrain trigger.
     """
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running model calibration check...")
     try:

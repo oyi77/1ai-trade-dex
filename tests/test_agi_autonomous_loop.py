@@ -352,7 +352,7 @@ async def test_full_autonomous_cycle():
         db.commit()
 
         # ── Stage 4: Settlement ───────────────────────────────────────
-        from backend.core.settlement_helpers import process_settled_trade, calculate_pnl
+        from backend.core.settlement.settlement_helpers import process_settled_trade, calculate_pnl
 
         # Market resolves YES (settlement_value=1.0), our UP trade wins
         settlement_value = 1.0
@@ -555,7 +555,7 @@ async def test_autonomous_cycle_losing_trade():
 
         _reload_executor()
         from backend.core.strategy_executor import execute_decision
-        from backend.core.settlement_helpers import process_settled_trade, calculate_pnl
+        from backend.core.settlement.settlement_helpers import process_settled_trade, calculate_pnl
         from backend.core.settlement import update_bot_state_with_settlements
         from backend.ai.self_review import SelfReview
 

@@ -25,6 +25,11 @@ _hb_lock = threading.Lock()
 _pending_scan_stats: dict[str, dict] = {}
 _scan_stats_lock = threading.Lock()
 
+# Zero-balance streak tracking — prevents transient RPC blips from wiping bankroll
+# mode -> consecutive $0 PUSD readings
+_zero_balance_streak: dict[str, int] = {}
+_ZERO_BALANCE_KILL_STREAK: int = 3  # must see $0 N times before overwriting positive balance
+
 
 def _is_lock_timeout_error(exc: Exception) -> bool:
     """Return True for PostgreSQL lock-timeout / lock-not-available failures."""
@@ -414,6 +419,25 @@ async def wallet_sync_job() -> None:
                     error = balance_data.get("error")
 
                 if usdc_balance >= 0 and not error:
+                    # Anti-flap: never overwrite a positive balance with $0 on a single reading.
+                    # The CLOB / on-chain RPC can return $0 during transient sync blips.
+                    if sync_mode == "live" and usdc_balance == 0:
+                        streak = _zero_balance_streak.get("live", 0) + 1
+                        _zero_balance_streak["live"] = streak
+                        if streak < _ZERO_BALANCE_KILL_STREAK:
+                            logger.warning(
+                                f"wallet_sync: live PUSD=$0.00 (streak={streak}/"
+                                f"{_ZERO_BALANCE_KILL_STREAK}) — skipping sync, "
+                                f"previous positive balance preserved"
+                            )
+                            continue
+                        logger.warning(
+                            f"wallet_sync: live PUSD=$0.00 streak={streak} — "
+                            f"syncing zero to DB (consecutive threshold reached)"
+                        )
+                    else:
+                        # Non-zero reading: reset streak
+                        _zero_balance_streak.pop(sync_mode, None)
                     _sync_balance_to_db(usdc_balance, sync_mode)
                     logger.info(
                         f"wallet_sync: {sync_mode} balance = ${usdc_balance:.2f}"
@@ -482,7 +506,6 @@ def _touch_heartbeat_file() -> None:
             f.write(datetime.now(timezone.utc).isoformat())
     except OSError:
         logger.warning("Failed to write heartbeat file at {}, file system may be read-only", HEARTBEAT_FILE)
-        pass  # Non-critical — don't crash watchdog for a file write failure
 
 
 DRIFT_ALERT_FILE = os.path.join(

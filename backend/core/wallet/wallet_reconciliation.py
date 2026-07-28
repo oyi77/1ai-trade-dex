@@ -625,7 +625,7 @@ class WalletReconciler:
                 ) or blockchain_by_asset.get(ticker)
 
                 if blockchain_pos is None:
-                    from backend.core.settlement_helpers import (
+                    from backend.core.settlement.settlement_helpers import (
                         fetch_resolution_for_trade,
                         calculate_pnl,
                     )

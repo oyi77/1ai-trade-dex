@@ -80,7 +80,6 @@ class LiveExecuteStage(BaseExecutionStage):
                     return {"status": "rejected", "reason": f"slippage {slippage:.2%} > {max_slippage:.2%}"}
         except Exception:
             logger.warning("[execute] Midpoint fetch failed for ticker {} — skipping slippage check", decision.get("market_ticker", "?"))
-            pass  # midpoint fetch is best-effort
 
         try:
 

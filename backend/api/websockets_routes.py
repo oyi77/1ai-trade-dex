@@ -285,7 +285,7 @@ async def websocket_events(websocket: WebSocket, token: str = ""):
                 }
             )
 
-            from backend.core.scheduler import get_recent_events
+            from backend.core.scheduling.scheduler import get_recent_events
 
             for event in get_recent_events(20):
                 await websocket.send_json(event)

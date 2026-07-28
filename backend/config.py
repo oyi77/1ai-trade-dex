@@ -11,7 +11,7 @@ try:
 
     load_dotenv(override=True)
 except ImportError:
-    pass
+    logger.debug("python-dotenv not installed — using raw env vars")
 
 # Project root directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -220,6 +220,31 @@ class ConfigRegistry:
     RSS_FEED_URLS: str = (
         "https://feeds.bbci.co.uk/news/rss.xml,https://feeds.reuters.com/reuters/businessNews,https://www.federalreserve.gov/feeds/press_all.xml,https://cointelegraph.com/rss,https://coindesk.com/arc/outboundfeeds/rss/"
     )
+    RSS_FEED_BBC_URL: str = "https://feeds.bbci.co.uk/news/rss.xml"
+    RSS_FEED_COINDESK_URL: str = "https://coindesk.com/arc/outboundfeeds/rss/"
+
+    # NOAA Weather APIs
+    NOAA_METAR_URL: str = "https://aviationweather.gov/api/data/metar"
+
+    # Azuro Protocol subgraph
+    AZURO_SUBGRAPH_URL: str = (
+        "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
+    )
+
+    # The Graph gateway for Polymarket subgraph
+    THEGRAPH_GATEWAY_URL: str = "https://gateway.thegraph.com/api/"
+
+    # Dune Analytics API
+    DUNE_API_URL: str = "https://api.dune.com/api/v1"
+
+    # Hyperliquid API
+    HYPERLIQUID_API_URL: str = "https://api.hyperliquid.xyz"
+
+    # Blockscout explorer API (Polygon)
+    BLOCKSCOUT_API_URL: str = "https://polygon.blockscout.com/api/v2"
+
+    # HuggingFace datasets-server API
+    HF_DATASETS_SERVER_URL: str = "https://datasets-server.huggingface.co/rows"
 
     # --------------------------------------------------------------------------
     # RATE_LIMITS - Rate limit settings for API services
@@ -802,7 +827,7 @@ class ConfigRegistry:
     POLYMARKET_WS_ENABLED: bool = True
     POLYMARKET_USER_WS_ENABLED: bool = False
     POLYMARKET_WS_SUBSCRIPTION_LIMIT: int = 200
-    API_REQUEST_TIMEOUT: float = 30.0
+    API_REQUEST_TIMEOUT: float = 15.0
     DATABASE_QUERY_TIMEOUT: float = 10.0
     EXTERNAL_API_TIMEOUT: float = 15.0
     WS_HANDLER_TIMEOUT_MS: int = 100
@@ -1247,55 +1272,12 @@ class ConfigRegistry:
     )
 
     # --------------------------------------------------------------------------
-    # DATA_AGGREGATOR - Data freshness settings
-    # --------------------------------------------------------------------------
-    DATA_AGGREGATOR_MAX_STALE_AGE: float = 300.0
-    MIN_WHALE_TRADE_USD_CONFIG: float = 1000.0
-    WHALE_LISTENER_ENABLED: bool = False
-    MIN_TIME_REMAINING_CONFIG: int = 60
-    MAX_TIME_REMAINING_CONFIG: int = 1800
-    HFT_MAX_SLIPPAGE_BPS_CONFIG: float = 20.0
-    PAPER_MIN_SLIPPAGE_BPS_CONFIG: float = 5.0
-    PAPER_SLIPPAGE_BPS_CONFIG: float = 20.0
-    PAPER_RANDOM_SLIPPAGE_CONFIG: bool = True
-    HFT_ENABLED_CONFIG: bool = True
-    HFT_MAX_POSITION_USD_CONFIG: float = 1000.0
-    HFT_POSITION_SIZE_PCT_CONFIG: float = 0.25
-    SAFE_TUNER_MAX_CHANGE_PCT_CONFIG: float = 0.10
-    SAFE_TUNER_MIN_TRADES_FOR_TUNING_CONFIG: int = 20
-    SAFE_TUNER_REVERT_SIGMA_THRESHOLD_CONFIG: float = 2.0
-
-    # --------------------------------------------------------------------------
-    # BANKROLL - Bankroll management
-    # --------------------------------------------------------------------------
-    INITIAL_BANKROLL_MANAGEMENT: float = 100.0
-    PAPER_MIN_BANKROLL_CONFIG: float = 50.0
-    PAPER_TOPUP_AMOUNT_CONFIG: float = 500.0
-    MAX_TOPUPS_CONFIG: int = 10
-
-    # --------------------------------------------------------------------------
     # AGI_HEALTH - AGI health check parameters
     # --------------------------------------------------------------------------
     AGI_HEALTH_STALE_STRATEGY_HOURS: float = 2.0
     AGI_HEALTH_DATA_FRESHNESS_HOURS: float = 24.0
     AGI_HEALTH_BUDGET_NEAR_LIMIT_PCT: float = 0.8
     AGI_HEALTH_ORPHAN_MAX_AGE_DAYS: int = 7
-
-    # --------------------------------------------------------------------------
-    # RISK_LIMITS - Risk limit configuration
-    # --------------------------------------------------------------------------
-    RISK_CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = 5
-    RISK_DAILY_LOSS_LIMIT: float = 5.0
-    RISK_MAX_DAILY_LOSS_PCT_CONFIG: float = 0.10
-    RISK_MAX_WEEKLY_LOSS_PCT_CONFIG: float = 0.20
-
-    # --------------------------------------------------------------------------
-    # POLLING_INTERVALS - Polling interval configuration
-    # --------------------------------------------------------------------------
-    POLLING_FAST_MS: int = 2000
-    POLLING_NORMAL_MS: int = 10000
-    POLLING_SLOW_MS: int = 30000
-    POLLING_VERY_SLOW_MS: int = 60000
 
     # --------------------------------------------------------------------------
     # VALIDATION - Validation methods
@@ -1580,7 +1562,7 @@ class ConfigRegistry:
     # --------------------------------------------------------------------------
     # TWAK (Trust Wallet Agent Kit) — shared with Track 1 agent endpoints
     # --------------------------------------------------------------------------
-    TWAK_WALLET_ADDRESS: str = "0x5DE14Ebd7703662Ea7AB524a85af1910661a8768"
+    TWAK_WALLET_ADDRESS: str = ""
     TWAK_WALLET_PASSWORD: str = ""
     TWAK_ACCESS_ID: str = ""
     TWAK_HMAC_SECRET: str = ""

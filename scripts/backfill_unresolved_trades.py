@@ -193,7 +193,7 @@ async def backfill(dry_run: bool = True, limit: int = None):
     total_win = 0.0
     mark_not_found = 0
 
-    from backend.core.settlement_helpers import (
+    from backend.core.settlement.settlement_helpers import (
         fetch_polymarket_resolution,
         calculate_pnl,
     )

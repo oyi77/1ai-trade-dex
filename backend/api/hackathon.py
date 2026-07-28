@@ -325,7 +325,11 @@ async def register_agent(req: AgentRegistrationRequest) -> Dict[str, Any]:
     if not _BNB_AGENT_AVAILABLE:
         raise HTTPException(503, "bnbagent SDK not installed. Install: pip install bnbagent")
 
-    bnb = _get_bnb_agent()
+    try:
+        bnb = _get_bnb_agent()
+    except Exception:
+        raise HTTPException(503, "bnbagent SDK not functional. Install: pip install bnbagent")
+
     try:
         await bnb.initialize()
         agent_info = await bnb.get_agent_info()

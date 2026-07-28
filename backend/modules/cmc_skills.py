@@ -1,4 +1,4 @@
-"""CMC Skills module for BNB HACK Track 2 — Strategy Skills.
+"""CMC Skills module for Strategy Skills module
 
 Adapts PolyEdge strategies into CMC Skills format for the Skills Marketplace.
 Each skill is a callable pipeline that:

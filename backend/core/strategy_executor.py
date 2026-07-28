@@ -1021,61 +1021,10 @@ async def _execute_decision_live_clob(
                                 )
                         logger.info(f"[LIVE][{strategy_name}] CLOB result: success={result.success} order_id={getattr(result,'order_id',None)} error={getattr(result,'error',None)}")
                         if result.success:
-                            clob_order_id = getattr(result, "order_id", None)
-                            normalized_fill_price = _first_numeric_attr(
-                                result,
-                                ("fill_price", "filled_avg_price", "avg_price"),
-                            )
-                            if normalized_fill_price is not None:
-                                fill_price = normalized_fill_price
-                            filled_size = _first_numeric_attr(
-                                result,
-                                ("filled_size", "fill_size", "filled", "size_matched"),
-                            )
-                            fee = _first_numeric_attr(
-                                result,
-                                ("fee", "fees_paid", "fees", "fee_paid"),
-                            )
-
-                            from backend.core.trade_forensics import classify_trade_role
-
-                            best_ask = None
-                            best_bid = None
-                            try:
-                                book = await clob.get_order_book(token_id)
-                                if book:
-                                    best_ask = book.best_ask
-                                    best_bid = book.best_bid
-                            except Exception:
-                                logger.warning(
-                                    "strategy_executor: get_order_book failed"
-                                )
-
-                            execution_decision = dict(decision)
-                            if best_ask is not None:
-                                execution_decision["best_ask"] = best_ask
-                            if best_bid is not None:
-                                execution_decision["best_bid"] = best_bid
-
-                            base_size = (
-                                filled_size
-                                if (filled_size is not None and filled_size > 0)
-                                else adjusted_size
-                            )
-
-                            role, maker_size, taker_size = await classify_trade_role(
-                                platform=platform,
-                                mode=mode,
-                                clob_order_id=clob_order_id,
-                                price=fill_price,
-                                size=base_size,
-                                direction=direction,
-                                decision=execution_decision,
-                                db_session=db,
-                            )
-
-                            logger.info(
-                                f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}"
+                            clob_order_id, fill_price, filled_size, fee, role, maker_size, taker_size = await _process_order_result(
+                                result, decision, clob, token_id, entry_price,
+                                adjusted_size, platform, mode, strategy_name,
+                                direction, market_ticker, fill_price, db,
                             )
                             break
                         err_msg = result.error or "CLOB order rejected"
@@ -1236,6 +1185,70 @@ async def _execute_decision_live_clob(
             return None
 
 
+async def _process_order_result(result, decision, clob, token_id, entry_price,
+                                 adjusted_size, platform, mode, strategy_name,
+                                 direction, market_ticker, fill_price, db):
+    """Process a successful CLOB order result — extract fill details, classify trade role."""
+    clob_order_id = getattr(result, "order_id", None)
+    normalized_fill_price = _first_numeric_attr(
+        result,
+        ("fill_price", "filled_avg_price", "avg_price"),
+    )
+    if normalized_fill_price is not None:
+        fill_price = normalized_fill_price
+    filled_size = _first_numeric_attr(
+        result,
+        ("filled_size", "fill_size", "filled", "size_matched"),
+    )
+    fee = _first_numeric_attr(
+        result,
+        ("fee", "fees_paid", "fees", "fee_paid"),
+    )
+
+    from backend.core.trade_forensics import classify_trade_role
+
+    best_ask = None
+    best_bid = None
+    try:
+        book = await clob.get_order_book(token_id)
+        if book:
+            best_ask = book.best_ask
+            best_bid = book.best_bid
+    except Exception:
+        logger.warning(
+            "strategy_executor: get_order_book failed"
+        )
+
+    execution_decision = dict(decision)
+    if best_ask is not None:
+        execution_decision["best_ask"] = best_ask
+    if best_bid is not None:
+        execution_decision["best_bid"] = best_bid
+
+    base_size = (
+        filled_size
+        if (filled_size is not None and filled_size > 0)
+        else adjusted_size
+    )
+
+    role, maker_size, taker_size = await classify_trade_role(
+        platform=platform,
+        mode=mode,
+        clob_order_id=clob_order_id,
+        price=fill_price,
+        size=base_size,
+        direction=direction,
+        decision=execution_decision,
+        db_session=db,
+    )
+
+    logger.info(
+        f"[{mode.upper()}][{strategy_name}] Order placed: {clob_order_id}"
+    )
+
+    return clob_order_id, fill_price, filled_size, fee, role, maker_size, taker_size
+
+
 def _pre_trade_safety_checks(
     db, strategy_name: str, mode: str, bankroll: float, size: float
 ) -> Optional[str]:
@@ -1247,16 +1260,21 @@ def _pre_trade_safety_checks(
 
     # 1. Per-trade max loss: no single trade > 5% of bankroll
     #    Small bankroll override: if 5% < CLOB min ($5), allow up to CLOB min
-    #    so small accounts can still place valid orders.
+    #    HARD CAP: no single trade may risk more than 20% of bankroll (prevents
+    #    account wipe from one bad trade on small accounts).
     max_trade_pct = float(_cfg("PER_TRADE_MAX_LOSS_PCT", 0.05))
     clob_min_order = float(_cfg("MIN_ORDER_USDC", 5.0))
     pct_limit = bankroll * max_trade_pct
-    effective_limit = max(pct_limit, clob_min_order, bankroll * 0.95) if bankroll > 0 else pct_limit
+    # Floor: at least CLOB minimum (so small accounts can place valid orders)
+    effective_floor = max(pct_limit, clob_min_order) if bankroll > 0 else pct_limit
+    # Ceiling: hard cap at 20% of bankroll (prevents a single trade from nuking the account)
+    hard_cap = bankroll * 0.20 if bankroll > 0 else float("inf")
+    effective_limit = min(effective_floor, hard_cap)
     if bankroll > 0 and size > effective_limit:
         return (
             f"per-trade size ${size:.2f} > limit ${effective_limit:.2f} "
-            f"({max_trade_pct:.0%} of ${bankroll:.2f} = ${pct_limit:.2f}, "
-            f"CLOB min = ${clob_min_order:.2f})"
+            f"(5% floor=${pct_limit:.2f}, CLOB min=${clob_min_order:.2f}, "
+            f"20% hard cap=${hard_cap:.2f})"
         )
 
     # 2. Daily max trades per strategy: no more than 50

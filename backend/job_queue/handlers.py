@@ -40,7 +40,7 @@ async def market_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if success=False
     """
     try:
-        from backend.core.scheduler import scan_and_trade_job
+        from backend.core.scheduling.scheduler import scan_and_trade_job
 
         mode = str(payload.get("mode") or "paper")
         await scan_and_trade_job(mode)
@@ -81,7 +81,7 @@ async def settlement_check(payload: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if success=False
     """
     try:
-        from backend.core.scheduler import settlement_job
+        from backend.core.scheduling.scheduler import settlement_job
 
         # Execute the settlement logic
         await settlement_job()

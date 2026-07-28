@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 from backend.config import settings
 from backend.data.shared_client import get_shared_client
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
 
@@ -21,10 +21,7 @@ subgraph_breaker = CircuitBreaker(
 )
 
 # Default Polymarket subgraph endpoint (The Graph hosted service)
-DEFAULT_SUBGRAPH_URL = (
-    "https://gateway.thegraph.com/api/"
-    "{api_key}/subgraphs/id/CitCUH6JGPVnR5PNFCHTVz1v1qJBFq3HHqfFGBTM1fF"
-)
+DEFAULT_SUBGRAPH_URL = settings.THEGRAPH_GATEWAY_URL.rstrip("/") + "/{api_key}/subgraphs/id/CitCUH6JGPVnR5PNFCHTVz1v1qJBFq3HHqfFGBTM1fF"
 
 # Cache TTLs
 CACHE_TTL_SHORT = 300  # 5 minutes for live data

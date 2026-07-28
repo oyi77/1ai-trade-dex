@@ -12,13 +12,13 @@ from typing import Any, Optional
 
 from backend.config import settings
 from backend.data.shared_client import get_shared_client
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
 
 dune_breaker = CircuitBreaker("dune_api", failure_threshold=3, recovery_timeout=120.0)
 
-DUNE_API_URL = "https://api.dune.com/api/v1"
+DUNE_API_URL = settings.DUNE_API_URL
 
 # Cache TTLs
 CACHE_TTL_LIVE = 3600  # 1 hour for live queries

@@ -23,10 +23,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+from backend.config import settings
 from backend.constants import PUSD_ADDRESS
 
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
-BLOCKSCOUT_BASE = "https://polygon.blockscout.com/api/v2"
+BLOCKSCOUT_BASE = settings.BLOCKSCOUT_API_URL
 CACHE_DIR = Path("data/proxy_cache")
 CACHE_TTL = 86400  # 24 hours
 

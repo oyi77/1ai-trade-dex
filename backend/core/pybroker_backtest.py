@@ -568,8 +568,8 @@ class PyBrokerEngine:
                                 abs(float(np.mean([float(v) for v in values]))) + 1e-9
                             )
                             stability_scores.append(max(0.0, 1.0 - cv))
-                        except (TypeError, ValueError):
-                            pass
+                        except (TypeError, ValueError) as e:
+                            logger.warning("stability CV calculation failed: {}", e)
                 param_stability = (
                     sum(stability_scores) / len(stability_scores)
                     if stability_scores

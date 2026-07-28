@@ -1,4 +1,4 @@
-"""BSC / Trust Wallet Agent Kit market provider for BNB HACK Track 1.
+"""BSC / Trust Wallet Agent Kit market provider for BSC market provider
 
 Routes trades through TWAK CLI for BSC/PancakeSwap execution.
 Supports both paper mode (backtesting) and live mode (TWAK-authenticated).

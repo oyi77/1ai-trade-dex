@@ -18,7 +18,7 @@ from typing import Any, Callable
 from loguru import logger
 
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.core.errors import RateLimitError
 
 

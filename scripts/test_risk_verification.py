@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from backend.core.risk_manager import RiskManager
 from backend.core.signals import calculate_kelly_size
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError, State
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError, State
 from backend.config import settings
 
 

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from httpx import Response
 
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.core.errors import RateLimitError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 

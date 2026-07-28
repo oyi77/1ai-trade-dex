@@ -10,7 +10,7 @@ from backend.data.shared_client import get_shared_client
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 
 BASE_URL = settings.KALSHI_API_URL

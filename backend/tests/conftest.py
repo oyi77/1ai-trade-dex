@@ -130,7 +130,7 @@ from backend.models.historical_data import (
     MarketOutcome,
     WeatherSnapshot,
 )
-from backend.core.risk_profiles import RiskProfileRow
+from backend.core.risk.risk_profiles import RiskProfileRow
 
 _db_mod.engine = test_engine
 _db_mod.SessionLocal = TestSessionLocal

@@ -1084,7 +1084,7 @@ async def auto_redeem_job() -> None:
     timeout_seconds = float(getattr(settings, "AUTO_REDEEM_TIMEOUT_SECONDS", 120.0))
 
     try:
-        from backend.core.auto_redeem import redeem_all_redeemable
+        from backend.core.settlement.auto_redeem import redeem_all_redeemable
 
         result = await asyncio.wait_for(
             asyncio.to_thread(
@@ -1491,7 +1491,7 @@ async def verify_settlement_blockchain():
     """Check unsettled trades and update with blockchain-verified settlement data."""
     await asyncio.sleep(0)  # yield control to event loop
     from backend.core.scheduling.scheduler import log_event
-    from backend.core.settlement_helpers import (
+    from backend.core.settlement.settlement_helpers import (
         fetch_resolution_for_trade,
         calculate_pnl,
     )

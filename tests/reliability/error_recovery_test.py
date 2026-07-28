@@ -38,7 +38,7 @@ class TestDatabaseRecovery:
         3. Simulate connection recovery
         4. Verify circuit breaker closes and operations resume
         """
-        from backend.core.circuit_breaker import CircuitBreaker
+        from backend.core.risk.circuit_breaker import CircuitBreaker
 
         # Create circuit breaker for DB operations
         db_breaker = CircuitBreaker(
@@ -380,7 +380,7 @@ class TestIntegratedRecovery:
 @pytest.fixture
 def mock_circuit_breaker():
     """Fixture providing a mock circuit breaker."""
-    from backend.core.circuit_breaker import CircuitBreaker
+    from backend.core.risk.circuit_breaker import CircuitBreaker
 
     return CircuitBreaker(failure_threshold=3, recovery_timeout=1.0)
 

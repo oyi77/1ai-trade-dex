@@ -21,10 +21,9 @@ from loguru import logger
 from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.shared_client import get_shared_client
+from backend.config import settings
 
-_AZURO_GRAPH_URL_DEFAULT = (
-    "https://thegraph.azuro.org/subgraphs/name/azuro-protocol/azuro-api-gnosis-v3"
-)
+_AZURO_GRAPH_URL_DEFAULT = settings.AZURO_SUBGRAPH_URL
 
 _GQL_ACTIVE_MARKETS = """
 {

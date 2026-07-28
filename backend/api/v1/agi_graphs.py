@@ -89,7 +89,8 @@ async def run_graph(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Failed to get run results: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get run results")
 
 
 @router.get("/graphs/{name}/results/{run_id}")
@@ -126,7 +127,8 @@ async def get_graph_execution_result(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Failed to execute graph: {e}")
+        raise HTTPException(status_code=500, detail="Failed to execute graph")
 
 
 @router.post("/graphs/register")

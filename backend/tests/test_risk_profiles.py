@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from sqlalchemy import text
 
-from backend.core.risk_profiles import (
+from backend.core.risk.risk_profiles import (
     PRESETS,
     RiskProfile,
     DEFAULT_PROFILE,

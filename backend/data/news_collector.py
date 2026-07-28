@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from typing import List
 
 from backend.data.shared_client import get_shared_client
+from backend.config import settings
 from loguru import logger
 
 # HuggingFace datasets-server API for row-based access
-HF_ROWS_API = "https://datasets-server.huggingface.co/rows"
+HF_ROWS_API = settings.HF_DATASETS_SERVER_URL
 DEFAULT_DATASET = "SII-WANGZJ/Polymarket_data"
 
 

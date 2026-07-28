@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Callable, Dict, List, Awaitable, Optional, Any
 
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 
 from loguru import logger
 

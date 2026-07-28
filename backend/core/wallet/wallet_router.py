@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.core.risk.risk_manager import IMMUTABLE_SAFETY_RULES
 from backend.models.trading_wallet import TradingWallet, WalletAllocation
 

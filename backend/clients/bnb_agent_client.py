@@ -1,4 +1,4 @@
-"""BNB AI Agent SDK client for BNB HACK hackathon.
+"""BNB AI Agent SDK client
 
 Wraps the bnbagent Python SDK for:
 - ERC-8004: Agent identity registration on BSC
@@ -287,7 +287,7 @@ class BNBAgentClient:
         self,
         strategy_name: str = "PolyEdge Autonomous Trader",
     ) -> Dict[str, Any]:
-        """Register as a trading agent for the BNB HACK hackathon.
+        """Register as a trading agent on BSC
 
         Sets up ERC-8004 identity with trading-specific endpoints.
         Call this once before the live trading window (June 22-28).

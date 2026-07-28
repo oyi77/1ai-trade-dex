@@ -1,7 +1,7 @@
 """Background monitoring job for system health checks."""
 
 from backend.core.alert_manager import AlertManager, get_system_metrics
-from backend.core.circuit_breaker_pybreaker import (
+from backend.core.risk.circuit_breaker_pybreaker import (
     db_breaker,
     polymarket_breaker,
     kalshi_breaker,

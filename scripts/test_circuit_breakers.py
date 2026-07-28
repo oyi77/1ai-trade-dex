@@ -8,7 +8,7 @@ import asyncio
 import logging
 from sqlalchemy.exc import OperationalError
 import pybreaker
-from backend.core.circuit_breaker_pybreaker import db_breaker, get_breaker_status
+from backend.core.risk.circuit_breaker_pybreaker import db_breaker, get_breaker_status
 
 logging.basicConfig(level=logging.INFO)
 from loguru import logger

@@ -20,8 +20,7 @@ from loguru import logger
 from backend.core.provider_config_store import provider_config
 from backend.data.provider import DataProvider, MarketEntry, PositionEntry, BalanceInfo
 from backend.data.shared_client import get_shared_client
-
-_SXBET_API_DEFAULT = "https://api.sx.bet"
+from backend.config import settings
 
 
 class SXBetProvider(DataProvider):
@@ -29,7 +28,7 @@ class SXBetProvider(DataProvider):
 
     def __init__(self) -> None:
         self._base_url = provider_config.get(
-            "sxbet", "api_url", _SXBET_API_DEFAULT
+            "sxbet", "api_url", settings.SXBET_API_URL
         ).rstrip("/")
 
     @property

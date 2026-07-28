@@ -8,7 +8,7 @@ from typing import Any, Optional, List
 from dataclasses import dataclass
 
 from backend.core.market_scanner import fetch_markets_by_keywords
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.data.market_types import UnifiedMarketView
 from backend.data.shared_client import get_shared_client
 from backend.config import settings

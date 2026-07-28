@@ -8,6 +8,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Force SQLite in-memory for ALL tests in this directory to prevent
+# accidental writes to the production PostgreSQL database.
+import os
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 # Stub apscheduler before any imports
 _sched_stub = MagicMock()
 sys.modules.setdefault("apscheduler", MagicMock())
@@ -41,11 +46,11 @@ try:
         StrategyPerformanceSnapshot,
     )  # noqa: F401
 except Exception:
-    pass
+    print("[conftest] WARNING: Could not import StrategyPerformanceSnapshot")
 try:
     from backend.models.database import Trade, ShadowTrade  # noqa: F401
 except Exception:
-    pass
+    print("[conftest] WARNING: Could not import Trade/ShadowTrade")
 
 _db_mod.engine = test_engine
 _db_mod.SessionLocal = TestSessionLocal
@@ -56,7 +61,7 @@ try:
 
     _db_utils_mod.SessionLocal = TestSessionLocal
 except Exception:
-    pass
+    print("[conftest] WARNING: Could not patch db.utils.SessionLocal")
 
 # Create all tables (drop first to ensure schema is fresh)
 Base.metadata.drop_all(bind=test_engine)
@@ -64,7 +69,7 @@ Base.metadata.create_all(bind=test_engine)
 try:
     _db_mod.ensure_schema()
 except Exception:
-    pass
+    print("[conftest] WARNING: ensure_schema() failed")
 
 # Seed BotState
 from backend.models.database import BotState

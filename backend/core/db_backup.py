@@ -151,7 +151,7 @@ async def backup_job() -> None:
 
     Called by APScheduler on configured interval.
     """
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Starting database backup job")
 

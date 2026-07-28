@@ -110,6 +110,27 @@ class ValidationStage(BaseExecutionStage):
             )
             return False
 
+        # ── Universal R:R filter (prevents asymmetric loss pattern) ──
+        # Binary prediction market: you pay `price` per share.
+        #   YES trade: max_win = 1-entry_price, max_loss = entry_price
+        #   NO trade:  max_win = entry_price, max_loss = 1-entry_price
+        # Reject trades where R:R < 1 (risk more than you can gain).
+        entry_price = float(decision.get("entry_price", decision.get("price", 0.0)))
+        if entry_price > 0 and direction:
+            if direction.lower() in ("yes", "buy", "long", "up"):
+                rr = (1.0 - entry_price) / max(entry_price, 0.001)
+            elif direction.lower() in ("no", "sell", "short", "down"):
+                rr = entry_price / max(1.0 - entry_price, 0.001)
+            else:
+                rr = None
+            if rr is not None and rr < 0.33:  # 1:3 minimum — win at least 1/3 of potential loss
+                logger.warning(
+                    "[ValidationStage] R:R BLOCKED: {}/{} rr={:.2f} entry={:.4f} "
+                    "direction={} — risk exceeds potential gain",
+                    strategy_name, market_ticker, rr, entry_price, direction,
+                )
+                return False
+
         risk_decision = self.risk_manager.validate_trade(
             size=size,
             current_exposure=current_exposure,

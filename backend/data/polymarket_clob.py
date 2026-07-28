@@ -30,8 +30,8 @@ from py_clob_client_v2 import (
     OrderPayload,
 )
 
-from backend.core.circuit_breaker import CircuitBreaker
-from backend.core.circuit_breaker_pybreaker import polymarket_breaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker_pybreaker import polymarket_breaker
 from backend.config import settings, _cfg
 from backend.data.shared_client import get_shared_client
 
@@ -83,7 +83,7 @@ async def _check_and_claim_idempotency(key: str) -> bool:
     # Check DB for cross-process/restart duplicates
     from backend.models.database import SessionLocal, Trade
 
-    from backend.core.circuit_breaker_pybreaker import db_breaker
+    from backend.core.risk.circuit_breaker_pybreaker import db_breaker
 
     def _db_query():
         db = SessionLocal()

@@ -12,7 +12,7 @@ from typing import Any, Optional
 
 from backend.config import settings
 from backend.data.shared_client import get_shared_client
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError
 
 from loguru import logger
 
@@ -21,7 +21,7 @@ hl_breaker = CircuitBreaker(
 )
 
 # Hyperliquid API endpoints
-DEFAULT_HL_API_URL = "https://api.hyperliquid.xyz"
+DEFAULT_HL_API_URL = settings.HYPERLIQUID_API_URL
 DEFAULT_HL_WS_URL = "wss://api.hyperliquid.xyz/ws"
 
 # Cache TTLs

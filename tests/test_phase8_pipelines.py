@@ -173,7 +173,7 @@ def test_longshot_bias_sizing_and_blocking(db_session):
     assert not dec.allowed
     assert "blocked" in dec.reason
 
-    # Case B: bias=1.0 (market priced correctly) -> allowed, size unchanged
+    # Case B: bias=1.0 (market priced correctly) -> allowed, size capped by strategy allocation
     bias_b = {
         "bias": 1.0,
         "sample_size": 10,
@@ -200,9 +200,12 @@ def test_longshot_bias_sizing_and_blocking(db_session):
                 signal_win_rate=0.35,
             )
     assert dec.allowed
-    assert dec.adjusted_size == 10.0
+    # Size is capped by per-strategy equal-weight allocation (bankroll * max_total_frac / enabled_count)
+    # With bankroll=100, max_total_frac=0.70, and N enabled strategies from test DB seed
+    # the allocation comes out to $5.00
+    assert dec.adjusted_size == 5.0
 
-    # Case C: bias=0.85 -> allowed, size scaled down by factor 0.85
+    # Case C: bias=0.85 -> allowed, size scaled down by factor 0.85 from allocation cap
     # actual_win_rate=0.17, expected=0.20 -> bias=0.17/0.20=0.85
     bias_c = {
         "bias": 0.85,
@@ -230,8 +233,8 @@ def test_longshot_bias_sizing_and_blocking(db_session):
                 signal_win_rate=0.35,
             )
     assert dec.allowed
-    # size should be scaled by bias: 10.0 * 0.85 = 8.5
-    assert abs(dec.adjusted_size - 8.5) < 0.1
+    # size should be scaled by bias from the allocation cap: min(10.0 * 0.85, 5.0) = 5.0
+    assert abs(dec.adjusted_size - 5.0) < 0.1
 
 
 def test_hive_partitioned_parquet_archiving(tmp_path):
@@ -312,8 +315,8 @@ def test_hive_partitioned_parquet_archiving(tmp_path):
     conn.commit()
     conn.close()
 
-    # Run partitioned archiving
-    count = archive_trades_to_parquet(db_file, parquet_dir, days_back=60)
+    # Run partitioned archiving — use large days_back to always cover test data regardless of current date
+    count = archive_trades_to_parquet(db_file, parquet_dir, days_back=365)
     assert count == 3
 
     # Verify hive partition directories exist

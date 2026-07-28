@@ -1,4 +1,4 @@
-"""CoinMarketCap data feed provider for BNB HACK hackathon.
+"""CoinMarketCap data feed provider for Market data feed.
 
 Integrates CMC Data API as a BaseExchangeFeed plugin, following the same pattern
 as Binance/CoinGecko feeds. Uses X-CMC_PRO_API_KEY for authentication.
@@ -18,7 +18,7 @@ from backend.data.shared_client import get_shared_client
 from backend.data.crypto_feeds.base import BaseExchangeFeed, ExchangeFeedManifest
 from backend.data.crypto_feeds.registry import get_registry
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 
 _registry = get_registry()
 logger = logging.getLogger(__name__)

@@ -106,13 +106,15 @@ async def get_activities(
         return response
     except Exception as e:
         logger.error(f"Failed to retrieve activities: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to retrieve activities")
 
 
 @router.get("/{activity_id}")
 async def get_activity_by_id(activity_id: int, db: Session = Depends(get_db)):
     """Get a single activity log by ID."""
     try:
+        if activity_id < 0 or activity_id > 2**63 - 1:
+            raise HTTPException(status_code=400, detail="Invalid activity_id")
         activity = db.query(ActivityLog).filter(ActivityLog.id == activity_id).first()
 
         if not activity:
@@ -182,7 +184,7 @@ async def create_activity(
         raise
     except Exception as e:
         logger.error(f"Failed to create activity: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create activity log")
 
 
 @router.websocket("/ws")

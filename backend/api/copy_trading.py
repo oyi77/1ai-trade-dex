@@ -138,7 +138,7 @@ async def get_copy_leaderboard(limit: int = 100):
         except Exception as e:
             logger.warning(f"Leaderboard scraper fallback failed: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch leaderboard: {str(e)}"
+            status_code=500, detail="Failed to fetch leaderboard"
         )
 
 
@@ -174,7 +174,7 @@ async def get_copy_signals(limit: int = 20):
             ]
     except Exception as e:
         logger.warning(f"Copy signals fetch failed: {e}")
-        raise HTTPException(status_code=503, detail=f"Copy signals unavailable: {e}")
+        raise HTTPException(status_code=503, detail="Copy signals unavailable")
 
 
 @router.get("/positions")

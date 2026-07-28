@@ -1,4 +1,4 @@
-"""Trust Wallet Agent Kit (TWAK) client for BNB HACK hackathon.
+"""Trust Wallet Agent Kit (TWAK) client for CEX connectivity.
 
 Wraps the TWAK CLI as a Python client for programmatic access to:
 - Wallet management (create, balance, portfolio)

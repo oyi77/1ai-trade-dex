@@ -803,6 +803,6 @@ async def ai_suggest_params(
 @router.get("/scheduler/jobs")
 async def get_scheduler_jobs_endpoint(_: None = Depends(require_admin)):
     """Return current APScheduler job list."""
-    from backend.core.scheduler import get_scheduler_jobs
+    from backend.core.scheduling.scheduler import get_scheduler_jobs
 
     return get_scheduler_jobs()

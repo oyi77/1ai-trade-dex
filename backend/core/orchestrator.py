@@ -14,7 +14,7 @@ from backend.data.polymarket_clob import (
     clob_from_settings,
     clob_breaker,
 )
-from backend.core.risk_profiles import apply_profile, get_active_profile_name
+from backend.core.risk.risk_profiles import apply_profile, get_active_profile_name
 
 from loguru import logger
 

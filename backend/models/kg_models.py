@@ -13,7 +13,7 @@ from sqlalchemy import (
     Index,
 )
 
-from backend.models.database import Base
+from backend.models.base_db import Base
 
 
 class KGEntity(Base):

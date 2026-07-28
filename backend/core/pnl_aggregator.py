@@ -152,7 +152,7 @@ def get_strategy_pnl(
             try:
                 db.close()
             except Exception:
-                pass
+                logger.opt(exception=True).warning("db.close() failed in aggregate_pnl")
 
 
 def get_portfolio_pnl(
@@ -224,4 +224,4 @@ def get_portfolio_pnl(
             try:
                 db.close()
             except Exception:
-                pass
+                logger.opt(exception=True).warning("db.close() failed in aggregate_pnl")

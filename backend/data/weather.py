@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import statistics
 import time
 
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError
 from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.config import settings
 
@@ -557,7 +557,7 @@ async def fetch_noaa_metar(station_id: str, date: str) -> Optional[dict]:
         dict with keys: station_id, time, temp_c, wind_kt, visibility_mi, weather.
         Returns None if the API fails or no observations exist for that date.
     """
-    NOAA_METAR_URL = "https://aviationweather.gov/api/data/metar"
+    NOAA_METAR_URL = settings.NOAA_METAR_URL
     params = {
         "ids": station_id,
         "format": "json",

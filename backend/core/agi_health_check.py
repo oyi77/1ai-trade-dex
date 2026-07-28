@@ -164,7 +164,7 @@ class AGIHealthChecker:
 
     def _check_scheduler(self) -> dict:
         try:
-            from backend.core.scheduler import scheduler
+            from backend.core.scheduling.scheduler import scheduler
 
             jobs = scheduler.get_jobs()
             if not jobs:

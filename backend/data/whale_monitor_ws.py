@@ -11,7 +11,7 @@ from typing import AsyncIterator, Optional
 
 import websockets
 
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.config import settings
 
 from loguru import logger

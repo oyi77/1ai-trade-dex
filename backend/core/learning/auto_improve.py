@@ -231,7 +231,7 @@ async def auto_improve_job():
     """
     global _last_param_change
 
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Running auto-improvement analysis...")
 

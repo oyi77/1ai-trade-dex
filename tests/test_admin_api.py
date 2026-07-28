@@ -15,11 +15,14 @@ _sched_stub.is_scheduler_running = MagicMock(return_value=False)
 sys.modules.setdefault("apscheduler", MagicMock())
 sys.modules.setdefault("apscheduler.schedulers", MagicMock())
 sys.modules.setdefault("apscheduler.schedulers.asyncio", MagicMock())
-sys.modules["backend.core.scheduler"] = _sched_stub
+sys.modules["backend.core.scheduling.scheduler"] = _sched_stub
+
+# BotState is needed by the scheduler mock; ensure it's available
+_sched_stub.BotState = MagicMock()
 
 from backend.api.main import app
 from backend.config import settings
-from backend.models.database import init_db
+from backend.models.database import init_db, BotState
 
 
 @pytest.fixture(scope="module", autouse=True)

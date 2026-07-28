@@ -1,80 +1,84 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "polyedge"
-version = "0.2.0"
-description = "A full-stack automated prediction market and perpetual DEX trading bot"
-readme = "README.md"
-license = {text = "Proprietary"}
+version = "3.0.0"
+description = "Automated prediction market and perpetual DEX trading bot — 10+ platforms, 14 strategies, AGI evolution, React dashboard"
 requires-python = ">=3.11"
-authors = [{name = "BerkahKarya"}]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Financial and Insurance Industry",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Office/Business :: Financial :: Investment",
+authors = [
+    { name = "Coder $String$" },
 ]
+license = { text = "Proprietary" }
 
+# Main dependencies — managed in requirements.txt
+# pip install -r requirements.txt for exact pinned versions
 dependencies = [
-    "fastapi==0.115.6",
-    "starlette>=0.35.0,<1.0.0",
-    "uvicorn[standard]==0.34.0",
-    "sqlalchemy==2.0.36",
-    "psycopg2-binary==2.9.9",
-    "alembic>=1.13.0",
-    "pydantic==2.10.4",
-    "pydantic-settings==2.7.1",
-    "orjson==3.10.14",
-    "httpx>=0.26.0,<0.28.0",
-    "aihttp==3.11.11",
-    "py-clob-client-v2>=1.0.0",
-    "py-order-utils>=0.3.0",
-    "py-builder-signing-sdk>=0.0.2",
-    "py-builder-relayer-client>=0.0.1",
-    "cryptography>=42.0.0",
-    "numpy==2.4.6",
-    "pandas==3.0.3",
-    "scipy==1.16.1",
-    "scikit-learn>=1.3.2",
-    "joblib>=1.3.0",
-    "deap>=1.4.0",
-    "huggingface_hub>=0.20.0",
-    "pyarrow>=14.0.0",
-    "vectorbt>=0.26.0",
-    "nest_asyncio==1.6.0",
-    "apscheduler==3.10.4",
-    "arq>=0.25.0",
-    "redis>=5.0.0",
-    "anthropic>=0.40.0",
-    "groq>=0.4.0",
-    "openai>=1.12.0",
-    "websockets>=12.0",
-    "eth-account>=0.11.0",
-    "ccxt>=4.5.0",
-    "hyperliquid-python-sdk>=0.23.0",
-    "ostium-python-sdk>=3.2.0",
-    "lighter-sdk",
-    "feedparser>=6.0.0",
-    "python-telegram-bot>=21.0",
+    "fastapi>=0.109.0",
+    "sqlalchemy>=2.0.25",
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.26.0",
     "loguru>=0.7.0",
-    "structlog>=24.1.0",
-    "python-dotenv==1.0.1",
-    "psutil>=5.9.0",
-    "cachetools>=5.3.3",
-    "slowapi>=0.1.9",
-    "pybreaker>=1.0.0",
-    "prometheus-client>=0.20.0",
+    "apscheduler>=3.10.0",
+    "alembic>=1.13.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-httpx>=0.30",
-    "respx>=0.21",
-    "ruff>=0.3",
+[project.urls]
+Repository = "https://github.com/codergaboets/1ai-trade-dex"
+Documentation = "https://docs.berkahkarya.org"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = [
+    "backend/tests",
+    "tests",
 ]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+    "e2e: marks end-to-end tests",
+]
+
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    "backend/tests/*",
+    "backend/alembic/*",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "pragma: no cover",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long — handled by ruff formatter
+    "N818",  # exception class name
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

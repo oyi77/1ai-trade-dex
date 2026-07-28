@@ -365,7 +365,7 @@ async def simulate_trade(
 ):
     """Execute a manual trade for a given signal ticker, routed through risk controls."""
     from backend.core.strategy_executor import execute_decision
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     signals = await scan_for_signals()
     signal = next((s for s in signals if s.market.market_id == signal_ticker), None)
@@ -419,7 +419,7 @@ async def settle_trades_endpoint(
         update_bot_state_with_settlements,
         reconcile_bot_state,
     )
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     log_event("info", "Manual settlement triggered")
 
@@ -477,7 +477,14 @@ def get_debate_signals(
     Returns debate transcript with signal votes, bull/bear arguments,
     and consensus decision. Shows MiroFish participation with equal weight.
     """
-    decision = db.query(DecisionLog).filter(DecisionLog.id == int(debate_id)).first()
+    try:
+        debate_pk = int(debate_id)
+        if debate_pk < 0 or debate_pk > 2**63 - 1:
+            raise HTTPException(status_code=400, detail="Invalid debate_id: out of range")
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid debate_id: must be an integer")
+
+    decision = db.query(DecisionLog).filter(DecisionLog.id == debate_pk).first()
 
     if not decision:
         raise HTTPException(status_code=404, detail="Debate not found")

@@ -1,7 +1,7 @@
 from backend.bot.notification.base import BaseNotificationProvider, NotificationManifest
 from backend.bot.notification.registry import registry
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 from backend.core.external_rate_limiter import ExternalRateLimiter
 from backend.core.errors import CircuitOpenError
 from typing import Optional

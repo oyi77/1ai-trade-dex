@@ -686,7 +686,7 @@ class PolyEdgeBot:
             return
         await update.message.reply_text("🔍 Running multi-strategy market scan...")
         try:
-            from backend.core.scheduler import scan_and_trade_job
+            from backend.core.scheduling.scheduler import scan_and_trade_job
 
             await scan_and_trade_job("paper")
             await update.message.reply_text(
@@ -795,7 +795,7 @@ class PolyEdgeBot:
             return
         await update.message.reply_text("⚙️ Running settlement check...")
         try:
-            from backend.core.scheduler import settlement_job
+            from backend.core.scheduling.scheduler import settlement_job
 
             await settlement_job()
             await update.message.reply_text("✅ Settlement check complete.")

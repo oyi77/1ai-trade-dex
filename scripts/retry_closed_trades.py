@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from backend.models.database import SessionLocal, Trade
-from backend.core.settlement_helpers import (
+from backend.core.settlement.settlement_helpers import (
     fetch_polymarket_resolution,
     calculate_pnl,
 )

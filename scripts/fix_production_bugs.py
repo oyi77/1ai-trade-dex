@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from sqlalchemy import func, case
 from backend.models.database import SessionLocal, Trade, BotState, EquitySnapshot
-from backend.core.settlement_helpers import (
+from backend.core.settlement.settlement_helpers import (
     fetch_polymarket_resolution,
     calculate_pnl,
 )

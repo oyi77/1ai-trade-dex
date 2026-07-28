@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from backend.models.database import get_db, Trade
-from backend.core.settlement_helpers import (
+from backend.core.settlement.settlement_helpers import (
     calculate_pnl,
     fetch_resolution_for_trade,
 )

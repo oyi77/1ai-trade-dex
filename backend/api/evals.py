@@ -77,4 +77,4 @@ async def get_eval_report(filename: str):
             data = json.load(f)
         return data
     except (json.JSONDecodeError, OSError) as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read report: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read report")

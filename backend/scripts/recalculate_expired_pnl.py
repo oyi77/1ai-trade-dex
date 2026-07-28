@@ -16,7 +16,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from backend.models.database import get_db, Trade, BotState, for_update
-from backend.core.settlement_helpers import calculate_pnl, fetch_polymarket_resolution
+from backend.core.settlement.settlement_helpers import calculate_pnl, fetch_polymarket_resolution
 from backend.config import settings
 
 

@@ -16,6 +16,7 @@ build/
 # Database
 *.db
 *.sqlite3
+*.sqlite
 
 # Environment
 .env
@@ -67,12 +68,22 @@ htmlcov/
 *.corrupt.*
 backups/
 
+# Backtest artifacts (regenerated, not source)
+data/backtests/
+data/scanner_cache/
+data/wallet_cache/
+
+# Generated eval reports
+backend/evals/reports/
+
 # Tool state
 .omc/
+.hermes/
 .playwright-mcp/
 .sisyphus/
 !.sisyphus/plans/
 .claude/
+.production_guardian_alerts.json
 
 # Screenshots (dev only)
 screenshots/

@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, Optional
 from loguru import logger
 
 import redis.asyncio as redis
-from backend.core.circuit_breaker_pybreaker import redis_breaker
+from backend.core.risk.circuit_breaker_pybreaker import redis_breaker
 from backend.config import settings
 
 

@@ -317,11 +317,11 @@ async def cache_cleanup_job():
     try:
         stats = await run_cleanup_cycle()
 
-        from backend.core.scheduler import log_event
+        from backend.core.scheduling.scheduler import log_event
 
         log_event("success", "Cache cleanup completed", stats.to_dict())
     except Exception as e:
         logger.error(f"Cache cleanup job failed: {e}", exc_info=True)
-        from backend.core.scheduler import log_event
+        from backend.core.scheduling.scheduler import log_event
 
         log_event("error", f"Cache cleanup failed: {e}")

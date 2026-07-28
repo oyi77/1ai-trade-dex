@@ -806,7 +806,7 @@ def _profile_to_response(p) -> RiskProfileResponse:
 
 @router.get("/risk/profile", response_model=RiskProfileListResponse)
 async def get_risk_profiles(_: None = Depends(require_admin)):
-    from backend.core.risk_profiles import list_profiles, get_active_profile_name
+    from backend.core.risk.risk_profiles import list_profiles, get_active_profile_name
 
     active = get_active_profile_name()
     profiles = {k: _profile_to_response(p) for k, p in list_profiles().items()}
@@ -818,7 +818,7 @@ async def set_risk_profile(
     body: SetRiskProfileRequest,
     _: None = Depends(require_admin),
 ):
-    from backend.core.risk_profiles import list_profiles, apply_profile
+    from backend.core.risk.risk_profiles import list_profiles, apply_profile
 
     all_profiles = list_profiles()
     if body.profile not in all_profiles:
@@ -841,7 +841,7 @@ async def update_risk_profile(
     body: UpdateRiskProfileRequest,
     _: None = Depends(require_admin),
 ):
-    from backend.core.risk_profiles import update_profile
+    from backend.core.risk.risk_profiles import update_profile
 
     try:
         updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -858,7 +858,7 @@ async def create_risk_profile(
     body: CreateRiskProfileRequest,
     _: None = Depends(require_admin),
 ):
-    from backend.core.risk_profiles import create_profile, RiskProfile
+    from backend.core.risk.risk_profiles import create_profile, RiskProfile
 
     try:
         profile = RiskProfile(
@@ -889,7 +889,7 @@ async def delete_risk_profile(
     name: str,
     _: None = Depends(require_admin),
 ):
-    from backend.core.risk_profiles import delete_profile
+    from backend.core.risk.risk_profiles import delete_profile
 
     deleted = delete_profile(name)
     if not deleted:

@@ -58,8 +58,13 @@ from backend.api.alerts import router as alerts_router
 from backend.api.provider_credentials import router as provider_credentials_router
 from backend.api.evals import router as evals_router
 
-# Hackathon (CMC Skills + Track 1 autonomous agent)
+# Hackathon (CMC Skills + Autonomous Agent endpoints)
 from backend.api.hackathon import router as hackathon_router
+
+# Phase 2 split: extracted from system.py
+from backend.api.health import router as health_router
+from backend.api.bot_control import router as bot_control_router
+from backend.api.strategy_routes import router as strategy_routes_router
 
 # Plugin system API routers
 from backend.api.v1.ai_providers import router as ai_providers_router
@@ -183,6 +188,11 @@ from backend.api.events.sse_router import router as sse_events_router  # noqa: E
 
 # Hackathon
 app.include_router(hackathon_router)
+
+# Phase 2 split: extracted route files from system.py
+app.include_router(health_router, prefix="/api/v1")
+app.include_router(bot_control_router, prefix="/api/v1")
+app.include_router(strategy_routes_router, prefix="/api/v1")
 
 app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)
@@ -486,7 +496,7 @@ async def health_check(db: Session = Depends(get_db)):
     # ── Correlation Monitor ──
     correlation_monitor_health = {}
     try:
-        from backend.core.correlation_monitor import MARKET_CATEGORIES
+        from backend.core.risk.correlation_monitor import MARKET_CATEGORIES
 
         correlation_monitor_health = {
             "status": "ok",

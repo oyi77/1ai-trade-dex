@@ -61,18 +61,27 @@ class SignalPipeline:
         return capped
 
     def _filter(self, edges: List[Edge]) -> List[Edge]:
-        """Remove edges below thresholds or expired."""
+        """Remove edges below thresholds or expired, net of execution costs."""
+        # Deduct estimated execution cost (slippage + exchange fee) from raw edge
+        from backend.config import settings as _settings
+        slippage_bps = float(getattr(_settings, "PAPER_SLIPPAGE_BPS", 20.0))
+        fee_bps = float(getattr(_settings, "EXCHANGE_FEE_BPS", 10.0))
+        cost_bps = slippage_bps + fee_bps
+        cost_pct = cost_bps / 10000.0  # convert bps to decimal
+
         filtered = []
         for edge in edges:
             # Expired edges
             if edge.is_expired:
                 logger.debug(f"[apex:pipeline] Expired: {edge.market_id} {edge.edge_type.value}")
                 continue
-            # Minimum edge
-            if edge.edge_pp < self.min_edge_pp:
+            # Net edge after execution costs
+            net_edge = edge.edge_pp - cost_pct
+            if net_edge < self.min_edge_pp:
                 logger.debug(
-                    f"[apex:pipeline] Low edge: {edge.market_id} "
-                    f"edge_pp={edge.edge_pp:.4f} < {self.min_edge_pp}"
+                    f"[apex:pipeline] Low edge (net): {edge.market_id} "
+                    f"raw={edge.edge_pp:.4f} cost={cost_pct:.4f} "
+                    f"net={net_edge:.4f} < {self.min_edge_pp}"
                 )
                 continue
             # Minimum confidence
@@ -150,6 +159,7 @@ class SignalPipeline:
                         else:
                             break
             except Exception:
+                logger.warning("[signal_pipeline] Failed to check loss streak from DB, defaulting to 0")
                 pass
 
         anti_martingale_mult = 0.5 if loss_streak >= 3 else 1.0

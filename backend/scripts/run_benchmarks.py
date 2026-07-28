@@ -94,7 +94,7 @@ def bench_config_load():
 
 def bench_circuit_breaker_check():
     """Benchmark circuit breaker state check."""
-    from backend.core.circuit_breaker import CircuitBreaker
+    from backend.core.risk.circuit_breaker import CircuitBreaker
 
     cb = CircuitBreaker("bench_test")
     cb.state  # Just read state

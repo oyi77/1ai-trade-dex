@@ -478,8 +478,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     _t0 = _time.time()
     logger.info("Initializing database...")
-    from backend.models.database import init_db
+    from backend.models.database import init_db, register_corruption_alert_handler
+    from backend.core.event_bus import publish_event
 
+    register_corruption_alert_handler(publish_event)
     init_db()
     logger.info(f"  init_db done in {_time.time()-_t0:.1f}s")
 
@@ -703,7 +705,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _t_strat = _time.time()
     try:
         from backend.strategies.loader import load_all_strategies
-        from backend.core.scheduler import start_scheduler
+        from backend.core.scheduling.scheduler import start_scheduler
         
         # Load all strategy modules (triggers auto-registration via BaseStrategy.__init_subclass__)
         load_all_strategies()
@@ -846,7 +848,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         logger.info("8. Stopping scheduler...")
         try:
-            from backend.core.scheduler import stop_scheduler
+            from backend.core.scheduling.scheduler import stop_scheduler
 
             stop_scheduler()
             logger.info("   ✓ Scheduler stopped")

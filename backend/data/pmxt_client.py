@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 
 from backend.config import settings
-from backend.core.circuit_breaker import CircuitBreaker
+from backend.core.risk.circuit_breaker import CircuitBreaker
 
 # Supported exchanges
 SUPPORTED_EXCHANGES = ("polymarket", "kalshi", "limitless", "hyperliquid")

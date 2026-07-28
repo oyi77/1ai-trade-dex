@@ -836,7 +836,7 @@ class AutonomousPromoter:
         best variant promotes to live, params get applied.
         """
         import json as _json
-        from backend.core.scheduler import (
+        from backend.core.scheduling.scheduler import (
             schedule_strategy,
         )  # Lazy to avoid circular import
 

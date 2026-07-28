@@ -742,7 +742,7 @@ async def _sync_db_to_polymarket_job():
 
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(
-                f"https://data-api.polymarket.com/positions?user={wallet.lower()}"
+                f"{_settings.DATA_API_URL}/positions?user={wallet.lower()}"
             )
             if r.status_code != 200:
                 logger.warning(f"[db_pm_sync] Positions API returned {r.status_code}")

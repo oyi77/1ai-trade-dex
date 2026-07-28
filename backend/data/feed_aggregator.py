@@ -11,11 +11,11 @@ from backend.config import settings
 from loguru import logger
 
 DEFAULT_FEEDS = [
-    "https://feeds.bbci.co.uk/news/rss.xml",
+    settings.RSS_FEED_BBC_URL,
     "https://feeds.reuters.com/reuters/businessNews",
     "https://www.federalreserve.gov/feeds/press_all.xml",
     "https://cointelegraph.com/rss",
-    "https://coindesk.com/arc/outboundfeeds/rss/",
+    settings.RSS_FEED_COINDESK_URL,
 ]
 
 

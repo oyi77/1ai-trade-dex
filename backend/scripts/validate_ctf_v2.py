@@ -121,7 +121,7 @@ def validate_contract_addresses() -> None:
 def validate_auto_redeem_addresses() -> None:
     print("\n=== 3. auto_redeem.py Contract Addresses ===")
     try:
-        from backend.core.auto_redeem import (
+        from backend.core.settlement.auto_redeem import (
             CTF_ADDRESS,
             NEG_RISK_ADAPTER,
             USDC_POLYGON,

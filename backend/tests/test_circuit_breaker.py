@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from backend.core.circuit_breaker import CircuitBreaker, CircuitOpenError, State
+from backend.core.risk.circuit_breaker import CircuitBreaker, CircuitOpenError, State
 
 
 async def failing_func():

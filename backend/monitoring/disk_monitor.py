@@ -7,7 +7,7 @@ from loguru import logger
 async def disk_space_check_job():
     """Check disk usage and alert if above threshold."""
     from backend.config import settings
-    from backend.core.scheduler import log_event
+    from backend.core.scheduling.scheduler import log_event
 
     alert_pct = getattr(settings, "DISK_USAGE_ALERT_PCT", 0.90)
 

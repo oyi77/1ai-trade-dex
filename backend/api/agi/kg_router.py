@@ -47,7 +47,7 @@ async def query_knowledge_graph(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Knowledge graph query execution failed")
-        raise HTTPException(status_code=500, detail=f"Query execution failed: {e}")
+        raise HTTPException(status_code=500, detail="Query execution failed")
 
 
 @kg_router.get("/nodes/{node_id}/neighbors")

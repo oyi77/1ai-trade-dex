@@ -22,6 +22,7 @@ from backend.strategies.cross_market_arb_enhanced import (
 )
 
 from backend.data.shared_client import get_shared_client
+from backend.config import settings
 from loguru import logger
 
 # Timeout per provider scan in seconds
@@ -75,7 +76,7 @@ class ArbOpportunityScanner:
             client = get_shared_client()
             for _ in range(max_pages):
                 resp = await client.get(
-                    "https://gamma-api.polymarket.com/markets",
+                    settings.GAMMA_API_URL + "/markets",
                     params={
                         "active": "true",
                         "closed": "false",

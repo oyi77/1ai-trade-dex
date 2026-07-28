@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 from backend.markets.order_types import NormalizedFillEvent, OrderSide
-from backend.core.settlement_helpers import _looks_like_token_id, calculate_pnl
+from backend.core.settlement.settlement_helpers import _looks_like_token_id, calculate_pnl
 from backend.models.database import Trade
 
 
