@@ -11,19 +11,31 @@ Import directly from subpackages: ``from backend.core.risk.risk_manager import R
 """
 
 
+_SUBPACKAGES = {
+    "settlement",
+    "risk",
+    "scheduling",
+    "learning",
+    "wallet",
+}
+
+# Aliases that live under backend.core.scheduling.<name> but are
+# also accessed via backend.core.<name> for backward compatibility.
+_SUBMODULE_ALIASES: dict[str, str] = {
+    "scheduling_strategies": "backend.core.scheduling.scheduling_strategies",
+}
+
+
 def __getattr__(name: str):
     """Lazy re-export from subpackages to avoid circular imports."""
-    _subpackages = {
-        "settlement",
-        "risk",
-        "scheduling",
-        "learning",
-        "wallet",
-    }
-    if name in _subpackages:
-        import importlib
+    import importlib
 
+    if name in _SUBPACKAGES:
         mod = importlib.import_module(f"backend.core.{name}")
+        globals()[name] = mod
+        return mod
+    if name in _SUBMODULE_ALIASES:
+        mod = importlib.import_module(_SUBMODULE_ALIASES[name])
         globals()[name] = mod
         return mod
     raise AttributeError(f"module 'backend.core' has no attribute {name!r}")
