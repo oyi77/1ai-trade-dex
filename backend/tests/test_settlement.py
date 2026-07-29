@@ -856,7 +856,7 @@ async def test_resolve_paper_trades_updates_botstate_counters(db):
     mock_client.get = AsyncMock(return_value=mock_response)
 
     with patch(
-        "backend.core.settlement.settlement_helpers.get_shared_client",
+        "backend.core.settlement.reconcile.get_shared_client",
         return_value=mock_client,
     ):
         settled = await resolve_paper_trades(db)
