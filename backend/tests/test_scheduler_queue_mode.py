@@ -116,7 +116,7 @@ def test_auto_redeem_is_registered_for_crash_recovery_when_enabled():
 def test_postgres_for_update_applies_transaction_local_lock_timeouts():
     """BotState row locks must fail fast without moving async jobs to another loop."""
 
-    source = Path("backend/models/database.py").read_text()
+    source = Path("backend/models/engine.py").read_text()
     tree = ast.parse(source)
 
     helper = next(

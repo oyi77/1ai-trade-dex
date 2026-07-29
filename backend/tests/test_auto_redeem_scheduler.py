@@ -73,7 +73,7 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
         captured.update(kwargs)
         return _BatchResult(total_attempted=2, total_redeemed=2)
 
-    fake_auto_redeem_module = types.ModuleType("backend.core.auto_redeem")
+    fake_auto_redeem_module = types.ModuleType("backend.core.settlement.auto_redeem")
     fake_auto_redeem_module.redeem_all_redeemable = fake_redeem_all_redeemable
 
     monkeypatch.setattr(
@@ -120,7 +120,7 @@ async def test_auto_redeem_job_uses_dry_run_by_default(monkeypatch):
     )
     monkeypatch.setattr(scheduler_module, "log_event", fake_log_event)
     monkeypatch.setitem(
-        sys.modules, "backend.core.auto_redeem", fake_auto_redeem_module
+        sys.modules, "backend.core.settlement.auto_redeem", fake_auto_redeem_module
     )
 
     await scheduling_strategies.auto_redeem_job()
