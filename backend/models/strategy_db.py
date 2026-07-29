@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class GenomeRegistry(Base):
     """Registry of genetic algorithms and their configurations."""

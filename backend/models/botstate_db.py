@@ -27,7 +27,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy import inspect
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class BotState(Base):
     """Bot state and statistics."""

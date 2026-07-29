@@ -11,7 +11,7 @@ from sqlalchemy import (
     JSON,
     Index,
 )
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 
 class StrategyOutcome(Base):

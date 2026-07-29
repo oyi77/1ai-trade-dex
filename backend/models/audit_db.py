@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class ActivityLog(Base):
     """Log of all strategy decisions and trading activity."""

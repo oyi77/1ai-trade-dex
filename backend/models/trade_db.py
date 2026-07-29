@@ -21,7 +21,7 @@ from sqlalchemy import (
     text,
 )
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class TradeRole(str, Enum):
     MAKER = "maker"

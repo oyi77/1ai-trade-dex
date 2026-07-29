@@ -142,11 +142,18 @@ try:
 except Exception:
     pass
 
-# Patch heartbeat module's SessionLocal reference
+# Patch heartbeat + migration modules' SessionLocal references
 try:
     from backend.core import heartbeat as _hb
 
     _hb.SessionLocal = TestSessionLocal
+except Exception:
+    pass
+
+try:
+    from backend.models import migration as _mig
+
+    _mig.SessionLocal = TestSessionLocal
 except Exception:
     pass
 

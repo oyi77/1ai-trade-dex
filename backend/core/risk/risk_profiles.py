@@ -18,7 +18,7 @@ from typing import Dict, Optional
 from sqlalchemy import Column, String, Float, Boolean
 from sqlalchemy.orm import Session
 
-from backend.models.base_db import Base, SessionLocal
+from backend.models.engine import Base, SessionLocal
 
 from loguru import logger
 

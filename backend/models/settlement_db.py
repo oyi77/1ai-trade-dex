@@ -18,7 +18,7 @@ from sqlalchemy import (
     Enum,
 )
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class SettlementEvent(Base):
     __tablename__ = "settlement_events"

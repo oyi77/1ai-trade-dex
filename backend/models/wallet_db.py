@@ -19,7 +19,7 @@ from sqlalchemy import (
     Index,
 )
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 class BtcPriceSnapshot(Base):
     """Cached BTC prices for momentum calculation."""

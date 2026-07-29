@@ -1,5 +1,5 @@
 """Database models — re-exports from domain-specific modules. Backward-compatible."""
-from backend.models.base_db import *  # noqa: F401,F403
+from backend.models.engine import *  # noqa: F401,F403
 from backend.models.trade_db import *  # noqa: F401,F403
 from backend.models.botstate_db import *  # noqa: F401,F403
 from backend.models.strategy_db import *  # noqa: F401,F403
@@ -8,6 +8,12 @@ from backend.models.wallet_db import *  # noqa: F401,F403
 from backend.models.settlement_db import *  # noqa: F401,F403
 from backend.models.audit_db import *  # noqa: F401,F403
 from backend.models.misc_db import *  # noqa: F401,F403
+from backend.models.migration import (  # noqa: F401,F403
+    init_db,
+    seed_default_data,
+    ensure_schema,
+    log_audit,
+)
 
 # Re-import to ensure table registration without failing on circular import orderings.
 try:

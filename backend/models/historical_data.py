@@ -3,7 +3,7 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Index
 from sqlalchemy.sql import func
 
-from backend.models.base_db import Base
+from backend.models.engine import Base
 
 
 class HistoricalCandle(Base):
