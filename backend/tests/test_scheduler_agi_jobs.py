@@ -337,11 +337,14 @@ class TestEvolutionSchedulerRegistration:
             "GITHUB_WORKSPACE", os.path.join(os.path.dirname(__file__), "../..")
         )
         scheduler_file = os.path.join(
-            workspace_root, "backend", "core", "scheduling", "scheduler.py"
+            workspace_root, "backend", "core", "scheduling", "scheduler", "_scheduler_core.py"
         )
         if not os.path.exists(scheduler_file):
             scheduler_file = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "../../core/scheduler.py")
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "../core/scheduling/scheduler/_scheduler_core.py",
+                )
             )
         with open(scheduler_file, "r", encoding="utf-8") as f:
             source = f.read()
