@@ -51,16 +51,25 @@ Documentation for the system, including API references, architecture decision re
 | `main.py` | Starts the FastAPI server and background processes. |
 | `backend/api/main.py` | Configures FastAPI, CORS, and registers all sub-routers. |
 | `backend/core/orchestrator.py` | Coordinates the execution of registered strategies. |
-| `backend/core/risk_manager.py` | Validates trades against position and portfolio risk limits. |
+| `backend/core/risk/risk_manager.py` | Validates trades against position and portfolio risk limits. |
+| `backend/core/scheduling/` | Scheduler, task management, and scheduling strategies (sub-package). |
+| `backend/core/settlement/` | Trade settlement, dispute tracking, and auto-redeem (sub-package). |
+| `backend/core/wallet/` | Wallet management, bankroll allocation, and reconciliation (sub-package). |
+| `backend/core/edge/` | Edge calculation, calibration, and signal pipeline (sub-package). |
 | `backend/strategies/base.py` | Base class and context for implementing trading strategies. |
+| `backend/strategies/` | 20+ strategy implementations (BTC momentum, oracle, copy trader, etc.). |
+| `backend/markets/` | Abstract market provider layer with 11 plugin providers. |
 | `backend/config.py` | Central configuration file for all system settings. |
 | `frontend/src/api.ts` | Frontend client for communicating with the backend API. |
 
 ## Module Dependency Overview
 
 The system is designed with a layered architecture:
-- **API** depends on **Core** and **Models**.
+- **API** depends on **Core**, **Models**, and **Application** services.
 - **Core** depends on **Data**, **Strategies**, **AI**, and **Risk Manager**.
+- **Core** is organized into sub-packages: `risk/`, `scheduling/`, `settlement/`, `wallet/`, `edge/`, `learning/`, `execution_pipeline/`, `activity/`.
 - **Strategies** inherit from a base class in **Core** and use **Data** and **AI** for signal generation.
+- **Markets** provides an abstract provider layer — 11 plug-and-play exchange plugins, registered via auto-discovery.
 - **Data** clients are isolated, providing a consistent interface for market and external information.
-- **Models** are used across the backend for persistence and data transfer.
+- **Models** are split across ~24 domain-specific files (trade_db, strategy_db, signal_db, wallet_db, etc.) with `database.py` as a thin re-exporter.
+- **Application**, **Domain**, and **Repositories** layers provide clean separation for business logic, domain models, and data access.

@@ -13,7 +13,7 @@ Strategies are defined in the `backend/strategies/` directory and inherit from t
 1. **Create a Module**: Define a new Python file in `backend/strategies/` (e.g., `new_strategy.py`).
 2. **Inherit from BaseStrategy**: Implement the `generate_signals()` method.
 3. **Register the Strategy**: Add an entry to `backend/strategies/registry.py` to enable it in the system.
-4. **Configure Schedules**: Define when the strategy should run in `backend/core/scheduler.py`.
+4. **Configure Schedules**: Define when the strategy should run in `backend/core/scheduling/scheduler/`.
 
 ## Adding a New API Endpoint
 

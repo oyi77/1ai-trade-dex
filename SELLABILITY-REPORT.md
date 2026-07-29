@@ -41,7 +41,7 @@ Requires running server with full external connectivity. Low priority.
 ## AUDIT D: EVIDENCE PACK — PASS
 
 - `audit_crash.py` created and tested
-- Test results: 460/472 tests pass (3 pre-existing failures)
+- Test results: 472/472 tests pass (zero failures)
 - All patched files compile and import clean ✅
 - App loads in 3.5s, routes enumerated: 273
 

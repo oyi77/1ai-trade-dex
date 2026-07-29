@@ -49,10 +49,28 @@ composition (DRAFT→SHADOW→PAPER→LIVE), and a React dashboard.
 │   ├── agi/                 # AGI autonomy framework
 │   ├── bot/                 # Telegram bot integration
 │   ├── clients/             # External API clients
-│   ├── core/                # Core config, logging, state
+│   ├── data/                # Market data clients and integrations
+│   ├── core/                # Orchestration, risk, scheduling, signals, wallet, learning
 │   ├── job_queue/           # Background job processing
-│   ├── modules/             # Feature modules
+│   ├── modules/             # Modular extensions (arbitrage, scanners, data_feeds, execution)
+│   ├── models/              # SQLAlchemy database models (22 domain files)
 │   ├── research/            # Market research pipelines
+│   ├── markets/             # Market provider abstraction & registry (11 providers)
+│   ├── domain/              # Domain models (evolution, genome)
+│   ├── application/         # Application service layer (strategy genome, AGI jobs)
+│   ├── repositories/        # Data access repositories
+│   ├── services/            # Business services (mirofish, rollback manager)
+│   ├── infrastructure/      # Infrastructure helpers (market stream)
+│   ├── agents/              # Autonomous research agents
+│   ├── backtesting/         # Historical backtesting infrastructure
+│   ├── signals/             # Signal processing
+│   ├── sources/             # Data source abstractions
+│   ├── monitoring/          # Monitoring and health tracking
+│   ├── rl/                  # Reinforcement learning
+│   ├── mesh/                # Mesh networking
+│   ├── db/                  # Database helpers
+│   ├── evals/               # Evaluation infrastructure
+│   ├── utils/               # Shared utilities
 │   ├── strategies/          # 14 trading strategies
 │   └── .sisyphus/           # Session state
 ├── frontend/                # React dashboard
@@ -61,7 +79,7 @@ composition (DRAFT→SHADOW→PAPER→LIVE), and a React dashboard.
 │   └── vite.config.ts
 ├── alembic/                 # SQLAlchemy migrations
 ├── migrations/              # Additional migrations
-├── tests/                   # 40+ test files
+├── tests/                   # 60+ test files
 │   ├── fixtures/
 │   ├── load/
 │   └── reliability/
@@ -82,7 +100,7 @@ composition (DRAFT→SHADOW→PAPER→LIVE), and a React dashboard.
 | `backend/api/main.py` | FastAPI app — REST + WebSocket endpoints |
 | `backend/strategies/` | 14 strategies: BTC momentum, oracle, copy trader, weather, AGI, etc. |
 | `backend/agi/` | AGI autonomy: genome registry, evolution scheduler, promotion pipeline |
-| `backend/core/` | Config loading, logging, shared state |
+| `backend/core/` | Orchestration, risk, scheduling, signals, wallet, learning |
 | `backend/clients/` | Platform clients (Polymarket CLOB, Kalshi, DEXes) |
 | `frontend/src/` | React dashboard with real-time WebSocket updates |
 | `alembic/env.py` | Database migration environment |

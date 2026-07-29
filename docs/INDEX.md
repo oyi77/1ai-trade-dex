@@ -197,12 +197,12 @@ polyedge/
 - **Prevention:** [PREVENTION_FRAMEWORK.md](PREVENTION_FRAMEWORK.md)
 - **Deployment:** [DEPLOYMENT_REPORT.md](DEPLOYMENT_REPORT.md)
 
-### Key Files to Know
-- `backend/core/strategy_executor.py` — Strategy orchestration
-- `backend/core/scheduler.py` — Job scheduling and coordination
-- `backend/core/settlement_helpers.py` — Trade settlement (sacred path)
-- `backend/core/autonomous_promoter.py` — Strategy lifecycle management
-- `backend/models/database.py` — Data models
+| Key Files to Know
+|- `backend/core/strategy_executor.py` — Strategy orchestration
+|- `backend/core/scheduling/scheduler/` — Job scheduling and coordination (package)
+|- `backend/core/settlement/` — Trade settlement subsystem
+|- `backend/core/autonomous_promoter.py` — Strategy lifecycle management
+|- `backend/models/database.py` — Data models (thin re-exporter, 29 lines)
 
 ### Important Environment Variables
 - `ACTIVE_MODES` — Comma-separated active trading modes (paper/testnet/live)

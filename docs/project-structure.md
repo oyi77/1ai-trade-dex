@@ -6,44 +6,87 @@
 polyedge/
 ├── backend/
 │   ├── api/
-│   │   ├── main.py                 # FastAPI routes + dashboard
-│   │   ├── auth.py                 # Admin authentication
+│   │   ├── main.py                 # FastAPI app, CORS, router registration
+│   │   ├── auth/                   # Admin authentication, login/[forgot_otp/]reset
 │   │   ├── markets.py              # Market data endpoints
 │   │   ├── trading.py              # Trading endpoints
-│   │   ├── phase2.py               # Production Phase 2 endpoints
-│   │   ├── system.py               # Admin/bot management
-│   │   ├── ws_manager.py           # WebSocket management
-│   │   └── agi_routes.py           # AGI Intelligence Layer API endpoints
+│   │   ├── system.py               # Admin/bot management (1773 lines)
+│   │   ├── health.py               # Health check endpoint
+│   │   ├── backtest.py             # Backtest API endpoints
+│   │   ├── strategy_routes.py      # Strategy CRUD endpoints
+│   │   ├── bot_control.py          # Bot start/stop/restart
+│   │   ├── ws_manager_v2.py        # WebSocket management
+│   │   ├── agi/                    # AGI Intelligence Layer API endpoints
+│   │   └── admin/                  # Admin panel HTTP routes (settings, system)
 │   ├── core/
 │   │   ├── signals.py              # BTC signal generation
 │   │   ├── weather_signals.py      # Weather signal generation
-│   │   ├── scheduler.py            # Background jobs (BTC + weather)
-│   │   ├── scheduling_strategies.py # Job strategy classes
-│   │   ├── settlement.py           # Trade settlement (routes by market_type)
-│   │   ├── settlement_helpers.py   # Settlement helper functions
 │   │   ├── event_bus.py            # Event publishing system
 │   │   ├── errors.py               # Exception hierarchy
 │   │   ├── orchestrator.py          # Central strategy coordination
-│   │   ├── bankroll_reconciliation.py # BotState financial cache reconciliation
-│   │   ├── risk_manager.py          # Position limits, circuit breakers
 │   │   ├── strategy_executor.py     # Strategy lifecycle management
-│   │   ├── calibration.py          # Brier score, signal accuracy
-│   │   ├── circuit_breaker.py       # Automatic trading halts
-│   │   ├── regime_detector.py       # Market regime classification (bull/bear/sideways/volatile)
-│   │   ├── knowledge_graph.py       # Persistent entity-relationship memory with rollback
+│   │   ├── regime_detector.py       # Market regime classification
+│   │   ├── knowledge_graph.py       # Entity-relationship memory with rollback
 │   │   ├── strategy_composer.py     # Block-based strategy composition
 │   │   ├── strategy_allocator.py    # Regime-aware capital allocation
 │   │   ├── dynamic_prompt_engine.py # Evolving AI prompts based on outcomes
-│   │   ├── agi_goal_engine.py       # Regime-aware objective switching
-│   │   ├── agi_orchestrator.py      # Unified AGI control loop
-│   │   ├── agi_types.py             # AGI data types and enums
-│   │   ├── agi_jobs.py              # AGI background job definitions
-│   │   ├── agi_promotion_pipeline.py # shadow→paper→live promotion with manual approval
+│   │   ├── agi_*.py                 # AGI engine, types, jobs, promotion pipeline
 │   │   ├── self_debugger.py         # API failure diagnosis and recovery
 │   │   ├── strategy_synthesizer.py  # LLM-driven Python strategy code generation
 │   │   ├── experiment_runner.py     # Sandboxed strategy testing
 │   │   ├── causal_reasoning.py      # Why-did-X-happen analysis
-│   │   └── llm_cost_tracker.py      # LLM spending budget enforcement ($10/day cap)
+│   │   ├── llm_cost_tracker.py      # LLM spending budget enforcement
+│   │   ├── risk/
+│   │   │   ├── risk_manager.py      # Validate trades against position/portfolio risk
+│   │   │   ├── risk_manager_hft.py  # HFT-specific risk controls
+│   │   │   ├── risk_profiles.py     # Per-strategy risk profiles
+│   │   │   ├── circuit_breaker.py   # Automatic trading halts
+│   │   │   ├── circuit_breaker_pybreaker.py # PyBreaker-based circuit breaker
+│   │   │   ├── position_sizer.py    # Position sizing logic
+│   │   │   ├── exposure_limits.py   # Exposure limit enforcement
+│   │   │   ├── crash_guardian.py    # Crash detection and recovery
+│   │   │   ├── safety.py            # Safety checks
+│   │   │   ├── sanity_checks.py     # Sanity validation
+│   │   │   ├── correlation_monitor.py # Cross-strategy correlation
+│   │   │   └── market_risk.py       # Market-level risk assessment
+│   │   ├── scheduling/
+│   │   │   ├── fronttest_scheduler.py # Fronttest job scheduling
+│   │   │   ├── task_manager.py        # Task management and dispatch
+│   │   │   ├── scheduler/             # Scheduler core (state, persistence, registration, etc.)
+│   │   │   └── scheduling_strategies/ # Job strategies (market_scan, heartbeat, auto_trader, etc.)
+│   │   ├── settlement/
+│   │   │   ├── settlement.py        # Trade settlement (routes by market_type)
+│   │   │   ├── settlement_helpers.py # Settlement helpers
+│   │   │   ├── dispute_tracker.py   # Trade dispute resolution
+│   │   │   └── auto_redeem.py       # Automatic position redemption
+│   │   ├── wallet/
+│   │   │   ├── wallet_reconciliation.py # Wallet state reconciliation
+│   │   │   ├── wallet_router.py         # Wallet routing logic
+│   │   │   ├── bankroll_allocator.py    # Bankroll allocation
+│   │   │   ├── bankroll_reconciliation.py # Financial cache reconciliation
+│   │   │   ├── botstate_ledger.py       # Bot state ledger
+│   │   │   ├── equity_calculator.py     # Equity calculation
+│   │   │   ├── wallet_auto_discovery.py # Auto-discover wallet addresses
+│   │   │   └── registry.py              # Wallet registry
+│   │   ├── edge/
+│   │   │   ├── edge_calculator.py   # Strategy edge calculation
+│   │   │   ├── edge_model.py        # Edge model management
+│   │   │   ├── edge_router.py       # Edge routing logic
+│   │   │   ├── edge_types.py        # Edge type definitions
+│   │   │   ├── signal_pipeline.py   # Signal→decision pipeline
+│   │   │   ├── exit_manager.py      # Exit strategy management
+│   │   │   ├── market_scanner.py    # Market scanning
+│   │   │   ├── probability_models.py # Probability estimation
+│   │   │   ├── historical_edge_detector.py # Historical edge detection
+│   │   │   ├── time_decay.py        # Edge time decay
+│   │   │   ├── calibration_tracker.py # Calibration tracking
+│   │   │   └── registry.py          # Edge component registry
+│   │   ├── learning/
+│   │   │   └── (model training, adaptation, and feedback modules)
+│   │   ├── activity/               # Activity logging and audit trails
+│   │   ├── execution_pipeline/      # Trade execution orchestration
+│   │   ├── simulation/             # Paper/simulation execution
+│   │   └── tests/                  # Core-level unit tests
 │   ├── data/
 │   │   ├── btc_markets.py          # Polymarket BTC market fetcher
 │   │   ├── crypto.py               # BTC price + microstructure
@@ -51,7 +94,12 @@ polyedge/
 │   │   ├── kalshi_markets.py       # Kalshi weather market fetcher (KXHIGH)
 │   │   ├── weather.py              # Open-Meteo ensemble + NWS observations
 │   │   ├── weather_markets.py      # Polymarket weather market fetcher
-│   │   └── markets.py              # Generic market wrapper
+│   │   ├── markets.py              # Generic market wrapper
+│   │   ├── rss_feed_aggregator.py  # RSS news feed aggregation
+│   │   ├── economy.py              # Economic indicator data
+│   │   ├── social_sentiment.py     # Social media sentiment
+│   │   ├── onchain_metrics.py      # On-chain metrics
+│   │   └── forecast_client.py      # Weather forecast API client
 │   ├── clients/
 │   │   ├── aster_client.py         # CCXT Aster DEX client
 │   │   ├── azuro_client.py         # Azuro smart contract / GraphQL client
@@ -63,44 +111,69 @@ polyedge/
 │   │   ├── ostium_client.py        # CCXT Ostium DEX client
 │   │   ├── polymarket_sdk_client.py # Polymarket CLOB SDK client wrapper
 │   │   ├── sxbet_client.py         # SX.Bet API client
-│   │   └── websearch.py            # Web search client (Tavily/Exa/etc.)
+│   │   ├── websearch.py            # Web search client (Tavily/Exa/etc.)
+│   │   ├── alphaday_client.py      # AlphaDay API client
+│   │   └── cryptocompare.py        # CryptoCompare price data
 │   ├── models/
-│   │   ├── database.py             # SQLAlchemy models (market_type column)
-│   │   ├── kg_models.py            # Knowledge graph SQLAlchemy models
-│   │   └── genome_registry.py      # Genome persistence models (GenomeRegistry, GenomePerformance, GenomeShadowTrade)
+│   │   ├── database.py             # Re-exporter (29 lines); imports from domain files
+│   │   ├── engine.py               # DB engine, recovery, migration helpers
+│   │   ├── migration.py            # Alembic migration helpers
+│   │   ├── recovery.py             # Crash recovery helpers
+│   │   ├── trade_db.py             # Trade, HFTExecutionRecord, TradeAttempt
+│   │   ├── strategy_db.py          # Strategy config, genome registry, proposals
+│   │   ├── signal_db.py            # Signal, DecisionLog, AI log models
+│   │   ├── wallet_db.py            # BTC prices, copy trade entries, wallet config
+│   │   ├── trading_wallet.py       # Per-wallet credentials and allocations
+│   │   ├── settlement_db.py        # Settlement events and transactions
+│   │   ├── botstate_db.py          # Bot state and platform balances
+│   │   ├── audit_db.py             # Activity/audit logs, settings, error logs
+│   │   ├── kg_models.py            # Knowledge graph entities, relations, experiments
+│   │   ├── misc_db.py              # Scheduler state, job queue, equity snapshots
+│   │   ├── outcome_tables.py       # Strategy outcomes, health, evolution lineage
+│   │   ├── hft_tables.py           # HFT signals and executions
+│   │   ├── app_state.py            # App-wide state snapshots
+│   │   ├── backtest.py             # Backtest run/trade storage
+│   │   ├── historical_data.py      # Historical candles, outcomes, weather
+│   │   ├── signal_log.py           # Per-signal instrumentation
+│   │   └── genome_registry.py      # Genome persistence (22 model files total)
 │   ├── markets/
 │   │   ├── base_provider.py        # BaseMarketProvider abstract class
 │   │   ├── provider_registry.py    # MarketProviderRegistry (auto-discovery)
 │   │   ├── order_types.py          # Normalized domain order/position types
 │   │   └── providers/              # 11 plug-and-play market providers
-│   │       ├── aster_provider.py       # Aster DEX provider plugin
-│   │       ├── bookmaker_xyz_provider.py # Bookmaker.xyz Azuro plugin
-│   │       ├── hyperliquid_provider.py # Hyperliquid exchange plugin
-│   │       ├── kalshi_provider.py      # Kalshi REST/event contract plugin
-│   │       ├── lighter_provider.py     # Lighter DEX provider plugin
-│   │       ├── limitless_provider.py   # Limitless L2 prediction market plugin
-│   │       ├── myriad_provider.py      # Myriad prediction market plugin
-│   │       ├── ostium_provider.py      # Ostium DEX provider plugin
-│   │       ├── paper_provider.py       # Universal paper/simulation engine
-│   │       ├── polymarket_provider.py  # Polymarket CLOB SDK provider plugin
-│   │       ├── predict_fun_provider.py # Predict.fun Azuro plugin
-│   │       └── sxbet_provider.py       # SX.Bet prediction market plugin
-│   ├── strategies/
-│   │   ├── copy_trader.py          # Copy trading main logic
-│   │   ├── wallet_sync.py          # Wallet sync helper
-│   │   └── order_executor.py       # Order execution helper
+│   ├── strategies/                  # 20+ strategy implementations
+│   │   ├── base.py                 # Strategy base class
+│   │   ├── btc_strategies/         # BTC momentum, oracle, multi, copy trader
+│   │   ├── weather_strategies/     # Weather-based strategy
+│   │   └── various/                # Regime, hybrid, RL, genome strategies
+│   ├── services/                    # Business logic services layer
+│   ├── infrastructure/              # System infrastructure adapters
+│   │   └── market_stream/           # Market data streaming
 │   ├── application/
 │   │   ├── strategy/
 │   │   │   ├── genome_compiler.py   # Runtime genome→strategy compilation
-│   │   │   └── genome_strategy.py   # Genome strategy template (chromosome-mapped logic)
+│   │   │   └── genome_strategy.py   # Genome strategy template
 │   │   └── agi/
-│   │       └── evolution_jobs.py    # Shadow validation, mutation/crossover, fitness feedback, diversity rebalance
+│   │       └── evolution_jobs.py    # Shadow validation, mutation/crossover
 │   ├── domain/
-│   │   └── evolution/
-│   │       └── shadow_metrics.py    # Per-genome shadow trade metrics (win rate, Sharpe, drawdown, fitness)
-│   ├── repositories/
-│   │   └── genome_repository.py     # Genome CRUD operations
-│   └── config.py                   # All settings (BTC + weather)
+│   │   ├── evolution/
+│   │   │   └── shadow_metrics.py    # Per-genome shadow trade metrics
+│   │   └── (domain models for each bounded context)
+│   ├── repositories/                # Data access layer (CRUD operations)
+│   │   └── genome_repository.py     # Genome CRUD
+│   ├── signals/                     # Signal processing pipeline
+│   ├── sources/                     # Data source adapters
+│   ├── monitoring/                  # Performance/cost monitoring
+│   ├── rl/                          # Reinforcement learning modules
+│   ├── mesh/                        # Mesh network coordination
+│   ├── agents/                      # Agent orchestration
+│   ├── evals/                       # Strategy/model evaluations
+│   ├── utils/                       # Common utilities
+│   ├── alembic/                     # Database migrations
+│   ├── config.py                    # Pydantic-settings config
+│   ├── config.example.yaml          # Example config file
+│   ├── profit_dashboard.py          # Real-time profit tracking
+│   └── cli.py                      # Command-line interface
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
@@ -143,32 +216,45 @@ polyedge/
 │   │   │   └── agi.ts               # AGI API client with typed interfaces
 │   │   └── types.ts                 # TypeScript interfaces
 │   └── package.json
-├── backend/tests/
-│   ├── test_agi_types.py            # AGI data types and enums tests
-│   ├── test_kg_models.py            # Knowledge graph models tests
-│   ├── test_regime_detector.py      # Regime detection tests
-│   ├── test_knowledge_graph.py       # Knowledge graph core tests
-│   ├── test_agi_fixtures.py         # AGI test fixtures
-│   ├── test_strategy_allocator.py   # Regime-aware allocation tests
-│   ├── test_kg_storage.py           # KG persistent storage tests
-│   ├── test_strategy_composer.py    # Strategy composition tests
-│   ├── test_dynamic_prompt_engine.py # Prompt evolution tests
-│   ├── test_agi_goal_engine.py      # Goal engine tests
-│   ├── test_self_debugger.py        # Self-debugger tests
-│   ├── test_strategy_synthesizer.py  # Strategy synthesis tests
-│   ├── test_causal_reasoning.py      # Causal reasoning tests
-│   ├── test_experiment_runner.py     # Experiment runner tests
-│   ├── test_agi_orchestrator.py      # AGI orchestrator tests
-│   ├── test_agi_api.py               # AGI API endpoint tests
-│   ├── test_agi_integration.py       # End-to-end AGI integration tests
-│   ├── test_llm_cost_tracker.py      # LLM cost tracking tests
-│   ├── test_shadow_enforcement.py    # Shadow mode enforcement audit tests
-│   ├── test_agi_promotion_pipeline.py # Promotion pipeline tests
-│   ├── test_agi_benchmarks.py        # Performance benchmark tests
-│   ├── test_agi_failure_injection.py # Failure injection tests
-│   ├── test_genome_compiler.py       # Genome compiler and strategy compilation tests
-│   └── test_evolution_jobs_feedback_loop.py # Shadow validation fitness feedback loop tests
+├── tests/                            # Integration tests (>472 total)
+│   ├── test_agi_types.py
+│   ├── test_kg_models.py
+│   ├── test_regime_detector.py
+│   ├── test_knowledge_graph.py
+│   ├── test_strategy_allocator.py
+│   ├── test_strategy_composer.py
+│   ├── test_dynamic_prompt_engine.py
+│   ├── test_agi_goal_engine.py
+│   ├── test_self_debugger.py
+│   ├── test_strategy_synthesizer.py
+│   ├── test_causal_reasoning.py
+│   ├── test_experiment_runner.py
+│   ├── test_agi_orchestrator.py
+│   ├── test_agi_api.py
+│   ├── test_agi_integration.py
+│   ├── test_llm_cost_tracker.py
+│   ├── test_shadow_enforcement.py
+│   ├── test_agi_promotion_pipeline.py
+│   ├── test_agi_benchmarks.py
+│   ├── test_agi_failure_injection.py
+│   ├── test_genome_compiler.py
+│   ├── test_evolution_jobs_feedback_loop.py
+│   ├── test_scheduler_agi_jobs.py
+│   ├── test_scheduler_queue_mode.py
+│   ├── test_scheduling_strategies_runtime.py
+│   ├── test_forecast_client.py
+│   ├── test_rss_feed_aggregator.py
+│   ├── test_event_bus.py
+│   ├── test_orchestrator.py
+│   ├── test_strategy_executor.py
+│   ├── test_strategy_gate_api.py
+│   ├── test_auto_redeem_job.py
+│   ├── test_postgres_lock_timeouts.py
+│   └── (50+ more test files)
 ├── requirements.txt
 ├── run.py
-└── README.md
+├── README.md
+├── Makefile
+├── .env.example
+└── LICENSE
 ```

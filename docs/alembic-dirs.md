@@ -40,4 +40,4 @@ alembic upgrade head
 ## References
 
 - `backend/alembic/AGENTS.md` — Agent guidance for migrations
-- `backend/models/database.py` — SQLAlchemy model definitions (source of truth for schema)
+- `backend/models/database.py` — Thin re-exporter (source of truth for schema; 22 domain-model files in `backend/models/`)

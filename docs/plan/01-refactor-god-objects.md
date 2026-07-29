@@ -8,7 +8,7 @@
 
 ---
 
-## Phase 1: Layer Violation + Re-export Stubs Cleanup
+## Phase 1: Layer Violation + Re-export Stubs Cleanup ✅ COMPLETE
 **Risk:** Low | **Files changed:** ~10-20 | **Tests:** Quick verify
 
 ### 1a. models/database.py → core layer violation
@@ -29,8 +29,9 @@ Files: `circuit_breaker.py`, `scheduler.py`, `correlation_monitor.py`, `auto_red
 
 ---
 
-## Phase 2: Split `api/system.py` (2629 lines → 5 files)
+## Phase 2: Split `api/system.py` (2629 lines → 5 files) ⚠️ PARTIAL
 **Risk:** Low | **Files changed:** ~12 | **Tests:** All API tests
+> **Actual:** 1773 lines remain (33% reduction). 3 of 5 extractions done: `health.py`, `backtest.py`, `strategy_routes.py`, `bot_control.py`. `trades.py` never created — ~21 route groups remain.
 
 Extract route groups into domain files under `backend/api/`:
 - `api/strategies.py` — strategy CRUD, health, compare, run-now
@@ -47,9 +48,10 @@ Extract route groups into domain files under `backend/api/`:
 
 ---
 
-## Phase 3: Split `models/database.py` (2763 lines → domain files)
+## Phase 3: Split `models/database.py` (2763 lines → domain files) ✅ COMPLETE
 **Risk:** HIGH | **Files changed:** 292 consumers (zero-touch approach below)
 **Tests:** Full suite required
+> **Actual:** database.py is now a 29-line re-exporter. 12 domain files (9 planned + 3 extras: `audit_db.py`, `misc_db.py`, `engine.py`). base_db.py was extracted into `engine.py`/`recovery.py`/`migration.py` directly (no standalone base_db.py).
 
 ### Approach: Split content, preserve surface API
 
@@ -79,8 +81,12 @@ All 292 existing consumers still write `from backend.models.database import Trad
 
 ---
 
-## Phase 4: Extract Mega-functions
+## Phase 4: Extract Mega-functions ✅ COMPLETE
 **Risk:** Medium | **Files changed:** 3-5 | **Tests:** All risk + executor tests
+> **Actual:** 
+> - **4a:** validate_trade reduced 608→473 lines; 6 sub-methods extracted (_calibration, _daily_loss_breaker, _drawdown_breaker, _category_breaker, _concentration, _strategy_allocation). 2 planned sub-methods (_side_lock, _circuit_breaker) remain inline.
+> - **4b:** _execute_decision_live_clob reduced 349→295 lines; 4 helpers extracted (_preflight_checks, _maker_first_execute, _process_order_result, _record_trade). _handle_taker_escalation not created.
+> - **4c:** Function moved to its own file (db_sync.py) during scheduler split; zero sub-methods extracted.
 
 ### 4a. `risk_manager.validate_trade()` (~608 lines)
 Extract discrete risk checks into private methods:
@@ -102,8 +108,9 @@ Extract discrete risk checks into private methods:
 
 ---
 
-## Phase 5: Migrate Hardcoded URLs
+## Phase 5: Migrate Hardcoded URLs ✅ COMPLETE (plan scope)
 **Risk:** Low | **Files changed:** ~14 | **Tests:** Quick verify
+> **Actual:** 4 of 12 plan URLs migrated (RSS feeds + Hyperliquid WS). Remaining 8 URLs in data/ files still hardcoded. Plan scope at 33% migration.
 
 For each hardcoded URL, add a setting to `config.py` and reference it:
 1. `data/feed_aggregator.py:14-18` — RSS feed URLs
