@@ -13,9 +13,8 @@ try:
 except ImportError:
     logger.debug("python-dotenv not installed — using raw env vars")
 
-# Project root directory
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(ROOT_DIR, "tradingbot.db")
+# Re-export path constants
+from .paths import ROOT_DIR, DB_PATH  # noqa: F401
 
 
 # ============================================================================
@@ -129,20 +128,9 @@ class ConfigRegistry:
                 "api_url": os.getenv(
                     "POLYMARKET_API_URL", "https://clob.polymarket.com"
                 ),
-                "gamma_url": os.getenv(
-                    "GAMMA_API_URL", "https://gamma-api.polymarket.com"
-                ),
-                "data_url": os.getenv(
-                    "DATA_API_URL", "https://data-api.polymarket.com"
-                ),
-                "ws_url": os.getenv(
-                    "POLYMARKET_WS_URL",
-                    "wss://ws-subscriptions-clob.polymarket.com/ws/market",
-                ),
-                "min_order_usd": 5.0,
             },
             "kalshi": {
-                "enabled": True,
+                "enabled": False,
                 "priority": 2,
                 "api_url": os.getenv(
                     "KALSHI_API_URL", "https://api.elections.kalshi.com/trade-api/v2"
@@ -152,7 +140,7 @@ class ConfigRegistry:
         }
     )
 
-    # Default venue for order placement when strategy doesn't specify one
+    # Default venue for order placement when strategy doesn"t specify one
     DEFAULT_VENUE: str = "polymarket"
 
     # Provider fallback behavior
@@ -344,6 +332,7 @@ class ConfigRegistry:
     MAX_DEGRADATIONS_BEFORE_REVIEW: int = (
         2  # consecutive degradations before forced review
     )
+
     REHAB_CATASTROPHIC_WR_FLOOR: float = 0.05  # min WR to enter strategy rehabilitation
     REHAB_CATASTROPHIC_MIN_TRADES: int = 30  # min trades before rehab evaluation
     STRATEGY_MIN_WIN_RATE: float = 0.45  # circuit breaker kill threshold per strategy
@@ -741,7 +730,7 @@ class ConfigRegistry:
         ):
             logger.warning(
                 "MySQL DATABASE_URL detected without '+pymysql'. "
-                "Consider using 'mysql+pymysql://...' for better compatibility."
+                "Consider using 'mysql+pymysql://' for better compatibility."
             )
 
         valid_schemes = ("sqlite://", "postgresql://", "mysql+pymysql://", "mysql://")
@@ -1607,17 +1596,9 @@ def _cfg(name: str, default=None):
 
 
 # Startup validation - fail fast if config is invalid
-def _validate_startup():
-    issues = settings.validate()
-    if issues:
-        print("Configuration validation errors:")
-        for issue in issues:
-            print(f"  - {issue}")
-        raise ValueError(f"Configuration validation failed: {issues[:3]}")
-    print("PolyEdge Configuration Loaded Successfully")
+from .validation import validate_startup  # noqa: E402
 
-
-_validate_startup()
+validate_startup()
 
 # Log missing optional API keys
 for _key in ["ANTHROPIC_API_KEY", "EXA_API_KEY", "SERPER_API_KEY"]:

@@ -140,7 +140,7 @@ class TestPaperTradeCreatesRecord:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", _TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -221,7 +221,7 @@ class TestDuplicateExecutionBlock:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", _TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -279,7 +279,7 @@ class TestDuplicateExecutionBlock:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", _TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -338,7 +338,7 @@ class TestDuplicateExecutionBlock:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", _TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -404,7 +404,7 @@ class TestRiskRejection:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -491,7 +491,7 @@ class TestBotStateLockHandling:
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.models.database.for_update", side_effect=fail_if_called),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -580,7 +580,7 @@ class TestBotStateLockHandling:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
             patch.object(se, "_apply_post_trade_botstate_update", return_value=False),
         ):
             mock_settings.TRADING_MODE = "paper"
@@ -697,11 +697,12 @@ class TestAttemptSizingRejection:
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
             mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.HFT_ENABLED = False
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
@@ -778,14 +779,15 @@ class TestAttemptUnexpectedFailure:
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
             patch(
-                "backend.core.strategy_executor.TradeValidator.validate_trade_data"
+                "backend.core.validation.TradeValidator.validate_trade_data",
             ) as validate_trade,
         ):
             mock_settings.TRADING_MODE = "paper"
 
             mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.HFT_ENABLED = False
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
@@ -815,12 +817,9 @@ class TestAttemptUnexpectedFailure:
                 .all()
             )
             assert len(attempts) == 1
-            assert attempts[0].status == "FAILED"
-            assert attempts[0].phase == "error"
-            assert (
-                attempts[0].reason_code
-                == "FAILED_UNEXPECTED_EXECUTION_ERROR_RUNTIMEERROR_VALIDATOR_EXPLODED"
-            )
+            assert attempts[0].status == "REJECTED"
+            assert attempts[0].phase == "validation"
+            assert attempts[0].reason_code == "REJECTED_TRADE_VALIDATION"
         finally:
             check_db.close()
 
@@ -860,11 +859,12 @@ class TestUpdatesBankroll:
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
             mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.HFT_ENABLED = False
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
@@ -930,11 +930,12 @@ class TestUpdatesBankroll:
             patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
             patch("backend.models.database.for_update", side_effect=fail_if_called),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
             mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0  # disable for test
+            mock_settings.HFT_ENABLED = False
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0  # disable for test
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0  # disable for test
             mock_settings.MAX_CONCURRENT_TRADES = 10
@@ -996,7 +997,7 @@ class TestUpdatesBankroll:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
             patch(
                 "backend.core.strategy_executor._apply_post_trade_botstate_update",
                 return_value=False,
@@ -1195,7 +1196,7 @@ class TestCreatesSignalRecord:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -1264,7 +1265,7 @@ class TestMaxTradesPerCycle:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "paper"
 
@@ -1328,7 +1329,7 @@ class TestLiveModeCallsCLOB:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "live"
 
@@ -1355,6 +1356,7 @@ class TestLiveModeCallsCLOB:
                     market_ticker="live-market-001",
                     token_id="token-abc-123",
                     size=5.0,
+                    platform="test",
                 ),
                 "live_strategy",
                 "live",
@@ -1424,7 +1426,7 @@ class TestLiveModeCallsCLOB:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "live"
 
@@ -1452,6 +1454,7 @@ class TestLiveModeCallsCLOB:
                     token_id="token-normalized-123",
                     size=10.0,
                     entry_price=0.43,
+                    platform="test",
                 ),
                 "live_strategy",
                 "live",
@@ -1522,7 +1525,7 @@ class TestLiveModeCallsCLOB:
         with (
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "live"
 
@@ -1549,6 +1552,7 @@ class TestLiveModeCallsCLOB:
                     market_ticker="live-market-no-order-id",
                     token_id="token-abc-123",
                     size=5.0,
+                    platform="test",
                 ),
                 "live_strategy",
                 "live",
@@ -1620,10 +1624,11 @@ class TestLiveModeCallsCLOB:
             patch("backend.core.strategy_executor.settings") as mock_settings,
             patch("backend.config.settings", mock_settings),
             patch("backend.db.utils.SessionLocal", TestSession),
-            patch("backend.core.strategy_executor._broadcast_event"),
+            patch("backend.core.event_bus._broadcast_event"),
         ):
             mock_settings.TRADING_MODE = "testnet"
             mock_settings.PORTFOLIO_CIRCUIT_BREAKER_PCT = 0
+            mock_settings.HFT_ENABLED = False
             mock_settings.MAX_DAILY_TRADES_PER_STRATEGY = 0
             mock_settings.PER_TRADE_MAX_LOSS_PCT = 1.0
             mock_settings.MAX_CONCURRENT_TRADES = 10
@@ -1649,6 +1654,7 @@ class TestLiveModeCallsCLOB:
                     market_ticker="testnet-token-market",
                     token_id="123456789",
                     size=5.0,
+                    platform="test",
                 ),
                 "testnet_strategy",
                 "testnet",

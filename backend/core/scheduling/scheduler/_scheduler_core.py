@@ -77,6 +77,7 @@ from .event_log import log_event
 from .hft_trigger import _subscribe_hft_trigger
 from .performance import auto_disable_losing_strategies, performance_decay_check_job
 from .persistence import _persist_and_add_job, load_scheduler_state
+from .rehab import auto_rehabilitate_strategies
 from .registration import _job_executed_listener, _load_strategy_jobs, schedule_strategy
 from .state import _get_scheduler, _set_scheduler, queue, scheduler, task_manager, worker, worker_task
 
@@ -431,19 +432,10 @@ def start_scheduler():
                 "POLYMARKET_WS_CLOB_URL not configured, WSDispatcher not started, OrderbookRouter running in fallback mode"
             )
 
-    # Weekly HuggingFace dataset ingestion — refreshes local Parquet cache
-    def _hf_ingest_weekly():
-        """Wrapper for weekly HF dataset ingestion job."""
-        try:
-            from backend.scripts.ingest_hf_dataset import ingest_dataset
-
-            path = ingest_dataset()
-            logger.info("Weekly HF dataset ingestion complete: %s", path)
-        except Exception as e:
-            logger.warning("Weekly HF dataset ingestion failed: %s", e)
+    from .hf_ingest import hf_ingest_weekly_job
 
     scheduler.add_job(
-        _hf_ingest_weekly,
+        hf_ingest_weekly_job,
         IntervalTrigger(days=7),
         id="hf_dataset_ingest",
         replace_existing=True,
@@ -936,98 +928,6 @@ def start_scheduler():
     except Exception:
         logger.exception("Failed to schedule auto-disable losing strategies job")
 
-    def auto_rehabilitate_strategies():
-        from backend.models.database import Trade, StrategyConfig
-        from backend.config import settings
-        from backend.db.utils import get_db_session
-        from datetime import datetime, timezone, timedelta
-
-        cooldown_hours = getattr(settings, "AGI_REHAB_LITE_COOLDOWN_HOURS", 1)
-        re_disable_hours = getattr(settings, "AGI_REHAB_LITE_RE_DISABLE_HOURS", 4)
-        wr_threshold = getattr(settings, "AGI_REHAB_LITE_WIN_RATE_THRESHOLD", 0.30)
-
-        rehabilitated = []
-        re_disabled = []
-        try:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=cooldown_hours)
-            with get_db_session() as db:
-                disabled_configs = (
-                    db.query(StrategyConfig)
-                    .filter(
-                        StrategyConfig.enabled.is_(True),
-                        StrategyConfig.disabled_at.isnot(None),
-                    )
-                    .all()
-                )
-
-                for config in disabled_configs:
-                    if config.strategy_name in ("agi_orchestrator",):
-                        continue
-
-                    disabled_at = config.disabled_at
-                    if disabled_at and disabled_at.tzinfo is None:
-                        disabled_at = disabled_at.replace(tzinfo=timezone.utc)
-
-                    if not disabled_at or disabled_at > cutoff:
-                        continue
-
-                    since_rehab = disabled_at
-                    for mode in settings.active_modes_set:
-                        trades = (
-                            db.query(Trade)
-                            .filter(
-                                Trade.strategy == config.strategy_name,
-                                Trade.settled,
-                                Trade.timestamp >= since_rehab,
-                                Trade.trading_mode == mode,
-                            )
-                            .all()
-                        )
-
-                        if len(trades) < 3:
-                            continue
-
-                        wins = sum(1 for t in trades if t.result == "win")
-                        win_rate = wins / len(trades) if trades else 0
-
-                        if win_rate < wr_threshold:
-                            config.disabled_at = utcnow() + timedelta(
-                                hours=re_disable_hours - cooldown_hours
-                            )
-                            re_disabled.append(
-                                f"{config.strategy_name}: WR={win_rate:.0%} < {wr_threshold:.0%}, extended disable {re_disable_hours}h"
-                            )
-                            logger.warning(
-                                f"Re-disable {config.strategy_name}: WR={win_rate:.0%} below {wr_threshold:.0%}, extended for {re_disable_hours}h"
-                            )
-                            break
-                    else:
-                        config.enabled = True
-                        # Only set paper mode if strategy was previously disabled/rehabbing.
-                        # Active live strategies keep their existing trading_mode.
-                        if config.disabled_at is not None:
-                            config.trading_mode = "paper"
-                        config.disabled_at = None
-                        if config.rehab_allocation_pct is None:
-                            config.rehab_allocation_pct = getattr(
-                                settings, "AGI_REHAB_ALLOCATION_PCT", 0.25
-                            )
-                        rehabilitated.append(config.strategy_name)
-                        logger.info(
-                            f"Rehabilitated {config.strategy_name} in paper mode at {config.rehab_allocation_pct:.0%} allocation (cooldown {cooldown_hours}h elapsed)"
-                        )
-
-            if rehabilitated:
-                logger.info(
-                    f"Lite-rehabilitated {len(rehabilitated)} strategies: {rehabilitated}"
-                )
-            if re_disabled:
-                logger.info(
-                    f"Extended disable for {len(re_disabled)} strategies: {re_disabled}"
-                )
-        except Exception as e:
-            logger.warning(f"Lite rehabilitation check failed: {e}")
-
     try:
         scheduler.add_job(
             auto_rehabilitate_strategies,
@@ -1256,70 +1156,3 @@ def is_scheduler_running() -> bool:
     sched = _get_scheduler()
     return sched is not None and sched.running
 
-def reschedule_jobs() -> list[dict]:
-    """Reschedule jobs with current settings values. Call after settings update."""
-    from apscheduler.jobstores.base import JobLookupError as _JobLookupError
-
-    sched = _get_scheduler()
-    if sched is None or not sched.running:
-        return []
-
-    results = []
-
-    # Reschedule scan job
-    try:
-        sched.reschedule_job(
-            "market_scan",
-            trigger=IntervalTrigger(seconds=settings.SCAN_INTERVAL_SECONDS),
-        )
-        job = sched.get_job("market_scan")
-        results.append(
-            {
-                "job_id": "market_scan",
-                "next_run": str(job.next_run_time) if job else None,
-            }
-        )
-    except _JobLookupError:
-        logger.warning("market_scan job not registered, skipping reschedule")
-    except Exception as e:
-        logger.warning(f"Failed to reschedule market_scan: {e}")
-
-    # Reschedule settlement job
-    try:
-        sched.reschedule_job(
-            "settlement_check",
-            trigger=IntervalTrigger(seconds=settings.SETTLEMENT_INTERVAL_SECONDS),
-        )
-        job = sched.get_job("settlement_check")
-        results.append(
-            {
-                "job_id": "settlement_check",
-                "next_run": str(job.next_run_time) if job else None,
-            }
-        )
-    except _JobLookupError:
-        logger.warning("settlement_check job not registered, skipping reschedule")
-    except Exception as e:
-        logger.warning(f"Failed to reschedule settlement_check: {e}")
-
-    # Reschedule weather scan if enabled
-    if settings.WEATHER_ENABLED:
-        try:
-            sched.reschedule_job(
-                "weather_scan",
-                trigger=IntervalTrigger(seconds=settings.WEATHER_SCAN_INTERVAL_SECONDS),
-            )
-            job = sched.get_job("weather_scan")
-            results.append(
-                {
-                    "job_id": "weather_scan",
-                    "next_run": str(job.next_run_time) if job else None,
-                }
-            )
-        except _JobLookupError:
-            logger.warning("weather_scan job not registered, skipping reschedule")
-        except Exception as e:
-            logger.warning(f"Failed to reschedule weather_scan: {e}")
-
-    log_event("info", f"Scheduler jobs rescheduled: {[r['job_id'] for r in results]}")
-    return results

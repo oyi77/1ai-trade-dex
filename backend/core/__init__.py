@@ -17,6 +17,7 @@ _SUBPACKAGES = {
     "scheduling",
     "learning",
     "wallet",
+    "strategy_executor",
 }
 
 # Aliases that live under backend.core.scheduling.<name> but are

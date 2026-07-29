@@ -66,6 +66,11 @@ from backend.api.health import router as health_router
 from backend.api.bot_control import router as bot_control_router
 from backend.api.strategy_routes import router as strategy_routes_router
 
+# Phase 3 split: extracted from system.py
+from backend.api.trade_attempts import router as trade_attempts_router
+from backend.api.decision_routes import router as decision_routes_router
+from backend.api.hft_routes import router as hft_routes_router
+
 # Plugin system API routers
 from backend.api.v1.ai_providers import router as ai_providers_router
 from backend.api.v1.data_sources import router as data_sources_router
@@ -193,6 +198,11 @@ app.include_router(hackathon_router)
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(bot_control_router, prefix="/api/v1")
 app.include_router(strategy_routes_router, prefix="/api/v1")
+
+# Phase 3 split: extracted route files from system.py
+app.include_router(trade_attempts_router, prefix="/api/v1")
+app.include_router(decision_routes_router, prefix="/api/v1")
+app.include_router(hft_routes_router, prefix="/api/v1")
 
 app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)

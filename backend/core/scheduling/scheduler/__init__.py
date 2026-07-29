@@ -16,9 +16,13 @@ so this package-level re‑export is belt‑and‑suspenders.
 from backend.core.scheduling.scheduler._scheduler_core import (
     _register_evolution_jobs,
     is_scheduler_running,
-    reschedule_jobs,
     start_scheduler,
     stop_scheduler,
+)
+
+# Job rescheduler
+from backend.core.scheduling.scheduler.reschedule import (
+    reschedule_jobs,
 )
 
 # DB sync
