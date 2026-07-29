@@ -47,7 +47,7 @@ def test_shadow_feedback_loop_promotes_shadow_to_paper_and_updates_fitness(
     db, monkeypatch
 ):
     monkeypatch.setattr(
-        "backend.application.agi.evolution_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
+        "backend.application.agi.scheduler_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
     )
 
     genome_id = "genome-shadow-pass"
@@ -75,7 +75,7 @@ def test_shadow_feedback_loop_promotes_shadow_to_paper_and_updates_fitness(
 
 def test_shadow_feedback_loop_promotes_paper_to_live(db, monkeypatch):
     monkeypatch.setattr(
-        "backend.application.agi.evolution_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
+        "backend.application.agi.scheduler_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
     )
 
     genome_id = "genome-paper-pass"
@@ -92,7 +92,7 @@ def test_shadow_feedback_loop_promotes_paper_to_live(db, monkeypatch):
 
 def test_shadow_feedback_loop_auto_kills_bad_drawdown(db, monkeypatch):
     monkeypatch.setattr(
-        "backend.application.agi.evolution_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
+        "backend.application.agi.scheduler_jobs.settings.EVOLUTION_ENGINE_ENABLED", True
     )
 
     genome_id = "genome-kill-dd"

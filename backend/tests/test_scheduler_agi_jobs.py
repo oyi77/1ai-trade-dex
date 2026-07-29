@@ -204,7 +204,7 @@ class TestEvolutionJobs:
         monkeypatch.setattr(jobs.settings, "EVOLUTION_ENGINE_ENABLED", True)
         monkeypatch.setattr(jobs.settings, "AGI_POPULATION_SIZE", 20)
         monkeypatch.setattr(jobs.settings, "AGI_MUTATION_RATE", 0.10)
-        monkeypatch.setattr(jobs, "publish_event", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("backend.application.agi.evolution_cycles.publish_event", lambda *_args, **_kwargs: None)
 
         counter = {"i": 0}
 
@@ -214,7 +214,9 @@ class TestEvolutionJobs:
             child.genome_id = f"{genome.genome_id}-mut-{counter['i']}"
             return child, [{"type": "hyperparameter"}]
 
-        monkeypatch.setattr(jobs, "mutate_genome", _fake_mutate)
+        monkeypatch.setattr(
+            "backend.application.agi.evolution_cycles.mutate_genome", _fake_mutate
+        )
 
         created = jobs.run_mutation_cycle()
         assert created == 2  # 20 * 0.10
@@ -232,14 +234,16 @@ class TestEvolutionJobs:
         _add_genome(db, archetype="market_maker", sharpe=0.91, strategy_name="b")
         monkeypatch.setattr(jobs.settings, "EVOLUTION_ENGINE_ENABLED", True)
         monkeypatch.setattr(jobs.settings, "AGI_POPULATION_SIZE", 8)
-        monkeypatch.setattr(jobs, "publish_event", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("backend.application.agi.evolution_cycles.publish_event", lambda *_args, **_kwargs: None)
 
         def _fake_crossover(parent_a, parent_b):
             child = parent_a.model_copy(deep=True)
             child.genome_id = f"{parent_a.genome_id}-{parent_b.genome_id}-child"
             return child
 
-        monkeypatch.setattr(jobs, "crossover_genomes", _fake_crossover)
+        monkeypatch.setattr(
+            "backend.application.agi.evolution_cycles.crossover_genomes", _fake_crossover
+        )
 
         created = jobs.run_crossover_cycle()
         assert created == 1
@@ -306,7 +310,7 @@ class TestEvolutionJobs:
         _add_genome(db, archetype="market_maker", sharpe=0.9, strategy_name="donor")
         monkeypatch.setattr(jobs.settings, "EVOLUTION_ENGINE_ENABLED", True)
         monkeypatch.setattr(jobs.settings, "AGI_POPULATION_SIZE", 3)
-        monkeypatch.setattr(jobs, "publish_event", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("backend.application.agi.evolution_cycles.publish_event", lambda *_args, **_kwargs: None)
 
         counter = {"i": 0}
 
@@ -316,7 +320,9 @@ class TestEvolutionJobs:
             child.genome_id = f"{genome.genome_id}-rebalance-{counter['i']}"
             return child, []
 
-        monkeypatch.setattr(jobs, "mutate_genome", _fake_mutate)
+        monkeypatch.setattr(
+            "backend.application.agi.evolution_cycles.mutate_genome", _fake_mutate
+        )
 
         created = jobs.rebalance_population()
         assert created == 2
