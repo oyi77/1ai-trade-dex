@@ -222,6 +222,9 @@ class ConfigRegistry:
     )
     RSS_FEED_BBC_URL: str = "https://feeds.bbci.co.uk/news/rss.xml"
     RSS_FEED_COINDESK_URL: str = "https://coindesk.com/arc/outboundfeeds/rss/"
+    RSS_FEED_REUTERS_URL: str = "https://feeds.reuters.com/reuters/businessNews"
+    RSS_FEED_FED_URL: str = "https://www.federalreserve.gov/feeds/press_all.xml"
+    RSS_FEED_COINTELEGRAPH_URL: str = "https://cointelegraph.com/rss"
 
     # NOAA Weather APIs
     NOAA_METAR_URL: str = "https://aviationweather.gov/api/data/metar"
@@ -239,6 +242,7 @@ class ConfigRegistry:
 
     # Hyperliquid API
     HYPERLIQUID_API_URL: str = "https://api.hyperliquid.xyz"
+    HYPERLIQUID_WS_URL: str = "wss://api.hyperliquid.xyz/ws"
 
     # Blockscout explorer API (Polygon)
     BLOCKSCOUT_API_URL: str = "https://polygon.blockscout.com/api/v2"

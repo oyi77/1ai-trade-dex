@@ -12,9 +12,9 @@ from loguru import logger
 
 DEFAULT_FEEDS = [
     settings.RSS_FEED_BBC_URL,
-    "https://feeds.reuters.com/reuters/businessNews",
-    "https://www.federalreserve.gov/feeds/press_all.xml",
-    "https://cointelegraph.com/rss",
+    settings.RSS_FEED_REUTERS_URL,
+    settings.RSS_FEED_FED_URL,
+    settings.RSS_FEED_COINTELEGRAPH_URL,
     settings.RSS_FEED_COINDESK_URL,
 ]
 

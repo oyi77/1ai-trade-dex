@@ -464,51 +464,17 @@ class RiskManager:
                     confidence,
                 )
 
-        if not self._breaker_enabled_for_mode("daily_loss", effective_mode):
-            logger.debug(
-                "[risk_manager] Daily loss breaker disabled for mode=%s — skipping",
-                effective_mode,
-            )
-        elif self._daily_loss_exceeded(db=db, mode=effective_mode):
-            record_signal(
-                strategy=strategy_name or "unknown", signal_type="rejected_daily_loss"
-            )
-            increment_risk_rejection(
-                strategy=strategy_name or "unknown", reason="daily_loss"
-            )
-            return RiskDecision(False, "daily loss limit hit", 0.0)
+        rejection = self._validate_trade_daily_loss_breaker(effective_mode, db, strategy_name)
+        if rejection:
+            return RiskDecision(False, rejection, 0.0)
 
-        if not self._breaker_enabled_for_mode("drawdown", effective_mode):
-            logger.debug(
-                "[risk_manager] Drawdown breaker disabled for mode=%s — skipping",
-                effective_mode,
-            )
-        else:
-            drawdown = self.check_drawdown(bankroll, db=db, mode=effective_mode)
-            if drawdown.is_breached:
-                record_signal(
-                    strategy=strategy_name or "unknown", signal_type="rejected_drawdown"
-                )
-                increment_risk_rejection(
-                    strategy=strategy_name or "unknown", reason="drawdown"
-                )
-                return RiskDecision(
-                    False, f"drawdown breaker: {drawdown.breach_reason}", 0.0
-                )
+        rejection = self._validate_trade_drawdown_breaker(bankroll, db, effective_mode, strategy_name)
+        if rejection:
+            return RiskDecision(False, rejection, 0.0)
 
-        if category and db is not None:
-            cat_cooldown = self._check_category_circuit_breaker(
-                category, db, effective_mode
-            )
-            if cat_cooldown:
-                record_signal(
-                    strategy=strategy_name or "unknown",
-                    signal_type="rejected_category_breaker",
-                )
-                increment_risk_rejection(
-                    strategy=strategy_name or "unknown", reason="category_breaker"
-                )
-                return RiskDecision(False, cat_cooldown, 0.0)
+        rejection = self._validate_trade_category_breaker(category, db, effective_mode, strategy_name)
+        if rejection:
+            return RiskDecision(False, rejection, 0.0)
 
         if strategy_name and db is not None:
             max_strat_dd = float(
@@ -726,6 +692,67 @@ class RiskManager:
                 logger.debug(f"[risk_manager] Per-strategy DD check failed (non-fatal): {e}")
 
         return RiskDecision(True, "ok", adjusted)
+
+    def _validate_trade_daily_loss_breaker(
+        self, effective_mode: str, db, strategy_name: Optional[str]
+    ) -> Optional[str]:
+        """Check daily loss circuit breaker. Returns rejection reason or None."""
+        if not self._breaker_enabled_for_mode("daily_loss", effective_mode):
+            logger.debug(
+                "[risk_manager] Daily loss breaker disabled for mode=%s — skipping",
+                effective_mode,
+            )
+            return None
+        if self._daily_loss_exceeded(db=db, mode=effective_mode):
+            record_signal(
+                strategy=strategy_name or "unknown", signal_type="rejected_daily_loss"
+            )
+            increment_risk_rejection(
+                strategy=strategy_name or "unknown", reason="daily_loss"
+            )
+            return "daily loss limit hit"
+        return None
+
+    def _validate_trade_drawdown_breaker(
+        self, bankroll: float, db, effective_mode: str, strategy_name: Optional[str]
+    ) -> Optional[str]:
+        """Check drawdown breaker. Returns rejection reason or None."""
+        if not self._breaker_enabled_for_mode("drawdown", effective_mode):
+            logger.debug(
+                "[risk_manager] Drawdown breaker disabled for mode=%s — skipping",
+                effective_mode,
+            )
+            return None
+        drawdown = self.check_drawdown(bankroll, db=db, mode=effective_mode)
+        if drawdown.is_breached:
+            record_signal(
+                strategy=strategy_name or "unknown", signal_type="rejected_drawdown"
+            )
+            increment_risk_rejection(
+                strategy=strategy_name or "unknown", reason="drawdown"
+            )
+            return f"drawdown breaker: {drawdown.breach_reason}"
+        return None
+
+    def _validate_trade_category_breaker(
+        self, category: Optional[str], db, effective_mode: str, strategy_name: Optional[str]
+    ) -> Optional[str]:
+        """Check category circuit breaker. Returns rejection reason or None."""
+        if not (category and db is not None):
+            return None
+        cat_cooldown = self._check_category_circuit_breaker(
+            category, db, effective_mode
+        )
+        if cat_cooldown:
+            record_signal(
+                strategy=strategy_name or "unknown",
+                signal_type="rejected_category_breaker",
+            )
+            increment_risk_rejection(
+                strategy=strategy_name or "unknown", reason="category_breaker"
+            )
+            return cat_cooldown
+        return None
 
     def _validate_trade_calibration(self, db, market_price, signal_win_rate):
         """Calibration adjustment logic (price bucket calibration, signal_win_rate adjustment)."""
