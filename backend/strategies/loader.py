@@ -80,7 +80,7 @@ def load_all_strategies() -> None:
     changes needed.
     """
 
-    # Access registry from the canonical module (loader → registry, not circular)
+    # Access registry from the canonical module (loader -> registry, not circular)
     from backend.strategies.registry import STRATEGY_REGISTRY
 
     strategies_dir = os.path.join(os.path.dirname(__file__))
@@ -106,3 +106,90 @@ def load_all_strategies() -> None:
         errors,
         len(STRATEGY_REGISTRY),
     )
+
+
+def load_active_genome_strategies() -> int:
+    """Compile and register genome strategies that have StrategyConfig entries.
+
+    Queries StrategyConfig for all genome_* entries, loads the corresponding
+    GenomeRegistry record, and compiles via GenomeCompiler so they're available
+    to the scheduler during runtime discovery.
+
+    Returns the number of compiled strategies.
+    """
+    import json
+
+    from backend.strategies.registry import STRATEGY_REGISTRY
+
+    try:
+        from backend.application.strategy.genome_compiler import compile_genome
+        from backend.domain.genome.models import StrategyGenome
+        from backend.models.database import SessionLocal, GenomeRegistry, StrategyConfig
+    except ImportError as e:
+        log.warning("genome compiler not available ({}), skipping genome strategy loading", e)
+        return 0
+
+    db = SessionLocal()
+    compiled = 0
+    try:
+        configs = (
+            db.query(StrategyConfig)
+            .filter(
+                StrategyConfig.strategy_name.like("genome_%"),
+                StrategyConfig.enabled.is_(True),
+            )
+            .all()
+        )
+        if not configs:
+            return 0
+
+        for cfg in configs:
+            if cfg.strategy_name in STRATEGY_REGISTRY:
+                compiled += 1
+                continue  # Already registered
+
+            # Get genome_id from params
+            params = cfg.params
+            if isinstance(params, str):
+                params = json.loads(params)
+            genome_id = params.get("genome_id") if isinstance(params, dict) else None
+
+            # Look up genome
+            genome_row = (
+                db.query(GenomeRegistry).filter_by(genome_id=genome_id).first()
+                if genome_id
+                else None
+            )
+            if not genome_row:
+                log.warning("No GenomeRegistry row for genome_id={} (strategy={})", genome_id, cfg.strategy_name)
+                continue
+
+            # Parse chromosomes
+            chrom_data = (
+                json.loads(genome_row.chromosomes_json)
+                if isinstance(genome_row.chromosomes_json, str)
+                else genome_row.chromosomes_json or {}
+            )
+            chromosomes = chrom_data.get("chromosomes", {})
+
+            genome = StrategyGenome(
+                genome_id=genome_row.genome_id,
+                strategy_name=genome_row.strategy_name,
+                archetype=genome_row.archetype,
+                version=getattr(genome_row, "version", 1),
+                stage="PAPER",
+                chromosomes=chromosomes,
+            )
+
+            try:
+                compile_genome(genome)
+                compiled += 1
+                log.info("Compiled genome strategy: {} (archetype={})", cfg.strategy_name, genome_row.archetype)
+            except Exception as e:
+                log.error("Failed to compile genome {}: {}", cfg.strategy_name, e)
+
+    finally:
+        db.close()
+
+    log.info("Genome strategy compilation complete: {} compiled", compiled)
+    return compiled

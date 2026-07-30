@@ -313,5 +313,23 @@
     "db_bankroll": 0.0,
     "drift": 15.1886,
     "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-30T09:06:45.322123+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
+  },
+  {
+    "timestamp": "2026-07-30T10:26:23.451555+00:00",
+    "type": "drift_alert",
+    "severity": "CRITICAL",
+    "real_pusd": 0.0,
+    "db_bankroll": 15.188595,
+    "drift": -15.1886,
+    "auto_corrected": true
   }
 ]

@@ -10,7 +10,6 @@ _SUBMODULES = [
     "auto_redeem",
     "dispute_tracker",
     "resolution",
-    "calculate_pnl",
     "weather",
     "process",
     "reconcile",

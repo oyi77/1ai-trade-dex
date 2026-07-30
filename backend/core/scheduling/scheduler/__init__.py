@@ -85,4 +85,5 @@ from backend.core.scheduling.scheduler.state import (
 from backend.core.scheduling.scheduling_strategies import (
     scan_and_trade_job,
     settlement_job,
+    weather_scan_and_trade_job,
 )

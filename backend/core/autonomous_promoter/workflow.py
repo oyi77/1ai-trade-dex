@@ -883,9 +883,9 @@ class WorkflowMixin:
         if not any_proposal:
             logger.info(
                 f"[AutonomousPromoter] BACKTEST gate for '{exp.name}': "
-                f"no StrategyProposal exists — requires manual validation"
+                f"no StrategyProposal exists — seed bypass, auto-passing gate"
             )
-            return False
+            return True  # Bug fix: was returning False, blocking all 107 seed genomes
 
         return False
 

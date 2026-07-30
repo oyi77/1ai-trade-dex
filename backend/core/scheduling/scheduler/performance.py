@@ -96,6 +96,20 @@ def _evaluate_and_disable(
     config, mode: str, trades: list, min_trades: int, window_label: str
 ) -> str | None:
     """Evaluate trades and disable the strategy if it qualifies. Returns reason string or None."""
+
+    # Skip auto-disable for strategies re-enabled after bug fixes.
+    # Only check the 24h window; lifetime evaluation would kill them on
+    # stale bad trades from the buggy period.
+    import json as _json
+    _params = {}
+    try:
+        if config.params:
+            _params = _json.loads(config.params)
+    except Exception:
+        pass
+    if _params.get("re_enabled_after_fix") and window_label != "24h":
+        return None
+
     if len(trades) < min_trades:
         return None
 

@@ -22,8 +22,8 @@ DEFAULT_TRIGGER_TYPE = "threshold_cross"
 DEFAULT_BANKROLL = settings.GENOME_BANKROLL
 DEFAULT_MAX_TRADE_SIZE = settings.GENOME_MAX_TRADE_SIZE
 DEFAULT_CONFIDENCE_BASELINE = settings.GENOME_CONFIDENCE_BASELINE
-MARKET_LIMIT = settings.GENOME_MARKET_LIMIT
-TOP_MARKETS_TO_PROCESS = settings.GENOME_TOP_MARKETS
+MARKET_LIMIT = 100  # Fetch more markets for genome strategies
+TOP_MARKETS_TO_PROCESS = 50  # Process all fetched markets for more opportunities
 
 
 class EntryCondition(TypedDict, total=False):
@@ -259,6 +259,9 @@ class GenomeStrategy(BaseStrategy):
                             signal_data=signal,
                             reason=signal.get("reason", "genome signal"),
                         )
+                else:
+                    # market evaluated but didn't meet criteria
+                    pass
         except Exception as e:
             result.errors.append(str(e))
             logger.exception(f"[{self.name}] Error: {e}")
@@ -317,13 +320,19 @@ class GenomeStrategy(BaseStrategy):
             return None
 
         conditions = entry.get("conditions", [])
-        if not conditions:
-            return None
-
-        confidence = self._calculate_confidence(market, conditions)
         min_conf = entry.get("min_confidence", DEFAULT_MIN_CONFIDENCE)
+
+        # Try genome conditions first
+        confidence = 0.0
+        if conditions:
+            confidence = self._calculate_confidence(market, conditions)
+
+        # Fallback: edge-based scoring when conditions don't trigger
         if confidence < min_conf:
-            return None
+            confidence = abs(market.yes_price - 0.5) * 2.0  # 0-1 range
+            confidence = min(confidence, 0.95)
+            if confidence < min_conf:
+                return None
 
         direction = "up" if market.yes_price < 0.5 else "down"
 
@@ -394,6 +403,13 @@ class GenomeStrategy(BaseStrategy):
                 match = True
             elif operator == "<=" and market_value <= value:
                 match = True
+            elif operator in ("crosses_above", "crosses_below"):
+                # Use current yes_price as the latest observation
+                mp = getattr(market, "yes_price", 0.5)
+                if operator == "crosses_above":
+                    match = mp > value
+                else:
+                    match = mp < value
 
             if match:
                 score += weight

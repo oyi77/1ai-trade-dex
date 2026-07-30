@@ -145,9 +145,12 @@ class Orchestrator:
             profile.min_edge_threshold,
         )
 
-        from backend.strategies.loader import load_all_strategies
+        from backend.strategies.loader import load_all_strategies, load_active_genome_strategies
 
         load_all_strategies()  # trigger auto-registration
+        genome_count = load_active_genome_strategies()  # compile DB genome strategies
+        if genome_count:
+            logger.info(f"Loaded {genome_count} genome-compiled strategies from registry")
 
         # Seed is handled by lifespan.py - don't call twice
         logger.info("Strategy config seeding handled by lifespan startup")
