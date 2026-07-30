@@ -591,7 +591,7 @@ class RiskManager:
 
         # Per-strategy allocation
         adjusted, max_capacity, rejection = self._validate_trade_strategy_allocation(
-            strategy_name, adjusted, bankroll, db, effective_mode
+            strategy_name, adjusted, max_capacity, bankroll, db, effective_mode
         )
         if rejection is not None:
             return RiskDecision(False, rejection, 0.0)
@@ -854,10 +854,9 @@ class RiskManager:
         return adjusted, max_capacity, None
 
     def _validate_trade_strategy_allocation(
-        self, strategy_name, adjusted, bankroll, db, effective_mode
+        self, strategy_name, adjusted, max_capacity, bankroll, db, effective_mode
     ):
         """Per-strategy allocation check. Returns (adjusted_size, max_capacity, rejection_reason)."""
-        max_capacity = adjusted
         if strategy_name and db is not None:
             strategy_allocation = self._get_strategy_allocation(
                 strategy_name, bankroll, db, effective_mode
