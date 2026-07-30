@@ -283,7 +283,23 @@ def _preflight_checks(
         return None
 
     # 4. Cooldown after consecutive losses
-    cooldown_losses = int(_cfg("COOLDOWN_CONSECUTIVE_LOSSES", 3) or 3)
+    # Skip cooldown for strategies re-enabled after bug fixes (old pre-fix losses don't count)
+    import json as _cfg_json
+
+    _strategy_params = {}
+    try:
+        from backend.models.strategy_db import StrategyConfig as _SC
+
+        _scfg = db.query(_SC).filter(_SC.strategy_name == strategy_name).first()
+        if _scfg and _scfg.params:
+            _strategy_params = _cfg_json.loads(_scfg.params)
+    except Exception:
+        pass
+    if _strategy_params.get("re_enabled_after_fix"):
+        cooldown_losses = 0  # skip cooldown for re-enabled strategies
+    else:
+        cooldown_losses = int(_cfg("COOLDOWN_CONSECUTIVE_LOSSES", 3) or 3)
+
     cooldown_minutes = int(_cfg("COOLDOWN_MINUTES", 60) or 60)
     if cooldown_losses > 0:
         from datetime import timedelta as _td
