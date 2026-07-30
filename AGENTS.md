@@ -64,6 +64,24 @@ Do NOT add the rules repo as a git submodule. Update rules centrally, then run/s
 - Providers: plugin-based auto-discovery in provider registry
 - Database: Alembic migrations in `alembic/`, SQLite default, PostgreSQL in production
 
+## Module map (post-2026-07-30 refactor)
+Key packages and their split structure:
+
+| Domain | Package | Modules |
+|--------|---------|---------|
+| Config | `backend/config/` | `mixins/api_urls.py`, `mixins/strategy.py`, `mixins/risk.py`, `mixins/agi.py` |
+| Settlement | `backend/core/settlement/` | `settlement/helpers.py`, `settlement/btc_settle.py`, `settlement/settlement_core.py`, `settlement/learning.py`, `settlement/bot_state.py` |
+| Settlement helpers | `backend/core/settlement/` | `resolution.py`, `calculate_pnl.py`, `weather.py`, `process.py`, `reconcile.py` |
+| AGI | `backend/application/agi/` | `genome_helpers.py`, `evolution_cycles.py`, `scheduler_jobs.py` |
+| Strategy promotion | `backend/core/` | `autonomous_promoter/criteria.py`, `autonomous_promoter/workflow.py`, `autonomous_promoter/review.py`, `autonomous_promoter/job.py` |
+| Knowledge graph | `backend/core/` | `knowledge_graph/entity.py`, `knowledge_graph/query.py`, `knowledge_graph/snapshot.py`, `knowledge_graph/graph_api.py`, `knowledge_graph/analysis.py` |
+| Polymarket CLOB | `backend/data/` | `polymarket_clob/models.py`, `polymarket_clob/helpers.py`, `polymarket_clob/client.py`, `polymarket_clob/factory.py` |
+| Risk | `backend/core/risk/` | `models.py`, `validators/allocation.py`, `validators/calibration.py`, `validators/concentration.py`, `validators/drawdown.py`, `validators/edge.py`, `validators/sidelock.py` |
+| Strategy executor | `backend/core/` | `strategy_executor/` (7 modules) |
+| System router | `backend/api/system/` | 3 sub-routers (agi, events, risk) |
+
+**Module naming**: Private functions preserve their names in extracted modules. Mixin classes assembled via MI in `__init__.py`.
+
 ## Commands
 - Backend dev: `uvicorn backend.api.main:app --reload --port 8100`
 - Frontend dev: `cd frontend && npm run dev`
