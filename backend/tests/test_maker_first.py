@@ -129,7 +129,9 @@ async def test_maker_fill_rate_metric_incremented(clob):
         clob_mod, "record_maker_fill_rate"
     ), "record_maker_fill_rate(market_id, filled) must exist for Prometheus metric"
     original = clob_mod.record_maker_fill_rate
-    clob_mod.record_maker_fill_rate = _record  # type: ignore[assignment]
+    # Patch via the usage module — client.py imports it as from backend.monitoring.hft_metrics import record_maker_fill_rate
+    import backend.data.polymarket_clob.client as clob_client_mod
+    clob_client_mod.record_maker_fill_rate = _record  # type: ignore[assignment]
     try:
         await clob.place_maker_first_order(
             token_id="0xtoken",
@@ -140,4 +142,4 @@ async def test_maker_fill_rate_metric_incremented(clob):
         )
         assert recorded, "place_maker_first_order must invoke record_maker_fill_rate()"
     finally:
-        clob_mod.record_maker_fill_rate = original  # type: ignore[assignment]
+        clob_client_mod.record_maker_fill_rate = original  # type: ignore[assignment]

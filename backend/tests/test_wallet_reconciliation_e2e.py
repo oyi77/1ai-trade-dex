@@ -273,7 +273,7 @@ async def test_settlement_verification_external_closure(db, mock_clob):
             "backend.core.wallet.wallet_reconciliation.httpx.AsyncClient"
         ) as mock_client_class,
         patch(
-            "backend.core.settlement_helpers.fetch_resolution_for_trade",
+            "backend.core.settlement.settlement_helpers.fetch_resolution_for_trade",
             new=AsyncMock(return_value=(True, 0.0)),
         ),
     ):
