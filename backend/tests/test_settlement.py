@@ -754,7 +754,7 @@ class TestDeduplication:
                 return {"DEDUP-MKT": (False, None)}
 
             with patch(
-                "backend.core.settlement.settlement._resolve_markets",
+                "backend.core.settlement.settlement.settlement_core._resolve_markets",
                 side_effect=mock_resolve,
             ):
                 from backend.core.settlement.settlement import settle_pending_trades
