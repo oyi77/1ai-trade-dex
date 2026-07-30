@@ -200,7 +200,7 @@ class TestDuplicateExecutionBlock:
         db = _TestSession()
         _seed_state(db)
         db.add(Trade(
-            market_ticker="dup-market-001", strategy="other_strategy",
+            market_ticker="dup-market-001", strategy="test_strategy",
             trading_mode="paper", settled=True, pnl=None,
             direction="yes", entry_price=0.5, size=10.0,
         ))
@@ -308,7 +308,9 @@ class TestDuplicateExecutionBlock:
         """Check #2 (duplicate execution block) is scoped by event_slug, so a
         limbo trade with a different/missing event_slug on the same ticker
         falls through to check #11 (per-market position cap), which must
-        also treat settled=True/pnl=NULL as an open position."""
+        also treat settled=True/pnl=NULL as an open position.
+
+        With cross-strategy blocking removed, only same-strategy blocking applies."""
         from backend.models.database import Trade, TradeAttempt
         from backend.core.mode_context import register_context, ModeExecutionContext
         from backend.core.risk.risk_manager import RiskManager
@@ -317,7 +319,7 @@ class TestDuplicateExecutionBlock:
         db = _TestSession()
         _seed_state(db)
         db.add(Trade(
-            market_ticker="dup-market-003", strategy="other_strategy",
+            market_ticker="dup-market-003", strategy="test_strategy",
             trading_mode="paper", settled=True, pnl=None, event_slug=None,
             direction="yes", entry_price=0.5, size=10.0,
         ))
@@ -360,7 +362,7 @@ class TestDuplicateExecutionBlock:
                 .first()
             )
             assert attempt is not None
-            assert attempt.reason_code == "REJECTED_POSITION_CAP"
+            assert attempt.reason_code == "REJECTED_DUPLICATE_MARKET"
         finally:
             check_db.close()
 

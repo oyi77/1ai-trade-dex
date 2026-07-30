@@ -57,7 +57,12 @@ class AsterActivitySource(BaseActivitySource):
 
     async def _fills_cycle(self):
         """Single iteration of fills polling."""
-        fills = await self._client.get_fills()
+        if not hasattr(self._client, "get_fills"):
+            return  # provider doesn't implement get_fills
+        try:
+            fills = await self._client.get_fills()
+        except AttributeError:
+            return
         for fill in fills:
             order_id = fill.get("order_id", fill.get("id", ""))
             if order_id in self._seen_orders:

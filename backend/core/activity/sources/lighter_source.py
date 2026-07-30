@@ -20,7 +20,10 @@ class LighterActivitySource(BaseActivitySource):
     async def _run(self):
         try:
             # Subscribe to account updates (balance + fills)
-            self._ws.subscribe("account", {"address": self.wallet_address})
+            try:
+                self._ws.subscribe("account", {"address": self.wallet_address})
+            except Exception:
+                logger.debug("[lighter] WS subscribe unavailable")
             self.create_subtask(self._ws_loop())
             # Balance polling — throttled
             self.create_subtask(self.throttled_loop(self._balance_cycle))

@@ -20,9 +20,11 @@ class HyperliquidActivitySource(BaseActivitySource):
     async def _run(self):
         try:
             # Subscribe to user fills (trade_open events)
-            self._client.subscribe_user_fills(self._on_fill)
-            # Subscribe to order updates
-            self._client.subscribe_order_updates(self._on_order_update)
+            try:
+                self._client.subscribe_user_fills(self._on_fill)
+                self._client.subscribe_order_updates(self._on_order_update)
+            except Exception:
+                logger.debug("[hyperliquid] WS subscription unavailable (skip_ws mode)")
             # Balance events — throttled polling
             self.create_subtask(self.throttled_loop(self._balance_cycle))
 

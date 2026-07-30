@@ -33,7 +33,10 @@ class KalshiActivitySource(BaseActivitySource):
 
     async def _fills_cycle(self):
         """Single iteration of fills polling."""
-        fills = await self._client.get_fills(limit=100)
+        try:
+            fills = await self._client.get_fills(limit=100)
+        except Exception:
+            return  # auth or connection error — retry next cycle
         for fill in fills:
             order_id = fill.get("order_id", fill.get("id", ""))
             if order_id in self._seen_orders:
@@ -65,7 +68,10 @@ class KalshiActivitySource(BaseActivitySource):
     async def _positions_cycle(self):
         """Single iteration of positions polling + balance delta detection."""
         # Position change detection
-        positions = await self._client.get_positions()
+        try:
+            positions = await self._client.get_positions()
+        except Exception:
+            return  # auth or connection error — retry next cycle
         current_positions = {}
         for pos in positions:
             ticker = pos.get("ticker", pos.get("market_ticker", ""))

@@ -110,7 +110,7 @@ async def strategy_cycle_job(strategy_name: str, mode: str = "paper") -> None:
         strategy_cls = STRATEGY_REGISTRY.get(strategy_name)
         if not strategy_cls:
             log_event(
-                "warning",
+                "debug",
                 f"Strategy {strategy_name} not in registry — updating heartbeat anyway",
             )
 
