@@ -240,14 +240,21 @@ class GenomeStrategy(BaseStrategy):
             markets = await self._fetch_markets(ctx)
             ctx.logger.info(f"[{self.name}] Fetched {len(markets)} markets via Gamma API")
             if not markets:
+                ctx.logger.info(f"[{self.name}] NO markets returned from Gamma API")
                 return result
 
+            ctx.logger.info(f"[{self.name}] Processing {min(len(markets), TOP_MARKETS_TO_PROCESS)} markets...")
             for market in markets[:TOP_MARKETS_TO_PROCESS]:
                 signal = self._evaluate_market(market, ctx)
                 if signal:
                     result.decisions.append(signal)
                     result.decisions_recorded += 1
                     result.trades_attempted += 1
+                    ctx.logger.info(
+                        f"[{self.name}] SIGNAL: {market.ticker} dir={signal['direction']} "
+                        f"conf={signal['confidence']:.3f} price={market.yes_price:.4f} "
+                        f"size={signal['size']:.2f}"
+                    )
 
                     record_decision = getattr(ctx, "record_decision", None)
                     if record_decision:
@@ -261,8 +268,13 @@ class GenomeStrategy(BaseStrategy):
                             reason=signal.get("reason", "genome signal"),
                         )
                 else:
-                    # market evaluated but didn't meet criteria
-                    pass
+                    ctx.logger.debug(f"[{self.name}] SKIPPED: {market.ticker} price={market.yes_price:.4f}")
+
+            ctx.logger.info(
+                f"[{self.name}] Evaluated {len(result.decisions)}/"
+                f"{min(len(markets), TOP_MARKETS_TO_PROCESS)} markets produced signals"
+            )
+
         except Exception as e:
             result.errors.append(str(e))
             logger.exception(f"[{self.name}] Error: {e}")
@@ -276,7 +288,17 @@ class GenomeStrategy(BaseStrategy):
             raw = await fetch_markets(limit=MARKET_LIMIT)
             result = []
             for m in raw:
-                outcome_prices = m.get("outcomePrices", [DEFAULT_CONFIDENCE_BASELINE])
+                outcome_prices = m.get("outcomePrices", None)
+
+                # Gamma API returns outcomePrices as a JSON-encoded string
+                # (e.g. '["0.005","0.995"]') not as a native list
+                if isinstance(outcome_prices, str):
+                    try:
+                        import json as _json
+                        outcome_prices = _json.loads(outcome_prices)
+                    except Exception:
+                        outcome_prices = None
+
                 if not isinstance(outcome_prices, list) or len(outcome_prices) == 0:
                     outcome_prices = [DEFAULT_CONFIDENCE_BASELINE]
 
@@ -339,6 +361,15 @@ class GenomeStrategy(BaseStrategy):
                 return None
 
         direction = "up" if market.yes_price < 0.5 else "down"
+        # Entry price is what we actually pay:
+        #   UP  → buying YES token at yes_price
+        #   DOWN → buying NO  token at (1 - yes_price)
+        entry_price = (
+            market.yes_price
+            if direction == "up"
+            else (1.0 - market.yes_price)
+        )
+        edge = confidence - entry_price
 
         risk: RiskChromosome = self._risk
         max_frac = DEFAULT_MAX_POSITION_FRACTION
@@ -362,9 +393,9 @@ class GenomeStrategy(BaseStrategy):
             "market_ticker": market.ticker,
             "direction": direction,
             "confidence": confidence,
-            "edge": confidence - market.yes_price,
+            "edge": edge,
             "size": size,
-            "entry_price": market.yes_price,
+            "entry_price": entry_price,
             "suggested_size": size,
             "model_probability": confidence,
             "market_probability": market.yes_price,
@@ -427,4 +458,5 @@ class GenomeStrategy(BaseStrategy):
 
         if computable_count > 0:
             return min(score / computable_count, 1.0)
-        return 0.5
+        # No computable conditions — defer to fallback edge-scoring
+        return 0.0
