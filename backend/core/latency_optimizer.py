@@ -164,7 +164,7 @@ class DNSCache:
             )
             return resolved
         except OSError as e:
-            logger.warning("[dns_cache] DNS resolution failed for {}: {}", host, e)
+            logger.debug("[dns_cache] DNS resolution failed for {}: {} — falling back to OS resolver", host, e)
             return [host]  # fallback: let OS resolver handle it
 
     async def warm(self, urls: list[str]) -> dict[str, LatencySample]:

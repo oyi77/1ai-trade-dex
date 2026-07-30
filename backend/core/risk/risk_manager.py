@@ -540,7 +540,8 @@ class RiskManager:
                 return RiskDecision(False, conc_reason, 0.0)
 
         if market_ticker and self._has_unsettled_trade(
-            market_ticker, db=db, mode=effective_mode, direction=direction
+            market_ticker, db=db, mode=effective_mode, direction=direction,
+            strategy_name=strategy_name,
         ):
             record_signal(
                 strategy=strategy_name or "unknown", signal_type="rejected_unsettled"
@@ -1131,6 +1132,7 @@ class RiskManager:
         db=None,
         mode: Optional[str] = None,
         direction: Optional[str] = None,
+        strategy_name: Optional[str] = None,
     ) -> bool:
         owns_db = db is None
         ctx = get_db_session() if owns_db else nullcontext(db)
@@ -1142,6 +1144,8 @@ class RiskManager:
                     Trade.settled.is_(False),
                     Trade.trading_mode == effective_mode,
                 )
+                if strategy_name:
+                    query = query.filter(Trade.strategy == strategy_name)
                 # Per-direction check: YES and NO positions can coexist on the same market
                 if direction is not None:
                     query = query.filter(Trade.direction == direction)

@@ -60,19 +60,34 @@ class PolymarketActivitySource(BaseActivitySource):
 
     async def _connect_ws_fills(self):
         """Connect to Polymarket WebSocket USER channel for real-time fills."""
+        from backend.config import settings
         from backend.data.polymarket_websocket import (
             PolymarketWebSocket,
+            WebSocketConfig,
             ChannelType,
-            EventType,
         )
-        from backend.config import settings
 
         ws_url = settings.POLYMARKET_WS_USER_URL
         if not ws_url:
             logger.warning("[polymarket] No WS_USER_URL configured, using REST fills")
             return
 
-        ws = PolymarketWebSocket(ws_config={"url": ws_url, "channel": ChannelType.USER})
+        # Get CLOB API credentials for authenticated user channel
+        api_key = getattr(self._clob, "api_key", None)
+        api_secret = getattr(self._clob, "api_secret", None)
+        api_passphrase = getattr(self._clob, "api_passphrase", None)
+        if not all([api_key, api_secret, api_passphrase]):
+            logger.warning("[polymarket] No CLOB API credentials for WS fills, using REST")
+            return
+
+        config = WebSocketConfig(
+            channel=ChannelType.USER,
+            condition_ids=[],
+            api_key=api_key,
+            api_secret=api_secret,
+            api_passphrase=api_passphrase,
+        )
+        ws = PolymarketWebSocket(config)
 
         def on_user_trade(data: dict):
             """Callback for WS trade fill events."""
@@ -119,8 +134,8 @@ class PolymarketActivitySource(BaseActivitySource):
             except Exception as e:
                 logger.warning(f"[polymarket] WS order callback error: {e}")
 
-        ws.on(EventType.USER_TRADE, on_user_trade)
-        ws.on(EventType.USER_ORDER, on_user_order)
+        ws.on_user_trade(on_user_trade)
+        ws.on_user_order(on_user_order)
 
         await ws.connect()
         self._ws_connected = True

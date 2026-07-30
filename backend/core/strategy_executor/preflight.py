@@ -231,7 +231,7 @@ def _preflight_checks(
         db.commit()
         return None
 
-    # 2. Duplicate execution block (other strategies)
+    # 2. Duplicate execution block (same-strategy only — cross-strategy positions allowed)
     event_slug = decision.get("slug") or decision.get("event_slug")
     filters = [
         or_(Trade.settled.is_(False), Trade.pnl.is_(None)),
@@ -246,7 +246,7 @@ def _preflight_checks(
         )
     else:
         filters.append(Trade.market_ticker == market_ticker)
-    existing = db.query(Trade).filter(*filters, Trade.strategy != strategy_name).first()
+    existing = db.query(Trade).filter(*filters, Trade.strategy == strategy_name).first()
     if existing:
         logger.info(f"[{strategy_name}] Duplicate execution blocked for {market_ticker}/{event_slug}")
         attempt_recorder.record_blocked(
@@ -533,26 +533,26 @@ def _preflight_checks(
         db.commit()
         return None
 
-    # 11. Per-market position cap
+    # 11. Per-market position cap (same-strategy only — cross-strategy is fine)
     _existing_open = (
         db.query(Trade)
         .filter(
             Trade.market_ticker == market_ticker,
             or_(Trade.settled.is_(False), Trade.pnl.is_(None)),
             Trade.trading_mode == mode,
-            Trade.strategy != strategy_name,
+            Trade.strategy == strategy_name,
         )
         .first()
     )
     if _existing_open is not None and not force_unwind:
         logger.warning(
-            f"[{strategy_name}] Position cap blocked: already have open position "
+            f"[{strategy_name}] Duplicate position blocked: already have open position "
             f"on {market_ticker} (trade #{_existing_open.id})"
         )
         attempt_recorder.record_rejected(
-            f"Position cap: already have open position on {market_ticker}",
+            f"Duplicate position: already have position on {market_ticker}",
             phase="position_cap",
-            reason_code="REJECTED_POSITION_CAP",
+            reason_code="REJECTED_DUPLICATE_POSITION",
             adjusted_size=adjusted_size,
         )
         db.commit()

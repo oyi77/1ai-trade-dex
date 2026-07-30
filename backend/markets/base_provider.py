@@ -94,6 +94,10 @@ class BaseMarketProvider(ABC):
             logger.debug(f"Health check failed: {e}")
             return False
 
+    async def connect(self) -> None:
+        """Optional: initialize connection. Default no-op."""
+        pass
+
     async def teardown(self) -> None:
         pass
 
