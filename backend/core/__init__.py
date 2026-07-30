@@ -24,6 +24,7 @@ _SUBPACKAGES = {
 # also accessed via backend.core.<name> for backward compatibility.
 _SUBMODULE_ALIASES: dict[str, str] = {
     "scheduling_strategies": "backend.core.scheduling.scheduling_strategies",
+    "settlement_helpers": "backend.core.settlement.settlement_helpers",
 }
 
 
