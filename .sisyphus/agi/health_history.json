@@ -1,192 +1,6 @@
 {
   "events": [
     {
-      "event_id": "7ecd4352-7e9",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779106721.804502
-    },
-    {
-      "event_id": "8226ffcd-881",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779106721.849782
-    },
-    {
-      "event_id": "710a1068-cf9",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779107111.7376673
-    },
-    {
-      "event_id": "fd32d153-cc6",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779107111.748251
-    },
-    {
-      "event_id": "5ace635e-c7b",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779107111.7822435
-    },
-    {
-      "event_id": "0969f9d4-4a6",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779107396.2419798
-    },
-    {
-      "event_id": "58f9ed9b-ed4",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779107396.2518134
-    },
-    {
-      "event_id": "334a819a-858",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779107396.2804558
-    },
-    {
-      "event_id": "4bd41a6f-526",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779108152.4707894
-    },
-    {
-      "event_id": "fa3c39e7-34b",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779108152.480986
-    },
-    {
-      "event_id": "22247379-157",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779108152.5104709
-    },
-    {
-      "event_id": "0c576a55-457",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779108774.9311306
-    },
-    {
-      "event_id": "56cda1c3-156",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779108774.9408264
-    },
-    {
-      "event_id": "04445f8d-b0e",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779108774.9688392
-    },
-    {
-      "event_id": "b2617434-c31",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779109436.568906
-    },
-    {
-      "event_id": "3ab7f668-d67",
-      "event_type": "performance",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "win_rate = 0.50 (threshold: 0.60)",
-      "details": {
-        "metric": "win_rate",
-        "value": 0.5,
-        "threshold": 0.6
-      },
-      "timestamp": 1779109436.5795462
-    },
-    {
-      "event_id": "fea9e350-a31",
-      "event_type": "error",
-      "module": "mod",
-      "severity": "critical",
-      "message": "critical error",
-      "details": {},
-      "timestamp": 1779109436.6098812
-    },
-    {
-      "event_id": "e6340d14-5fb",
-      "event_type": "error",
-      "module": "test_module",
-      "severity": "warning",
-      "message": "test error",
-      "details": {},
-      "timestamp": 1779109973.4153032
-    },
-    {
       "event_id": "cb3ddda0-517",
       "event_type": "performance",
       "module": "test_module",
@@ -5167,63 +4981,195 @@
       "message": "critical error",
       "details": {},
       "timestamp": 1785387303.0942314
+    },
+    {
+      "event_id": "1a4b9bd5-5c3",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785390534.929543
+    },
+    {
+      "event_id": "2fbdcb96-11d",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785390534.9477563
+    },
+    {
+      "event_id": "bf28025b-e30",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785390534.999298
+    },
+    {
+      "event_id": "dbdce6c8-04f",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785390674.9725678
+    },
+    {
+      "event_id": "071a168d-e19",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785390674.9977667
+    },
+    {
+      "event_id": "3e1f6b6c-85a",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785390675.0803325
+    },
+    {
+      "event_id": "e2576070-60e",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785390814.108288
+    },
+    {
+      "event_id": "24344bb0-c9d",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785390814.1314394
+    },
+    {
+      "event_id": "7b8f91f3-54b",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785390814.1938298
+    },
+    {
+      "event_id": "bf1e0f8a-a78",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785390950.952361
+    },
+    {
+      "event_id": "e6c8e6b0-f31",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785390950.9712336
+    },
+    {
+      "event_id": "e9e7f036-ca6",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785390951.0312245
+    },
+    {
+      "event_id": "1481e161-91c",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785391092.6592112
+    },
+    {
+      "event_id": "0a31ed51-df3",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785391092.6783893
+    },
+    {
+      "event_id": "f7ae8a8e-cbf",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785391092.7334194
+    },
+    {
+      "event_id": "2a1c6f3b-a7a",
+      "event_type": "error",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "test error",
+      "details": {},
+      "timestamp": 1785391226.3552814
+    },
+    {
+      "event_id": "a924428b-b85",
+      "event_type": "performance",
+      "module": "test_module",
+      "severity": "warning",
+      "message": "win_rate = 0.50 (threshold: 0.60)",
+      "details": {
+        "metric": "win_rate",
+        "value": 0.5,
+        "threshold": 0.6
+      },
+      "timestamp": 1785391226.3819356
+    },
+    {
+      "event_id": "6860995d-1a6",
+      "event_type": "error",
+      "module": "mod",
+      "severity": "critical",
+      "message": "critical error",
+      "details": {},
+      "timestamp": 1785391226.444303
     }
   ],
   "actions": [
-    {
-      "action_id": "3fc57603-ed0",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701003.9116158
-    },
-    {
-      "action_id": "77042ee2-290",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701214.3096108
-    },
-    {
-      "action_id": "0dd59761-589",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701418.0377836
-    },
-    {
-      "action_id": "b77ecf7f-61d",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701457.6058462
-    },
-    {
-      "action_id": "bc9519fd-7f4",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701566.9720082
-    },
-    {
-      "action_id": "9c6baacd-864",
-      "action_type": "rollback",
-      "target": "strategy_x",
-      "reason": "test failure",
-      "success": true,
-      "duration_ms": 0.0,
-      "timestamp": 1779701612.979336
-    },
     {
       "action_id": "66285df7-966",
       "action_type": "rollback",
@@ -6069,6 +6015,60 @@
       "success": true,
       "duration_ms": 0.0,
       "timestamp": 1785387303.0503166
+    },
+    {
+      "action_id": "ff0dbb1d-7ba",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785390534.9654863
+    },
+    {
+      "action_id": "5f5efcae-5b1",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785390675.0209305
+    },
+    {
+      "action_id": "21327196-ef7",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785390814.1517587
+    },
+    {
+      "action_id": "0d40c943-274",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785390950.9916594
+    },
+    {
+      "action_id": "119bf8e3-bfd",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785391092.6981688
+    },
+    {
+      "action_id": "7eae427c-6db",
+      "action_type": "rollback",
+      "target": "strategy_x",
+      "reason": "test failure",
+      "success": true,
+      "duration_ms": 0.0,
+      "timestamp": 1785391226.4043589
     }
   ]
 }
