@@ -22,7 +22,7 @@ DEFAULT_TRIGGER_TYPE = "threshold_cross"
 DEFAULT_BANKROLL = settings.GENOME_BANKROLL
 DEFAULT_MAX_TRADE_SIZE = settings.GENOME_MAX_TRADE_SIZE
 DEFAULT_CONFIDENCE_BASELINE = settings.GENOME_CONFIDENCE_BASELINE
-MARKET_LIMIT = 100  # Fetch more markets for genome strategies
+MARKET_LIMIT = 30  # Gamma API truncates prices at >~30 — keep below threshold
 TOP_MARKETS_TO_PROCESS = 50  # Process all fetched markets for more opportunities
 
 
