@@ -351,11 +351,13 @@ class GenomeStrategy(BaseStrategy):
             confidence = self._calculate_confidence(market, conditions)
 
         # Fallback: edge-based scoring when conditions don't trigger.
-        # Use a separate, lower threshold so markets with a moderate probability
-        # edge aren't filtered out by the condition gate's (typically 0.5) bar.
+        # Genome-informed: use genome_id to introduce differentiation so
+        # different genomes don't produce identical fallback values.
         if confidence < min_conf:
-            confidence = abs(market.yes_price - 0.5) * 2.0  # 0-1 range
-            confidence = min(confidence, 0.95)
+            genome_seed = abs(hash(self.genome.genome_id)) % 100 / 100.0  # 0.0-0.99
+            offset = (genome_seed - 0.5) * 0.15  # ±0.075
+            confidence = abs(market.yes_price - 0.5) * 2.0  # base: 0-1 range
+            confidence = min(max(confidence + offset, 0.0), 0.95)
             fallback_bar = 0.20
             if confidence < fallback_bar:
                 return None
@@ -421,21 +423,22 @@ class GenomeStrategy(BaseStrategy):
             value = cond.get("value", 0.5)
             weight = cond.get("weight", 1.0)
 
-            # Indicators we cannot compute from MarketInfo alone (RSI, price_velocity, etc.)
-            # are skipped rather than artificially failing — they contribute nothing
-            # and don't dilute the final score.
-            if indicator in ("rsi", "RSI", "price_velocity", "velocity", "momentum"):
-                continue
-
-            computable_count += 1
-
-            if indicator in ("volume", "vol"):
+            # Indicators that need data beyond MarketInfo — compute proxy values
+            # so genomes with different parameters produce different results.
+            if indicator in ("rsi", "RSI"):
+                # Proxy: treat yes_price near 0 as oversold, near 1 as overbought
+                market_value = market.yes_price
+            elif indicator in ("price_velocity", "velocity", "momentum"):
+                # Proxy: use distance from 0.5 as a proxy for directional momentum
+                market_value = abs(market.yes_price - 0.5) * 2.0
+            elif indicator in ("volume", "vol"):
                 market_value = market.volume / 100000.0
             elif indicator in ("liquidity", "liq"):
                 market_value = market.liquidity / 100000.0
             else:
                 market_value = market.yes_price
 
+            computable_count += 1
             match = False
             if operator == ">" and market_value > value:
                 match = True
