@@ -49,15 +49,16 @@ class TestTradeValidator:
         TradeValidator.validate_price(0.01)
         TradeValidator.validate_price(0.5)
         TradeValidator.validate_price(0.99)
+        TradeValidator.validate_price(0.0005)  # now valid under relaxed bounds
 
     def test_validate_price_out_of_range(self):
         with pytest.raises(ValidationError) as exc:
-            TradeValidator.validate_price(0.005)
-        assert "must be in range [0.01, 0.99]" in exc.value.message
+            TradeValidator.validate_price(0.00005)
+        assert "must be in range [0.0001, 0.9999]" in exc.value.message
 
         with pytest.raises(ValidationError) as exc:
             TradeValidator.validate_price(1.0)
-        assert "must be in range [0.01, 0.99]" in exc.value.message
+        assert "must be in range [0.0001, 0.9999]" in exc.value.message
 
     def test_validate_probability_valid_range(self):
         TradeValidator.validate_probability(0.0)
@@ -134,7 +135,7 @@ class TestTradeValidator:
         data = {"entry_price": 1.5}
         with pytest.raises(ValidationError) as exc:
             TradeValidator.validate_trade_data(data)
-        assert "must be in range [0.01, 0.99]" in exc.value.message
+        assert "must be in range [0.0001, 0.9999]" in exc.value.message
 
     def test_validate_trade_data_invalid_confidence(self):
         data = {"confidence": 2.0}
