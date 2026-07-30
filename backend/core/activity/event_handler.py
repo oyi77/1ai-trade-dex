@@ -158,7 +158,7 @@ class ActivityHandler:
 
                 trade = Trade(
                     market_ticker=market_ticker,
-                    strategy=event.raw_data.get("strategy", event.source),
+                    strategy=event.raw_data.get("strategy") or event.source,
                     trading_mode="live",
                     direction=event.side or "UNKNOWN",
                     entry_price=event.price or 0.0,

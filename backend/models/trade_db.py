@@ -44,7 +44,7 @@ class Trade(Base):
 
     market_ticker = Column(String, index=True)
     platform = Column(String)
-    strategy = Column(String, nullable=True, index=True)
+    strategy = Column(String, nullable=False, index=True, default="unknown")
     trading_mode = Column(String, default="paper", index=True)
     market_type = Column(String, default="btc", index=True)  # "btc" or "weather"
     event_slug = Column(String, nullable=True)
