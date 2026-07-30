@@ -131,6 +131,19 @@ def _pre_trade_safety_checks(
                 pusd = _fetch_live_pusd_balance_sync()
                 if pusd > 0:
                     current = pusd
+            elif mode == "paper":
+                # Use total portfolio value = cash + open position market value
+                # Prevents false drawdown from cash-only calculation when trades are open.
+                open_val = (
+                    db.query(func.coalesce(func.sum(Trade.size), 0))
+                    .filter(
+                        Trade.trading_mode == mode,
+                        or_(Trade.settled.is_(False), Trade.pnl.is_(None)),
+                    )
+                    .scalar()
+                    or 0.0
+                )
+                current = bankroll + open_val
             if initial and initial > 0:
                 dd_pct = (initial - current) / initial
                 if dd_pct > max_portfolio_dd:
