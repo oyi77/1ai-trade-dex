@@ -203,17 +203,23 @@ def configure_logging(
     )
 
     # Silence particularly noisy third-party loggers
-    for _name in (
-        "uvicorn",
-        "uvicorn.error",
-        "uvicorn.access",
-        "sqlalchemy.engine",
-        "httpx",
-        "httpcore",
-        "aiohttp.access",
-        "apscheduler",
+    for _name, _level in (
+        ("uvicorn", logging.WARNING),
+        ("uvicorn.error", logging.WARNING),
+        ("uvicorn.access", logging.WARNING),
+        ("sqlalchemy.engine", logging.WARNING),
+        ("httpx", logging.WARNING),
+        ("httpcore", logging.WARNING),
+        ("httpcore.connection", logging.WARNING),
+        ("httpcore.http11", logging.WARNING),
+        ("httpx._client", logging.WARNING),
+        ("aiohttp.access", logging.WARNING),
+        ("apscheduler", logging.WARNING),
+        ("apscheduler.executors.default", logging.WARNING),
+        ("apscheduler.scheduler", logging.WARNING),
     ):
         _logging_logger = logging.getLogger(_name)
+        _logging_logger.setLevel(_level)
         _logging_logger.handlers = [InterceptHandler()]
         _logging_logger.propagate = False
 
