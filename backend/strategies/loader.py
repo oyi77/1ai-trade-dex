@@ -164,13 +164,19 @@ def load_active_genome_strategies() -> int:
                 log.warning("No GenomeRegistry row for genome_id={} (strategy={})", genome_id, cfg.strategy_name)
                 continue
 
-            # Parse chromosomes
+            # Parse chromosomes — data IS the chromosomes dict (keys: cognition,
+            # perception, risk, execution, meta).  Some records may also carry a
+            # degenerate "chromosomes": [] key at the same level — skip it.
             chrom_data = (
                 json.loads(genome_row.chromosomes_json)
                 if isinstance(genome_row.chromosomes_json, str)
                 else genome_row.chromosomes_json or {}
             )
-            chromosomes = chrom_data.get("chromosomes", {})
+            chromosomes = {
+                k: v
+                for k, v in chrom_data.items()
+                if k != "chromosomes"
+            } if isinstance(chrom_data, dict) else chrom_data
 
             genome = StrategyGenome(
                 genome_id=genome_row.genome_id,

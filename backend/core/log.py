@@ -213,6 +213,8 @@ def configure_logging(
         ("httpcore.connection", logging.WARNING),
         ("httpcore.http11", logging.WARNING),
         ("httpx._client", logging.WARNING),
+        ("gql", logging.WARNING),
+        ("gql.transport.httpx", logging.WARNING),
         ("aiohttp.access", logging.WARNING),
         ("apscheduler", logging.WARNING),
         ("apscheduler.executors.default", logging.WARNING),

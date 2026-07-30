@@ -238,6 +238,7 @@ class GenomeStrategy(BaseStrategy):
         )
         try:
             markets = await self._fetch_markets(ctx)
+            ctx.logger.info(f"[{self.name}] Fetched {len(markets)} markets via Gamma API")
             if not markets:
                 return result
 
@@ -327,11 +328,14 @@ class GenomeStrategy(BaseStrategy):
         if conditions:
             confidence = self._calculate_confidence(market, conditions)
 
-        # Fallback: edge-based scoring when conditions don't trigger
+        # Fallback: edge-based scoring when conditions don't trigger.
+        # Use a separate, lower threshold so markets with a moderate probability
+        # edge aren't filtered out by the condition gate's (typically 0.5) bar.
         if confidence < min_conf:
             confidence = abs(market.yes_price - 0.5) * 2.0  # 0-1 range
             confidence = min(confidence, 0.95)
-            if confidence < min_conf:
+            fallback_bar = 0.20
+            if confidence < fallback_bar:
                 return None
 
         direction = "up" if market.yes_price < 0.5 else "down"
@@ -379,17 +383,24 @@ class GenomeStrategy(BaseStrategy):
             return 0.5
 
         score = 0.0
+        computable_count = 0  # track only indicators we can actually evaluate
         for cond in conditions:
             indicator = cond.get("indicator", "")
             operator = cond.get("operator", ">")
             value = cond.get("value", 0.5)
             weight = cond.get("weight", 1.0)
 
-            if indicator in ["rsi", "RSI"]:
-                market_value = 0.5
-            elif indicator in ["volume", "vol"]:
+            # Indicators we cannot compute from MarketInfo alone (RSI, price_velocity, etc.)
+            # are skipped rather than artificially failing — they contribute nothing
+            # and don't dilute the final score.
+            if indicator in ("rsi", "RSI", "price_velocity", "velocity", "momentum"):
+                continue
+
+            computable_count += 1
+
+            if indicator in ("volume", "vol"):
                 market_value = market.volume / 100000.0
-            elif indicator in ["liquidity", "liq"]:
+            elif indicator in ("liquidity", "liq"):
                 market_value = market.liquidity / 100000.0
             else:
                 market_value = market.yes_price
@@ -414,4 +425,6 @@ class GenomeStrategy(BaseStrategy):
             if match:
                 score += weight
 
-        return min(score / len(conditions), 1.0)
+        if computable_count > 0:
+            return min(score / computable_count, 1.0)
+        return 0.5
