@@ -155,7 +155,7 @@ def main():
 
         # ── Open positions (LIVE only) ──
         rows = conn.execute(text("""
-            SELECT strategy, market_slug, side, size, entry_price, timestamp
+            SELECT strategy, market_ticker, direction, size, entry_price, timestamp
             FROM trades
             WHERE trading_mode = 'live' AND settled = false
             ORDER BY timestamp DESC
