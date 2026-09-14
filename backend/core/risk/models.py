@@ -1,9 +1,9 @@
 """
-Risk domain models — shared types used across all validators and the manager.
+Risk models — dataclasses and immutable safety rules.
 """
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
 
 
 @dataclass
@@ -11,16 +11,6 @@ class RiskDecision:
     allowed: bool
     reason: str
     adjusted_size: float
-
-
-@dataclass
-class DrawdownStatus:
-    daily_pnl: float
-    weekly_pnl: float
-    daily_limit_pct: float
-    weekly_limit_pct: float
-    is_breached: bool
-    breach_reason: str
 
 
 class EdgeFilterError(Exception):
@@ -38,6 +28,16 @@ class EdgeFilterError(Exception):
         self.market_price = market_price
         self.signal_win_rate = signal_win_rate
         self.edge_pp = edge_pp
+
+
+@dataclass
+class DrawdownStatus:
+    daily_pnl: float
+    weekly_pnl: float
+    daily_limit_pct: float
+    weekly_limit_pct: float
+    is_breached: bool
+    breach_reason: str
 
 
 # Immutable Safety Rules - cannot be overridden by strategies or AI
@@ -79,12 +79,22 @@ IMMUTABLE_SAFETY_RULES = {
     },
     "emergency_kill_switch": {
         "default": True,
-        "override_env_var": None,
+        "override_env_var": None,  # Always enabled
         "description": "Single API call stops all trading immediately",
     },
     "audit_trail": {
         "default": True,
-        "override_env_var": None,
+        "override_env_var": None,  # Always enabled
         "description": "Every mutation/kill/promotion logged immutably",
     },
 }
+
+
+def _not_backfill_settlement_source():
+    from sqlalchemy import or_
+    from backend.models.database import Trade
+
+    return or_(
+        Trade.settlement_source.is_(None),
+        ~Trade.settlement_source.op("LIKE")("backfill_%"),
+    )
