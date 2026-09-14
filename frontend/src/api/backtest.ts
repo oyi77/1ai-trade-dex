@@ -1,4 +1,5 @@
-import { api, adminApi } from './client'
+
+import { api, adminApi } from './core'
 
 export async function fetchBacktestStrategies(): Promise<{
   strategies: Array<{
@@ -78,10 +79,3 @@ export async function runBacktest(config: {
   return data
 }
 
-export async function fetchQuickBacktest(params: {
-  strategy_name: string
-  days?: number
-}): Promise<unknown> {
-  const { data } = await api.get('/backtest/quick', { params })
-  return data
-}

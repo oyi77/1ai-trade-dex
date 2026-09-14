@@ -249,7 +249,6 @@ export async function fetchAGIRunResult(): Promise<AGIRunResultsResponse> {
   return data
 }
 
-
 // ── Aggregated AGI API surface ────────────────────────────────────────────
 
 export const agiAPI = {
