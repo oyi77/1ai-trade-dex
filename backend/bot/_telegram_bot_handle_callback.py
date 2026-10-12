@@ -1,6 +1,16 @@
 """Methods carved verbatim out of ``backend/bot/telegram_bot.py``."""
 
 from . import telegram_bot as _facade
+from .tracker_client import tracker_get
+from .wallet_watchlist import add_wallet, remove_wallet, list_wallets
+
+try:
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.constants import ParseMode
+except ImportError:
+    InlineKeyboardButton = None  # type: ignore[assignment]
+    InlineKeyboardMarkup = None  # type: ignore[assignment]
+    ParseMode = None  # type: ignore[assignment]
 
 class PolyEdgeBotMixin2:
     # =========================================================================
@@ -46,6 +56,21 @@ class PolyEdgeBotMixin2:
             condition_id = data[5:]
             self._pending_signals.pop(condition_id, None)
             await query.edit_message_text("❌ Signal skipped.")
+        # --- menu / watchlist callback dispatch ---
+        elif data.startswith("menu:"):
+            action = data[5:]
+            if action == "wallets":
+                await self._cmd_wallets(update, context)
+            elif action == "sniper":
+                await self._cmd_sniper(update, context)
+            elif action == "whaleflow":
+                await self._cmd_whaleflow(update, context)
+            else:
+                await query.edit_message_text("Unknown menu action.")
+        elif data.startswith("rmwallet:"):
+            addr = data[9:]
+            result = remove_wallet(addr)
+            await query.edit_message_text(result["msg"], parse_mode=ParseMode.HTML)
     # =========================================================================
     # Command handlers
     # =========================================================================
@@ -61,7 +86,10 @@ class PolyEdgeBotMixin2:
             f"/bankroll — bankroll and equity\n"
             f"/pnl — P&L breakdown\n"
             f"/leaderboard — tracked traders\n"
-            f"/scan — trigger BTC scan now (admin)\n"
+            f"/wallets — smart money wallet list\n"
+            f"/sniper — sniper scan history\n"
+            f"/wallet &lt;addr&gt; — wallet profiler\n"
+            f"/whaleflow — whale flow board\n"
             f"/settle — run settlement check (admin)\n"
             f"/pause — pause scanning (admin)\n"
             f"/resume — resume scanning (admin)\n"
@@ -389,3 +417,187 @@ class PolyEdgeBotMixin2:
             )
         except Exception as e:
             await update.message.reply_text(f"Error: {e}")
+
+    async def _cmd_wallets(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
+        """List tracked smart-money wallets from tracker API."""
+        data = await tracker_get("/api/v1/smart-money", {"pageSize": "15", "sort": "score", "order": "desc"})
+        if data is None:
+            await update.message.reply_text("⚠️ Tracker API unreachable.", parse_mode=ParseMode.HTML)
+            return
+        wallets = data.get("data") or []
+        if not wallets:
+            await update.message.reply_text("📊 <b>Smart Money Wallets</b>\n\nNo wallets found.", parse_mode=ParseMode.HTML)
+            return
+        lines = [f"📊 <b>Smart Money Wallets ({len(wallets)})</b>\n"]
+        for w in wallets[:15]:
+            addr = (w.get("wallet") or {}).get("address", "?")
+            addr_short = f"{addr[:6]}…{addr[-4:]}" if len(addr) > 12 else addr
+            cat = w.get("category") or "—"
+            score = w.get("score")
+            score_str = f" score={score:.1f}" if isinstance(score, (int, float)) else ""
+            pnl = w.get("pnl30d")
+            pnl_str = f" pnl30d={'+' if (pnl or 0) >= 0 else ''}{pnl:.1f}" if isinstance(pnl, (int, float)) else ""
+            wr = w.get("winRate")
+            wr_str = f" wr={wr:.0%}" if isinstance(wr, (int, float)) else ""
+            status = w.get("status") or ""
+            lines.append(f"• <b>{addr_short}</b> {cat}{score_str}{pnl_str}{wr_str} {status}")
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+    async def _cmd_sniper(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
+        """Show recent sniper scan results from tracker."""
+        data = await tracker_get("/api/v1/meme/sniper/history")
+        if data is None:
+            await update.message.reply_text("⚠️ Tracker API unreachable.", parse_mode=ParseMode.HTML)
+            return
+        payload = data.get("data") or {}
+        entries = payload.get("entries") or []
+        counts = payload.get("counts") or {}
+        if not entries:
+            await update.message.reply_text("🎯 <b>Sniper Scan History</b>\n\nNo scans found.", parse_mode=ParseMode.HTML)
+            return
+        summary = " ".join(f"{k}={v}" for k, v in counts.items())
+        lines = [f"🎯 <b>Sniper Scan History</b> ({summary})\n"]
+        for e in entries[:15]:
+            status = e.get("status") or "?"
+            metrics = e.get("metrics") or {}
+            age = metrics.get("ageMinutes")
+            age_str = f" {age:.0f}m" if isinstance(age, (int, float)) else ""
+            vol = metrics.get("volMcRatio")
+            vol_str = f" vol/mcap={vol:.1f}x" if isinstance(vol, (int, float)) else ""
+            snip = metrics.get("sniperPercent")
+            snip_str = f" snip={snip:.0%}" if isinstance(snip, (int, float)) else ""
+            top10 = metrics.get("top10Percent")
+            top10_str = f" top10={top10:.0%}" if isinstance(top10, (int, float)) else ""
+            contract = (e.get("contract") or "")[:10]
+            lines.append(f"• <b>{status}</b> {contract}…{age_str}{vol_str}{snip_str}{top10_str}")
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+    async def _cmd_wallet(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
+        """Profile a single wallet from tracker."""
+        if not context.args:
+            await update.message.reply_text("Usage: /wallet &lt;address&gt;", parse_mode=ParseMode.HTML)
+            return
+        addr = context.args[0]
+        data = await tracker_get("/api/v1/smart-money/wallet", {"address": addr, "chain": "eth"})
+        if data is None:
+            await update.message.reply_text("⚠️ Tracker API unreachable.", parse_mode=ParseMode.HTML)
+            return
+        d = data.get("data") or {}
+        entity = d.get("entity") or {}
+        label = entity.get("label") or "Unknown"
+        cat = entity.get("category") or "—"
+        conf = entity.get("confidence")
+        conf_str = f" ({conf:.0%})" if isinstance(conf, (int, float)) else ""
+        tx_count = d.get("txCount", 0)
+        transfer_count = d.get("tokenTransferCount", 0)
+        lines = [
+            f"🔍 <b>Wallet Profile</b>\n",
+            f"Address: <code>{addr}</code>",
+            f"Entity: {label} [{cat}]{conf_str}",
+            f"TXs: {tx_count}  Transfers: {transfer_count}",
+        ]
+        recent = (d.get("recentTxs") or [])[:5]
+        if recent:
+            lines.append("\n<b>Recent TXs:</b>")
+            for tx in recent:
+                ts = tx.get("timestamp", "")[:19]
+                val = tx.get("value", "")
+                lines.append(f"  {ts} {val}")
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+
+    async def _cmd_whaleflow(self, update: "Update", context: "ContextTypes.DEFAULT_TYPE"):
+        """Show smart money flow board from tracker."""
+        data = await tracker_get("/api/v1/smart-money/flow")
+        if data is None:
+            await update.message.reply_text("⚠️ Tracker API unreachable.", parse_mode=ParseMode.HTML)
+            return
+        flows = data.get("flows") or []
+        total = data.get("totalEntities", 0)
+        if not flows:
+            await update.message.reply_text("🐋 <b>Whale Flow</b>\n\nNo flow data found.", parse_mode=ParseMode.HTML)
+            return
+        lines = [f"🐋 <b>Whale Flow Board</b> ({total} entities)\n"]
+        for f in flows[:15]:
+            label = f.get("label") or f.get("category") or "—"
+            icon = f.get("icon") or "•"
+            count = f.get("entityCount", 0)
+            chains = ", ".join(f.get("chains") or [])
+            lines.append(f"{icon} <b>{label}</b> — {count} entities {chains}")
+        await update.message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
+    # =========================================================================
+    # Inline menu + watchlist commands
+    # =========================================================================
+
+    async def _reply_safe(self, update, text, reply_markup=None, parse_mode=ParseMode.HTML):
+        """Reply via message or callback_query depending on context."""
+        if update.callback_query and update.callback_query.message:
+            await update.callback_query.message.reply_text(
+                text, reply_markup=reply_markup, parse_mode=parse_mode
+            )
+        else:
+            await update.message.reply_text(
+                text, reply_markup=reply_markup, parse_mode=parse_mode
+            )
+
+    async def _cmd_menu(self, update, context):
+        """Show inline keyboard menu."""
+        keyboard = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton("📊 Wallets", callback_data="menu:wallets")],
+                [InlineKeyboardButton("🎯 Sniper", callback_data="menu:sniper")],
+                [InlineKeyboardButton("🐋 Whale Flow", callback_data="menu:whaleflow")],
+                [InlineKeyboardButton("➕ Add Wallet", callback_data="menu:addwallet")],
+                [InlineKeyboardButton("📋 My Watchlist", callback_data="menu:mywallets")],
+            ]
+        )
+        await update.message.reply_text(
+            "<b>PolyEdge Menu</b>\n\nTap a button below:",
+            reply_markup=keyboard,
+            parse_mode=ParseMode.HTML,
+        )
+
+    async def _cmd_addwallet(self, update, context):
+        """Add a wallet to the watchlist.
+        Usage: /addwallet 0xABC123... [chain] [label...]
+        """
+        if not context.args:
+            await update.message.reply_text(
+                "Usage: <code>/addwallet &lt;address&gt; [chain] [label]</code>\n"
+                "Example: <code>/addwallet 0xABC123... eth whale-1</code>",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+        addr = context.args[0]
+        chain = context.args[1] if len(context.args) > 1 else "eth"
+        label = " ".join(context.args[2:]) if len(context.args) > 2 else ""
+        result = add_wallet(addr, chain, label)
+        emoji = "✅" if result["ok"] else "⚠️"
+        await update.message.reply_text(
+            f"{emoji} {result['msg']}", parse_mode=ParseMode.HTML
+        )
+
+    async def _cmd_mywallets(self, update, context):
+        """List watched wallets with inline remove buttons."""
+        wallets = list_wallets()
+        if not wallets:
+            await update.message.reply_text(
+                "📋 <b>Watchlist</b>\n\nNo wallets tracked. Use /addwallet to add one.",
+                parse_mode=ParseMode.HTML,
+            )
+            return
+        lines = [f"📋 <b>Watchlist ({len(wallets)})</b>\n"]
+        buttons = []
+        for i, w in enumerate(wallets):
+            addr = w.get("address", "?")
+            chain = w.get("chain", "eth")
+            label = w.get("label", "")
+            label_str = f" — {label}" if label else ""
+            addr_short = f"{addr[:14]}…{addr[-4:]}" if len(addr) > 20 else addr
+            lines.append(f"{i+1}. <code>{addr_short}</code> [{chain}]{label_str}")
+            buttons.append(
+                [InlineKeyboardButton(f"🗑 Remove {addr[:10]}…", callback_data=f"rmwallet:{addr}")]
+            )
+        keyboard = InlineKeyboardMarkup(buttons)
+        await update.message.reply_text(
+            "\n".join(lines), reply_markup=keyboard, parse_mode=ParseMode.HTML
+        )

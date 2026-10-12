@@ -30,7 +30,7 @@ class PolyEdgeBotMixin:
 
         # Pending weather signals awaiting user confirmation
         # key: signal_id (condition_id), value: signal data dict
-        self._pending_signals: dict[str, dict] = {}
+        self._monitor_task: _facade.Optional["_facade.asyncio.Task"] = None
     # =========================================================================
     # Lifecycle
     # =========================================================================
@@ -63,6 +63,12 @@ class PolyEdgeBotMixin:
         self._app.add_handler(CommandHandler("bankroll", self._cmd_bankroll))
         self._app.add_handler(CommandHandler("settle", self._cmd_settle))
         self._app.add_handler(CommandHandler("pnl", self._cmd_pnl))
+        self._app.add_handler(CommandHandler("wallets", self._cmd_wallets))
+        self._app.add_handler(CommandHandler("sniper", self._cmd_sniper))
+        self._app.add_handler(CommandHandler("wallet", self._cmd_wallet))
+        self._app.add_handler(CommandHandler("menu", self._cmd_menu))
+        self._app.add_handler(CommandHandler("addwallet", self._cmd_addwallet))
+        self._app.add_handler(CommandHandler("mywallets", self._cmd_mywallets))
         self._app.add_handler(CallbackQueryHandler(self._handle_callback))
 
         await self._app.initialize()
@@ -80,8 +86,16 @@ class PolyEdgeBotMixin:
                 self._app.updater.start_polling(drop_pending_updates=True)
             )
         _facade.logger.info(f"Telegram bot started — admins: {self.admin_ids}")
+        from .wallet_watchlist import start_activity_monitor
+        self._monitor_task = await start_activity_monitor(self)
     async def stop(self):
         """Graceful shutdown."""
+        if self._monitor_task:
+            self._monitor_task.cancel()
+            try:
+                await self._monitor_task
+            except _facade.asyncio.CancelledError:
+                pass
         if self._app:
             await self._app.updater.stop()
             await self._app.stop()

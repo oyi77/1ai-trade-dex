@@ -11,6 +11,11 @@ sys.path.insert(0, "/home/openclaw/projects/1ai-trade-dex")
 import os
 os.environ.setdefault("TRADING_MODE", "paper")
 
+# Silence loguru before backend imports emit DEBUG/INFO (cron log stays clean —
+# only heartbeat line + OK print land in the file).
+from loguru import logger
+logger.remove()
+
 LOG = "/home/openclaw/projects/1ai-trade-dex/logs/btc_fade_paper.log"
 
 async def main():

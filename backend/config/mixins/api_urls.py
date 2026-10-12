@@ -102,6 +102,9 @@ class APIUrlsMixin:
     # Brain/BK-Hub API
     BK_BRAIN_URL: str = "http://localhost:9099"
     BRAIN_API_URL: str = "http://localhost:9099"
+    # Tracker API (1ai-tracker — sniper/wallet intelligence)
+    TRACKER_API_URL: str = "http://127.0.0.1:4400"
+    TRACKER_API_KEY: str = ""
 
     # Goldsky GraphQL API (Polymarket historical order data)
     GOLDSKY_API_URL: str = "https://api.goldsky.com/api/public/project_cl6mb8i9h0003e201j6li0diw/subgraphs/orderbook-subgraph/0.0.1/gn"
