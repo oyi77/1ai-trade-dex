@@ -14,7 +14,9 @@ from loguru import logger
 
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import Trade, BotState, for_update
+from backend.models.botstate_db import BotState
+from backend.models.trade_db import Trade
+from backend.models.engine import for_update
 from backend.monitoring.hft_metrics import record_signal, db_query_duration
 from backend.monitoring.metrics import increment_risk_rejection
 from backend.core.risk.correlation_monitor import CorrelationMonitor
@@ -52,7 +54,7 @@ class RiskManagerValidationMixin:
         original_available_cash = bankroll
         if effective_mode == "live" and db is not None:
             try:
-                from backend.models.database import PlatformBalance
+                from backend.models.botstate_db import PlatformBalance
                 balances = db.query(PlatformBalance).filter_by(mode="live").all()
                 total_equity = sum(float(b.total_equity or 0.0) for b in balances)
                 if total_equity > 0:
@@ -475,7 +477,7 @@ class RiskManagerValidationMixin:
         # ── Per-strategy drawdown enforcement ──
         if db is not None and strategy_name and strategy_name != "unknown":
             try:
-                from backend.models.database import Trade
+                from backend.models.trade_db import Trade
                 from sqlalchemy import func
 
                 max_dd_pct = getattr(self.s, "MAX_STRATEGY_DRAWDOWN_PCT", 0.30)

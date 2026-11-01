@@ -63,7 +63,7 @@ def _check_category_circuit_breaker(
 
         now = datetime.now(timezone.utc)
         # Look at recent trades in this category
-        from backend.models.database import Trade
+        from backend.models.trade_db import Trade
 
         recent_trades = (
             db.query(Trade)

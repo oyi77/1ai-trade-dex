@@ -92,7 +92,7 @@ IMMUTABLE_SAFETY_RULES = {
 
 def _not_backfill_settlement_source():
     from sqlalchemy import or_
-    from backend.models.database import Trade
+    from backend.models.trade_db import Trade
 
     return or_(
         Trade.settlement_source.is_(None),

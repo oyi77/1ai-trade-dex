@@ -49,7 +49,9 @@ class CircuitBreaker:
             db: Optional SQLAlchemy session
         """
         import sqlalchemy as sa
-        from backend.models.database import Trade, StrategyConfig, SessionLocal
+        from backend.models.trade_db import Trade
+        from backend.models.strategy_db import StrategyConfig
+        from backend.models.engine import SessionLocal
 
         session = db or SessionLocal()
         close_session = db is None
@@ -79,7 +81,7 @@ class CircuitBreaker:
 
             # 3. Get initial bankroll (uses BotState for appropriate mode)
             mode = getattr(settings, "TRADING_MODE", "paper")
-            from backend.models.database import BotState
+            from backend.models.botstate_db import BotState
 
             botstate = (
                 session.query(BotState)

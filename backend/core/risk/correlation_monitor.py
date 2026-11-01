@@ -17,7 +17,7 @@ from backend.monitoring.agi_metrics import (
     record_correlation_blocked,
 )
 from backend.db.utils import get_db_session
-from backend.models.database import Trade
+from backend.models.trade_db import Trade
 
 # ── Market category definitions ──────────────────────────────────────────────
 

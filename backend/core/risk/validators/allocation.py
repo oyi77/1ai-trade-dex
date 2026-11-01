@@ -7,7 +7,9 @@ from typing import Optional
 from loguru import logger
 from sqlalchemy import func
 
-from backend.models.database import BotState, StrategyConfig, Trade
+from backend.models.botstate_db import BotState
+from backend.models.strategy_db import StrategyConfig
+from backend.models.trade_db import Trade
 
 
 def count_enabled_strategies(db, mode: Optional[str] = None) -> Optional[int]:
@@ -33,7 +35,7 @@ def get_strategy_allocation(
 ) -> float:
     """Get strategy allocation using AGI allocation if available, else equal-weight fallback."""
     import json
-    from backend.models.database import BotState
+    from backend.models.botstate_db import BotState
 
     # Check if AGI bankroll allocation is enabled
     if getattr(settings_obj, "AGI_BANKROLL_ALLOCATION_ENABLED", False):

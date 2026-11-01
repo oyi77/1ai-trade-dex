@@ -8,7 +8,9 @@ from loguru import logger
 
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import BotState, StrategyConfig, Trade
+from backend.models.botstate_db import BotState
+from backend.models.strategy_db import StrategyConfig
+from backend.models.trade_db import Trade
 from sqlalchemy import func
 
 

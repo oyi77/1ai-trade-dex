@@ -8,7 +8,7 @@ from loguru import logger
 from sqlalchemy import func
 
 from backend.db.utils import get_db_session
-from backend.models.database import Trade
+from backend.models.trade_db import Trade
 
 
 def check_side_lock(

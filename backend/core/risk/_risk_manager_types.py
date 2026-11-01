@@ -11,7 +11,9 @@ from typing import Optional, Tuple
 
 from sqlalchemy import func, or_
 
-from backend.models.database import Trade, BotState, for_update
+from backend.models.botstate_db import BotState
+from backend.models.trade_db import Trade
+from backend.models.engine import for_update
 
 def _not_backfill_settlement_source():
     return or_(

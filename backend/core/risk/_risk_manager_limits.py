@@ -14,7 +14,9 @@ from loguru import logger
 
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import Trade, BotState, for_update
+from backend.models.botstate_db import BotState
+from backend.models.trade_db import Trade
+from backend.models.engine import for_update
 from backend.monitoring.hft_metrics import record_signal, db_query_duration
 from backend.monitoring.metrics import increment_risk_rejection
 from backend.core.risk.correlation_monitor import CorrelationMonitor
@@ -35,7 +37,7 @@ class RiskManagerLimitsMixin:
     def _count_enabled_strategies(self, db, mode: Optional[str] = None) -> Optional[int]:
         """Count the number of enabled strategies in StrategyConfig."""
         try:
-            from backend.models.database import StrategyConfig
+            from backend.models.strategy_db import StrategyConfig
 
             query = db.query(StrategyConfig).filter(StrategyConfig.enabled.is_(True))
             if mode:
@@ -362,7 +364,7 @@ class RiskManagerLimitsMixin:
                 f"against dynamic concentration limit={max_concentration_pct:.0%} of bankroll (${bankroll:.2f})"
             )
             # Get event_slug for this market to group by event
-            from backend.models.database import Trade as T
+            from backend.models.trade_db import Trade as T
 
             event_slug = None
             existing = (

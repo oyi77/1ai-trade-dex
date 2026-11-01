@@ -7,7 +7,7 @@ from typing import Optional
 
 from backend.config import settings
 from backend.db.utils import get_db_session
-from backend.models.database import Trade
+from backend.models.trade_db import Trade
 from loguru import logger
 
 

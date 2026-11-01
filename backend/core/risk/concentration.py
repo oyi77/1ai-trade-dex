@@ -108,7 +108,7 @@ def check_concentration(
             f"against dynamic concentration limit={max_concentration_pct:.0%} of bankroll (${bankroll:.2f})"
         )
         # Get event_slug for this market to group by event
-        from backend.models.database import Trade as T
+        from backend.models.trade_db import Trade as T
 
         event_slug = None
         existing = (

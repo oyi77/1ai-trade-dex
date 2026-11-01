@@ -13,7 +13,10 @@ from typing import Any, Dict, Optional, Tuple
 
 from loguru import logger
 
-from backend.models.database import BotState, SessionLocal, StrategyConfig, Trade
+from backend.models.botstate_db import BotState
+from backend.models.engine import SessionLocal
+from backend.models.strategy_db import StrategyConfig
+from backend.models.trade_db import Trade
 
 
 class AlertSeverity(str):

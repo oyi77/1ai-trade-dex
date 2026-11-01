@@ -43,7 +43,7 @@ def evaluate_apex_signal(signal, ctx) -> RiskDecision:
     # 3. Position limits
     max_concurrent = int(getattr(settings, "APEX_MAX_CONCURRENT", 5))
     try:
-        from backend.models.database import Trade
+        from backend.models.trade_db import Trade
 
         open_count = (
             ctx.db.query(Trade)

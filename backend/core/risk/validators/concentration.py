@@ -8,7 +8,7 @@ import time
 from loguru import logger
 from sqlalchemy import func
 
-from backend.models.database import Trade
+from backend.models.trade_db import Trade
 from backend.monitoring.hft_metrics import record_signal
 from backend.monitoring.metrics import increment_risk_rejection
 
