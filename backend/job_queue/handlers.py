@@ -193,3 +193,19 @@ async def weather_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
             "message": f"Weather scan failed: {str(e)}",
             "data": {"job_type": "weather_scan", "params": payload},
         }
+
+
+async def nexus_signal(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Worker handler for Nexus screening verdicts.
+
+    Phase 1 durable intake only: no memecoin execution adapter exists yet, so
+    returning failure here prevents silent queue accumulation and marks each
+    enqueued inbound verdict as dead_letter through the standard path.
+    """
+    return {
+        "success": False,
+        "error": "Nexus intake not enabled — execution adapter unavailable",
+        "error_class": "permanent",
+        "message": "Nexus signal acknowledged but not executed",
+        "data": {"job_type": "nexus_signal", "params": payload},
+    }

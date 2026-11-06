@@ -93,6 +93,7 @@ def _grouped_settings() -> Dict[str, Dict[str, Any]]:
                 "KALSHI_API_KEY", getattr(s, "KALSHI_API_KEY", None)
             ),
             "ADMIN_API_KEY": _mask("ADMIN_API_KEY", s.ADMIN_API_KEY),
+            "NEXUS_INBOUND_API_KEYS": _mask("NEXUS_INBOUND_API_KEYS", getattr(s, "NEXUS_INBOUND_API_KEYS", None)),
             "ANTHROPIC_API_KEY": _mask(
                 "ANTHROPIC_API_KEY", getattr(s, "ANTHROPIC_API_KEY", None)
             ),

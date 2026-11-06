@@ -306,6 +306,7 @@ class Worker:
             "weather_scan": ["mode"],
             "settlement_check": [],
             "signal_generation": [],
+            "nexus_signal": [],
         }
 
         if job.job_type not in VALID_JOB_TYPES:
@@ -328,6 +329,8 @@ class Worker:
             result = await handlers.settlement_check(job.payload)
         elif job.job_type == "signal_generation":
             result = await handlers.signal_generation(job.payload)
+        elif job.job_type == "nexus_signal":
+            result = await handlers.nexus_signal(job.payload)
         else:
             # This should never happen due to validation above, but kept for safety
             raise ValueError(f"Unknown job type: {job.job_type}")
