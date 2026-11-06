@@ -1,7 +1,5 @@
 import asyncio
 
-import pytest
-
 from backend.job_queue.handlers import nexus_signal
 from backend.job_queue.worker import Worker
 
