@@ -196,16 +196,37 @@ async def weather_scan(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def nexus_signal(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Worker handler for Nexus screening verdicts.
+    """Queue handler for an inbound Nexus screening verdict.
 
-    Phase 1 durable intake only: no memecoin execution adapter exists yet, so
-    returning failure here prevents silent queue accumulation and marks each
-    enqueued inbound verdict as dead_letter through the standard path.
+    Phase 2 keeps execution abort-only: the adapter is instantiated but every
+    execution attempt returns ``NOT_EXECUTED`` behind HALT.
     """
+    try:
+        from backend.modules.execution.memecoin_adapter import MemecoinExecAdapter
+
+        adapter = MemecoinExecAdapter()
+        exec_result = await adapter.execute(payload if isinstance(payload, dict) else {})
+    except Exception as e:  # adapter must never become a live escape hatch
+        return {
+            "success": False,
+            "error": f"Nexus execution adapter failed closed: {e}",
+            "error_class": "permanent",
+            "message": "Nexus signal acknowledged but not executed",
+            "status": "NOT_EXECUTED",
+            "reason": "EXECUTION_DISABLED",
+            "primitive": "MEMO",
+            "memo": None,
+            "data": {"job_type": "nexus_signal", "params": payload},
+        }
+
     return {
         "success": False,
         "error": "Nexus intake not enabled — execution adapter unavailable",
         "error_class": "permanent",
-        "message": "Nexus signal acknowledged but not executed",
+        "message": exec_result.get("status", "NOT_EXECUTED"),
+        "status": exec_result.get("status", "NOT_EXECUTED"),
+        "reason": exec_result.get("reason", "EXECUTION_DISABLED"),
+        "primitive": exec_result.get("primitive", "MEMO"),
+        "memo": exec_result.get("memo"),
         "data": {"job_type": "nexus_signal", "params": payload},
     }

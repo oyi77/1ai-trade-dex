@@ -45,6 +45,9 @@ class AGISystemMixin:
     PMXT_ENABLED: bool = False
     ADMIN_API_KEY: Optional[str] = None
     NEXUS_INBOUND_API_KEYS: Optional[str] = None
+    MEMECOIN_EXECUTION_ENABLED: bool = False
+    MEMECOIN_EXECUTION_HALTED: bool = True
+
 
     # Platform wallet credentials
     WALLET_PUBLIC_ADDRESS: Optional[str] = None
