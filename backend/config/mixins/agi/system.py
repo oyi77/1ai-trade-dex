@@ -44,6 +44,7 @@ class AGISystemMixin:
     KALSHI_ENABLED: bool = False
     PMXT_ENABLED: bool = False
     ADMIN_API_KEY: Optional[str] = None
+    NEXUS_INBOUND_API_KEYS: Optional[str] = None
 
     # Platform wallet credentials
     WALLET_PUBLIC_ADDRESS: Optional[str] = None

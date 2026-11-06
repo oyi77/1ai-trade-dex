@@ -26,8 +26,8 @@ except ImportError:
     Account = None
 
 from loguru import logger as _import_logger
-from backend.api.auth import router as auth_router
-from backend.api.markets import router as markets_router
+from backend.api.auth import router as auth_router  # noqa: E402
+from backend.api.nexus_router import router as nexus_router  # noqa: E402
 from backend.api.trading import (
     router as trading_router,
 )
@@ -91,14 +91,12 @@ from backend.api.calibration_routes import router as calibration_router
 if Account is None:
     _import_logger.warning("eth_account not available - wallet creation disabled")
 
-
 app = FastAPI(
     title="BTC 5-Min Trading Bot",
     description="Polymarket BTC Up/Down 5-minute market trading bot",
     version="3.0.0",
     lifespan=lifespan,
 )
-
 
 @app.exception_handler(Exception)
 async def production_exception_handler(request: Request, exc: Exception):
@@ -114,7 +112,6 @@ async def production_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"},
     )
-
 
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
@@ -142,15 +139,14 @@ except ImportError:
     logger.warning("TimeoutMiddleware not available — skipping")
 
 app.include_router(auth_router, prefix="/api/v1")
-app.include_router(markets_router, prefix="/api/v1")
 app.include_router(trading_router, prefix="/api/v1")
 app.include_router(copy_trading_router, prefix="/api/v1")
 app.include_router(arbitrage_router, prefix="/api/v1")
 app.include_router(market_intel_router, prefix="/api/v1")
 app.include_router(auto_trader_router, prefix="/api/v1")
 app.include_router(events_router, prefix="/api/v1")
+app.include_router(nexus_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
-app.include_router(backtest_router, prefix="/api/v1")
 app.include_router(wallets_router, prefix="/api/v1")
 app.include_router(wallet_allocations_router, prefix="/api/v1")
 app.include_router(copy_policy_router, prefix="/api/v1")
@@ -211,13 +207,11 @@ app.include_router(hft_routes_router, prefix="/api/v1")
 app.include_router(sse_events_router, prefix="/api/v1")
 app.include_router(websockets_router)
 
-
 @app.get("/api/health", include_in_schema=False)
 async def legacy_api_health_check():
     """Backward-compatible liveness alias for legacy monitors."""
 
     return await system_liveness_check()
-
 
 @app.get("/metrics", include_in_schema=False)
 async def prometheus_metrics():
@@ -228,14 +222,12 @@ async def prometheus_metrics():
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
-
 # Add metrics middleware for automatic tracking
 @app.middleware("http")
 async def metrics_middleware_wrapper(request: Request, call_next):
     from backend.monitoring.middleware import metrics_middleware
 
     return await metrics_middleware(request, call_next)
-
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -259,9 +251,7 @@ class ConnectionManager:
                     f"[api.main.ConnectionManager.broadcast] {type(e).__name__}: Failed to broadcast message to WebSocket connection: {e}"
                 )
 
-
 ws_manager = ConnectionManager()
-
 
 # Pydantic response models
 # Default backtest configuration values
@@ -269,7 +259,6 @@ _DEFAULT_MAX_TRADE_SIZE = 100.0
 _DEFAULT_MIN_EDGE_THRESHOLD = 0.02
 _DEFAULT_MARKET_TYPES = ["BTC"]
 DEFAULT_SLIPPAGE_BPS = 5
-
 
 class BacktestRequest(BaseModel):
     initial_bankroll: float = 1000.0
@@ -280,13 +269,11 @@ class BacktestRequest(BaseModel):
     market_types: list[str] = ["BTC", "Weather", "CopyTrader"]
     slippage_bps: int = 5  # basis points
 
-
 class FrontendBacktestRequest(BaseModel):
     strategy_name: str
     start_date: str | None = None
     end_date: str | None = None
     initial_bankroll: float = 10000.0
-
 
 # Core endpoints
 @app.get("/api/v1/health/dependencies")
@@ -560,11 +547,9 @@ async def health_check(db: Session = Depends(get_db)):
     db.rollback()
     return response
 
-
 # =========================================================================
 # Copy Trader endpoints
 # =========================================================================
-
 
 class ScoredTraderResponse(BaseModel):
     wallet: str
@@ -576,7 +561,6 @@ class ScoredTraderResponse(BaseModel):
     estimated_bankroll: float
     score: float
     market_diversity: float
-
 
 class CopySignalResponse(BaseModel):
     source_wallet: str
@@ -590,11 +574,9 @@ class CopySignalResponse(BaseModel):
     title: str
     timestamp: str
 
-
 # =========================================================================
 # Sync Status Endpoints
 # =========================================================================
-
 
 if __name__ == "__main__":
     import uvicorn
