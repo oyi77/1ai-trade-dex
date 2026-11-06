@@ -11,7 +11,7 @@ yet — the queue handler stays fail-closed.
 import hmac
 import logging
 import os
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -35,12 +35,14 @@ router = APIRouter(prefix="/nexus", tags=["Nexus Intelligence"])
 class NexusSignal(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    token_address: str = Field(min_length=8, max_length=128)
-    network: str
-    confidence: float = Field(ge=0.0, le=1.0)
-    entry_price: float | None = None
+    token_address: Optional[str] = Field(default=None)
+    network: Optional[str] = Field(default=None)
+    confidence: Optional[float] = Field(default=None)
+    entry_price: Optional[float] = Field(default=None)
     risk_params: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    payload: Optional[dict[str, Any]] = Field(default=None)
+    deliver: bool = Field(default=False)
 
 
 def _normalize_network(raw: Any) -> str:
@@ -190,6 +192,13 @@ async def receive_nexus_signal(request: Request) -> dict[str, Any]:
             signal = NexusSignal(**body)
         except Exception as exc:
             raise HTTPException(status_code=422, detail=str(exc))
+
+    # Explicit network support gate (flat + tracker)
+    if signal.network not in SUPPORTED_NETWORKS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported network '{signal.network}'",
+        )
 
     # Final gate on confidence
     if signal.confidence < MIN_CONFIDENCE:

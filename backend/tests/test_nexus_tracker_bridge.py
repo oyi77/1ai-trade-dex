@@ -9,7 +9,7 @@ from backend.models.database import SessionLocal, JobQueue
 TRACKER_PAYLOAD = {
     "payload": {
         "ticker": "BONK",
-        "contract": "AbCdef1234567890",
+        "contract": "TrackerAddr12345",
         "ageMinutes": 12,
         "security": {
             "mintable": False,
@@ -61,7 +61,7 @@ def test_tracker_payload_forwarding(client: TestClient) -> None:
         row = db.query(JobQueue).filter(JobQueue.id == int(data["job_id"])).first()
         assert row is not None
         assert row.job_type == "nexus_signal"
-        assert row.payload["token_address"] == "AbCdef1234567890"
+        assert row.payload["token_address"] == "TrackerAddr12345"
         assert row.payload["network"] == "solana"
         assert row.payload["confidence"] == 0.75
         assert "source_payload" in row.payload["metadata"]
