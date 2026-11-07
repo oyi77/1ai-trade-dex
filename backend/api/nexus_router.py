@@ -60,6 +60,14 @@ def _coerce_tracker_body(body: dict[str, Any]) -> NexusSignal:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=422, detail="payload must be an object")
 
+    # High-conviction gate: accept tracker's own verdict when supplied.
+    decision = body.get("decision")
+    if isinstance(decision, dict) and decision.get("status") not in (None, "SIGNAL"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Tracker verdict is not SIGNAL: {decision.get('status')!r}",
+        )
+
     contract = payload.get("contract") or payload.get("token_address")
     if not contract or len(str(contract)) < 8:
         raise HTTPException(
@@ -75,8 +83,16 @@ def _coerce_tracker_body(body: dict[str, Any]) -> NexusSignal:
             detail=f"Unsupported network '{chain}' → normalized '{network}'",
         )
 
-    confidence = body.get("confidence", 0.75)
-    if not isinstance(confidence, (int, float)) or confidence < MIN_CONFIDENCE:
+    confidence = body.get("confidence", body.get("score", 0.75))
+    # High conviction gate: only signals scoring at least 0.75 are persisted.
+    if not isinstance(confidence, (int, float)):
+        raise HTTPException(status_code=422, detail="confidence must be numeric")
+    if confidence < 0.75:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Confidence {confidence} below high-conviction 0.75",
+        )
+    if confidence < MIN_CONFIDENCE:
         raise HTTPException(
             status_code=422,
             detail=f"Confidence {confidence!r} below floor {MIN_CONFIDENCE}",
