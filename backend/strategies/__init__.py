@@ -8,3 +8,4 @@ from backend.strategies.multi_outcome_arb import MultiOutcomeArbStrategy  # noqa
 from backend.strategies.negrisk_bundle_arb import NegRiskBundleArbStrategy  # noqa: F401
 from backend.strategies.flash_crash_reversion import FlashCrashReversionStrategy  # noqa: F401
 from backend.strategies.world_cup_specialist import WorldCupSpecialistStrategy  # noqa: F401
+from backend.strategies.baw_hunter import BAWHunterStrategy  # noqa: F401
